@@ -1,4 +1,14 @@
-import type { CellValue } from 'exceljs'
+import ExcelJS, { type CellValue } from 'exceljs'
+
+// Laster en xlsx fra Buffer/ArrayBuffer. Sentraliserer casten som ellers
+// trengs pga. drift mellom @types/node sin Buffer<ArrayBufferLike> og exceljs.
+export async function lastArbeidsbok(
+  data: Buffer | ArrayBuffer,
+): Promise<ExcelJS.Workbook> {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(data as unknown as Parameters<typeof wb.xlsx.load>[0])
+  return wb
+}
 
 // Trekker ut en ren primitivverdi fra en exceljs-celle (håndterer rik tekst,
 // formler og hyperlenker som ellers blir "[object Object]").
