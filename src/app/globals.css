@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Sentiqa — Fluent 2-inspirert basis (§12). Lys, tett, verktøy-aktig.
+   Full designpass kommer senere; dette er nok til at fundamentet ser ryddig ut. */
+:root {
+  --bg: #f3f3f3;            /* lys grå arbeidsflate */
+  --kort: #ffffff;
+  --tekst: #1b1a19;
+  --tekst-svak: #605e5c;
+  --kant: #e1dfdd;
+  --skygge: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.06);
+  --primaer: #0f6cbd;       /* Fluent-blå */
+  --gradient: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6); /* brand-aksent */
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--tekst);
+  font-family: "Segoe UI", system-ui, Arial, sans-serif;
+  margin: 0;
+}
+
+a { color: inherit; text-decoration: none; }
+h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.25rem; }
+h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem; }
+.undertittel { color: var(--tekst-svak); margin: 0 0 1.25rem; }
+
+/* Brand-merke */
+.merke {
+  font-weight: 700;
+  font-size: 1.1rem;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.02em;
+}
+
+/* Kort */
+.kort {
+  background: var(--kort);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius);
+  box-shadow: var(--skygge);
+  padding: 1.5rem;
+}
+
+/* Innlogging */
+.logg-inn {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+.logg-inn .kort { width: 100%; max-width: 360px; }
+.logg-inn .merke { display: block; margin-bottom: 1rem; }
+
+/* Skjema */
+.skjema { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem; }
+.felt { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--tekst-svak); }
+.felt input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--kant);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: var(--tekst);
+  background: #fff;
+}
+.felt input:focus { outline: 2px solid var(--primaer); outline-offset: -1px; }
+.feil { color: #b10e1c; font-size: 0.85rem; margin: 0; white-space: pre-line; }
+
+button {
+  background: var(--primaer);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: default; }
+button.logg-ut { background: transparent; color: var(--tekst-svak); font-weight: 500; }
+button.logg-ut:hover { color: var(--tekst); }
+
+/* App-skall */
+.skall { display: grid; grid-template-columns: 220px 1fr; min-height: 100dvh; }
+.sidemeny {
+  background: #fff;
+  border-right: 1px solid var(--kant);
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.sidemeny nav { display: flex; flex-direction: column; gap: 0.2rem; }
+.sidemeny nav a {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--tekst);
+}
+.sidemeny nav a:hover { background: var(--bg); }
+
+.hoved { display: flex; flex-direction: column; }
+.toppstripe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--kant);
+}
+.bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.6rem; }
+.rolle-pip {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--gradient);
+  color: #fff;
+  font-weight: 600;
+}
+.innhold { padding: 1.5rem; }
+.innhold .kort { margin-top: 1rem; max-width: 640px; }
