@@ -39,3 +39,70 @@ export type SalgsstatistikkResultat = {
   inkludererMoms: boolean
   stasjoner: SalgsstatistikkStasjon[]
 }
+
+// --- St1 0758 SalesPerHour (timesalg/heatmap) ---
+export type TimesalgRad = {
+  time: string // "0-1" … "23-24"
+  salg: number
+  kostpris: number
+  mva: number
+  antallVarer: number
+  antallKunder: number
+}
+export type SalesPerHourStasjon = {
+  butikknummer: string | null // filen har kun navn → matches på navn (§6)
+  navn: string
+  timer: TimesalgRad[]
+}
+export type SalesPerHourResultat = {
+  rapporttype: 'st1_salesperhour'
+  dato: string | null
+  stasjoner: SalesPerHourStasjon[]
+}
+
+// --- St1 0018 CashierStatistics (kassererstatistikk) ---
+export type KassererRad = {
+  nr: string
+  navn: string
+  omsetningInkMva: number
+  bonger: number
+  returAntall: number
+  returBelop: number
+  makulerteAntall: number
+  makulerteBelop: number
+  slettedeAntall: number
+  slettedeBelop: number
+}
+export type CashierStatsStasjon = {
+  butikknummer: string
+  navn: string
+  kasserere: KassererRad[]
+}
+export type CashierStatsResultat = {
+  rapporttype: 'st1_cashierstats'
+  dato: string | null
+  stasjoner: CashierStatsStasjon[]
+}
+
+// --- St1 0452 Varetransaksjonsliste (synlig svinn) ---
+export type SvinnTransaksjon = {
+  ean: string | null
+  varenavn: string
+  varenummer: string | null
+  operatornr: string | null
+  transaksjonstype: string
+  arsakskode: string
+  dato: string | null
+  nettopris: number
+  antall: number
+  nettoprisTotal: number
+}
+export type VaretransStasjon = {
+  butikknummer: string
+  navn: string
+  transaksjoner: SvinnTransaksjon[]
+}
+export type VaretransResultat = {
+  rapporttype: 'salgsgrid_varetrans'
+  stasjoner: VaretransStasjon[]
+}

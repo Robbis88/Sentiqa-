@@ -1,4 +1,12 @@
-import { celletekst, celletall, forsteDatoIso, kodeOgNavn, lastArbeidsbok } from './felles'
+import {
+  celletekst,
+  celletall,
+  forsteDatoIso,
+  kodeOgNavn,
+  lastArbeidsbok,
+  ParserFeil,
+  tolkButikk,
+} from './felles'
 import type {
   Salgslinje,
   SalgsstatistikkResultat,
@@ -24,8 +32,6 @@ const KOL = {
   btoKr: 11,
   btoPct: 12,
 } as const
-
-export class ParserFeil extends Error {}
 
 export async function parseSalgsstatistikk(
   data: Buffer | ArrayBuffer,
@@ -56,10 +62,9 @@ export async function parseSalgsstatistikk(
     if (c1 === '') continue
 
     if (c1.startsWith('Butikk:')) {
-      // "Butikk: St1 Lone (4177)" → navn + 4-sifret butikknummer (§6)
-      const m = c1.match(/Butikk:\s*(.+?)\s*\((\d{3,4})\)\s*$/)
-      const butikknummer = m ? m[2].padStart(4, '0') : ''
-      const navn = m ? m[1].trim() : c1.replace(/^Butikk:\s*/, '').trim()
+      const b = tolkButikk(c1)
+      const butikknummer = b?.butikknummer ?? ''
+      const navn = b?.navn ?? c1.replace(/^Butikk:\s*/, '').trim()
       // Stasjonen gjentas som avslutnings-sum; start kun ny ved nytt nummer.
       if (!stasjon || stasjon.butikknummer !== butikknummer) {
         stasjon = { butikknummer, navn, linjer: [] }

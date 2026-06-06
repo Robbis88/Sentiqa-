@@ -1,5 +1,9 @@
 import ExcelJS, { type CellValue } from 'exceljs'
 
+// Kastes når en fil ikke har forventet struktur. Arbeideren fanger den og
+// setter jobben til 'feilet' med meldingen (§6 synlig import-status).
+export class ParserFeil extends Error {}
+
 // Laster en xlsx fra Buffer/ArrayBuffer. Sentraliserer casten som ellers
 // trengs pga. drift mellom @types/node sin Buffer<ArrayBufferLike> og exceljs.
 export async function lastArbeidsbok(
@@ -47,6 +51,22 @@ export function forsteDatoIso(tekst: string): string | null {
   if (!m) return null
   const [, dd, mm, yyyy] = m
   return `${yyyy}-${mm}-${dd}`
+}
+
+// Tolker en "Butikk:"-rad til butikknummer + navn. Tåler begge formatene
+// St1 bruker: "St1 Lone (4177)" og "4177 - St1 Lone" (§6 matchenøkkel).
+export function tolkButikk(
+  tekst: string,
+): { butikknummer: string; navn: string } | null {
+  const nr = tekst.match(/(\d{4})/)?.[1]
+  if (!nr) return null
+  const navn = tekst
+    .replace(/^Butikk:\s*/i, '')
+    .replace(nr, '')
+    .replace(/[()\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { butikknummer: nr, navn }
 }
 
 // Deler "120 MAT" → { kode: '120', navn: 'MAT' }. Tåler manglende navn.
