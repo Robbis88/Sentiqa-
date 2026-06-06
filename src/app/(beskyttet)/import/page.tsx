@@ -1,12 +1,22 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Opplaster } from './opplaster'
+import { behandleJobb } from '@/lib/import/behandle'
 
 const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
   mottatt: { tekst: 'Mottatt', klasse: 'gul' },
   behandler: { tekst: 'Behandler', klasse: 'gul' },
   parset: { tekst: 'Parset', klasse: 'gronn' },
   feilet: { tekst: 'Feilet', klasse: 'rod' },
+}
+
+const RAPPORT_ETIKETT: Record<string, string> = {
+  st1_salgsstatistikk: 'Salgsstatistikk',
+  st1_salesperhour: 'Timesalg',
+  st1_cashierstats: 'Kassererstat.',
+  salgsgrid_varetrans: 'Synlig svinn',
+  visma_resultat: 'Visma',
+  ukjent: '—',
 }
 
 // All tidsvisning tvinges til Europe/Oslo (§18)
@@ -20,6 +30,8 @@ type Jobb = {
   id: string
   status: string
   rapporttype: string
+  antall_rader: number | null
+  feilmelding: string | null
   opprettet_tid: string
   raa_filer: { filnavn: string; mottakskanal: string } | null
 }
@@ -33,7 +45,9 @@ export default async function ImportSide() {
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('import_jobber')
-    .select('id, status, rapporttype, opprettet_tid, raa_filer(filnavn, mottakskanal)')
+    .select(
+      'id, status, rapporttype, antall_rader, feilmelding, opprettet_tid, raa_filer(filnavn, mottakskanal)',
+    )
     .order('opprettet_tid', { ascending: false })
     .limit(50)
     .overrideTypes<Jobb[]>()
@@ -61,21 +75,36 @@ export default async function ImportSide() {
             <thead>
               <tr>
                 <th>Fil</th>
-                <th>Kanal</th>
+                <th>Type</th>
                 <th>Mottatt</th>
                 <th>Status</th>
+                <th>Resultat</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {jobber.map((j) => {
                 const s = STATUS_ETIKETT[j.status] ?? { tekst: j.status, klasse: 'gul' }
+                const kanBehandle = j.status === 'mottatt' || j.status === 'feilet'
                 return (
                   <tr key={j.id}>
                     <td>{j.raa_filer?.filnavn ?? '—'}</td>
-                    <td>{j.raa_filer?.mottakskanal === 'epost' ? 'E-post' : 'Drop-zone'}</td>
+                    <td>{RAPPORT_ETIKETT[j.rapporttype] ?? j.rapporttype}</td>
                     <td>{tid.format(new Date(j.opprettet_tid))}</td>
+                    <td><span className={`status-pip ${s.klasse}`}>{s.tekst}</span></td>
+                    <td className="resultat">
+                      {j.status === 'parset' && j.antall_rader != null
+                        ? `${j.antall_rader} linjer`
+                        : null}
+                      {j.feilmelding ? <span className="feil-tekst">{j.feilmelding}</span> : null}
+                    </td>
                     <td>
-                      <span className={`status-pip ${s.klasse}`}>{s.tekst}</span>
+                      {kanBehandle ? (
+                        <form action={behandleJobb}>
+                          <input type="hidden" name="jobbId" value={j.id} />
+                          <button type="submit" className="liten">Behandle</button>
+                        </form>
+                      ) : null}
                     </td>
                   </tr>
                 )
