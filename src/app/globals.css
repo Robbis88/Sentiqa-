@@ -124,4 +124,19 @@ button.logg-ut:hover { color: var(--tekst); }
   font-weight: 600;
 }
 .innhold { padding: 1.5rem; }
-.innhold .kort { margin-top: 1rem; max-width: 640px; }
+.innhold .kort { margin-top: 1rem; max-width: 720px; }
+
+/* Drop-zone */
+.opplaster { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.5rem; }
+.opplaster .ok { color: #0b6a0b; font-size: 0.85rem; margin: 0; width: 100%; }
+
+/* Tabell */
+.tabell { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
+.tabell th, .tabell td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--kant); }
+.tabell th { color: var(--tekst-svak); font-weight: 600; font-size: 0.8rem; }
+
+/* Status-pip (grønn/gul/rød, §12) */
+.status-pip { font-size: 0.75rem; padding: 0.12rem 0.5rem; border-radius: 999px; font-weight: 600; }
+.status-pip.gronn { background: #def7df; color: #0b6a0b; }
+.status-pip.gul   { background: #fff4ce; color: #835c00; }
+.status-pip.rod   { background: #fde7e9; color: #b10e1c; }

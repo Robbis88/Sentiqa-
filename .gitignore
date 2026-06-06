@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# eksempelfiler for parser-utvikling — kun LESMEG.md spores
+/eksempelfiler/*
+!/eksempelfiler/LESMEG.md
+
 # vercel
 .vercel
 
