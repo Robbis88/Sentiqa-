@@ -95,10 +95,18 @@ button.logg-ut:hover { color: var(--tekst); }
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
 }
-.sidemeny nav { display: flex; flex-direction: column; gap: 0.2rem; }
+.sidemeny nav { flex: 1; display: flex; flex-direction: column; gap: 0.9rem; overflow-y: auto; }
+.meny-seksjon { display: flex; flex-direction: column; gap: 0.1rem; }
+.meny-tittel {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--tekst-svak); font-weight: 700; padding: 0 0.6rem; margin-bottom: 0.2rem;
+}
 .sidemeny nav a {
-  padding: 0.5rem 0.6rem;
+  padding: 0.45rem 0.6rem;
   border-radius: 6px;
   font-size: 0.9rem;
   color: var(--tekst);

@@ -3,26 +3,57 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 
-// Venstremeny etter rolle (§12 Fluent-stil; §3 rollestyrt UI).
-const MENY: { sti: string; tekst: string; roller: Brukerrolle[] }[] = [
-  { sti: '/oversikt', tekst: 'Oversikt', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/assistent', tekst: 'Assistent', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/fokus', tekst: 'Fokus', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/lederstotte', tekst: 'Lederstøtte', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/konkurranser', tekst: 'Konkurranser', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/rutiner', tekst: 'Rutiner', roller: ['retailer_admin', 'butikksjef', 'butikkbruker_tablet'] },
-  { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: ['retailer_admin', 'butikksjef', 'butikkbruker_tablet'] },
-  { sti: '/salg', tekst: 'Salg', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/timesalg', tekst: 'Timesalg', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/svinn', tekst: 'Svinn', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/kasserer', tekst: 'Kasserer', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/regnskap', tekst: 'Regnskap', roller: ['retailer_admin'] },
-  { sti: '/analyse', tekst: 'Analyse', roller: ['retailer_admin'] },
-  { sti: '/vaer', tekst: 'Vær', roller: ['retailer_admin', 'butikksjef'] },
-  { sti: '/import', tekst: 'Import', roller: ['retailer_admin'] },
-  { sti: '/stasjoner', tekst: 'Stasjoner', roller: ['retailer_admin'] },
-  { sti: '/redaktor', tekst: 'Publisering', roller: ['plattform_redaktor'] },
+// Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
+type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
+const A: Brukerrolle = 'retailer_admin'
+const B: Brukerrolle = 'butikksjef'
+const T: Brukerrolle = 'butikkbruker_tablet'
+
+const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
+  {
+    tittel: '',
+    punkter: [{ sti: '/oversikt', tekst: 'Oversikt', roller: [A, B] }],
+  },
+  {
+    tittel: 'Analyse',
+    punkter: [
+      { sti: '/salg', tekst: 'Salg', roller: [A, B] },
+      { sti: '/timesalg', tekst: 'Timesalg', roller: [A, B] },
+      { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: [A, B] },
+      { sti: '/svinn', tekst: 'Svinn', roller: [A, B] },
+      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
+      { sti: '/vaer', tekst: 'Vær', roller: [A, B] },
+      { sti: '/regnskap', tekst: 'Regnskap', roller: [A] },
+      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
+    ],
+  },
+  {
+    tittel: 'AI & engasjement',
+    punkter: [
+      { sti: '/assistent', tekst: 'Assistent', roller: [A, B] },
+      { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
+      { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
+      { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Drift',
+    punkter: [
+      { sti: '/rutiner', tekst: 'Rutiner', roller: [A, B, T] },
+      { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B, T] },
+    ],
+  },
+  {
+    tittel: 'Innstillinger',
+    punkter: [
+      { sti: '/import', tekst: 'Import', roller: [A] },
+      { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },
+    ],
+  },
+  {
+    tittel: 'Plattform',
+    punkter: [{ sti: '/redaktor', tekst: 'Publisering', roller: ['plattform_redaktor'] }],
+  },
 ]
 
 export default async function BeskyttetLayout({
@@ -32,17 +63,23 @@ export default async function BeskyttetLayout({
 }) {
   // Gate + henter visningsdata. RLS er den egentlige muren; dette er laget over.
   const bruker = await hentInnloggetBruker()
-  const meny = MENY.filter((m) => m.roller.includes(bruker.rolle))
+  const seksjoner = SEKSJONER.map((s) => ({
+    ...s,
+    punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
+  })).filter((s) => s.punkter.length > 0)
 
   return (
     <div className="skall">
       <aside className="sidemeny">
         <div className="merke">Sentiqa</div>
         <nav>
-          {meny.map((m) => (
-            <Link key={m.sti} href={m.sti}>
-              {m.tekst}
-            </Link>
+          {seksjoner.map((s) => (
+            <div className="meny-seksjon" key={s.tittel || 'topp'}>
+              {s.tittel ? <span className="meny-tittel">{s.tittel}</span> : null}
+              {s.punkter.map((p) => (
+                <Link key={p.sti} href={p.sti}>{p.tekst}</Link>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>
