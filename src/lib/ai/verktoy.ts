@@ -302,6 +302,60 @@ export const VERKTOY: Record<string, Verktoy> = {
       return { kaaret: true, vinner: vinner.stasjon, stilling }
     },
   },
+
+  list_oppgaver: {
+    schema: {
+      name: 'list_oppgaver',
+      description: 'List åpne oppgaver (per stasjon).',
+      input_schema: { type: 'object', properties: {} },
+    },
+    async kjor(_input, { supabase }) {
+      const navn = await stasjonsNavn(supabase)
+      const { data } = await supabase
+        .from('oppgaver')
+        .select('id, stasjon_id, tittel, frist, status')
+        .is('slettet_tid', null)
+        .eq('status', 'apen')
+        .order('frist', { nullsFirst: false })
+        .limit(30)
+      return (data ?? []).map((o) => ({ ...o, stasjon: navn.get(o.stasjon_id) }))
+    },
+  },
+
+  opprett_oppgave: {
+    schema: {
+      name: 'opprett_oppgave',
+      description: 'Opprett en oppgave for en stasjon (f.eks. «bestill mer kaffe»). Krever butikknummer og tittel.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          butikknummer: { type: 'string', description: '4-sifret butikknummer' },
+          tittel: { type: 'string' },
+          beskrivelse: { type: 'string' },
+          frist: { type: 'string', description: 'YYYY-MM-DD (valgfri)' },
+        },
+        required: ['butikknummer', 'tittel'],
+      },
+    },
+    async kjor(input, { supabase, bruker }) {
+      const stasjonId = await nrTilId(supabase, input.butikknummer as string)
+      if (!stasjonId) return { feil: 'Ukjent butikknummer.' }
+      const { data, error } = await supabase
+        .from('oppgaver')
+        .insert({
+          retailer_id: bruker.retailerId,
+          stasjon_id: stasjonId,
+          tittel: input.tittel as string,
+          beskrivelse: (input.beskrivelse as string) ?? null,
+          frist: (input.frist as string) || null,
+          opprettet_av: bruker.id,
+        })
+        .select('id')
+        .single()
+      if (error) return { feil: error.message }
+      return { opprettet: true, id: data.id }
+    },
+  },
 }
 
 export function verktoyForRolle(erAdmin: boolean): Anthropic.Tool[] {

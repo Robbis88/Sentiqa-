@@ -22,6 +22,8 @@ const VERKTOY_ETIKETT: Record<string, string> = {
   list_konkurranser: 'konkurranser',
   opprett_konkurranse: 'opprett konkurranse',
   kar_vinner: 'kår vinner',
+  list_oppgaver: 'oppgaver',
+  opprett_oppgave: 'opprett oppgave',
 }
 
 function systemprompt(bruker: InnloggetBruker, idag: string): string {
