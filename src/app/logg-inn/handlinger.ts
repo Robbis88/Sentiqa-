@@ -6,7 +6,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 const InnloggingSkjema = z.object({
   epost: z.email({ error: 'Skriv inn en gyldig e-postadresse.' }),
   passord: z.string().min(1, { error: 'Skriv inn passordet ditt.' }),
-  retur: z.string().optional(),
+  retur: z.string().nullish(), // formData.get gir null når feltet mangler
 })
 
 export type InnloggingTilstand = { feil?: string } | undefined
