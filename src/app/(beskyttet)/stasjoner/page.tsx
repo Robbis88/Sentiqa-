@@ -1,21 +1,22 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { StasjonSkjema } from './skjema'
-import { settTerskel } from './handlinger'
+import { settTerskel, settStasjonstype } from './handlinger'
 
-const TYPE_ETIKETT: Record<string, string> = {
-  utfart: 'Utfart',
-  pendler: 'Pendler',
-  bydel: 'Bydel/lokal',
-  gjennomfart: 'Gjennomfart',
-  sentrum: 'Sentrum',
-}
+const TYPER: [string, string][] = [
+  ['utfart', 'Utfart'],
+  ['pendler', 'Pendler'],
+  ['bydel', 'Bydel/lokal'],
+  ['gjennomfart', 'Gjennomfart'],
+  ['sentrum', 'Sentrum'],
+]
 
 type Stasjon = {
   id: string
   butikknummer: string
   navn: string
   stasjonstype: string
+  stasjonstype_sekundaer: string | null
   svinnterskel_prosent: number | null
 }
 
@@ -28,7 +29,7 @@ export default async function StasjonerSide() {
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('stasjoner')
-    .select('id, butikknummer, navn, stasjonstype, svinnterskel_prosent')
+    .select('id, butikknummer, navn, stasjonstype, stasjonstype_sekundaer, svinnterskel_prosent')
     .is('slettet_tid', null)
     .order('butikknummer')
     .overrideTypes<Stasjon[]>()
@@ -61,7 +62,19 @@ export default async function StasjonerSide() {
                 <tr key={s.id}>
                   <td>{s.butikknummer}</td>
                   <td>{s.navn}</td>
-                  <td>{TYPE_ETIKETT[s.stasjonstype] ?? s.stasjonstype}</td>
+                  <td>
+                    <form action={settStasjonstype} className="type-form">
+                      <input type="hidden" name="stasjon_id" value={s.id} />
+                      <select name="stasjonstype" defaultValue={s.stasjonstype} aria-label="Primær type">
+                        {TYPER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                      </select>
+                      <select name="stasjonstype_sekundaer" defaultValue={s.stasjonstype_sekundaer ?? ''} aria-label="Sekundær type">
+                        <option value="">(ingen)</option>
+                        {TYPER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                      </select>
+                      <button type="submit" className="liten">Lagre</button>
+                    </form>
+                  </td>
                   <td>
                     <form action={settTerskel} className="terskel-form">
                       <input type="hidden" name="stasjon_id" value={s.id} />

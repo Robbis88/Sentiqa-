@@ -51,6 +51,25 @@ export async function leggTilStasjon(
   return { ok: true }
 }
 
+const TYPER = ['utfart', 'pendler', 'bydel', 'gjennomfart', 'sentrum'] as const
+
+// Sett primær + valgfri sekundær stasjonstype (§7 – styrer analysene).
+export async function settStasjonstype(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin') return
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const primaer = String(formData.get('stasjonstype') ?? '')
+  const sekRaw = String(formData.get('stasjonstype_sekundaer') ?? '')
+  if (!stasjonId || !(TYPER as readonly string[]).includes(primaer)) return
+  const sekundaer = (TYPER as readonly string[]).includes(sekRaw) ? sekRaw : null
+  const supabase = await lagSupabaseServerKlient()
+  await supabase
+    .from('stasjoner')
+    .update({ stasjonstype: primaer, stasjonstype_sekundaer: sekundaer })
+    .eq('id', stasjonId)
+  revalidatePath('/stasjoner')
+}
+
 // Sett/oppdater svinnterskel per stasjon (§11).
 export async function settTerskel(formData: FormData) {
   const bruker = await hentInnloggetBruker()
