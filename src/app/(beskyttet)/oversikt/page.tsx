@@ -64,6 +64,35 @@ export default async function OversiktSide() {
     resultatRegnskap = data?.regnskap ?? null
   }
 
+  // Dagens drift-status (RLS scoper til brukerens stasjoner)
+  const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+  const [{ count: rutTot }, { count: rutGjort }, { count: sjekkTot }, { count: sjekkSvart }] = await Promise.all([
+    supabase.from('rutiner').select('*', { count: 'exact', head: true }).is('slettet_tid', null),
+    supabase.from('rutine_utforinger').select('*', { count: 'exact', head: true }).eq('dato', idag),
+    supabase.from('sjekkpunkter').select('*', { count: 'exact', head: true }).is('slettet_tid', null),
+    supabase.from('sjekkpunkt_svar').select('*', { count: 'exact', head: true }).eq('dato', idag),
+  ])
+
+  // Fokuspunkter til butikksjefen (deres landingsside)
+  let fokus: { type: string; tekst: string }[] = []
+  if (bruker.rolle === 'butikksjef') {
+    const { data: sisteF } = await supabase
+      .from('fokuspunkter')
+      .select('periode')
+      .order('periode', { ascending: false })
+      .limit(1)
+      .maybeSingle<{ periode: string }>()
+    if (sisteF) {
+      const { data } = await supabase
+        .from('fokuspunkter')
+        .select('type, tekst')
+        .eq('periode', sisteF.periode)
+        .limit(6)
+        .overrideTypes<{ type: string; tekst: string }[]>()
+      fokus = data ?? []
+    }
+  }
+
   return (
     <>
       <h1>Oversikt</h1>
@@ -100,15 +129,38 @@ export default async function OversiktSide() {
             </span>
           </Link>
         )}
+        {(rutTot ?? 0) > 0 && (
+          <Link href="/rutiner" className="kpi lenke">
+            <span className="kpi-tall">{rutGjort ?? 0} / {rutTot}</span>
+            <span className="kpi-merke">Rutiner gjort i dag</span>
+          </Link>
+        )}
+        {(sjekkTot ?? 0) > 0 && (
+          <Link href="/sjekkpunkt" className="kpi lenke">
+            <span className="kpi-tall">{sjekkSvart ?? 0} / {sjekkTot}</span>
+            <span className="kpi-merke">Sjekkpunkt besvart</span>
+          </Link>
+        )}
       </section>
 
-      <section className="kort">
-        <h2>Status</h2>
-        <p className="undertittel">
-          Datainntak er på plass: salg, timesalg, kasserer, svinn og regnskap importeres.
-          Neste lag er analyselaget (§7) og AI-assistenten (§8).
-        </p>
-      </section>
+      {fokus.length > 0 && (
+        <section className="kort">
+          <h2>Dine fokuspunkter</h2>
+          <ul className="fokus-liste">
+            {fokus.map((f, i) => (
+              <li key={i}>
+                <span className={`status-pip ${f.type === 'positivt' ? 'gronn' : 'gul'}`}>
+                  {f.type === 'positivt' ? 'Bra' : 'Følg med'}
+                </span>{' '}
+                {f.tekst}
+              </li>
+            ))}
+          </ul>
+          <p className="undertittel" style={{ marginTop: '0.5rem' }}>
+            <Link href="/fokus">Se alle fokuspunkter →</Link>
+          </p>
+        </section>
+      )}
     </>
   )
 }
