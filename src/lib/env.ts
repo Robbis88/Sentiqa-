@@ -15,6 +15,13 @@ const skjema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   // Delt hemmelighet som e-post-webhooken (§6) må sende i x-inntak-secret.
   EPOST_INNTAK_SECRET: z.string().min(1).optional(),
+  // Fiken-fakturering (§4). Token + selskap + bankkonto fra Fiken-kontoen din.
+  FIKEN_API_TOKEN: z.string().min(1).optional(),
+  FIKEN_COMPANY_SLUG: z.string().min(1).optional(),
+  FIKEN_BANK_ACCOUNT_CODE: z.string().min(1).optional(), // f.eks. "1920:10001"
+  FIKEN_INCOME_ACCOUNT: z.string().min(1).optional(), // salgskonto, default "3000"
+  FIKEN_VAT_TYPE: z.string().min(1).optional(), // "HIGH" (25 % mva) | "NONE" m.fl.
+  FAKTURA_SECRET: z.string().min(1).optional(), // beskytter /api/faktura
 })
 
 const resultat = skjema.safeParse(process.env)
