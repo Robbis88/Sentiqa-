@@ -123,6 +123,18 @@ button.logg-ut:hover { color: var(--tekst); }
   border-bottom: 1px solid var(--kant);
 }
 .bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.6rem; }
+.topp-hoyre { display: flex; align-items: center; gap: 1rem; }
+.klokke-lenke { position: relative; font-size: 1.2rem; text-decoration: none; line-height: 1; }
+.varsel-teller {
+  position: absolute; top: -6px; right: -8px; background: #b10e1c; color: #fff;
+  font-size: 0.65rem; font-weight: 700; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; display: flex; align-items: center; justify-content: center;
+}
+.varsel-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.varsel-liste li { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--kant); }
+.varsel-liste li:last-child { border-bottom: 0; }
+.varsel-liste li.lest { opacity: 0.55; }
+.varsel-tekst { font-size: 0.95rem; }
 .rolle-pip {
   font-size: 0.72rem;
   padding: 0.1rem 0.5rem;

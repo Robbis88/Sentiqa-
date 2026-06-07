@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { opprettVarsel } from '@/lib/varsler'
 
 function iDag(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -58,5 +59,25 @@ export async function svar(formData: FormData) {
     { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: verdi, svart_av: bruker.id, svart_tid: new Date().toISOString() },
     { onConflict: 'sjekkpunkt_id,dato' },
   )
+
+  // Kritisk sjekkpunkt besvart «Nei» → varsle stasjonen (§11).
+  if (!verdi && bruker.retailerId) {
+    const { data: sp } = await supabase
+      .from('sjekkpunkter')
+      .select('sporsmaal, kritisk')
+      .eq('id', sjekkpunktId)
+      .maybeSingle<{ sporsmaal: string; kritisk: boolean }>()
+    if (sp?.kritisk) {
+      await opprettVarsel(supabase, {
+        retailer_id: bruker.retailerId,
+        stasjon_id: stasjonId,
+        type: 'sjekkpunkt',
+        tittel: 'Kritisk sjekkpunkt: Nei',
+        tekst: sp.sporsmaal,
+        lenke: '/sjekkpunkt',
+      })
+    }
+  }
+
   revalidatePath('/sjekkpunkt')
 }

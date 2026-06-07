@@ -9,6 +9,7 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
+import { opprettVarsel } from '@/lib/varsler'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
 type Lagring = { antallRader: number; umatchet: string[] }
@@ -56,8 +57,17 @@ export async function behandleJobb(formData: FormData) {
     }>()
   if (!jobb?.raa_filer) return
 
-  const settFeil = (melding: string) =>
-    supabase.from('import_jobber').update({ status: 'feilet', feilmelding: melding }).eq('id', jobbId)
+  const settFeil = async (melding: string) => {
+    await supabase.from('import_jobber').update({ status: 'feilet', feilmelding: melding }).eq('id', jobbId)
+    // Varsle eier — en stille importfeil = en stasjon med manglende tall (§6/§14).
+    await opprettVarsel(supabase, {
+      retailer_id: retailerId,
+      type: 'import_feil',
+      tittel: `Import feilet: ${jobb.raa_filer?.filnavn ?? 'fil'}`,
+      tekst: melding,
+      lenke: '/import',
+    })
+  }
 
   await supabase.from('import_jobber').update({ status: 'behandler' }).eq('id', jobbId)
 

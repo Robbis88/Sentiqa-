@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 
@@ -68,6 +69,11 @@ export default async function BeskyttetLayout({
 }) {
   // Gate + henter visningsdata. RLS er den egentlige muren; dette er laget over.
   const bruker = await hentInnloggetBruker()
+  const supabase = await lagSupabaseServerKlient()
+  const { count: uleste } = await supabase
+    .from('varsler')
+    .select('*', { count: 'exact', head: true })
+    .eq('lest', false)
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
@@ -95,11 +101,15 @@ export default async function BeskyttetLayout({
             {bruker.fulltNavn ?? bruker.epost}
             <span className="rolle-pip">{ROLLE_ETIKETT[bruker.rolle]}</span>
           </span>
-          <form action={loggUt}>
-            <button type="submit" className="logg-ut">
-              Logg ut
-            </button>
-          </form>
+          <div className="topp-hoyre">
+            <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
+              🔔
+              {(uleste ?? 0) > 0 && <span className="varsel-teller">{uleste}</span>}
+            </Link>
+            <form action={loggUt}>
+              <button type="submit" className="logg-ut">Logg ut</button>
+            </form>
+          </div>
         </header>
         <main className="innhold">{children}</main>
       </div>
