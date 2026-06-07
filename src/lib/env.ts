@@ -10,6 +10,9 @@ const skjema = z.object({
   // Kun server-side (bakgrunnsarbeidere/admin). Valgfri inntil de bygges, så
   // et manglende secret aldri velter app-bygget. ALDRI eksponert i klient.
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  // Anthropic Claude (AI-assistenten, §8). Valgfri til den er lagt inn; uten
+  // den svarer assistenten at nøkkelen mangler i stedet for å velte bygget.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
 })
 
 const resultat = skjema.safeParse(process.env)

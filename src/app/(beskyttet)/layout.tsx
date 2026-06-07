@@ -6,6 +6,7 @@ import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 // Venstremeny etter rolle (§12 Fluent-stil; §3 rollestyrt UI).
 const MENY: { sti: string; tekst: string; roller: Brukerrolle[] }[] = [
   { sti: '/oversikt', tekst: 'Oversikt', roller: ['retailer_admin', 'butikksjef'] },
+  { sti: '/assistent', tekst: 'Assistent', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/salg', tekst: 'Salg', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/timesalg', tekst: 'Timesalg', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/svinn', tekst: 'Svinn', roller: ['retailer_admin', 'butikksjef'] },

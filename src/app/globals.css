@@ -157,6 +157,28 @@ button.logg-ut:hover { color: var(--tekst); }
 .oppmerksomhet ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .oppmerksomhet li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
+/* AI-chat (§8) */
+.chat { display: flex; flex-direction: column; height: calc(100dvh - 200px); min-height: 360px; margin-top: 1rem; }
+.chat-logg {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;
+  padding: 1rem; background: #fff; border: 1px solid var(--kant);
+  border-radius: var(--radius); box-shadow: var(--skygge);
+}
+.chat-tom { margin: auto; text-align: center; color: var(--tekst-svak); }
+.forslag { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 0.75rem; }
+.boble { max-width: 80%; padding: 0.6rem 0.85rem; border-radius: 12px; font-size: 0.92rem; line-height: 1.4; }
+.boble p { margin: 0; }
+.boble.bruker { align-self: flex-end; background: var(--primaer); color: #fff; border-bottom-right-radius: 3px; }
+.boble.assistent { align-self: flex-start; background: var(--bg); border: 1px solid var(--kant); border-bottom-left-radius: 3px; }
+.boble.venter { color: var(--tekst-svak); font-style: italic; }
+.boble .kilder { margin-top: 0.35rem; font-size: 0.72rem; opacity: 0.7; }
+.chat-skriv { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.chat-skriv input {
+  flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--kant);
+  border-radius: 8px; font-size: 0.95rem; background: #fff; color: var(--tekst);
+}
+.chat-skriv input:focus { outline: 2px solid var(--primaer); outline-offset: -1px; }
+
 /* Heatmap (timesalg, §7) */
 .heatmap-wrap { overflow-x: auto; }
 .heatmap { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
