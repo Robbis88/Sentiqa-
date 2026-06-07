@@ -161,6 +161,20 @@ button.logg-ut:hover { color: var(--tekst); }
 /* Tiltaksliste (§8C) */
 .tiltak-liste { margin: 0.5rem 0 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.92rem; line-height: 1.4; }
 
+/* Rutiner / tablet-avkryssing (§11, §10 – store touch-targets ≥44px) */
+.rutine-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.rutine-liste li { display: flex; align-items: center; gap: 0.75rem; }
+.rutine-liste li.gjort .rutine-tekst { color: var(--tekst-svak); text-decoration: line-through; }
+.kryss {
+  width: 44px; height: 44px; min-width: 44px; border-radius: 8px; padding: 0;
+  background: #fff; border: 2px solid var(--kant); color: #0b6a0b;
+  font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.kryss.av { background: #def7df; border-color: #0b6a0b; }
+.rutine-tekst { font-size: 1rem; }
+.bilde-merke { margin-left: 0.4rem; }
+.felt.avkryss { flex-direction: row; align-items: center; gap: 0.5rem; }
+
 /* Auto-fokus (§8B) */
 .generer { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
 .generer-melding { font-size: 0.85rem; color: var(--tekst-svak); }
