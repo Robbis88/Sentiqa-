@@ -140,6 +140,7 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.gronn { background: #def7df; color: #0b6a0b; }
 .status-pip.gul   { background: #fff4ce; color: #835c00; }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
+.status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
 /* Nøkkeltall-kort (§12: nøkkeltall øverst) */
 .nokkeltall { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
@@ -167,6 +168,7 @@ button.logg-ut:hover { color: var(--tekst); }
 .fokus-tittel { font-size: 0.85rem; font-weight: 700; margin: 0 0 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .fokus-tittel.gronn { color: #0b6a0b; }
 .fokus-tittel.gul { color: #835c00; }
+.fokus-tittel.bla { color: #0f6cbd; }
 .fokus-liste { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.9rem; line-height: 1.4; }
 @media (max-width: 640px) { .fokus-kol { grid-template-columns: 1fr; } }
 
