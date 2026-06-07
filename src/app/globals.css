@@ -157,6 +157,9 @@ button.logg-ut:hover { color: var(--tekst); }
 .oppmerksomhet ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .oppmerksomhet li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
+/* Tiltaksliste (§8C) */
+.tiltak-liste { margin: 0.5rem 0 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.92rem; line-height: 1.4; }
+
 /* Auto-fokus (§8B) */
 .generer { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
 .generer-melding { font-size: 0.85rem; color: var(--tekst-svak); }
