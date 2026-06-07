@@ -228,6 +228,8 @@ button.logg-ut:hover { color: var(--tekst); }
 
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+.terskel-form { display: flex; align-items: center; gap: 0.3rem; }
+.terskel-form input { width: 56px; padding: 0.3rem 0.4rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
 .resultat { max-width: 320px; font-size: 0.82rem; }
 .feil-tekst { color: #b10e1c; display: block; }
 

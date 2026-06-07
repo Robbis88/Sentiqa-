@@ -36,16 +36,47 @@ export default async function SvinnSide() {
     )
   }
 
-  const [{ data: rader }, { data: stasjoner }] = await Promise.all([
+  // Rullende 30-dagers vindu for svinn% mot terskel (§11: ikke dag-for-dag).
+  const slutt = siste.dato
+  const startD = new Date(slutt)
+  startD.setDate(startD.getDate() - 29)
+  const start = startD.toISOString().slice(0, 10)
+
+  const [{ data: rader }, { data: stasjoner }, { data: svinnVindu }, { data: matVindu }] = await Promise.all([
     supabase
       .from('synlig_svinn')
       .select('stasjon_id, dato, ean, varenavn, antall, nettopris_total')
       .eq('dato', siste.dato)
       .overrideTypes<Svinn[]>(),
-    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
+    supabase
+      .from('stasjoner')
+      .select('id, navn, butikknummer, svinnterskel_prosent')
+      .is('slettet_tid', null)
+      .order('butikknummer')
+      .overrideTypes<{ id: string; navn: string; butikknummer: string; svinnterskel_prosent: number | null }[]>(),
+    supabase.from('synlig_svinn').select('stasjon_id, nettopris_total').gte('dato', start).lte('dato', slutt).overrideTypes<{ stasjon_id: string; nettopris_total: number | null }[]>(),
+    supabase.from('v_salg_per_stasjon_dag').select('stasjon_id, mat_omsetning').gte('dato', start).lte('dato', slutt).overrideTypes<{ stasjon_id: string; mat_omsetning: number | null }[]>(),
   ])
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+
+  // Svinn% = synlig svinn / matsalg i vinduet, mot terskel per stasjon.
+  const svinnSum = new Map<string, number>()
+  for (const r of svinnVindu ?? []) svinnSum.set(r.stasjon_id, (svinnSum.get(r.stasjon_id) ?? 0) + (r.nettopris_total ?? 0))
+  const matSum = new Map<string, number>()
+  for (const r of matVindu ?? []) matSum.set(r.stasjon_id, (matSum.get(r.stasjon_id) ?? 0) + (r.mat_omsetning ?? 0))
+  const terskelrader = (stasjoner ?? []).map((s) => {
+    const svinn = svinnSum.get(s.id) ?? 0
+    const mat = matSum.get(s.id) ?? 0
+    const pst = mat > 0 ? (svinn / mat) * 100 : null
+    const terskel = s.svinnterskel_prosent
+    let klasse = 'gul'
+    if (pst == null || terskel == null) klasse = ''
+    else if (pst <= terskel) klasse = 'gronn'
+    else if (pst <= terskel * 1.25) klasse = 'gul'
+    else klasse = 'rod'
+    return { navn: `${s.butikknummer} ${s.navn}`, pst, terskel, klasse, svinn, mat }
+  })
   const alle = rader ?? []
   const total = alle.reduce((a, r) => a + (r.nettopris_total ?? 0), 0)
 
@@ -87,7 +118,33 @@ export default async function SvinnSide() {
       </section>
 
       <section className="kort">
-        <h2>Per stasjon</h2>
+        <h2>Svinn mot terskel · siste 30 dager</h2>
+        <p className="undertittel">Synlig svinn i % av matsalg, mot terskel per stasjon (§11).</p>
+        <table className="tabell">
+          <thead><tr><th>Stasjon</th><th>Svinn %</th><th>Terskel</th><th>Status</th></tr></thead>
+          <tbody>
+            {terskelrader.map((r) => (
+              <tr key={r.navn}>
+                <td>{r.navn}</td>
+                <td>{r.pst != null ? `${r.pst.toFixed(1)} %` : '—'}</td>
+                <td>{r.terskel != null ? `${r.terskel} %` : '—'}</td>
+                <td>
+                  {r.klasse ? (
+                    <span className={`status-pip ${r.klasse}`}>
+                      {r.klasse === 'gronn' ? 'Under terskel' : r.klasse === 'gul' ? 'Følg med' : 'Over terskel'}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="kort">
+        <h2>Per stasjon · {datoLang.format(new Date(siste.dato))}</h2>
         <table className="tabell">
           <thead><tr><th>Stasjon</th><th>Svinn</th><th>Enheter</th></tr></thead>
           <tbody>

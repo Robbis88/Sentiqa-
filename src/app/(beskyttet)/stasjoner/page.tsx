@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { StasjonSkjema } from './skjema'
+import { settTerskel } from './handlinger'
 
 const TYPE_ETIKETT: Record<string, string> = {
   utfart: 'Utfart',
@@ -61,7 +62,20 @@ export default async function StasjonerSide() {
                   <td>{s.butikknummer}</td>
                   <td>{s.navn}</td>
                   <td>{TYPE_ETIKETT[s.stasjonstype] ?? s.stasjonstype}</td>
-                  <td>{s.svinnterskel_prosent != null ? `${s.svinnterskel_prosent} %` : '—'}</td>
+                  <td>
+                    <form action={settTerskel} className="terskel-form">
+                      <input type="hidden" name="stasjon_id" value={s.id} />
+                      <input
+                        name="terskel"
+                        inputMode="decimal"
+                        defaultValue={s.svinnterskel_prosent ?? ''}
+                        placeholder="2,8"
+                        aria-label="Svinnterskel %"
+                      />
+                      <span>%</span>
+                      <button type="submit" className="liten">Lagre</button>
+                    </form>
+                  </td>
                 </tr>
               ))}
             </tbody>

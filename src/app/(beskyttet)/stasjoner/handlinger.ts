@@ -50,3 +50,18 @@ export async function leggTilStasjon(
   revalidatePath('/stasjoner')
   return { ok: true }
 }
+
+// Sett/oppdater svinnterskel per stasjon (§11).
+export async function settTerskel(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin') return
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const raw = String(formData.get('terskel') ?? '').replace(',', '.').trim()
+  if (!stasjonId) return
+  const verdi = raw === '' ? null : Number(raw)
+  if (verdi !== null && !Number.isFinite(verdi)) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('stasjoner').update({ svinnterskel_prosent: verdi }).eq('id', stasjonId)
+  revalidatePath('/stasjoner')
+  revalidatePath('/svinn')
+}
