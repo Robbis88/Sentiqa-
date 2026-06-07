@@ -9,6 +9,7 @@ const MENY: { sti: string; tekst: string; roller: Brukerrolle[] }[] = [
   { sti: '/assistent', tekst: 'Assistent', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/fokus', tekst: 'Fokus', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/lederstotte', tekst: 'Lederstøtte', roller: ['retailer_admin', 'butikksjef'] },
+  { sti: '/konkurranser', tekst: 'Konkurranser', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/salg', tekst: 'Salg', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/timesalg', tekst: 'Timesalg', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/svinn', tekst: 'Svinn', roller: ['retailer_admin', 'butikksjef'] },

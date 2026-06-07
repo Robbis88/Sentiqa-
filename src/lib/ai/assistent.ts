@@ -4,7 +4,7 @@ import { env } from '@/lib/env'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { ROLLE_ETIKETT } from '@/lib/auth/typer'
-import { VERKTOY, VERKTOY_SCHEMA } from './verktoy'
+import { VERKTOY, verktoyForRolle } from './verktoy'
 
 // Chatbot kjører på Sonnet (PROSJEKT.md §8/§18 — margin; hev til Opus ved behov).
 const CHATBOT_MODELL = 'claude-sonnet-4-6'
@@ -19,6 +19,9 @@ const VERKTOY_ETIKETT: Record<string, string> = {
   hent_regnskap: 'regnskap',
   hent_svinn: 'svinn',
   hent_timesalg: 'timesalg',
+  list_konkurranser: 'konkurranser',
+  opprett_konkurranse: 'opprett konkurranse',
+  kar_vinner: 'kår vinner',
 }
 
 function systemprompt(bruker: InnloggetBruker, idag: string): string {
@@ -32,6 +35,9 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     rolleRegel,
     'ALDRI finn på et tall. Slå alltid opp tall via verktøyene. Kan du ikke slå det opp, si det ærlig.',
     'Svar kort: 2–4 setninger, med konkrete tiltak (f.eks. «sjekk vaktplan man–ons», ikke «vurder bemanning»).',
+    'For irreversible handlinger (opprette konkurranse, kåre vinner): kall verktøyet FØRST uten bekreftet ' +
+      'for å vise en oppsummering/stilling, vis den til brukeren og spør «Skal jeg gjøre dette?», og kall ' +
+      'først igjen med bekreftet=true når brukeren sier ja.',
     'Alle beløp er i norske kroner. All tid er Europe/Oslo.',
     `Dagens dato er ${idag}.`,
     `Brukerens rolle: ${ROLLE_ETIKETT[bruker.rolle]}.`,
@@ -63,6 +69,7 @@ export async function kjorAssistent(
   ]
 
   const kilder = new Set<string>()
+  const tilgjengeligeVerktoy = verktoyForRolle(bruker.rolle === 'retailer_admin')
   let svar = ''
 
   for (let i = 0; i < MAKS_ITERASJONER; i++) {
@@ -70,7 +77,7 @@ export async function kjorAssistent(
       model: CHATBOT_MODELL,
       max_tokens: 2048,
       system: systemprompt(bruker, idag),
-      tools: VERKTOY_SCHEMA,
+      tools: tilgjengeligeVerktoy,
       messages,
     })
 
@@ -94,7 +101,7 @@ export async function kjorAssistent(
       let utdata: unknown
       try {
         utdata = verktoy
-          ? await verktoy.kjor(block.input as Record<string, unknown>, supabase)
+          ? await verktoy.kjor(block.input as Record<string, unknown>, { supabase, bruker })
           : { feil: 'Ukjent verktøy.' }
       } catch (e) {
         utdata = { feil: `Verktøyfeil: ${String(e)}` }

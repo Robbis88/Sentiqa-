@@ -1,15 +1,19 @@
 import 'server-only'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import type { InnloggetBruker } from '@/lib/auth/typer'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
+export type VerktoyKtx = { supabase: Klient; bruker: InnloggetBruker }
 
-// Hvert verktøy: JSON-schema (det Claude ser) + en kjør-funksjon som henter
-// data via brukerens Supabase-klient. RLS sørger for at en butikksjef kun når
-// egne stasjoner — AI-en kan aldri omgå tenant-/rollegrensen (§8).
+// Hvert verktøy: JSON-schema (det Claude ser) + en kjør-funksjon som henter/
+// endrer data via brukerens Supabase-klient. RLS sørger for at en butikksjef
+// kun når egne stasjoner — AI-en kan aldri omgå tenant-/rollegrensen (§8).
+// kunAdmin-verktøy (handling) tilbys bare til eier.
 export type Verktoy = {
   schema: Anthropic.Tool
-  kjor: (input: Record<string, unknown>, supabase: Klient) => Promise<unknown>
+  kunAdmin?: boolean
+  kjor: (input: Record<string, unknown>, ktx: VerktoyKtx) => Promise<unknown>
 }
 
 async function stasjonsNavn(supabase: Klient) {
@@ -49,7 +53,7 @@ export const VERKTOY: Record<string, Verktoy> = {
         'List alle stasjonene brukeren har tilgang til (butikknummer, navn, type). Bruk for å finne butikknummer før andre oppslag.',
       input_schema: { type: 'object', properties: {} },
     },
-    async kjor(_input, supabase) {
+    async kjor(_input, { supabase }) {
       const { data } = await supabase
         .from('stasjoner')
         .select('butikknummer, navn, stasjonstype')
@@ -66,12 +70,10 @@ export const VERKTOY: Record<string, Verktoy> = {
         'Hent daglig salg (omsetning eks. mva, antall) per stasjon og topp varegrupper for en dato. Utelat dato for siste tilgjengelige dag.',
       input_schema: {
         type: 'object',
-        properties: {
-          dato: { type: 'string', description: 'ISO-dato YYYY-MM-DD (valgfri)' },
-        },
+        properties: { dato: { type: 'string', description: 'ISO-dato YYYY-MM-DD (valgfri)' } },
       },
     },
-    async kjor(input, supabase) {
+    async kjor(input, { supabase }) {
       const dato = (input.dato as string) || (await sisteDato(supabase, 'v_salg_per_stasjon_dag'))
       if (!dato) return { feil: 'Ingen salgsdata funnet.' }
       const navn = await stasjonsNavn(supabase)
@@ -94,12 +96,10 @@ export const VERKTOY: Record<string, Verktoy> = {
         'Hent regnskap/resultat (omsetning, bruttofortjeneste, driftskostnader, resultat per regnskapskode med regnskap vs budsjett og avvik) for en måned. Utelat periode for siste.',
       input_schema: {
         type: 'object',
-        properties: {
-          periode: { type: 'string', description: 'YYYY-MM (valgfri)' },
-        },
+        properties: { periode: { type: 'string', description: 'YYYY-MM (valgfri)' } },
       },
     },
-    async kjor(input, supabase) {
+    async kjor(input, { supabase }) {
       let periode = input.periode ? `${input.periode}-01` : null
       if (!periode) {
         const { data } = await supabase.from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
@@ -125,7 +125,7 @@ export const VERKTOY: Record<string, Verktoy> = {
         properties: { dato: { type: 'string', description: 'YYYY-MM-DD (valgfri)' } },
       },
     },
-    async kjor(input, supabase) {
+    async kjor(input, { supabase }) {
       const dato = (input.dato as string) || (await sisteDato(supabase, 'synlig_svinn'))
       if (!dato) return { feil: 'Ingen svinndata funnet.' }
       const navn = await stasjonsNavn(supabase)
@@ -154,7 +154,7 @@ export const VERKTOY: Record<string, Verktoy> = {
         required: ['butikknummer'],
       },
     },
-    async kjor(input, supabase) {
+    async kjor(input, { supabase }) {
       const stasjonId = await nrTilId(supabase, input.butikknummer as string)
       if (!stasjonId) return { feil: 'Ukjent butikknummer.' }
       const dato = (input.dato as string) || (await sisteDato(supabase, 'timesalg'))
@@ -167,6 +167,145 @@ export const VERKTOY: Record<string, Verktoy> = {
       return { dato, butikknummer: input.butikknummer, timer: data ?? [] }
     },
   },
+
+  list_konkurranser: {
+    schema: {
+      name: 'list_konkurranser',
+      description: 'List pågående og avsluttede konkurranser mellom stasjonene.',
+      input_schema: { type: 'object', properties: {} },
+    },
+    async kjor(_input, { supabase }) {
+      const { data } = await supabase
+        .from('konkurranser')
+        .select('id, navn, kpi, periode_start, periode_slutt, premie_kr, status')
+        .is('slettet_tid', null)
+        .order('opprettet_tid', { ascending: false })
+        .limit(20)
+      return data ?? []
+    },
+  },
+
+  // --- Handling-verktøy (kun eier, to-stegs bekreftelse §8A) ---
+  opprett_konkurranse: {
+    kunAdmin: true,
+    schema: {
+      name: 'opprett_konkurranse',
+      description:
+        'Opprett en konkurranse mellom stasjoner. To-stegs bekreftelse: kall først UTEN bekreftet for å vise oppsummering, deretter MED bekreftet=true når brukeren har sagt ja.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          navn: { type: 'string' },
+          kpi: { type: 'string', description: 'Hva måles, f.eks. "omsetning pølse"' },
+          varegruppe_kode: { type: 'string', description: 'Varegruppekode som måles (utelat = total omsetning)' },
+          maaltype: { type: 'string', enum: ['omsetning', 'antall'] },
+          butikknummer: { type: 'array', items: { type: 'string' }, description: 'Deltakende stasjoner (utelat = alle)' },
+          periode_start: { type: 'string', description: 'YYYY-MM-DD' },
+          periode_slutt: { type: 'string', description: 'YYYY-MM-DD' },
+          premie_kr: { type: 'number' },
+          bekreftet: { type: 'boolean' },
+        },
+        required: ['navn', 'kpi', 'periode_start', 'periode_slutt'],
+      },
+    },
+    async kjor(input, { supabase, bruker }) {
+      const { navn, kpi, periode_start, periode_slutt, premie_kr } = input
+      if (!input.bekreftet) {
+        return {
+          venter_paa_bekreftelse: true,
+          oppsummering: `Opprette konkurranse «${navn}»: ${kpi}, ${periode_start}–${periode_slutt}${premie_kr ? `, premie ${premie_kr} kr` : ''}. Bekreft for å opprette.`,
+        }
+      }
+      const numre = Array.isArray(input.butikknummer) ? (input.butikknummer as string[]) : []
+      const stasjonIder: string[] = []
+      for (const n of numre) {
+        const id = await nrTilId(supabase, n)
+        if (id) stasjonIder.push(id)
+      }
+      const { data, error } = await supabase
+        .from('konkurranser')
+        .insert({
+          retailer_id: bruker.retailerId,
+          navn, kpi,
+          varegruppe_kode: (input.varegruppe_kode as string) ?? null,
+          maaltype: (input.maaltype as string) ?? 'omsetning',
+          stasjon_ids: stasjonIder,
+          periode_start, periode_slutt,
+          premie_kr: (premie_kr as number) ?? null,
+          opprettet_av: bruker.id,
+        })
+        .select('id')
+        .single()
+      if (error) return { feil: error.message }
+      return { opprettet: true, id: data.id }
+    },
+  },
+
+  kar_vinner: {
+    kunAdmin: true,
+    schema: {
+      name: 'kar_vinner',
+      description:
+        'Mål en konkurranse fra daglig salg og kår vinner. To-stegs bekreftelse: kall først UTEN bekreftet for å vise stillingen, deretter MED bekreftet=true for å avslutte og sette vinner.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          konkurranse_id: { type: 'string' },
+          bekreftet: { type: 'boolean' },
+        },
+        required: ['konkurranse_id'],
+      },
+    },
+    async kjor(input, { supabase }) {
+      const id = input.konkurranse_id as string
+      const { data: k } = await supabase
+        .from('konkurranser')
+        .select('id, navn, varegruppe_kode, maaltype, stasjon_ids, periode_start, periode_slutt, status')
+        .eq('id', id)
+        .maybeSingle<{
+          id: string; navn: string; varegruppe_kode: string | null; maaltype: string
+          stasjon_ids: string[]; periode_start: string; periode_slutt: string; status: string
+        }>()
+      if (!k) return { feil: 'Fant ikke konkurransen.' }
+
+      // Mål fra daglig_salg (AI gjetter aldri, §11)
+      let q = supabase
+        .from('daglig_salg')
+        .select('stasjon_id, omsetning_eks_mva, antall')
+        .gte('dato', k.periode_start)
+        .lte('dato', k.periode_slutt)
+        .is('slettet_tid', null)
+      if (k.varegruppe_kode) q = q.eq('varegruppe_kode', k.varegruppe_kode)
+      if (k.stasjon_ids.length > 0) q = q.in('stasjon_id', k.stasjon_ids)
+      const { data: salg } = await q.overrideTypes<{ stasjon_id: string; omsetning_eks_mva: number | null; antall: number | null }[]>()
+
+      const navn = await stasjonsNavn(supabase)
+      const per = new Map<string, number>()
+      for (const r of salg ?? []) {
+        const v = k.maaltype === 'antall' ? (r.antall ?? 0) : (r.omsetning_eks_mva ?? 0)
+        per.set(r.stasjon_id, (per.get(r.stasjon_id) ?? 0) + v)
+      }
+      const stilling = [...per.entries()]
+        .map(([sid, verdi]) => ({ stasjon_id: sid, stasjon: navn.get(sid), verdi: Math.round(verdi) }))
+        .sort((a, b) => b.verdi - a.verdi)
+
+      if (stilling.length === 0) return { feil: 'Ingen salgsdata i konkurranseperioden ennå.' }
+      const vinner = stilling[0]
+
+      if (!input.bekreftet) {
+        return { venter_paa_bekreftelse: true, stilling, foreslaatt_vinner: vinner.stasjon }
+      }
+      await supabase
+        .from('konkurranser')
+        .update({ status: 'avsluttet', vinner_stasjon_id: vinner.stasjon_id })
+        .eq('id', id)
+      return { kaaret: true, vinner: vinner.stasjon, stilling }
+    },
+  },
 }
 
-export const VERKTOY_SCHEMA: Anthropic.Tool[] = Object.values(VERKTOY).map((v) => v.schema)
+export function verktoyForRolle(erAdmin: boolean): Anthropic.Tool[] {
+  return Object.values(VERKTOY)
+    .filter((v) => erAdmin || !v.kunAdmin)
+    .map((v) => v.schema)
+}
