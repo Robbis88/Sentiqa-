@@ -7,6 +7,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Kjør på alt unntatt statiske filer og bilder. Auth bør dekke alle ruter.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Kjør på alt unntatt API-ruter (egne webhooks), statiske filer og bilder.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

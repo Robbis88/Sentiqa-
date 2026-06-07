@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Opplaster } from './opplaster'
+import { settAllowlist } from './handlinger'
 import { behandleJobb } from '@/lib/import/behandle'
 
 const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
@@ -53,6 +54,10 @@ export default async function ImportSide() {
   }
 
   const supabase = await lagSupabaseServerKlient()
+  const { data: retailer } = await supabase
+    .from('retailers')
+    .select('inntak_epost, avsender_allowlist')
+    .maybeSingle<{ inntak_epost: string | null; avsender_allowlist: string[] }>()
   const { data } = await supabase
     .from('import_jobber')
     .select(
@@ -74,6 +79,26 @@ export default async function ImportSide() {
       <section className="kort">
         <h2>Last opp filer</h2>
         <Opplaster />
+      </section>
+
+      <section className="kort">
+        <h2>E-post-inntak</h2>
+        <p className="undertittel">
+          Videresend rapportene til denne adressen, så havner vedleggene rett i køen (§6):
+        </p>
+        <p><code className="inntak-adresse">{retailer?.inntak_epost ?? '— ikke satt —'}</code></p>
+        <form action={settAllowlist} className="skjema" style={{ maxWidth: 420 }}>
+          <label className="felt">
+            <span>Godkjente avsendere (én per linje – tom = alle slipper gjennom)</span>
+            <textarea
+              name="allowlist"
+              rows={3}
+              defaultValue={(retailer?.avsender_allowlist ?? []).join('\n')}
+              placeholder="rapporter@st1.no"
+            />
+          </label>
+          <button type="submit" className="liten">Lagre avsendere</button>
+        </form>
       </section>
 
       <section className="kort">

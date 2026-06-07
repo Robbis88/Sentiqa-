@@ -75,3 +75,14 @@ export async function lastOppFiler(
   revalidatePath('/import')
   return { ok: true, antall }
 }
+
+// Avsender-allowlist for e-post-inntak (§6).
+export async function settAllowlist(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return
+  const raw = String(formData.get('allowlist') ?? '')
+  const liste = [...new Set(raw.split(/[\n,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean))]
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('retailers').update({ avsender_allowlist: liste }).eq('id', bruker.retailerId)
+  revalidatePath('/import')
+}

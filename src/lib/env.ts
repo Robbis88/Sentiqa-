@@ -13,6 +13,8 @@ const skjema = z.object({
   // Anthropic Claude (AI-assistenten, §8). Valgfri til den er lagt inn; uten
   // den svarer assistenten at nøkkelen mangler i stedet for å velte bygget.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // Delt hemmelighet som e-post-webhooken (§6) må sende i x-inntak-secret.
+  EPOST_INNTAK_SECRET: z.string().min(1).optional(),
 })
 
 const resultat = skjema.safeParse(process.env)
