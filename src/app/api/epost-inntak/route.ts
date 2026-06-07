@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { randomUUID, createHash } from 'node:crypto'
+import PostalMime from 'postal-mime'
 import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { behandleJobbKjerne } from '@/lib/import/kjerne'
@@ -21,6 +22,32 @@ type Innkommende = {
   FromFull?: { Email?: string }
   Attachments?: Vedlegg[]
 }
+type Normalisert = { mottaker: string; avsender: string; vedlegg: Vedlegg[] }
+
+// Forstår to formater: JSON (Postmark-aktig, brukt i tester) og rå MIME
+// (message/rfc822 fra vår Cloudflare Email Worker — der parser vi her).
+async function hentInnkommende(req: NextRequest): Promise<Normalisert> {
+  const ct = req.headers.get('content-type') || ''
+  if (ct.includes('application/json')) {
+    const body = (await req.json()) as Innkommende
+    return {
+      mottaker: (body.OriginalRecipient || body.To || body.ToFull?.[0]?.Email || '').toLowerCase().trim(),
+      avsender: (body.FromFull?.Email || body.From || '').toLowerCase().trim(),
+      vedlegg: body.Attachments ?? [],
+    }
+  }
+  const raw = Buffer.from(await req.arrayBuffer())
+  const epost = await new PostalMime().parse(raw)
+  return {
+    mottaker: (req.headers.get('x-mail-to') || epost.to?.[0]?.address || '').toLowerCase().trim(),
+    avsender: (req.headers.get('x-mail-from') || epost.from?.address || '').toLowerCase().trim(),
+    vedlegg: (epost.attachments ?? []).map((a) => ({
+      Name: a.filename || 'vedlegg',
+      ContentType: a.mimeType || 'application/octet-stream',
+      Content: Buffer.from(a.content as ArrayBuffer).toString('base64'),
+    })),
+  }
+}
 
 export async function POST(req: NextRequest) {
   // Hemmelighet i header ELLER ?secret= (tjenester som ikke kan sette egne headere).
@@ -29,16 +56,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ feil: 'uautorisert' }, { status: 401 })
   }
 
-  let body: Innkommende
+  let mottaker: string, avsender: string, vedlegg: Vedlegg[]
   try {
-    body = (await req.json()) as Innkommende
+    ;({ mottaker, avsender, vedlegg } = await hentInnkommende(req))
   } catch {
-    return NextResponse.json({ feil: 'ugyldig JSON' }, { status: 400 })
+    return NextResponse.json({ feil: 'kunne ikke lese e-posten' }, { status: 400 })
   }
-
-  const mottaker = (body.OriginalRecipient || body.To || body.ToFull?.[0]?.Email || '').toLowerCase().trim()
-  const avsender = (body.FromFull?.Email || body.From || '').toLowerCase().trim()
-  const vedlegg = body.Attachments ?? []
   if (!mottaker) return NextResponse.json({ feil: 'mangler mottaker' }, { status: 400 })
 
   const supabase = lagSupabaseAdminKlient()
