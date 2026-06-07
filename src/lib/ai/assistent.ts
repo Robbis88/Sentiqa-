@@ -101,13 +101,18 @@ export async function kjorAssistent(
       }
 
       // Logg kallet (§8/§15). Argumentene her er datoer/butikknummer — ingen PII.
+      // Logging skal aldri velte svaret → svelg ev. feil (f.eks. manglende tabell).
       if (bruker.retailerId) {
-        await supabase.from('ai_tool_log').insert({
-          retailer_id: bruker.retailerId,
-          bruker_id: bruker.id,
-          verktoy: block.name,
-          argument: block.input as Record<string, unknown>,
-        })
+        try {
+          await supabase.from('ai_tool_log').insert({
+            retailer_id: bruker.retailerId,
+            bruker_id: bruker.id,
+            verktoy: block.name,
+            argument: block.input as Record<string, unknown>,
+          })
+        } catch {
+          // ignorert med vilje
+        }
       }
 
       resultater.push({
