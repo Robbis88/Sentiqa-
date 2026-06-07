@@ -12,7 +12,7 @@ const SAKER: [string, Rapporttype][] = [
   ['0758_SalesPerHour 2026-05-13 (1).xlsx', 'st1_salesperhour'],
   ['0018_CashierStatistics_std 2026-05-13.xlsx', 'st1_cashierstats'],
   ['Varetransaksjonsliste 2026-05-13.xlsx', 'salgsgrid_varetrans'],
-  ['190 Kelsar Bil AS 202512-202512_3 (1).xlsx', 'visma_resultat'],
+  ['190 Kelsar Bil AS 202512-202512_3 (1).xlsx', 'regnskap_resultat'],
 ]
 
 describe('gjenkjennRapporttype', () => {

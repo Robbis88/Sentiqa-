@@ -18,8 +18,9 @@ export async function gjenkjennRapporttype(
   if (/0758|timesalg|salesperhour/.test(hint)) return 'st1_salesperhour'
   if (/0018|kassererstat|cashierstat/.test(hint)) return 'st1_cashierstats'
   if (/0452|varetransaksj|breakageandwaste/.test(hint)) return 'salgsgrid_varetrans'
-  if (arknavn.includes('cluster') || /endring nøkkeltall|statussamtale/.test(hint)) {
-    return 'visma_resultat'
+  // Månedlig regnskaps-/resultatrapport (fra Azets el. annet regnskapskontor).
+  if (arknavn.includes('cluster') || /endring nøkkeltall|statussamtale|azets/.test(hint)) {
+    return 'regnskap_resultat'
   }
   return 'ukjent'
 }

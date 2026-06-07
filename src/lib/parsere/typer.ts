@@ -6,7 +6,7 @@ export type Rapporttype =
   | 'st1_salesperhour'
   | 'st1_cashierstats'
   | 'salgsgrid_varetrans'
-  | 'visma_resultat'
+  | 'regnskap_resultat'
   | 'ukjent'
 
 // Én produktlinje fra Salgsstatistikk (St1 0714), med drilldown-kontekst.
@@ -105,4 +105,31 @@ export type VaretransStasjon = {
 export type VaretransResultat = {
   rapporttype: 'salgsgrid_varetrans'
   stasjoner: VaretransStasjon[]
+}
+
+// --- Regnskaps-/resultatrapport (Azets m.fl., cluster-nivå) ---
+export type RegnskapSeksjon =
+  | 'omsetning'
+  | 'bruttofortjeneste'
+  | 'driftskostnader'
+  | 'resultat'
+
+export type RegnskapLinje = {
+  seksjon: RegnskapSeksjon
+  kode: string | null // regnskapskode, f.eks. '120' (null for total-/kostnadslinjer)
+  post: string // "120 Mat", "Personalkostnad …", "RESULTAT"
+  sortering: number | null
+  regnskap: number
+  budsjett: number
+  avvik: number
+  indexPct: number
+  regnskapHittil: number
+  budsjettHittil: number
+}
+
+export type RegnskapResultat = {
+  rapporttype: 'regnskap_resultat'
+  periode: string | null // ISO første-i-måneden, f.eks. '2025-12-01'
+  retailerNavn: string | null
+  linjer: RegnskapLinje[]
 }

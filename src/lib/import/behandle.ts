@@ -7,6 +7,7 @@ import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
 import { parseSalesPerHour } from '@/lib/parsere/salesperhour'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
+import { parseRegnskap } from '@/lib/parsere/regnskap'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
@@ -30,6 +31,12 @@ async function hentStasjonsoppslag(supabase: Klient) {
 
 function datoFraFilnavn(filnavn: string): string | null {
   return forsteDatoIso(filnavn) ?? filnavn.match(/(\d{4})-(\d{2})-(\d{2})/)?.[0] ?? null
+}
+
+// Periode YYYYMM i filnavn (f.eks. "… 202512-…") → ISO første-i-måneden.
+function periodeFraFilnavn(filnavn: string): string | null {
+  const m = filnavn.match(/(20\d{2})(\d{2})/)
+  return m ? `${m[1]}-${m[2]}-01` : null
 }
 
 export async function behandleJobb(formData: FormData) {
@@ -97,6 +104,13 @@ export async function behandleJobb(formData: FormData) {
       case 'salgsgrid_varetrans': {
         const r = await parseVaretransaksjon(buffer)
         res = await lagreSvinn(supabase, retailerId, jobbId, oppslag.medNummer, r)
+        break
+      }
+      case 'regnskap_resultat': {
+        const r = await parseRegnskap(buffer)
+        dato = r.periode ?? periodeFraFilnavn(filnavn)
+        if (!dato) throw new ParserFeil('Fant ingen periode i fil eller filnavn.')
+        res = await lagreRegnskap(supabase, retailerId, jobbId, r, dato)
         break
       }
       default:
@@ -265,4 +279,33 @@ async function lagreSvinn(
     if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
   }
   return { antallRader: rader.length, umatchet }
+}
+
+async function lagreRegnskap(
+  supabase: Klient,
+  retailerId: string,
+  jobbId: string,
+  r: Awaited<ReturnType<typeof parseRegnskap>>,
+  periode: string,
+): Promise<Lagring> {
+  const rader = r.linjer.map((l) => ({
+    retailer_id: retailerId, stasjon_id: null, periode, seksjon: l.seksjon,
+    kode: l.kode, post: l.post, sortering: l.sortering,
+    regnskap: l.regnskap, budsjett: l.budsjett, avvik: l.avvik, index_pct: l.indexPct,
+    regnskap_hittil: l.regnskapHittil, budsjett_hittil: l.budsjettHittil, kilde_jobb_id: jobbId,
+  }))
+
+  // Idempotens: én rapport per periode → erstatt periodens cluster-linjer (§6)
+  await supabase
+    .from('regnskapslinjer')
+    .delete()
+    .eq('retailer_id', retailerId)
+    .eq('periode', periode)
+    .is('stasjon_id', null)
+
+  if (rader.length > 0) {
+    const { error } = await supabase.from('regnskapslinjer').insert(rader)
+    if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
+  }
+  return { antallRader: rader.length, umatchet: [] }
 }

@@ -15,7 +15,7 @@ const RAPPORT_ETIKETT: Record<string, string> = {
   st1_salesperhour: 'Timesalg',
   st1_cashierstats: 'Kassererstat.',
   salgsgrid_varetrans: 'Synlig svinn',
-  visma_resultat: 'Visma',
+  regnskap_resultat: 'Regnskap',
   ukjent: '—',
 }
 
