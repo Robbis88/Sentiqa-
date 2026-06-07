@@ -22,7 +22,9 @@ type Innkommende = {
 }
 
 export async function POST(req: NextRequest) {
-  if (!env.EPOST_INNTAK_SECRET || req.headers.get('x-inntak-secret') !== env.EPOST_INNTAK_SECRET) {
+  // Hemmelighet i header ELLER ?secret= (tjenester som ikke kan sette egne headere).
+  const oppgitt = req.headers.get('x-inntak-secret') ?? req.nextUrl.searchParams.get('secret')
+  if (!env.EPOST_INNTAK_SECRET || oppgitt !== env.EPOST_INNTAK_SECRET) {
     return NextResponse.json({ feil: 'uautorisert' }, { status: 401 })
   }
 
