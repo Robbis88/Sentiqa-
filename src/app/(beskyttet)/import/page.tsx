@@ -96,7 +96,9 @@ export default async function ImportSide() {
             <tbody>
               {jobber.map((j) => {
                 const s = STATUS_ETIKETT[j.status] ?? { tekst: j.status, klasse: 'gul' }
-                const kanBehandle = j.status === 'mottatt' || j.status === 'feilet'
+                // Idempotent → tillat ny kjøring på alt unntatt det som behandles nå.
+                const kanBehandle = j.status !== 'behandler'
+                const knappetekst = j.status === 'parset' ? 'Behandle på nytt' : 'Behandle'
                 return (
                   <tr key={j.id}>
                     <td>{j.raa_filer?.filnavn ?? '—'}</td>
@@ -114,7 +116,7 @@ export default async function ImportSide() {
                       {kanBehandle ? (
                         <form action={behandleJobb}>
                           <input type="hidden" name="jobbId" value={j.id} />
-                          <button type="submit" className="liten">Behandle</button>
+                          <button type="submit" className="liten">{knappetekst}</button>
                         </form>
                       ) : null}
                     </td>
