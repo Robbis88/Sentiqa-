@@ -141,6 +141,15 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.gul   { background: #fff4ce; color: #835c00; }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 
+/* Nøkkeltall-kort (§12: nøkkeltall øverst) */
+.nokkeltall { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.kpi {
+  background: var(--kort); border: 1px solid var(--kant); border-radius: var(--radius);
+  box-shadow: var(--skygge); padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 0.2rem;
+}
+.kpi-tall { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.kpi-merke { font-size: 0.8rem; color: var(--tekst-svak); }
+
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 .resultat { max-width: 320px; font-size: 0.82rem; }
