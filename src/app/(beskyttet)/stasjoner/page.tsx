@@ -1,7 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { StasjonSkjema } from './skjema'
-import { settTerskel, settStasjonstype } from './handlinger'
+import { settTerskel, settStasjonstype, settPosisjon } from './handlinger'
 
 const TYPER: [string, string][] = [
   ['utfart', 'Utfart'],
@@ -18,6 +18,8 @@ type Stasjon = {
   stasjonstype: string
   stasjonstype_sekundaer: string | null
   svinnterskel_prosent: number | null
+  breddegrad: number | null
+  lengdegrad: number | null
 }
 
 export default async function StasjonerSide() {
@@ -29,7 +31,7 @@ export default async function StasjonerSide() {
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('stasjoner')
-    .select('id, butikknummer, navn, stasjonstype, stasjonstype_sekundaer, svinnterskel_prosent')
+    .select('id, butikknummer, navn, stasjonstype, stasjonstype_sekundaer, svinnterskel_prosent, breddegrad, lengdegrad')
     .is('slettet_tid', null)
     .order('butikknummer')
     .overrideTypes<Stasjon[]>()
@@ -55,7 +57,7 @@ export default async function StasjonerSide() {
         ) : (
           <table className="tabell">
             <thead>
-              <tr><th>Butikknr</th><th>Navn</th><th>Type</th><th>Svinnterskel</th></tr>
+              <tr><th>Butikknr</th><th>Navn</th><th>Type</th><th>Svinnterskel</th><th>Posisjon (vær)</th></tr>
             </thead>
             <tbody>
               {stasjoner.map((s) => (
@@ -86,6 +88,14 @@ export default async function StasjonerSide() {
                         aria-label="Svinnterskel %"
                       />
                       <span>%</span>
+                      <button type="submit" className="liten">Lagre</button>
+                    </form>
+                  </td>
+                  <td>
+                    <form action={settPosisjon} className="terskel-form">
+                      <input type="hidden" name="stasjon_id" value={s.id} />
+                      <input name="breddegrad" inputMode="decimal" defaultValue={s.breddegrad ?? ''} placeholder="60.39" aria-label="Breddegrad" />
+                      <input name="lengdegrad" inputMode="decimal" defaultValue={s.lengdegrad ?? ''} placeholder="5.32" aria-label="Lengdegrad" />
                       <button type="submit" className="liten">Lagre</button>
                     </form>
                   </td>

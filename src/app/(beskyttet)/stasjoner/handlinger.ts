@@ -53,6 +53,26 @@ export async function leggTilStasjon(
 
 const TYPER = ['utfart', 'pendler', 'bydel', 'gjennomfart', 'sentrum'] as const
 
+// Sett koordinater per stasjon (§7 vær). Tom = fjern.
+export async function settPosisjon(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin') return
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const num = (felt: string) => {
+    const raw = String(formData.get(felt) ?? '').replace(',', '.').trim()
+    if (raw === '') return null
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : null
+  }
+  if (!stasjonId) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase
+    .from('stasjoner')
+    .update({ breddegrad: num('breddegrad'), lengdegrad: num('lengdegrad') })
+    .eq('id', stasjonId)
+  revalidatePath('/stasjoner')
+}
+
 // Sett primær + valgfri sekundær stasjonstype (§7 – styrer analysene).
 export async function settStasjonstype(formData: FormData) {
   const bruker = await hentInnloggetBruker()
