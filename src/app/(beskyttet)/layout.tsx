@@ -14,6 +14,7 @@ const MENY: { sti: string; tekst: string; roller: Brukerrolle[] }[] = [
   { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: ['retailer_admin', 'butikksjef', 'butikkbruker_tablet'] },
   { sti: '/salg', tekst: 'Salg', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/timesalg', tekst: 'Timesalg', roller: ['retailer_admin', 'butikksjef'] },
+  { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/svinn', tekst: 'Svinn', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/kasserer', tekst: 'Kasserer', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/regnskap', tekst: 'Regnskap', roller: ['retailer_admin'] },

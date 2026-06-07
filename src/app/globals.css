@@ -142,6 +142,10 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Produksjonsplan-velger */
+.plan-velg { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
+.plan-velg select, .plan-velg input { padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.9rem; background: #fff; color: var(--tekst); }
+
 /* Nøkkeltall-kort (§12: nøkkeltall øverst) */
 .nokkeltall { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
 .kpi {
