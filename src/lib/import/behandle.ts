@@ -7,7 +7,7 @@ import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
 import { parseSalesPerHour } from '@/lib/parsere/salesperhour'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
-import { parseRegnskap } from '@/lib/parsere/regnskap'
+import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
@@ -110,7 +110,8 @@ export async function behandleJobb(formData: FormData) {
         const r = await parseRegnskap(buffer)
         dato = r.periode ?? periodeFraFilnavn(filnavn)
         if (!dato) throw new ParserFeil('Fant ingen periode i fil eller filnavn.')
-        res = await lagreRegnskap(supabase, retailerId, jobbId, r, dato)
+        const perStasjon = await parseRegnskapStasjoner(buffer)
+        res = await lagreRegnskap(supabase, retailerId, jobbId, r, dato, perStasjon, oppslag.medNummer)
         break
       }
       default:
@@ -287,25 +288,35 @@ async function lagreRegnskap(
   jobbId: string,
   r: Awaited<ReturnType<typeof parseRegnskap>>,
   periode: string,
+  perStasjon: Awaited<ReturnType<typeof parseRegnskapStasjoner>>,
+  medNummer: Map<string, string>,
 ): Promise<Lagring> {
-  const rader = r.linjer.map((l) => ({
-    retailer_id: retailerId, stasjon_id: null, periode, seksjon: l.seksjon,
+  type RegnskapInnsett = Awaited<ReturnType<typeof parseRegnskap>>['linjer'][number]
+  const mapLinje = (l: RegnskapInnsett, stasjonId: string | null) => ({
+    retailer_id: retailerId, stasjon_id: stasjonId, periode, seksjon: l.seksjon,
     kode: l.kode, post: l.post, sortering: l.sortering,
     regnskap: l.regnskap, budsjett: l.budsjett, avvik: l.avvik, index_pct: l.indexPct,
     regnskap_hittil: l.regnskapHittil, budsjett_hittil: l.budsjettHittil, kilde_jobb_id: jobbId,
-  }))
+  })
 
-  // Idempotens: én rapport per periode → erstatt periodens cluster-linjer (§6)
+  const rader = r.linjer.map((l) => mapLinje(l, null)) // cluster
+  const umatchet: string[] = []
+  for (const st of perStasjon) {
+    const stasjonId = medNummer.get(st.butikknummer)
+    if (!stasjonId) { umatchet.push(`${st.butikknummer} (${st.navn})`); continue }
+    for (const l of st.linjer) rader.push(mapLinje(l, stasjonId))
+  }
+
+  // Idempotens: én rapport per periode → erstatt ALT (cluster + per stasjon) for perioden (§6)
   await supabase
     .from('regnskapslinjer')
     .delete()
     .eq('retailer_id', retailerId)
     .eq('periode', periode)
-    .is('stasjon_id', null)
 
   if (rader.length > 0) {
     const { error } = await supabase.from('regnskapslinjer').insert(rader)
     if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
   }
-  return { antallRader: rader.length, umatchet: [] }
+  return { antallRader: rader.length, umatchet }
 }

@@ -47,15 +47,43 @@ export default async function RegnskapSide() {
     )
   }
 
-  const { data } = await supabase
-    .from('regnskapslinjer')
-    .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
-    .eq('periode', siste.periode)
-    .is('stasjon_id', null)
-    .order('sortering', { ascending: true })
-    .overrideTypes<Linje[]>()
+  const [{ data }, { data: perStasjon }, { data: stasjoner }] = await Promise.all([
+    supabase
+      .from('regnskapslinjer')
+      .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
+      .eq('periode', siste.periode)
+      .is('stasjon_id', null)
+      .order('sortering', { ascending: true })
+      .overrideTypes<Linje[]>(),
+    supabase
+      .from('regnskapslinjer')
+      .select('stasjon_id, regnskap, budsjett')
+      .eq('periode', siste.periode)
+      .eq('seksjon', 'omsetning')
+      .not('stasjon_id', 'is', null)
+      .overrideTypes<{ stasjon_id: string; regnskap: number | null; budsjett: number | null }[]>(),
+    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
+  ])
 
   const linjer = data ?? []
+
+  // Aggreger omsetning per stasjon (basis-avdelinger → ren sum, ingen dobbelttelling)
+  const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+  const perStasjonSum = new Map<string, { regnskap: number; budsjett: number }>()
+  for (const r of perStasjon ?? []) {
+    const p = perStasjonSum.get(r.stasjon_id) ?? { regnskap: 0, budsjett: 0 }
+    p.regnskap += r.regnskap ?? 0
+    p.budsjett += r.budsjett ?? 0
+    perStasjonSum.set(r.stasjon_id, p)
+  }
+  const stasjonsrader = [...perStasjonSum.entries()]
+    .filter(([id]) => navnFor.has(id))
+    .map(([id, p]) => ({
+      navn: navnFor.get(id)!,
+      ...p,
+      index: p.budsjett ? ((p.regnskap - p.budsjett) / p.budsjett) * 100 : 0,
+    }))
+    .sort((a, b) => b.regnskap - a.regnskap)
   const seksjon = (navn: string) => linjer.filter((l) => l.seksjon === navn)
   const finn = (re: RegExp, s = 'omsetning') =>
     seksjon(s).find((l) => re.test(l.post))
@@ -86,6 +114,31 @@ export default async function RegnskapSide() {
           </div>
         ))}
       </section>
+
+      {stasjonsrader.length > 0 && (
+        <section className="kort">
+          <h2>Omsetning per stasjon</h2>
+          <table className="tabell">
+            <thead>
+              <tr><th>Stasjon</th><th>Regnskap</th><th>Budsjett</th><th>Mot budsjett</th></tr>
+            </thead>
+            <tbody>
+              {stasjonsrader.map((s) => (
+                <tr key={s.navn}>
+                  <td>{s.navn}</td>
+                  <td>{kr.format(s.regnskap)}</td>
+                  <td>{kr.format(s.budsjett)}</td>
+                  <td>
+                    <span className={`status-pip ${avviksKlasse(s.index)}`}>
+                      {prosent.format(s.index / 100)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       {['omsetning', 'bruttofortjeneste', 'driftskostnader'].map((navn) => (
         <section className="kort" key={navn}>

@@ -133,3 +133,10 @@ export type RegnskapResultat = {
   retailerNavn: string | null
   linjer: RegnskapLinje[]
 }
+
+// Per-stasjon-ark i regnskapsfila (avdelingsnivå: omsetning + bruttofortjeneste).
+export type RegnskapStasjon = {
+  butikknummer: string
+  navn: string
+  linjer: RegnskapLinje[]
+}
