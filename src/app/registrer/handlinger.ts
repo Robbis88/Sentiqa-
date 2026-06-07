@@ -59,7 +59,7 @@ export async function registrer(_t: RegTilstand, formData: FormData): Promise<Re
   // 3. Opprett tenant (org.nr lagres for EHF-fakturering).
   const { data: retailer, error: re } = await admin
     .from('retailers')
-    .insert({ navn: firma, org_nr, slug, inntak_epost: `${slug}@inn.sentiqa.ai` })
+    .insert({ navn: firma, org_nr, slug, inntak_epost: `${slug}@sentiqa.ai` })
     .select('id')
     .single()
   if (re || !retailer) {
