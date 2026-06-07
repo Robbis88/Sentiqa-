@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { randomUUID, createHash } from 'node:crypto'
 import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
+import { behandleJobbKjerne } from '@/lib/import/kjerne'
 
 // E-post-inntak (§6). Tar imot videresendte e-poster fra en innboks-tjeneste
 // (Postmark/Cloudflare Email Worker/SendGrid Inbound Parse el.l.). Matcher
@@ -85,8 +86,20 @@ export async function POST(req: NextRequest) {
       await supabase.storage.from('raa-filer').remove([sti]) // dedup el. feil → rydd opp
       continue
     }
-    await supabase.from('import_jobber').insert({ raa_fil_id: raaFil.id, retailer_id: retailer.id })
+    const { data: jobb } = await supabase
+      .from('import_jobber')
+      .insert({ raa_fil_id: raaFil.id, retailer_id: retailer.id })
+      .select('id')
+      .single<{ id: string }>()
     antall++
+    // Auto-behandling (§6): parse med en gang, så natt-flyten er ferdig uten klikk.
+    if (jobb) {
+      try {
+        await behandleJobbKjerne(supabase, retailer.id, jobb.id)
+      } catch {
+        // jobben er allerede markert feilet inne i kjernen; ikke velt webhooken
+      }
+    }
   }
 
   return NextResponse.json({ ok: true, mottatt: antall })
