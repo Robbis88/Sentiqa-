@@ -41,8 +41,8 @@ export default function Landing() {
             Ta inn rapportene du allerede eksporterer. Få <strong>svar</strong> — ikke dashboards å lete i.
           </p>
           <div className="lp-cta">
-            <Link href="/logg-inn" className="lp-knapp primar">Logg inn</Link>
-            <a href="#priser" className="lp-knapp">Se priser</a>
+            <Link href="/registrer" className="lp-knapp primar">Kom i gang</Link>
+            <Link href="/logg-inn" className="lp-knapp">Logg inn</Link>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export default function Landing() {
           Eksempel: en kjede med 5 stasjoner = 499 + 5 × 249 = <strong>1 744 kr/mnd</strong>. Rabatt ved årlig forskudd.
         </p>
         <div className="lp-cta midt">
-          <Link href="/logg-inn" className="lp-knapp primar stor">Kom i gang</Link>
+          <Link href="/registrer" className="lp-knapp primar stor">Kom i gang</Link>
         </div>
       </section>
 

@@ -4,7 +4,7 @@ import { env } from '@/lib/env'
 
 // Offentlige ruter (ingen innlogging kreves). Alt annet krever sesjon.
 // '/' (landingssiden) matches eksakt; resten som prefiks.
-const OFFENTLIGE_PREFIX = ['/logg-inn']
+const OFFENTLIGE_PREFIX = ['/logg-inn', '/registrer']
 function erOffentligSti(sti: string): boolean {
   return sti === '/' || OFFENTLIGE_PREFIX.some((r) => sti.startsWith(r))
 }
