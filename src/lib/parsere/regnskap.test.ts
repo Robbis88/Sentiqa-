@@ -8,10 +8,12 @@ const FIL = join(process.cwd(), 'eksempelfiler', '190 Kelsar Bil AS 202512-20251
 describe.skipIf(!existsSync(FIL))('parseRegnskap (ekte Azets-fil, Cluster-ark)', () => {
   const resultat = parseRegnskap(readFileSync(FIL))
 
-  it('leser retailernavn og periode', async () => {
+  it('leser retailernavn og periode fra «Denne periode» (ikke «Hittil i år»)', async () => {
     const r = await resultat
     expect(r.retailerNavn).toContain('Kelsar Bil AS')
-    expect(r.periode).toMatch(/^2025-12/)
+    // «Denne periode 01.12.2025» → 2025-12-01. (Hittil i år starter 01.01.2025,
+    // som ville gitt 2025-01-01 hvis vi leste feil felt.)
+    expect(r.periode).toBe('2025-12-01')
   })
 
   it('dekker alle fire seksjoner', async () => {

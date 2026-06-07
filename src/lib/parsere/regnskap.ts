@@ -26,12 +26,25 @@ export async function parseRegnskap(
 
   const retailerNavn = celletekst(ws.getRow(1).getCell(3).value).trim() || null
 
-  // Periode: let etter første DD.MM.YYYY i topptekstradene (1–5).
+  // Periode: les EKSPLISITT fra «Denne periode DD.MM.YYYY - …»-feltet (ikke
+  // filnavnet, ikke «Hittil i år»). Tar startdatoens måned. Fallback: første
+  // dato i topptekst. Så systemet alltid filer regnskapet på riktig måned.
   let periode: string | null = null
-  for (let r = 1; r <= 5 && !periode; r++) {
-    for (let k = 1; k <= 13 && !periode; k++) {
-      const iso = forsteDatoIso(celletekst(ws.getRow(r).getCell(k).value))
-      if (iso) periode = iso.slice(0, 8) + '01' // første i måneden
+  for (let r = 1; r <= 8 && !periode; r++) {
+    for (let k = 1; k <= ws.columnCount && !periode; k++) {
+      const t = celletekst(ws.getRow(r).getCell(k).value)
+      if (/denne periode/i.test(t)) {
+        const iso = forsteDatoIso(t)
+        if (iso) periode = iso.slice(0, 8) + '01'
+      }
+    }
+  }
+  if (!periode) {
+    for (let r = 1; r <= 6 && !periode; r++) {
+      for (let k = 1; k <= 13 && !periode; k++) {
+        const iso = forsteDatoIso(celletekst(ws.getRow(r).getCell(k).value))
+        if (iso) periode = iso.slice(0, 8) + '01'
+      }
     }
   }
 

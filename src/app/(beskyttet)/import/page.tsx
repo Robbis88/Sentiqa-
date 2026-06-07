@@ -25,6 +25,15 @@ const tid = new Intl.DateTimeFormat('nb-NO', {
   dateStyle: 'short',
   timeStyle: 'short',
 })
+const dato = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyle: 'medium' })
+const maaned = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', month: 'long', year: 'numeric' })
+
+// «Gjelder»-visning: regnskap er en måned, resten en dato.
+function gjelder(j: { rapporttype: string; gjelder_dato: string | null }): string {
+  if (!j.gjelder_dato) return '—'
+  const d = new Date(j.gjelder_dato)
+  return j.rapporttype === 'regnskap_resultat' ? maaned.format(d) : dato.format(d)
+}
 
 type Jobb = {
   id: string
@@ -32,6 +41,7 @@ type Jobb = {
   rapporttype: string
   antall_rader: number | null
   feilmelding: string | null
+  gjelder_dato: string | null
   opprettet_tid: string
   raa_filer: { filnavn: string; mottakskanal: string } | null
 }
@@ -46,7 +56,7 @@ export default async function ImportSide() {
   const { data } = await supabase
     .from('import_jobber')
     .select(
-      'id, status, rapporttype, antall_rader, feilmelding, opprettet_tid, raa_filer(filnavn, mottakskanal)',
+      'id, status, rapporttype, antall_rader, feilmelding, gjelder_dato, opprettet_tid, raa_filer(filnavn, mottakskanal)',
     )
     .order('opprettet_tid', { ascending: false })
     .limit(50)
@@ -76,6 +86,7 @@ export default async function ImportSide() {
               <tr>
                 <th>Fil</th>
                 <th>Type</th>
+                <th>Gjelder</th>
                 <th>Mottatt</th>
                 <th>Status</th>
                 <th>Resultat</th>
@@ -90,6 +101,7 @@ export default async function ImportSide() {
                   <tr key={j.id}>
                     <td>{j.raa_filer?.filnavn ?? '—'}</td>
                     <td>{RAPPORT_ETIKETT[j.rapporttype] ?? j.rapporttype}</td>
+                    <td>{gjelder(j)}</td>
                     <td>{tid.format(new Date(j.opprettet_tid))}</td>
                     <td><span className={`status-pip ${s.klasse}`}>{s.tekst}</span></td>
                     <td className="resultat">
