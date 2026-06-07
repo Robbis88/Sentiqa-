@@ -1,0 +1,62 @@
+'use server'
+import { revalidatePath } from 'next/cache'
+import * as z from 'zod'
+import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+
+function iDag(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+}
+
+const Nytt = z.object({
+  stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),
+  sporsmaal: z.string().min(1, { error: 'Skriv et spørsmål.' }),
+  klokkeslett: z.string().regex(/^\d{2}:\d{2}$/, { error: 'Ugyldig klokkeslett.' }).optional().or(z.literal('')),
+  kritisk: z.string().optional(),
+})
+
+export type SjekkTilstand = { ok?: true; feil?: string } | undefined
+
+export async function leggTilSjekkpunkt(
+  _t: SjekkTilstand,
+  formData: FormData,
+): Promise<SjekkTilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+    return { feil: 'Du kan ikke opprette sjekkpunkter.' }
+  }
+  const felt = Nytt.safeParse({
+    stasjon_id: formData.get('stasjon_id'),
+    sporsmaal: formData.get('sporsmaal'),
+    klokkeslett: formData.get('klokkeslett'),
+    kritisk: formData.get('kritisk'),
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  const supabase = await lagSupabaseServerKlient()
+  const { error } = await supabase.from('sjekkpunkter').insert({
+    retailer_id: bruker.retailerId,
+    stasjon_id: felt.data.stasjon_id,
+    sporsmaal: felt.data.sporsmaal,
+    klokkeslett: felt.data.klokkeslett || null,
+    kritisk: felt.data.kritisk === 'on',
+    opprettet_av: bruker.id,
+  })
+  if (error) return { feil: error.message }
+  revalidatePath('/sjekkpunkt')
+  return { ok: true }
+}
+
+export async function svar(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  const sjekkpunktId = String(formData.get('sjekkpunkt_id') ?? '')
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const verdi = String(formData.get('svar') ?? '') === 'ja'
+  if (!sjekkpunktId || !stasjonId) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('sjekkpunkt_svar').upsert(
+    { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: verdi, svart_av: bruker.id, svart_tid: new Date().toISOString() },
+    { onConflict: 'sjekkpunkt_id,dato' },
+  )
+  revalidatePath('/sjekkpunkt')
+}

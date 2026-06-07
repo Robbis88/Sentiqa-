@@ -175,6 +175,16 @@ button.logg-ut:hover { color: var(--tekst); }
 .bilde-merke { margin-left: 0.4rem; }
 .felt.avkryss { flex-direction: row; align-items: center; gap: 0.5rem; }
 
+/* Sjekkpunkt ja/nei (§11) */
+.sjekk-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.sjekk-liste li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.sjekk-sporsmaal { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; }
+.klokke { font-variant-numeric: tabular-nums; color: var(--tekst-svak); font-size: 0.85rem; }
+.sjekk-svar { display: flex; gap: 0.5rem; }
+.janei { min-width: 56px; height: 44px; border-radius: 8px; border: 2px solid var(--kant); background: #fff; font-weight: 700; color: var(--tekst); }
+.janei.ja.valgt { background: #def7df; border-color: #0b6a0b; color: #0b6a0b; }
+.janei.nei.valgt { background: #fde7e9; border-color: #b10e1c; color: #b10e1c; }
+
 /* Auto-fokus (§8B) */
 .generer { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
 .generer-melding { font-size: 0.85rem; color: var(--tekst-svak); }
