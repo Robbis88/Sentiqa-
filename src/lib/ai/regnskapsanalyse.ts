@@ -112,7 +112,7 @@ export async function genererRegnskapsanalyse(): Promise<
   const { error } = await supabase.from('regnskapsanalyser').insert({
     retailer_id: retailerId,
     periode,
-    analyse,
+    rapport: analyse,
     modell: MODELL,
   })
   if (error) return { ok: false, grunn: error.message }

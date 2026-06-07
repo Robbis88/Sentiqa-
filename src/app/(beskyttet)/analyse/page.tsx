@@ -15,12 +15,12 @@ export default async function AnalyseSide() {
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('regnskapsanalyser')
-    .select('periode, analyse, opprettet_tid')
+    .select('periode, rapport, opprettet_tid')
     .order('periode', { ascending: false })
     .limit(1)
-    .maybeSingle<{ periode: string; analyse: Analyse; opprettet_tid: string }>()
+    .maybeSingle<{ periode: string; rapport: Analyse; opprettet_tid: string }>()
 
-  const a = data?.analyse
+  const a = data?.rapport
 
   return (
     <>

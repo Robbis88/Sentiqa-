@@ -7,7 +7,7 @@ create table if not exists public.regnskapsanalyser (
   id            uuid primary key default gen_random_uuid(),
   retailer_id   uuid not null references public.retailers(id) on delete restrict,
   periode       date not null,
-  analyse       jsonb not null,
+  rapport       jsonb not null,  -- «analyse» er reservert ord i Postgres
   modell        text,
   opprettet_tid timestamptz not null default now(),
   slettet_tid   timestamptz
