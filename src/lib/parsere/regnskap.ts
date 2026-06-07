@@ -112,6 +112,7 @@ export async function parseRegnskapStasjoner(
     const m = ws.name.match(/^(\d{4})\s+(.*)$/) // "4177 ST1 Lone"
     if (!m) continue
     const [, butikknummer, navn] = m
+    if (/admin/i.test(navn)) continue // strukturelt ark (f.eks. "9900 Admin"), ikke en stasjon
     const linjer: RegnskapLinje[] = []
 
     for (let r = 4; r <= ws.rowCount; r++) {
