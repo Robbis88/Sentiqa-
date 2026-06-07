@@ -157,6 +157,14 @@ button.logg-ut:hover { color: var(--tekst); }
 .oppmerksomhet ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .oppmerksomhet li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
+/* Heatmap (timesalg, §7) */
+.heatmap-wrap { overflow-x: auto; }
+.heatmap { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
+.heatmap th, .heatmap td { padding: 0.35rem 0.6rem; text-align: right; white-space: nowrap; border: 1px solid var(--kant); }
+.heatmap th { color: var(--tekst-svak); font-weight: 600; font-size: 0.78rem; background: #fff; }
+.heatmap td.time, .heatmap th:first-child { text-align: left; font-variant-numeric: tabular-nums; color: var(--tekst-svak); }
+.heatmap tr.sum td { font-weight: 700; border-top: 2px solid var(--kant); background: #fff; }
+
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 .resultat { max-width: 320px; font-size: 0.82rem; }

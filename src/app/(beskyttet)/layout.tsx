@@ -7,6 +7,9 @@ import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 const MENY: { sti: string; tekst: string; roller: Brukerrolle[] }[] = [
   { sti: '/oversikt', tekst: 'Oversikt', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/salg', tekst: 'Salg', roller: ['retailer_admin', 'butikksjef'] },
+  { sti: '/timesalg', tekst: 'Timesalg', roller: ['retailer_admin', 'butikksjef'] },
+  { sti: '/svinn', tekst: 'Svinn', roller: ['retailer_admin', 'butikksjef'] },
+  { sti: '/kasserer', tekst: 'Kasserer', roller: ['retailer_admin', 'butikksjef'] },
   { sti: '/regnskap', tekst: 'Regnskap', roller: ['retailer_admin'] },
   { sti: '/import', tekst: 'Import', roller: ['retailer_admin'] },
   { sti: '/stasjoner', tekst: 'Stasjoner', roller: ['retailer_admin'] },
