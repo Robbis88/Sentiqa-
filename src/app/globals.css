@@ -149,6 +149,13 @@ button.logg-ut:hover { color: var(--tekst); }
 }
 .kpi-tall { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
 .kpi-merke { font-size: 0.8rem; color: var(--tekst-svak); }
+.kpi.lenke { text-decoration: none; color: inherit; transition: box-shadow 0.15s; }
+.kpi.lenke:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+/* Trenger oppmerksomhet (§12: leder med det som haster) */
+.oppmerksomhet { margin-top: 1rem; border-left: 3px solid #b10e1c; }
+.oppmerksomhet ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.oppmerksomhet li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
