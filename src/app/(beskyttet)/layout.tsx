@@ -15,7 +15,10 @@ const T: Brukerrolle = 'butikkbruker_tablet'
 const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   {
     tittel: '',
-    punkter: [{ sti: '/oversikt', tekst: 'Oversikt', roller: [A, B] }],
+    punkter: [
+      { sti: '/oversikt', tekst: 'Oversikt', roller: [A, B] },
+      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
+    ],
   },
   {
     tittel: 'Analyse',
