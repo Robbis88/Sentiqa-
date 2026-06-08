@@ -230,6 +230,9 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Web-push tilmelding */
+.push-til { margin: 0 0 1rem; }
+
 /* Konkurranser */
 .konk-skjema .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .konk-knapper { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }

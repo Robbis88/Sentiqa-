@@ -22,6 +22,10 @@ const skjema = z.object({
   FIKEN_INCOME_ACCOUNT: z.string().min(1).optional(), // salgskonto, default "3000"
   FIKEN_VAT_TYPE: z.string().min(1).optional(), // "HIGH" (25 % mva) | "NONE" m.fl.
   FAKTURA_SECRET: z.string().min(1).optional(), // beskytter /api/faktura
+  // Web-push (varsler til mobil/nettleser). Public-nøkkel eksponeres i klient.
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().min(1).optional(), // mailto:… kontakt
 })
 
 const resultat = skjema.safeParse(process.env)

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { markerLest, markerAlle } from './handlinger'
+import { PushTilmelding } from './push-tilmelding'
 
 type Varsel = {
   id: string
@@ -33,6 +34,8 @@ export default async function VarslerSide() {
     <>
       <h1>Varsler</h1>
       <p className="undertittel">{uleste} uleste</p>
+
+      <PushTilmelding />
 
       {uleste > 0 && (
         <form action={markerAlle} className="generer">

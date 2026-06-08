@@ -1,5 +1,6 @@
 import 'server-only'
 import type { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { sendPushForVarsel } from '@/lib/push'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
 
@@ -25,6 +26,12 @@ export async function opprettVarsel(supabase: Klient, v: NyttVarsel): Promise<vo
       mottaker_id: v.mottaker_id ?? null,
       stasjon_id: v.stasjon_id ?? null,
     })
+  } catch {
+    // ignorert med vilje
+  }
+  // Web-push i tillegg (best effort — hopper over hvis VAPID ikke er satt).
+  try {
+    await sendPushForVarsel(v)
   } catch {
     // ignorert med vilje
   }
