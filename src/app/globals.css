@@ -226,6 +226,13 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Opplæring */
+.person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }
+.person-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--kant); border-radius: 6px; }
+.person-liste li.aktiv { background: #e1eefb; }
+.person-liste li:last-child { border-bottom: 0; }
+.person-liste a { text-decoration: none; color: var(--tekst); }
+
 /* IK-mat */
 .ik-gruppe { margin-top: 1rem; }
 .ik-gruppe h3 { font-size: 0.95rem; margin: 0 0 0.4rem; color: var(--primaer); }
