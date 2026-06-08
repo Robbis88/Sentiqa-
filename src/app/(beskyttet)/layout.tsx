@@ -37,6 +37,7 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
       { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
       { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
+      { sti: '/puls', tekst: 'Puls', roller: [A, B, T] },
     ],
   },
   {

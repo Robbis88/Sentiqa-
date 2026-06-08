@@ -230,6 +230,25 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Puls */
+.puls-form { display: flex; flex-direction: column; gap: 0.75rem; max-width: 520px; }
+.puls-faces { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.puls-face {
+  flex: 1; min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+  padding: 0.7rem 0.4rem; border: 2px solid var(--kant); border-radius: 12px; background: #fff; cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.puls-face:hover { transform: translateY(-2px); }
+.puls-face.valgt { border-color: var(--primaer); background: #e1eefb; }
+.puls-emoji { font-size: 2rem; line-height: 1; }
+.puls-tekst { font-size: 0.75rem; color: var(--tekst-svak); }
+.puls-form textarea { padding: 0.6rem 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font: inherit; font-size: 0.9rem; resize: vertical; }
+.puls-takk { font-size: 1.1rem; }
+.puls-kommentarer { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.puls-kommentarer li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--kant); }
+.puls-kommentarer li:last-child { border-bottom: 0; }
+.puls-emoji-liten { font-size: 1.3rem; }
+
 /* Rediger/slett på admin-lister */
 button.liten.slett { background: #fff; color: #b10e1c; border: 1px solid #f3c6c2; }
 button.liten.slett:hover { background: #fdecea; }
