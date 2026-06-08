@@ -226,6 +226,28 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* IK-mat */
+.ik-gruppe { margin-top: 1rem; }
+.ik-gruppe h3 { font-size: 0.95rem; margin: 0 0 0.4rem; color: var(--primaer); }
+.ik-tabell td { vertical-align: middle; }
+.ik-tabell .krav { color: var(--tekst-svak); font-size: 0.85rem; white-space: nowrap; }
+.ik-form { display: flex; gap: 0.4rem; align-items: center; }
+.ik-form input { width: 5rem; padding: 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 1rem; }
+.ik-tabell tr.ok-rad td { background: #eafaf0; }
+.ik-tabell tr.avvik-rad td { background: #fdecea; }
+
+/* Avvik (S01) */
+.avvik-skjema .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.avvik-skjema fieldset { border: 1px solid var(--kant); border-radius: 8px; padding: 0.6rem 0.8rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.avvik-skjema fieldset > span { font-weight: 600; font-size: 0.85rem; }
+.avvik-skjema .radio { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 400; }
+.avvik-skjema textarea { padding: 0.6rem 0.7rem; border: 1px solid var(--kant); border-radius: 6px; font: inherit; font-size: 0.9rem; resize: vertical; }
+.avvik-liste { display: grid; gap: 0.75rem; }
+.avvik-kort { border: 1px solid var(--kant); border-radius: 10px; padding: 1rem; box-shadow: var(--skygge); }
+.avvik-kort.lukket { opacity: 0.6; }
+.avvik-topp { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.avvik-besk { margin: 0.3rem 0; font-weight: 500; }
+
 /* Avtalevokter forhandlings-utkast */
 .forhandling { margin-top: 0.75rem; }
 .utkast { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font-family: inherit; font-size: 0.9rem; line-height: 1.5; resize: vertical; background: #fff; color: var(--tekst); }
