@@ -2,7 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { NyOppgave } from './ny-oppgave'
-import { veksleOppgave } from './handlinger'
+import { veksleOppgave, slettOppgave } from './handlinger'
 
 type Oppgave = {
   id: string
@@ -50,6 +50,10 @@ export default async function OppgaverSide() {
         {o.frist ? <span className="undertittel"> · frist {datoLang.format(new Date(o.frist))}</span> : null}
         {o.beskrivelse ? <div className="undertittel">{o.beskrivelse}</div> : null}
       </div>
+      <form action={slettOppgave}>
+        <input type="hidden" name="id" value={o.id} />
+        <button type="submit" className="liten slett" aria-label="Slett">✕</button>
+      </form>
     </li>
   )
 

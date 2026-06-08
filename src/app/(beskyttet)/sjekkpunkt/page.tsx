@@ -2,7 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { NyttSjekkpunkt } from './nytt-sjekkpunkt'
-import { svar } from './handlinger'
+import { svar, slettSjekkpunkt } from './handlinger'
 
 type Sjekk = {
   id: string
@@ -82,6 +82,12 @@ export default async function SjekkpunktSide() {
                         <input type="hidden" name="svar" value="nei" />
                         <button type="submit" className={`janei nei ${s === false ? 'valgt' : ''}`}>Nei</button>
                       </form>
+                      {kanLage && (
+                        <form action={slettSjekkpunkt}>
+                          <input type="hidden" name="id" value={p.id} />
+                          <button type="submit" className="liten slett" aria-label="Slett">✕</button>
+                        </form>
+                      )}
                     </div>
                   </li>
                 )

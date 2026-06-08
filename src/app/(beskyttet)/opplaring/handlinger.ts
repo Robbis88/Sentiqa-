@@ -61,6 +61,38 @@ export async function leggTilPerson(formData: FormData) {
   revalidatePath('/opplaring')
 }
 
+export async function slettPunkt(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaring_punkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/opplaring')
+}
+
+export async function redigerPunkt(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  const tekst = String(formData.get('tekst') ?? '').trim()
+  const omrade = String(formData.get('omrade') ?? '').trim() || 'Annet'
+  if (!id || !tekst) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaring_punkter').update({ tekst, omrade }).eq('id', id)
+  revalidatePath('/opplaring')
+}
+
+export async function slettPerson(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaring_personer').update({ slettet_tid: new Date().toISOString(), aktiv: false }).eq('id', id)
+  revalidatePath('/opplaring')
+}
+
 // Signer/avsigner et lærepunkt for en person.
 export async function veksleFullfort(formData: FormData) {
   const bruker = await hentInnloggetBruker()

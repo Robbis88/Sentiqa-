@@ -230,6 +230,24 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Rediger/slett på admin-lister */
+button.liten.slett { background: #fff; color: #b10e1c; border: 1px solid #f3c6c2; }
+button.liten.slett:hover { background: #fdecea; }
+.rediger-detalj { display: inline-block; }
+.rediger-detalj summary { cursor: pointer; list-style: none; padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--tekst-svak); }
+.rediger-detalj summary::-webkit-details-marker { display: none; }
+.rediger-detalj summary:hover { background: var(--bg); }
+.rediger-detalj[open] { background: var(--bg); border-radius: 8px; padding: 0.5rem; margin-top: 0.3rem; }
+.rediger-form { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
+.rediger-form input { padding: 0.35rem 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
+.rediger-form input[name="navn"], .rediger-form input[name="tekst"] { flex: 1; min-width: 8rem; }
+.rediger-form input[name="min_temp"], .rediger-form input[name="max_temp"] { width: 4rem; }
+.adm-celle { white-space: nowrap; }
+.laereplan-liste { list-style: none; margin: 0; padding: 0; }
+.laereplan-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid var(--kant); }
+.laereplan-liste li:last-child { border-bottom: 0; }
+.person-hoyre { display: flex; align-items: center; gap: 0.6rem; }
+
 /* Opplæring */
 .person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }
 .person-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--kant); border-radius: 6px; }

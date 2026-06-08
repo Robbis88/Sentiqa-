@@ -64,6 +64,16 @@ export async function kryssAv(formData: FormData) {
   revalidatePath('/rutiner')
 }
 
+export async function slettRutine(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('rutiner').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/rutiner')
+}
+
 export async function fjernKryss(formData: FormData) {
   await hentInnloggetBruker()
   const rutineId = String(formData.get('rutine_id') ?? '')

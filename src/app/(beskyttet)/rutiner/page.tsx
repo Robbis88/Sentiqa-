@@ -2,7 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { NyRutine } from './ny-rutine'
-import { kryssAv, fjernKryss } from './handlinger'
+import { kryssAv, fjernKryss, slettRutine } from './handlinger'
 
 type Rutine = {
   id: string
@@ -79,6 +79,12 @@ export default async function RutinerSide() {
                       {r.beskrivelse ? <span className="undertittel"> — {r.beskrivelse}</span> : null}
                       {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
                     </div>
+                    {kanLage && (
+                      <form action={slettRutine}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <button type="submit" className="liten slett" aria-label="Slett">✕</button>
+                      </form>
+                    )}
                   </li>
                 )
               })}

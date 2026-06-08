@@ -49,6 +49,16 @@ export async function leggTilSjekkpunkt(
   return { ok: true }
 }
 
+export async function slettSjekkpunkt(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('sjekkpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/sjekkpunkt')
+}
+
 export async function svar(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   const sjekkpunktId = String(formData.get('sjekkpunkt_id') ?? '')

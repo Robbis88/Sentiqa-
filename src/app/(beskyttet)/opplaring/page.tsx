@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
-import { settOppStandard, leggTilPunkt, leggTilPerson, veksleFullfort } from './handlinger'
+import { settOppStandard, leggTilPunkt, leggTilPerson, veksleFullfort, slettPunkt, redigerPunkt, slettPerson } from './handlinger'
 
 type Punkt = { id: string; omrade: string; tekst: string; sortering: number }
 type Person = { id: string; stasjon_id: string; navn: string; startdato: string | null }
@@ -83,7 +83,13 @@ export default async function OpplaringSide({
                         <strong>{p.navn}</strong>
                         <span className="undertittel"> · {navnFor.get(p.stasjon_id) ?? '—'}{p.startdato ? ` · fra ${datoLang.format(new Date(p.startdato))}` : ''}</span>
                       </Link>
-                      <span className={`status-pip ${pst === 100 ? 'gronn' : 'gul'}`}>{antall}/{totalPunkter}</span>
+                      <span className="person-hoyre">
+                        <span className={`status-pip ${pst === 100 ? 'gronn' : 'gul'}`}>{antall}/{totalPunkter}</span>
+                        <form action={slettPerson}>
+                          <input type="hidden" name="id" value={p.id} />
+                          <button type="submit" className="liten slett" aria-label="Fjern">✕</button>
+                        </form>
+                      </span>
                     </li>
                   )
                 })}
@@ -124,10 +130,35 @@ export default async function OpplaringSide({
           )}
 
           <section className="kort">
-            <h2>Legg til lærepunkt</h2>
-            <form action={leggTilPunkt} className="rutine-form">
+            <h2>Læreplan</h2>
+            {omrader.map((o) => (
+              <div className="ik-gruppe" key={o.navn}>
+                <h3>{o.navn}</h3>
+                <ul className="laereplan-liste">
+                  {o.punkter.map((pkt) => (
+                    <li key={pkt.id}>
+                      <span>{pkt.tekst}</span>
+                      <details className="rediger-detalj">
+                        <summary>⋯</summary>
+                        <form action={redigerPunkt} className="rediger-form">
+                          <input type="hidden" name="id" value={pkt.id} />
+                          <input name="omrade" defaultValue={pkt.omrade} aria-label="Område" />
+                          <input name="tekst" defaultValue={pkt.tekst} aria-label="Tekst" />
+                          <button type="submit" className="liten">Lagre</button>
+                        </form>
+                        <form action={slettPunkt}>
+                          <input type="hidden" name="id" value={pkt.id} />
+                          <button type="submit" className="liten slett">Slett</button>
+                        </form>
+                      </details>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <form action={leggTilPunkt} className="rutine-form" style={{ marginTop: '0.75rem' }}>
               <input name="omrade" placeholder="Område (f.eks. Kasse & salg)" />
-              <input name="tekst" placeholder="Hva skal læres" required />
+              <input name="tekst" placeholder="Nytt lærepunkt" required />
               <button type="submit" className="liten">Legg til</button>
             </form>
           </section>

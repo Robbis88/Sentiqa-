@@ -87,6 +87,38 @@ export async function settOppStandard(formData: FormData) {
   revalidatePath('/ikmat')
 }
 
+function erLeder(rolle: string) {
+  return rolle === 'retailer_admin' || rolle === 'butikksjef'
+}
+
+export async function slettKontrollpunkt(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('ik_kontrollpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/ikmat')
+}
+
+export async function redigerKontrollpunkt(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  const navn = String(formData.get('navn') ?? '').trim()
+  if (!id || !navn) return
+  const num = (felt: string) => {
+    const v = String(formData.get(felt) ?? '').replace(',', '.').trim()
+    return v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null
+  }
+  const supabase = await lagSupabaseServerKlient()
+  await supabase
+    .from('ik_kontrollpunkter')
+    .update({ navn, min_temp: num('min_temp'), max_temp: num('max_temp') })
+    .eq('id', id)
+  revalidatePath('/ikmat')
+}
+
 export async function leggTilPunkt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
