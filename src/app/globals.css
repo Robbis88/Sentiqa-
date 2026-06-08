@@ -230,6 +230,16 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Merker / badges */
+.merkevegg { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.merkevegg li { padding: 0.6rem 0; border-bottom: 1px solid var(--kant); }
+.merkevegg li:last-child { border-bottom: 0; }
+.merkevegg-merker { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+.merke-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; background: var(--bg); border: 1px solid var(--kant); border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+.merke-emoji { font-size: 1.1rem; }
+.merke-fjern { background: none; border: 0; color: var(--tekst-svak); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.2rem; }
+.merke-fjern:hover { color: #b10e1c; }
+
 /* Web-push tilmelding */
 .push-til { margin: 0 0 1rem; }
 
