@@ -230,6 +230,10 @@ button.logg-ut:hover { color: var(--tekst); }
 .status-pip.rod   { background: #fde7e9; color: #b10e1c; }
 .status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
 
+/* Konkurranser */
+.konk-skjema .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.konk-knapper { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+
 /* Puls */
 .puls-form { display: flex; flex-direction: column; gap: 0.75rem; max-width: 520px; }
 .puls-faces { display: flex; gap: 0.5rem; flex-wrap: wrap; }
