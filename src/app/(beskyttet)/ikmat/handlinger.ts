@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
+import { lesAktivAnsatt } from '@/lib/ansatt'
 import { STANDARD_KONTROLLPUNKTER } from '@/lib/ikmat/standard'
 
 function iDag(): string {
@@ -29,6 +30,7 @@ export async function registrerAvlesning(formData: FormData) {
   const underMin = punkt.min_temp != null && temp < punkt.min_temp
   const overMax = punkt.max_temp != null && temp > punkt.max_temp
   const innenfor = !underMin && !overMax
+  const ansatt = await lesAktivAnsatt()
 
   await supabase.from('ik_avlesninger').insert({
     kontrollpunkt_id: punktId,
@@ -38,6 +40,7 @@ export async function registrerAvlesning(formData: FormData) {
     innenfor,
     tiltak,
     avlest_av: bruker.id,
+    ansatt_id: ansatt?.id ?? null,
   })
 
   if (!innenfor && bruker.retailerId) {

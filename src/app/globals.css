@@ -184,6 +184,10 @@ button.logg-ut:hover { color: var(--tekst); }
 }
 .bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.6rem; }
 .topp-hoyre { display: flex; align-items: center; gap: 1rem; }
+.vakt { display: flex; align-items: center; gap: 0.4rem; }
+.vakt-navn { font-size: 0.85rem; font-weight: 600; color: var(--primaer); }
+.vakt-pin { width: 5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
+.vakt-feil { font-size: 0.75rem; color: #b10e1c; }
 .klokke-lenke { position: relative; font-size: 1.2rem; text-decoration: none; line-height: 1; }
 .varsel-teller {
   position: absolute; top: -6px; right: -8px; background: #b10e1c; color: #fff;

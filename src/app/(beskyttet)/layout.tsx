@@ -3,6 +3,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
+import { lesAktivAnsatt } from '@/lib/ansatt'
+import { Vakt } from './vakt'
 
 // Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
 type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
@@ -46,6 +48,7 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/ikmat', tekst: 'IK-mat', roller: [A, B, T] },
       { sti: '/avvik', tekst: 'Avvik', roller: [A, B, T] },
       { sti: '/opplaring', tekst: 'Opplæring', roller: [A, B] },
+      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
     ],
   },
   {
@@ -78,6 +81,7 @@ export default async function BeskyttetLayout({
     .from('varsler')
     .select('*', { count: 'exact', head: true })
     .eq('lest', false)
+  const aktivAnsatt = await lesAktivAnsatt()
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
@@ -106,6 +110,7 @@ export default async function BeskyttetLayout({
             <span className="rolle-pip">{ROLLE_ETIKETT[bruker.rolle]}</span>
           </span>
           <div className="topp-hoyre">
+            <Vakt aktiv={aktivAnsatt} />
             <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
               🔔
               {(uleste ?? 0) > 0 && <span className="varsel-teller">{uleste}</span>}

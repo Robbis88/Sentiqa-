@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { lesAktivAnsatt } from '@/lib/ansatt'
 
 function iDag(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -52,11 +53,12 @@ export async function kryssAv(formData: FormData) {
   const rutineId = String(formData.get('rutine_id') ?? '')
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   if (!rutineId || !stasjonId) return
+  const ansatt = await lesAktivAnsatt()
   const supabase = await lagSupabaseServerKlient()
   await supabase
     .from('rutine_utforinger')
     .upsert(
-      { rutine_id: rutineId, stasjon_id: stasjonId, dato: iDag(), utfort_av: bruker.id },
+      { rutine_id: rutineId, stasjon_id: stasjonId, dato: iDag(), utfort_av: bruker.id, ansatt_id: ansatt?.id ?? null },
       { onConflict: 'rutine_id,dato', ignoreDuplicates: true },
     )
   revalidatePath('/rutiner')

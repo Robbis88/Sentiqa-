@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
+import { lesAktivAnsatt } from '@/lib/ansatt'
 
 function iDag(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -54,9 +55,10 @@ export async function svar(formData: FormData) {
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   const verdi = String(formData.get('svar') ?? '') === 'ja'
   if (!sjekkpunktId || !stasjonId) return
+  const ansatt = await lesAktivAnsatt()
   const supabase = await lagSupabaseServerKlient()
   await supabase.from('sjekkpunkt_svar').upsert(
-    { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: verdi, svart_av: bruker.id, svart_tid: new Date().toISOString() },
+    { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: verdi, svart_av: bruker.id, svart_tid: new Date().toISOString(), ansatt_id: ansatt?.id ?? null },
     { onConflict: 'sjekkpunkt_id,dato' },
   )
 
