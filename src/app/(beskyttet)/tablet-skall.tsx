@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { AktivAnsatt } from '@/lib/ansatt'
+import { loggUt } from '@/lib/auth/handlinger'
 import { TabletNav } from './tablet-nav'
 import { Vakt } from './vakt'
 import { SprakVelger } from './sprak-velger'
@@ -29,6 +30,9 @@ export function TabletSkall({
           <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
             🔔{uleste > 0 && <span className="varsel-teller">{uleste}</span>}
           </Link>
+          <form action={loggUt}>
+            <button type="submit" className="tablet-utlogg">Logg ut</button>
+          </form>
         </div>
       </header>
       <TabletNav />

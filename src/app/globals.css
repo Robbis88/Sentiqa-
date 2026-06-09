@@ -370,6 +370,8 @@ button.liten.slett:hover { background: #fdecea; }
 .sprak-flagg { background: none; border: 0; font-size: 1.25rem; cursor: pointer; opacity: 0.4; padding: 0.15rem 0.25rem; border-radius: 6px; line-height: 1; }
 .sprak-flagg.aktiv { opacity: 1; background: rgba(255,255,255,0.14); }
 .sprak-flagg:hover { opacity: 0.85; }
+.tablet-utlogg { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #e6ebf5; padding: 0.45rem 0.85rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.tablet-utlogg:active { transform: scale(0.97); }
 .tablet-topp-hoyre .klokke-lenke { color: #e6ebf5; }
 .tablet-topp-hoyre .vakt-navn { color: #7cc4ff; }
 .tablet-topp-hoyre .vakt-pin { background: #0a0f1f; color: #e6ebf5; border-color: rgba(255,255,255,0.25); }

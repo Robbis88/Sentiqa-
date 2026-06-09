@@ -6,7 +6,6 @@
 do $$ begin
   create type public.alvorlighet_type as enum ('uhell', 'nestenuhell', 'generelt', 'krenkelse');
 exception when duplicate_object then null; end $$;
-alter type public.alvorlighet_type add value if not exists 'krenkelse';
 
 create table if not exists public.tilbakemelding (
   id                    uuid primary key default gen_random_uuid(),
