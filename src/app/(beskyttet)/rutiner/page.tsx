@@ -5,6 +5,7 @@ import { datoLang } from '@/lib/format'
 import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu } from '@/lib/rutineskjema'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { oversettMange } from '@/lib/oversett'
+import { Konfetti } from '../konfetti'
 import { kryssAv, kryssAvMedBilde, fjernKryss } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
@@ -107,10 +108,25 @@ export default async function RutinerSide() {
           <section className="kort" key={sid}>
             <h2>{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className="streak"> 🔥 {streaks.get(sid)}</span>}</h2>
             {liste.map(({ skjema, vindu }) => {
-              const rs = (rutinerForSkjema.get(skjema.id) ?? []).filter((r) => rutineGjelder(r, vindu))
+              const rs0 = (rutinerForSkjema.get(skjema.id) ?? []).filter((r) => rutineGjelder(r, vindu))
+              const ferdigN = rs0.filter((r) => utfortMap.has(`${r.id}|${vindu.vaktdato}`)).length
+              const totalt = rs0.length
+              const alleFerdig = totalt > 0 && ferdigN === totalt
+              const pst = totalt > 0 ? Math.round((ferdigN / totalt) * 100) : 0
+              const igjen = totalt - ferdigN
+              const mikro = alleFerdig ? 'Alt klart! 🎉' : igjen === 1 ? '1 igjen — nesten i mål!' : `${igjen} igjen`
+              // Åpne oppgaver øverst (ferdige synker ned)
+              const rs = [...rs0].sort((a, b) => Number(utfortMap.has(`${a.id}|${vindu.vaktdato}`)) - Number(utfortMap.has(`${b.id}|${vindu.vaktdato}`)))
               return (
                 <div className="ik-gruppe" key={skjema.id}>
+                  <Konfetti aktiv={alleFerdig} nokkel={`${skjema.id}-${vindu.vaktdato}`} />
                   <h3>{VAKTTYPE_ETIKETT[skjema.vakttype]}{skjema.navn ? ` · ${skjema.navn}` : ''} <span className="undertittel">{skjema.tid_start}–{skjema.tid_slutt}</span></h3>
+                  {totalt > 0 && (
+                    <div className="fremdrift">
+                      <div className="fremdrift-bar"><div className={`fremdrift-fyll ${alleFerdig ? 'full' : ''}`} style={{ width: `${pst}%` }} /></div>
+                      <span className="fremdrift-tekst">{mikro}</span>
+                    </div>
+                  )}
                   {rs.length === 0 ? (
                     <p className="undertittel">Ingen rutiner for denne vakten i dag.</p>
                   ) : (

@@ -381,6 +381,15 @@ button.liten.slett:hover { background: #fdecea; }
 .tablet-tile:active { transform: scale(0.97); }
 .tablet-tile-ikon { font-size: 2.4rem; }
 
+/* Rutine-fremdrift */
+.fremdrift { display: flex; align-items: center; gap: 0.6rem; margin: 0.3rem 0 0.7rem; }
+.fremdrift-bar { flex: 1; height: 9px; background: rgba(0,0,0,0.12); border-radius: 999px; overflow: hidden; }
+.fremdrift-fyll { height: 100%; background: var(--gradient); border-radius: 999px; transition: width 0.35s ease; }
+.fremdrift-fyll.full { background: #2f9e44; }
+.fremdrift-tekst { font-size: 0.85rem; font-weight: 700; color: var(--tekst-svak); white-space: nowrap; }
+.tablet .fremdrift-tekst { color: #aeb8cc; }
+.tablet .fremdrift-bar { background: rgba(255,255,255,0.12); }
+
 /* Rutine-bildebevis */
 .bilde-kryss { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 .bilde-kryss input[type="file"] { max-width: 9.5rem; font-size: 0.72rem; }

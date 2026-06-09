@@ -3,6 +3,7 @@ import type { AktivAnsatt } from '@/lib/ansatt'
 import { TabletNav } from './tablet-nav'
 import { Vakt } from './vakt'
 import { SprakVelger } from './sprak-velger'
+import { AutoRefresh } from './auto-refresh'
 
 // Tablet-skallet — «egen verden» for den delte stasjonskontoen (mørk, stor,
 // berøringsvennlig). Andre roller får aldri denne layouten.
@@ -19,6 +20,7 @@ export function TabletSkall({
 }) {
   return (
     <div className="tablet">
+      <AutoRefresh sekunder={30} />
       <header className="tablet-topp">
         <span className="tablet-merke">Sentiqa</span>
         <div className="tablet-topp-hoyre">
