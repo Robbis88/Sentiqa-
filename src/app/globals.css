@@ -328,6 +328,15 @@ button.liten.slett:hover { background: #fdecea; }
 .laereplan-liste li:last-child { border-bottom: 0; }
 .person-hoyre { display: flex; align-items: center; gap: 0.6rem; }
 
+/* Rutineoppsett */
+.skjema-kort { border: 1px solid var(--kant); border-radius: 10px; padding: 0.9rem; margin: 0.75rem 0; }
+.skjema-topp { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.ukedag-velger { display: inline-flex; flex-wrap: wrap; gap: 0.5rem; }
+.ukedag { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; font-weight: 400; }
+.skjema-form { display: flex; flex-direction: column; gap: 0.6rem; max-width: 460px; margin-top: 0.6rem; }
+.skjema-form .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.nytt-skjema summary { font-weight: 600; color: var(--primaer); }
+
 /* Opplæring */
 .person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }
 .person-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--kant); border-radius: 6px; }
