@@ -20,6 +20,11 @@ export const manedAar = new Intl.DateTimeFormat('nb-NO', {
   timeZone: 'Europe/Oslo',
 })
 
+// Dagens dato i Oslo-tid som 'YYYY-MM-DD' (tidligere duplisert mange steder).
+export function iDag(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+}
+
 // Grønn/gul/rød på avvik mot budsjett (§12). Høyere = bedre (omsetning/brutto).
 export function avviksKlasse(indexPct: number): 'gronn' | 'gul' | 'rod' {
   if (indexPct >= -2) return 'gronn'

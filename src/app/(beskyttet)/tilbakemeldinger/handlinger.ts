@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { lesAktivAnsatt } from '@/lib/ansatt'
+import { lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 
 const ALVOR = ['generelt', 'uhell', 'nestenuhell', 'krenkelse']
 export type TilbakeResultat = { ok?: true; feil?: string }
@@ -18,15 +18,7 @@ export async function sendTilbakemelding(_t: TilbakeResultat | undefined, formDa
 
   const supabase = await lagSupabaseServerKlient()
   const ansatt = await lesAktivAnsatt()
-  let stasjonId: string | null = null
-  if (ansatt) {
-    const { data } = await supabase.from('ansatte').select('stasjon_id').eq('id', ansatt.id).maybeSingle<{ stasjon_id: string }>()
-    stasjonId = data?.stasjon_id ?? null
-  }
-  if (!stasjonId) {
-    const { data } = await supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>()
-    stasjonId = data?.id ?? null
-  }
+  const stasjonId = await hentStasjonId(supabase, ansatt)
   if (!stasjonId) return { feil: 'Fant ingen stasjon.' }
 
   const { error } = await supabase.from('tilbakemelding').insert({

@@ -1,14 +1,9 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
+import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-
-function iDag(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-}
-function erLeder(rolle: string) {
-  return rolle === 'retailer_admin' || rolle === 'butikksjef'
-}
 
 export async function leggTilPunkt(formData: FormData) {
   const bruker = await hentInnloggetBruker()

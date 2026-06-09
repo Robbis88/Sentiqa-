@@ -2,13 +2,10 @@
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
-
-function iDag(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-}
 
 const Nytt = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),

@@ -2,13 +2,10 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { lesAktivAnsatt } from '@/lib/ansatt'
+import { lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 import { STANDARD_PULS_SPORSMAL } from '@/lib/puls/standard'
-
-function erLeder(rolle: string) {
-  return rolle === 'retailer_admin' || rolle === 'butikksjef'
-}
 
 // ---- Spørsmålsbibliotek ----
 export async function settOppStandard() {
@@ -108,15 +105,7 @@ export async function svarRunde(_t: SvarResultat | undefined, formData: FormData
 
   const supabase = await lagSupabaseServerKlient()
   const ansatt = await lesAktivAnsatt()
-  let stasjonId: string | null = null
-  if (ansatt) {
-    const { data } = await supabase.from('ansatte').select('stasjon_id').eq('id', ansatt.id).maybeSingle<{ stasjon_id: string }>()
-    stasjonId = data?.stasjon_id ?? null
-  }
-  if (!stasjonId) {
-    const { data } = await supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>()
-    stasjonId = data?.id ?? null
-  }
+  const stasjonId = await hentStasjonId(supabase, ansatt)
   if (!stasjonId) return { feil: 'Fant ingen stasjon.' }
 
   await supabase.from('puls_svar').upsert(

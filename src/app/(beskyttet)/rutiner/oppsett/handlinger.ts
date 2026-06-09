@@ -1,12 +1,10 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER } from '@/lib/rutineskjema'
 
-function erLeder(rolle: string) {
-  return rolle === 'retailer_admin' || rolle === 'butikksjef'
-}
 function ukedagerFra(formData: FormData): number[] {
   return formData.getAll('ukedager').map((u) => Number(u)).filter((n) => n >= 0 && n <= 6)
 }

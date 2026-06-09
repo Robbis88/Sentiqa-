@@ -1,12 +1,9 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { STANDARD_OPPLAERING } from '@/lib/opplaering/standard'
-
-function erLeder(rolle: string) {
-  return rolle === 'retailer_admin' || rolle === 'butikksjef'
-}
 
 // ---- Master-oppgaver ----
 export async function settOppStandard() {

@@ -1,14 +1,12 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
+import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { STANDARD_KONTROLLPUNKTER } from '@/lib/ikmat/standard'
-
-function iDag(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-}
 
 // Tablet/ansatt logger en temperatur. Utenfor kravet → avvik + varsel (§16.5).
 export async function registrerAvlesning(formData: FormData) {
@@ -85,10 +83,6 @@ export async function settOppStandard(formData: FormData) {
   }))
   await supabase.from('ik_kontrollpunkter').insert(rader)
   revalidatePath('/ikmat')
-}
-
-function erLeder(rolle: string) {
-  return rolle === 'retailer_admin' || rolle === 'butikksjef'
 }
 
 export async function slettKontrollpunkt(formData: FormData) {

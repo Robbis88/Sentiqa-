@@ -1,6 +1,7 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
 import { cookies } from 'next/headers'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const COOKIE = 'sentiqa_vakt'
 
@@ -36,4 +37,15 @@ export async function settAktivAnsatt(a: AktivAnsatt) {
 
 export async function fjernAktivAnsatt() {
   ;(await cookies()).delete(COOKIE)
+}
+
+// Stasjon for innlogget tablet/ansatt: aktiv ansatts stasjon, ellers første
+// tilgjengelige (RLS scoper uansett). Tidligere duplisert i flere handlinger.
+export async function hentStasjonId(supabase: SupabaseClient, ansatt: AktivAnsatt | null): Promise<string | null> {
+  if (ansatt) {
+    const { data } = await supabase.from('ansatte').select('stasjon_id').eq('id', ansatt.id).maybeSingle<{ stasjon_id: string }>()
+    if (data?.stasjon_id) return data.stasjon_id
+  }
+  const { data } = await supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>()
+  return data?.id ?? null
 }
