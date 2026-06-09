@@ -4,7 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu } from '@/lib/rutineskjema'
 import { beregnRutinestat } from '@/lib/rutinestat'
-import { kryssAv, fjernKryss } from './handlinger'
+import { kryssAv, kryssAvMedBilde, fjernKryss } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; stasjon_id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; opprettet_dato: string; paakrevd_bilde: boolean }
@@ -41,10 +41,19 @@ export default async function RutinerSide() {
 
   // Hent utføringer for de aktuelle vaktdatoene
   const datoer = [...new Set(aktive.map((a) => a.vindu.vaktdato))]
-  const utfort = new Set<string>()
+  const utfortMap = new Map<string, string | null>() // key -> bilde_sti
   if (datoer.length > 0) {
-    const { data } = await supabase.from('rutine_utforinger').select('rutine_id, dato').in('dato', datoer)
-    for (const u of (data ?? []) as { rutine_id: string; dato: string }[]) utfort.add(`${u.rutine_id}|${u.dato}`)
+    const { data } = await supabase.from('rutine_utforinger').select('rutine_id, dato, bilde_sti').in('dato', datoer)
+    for (const u of (data ?? []) as { rutine_id: string; dato: string; bilde_sti: string | null }[]) {
+      utfortMap.set(`${u.rutine_id}|${u.dato}`, u.bilde_sti)
+    }
+  }
+  // Batchede signerte URL-er for bildebevis (aldri i loop, §15)
+  const stier = [...utfortMap.values()].filter((s): s is string => Boolean(s))
+  const signertFor = new Map<string, string>()
+  if (stier.length > 0) {
+    const { data } = await supabase.storage.from('rutinebilder').createSignedUrls(stier, 60 * 30)
+    for (const s of data ?? []) if (s.signedUrl && s.path) signertFor.set(s.path, s.signedUrl)
   }
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
@@ -93,20 +102,37 @@ export default async function RutinerSide() {
                   ) : (
                     <ul className="rutine-liste">
                       {rs.map((r) => {
-                        const gjort = utfort.has(`${r.id}|${vindu.vaktdato}`)
+                        const key = `${r.id}|${vindu.vaktdato}`
+                        const gjort = utfortMap.has(key)
+                        const lagretSti = utfortMap.get(key)
+                        const bildeUrl = lagretSti ? signertFor.get(lagretSti) : undefined
                         return (
                           <li key={r.id} className={gjort ? 'gjort' : ''}>
-                            <form action={gjort ? fjernKryss : kryssAv}>
-                              <input type="hidden" name="rutine_id" value={r.id} />
-                              <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
-                              <input type="hidden" name="dato" value={vindu.vaktdato} />
-                              <button type="submit" className={`kryss ${gjort ? 'av' : ''}`} aria-label="Kryss av">{gjort ? '✓' : ''}</button>
-                            </form>
+                            {r.paakrevd_bilde && !gjort ? (
+                              <form action={kryssAvMedBilde} className="bilde-kryss">
+                                <input type="hidden" name="rutine_id" value={r.id} />
+                                <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
+                                <input type="hidden" name="dato" value={vindu.vaktdato} />
+                                <input type="file" name="bilde" accept="image/*" capture="environment" required aria-label="Ta bilde" />
+                                <button type="submit" className="liten" aria-label="Kryss av med bilde">📷</button>
+                              </form>
+                            ) : (
+                              <form action={gjort ? fjernKryss : kryssAv}>
+                                <input type="hidden" name="rutine_id" value={r.id} />
+                                <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
+                                <input type="hidden" name="dato" value={vindu.vaktdato} />
+                                <button type="submit" className={`kryss ${gjort ? 'av' : ''}`} aria-label="Kryss av">{gjort ? '✓' : ''}</button>
+                              </form>
+                            )}
                             <div className="rutine-tekst">
                               <strong>{r.tittel}</strong>
                               {r.beskrivelse ? <span className="undertittel"> — {r.beskrivelse}</span> : null}
                               {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
                             </div>
+                            {bildeUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <a href={bildeUrl} target="_blank" rel="noopener" className="bevis-lenke"><img src={bildeUrl} alt="Bevis" className="bevis-bilde" /></a>
+                            )}
                           </li>
                         )
                       })}

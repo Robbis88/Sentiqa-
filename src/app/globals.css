@@ -328,6 +328,12 @@ button.liten.slett:hover { background: #fdecea; }
 .laereplan-liste li:last-child { border-bottom: 0; }
 .person-hoyre { display: flex; align-items: center; gap: 0.6rem; }
 
+/* Rutine-bildebevis */
+.bilde-kryss { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+.bilde-kryss input[type="file"] { max-width: 9.5rem; font-size: 0.72rem; }
+.bevis-lenke { margin-left: auto; flex-shrink: 0; }
+.bevis-bilde { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; border: 1px solid var(--kant); display: block; }
+
 /* Rutine-rangering */
 .rangering-topp { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .rangering-plass { font-size: 1.3rem; min-width: 2rem; }
