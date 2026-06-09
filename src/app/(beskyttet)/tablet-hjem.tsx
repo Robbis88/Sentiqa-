@@ -8,6 +8,8 @@ const TILES = [
   { sti: '/avvik', tekst: 'Avvik', ikon: '⚠️' },
   { sti: '/puls', tekst: 'Puls', ikon: '💙' },
   { sti: '/merker', tekst: 'Merker', ikon: '🏅' },
+  { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },
+  { sti: '/lenker', tekst: 'Lenker', ikon: '🔗' },
 ]
 
 export function TabletHjem({ navn, streak }: { navn?: string; streak: number }) {

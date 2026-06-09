@@ -2,10 +2,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-// Faner bygges ut etter hvert (Svinn/Anvisninger/Lenker kommer i neste etappe).
 const FANER = [
   { sti: '/oversikt', tekst: 'Hjem', ikon: '🏠' },
   { sti: '/rutiner', tekst: 'Rutineskjema', ikon: '✅' },
+  { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },
+  { sti: '/lenker', tekst: 'Lenker', ikon: '🔗' },
 ]
 
 export function TabletNav() {
