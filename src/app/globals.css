@@ -328,6 +328,11 @@ button.liten.slett:hover { background: #fdecea; }
 .laereplan-liste li:last-child { border-bottom: 0; }
 .person-hoyre { display: flex; align-items: center; gap: 0.6rem; }
 
+/* Rutine-rangering */
+.rangering-topp { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.rangering-plass { font-size: 1.3rem; min-width: 2rem; }
+.streak { font-weight: 700; color: #d9480f; font-size: 0.9rem; }
+
 /* Rutineoppsett */
 .skjema-kort { border: 1px solid var(--kant); border-radius: 10px; padding: 0.9rem; margin: 0.75rem 0; }
 .skjema-topp { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }

@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu } from '@/lib/rutineskjema'
+import { beregnRutinestat } from '@/lib/rutinestat'
 import { kryssAv, fjernKryss } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
@@ -55,6 +56,15 @@ export default async function RutinerSide() {
     perStasjon.set(a.skjema.stasjon_id, l)
   }
 
+  // Streak pr aktiv stasjon (motivasjon)
+  const streaks = new Map<string, number>()
+  await Promise.all(
+    [...perStasjon.keys()].map(async (sid) => {
+      const st = await beregnRutinestat(supabase, sid, naa.dato)
+      streaks.set(sid, st.streak)
+    }),
+  )
+
   return (
     <>
       <h1>Rutiner</h1>
@@ -72,7 +82,7 @@ export default async function RutinerSide() {
       ) : (
         [...perStasjon.entries()].map(([sid, liste]) => (
           <section className="kort" key={sid}>
-            <h2>{navnFor.get(sid) ?? '—'}</h2>
+            <h2>{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className="streak"> 🔥 {streaks.get(sid)}</span>}</h2>
             {liste.map(({ skjema, vindu }) => {
               const rs = (rutinerForSkjema.get(skjema.id) ?? []).filter((r) => rutineGjelder(r, vindu))
               return (
