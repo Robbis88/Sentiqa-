@@ -16,13 +16,13 @@ const MARQUEE = [
 ]
 
 const SPORSMAL = [
-  'Hvorfor falt salget av pølser 12 % i Bergen i går?',
+  'Hvorfor falt salget av ferskvarer 12 % i Bergen i går?',
   'Hvordan påvirker varslet regnvær neste uke salget vårt?',
-  'Hvor mye baguetter bør vi produsere på fredag?',
+  'Hvor mye bør vi produsere til fredag?',
 ]
 
 const FUNKSJONER = [
-  { tittel: 'Datainntak uten styr', tekst: 'Send rapportene fra St1, Salesgrid og regnskapskontoret på e-post eller dra dem inn. Sentiqa tolker dem automatisk.' },
+  { tittel: 'Datainntak uten styr', tekst: 'Send rapportene du allerede eksporterer på e-post eller dra dem inn. Sentiqa tolker dem automatisk.' },
   { tittel: 'AI som svarer', tekst: 'Spør på vanlig norsk og få svar med tall fra dine egne data — den finner aldri på noe, og viser kildene.' },
   { tittel: 'Analyse & dashboards', tekst: 'Salg, timesalg, svinn mot terskel, kasserer, regnskap mot budsjett og værbasert produksjonsplan.' },
   { tittel: 'Drift på tablet', tekst: 'Rutiner, sjekkpunkter og oppgaver med store knapper — enkelt for de ansatte, oversikt for sjefen.' },
@@ -41,7 +41,7 @@ export default function Landing() {
             Ta inn rapportene du allerede eksporterer. Få <strong>svar</strong> — ikke dashboards å lete i.
           </p>
           <div className="lp-cta">
-            <Link href="/registrer" className="lp-knapp primar">Kom i gang</Link>
+            <a href="mailto:post@sentiqa.ai" className="lp-knapp primar">Be om demo</a>
             <Link href="/logg-inn" className="lp-knapp">Logg inn</Link>
           </div>
         </div>
@@ -80,31 +80,16 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="lp-seksjon" id="priser">
-        <h2 className="lp-h2">Enkel pris — per stasjon, ikke per hode</h2>
-        <div className="lp-priser">
-          <div className="lp-pris">
-            <span className="lp-pris-tall">499 kr<small>/mnd</small></span>
-            <span className="lp-pris-merke">per cluster (retailer)</span>
-            <p>Konto, onboarding, support og AI-grunnkvote for hele kjeden.</p>
-          </div>
-          <div className="lp-pris fremhevet">
-            <span className="lp-pris-tall">249 kr<small>/mnd</small></span>
-            <span className="lp-pris-merke">per stasjon</span>
-            <p>Butikksjef-tilgang, tablet og AI-kvote. Dekker kjernen: import, svinn, salg, regnskap og AI.</p>
-          </div>
-          <div className="lp-pris">
-            <span className="lp-pris-tall">Tillegg</span>
-            <span className="lp-pris-merke">premium-moduler</span>
-            <p>Avtalevokter (faktura-AI), gamification m.m. — legg til det dere trenger.</p>
-          </div>
-        </div>
-        <p className="lp-eksempel">
-          Eksempel: en kjede med 5 stasjoner = 499 + 5 × 249 = <strong>1 744 kr/mnd</strong>. Rabatt ved årlig forskudd.
+      <section className="lp-seksjon" id="kontakt">
+        <h2 className="lp-h2">Pris og demo</h2>
+        <p className="lp-sub midt">
+          Prisen tilpasses kjeden din. Ta kontakt for et uforpliktende tilbud og en demo der vi viser
+          Sentiqa på deres egne tall.
         </p>
         <div className="lp-cta midt">
-          <Link href="/registrer" className="lp-knapp primar stor">Kom i gang</Link>
+          <a href="mailto:post@sentiqa.ai?subject=Demo%20av%20Sentiqa" className="lp-knapp primar stor">Ta kontakt</a>
         </div>
+        <p className="lp-eksempel"><a href="mailto:post@sentiqa.ai">post@sentiqa.ai</a></p>
       </section>
 
       <footer className="lp-footer">
