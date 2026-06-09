@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { beregnRutinestat } from '@/lib/rutinestat'
+import { hentHjemData } from '@/lib/tablethjem'
 import { oversettMange } from '@/lib/oversett'
 import { kr, prosent, datoLang, manedAar } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
@@ -23,12 +24,13 @@ export default async function OversiktSide() {
       supabase.from('puls_runde').select('id, puls_sporsmal(tekst)').eq('status', 'aktiv').lte('start_dato', idag).gte('slutt_dato', idag).is('slettet_tid', null).order('opprettet_tid', { ascending: false }).limit(1).maybeSingle<{ id: string; puls_sporsmal: { tekst: string } | null }>(),
     ])
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
+    const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, vekst: null }
     let pulsRunde: { id: string; tekst: string } | null = null
     if (runde?.puls_sporsmal?.tekst) {
       const o = await oversettMange([runde.puls_sporsmal.tekst], sprak)
       pulsRunde = { id: runde.id, tekst: o.get(runde.puls_sporsmal.tekst) ?? runde.puls_sporsmal.tekst }
     }
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} pulsRunde={pulsRunde} />
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} pulsRunde={pulsRunde} hjem={hjem} />
   }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)
