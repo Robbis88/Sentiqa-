@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const MARQUEE = [
   'Live AI-assistent', 'Rutineskjema', 'Produksjonsplan', 'Svinnkontroll',
   'Regnskap mot budsjett', 'Værbasert salg', 'AI-konkurranser', 'Auto-fokus',
-  'Sjekkpunkt-tablet', 'Avtalevokter', 'E-post-import', 'Timesalg-heatmap',
+  'Sjekkpunkt-tablet', 'IK-mat', 'E-post-import', 'Timesalg-heatmap',
   'Lederstøtte', 'Multi-tenant & sikkert',
 ]
 
