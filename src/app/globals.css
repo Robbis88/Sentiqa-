@@ -323,6 +323,28 @@ button.logg-ut:hover { color: var(--tekst); }
 /* Rediger/slett på admin-lister */
 button.liten.slett { background: #fff; color: #b10e1c; border: 1px solid #f3c6c2; }
 button.liten.slett:hover { background: #fdecea; }
+/* Inline «legg til»-skjemaer (brukt mange steder) — tydelige felt, ingen overlapp */
+.rutine-form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.rutine-form input, .rutine-form select, .rutine-form textarea {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--kant);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  background: #fff;
+  color: var(--tekst);
+  min-width: 0;
+}
+.rutine-form input::placeholder, .rutine-form textarea::placeholder { color: var(--tekst-svak); }
+.rutine-form input:focus, .rutine-form select:focus, .rutine-form textarea:focus {
+  outline: 2px solid var(--primaer);
+  outline-offset: -1px;
+  border-color: var(--primaer);
+}
+.rutine-form input[type="text"], .rutine-form input:not([type]) { flex: 1 1 12rem; min-width: 9rem; }
+.rutine-form select { flex: 0 1 13rem; min-width: 9rem; }
+.rutine-form input[type="number"], .rutine-form input[type="date"], .rutine-form input[type="time"] { flex: 0 0 auto; }
+
 .rediger-detalj { display: inline-block; }
 .rediger-detalj summary { cursor: pointer; list-style: none; padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--tekst-svak); }
 .rediger-detalj summary::-webkit-details-marker { display: none; }

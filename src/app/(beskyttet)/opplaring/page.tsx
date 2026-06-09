@@ -14,8 +14,8 @@ type Skift = { id: string; dato: string; notater: string | null }
 
 export default async function OpplaringSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
-    return <p>Opplæring administreres av eier/butikksjef.</p>
+  if (bruker.rolle !== 'butikksjef') {
+    return <p>Opplæring av nyansatte håndteres av butikksjefen for sin butikk.</p>
   }
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
