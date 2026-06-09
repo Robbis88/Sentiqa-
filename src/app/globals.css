@@ -291,6 +291,16 @@ button.logg-ut:hover { color: var(--tekst); }
 .konk-skjema .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .konk-knapper { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
 
+/* Puls sporadisk popup */
+.puls-popp { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 80; padding: 1rem; }
+.puls-popp-kort { background: #fff; color: var(--tekst); border-radius: 18px; padding: 1.5rem; max-width: 440px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+.puls-popp-q { font-size: 1.25rem; font-weight: 700; margin: 0 0 1rem; }
+.puls-popp-takk { font-size: 1.3rem; font-weight: 700; text-align: center; margin: 1rem 0; }
+.puls-popp-kort textarea { width: 100%; margin-top: 0.75rem; padding: 0.6rem; border: 1px solid var(--kant); border-radius: 8px; font: inherit; resize: vertical; }
+.puls-popp-knapper { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1rem; }
+.fordeling { display: inline-flex; gap: 0.3rem; }
+.fordeling span { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0.1rem 0.3rem; background: var(--bg); border-radius: 5px; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+
 /* Puls */
 .puls-form { display: flex; flex-direction: column; gap: 0.75rem; max-width: 520px; }
 .puls-faces { display: flex; gap: 0.5rem; flex-wrap: wrap; }

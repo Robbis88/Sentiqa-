@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { beregnRutinestat } from '@/lib/rutinestat'
+import { oversettMange } from '@/lib/oversett'
 import { kr, prosent, datoLang, manedAar } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
 
@@ -14,12 +15,20 @@ export default async function OversiktSide() {
   if (bruker.rolle === 'butikkbruker_tablet') {
     const aktiv = await lesAktivAnsatt()
     const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-    const [{ data: st }, { data: meldinger }] = await Promise.all([
+    const { cookies } = await import('next/headers')
+    const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+    const [{ data: st }, { data: meldinger }, { data: runde }] = await Promise.all([
       supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>(),
       supabase.from('tablet_meldinger').select('id, tekst, viktig').is('slettet_tid', null).order('viktig', { ascending: false }).order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<{ id: string; tekst: string; viktig: boolean }[]>(),
+      supabase.from('puls_runde').select('id, puls_sporsmal(tekst)').eq('status', 'aktiv').lte('start_dato', idag).gte('slutt_dato', idag).is('slettet_tid', null).order('opprettet_tid', { ascending: false }).limit(1).maybeSingle<{ id: string; puls_sporsmal: { tekst: string } | null }>(),
     ])
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} />
+    let pulsRunde: { id: string; tekst: string } | null = null
+    if (runde?.puls_sporsmal?.tekst) {
+      const o = await oversettMange([runde.puls_sporsmal.tekst], sprak)
+      pulsRunde = { id: runde.id, tekst: o.get(runde.puls_sporsmal.tekst) ?? runde.puls_sporsmal.tekst }
+    }
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} pulsRunde={pulsRunde} />
   }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)

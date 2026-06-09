@@ -1,115 +1,66 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { lesAktivAnsatt } from '@/lib/ansatt'
 import { datoLang } from '@/lib/format'
-import { PulsPicker } from './puls-picker'
+import { avsluttRunde, slettRunde } from './handlinger'
 
-type Svar = { stasjon_id: string; dato: string; humor: number; kommentar: string | null }
-
-const EMOJI = ['', '😣', '🙁', '😐', '🙂', '😄']
-function emojiFor(snitt: number): string {
-  return EMOJI[Math.max(1, Math.min(5, Math.round(snitt)))]
-}
-const dag = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', weekday: 'short', day: 'numeric', month: 'short' })
+type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: string; status: string; puls_sporsmal: { tekst: string; kategori: string } | null }
 
 export default async function PulsSide() {
   const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+    return <p>Puls administreres av eier/butikksjef. Ansatte svarer på tableten.</p>
+  }
   const supabase = await lagSupabaseServerKlient()
-  const aktivAnsatt = await lesAktivAnsatt()
-  const erLeder = bruker.rolle === 'retailer_admin' || bruker.rolle === 'butikksjef'
+  const { data: runder } = await supabase
+    .from('puls_runde')
+    .select('id, sporsmal_id, start_dato, slutt_dato, status, puls_sporsmal(tekst, kategori)')
+    .is('slettet_tid', null)
+    .order('opprettet_tid', { ascending: false })
+    .overrideTypes<Runde[]>()
 
-  const { data: stasjoner } = await supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer')
-
-  // Leder ser aggregat siste 14 dager (RLS gir kun leder lesetilgang)
-  let snittDager: { dato: string; snitt: number; antall: number }[] = []
-  let kommentarer: { dato: string; humor: number; kommentar: string }[] = []
-  let snittIdag: number | null = null
-  if (erLeder) {
-    const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-    const fra = new Date(idag); fra.setDate(fra.getDate() - 13)
-    const { data } = await supabase
-      .from('puls_svar')
-      .select('stasjon_id, dato, humor, kommentar')
-      .gte('dato', fra.toISOString().slice(0, 10))
-      .order('dato')
-      .overrideTypes<Svar[]>()
-    const perDag = new Map<string, number[]>()
-    for (const s of data ?? []) {
-      const l = perDag.get(s.dato) ?? []
-      l.push(s.humor)
-      perDag.set(s.dato, l)
-      if (s.kommentar) kommentarer.push({ dato: s.dato, humor: s.humor, kommentar: s.kommentar })
+  const ids = (runder ?? []).map((r) => r.id)
+  const antall = new Map<string, number>()
+  const sum = new Map<string, number>()
+  if (ids.length > 0) {
+    const { data: svar } = await supabase.from('puls_svar').select('runde_id, skala').in('runde_id', ids)
+    for (const s of (svar ?? []) as { runde_id: string; skala: number | null }[]) {
+      if (s.skala == null) continue
+      antall.set(s.runde_id, (antall.get(s.runde_id) ?? 0) + 1)
+      sum.set(s.runde_id, (sum.get(s.runde_id) ?? 0) + s.skala)
     }
-    snittDager = [...perDag.entries()].map(([dato, hs]) => ({ dato, snitt: hs.reduce((a, b) => a + b, 0) / hs.length, antall: hs.length }))
-    snittIdag = perDag.has(idag) ? perDag.get(idag)!.reduce((a, b) => a + b, 0) / perDag.get(idag)!.length : null
-    kommentarer = kommentarer.reverse().slice(0, 10)
   }
 
   return (
     <>
       <h1>Puls</h1>
-      <p className="undertittel">Hvordan står det til på jobb i dag?</p>
+      <p className="undertittel">Korte pulsmålinger — ett spørsmål om gangen. <Link href="/puls/ny">+ Start måling</Link> · <Link href="/puls/sporsmal">Spørsmål</Link></p>
 
-      <section className="kort">
-        <h2>Gi din puls</h2>
-        {!aktivAnsatt && !erLeder ? (
-          <p className="undertittel">Logg på vakt med PIN øverst først, så registreres pulsen din.</p>
-        ) : (
-          <PulsPicker
-            stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-            kreverStasjon={!aktivAnsatt}
-          />
-        )}
-      </section>
-
-      {erLeder && (
-        <>
-          <section className="nokkeltall">
-            <div className="kpi">
-              <span className="kpi-tall">{snittIdag != null ? `${emojiFor(snittIdag)} ${snittIdag.toFixed(1)}` : '—'}</span>
-              <span className="kpi-merke">Snitt i dag</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi-tall">{snittDager.length ? (snittDager.reduce((a, d) => a + d.snitt, 0) / snittDager.length).toFixed(1) : '—'}</span>
-              <span className="kpi-merke">Snitt siste 14 dager</span>
-            </div>
-          </section>
-
-          <section className="kort">
-            <h2>Trend (14 dager)</h2>
-            {snittDager.length === 0 ? (
-              <p className="undertittel">Ingen puls registrert ennå.</p>
-            ) : (
-              <table className="tabell">
-                <thead><tr><th>Dag</th><th>Snitt</th><th>Svar</th></tr></thead>
-                <tbody>
-                  {snittDager.map((d) => (
-                    <tr key={d.dato}>
-                      <td>{dag.format(new Date(d.dato))}</td>
-                      <td>{emojiFor(d.snitt)} {d.snitt.toFixed(1)}</td>
-                      <td>{d.antall}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-
-          {kommentarer.length > 0 && (
-            <section className="kort">
-              <h2>Anonyme kommentarer</h2>
-              <ul className="puls-kommentarer">
-                {kommentarer.map((k, i) => (
-                  <li key={i}>
-                    <span className="puls-emoji-liten">{EMOJI[k.humor]}</span>
-                    <span>{k.kommentar}</span>
-                    <span className="undertittel"> · {datoLang.format(new Date(k.dato))}</span>
-                  </li>
-                ))}
-              </ul>
+      {(runder ?? []).length === 0 ? (
+        <section className="kort"><p className="undertittel">Ingen målinger ennå. <Link href="/puls/sporsmal">Sett opp spørsmål</Link> og <Link href="/puls/ny">start en måling</Link>.</p></section>
+      ) : (
+        (runder ?? []).map((r) => {
+          const n = antall.get(r.id) ?? 0
+          const snitt = n > 0 ? (sum.get(r.id)! / n).toFixed(1) : '—'
+          return (
+            <section className="kort" key={r.id}>
+              <h2>
+                <Link href={`/puls/${r.id}`}>{r.puls_sporsmal?.tekst ?? '—'}</Link>{' '}
+                <span className={`status-pip ${r.status === 'aktiv' ? 'gronn' : 'gul'}`}>{r.status === 'aktiv' ? 'Aktiv' : 'Avsluttet'}</span>
+              </h2>
+              <p className="undertittel">
+                {r.puls_sporsmal?.kategori} · {datoLang.format(new Date(r.start_dato))}–{datoLang.format(new Date(r.slutt_dato))} · {n} svar · snitt {snitt}
+              </p>
+              <div className="konk-knapper">
+                <Link href={`/puls/${r.id}`} className="liten" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '0.3rem 0.6rem' }}>Resultater</Link>
+                {r.status === 'aktiv' && (
+                  <form action={avsluttRunde}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten">Avslutt</button></form>
+                )}
+                <form action={slettRunde}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten slett">Slett</button></form>
+              </div>
             </section>
-          )}
-        </>
+          )
+        })
       )}
     </>
   )

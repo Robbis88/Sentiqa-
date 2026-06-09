@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { TabletHero } from './tablet-hero'
+import { PulsPopp } from './puls-popp'
 
 const TILES = [
   { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
@@ -13,10 +14,12 @@ const TILES = [
 ]
 
 type Melding = { id: string; tekst: string; viktig: boolean }
+type PulsRunde = { id: string; tekst: string } | null
 
-export function TabletHjem({ navn, streak, meldinger = [] }: { navn?: string; streak: number; meldinger?: Melding[] }) {
+export function TabletHjem({ navn, streak, meldinger = [], pulsRunde = null }: { navn?: string; streak: number; meldinger?: Melding[]; pulsRunde?: PulsRunde }) {
   return (
     <>
+      <PulsPopp runde={pulsRunde} />
       <TabletHero navn={navn} streak={streak} />
 
       {meldinger.length > 0 && (
