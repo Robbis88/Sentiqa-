@@ -22,8 +22,8 @@ function dagerTekst(d: number[]) {
 
 export default async function OppsettSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
-    return <p>Kun eier/butikksjef kan sette opp rutineskjemaer.</p>
+  if (bruker.rolle !== 'butikksjef') {
+    return <p>Rutineoppsett gjøres av butikksjefen for sin butikk. Som eier finner du status under <Link href="/rutiner/oversikt">Rutineoversikt</Link>.</p>
   }
   const supabase = await lagSupabaseServerKlient()
   const [{ data: stasjoner }, { data: skjemaer }, { data: rutiner }] = await Promise.all([

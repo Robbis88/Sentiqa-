@@ -50,8 +50,8 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     tittel: 'Drift',
     punkter: [
       { sti: '/oppgaver', tekst: 'Oppgaver', roller: [A, B] },
-      { sti: '/rutiner', tekst: 'Rutiner', roller: [A, B, T] },
-      { sti: '/rutiner/oppsett', tekst: 'Rutineoppsett', roller: [A, B] },
+      { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
+      { sti: '/rutiner/oppsett', tekst: 'Rutineoppsett', roller: [B] },
       { sti: '/rutiner/oversikt', tekst: 'Rutineoversikt', roller: [A, B] },
       { sti: '/rutiner/min', tekst: 'Min sjekkliste', roller: [A, B] },
       { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B, T] },
