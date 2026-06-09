@@ -12,10 +12,23 @@ const TILES = [
   { sti: '/lenker', tekst: 'Lenker', ikon: '🔗' },
 ]
 
-export function TabletHjem({ navn, streak }: { navn?: string; streak: number }) {
+type Melding = { id: string; tekst: string; viktig: boolean }
+
+export function TabletHjem({ navn, streak, meldinger = [] }: { navn?: string; streak: number; meldinger?: Melding[] }) {
   return (
     <>
       <TabletHero navn={navn} streak={streak} />
+
+      {meldinger.length > 0 && (
+        <div className="tablet-meldinger">
+          {meldinger.map((m) => (
+            <div className={`tablet-melding ${m.viktig ? 'viktig' : ''}`} key={m.id}>
+              <span className="tablet-melding-ikon">{m.viktig ? '❗' : '📣'}</span>
+              <span>{m.tekst}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="tablet-tiles">
         {TILES.map((t) => (
           <Link key={t.sti} href={t.sti} className="tablet-tile">

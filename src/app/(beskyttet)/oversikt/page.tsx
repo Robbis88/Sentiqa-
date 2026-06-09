@@ -14,9 +14,12 @@ export default async function OversiktSide() {
   if (bruker.rolle === 'butikkbruker_tablet') {
     const aktiv = await lesAktivAnsatt()
     const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-    const { data: st } = await supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>()
+    const [{ data: st }, { data: meldinger }] = await Promise.all([
+      supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>(),
+      supabase.from('tablet_meldinger').select('id, tekst, viktig').is('slettet_tid', null).order('viktig', { ascending: false }).order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<{ id: string; tekst: string; viktig: boolean }[]>(),
+    ])
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
-    return <TabletHjem navn={aktiv?.navn} streak={streak} />
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} />
   }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)

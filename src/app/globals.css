@@ -328,6 +328,17 @@ button.liten.slett:hover { background: #fdecea; }
 .laereplan-liste li:last-child { border-bottom: 0; }
 .person-hoyre { display: flex; align-items: center; gap: 0.6rem; }
 
+/* Tablet-meldinger (admin-liste) */
+.melding-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.melding-liste li { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.8rem; border-radius: 8px; background: var(--bg); }
+.melding-liste li.viktig { background: #fdecea; }
+.melding-tekst { margin: 0 0 0.2rem; font-weight: 500; }
+/* Meldinger på tablet-hjem */
+.tablet-meldinger { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.2rem; }
+.tablet-melding { display: flex; align-items: center; gap: 0.7rem; padding: 1rem 1.2rem; border-radius: 14px; background: #13203b; border: 1px solid rgba(255,255,255,0.1); font-size: 1.05rem; font-weight: 600; }
+.tablet-melding.viktig { background: #3a1518; border-color: #b10e1c; }
+.tablet-melding-ikon { font-size: 1.4rem; }
+
 /* Anvisninger + Lenker */
 .anvisning { border-bottom: 1px solid var(--kant); padding: 0.4rem 0; }
 .anvisning summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
