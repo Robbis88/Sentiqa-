@@ -1,4 +1,7 @@
-// Sentiqa service worker — tar imot web-push og viser varsler.
+// Sentiqa service worker — PWA + web-push.
+// Tom fetch-handler gjør den til en gyldig PWA-service-worker (installerbar).
+self.addEventListener('fetch', () => {})
+
 self.addEventListener('push', (event) => {
   let data = {}
   try {

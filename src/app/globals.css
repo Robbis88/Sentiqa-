@@ -36,7 +36,8 @@ h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem; }
 }
 .lp-hero-inner { max-width: 820px; margin: 0 auto; }
 .lp-logo { width: min(420px, 80vw); height: auto; }
-.lp-h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 700; line-height: 1.15; margin: 1.5rem auto 0; max-width: 720px; letter-spacing: -0.02em; }
+.lp-avsender { display: inline-block; margin: 1.25rem auto 0; padding: 0.4rem 1rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 999px; font-size: 0.85rem; color: #cdd5e6; background: rgba(255,255,255,0.04); }
+.lp-h1 { font-size: clamp(1.8rem, 4.5vw, 2.9rem); font-weight: 800; line-height: 1.12; margin: 1.1rem auto 0; max-width: 760px; letter-spacing: -0.02em; }
 .lp-sub { font-size: clamp(1rem, 2vw, 1.2rem); color: #b8c0d4; margin: 1rem auto 0; max-width: 600px; line-height: 1.5; }
 .lp-sub strong { color: #fff; }
 .lp-sub.midt { text-align: center; }

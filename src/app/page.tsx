@@ -36,9 +36,11 @@ export default function Landing() {
       <header className="lp-hero">
         <div className="lp-hero-inner">
           <Image src="/logo.png" alt="Sentiqa" width={460} height={307} priority className="lp-logo" />
-          <h1 className="lp-h1">Drift, analyse og AI-assistanse for servicehandelen</h1>
+          <p className="lp-avsender">Bygget av en som har stått på gulvet i 24 år — ikke av et programvareselskap.</p>
+          <h1 className="lp-h1">Mindre tid på kontoret. Mer tid i butikken.</h1>
           <p className="lp-sub">
-            Ta inn rapportene du allerede eksporterer. Få <strong>svar</strong> — ikke dashboards å lete i.
+            For deg som ikke har tid til å lese hele regnskapet — Sentiqa fanger svinnet, treffer
+            produksjonen på vær og trend, og forteller deg hva som faktisk skjer.
           </p>
           <div className="lp-cta">
             <a href="mailto:post@sentiqa.ai" className="lp-knapp primar">Be om demo</a>

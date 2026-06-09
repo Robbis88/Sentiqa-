@@ -411,6 +411,48 @@ Next.js (App Router) + React + TypeScript + Tailwind. Supabase (Postgres + Auth 
 
 **Faste krav uansett stack:** all tid i Europe/Oslo; norsk bokmål i UI + domenekode (stasjon, svinn, oppgave); soft-delete (`slettet_tid`); Server Components default; touch-targets ≥44×44 px på tablet; signerte Storage-URL-er batchet (aldri i loop).
 
+## 19. Posisjonering & budskap
+
+Fire lag, der **avsenderen** ligger øverst og gir alt det andre troverdighet. Det
+uangripelige fortrinnet er opphavet: en programvareleverandør kan bygge funksjoner,
+men kan ikke kjøpe seg 24 år på gulvet. Det snur kjøperens skepsis («de som lager
+sånne systemer har aldri stått i en butikk») på hodet.
+
+1. **Avsender (den uangripelige):** «Bygget av en som har stått på gulvet i 24 år — ikke av et programvareselskap.»
+2. **Hovedkrok (gevinsten):** «Mindre tid på kontoret. Mer tid i butikken.»
+3. **Underlinje (beviset):** «For deg som ikke har tid til å lese hele regnskapet — Sentiqa fanger svinnet, treffer produksjonen på vær og trend, og forteller deg hva som faktisk skjer.»
+4. **Signatur (identiteten):** Sentiqa — Fornemmer. Forstår. Forutser.
+
+**Rød tråd:** «Jeg bygde verktøyet jeg selv ville hatt for å bli best.» Konkurransene,
+rangeringene, benchmarking mot egne stasjoner og lederstøtten er drivkraften bygget
+inn i produktet — sant, ikke markedsføring.
+
+**Bruk:** Avsender-historien er sterkest **fortalt**, ikke på en slide — den hører hjemme
+i åpningen av en pitch, i «Om oss», i de første to minuttene av et salgsmøte. På
+landingssiden brukes den som **én linje** (hero). Du er salgsargumentet — ikke gjem deg
+bak produktet.
+
+## 20. App & distribusjon
+
+Bygg **ikke** en egen native app først. Web-appen (Next.js) er fundamentet og kjører på
+alle skjermer. Riktig rekkefølge:
+
+1. **Web nå** — fundamentet, fungerer på alt.
+2. **PWA for tablet** — installer på butikkens hjem-skjerm (manifest + service worker).
+   Bedre enn native her: du oppdaterer uten App Store-godkjenningskø. *(Bygget: `app/manifest.ts`, `public/sw.js`, ikoner.)*
+3. **Capacitor-wrapper SENERE** — pakk den eksisterende web-appen i ett native skall →
+   App Store + Google Play fra én kodebase (for eier/butikksjef sine telefoner: push +
+   hjem-skjerm-ikon). Ikke React Native/Swift (ville vært to produkter).
+
+**Betaling utenfor app (viktig):** Sentiqa fakturerer **B2B via EHF/Fiken**, ikke kort i
+app. Da er Apples IAP og 15–30 % **helt irrelevant** — det skjer ingen betaling i appen.
+Den ene App Store-regelen vi følger: **ingen «meld deg på»-lenke inne i iOS-appen** (salget
+skjer uansett i møte). Appen må også gjøre noe nyttig ved åpning (dashboard/AI), ikke bare
+være en innloggings-vegg.
+
+**Kostnader senere:** Apple Developer $99/år, Google Play engangsgebyr, Apple-gjennomgang
+(dager). Derfor ikke ha App Store i kritisk bane tidlig — web + PWA gir alt for å selge.
+
 ---
 
-_Kilde: Roberts marsjordre, limt inn 2026-06-06._
+_Kilde: Roberts marsjordre, limt inn 2026-06-06. §19–20 lagt til 2026-06-09._
