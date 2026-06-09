@@ -2,114 +2,137 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { STANDARD_OPPLARING } from '@/lib/opplaring/standard'
+import { STANDARD_OPPLAERING } from '@/lib/opplaering/standard'
 
-function iDag(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-}
 function erLeder(rolle: string) {
   return rolle === 'retailer_admin' || rolle === 'butikksjef'
 }
 
-// Setter opp standard læreplan for kjeden (ett klikk).
+// ---- Master-oppgaver ----
 export async function settOppStandard() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !bruker.retailerId) return
   const supabase = await lagSupabaseServerKlient()
-  const { count } = await supabase
-    .from('opplaring_punkter')
-    .select('*', { count: 'exact', head: true })
-    .eq('retailer_id', bruker.retailerId)
-    .is('slettet_tid', null)
+  const { count } = await supabase.from('opplaering_oppgave').select('*', { count: 'exact', head: true }).eq('retailer_id', bruker.retailerId).is('slettet_tid', null)
   if ((count ?? 0) > 0) return
-  const rader = STANDARD_OPPLARING.map((p, i) => ({
-    retailer_id: bruker.retailerId,
-    omrade: p.omrade,
-    tekst: p.tekst,
-    sortering: i,
-  }))
-  await supabase.from('opplaring_punkter').insert(rader)
+  await supabase.from('opplaering_oppgave').insert(
+    STANDARD_OPPLAERING.map((o) => ({ retailer_id: bruker.retailerId, kategori: o.kategori, tittel: o.tittel, beskrivelse: o.beskrivelse, rekkefolge: o.rekkefolge, estimert_min: o.estimert_min, opprettet_av: bruker.id })),
+  )
   revalidatePath('/opplaring')
 }
 
-export async function leggTilPunkt(formData: FormData) {
+export async function leggTilOppgave(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !bruker.retailerId) return
-  const omrade = String(formData.get('omrade') ?? '').trim() || 'Annet'
-  const tekst = String(formData.get('tekst') ?? '').trim()
-  if (!tekst) return
+  const kategori = String(formData.get('kategori') ?? '').trim() || 'Generelt'
+  const tittel = String(formData.get('tittel') ?? '').trim()
+  const estimert = Number(formData.get('estimert_min'))
+  if (!tittel) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaring_punkter').insert({ retailer_id: bruker.retailerId, omrade, tekst, sortering: 999 })
+  await supabase.from('opplaering_oppgave').insert({ retailer_id: bruker.retailerId, kategori, tittel, estimert_min: Number.isFinite(estimert) && estimert > 0 ? estimert : null, rekkefolge: 999, opprettet_av: bruker.id })
   revalidatePath('/opplaring')
 }
 
-export async function leggTilPerson(formData: FormData) {
+export async function redigerOppgave(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  const kategori = String(formData.get('kategori') ?? '').trim() || 'Generelt'
+  const tittel = String(formData.get('tittel') ?? '').trim()
+  if (!id || !tittel) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaering_oppgave').update({ kategori, tittel }).eq('id', id)
+  revalidatePath('/opplaring')
+}
+
+export async function slettOppgave(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaering_oppgave').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/opplaring')
+}
+
+// ---- Perioder (nyansatte) ----
+export async function leggTilPeriode(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !bruker.retailerId) return
-  const navn = String(formData.get('navn') ?? '').trim()
+  const navn = String(formData.get('ansatt_navn') ?? '').trim()
   const stasjonId = String(formData.get('stasjon_id') ?? '')
-  const startdato = String(formData.get('startdato') ?? '') || null
-  if (!navn || !stasjonId) return
+  const start = String(formData.get('start_dato') ?? '')
+  const slutt = String(formData.get('forventet_slutt') ?? '')
+  if (!navn || !stasjonId || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaring_personer').insert({
+  await supabase.from('opplaering_periode').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
-    navn,
-    startdato,
+    ansatt_navn: navn,
+    start_dato: start,
+    forventet_slutt: /^\d{4}-\d{2}-\d{2}$/.test(slutt) ? slutt : null,
     opprettet_av: bruker.id,
   })
   revalidatePath('/opplaring')
 }
 
-export async function slettPunkt(formData: FormData) {
+export async function fullforPeriode(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return
   const id = String(formData.get('id') ?? '')
-  if (!id) return
-  const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaring_punkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
-  revalidatePath('/opplaring')
-}
-
-export async function redigerPunkt(formData: FormData) {
-  const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  const tekst = String(formData.get('tekst') ?? '').trim()
-  const omrade = String(formData.get('omrade') ?? '').trim() || 'Annet'
-  if (!id || !tekst) return
-  const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaring_punkter').update({ tekst, omrade }).eq('id', id)
-  revalidatePath('/opplaring')
-}
-
-export async function slettPerson(formData: FormData) {
-  const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
-  const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaring_personer').update({ slettet_tid: new Date().toISOString(), aktiv: false }).eq('id', id)
-  revalidatePath('/opplaring')
-}
-
-// Signer/avsigner et lærepunkt for en person.
-export async function veksleFullfort(formData: FormData) {
-  const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const personId = String(formData.get('person_id') ?? '')
-  const punktId = String(formData.get('punkt_id') ?? '')
-  const stasjonId = String(formData.get('stasjon_id') ?? '')
   const til = String(formData.get('til') ?? '') === 'ja'
-  if (!personId || !punktId || !stasjonId) return
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaering_periode').update({ fullfort_tid: til ? new Date().toISOString() : null }).eq('id', id)
+  revalidatePath('/opplaring')
+}
+
+export async function slettPeriode(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaering_periode').delete().eq('id', id)
+  revalidatePath('/opplaring')
+}
+
+// ---- Kvitt-bok (utført) ----
+export async function vekslUtfort(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const periodeId = String(formData.get('periode_id') ?? '')
+  const oppgaveId = String(formData.get('oppgave_id') ?? '')
+  const til = String(formData.get('til') ?? '') === 'ja'
+  if (!periodeId || !oppgaveId) return
   const supabase = await lagSupabaseServerKlient()
   if (til) {
-    await supabase.from('opplaring_fullfort').upsert(
-      { person_id: personId, punkt_id: punktId, stasjon_id: stasjonId, signert_av: bruker.id, fullfort_dato: iDag() },
-      { onConflict: 'person_id,punkt_id' },
-    )
+    await supabase.from('opplaering_utfort').upsert({ periode_id: periodeId, oppgave_id: oppgaveId, bekreftet_av: bruker.id }, { onConflict: 'periode_id,oppgave_id', ignoreDuplicates: true })
   } else {
-    await supabase.from('opplaring_fullfort').delete().eq('person_id', personId).eq('punkt_id', punktId)
+    await supabase.from('opplaering_utfort').delete().eq('periode_id', periodeId).eq('oppgave_id', oppgaveId)
   }
+  revalidatePath('/opplaring')
+}
+
+// ---- Skift-kalender ----
+export async function leggTilSkift(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const periodeId = String(formData.get('periode_id') ?? '')
+  const dato = String(formData.get('dato') ?? '')
+  const notater = String(formData.get('notater') ?? '').trim() || null
+  if (!periodeId || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaering_skift').upsert({ periode_id: periodeId, dato, ansvarlig_bruker_id: bruker.id, notater }, { onConflict: 'periode_id,dato' })
+  revalidatePath('/opplaring')
+}
+
+export async function slettSkift(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('opplaering_skift').delete().eq('id', id)
   revalidatePath('/opplaring')
 }
