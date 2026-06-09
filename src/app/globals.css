@@ -173,6 +173,9 @@ button.logg-ut:hover { color: var(--tekst); }
   color: var(--tekst);
 }
 .sidemeny nav a:hover { background: var(--bg); }
+.sidemeny nav a[aria-current="page"] { background: #e1eefb; color: var(--primaer); font-weight: 600; }
+/* Mobil-meny: skjult på desktop */
+.meny-hamburger, .meny-overlay { display: none; }
 
 .hoved { display: flex; flex-direction: column; }
 .toppstripe {
@@ -210,6 +213,31 @@ button.logg-ut:hover { color: var(--tekst); }
 }
 .innhold { padding: 1.5rem; }
 .innhold .kort { margin-top: 1rem; max-width: 720px; }
+
+/* ----------- Mobil (telefon): meny blir hamburger-skuff ----------- */
+@media (max-width: 900px) {
+  .skall { display: block; }
+  .sidemeny {
+    position: fixed; top: 0; left: 0; height: 100dvh; width: 82%; max-width: 300px;
+    transform: translateX(-100%); transition: transform 0.25s ease; z-index: 60;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18);
+  }
+  .sidemeny.apen { transform: translateX(0); }
+  .meny-overlay { display: block; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 55; }
+  .meny-hamburger {
+    display: inline-flex; align-items: center; justify-content: center;
+    position: fixed; top: 0.55rem; left: 0.6rem; z-index: 50;
+    width: 2.5rem; height: 2.5rem; border: 1px solid var(--kant); border-radius: 8px;
+    background: #fff; font-size: 1.3rem; cursor: pointer; color: var(--tekst);
+  }
+  .toppstripe { padding-left: 3.5rem; flex-wrap: wrap; gap: 0.4rem 0.75rem; }
+  .bruker { font-size: 0.8rem; }
+  .innhold { padding: 1rem 0.9rem; }
+  .innhold .kort { max-width: none; }
+  /* Brede tabeller kan skrolles vannrett i kortet sitt */
+  .kort { overflow-x: auto; }
+  .nokkeltall { grid-template-columns: 1fr 1fr; }
+}
 
 /* E-post-inntak */
 .inntak-adresse { background: var(--bg); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.95rem; }

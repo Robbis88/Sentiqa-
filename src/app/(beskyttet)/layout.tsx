@@ -5,6 +5,7 @@ import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { Vakt } from './vakt'
+import { Sidemeny } from './sidemeny'
 
 // Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
 type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
@@ -93,21 +94,14 @@ export default async function BeskyttetLayout({
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
   })).filter((s) => s.punkter.length > 0)
 
+  const menyData = seksjoner.map((s) => ({
+    tittel: s.tittel,
+    punkter: s.punkter.map((p) => ({ sti: p.sti, tekst: p.tekst })),
+  }))
+
   return (
     <div className="skall">
-      <aside className="sidemeny">
-        <div className="merke">Sentiqa</div>
-        <nav>
-          {seksjoner.map((s) => (
-            <div className="meny-seksjon" key={s.tittel || 'topp'}>
-              {s.tittel ? <span className="meny-tittel">{s.tittel}</span> : null}
-              {s.punkter.map((p) => (
-                <Link key={p.sti} href={p.sti}>{p.tekst}</Link>
-              ))}
-            </div>
-          ))}
-        </nav>
-      </aside>
+      <Sidemeny seksjoner={menyData} />
 
       <div className="hoved">
         <header className="toppstripe">
