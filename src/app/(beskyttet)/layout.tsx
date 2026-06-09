@@ -103,8 +103,10 @@ export default async function BeskyttetLayout({
 
   // Tableten får sin egen mørke verden — aldri admin-skallet.
   if (bruker.rolle === 'butikkbruker_tablet') {
+    const { cookies } = await import('next/headers')
+    const sprak = (await cookies()).get('sprak')?.value ?? 'no'
     return (
-      <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0}>
+      <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0} sprak={sprak}>
         {children}
       </TabletSkall>
     )

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { AktivAnsatt } from '@/lib/ansatt'
 import { TabletNav } from './tablet-nav'
 import { Vakt } from './vakt'
+import { SprakVelger } from './sprak-velger'
 
 // Tablet-skallet — «egen verden» for den delte stasjonskontoen (mørk, stor,
 // berøringsvennlig). Andre roller får aldri denne layouten.
@@ -9,16 +10,19 @@ export function TabletSkall({
   children,
   aktivAnsatt,
   uleste,
+  sprak,
 }: {
   children: React.ReactNode
   aktivAnsatt: AktivAnsatt | null
   uleste: number
+  sprak: string
 }) {
   return (
     <div className="tablet">
       <header className="tablet-topp">
         <span className="tablet-merke">Sentiqa</span>
         <div className="tablet-topp-hoyre">
+          <SprakVelger aktiv={sprak} />
           <Vakt aktiv={aktivAnsatt} />
           <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
             🔔{uleste > 0 && <span className="varsel-teller">{uleste}</span>}

@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu } from '@/lib/rutineskjema'
 import { beregnRutinestat } from '@/lib/rutinestat'
+import { oversettMange } from '@/lib/oversett'
 import { kryssAv, kryssAvMedBilde, fjernKryss } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
@@ -74,6 +75,19 @@ export default async function RutinerSide() {
     }),
   )
 
+  // Flerspråk: oversett rutinetekstene til valgt språk (cache + Haiku).
+  const { cookies } = await import('next/headers')
+  const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+  const tekster: string[] = []
+  for (const { skjema, vindu } of aktive) {
+    for (const r of (rutinerForSkjema.get(skjema.id) ?? []).filter((rr) => rutineGjelder(rr, vindu))) {
+      tekster.push(r.tittel)
+      if (r.beskrivelse) tekster.push(r.beskrivelse)
+    }
+  }
+  const oversatt = await oversettMange(tekster, sprak)
+  const o = (t: string | null) => (t ? oversatt.get(t) ?? t : t)
+
   return (
     <>
       <h1>Rutiner</h1>
@@ -125,8 +139,8 @@ export default async function RutinerSide() {
                               </form>
                             )}
                             <div className="rutine-tekst">
-                              <strong>{r.tittel}</strong>
-                              {r.beskrivelse ? <span className="undertittel"> — {r.beskrivelse}</span> : null}
+                              <strong>{o(r.tittel)}</strong>
+                              {r.beskrivelse ? <span className="undertittel"> — {o(r.beskrivelse)}</span> : null}
                               {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
                             </div>
                             {bildeUrl && (
