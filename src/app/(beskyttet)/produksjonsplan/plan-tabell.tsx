@@ -57,14 +57,14 @@ export function PlanTabell({ grupper, stasjonId, dato }: { grupper: Gruppe[]; st
             <h2>{g.navn} <span className="undertittel">· {g.kode}</span> <span className="gruppe-sum">{tall.format(sum)} stk</span></h2>
             <table className="tabell pp-tabell">
               <thead>
-                <tr><th>Produkt</th><th>Snitt/dag</th><th>Faktor</th><th>Forslag</th><th>Planlagt</th></tr>
+                <tr><th>Produkt</th><th className="mob-skjul">Snitt/dag</th><th className="mob-skjul">Faktor</th><th>Forslag</th><th>Planlagt</th></tr>
               </thead>
               <tbody>
                 {g.produkter.map((p) => (
                   <tr key={p.varenavn}>
                     <td>{p.varenavn}</td>
-                    <td>{tall.format(Math.round(p.baseline))}</td>
-                    <td>×{p.faktor.toFixed(2)}</td>
+                    <td className="mob-skjul">{tall.format(Math.round(p.baseline))}</td>
+                    <td className="mob-skjul">×{p.faktor.toFixed(2)}</td>
                     <td>{tall.format(p.foreslatt)}</td>
                     <td>
                       <div className="stepper">

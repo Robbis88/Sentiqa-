@@ -120,14 +120,14 @@ export default async function RegnskapSide() {
           <h2>Omsetning per stasjon</h2>
           <table className="tabell">
             <thead>
-              <tr><th>Stasjon</th><th>Regnskap</th><th>Budsjett</th><th>Mot budsjett</th></tr>
+              <tr><th>Stasjon</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th>Mot budsjett</th></tr>
             </thead>
             <tbody>
               {stasjonsrader.map((s) => (
                 <tr key={s.navn}>
                   <td>{s.navn}</td>
                   <td>{kr.format(s.regnskap)}</td>
-                  <td>{kr.format(s.budsjett)}</td>
+                  <td className="mob-skjul">{kr.format(s.budsjett)}</td>
                   <td>
                     <span className={`status-pip ${avviksKlasse(s.index)}`}>
                       {prosent.format(s.index / 100)}
@@ -146,7 +146,7 @@ export default async function RegnskapSide() {
           <table className="tabell">
             <thead>
               <tr>
-                <th>Post</th><th>Regnskap</th><th>Budsjett</th><th>Avvik</th><th>Index</th>
+                <th>Post</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th className="mob-skjul">Avvik</th><th>Index</th>
               </tr>
             </thead>
             <tbody>
@@ -156,8 +156,8 @@ export default async function RegnskapSide() {
                   <tr key={i}>
                     <td>{l.post}</td>
                     <td>{kr.format(l.regnskap ?? 0)}</td>
-                    <td>{kr.format(l.budsjett ?? 0)}</td>
-                    <td>{kr.format(l.avvik ?? 0)}</td>
+                    <td className="mob-skjul">{kr.format(l.budsjett ?? 0)}</td>
+                    <td className="mob-skjul">{kr.format(l.avvik ?? 0)}</td>
                     <td>
                       {visPip ? (
                         <span className={`status-pip ${avviksKlasse(l.index_pct!)}`}>
