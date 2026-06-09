@@ -28,3 +28,20 @@ create policy pengepremie_skriv on public.pengepremie for all to authenticated
   with check (public.har_stasjonstilgang(stasjon_id) and public.gjeldende_rolle() in ('retailer_admin', 'butikksjef'));
 
 grant select, insert, update, delete on public.pengepremie to authenticated;
+
+-- Kobling til konkurranse: en vinner gir automatisk en tildeling (en pr konkurranse).
+alter table public.pengepremie add column if not exists konkurranse_id uuid references public.konkurranser(id) on delete set null;
+-- Full (ikke-partiell) unik indeks -> gyldig ON CONFLICT-mal. NULL (manuell
+-- tildeling) regnes distinkt, sa flere manuelle er greit.
+create unique index if not exists pengepremie_konkurranse_idx on public.pengepremie (konkurranse_id);
+
+-- Backfill: alt som allerede er vunnet i avsluttede konkurranser blir tildelinger.
+insert into public.pengepremie (retailer_id, stasjon_id, beskrivelse, belop_kr, dato, utbetalt, konkurranse_id)
+select k.retailer_id, k.vinner_stasjon_id, k.navn, k.premie_kr, k.periode_slutt,
+       coalesce(k.premie_utbetalt, false), k.id
+from public.konkurranser k
+where k.status = 'avsluttet'
+  and k.vinner_stasjon_id is not null
+  and coalesce(k.premie_kr, 0) > 0
+  and k.slettet_tid is null
+  and not exists (select 1 from public.pengepremie p where p.konkurranse_id = k.id);

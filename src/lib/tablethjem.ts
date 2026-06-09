@@ -29,9 +29,8 @@ function minus(dato: string, dager: number): string {
 }
 
 export async function hentHjemData(supabase: Klient, stasjonId: string): Promise<HjemData> {
-  const [{ data: skill }, { data: vunne }, { data: tildelt }, { data: bruk }, { data: salg }] = await Promise.all([
+  const [{ data: skill }, { data: tildelt }, { data: bruk }, { data: salg }] = await Promise.all([
     supabase.from('skills_score').select('prosent').eq('stasjon_id', stasjonId).order('registrert_tid', { ascending: false }).limit(1).maybeSingle<{ prosent: number }>(),
-    supabase.from('konkurranser').select('premie_kr').eq('vinner_stasjon_id', stasjonId).eq('status', 'avsluttet').is('slettet_tid', null),
     supabase.from('pengepremie').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('pengepremie_bruk').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('v_salg_per_stasjon_dag').select('dato, omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(420).overrideTypes<{ dato: string; omsetning: number | null }[]>(),
@@ -39,9 +38,8 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
 
   const skills = skill ? { prosent: Number(skill.prosent), tekst: skillsTekst(Number(skill.prosent)) } : null
 
-  const vunnetKonk = ((vunne ?? []) as { premie_kr: number | null }[]).reduce((a, r) => a + (r.premie_kr ?? 0), 0)
-  const vunnetTildelt = ((tildelt ?? []) as { belop_kr: number | null }[]).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
-  const vunnet = vunnetKonk + vunnetTildelt
+  // Vunnet = alle tildelinger (konkurranse-vinnere oppretter tildeling automatisk)
+  const vunnet = ((tildelt ?? []) as { belop_kr: number | null }[]).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
   const brukt = ((bruk ?? []) as { belop_kr: number | null }[]).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
   const premie = { vunnet, brukt, igjen: vunnet - brukt }
 

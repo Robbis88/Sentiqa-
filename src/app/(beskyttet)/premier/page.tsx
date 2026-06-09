@@ -10,19 +10,15 @@ export default async function PremierSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return <p>Kun eier/butikksjef.</p>
   const supabase = await lagSupabaseServerKlient()
-  const [{ data: stasjoner }, { data: vunne }, { data: tildelinger }, { data: bruk }] = await Promise.all([
+  const [{ data: stasjoner }, { data: tildelinger }, { data: bruk }] = await Promise.all([
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
-    supabase.from('konkurranser').select('vinner_stasjon_id, premie_kr').eq('status', 'avsluttet').is('slettet_tid', null),
     supabase.from('pengepremie').select('id, stasjon_id, beskrivelse, belop_kr, dato, utbetalt').order('dato', { ascending: false }).limit(50).overrideTypes<Tildeling[]>(),
     supabase.from('pengepremie_bruk').select('id, stasjon_id, beskrivelse, belop_kr, dato').order('dato', { ascending: false }).limit(50).overrideTypes<Bruk[]>(),
   ])
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 
-  // Vunnet = konkurranser + manuelle tildelinger
+  // Vunnet = alle tildelinger (konkurranse-vinnere oppretter en tildeling automatisk)
   const vunnetFor = new Map<string, number>()
-  for (const v of (vunne ?? []) as { vinner_stasjon_id: string | null; premie_kr: number | null }[]) {
-    if (v.vinner_stasjon_id) vunnetFor.set(v.vinner_stasjon_id, (vunnetFor.get(v.vinner_stasjon_id) ?? 0) + (v.premie_kr ?? 0))
-  }
   for (const t of tildelinger ?? []) vunnetFor.set(t.stasjon_id, (vunnetFor.get(t.stasjon_id) ?? 0) + Number(t.belop_kr))
   const bruktFor = new Map<string, number>()
   for (const b of bruk ?? []) bruktFor.set(b.stasjon_id, (bruktFor.get(b.stasjon_id) ?? 0) + Number(b.belop_kr))

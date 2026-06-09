@@ -61,11 +61,24 @@ export async function kaarVinner(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   const res = await maalKonkurranse(supabase, id)
   if (!res) return // ingen salgsdata ennå
+  const { data: k } = await supabase
+    .from('konkurranser')
+    .select('retailer_id, navn, premie_kr, periode_slutt, premie_utbetalt')
+    .eq('id', id)
+    .maybeSingle<{ retailer_id: string; navn: string; premie_kr: number | null; periode_slutt: string; premie_utbetalt: boolean }>()
   await supabase
     .from('konkurranser')
     .update({ status: 'avsluttet', vinner_stasjon_id: res.vinner.stasjon_id })
     .eq('id', id)
+  // Vinneren får premien automatisk som pengepremie-tildeling.
+  if (k?.retailer_id && k.premie_kr && Number(k.premie_kr) > 0) {
+    await supabase.from('pengepremie').upsert(
+      { retailer_id: k.retailer_id, stasjon_id: res.vinner.stasjon_id, beskrivelse: k.navn, belop_kr: k.premie_kr, dato: k.periode_slutt, utbetalt: k.premie_utbetalt ?? false, konkurranse_id: id, opprettet_av: bruker.id },
+      { onConflict: 'konkurranse_id' },
+    )
+  }
   revalidatePath('/konkurranser')
+  revalidatePath('/premier')
 }
 
 export async function markerUtbetalt(formData: FormData) {
@@ -78,7 +91,10 @@ export async function markerUtbetalt(formData: FormData) {
     .from('konkurranser')
     .update({ premie_utbetalt: true, utbetalt_tid: new Date().toISOString() })
     .eq('id', id)
+  // Hold den koblede tildelingen i synk
+  await supabase.from('pengepremie').update({ utbetalt: true }).eq('konkurranse_id', id)
   revalidatePath('/konkurranser')
+  revalidatePath('/premier')
 }
 
 export async function slettKonkurranse(formData: FormData) {
