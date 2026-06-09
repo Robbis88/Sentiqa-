@@ -328,6 +328,32 @@ button.liten.slett:hover { background: #fdecea; }
 .laereplan-liste li:last-child { border-bottom: 0; }
 .person-hoyre { display: flex; align-items: center; gap: 0.6rem; }
 
+/* =========================== Tablet («egen verden») =========================== */
+.tablet { background: #0a0f1f; color: #e6ebf5; min-height: 100dvh; }
+.tablet-topp { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; background: #0d1426; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.tablet-merke { font-weight: 800; font-size: 1.3rem; background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tablet-topp-hoyre { display: flex; align-items: center; gap: 1rem; }
+.tablet-topp-hoyre .klokke-lenke { color: #e6ebf5; }
+.tablet-topp-hoyre .vakt-navn { color: #7cc4ff; }
+.tablet-topp-hoyre .vakt-pin { background: #0a0f1f; color: #e6ebf5; border-color: rgba(255,255,255,0.25); }
+.tablet-nav { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; background: #0d1426; position: sticky; top: 0; z-index: 25; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.tablet-fane { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 1.1rem; border-radius: 12px; text-decoration: none; color: #aeb8cc; font-size: 0.82rem; font-weight: 600; min-width: 84px; }
+.tablet-fane.aktiv { background: rgba(59,130,246,0.2); color: #fff; }
+.tablet-fane-ikon { font-size: 1.5rem; }
+.tablet-innhold { padding: 1.2rem; max-width: 920px; margin: 0 auto; }
+.tablet-innhold h1, .tablet-innhold h2, .tablet-innhold h3 { color: #f3f6fc; }
+
+.tablet-hero { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.6rem; margin-bottom: 1.2rem; border-radius: 16px; background: linear-gradient(120deg, #13203b, #0d1426); border: 1px solid rgba(255,255,255,0.08); }
+.tablet-hilsen { font-size: 1.5rem; font-weight: 700; }
+.tablet-klokke { font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
+.tablet-streak { text-align: center; font-size: 2rem; font-weight: 800; color: #ff922b; line-height: 1; }
+.tablet-streak span { display: block; font-size: 0.72rem; color: #aeb8cc; font-weight: 600; margin-top: 0.25rem; }
+
+.tablet-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.9rem; }
+.tablet-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; padding: 1.7rem 1rem; border-radius: 16px; background: #13203b; border: 1px solid rgba(255,255,255,0.08); text-decoration: none; color: #e6ebf5; font-weight: 700; transition: transform 0.1s; }
+.tablet-tile:active { transform: scale(0.97); }
+.tablet-tile-ikon { font-size: 2.4rem; }
+
 /* Rutine-bildebevis */
 .bilde-kryss { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 .bilde-kryss input[type="file"] { max-width: 9.5rem; font-size: 0.72rem; }

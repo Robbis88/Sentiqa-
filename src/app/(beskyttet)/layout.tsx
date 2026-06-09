@@ -6,6 +6,7 @@ import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { Vakt } from './vakt'
 import { Sidemeny } from './sidemeny'
+import { TabletSkall } from './tablet-skall'
 
 // Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
 type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
@@ -96,6 +97,15 @@ export default async function BeskyttetLayout({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
   })).filter((s) => s.punkter.length > 0)
+
+  // Tableten får sin egen mørke verden — aldri admin-skallet.
+  if (bruker.rolle === 'butikkbruker_tablet') {
+    return (
+      <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0}>
+        {children}
+      </TabletSkall>
+    )
+  }
 
   const menyData = seksjoner.map((s) => ({
     tittel: s.tittel,

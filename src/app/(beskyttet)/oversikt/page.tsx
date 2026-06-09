@@ -1,11 +1,23 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { lesAktivAnsatt } from '@/lib/ansatt'
+import { beregnRutinestat } from '@/lib/rutinestat'
 import { kr, prosent, datoLang, manedAar } from '@/lib/format'
+import { TabletHjem } from '../tablet-hjem'
 
 export default async function OversiktSide() {
   const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
+
+  // Tablet-hjem (egen verden): hero + streak + funksjons-fliser.
+  if (bruker.rolle === 'butikkbruker_tablet') {
+    const aktiv = await lesAktivAnsatt()
+    const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+    const { data: st } = await supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>()
+    const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
+    return <TabletHjem navn={aktiv?.navn} streak={streak} />
+  }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)
   const { data: sisteDag } = await supabase
