@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import * as z from 'zod'
 import { env } from '@/lib/env'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 
@@ -14,7 +15,7 @@ const FokusSchema = z.object({
   positivt: z.array(z.string()),
 })
 
-type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
+type Klient = SupabaseClient
 
 async function forStasjon(
   anthropic: Anthropic,
@@ -62,23 +63,21 @@ async function forStasjon(
   return resp.parsed_output ?? null
 }
 
-// Genererer og lagrer fokuspunkter for alle stasjoner for siste regnskapsperiode.
-export async function genererAlleFokus(): Promise<
-  { ok: true; antall: number; periode: string } | { ok: false; grunn: string }
-> {
-  const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
-    return { ok: false, grunn: 'Bare eier kan generere fokuspunkter.' }
-  }
+// Genererer og lagrer fokuspunkter for alle stasjoner (siste regnskapsperiode)
+// for ÉN kjede. Tar klient + retailerId → fungerer både fra UI (sesjon) og
+// nattjobb (service-role).
+export async function genererFokusForRetailer(
+  supabase: Klient,
+  retailerId: string,
+): Promise<{ ok: true; antall: number; periode: string } | { ok: false; grunn: string }> {
   if (!env.ANTHROPIC_API_KEY) {
     return { ok: false, grunn: 'AI er ikke aktivert (mangler ANTHROPIC_API_KEY).' }
   }
-  const retailerId = bruker.retailerId
-  const supabase = await lagSupabaseServerKlient()
 
   const { data: siste } = await supabase
     .from('regnskapslinjer')
     .select('periode')
+    .eq('retailer_id', retailerId)
     .not('stasjon_id', 'is', null)
     .order('periode', { ascending: false })
     .limit(1)
@@ -89,6 +88,7 @@ export async function genererAlleFokus(): Promise<
   const { data: stasjoner } = await supabase
     .from('stasjoner')
     .select('id, navn, butikknummer')
+    .eq('retailer_id', retailerId)
     .is('slettet_tid', null)
 
   const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
@@ -113,4 +113,16 @@ export async function genererAlleFokus(): Promise<
     if (error) return { ok: false, grunn: error.message }
   }
   return { ok: true, antall: rader.length, periode }
+}
+
+// UI-knappen: kjør for innlogget eiers egen kjede.
+export async function genererAlleFokus(): Promise<
+  { ok: true; antall: number; periode: string } | { ok: false; grunn: string }
+> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
+    return { ok: false, grunn: 'Bare eier kan generere fokuspunkter.' }
+  }
+  const supabase = await lagSupabaseServerKlient()
+  return genererFokusForRetailer(supabase, bruker.retailerId)
 }

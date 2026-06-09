@@ -26,6 +26,8 @@ const skjema = z.object({
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().min(1).optional(), // mailto:… kontakt
+  // Vercel Cron sender denne i Authorization-headeren ved nattjobber.
+  CRON_SECRET: z.string().min(1).optional(),
 })
 
 const resultat = skjema.safeParse(process.env)
