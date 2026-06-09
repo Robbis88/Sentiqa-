@@ -321,6 +321,20 @@ button.liten.slett:hover { background: #fdecea; }
 .forhandling { margin-top: 0.75rem; }
 .utkast { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font-family: inherit; font-size: 0.9rem; line-height: 1.5; resize: vertical; background: #fff; color: var(--tekst); }
 
+/* Produksjonsplan v2 — steppers */
+.gruppe-sum { float: right; font-size: 0.9rem; font-weight: 700; color: var(--primaer); }
+.pp-tabell td { vertical-align: middle; }
+.stepper { display: inline-flex; align-items: center; gap: 0.3rem; }
+.stepper button {
+  width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--kant); border-radius: 6px; background: #fff;
+  font-size: 1.1rem; line-height: 1; cursor: pointer; color: var(--tekst);
+}
+.stepper button:hover { background: var(--bg); }
+.stepper input {
+  width: 3.2rem; text-align: center; padding: 0.4rem; border: 1px solid var(--kant); border-radius: 6px;
+  font-size: 1rem; font-weight: 600;
+}
+
 /* Produksjonsplan-velger */
 .plan-velg { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
 .plan-velg select, .plan-velg input { padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.9rem; background: #fff; color: var(--tekst); }

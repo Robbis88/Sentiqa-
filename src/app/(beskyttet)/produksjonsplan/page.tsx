@@ -1,11 +1,14 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { tall, datoLang } from '@/lib/format'
+import { datoLang } from '@/lib/format'
 import { produksjonsfaktor, type Vaerdag } from '@/lib/produksjonsplan'
+import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 
+// Produksjons-varegrupper (St1): kun det som faktisk produseres/bakes.
+const KODER = ['1201', '1202', '1203', '1216', '1217', '1218', '1219', '1221']
 const UKEDAG = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
 
-type SalgRad = { varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string }
+type SalgRad = { varenavn: string | null; varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string }
 
 export default async function ProduksjonsplanSide({
   searchParams,
@@ -16,7 +19,6 @@ export default async function ProduksjonsplanSide({
   if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
     return <p>Du har ikke tilgang til produksjonsplan.</p>
   }
-
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
 
@@ -35,62 +37,75 @@ export default async function ProduksjonsplanSide({
   const dato = sp.dato && /^\d{4}-\d{2}-\d{2}$/.test(sp.dato) ? sp.dato : imorgen.toISOString().slice(0, 10)
   const ukedag = new Date(dato).getUTCDay()
 
-  let rader: { navn: string; baseline: number; faktor: number; foreslatt: number }[] = []
+  let grupper: Gruppe[] = []
   let datadybde = 0
   let vaer: Vaerdag | null = null
 
   if (stasjon) {
-    const [{ data: salg }, { data: v }] = await Promise.all([
+    const [{ data: salg }, { data: v }, { data: lagrede }] = await Promise.all([
       supabase
         .from('daglig_salg')
-        .select('varegruppe_kode, varegruppe_navn, antall, dato')
+        .select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
         .eq('stasjon_id', stasjon.id)
-        .eq('avdeling_kode', '120') // MAT
+        .in('varegruppe_kode', KODER)
         .is('slettet_tid', null)
         .overrideTypes<SalgRad[]>(),
+      supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase
-        .from('vaer')
-        .select('temp_maks, nedbor_mm')
+        .from('produksjonsplan_linjer')
+        .select('varenavn, planlagt')
         .eq('stasjon_id', stasjon.id)
         .eq('dato', dato)
-        .maybeSingle<Vaerdag>(),
+        .overrideTypes<{ varenavn: string; planlagt: number }[]>(),
     ])
     vaer = v ?? null
+    const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l.planlagt]))
 
     const dager = new Set<string>()
-    const per = new Map<string, { navn: string; sum: number }>()
+    const per = new Map<string, { sum: number; kode: string | null; gruppenavn: string | null }>()
     for (const r of salg ?? []) {
+      const navn = (r.varenavn ?? '').trim()
+      if (!navn) continue
       dager.add(r.dato)
-      const key = r.varegruppe_kode ?? r.varegruppe_navn ?? '?'
-      const p = per.get(key) ?? { navn: r.varegruppe_navn ?? '—', sum: 0 }
+      const p = per.get(navn) ?? { sum: 0, kode: r.varegruppe_kode, gruppenavn: r.varegruppe_navn }
       p.sum += r.antall ?? 0
-      per.set(key, p)
+      if (!p.kode && r.varegruppe_kode) p.kode = r.varegruppe_kode
+      if (!p.gruppenavn && r.varegruppe_navn) p.gruppenavn = r.varegruppe_navn
+      per.set(navn, p)
     }
     datadybde = dager.size || 1
 
-    rader = [...per.values()]
-      .map((p) => {
-        const baseline = p.sum / datadybde
-        const faktor = produksjonsfaktor(stasjon.stasjonstype, vaer, ukedag, p.navn)
-        return { navn: p.navn, baseline, faktor, foreslatt: Math.round(baseline * faktor) }
-      })
-      .filter((r) => r.baseline > 0)
-      .sort((a, b) => b.foreslatt - a.foreslatt)
+    const grupperMap = new Map<string, Gruppe>()
+    for (const [varenavn, info] of per.entries()) {
+      const baseline = info.sum / datadybde
+      if (baseline <= 0) continue
+      const faktor = produksjonsfaktor(stasjon.stasjonstype, vaer, ukedag, info.gruppenavn ?? '')
+      const foreslatt = Math.round(baseline * faktor)
+      const produkt: Produkt = { varenavn, baseline, faktor, foreslatt, planlagt: lagretFor.get(varenavn) ?? foreslatt }
+      const nokkel = info.kode ?? info.gruppenavn ?? '—'
+      let g = grupperMap.get(nokkel)
+      if (!g) {
+        g = { kode: info.kode, navn: info.gruppenavn ?? `Varegruppe ${info.kode ?? '?'}`, produkter: [] }
+        grupperMap.set(nokkel, g)
+      }
+      g.produkter.push(produkt)
+    }
+    grupper = [...grupperMap.values()]
+      .map((g) => ({ ...g, produkter: g.produkter.sort((a, b) => b.foreslatt - a.foreslatt) }))
+      .sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? ''))
   }
 
   return (
     <>
       <h1>Produksjonsplan</h1>
-      <p className="undertittel">Forslag per varegruppe (MAT) for valgt dag</p>
+      <p className="undertittel">Forslag per produkt, gruppert på varegruppe. Juster antallene før du produserer.</p>
 
       <section className="kort">
         <form method="get" className="plan-velg">
           <label className="felt">
             <span>Stasjon</span>
             <select name="butikknummer" defaultValue={valgtNr}>
-              {(stasjoner ?? []).map((s) => (
-                <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>
-              ))}
+              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
             </select>
           </label>
           <label className="felt">
@@ -103,42 +118,26 @@ export default async function ProduksjonsplanSide({
           <p className="undertittel" style={{ marginTop: '0.75rem' }}>
             {UKEDAG[ukedag]} {datoLang.format(new Date(dato))} · type {stasjon.stasjonstype}
             {vaer?.temp_maks != null ? ` · varsel ${vaer.temp_maks.toFixed(0)}°` : ' · ingen værvarsel'}
-            {vaer?.nedbor_mm != null && vaer.nedbor_mm > 0 ? `, ${vaer.nedbor_mm.toFixed(1)} mm` : ''}
             {' · baseline fra '}{datadybde} salgsdag{datadybde === 1 ? '' : 'er'}
           </p>
         )}
       </section>
 
-      {rader.length === 0 ? (
+      {grupper.length === 0 ? (
         <section className="kort">
           <p className="undertittel">
-            Ingen MAT-salgsdata for denne stasjonen ennå. Behandle en Salgsstatistikk-fil først.
+            Ingen produksjonssalg (varegruppe 1201–1221) for denne stasjonen ennå. Behandle en Salgsstatistikk-fil først.
           </p>
         </section>
       ) : (
-        <section className="kort">
-          <table className="tabell">
-            <thead>
-              <tr><th>Varegruppe</th><th>Baseline</th><th>Vær/dag-faktor</th><th>Foreslå produsert</th></tr>
-            </thead>
-            <tbody>
-              {rader.map((r) => (
-                <tr key={r.navn}>
-                  <td>{r.navn}</td>
-                  <td>{tall.format(Math.round(r.baseline))}</td>
-                  <td>×{r.faktor.toFixed(2)}</td>
-                  <td><strong>{tall.format(r.foreslatt)}</strong></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <>
+          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} />
           {datadybde < 14 && (
-            <p className="undertittel" style={{ marginTop: '0.75rem' }}>
-              ⚠ Tynt datagrunnlag ({datadybde} dag{datadybde === 1 ? '' : 'er'}). Vær-faktorene er
-              standardverdier — motoren lærer stasjonens egen følsomhet når mer historikk er importert (§7).
+            <p className="undertittel">
+              ⚠ Tynt datagrunnlag ({datadybde} dag{datadybde === 1 ? '' : 'er'}). Forslaget blir mer presist med mer historikk (§7).
             </p>
           )}
-        </section>
+        </>
       )}
     </>
   )
