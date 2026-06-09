@@ -5,7 +5,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Sentiqa — Fornemmer. Forstår. Forutser.',
   description:
-    'AI-drevet drift, analyse og assistanse for bensinstasjons-eiere. Ta inn rapportene du allerede eksporterer — få svar, ikke dashboards å lete i.',
+    'AI-drevet drift, analyse og assistanse for servicehandelen. Ta inn rapportene du allerede eksporterer — få svar, ikke dashboards å lete i.',
 }
 
 const MARQUEE = [
@@ -36,7 +36,7 @@ export default function Landing() {
       <header className="lp-hero">
         <div className="lp-hero-inner">
           <Image src="/logo.png" alt="Sentiqa" width={460} height={307} priority className="lp-logo" />
-          <h1 className="lp-h1">Drift, analyse og AI-assistanse for bensinstasjons-eiere</h1>
+          <h1 className="lp-h1">Drift, analyse og AI-assistanse for servicehandelen</h1>
           <p className="lp-sub">
             Ta inn rapportene du allerede eksporterer. Få <strong>svar</strong> — ikke dashboards å lete i.
           </p>
