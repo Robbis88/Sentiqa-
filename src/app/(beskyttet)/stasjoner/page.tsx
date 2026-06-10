@@ -92,10 +92,10 @@ export default async function StasjonerSide() {
                     </form>
                   </td>
                   <td>
-                    <form action={settPosisjon} className="terskel-form">
+                    <form action={settPosisjon} className="posisjon-form">
                       <input type="hidden" name="stasjon_id" value={s.id} />
-                      <input name="breddegrad" inputMode="decimal" defaultValue={s.breddegrad ?? ''} placeholder="60.39" aria-label="Breddegrad" />
-                      <input name="lengdegrad" inputMode="decimal" defaultValue={s.lengdegrad ?? ''} placeholder="5.32" aria-label="Lengdegrad" />
+                      <label>Bredde<input name="breddegrad" inputMode="decimal" defaultValue={s.breddegrad ?? ''} placeholder="60.3913" /></label>
+                      <label>Lengde<input name="lengdegrad" inputMode="decimal" defaultValue={s.lengdegrad ?? ''} placeholder="5.3221" /></label>
                       <button type="submit" className="liten">Lagre</button>
                     </form>
                   </td>
