@@ -1,3 +1,10 @@
+# Sentiqa
+
+Eid og driftet av **R-G Invest AS** — org.nr **937 861 621**.
+© Sentiqa. Alle rettigheter forbeholdt.
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

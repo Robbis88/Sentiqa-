@@ -33,6 +33,10 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
             </div>
           ))}
         </nav>
+        <div className="meny-bunn">
+          <span>R-G Invest AS</span>
+          <span>Org.nr 937 861 621</span>
+        </div>
       </aside>
     </>
   )

@@ -97,6 +97,7 @@ export default function Landing() {
       <footer className="lp-footer">
         <span className="merke">Sentiqa</span>
         <span>Fornemmer. Forstår. Forutser.</span>
+        <span className="lp-footer-svak">Eid og driftet av R-G Invest AS · Org.nr 937 861 621</span>
         <span className="lp-footer-svak">© Sentiqa · Data i EU/EØS</span>
       </footer>
     </div>

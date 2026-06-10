@@ -191,6 +191,7 @@ button.logg-ut:hover { color: var(--tekst); }
 }
 .sidemeny nav a:hover { background: var(--bg); color: var(--tekst); }
 .sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--primaer); font-weight: 600; }
+.meny-bunn { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.75rem 0.6rem 0; border-top: 1px solid var(--kant); font-size: 0.7rem; color: var(--tekst-svak); }
 /* Mobil-meny: skjult på desktop */
 .meny-hamburger, .meny-overlay { display: none; }
 
