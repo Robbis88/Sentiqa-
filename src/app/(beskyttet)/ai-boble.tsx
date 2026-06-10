@@ -10,14 +10,37 @@ const FORSLAG = [
   'Hvordan ligger vi an mot budsjett?',
   'Hvilken stasjon har mest svinn?',
 ]
+const LAGER = 'sentiqa-ai-samtale'
 
-export function AiBoble() {
+export function AiBoble({ navn }: { navn?: string }) {
   const [apen, setApen] = useState(false)
   const [meldinger, setMeldinger] = useState<Visning[]>([])
   const [tekst, setTekst] = useState('')
   const [venter, setVenter] = useState(false)
+  const [strommer, setStrommer] = useState(false)
   const bunn = useRef<HTMLDivElement>(null)
   const felt = useRef<HTMLInputElement>(null)
+  const intervall = useRef<number | null>(null)
+
+  // Hent lagret samtale (deferd, så vi ikke setter state synkront i effekt / bryter hydrering)
+  useEffect(() => {
+    let raw: string | null = null
+    try { raw = sessionStorage.getItem(LAGER) } catch { /* */ }
+    if (!raw) return
+    try {
+      const data = JSON.parse(raw) as Visning[]
+      if (Array.isArray(data) && data.length) {
+        const t = setTimeout(() => setMeldinger(data), 0)
+        return () => clearTimeout(t)
+      }
+    } catch { /* */ }
+  }, [])
+
+  // Lagre samtalen (ikke midt i strømming)
+  useEffect(() => {
+    if (strommer) return
+    try { sessionStorage.setItem(LAGER, JSON.stringify(meldinger)) } catch { /* */ }
+  }, [meldinger, strommer])
 
   useEffect(() => {
     if (apen) bunn.current?.scrollIntoView({ behavior: 'smooth' })
@@ -27,22 +50,59 @@ export function AiBoble() {
     if (apen) felt.current?.focus()
   }, [apen])
 
+  useEffect(() => () => { if (intervall.current) clearInterval(intervall.current) }, [])
+
+  function strømUt(full: string, kilder?: string[]) {
+    setMeldinger((f) => [...f, { rolle: 'assistent', tekst: '', kilder }])
+    setStrommer(true)
+    let i = 0
+    const steg = Math.max(2, Math.ceil(full.length / 140)) // ferdig på ~2 sek uansett lengde
+    if (intervall.current) clearInterval(intervall.current)
+    intervall.current = window.setInterval(() => {
+      i += steg
+      setMeldinger((f) => {
+        const k = [...f]
+        k[k.length - 1] = { ...k[k.length - 1], tekst: full.slice(0, i) }
+        return k
+      })
+      if (i >= full.length) {
+        if (intervall.current) clearInterval(intervall.current)
+        setMeldinger((f) => {
+          const k = [...f]
+          k[k.length - 1] = { ...k[k.length - 1], tekst: full }
+          return k
+        })
+        setStrommer(false)
+      }
+    }, 16)
+  }
+
   async function send(melding: string) {
     const m = melding.trim()
-    if (!m || venter) return
+    if (!m || venter || strommer) return
     const historikk = meldinger.map(({ rolle, tekst }) => ({ rolle, tekst }))
     setMeldinger((f) => [...f, { rolle: 'bruker', tekst: m }])
     setTekst('')
     setVenter(true)
     try {
       const svar = await spørAssistent(historikk, m)
-      setMeldinger((f) => [...f, { rolle: 'assistent', tekst: svar.svar, kilder: svar.kilder }])
-    } catch {
-      setMeldinger((f) => [...f, { rolle: 'assistent', tekst: 'Noe gikk galt. Prøv igjen.' }])
-    } finally {
       setVenter(false)
+      strømUt(svar.svar, svar.kilder)
+    } catch {
+      setVenter(false)
+      setMeldinger((f) => [...f, { rolle: 'assistent', tekst: 'Noe gikk galt. Prøv igjen.' }])
     }
   }
+
+  function nySamtale() {
+    if (intervall.current) clearInterval(intervall.current)
+    setStrommer(false)
+    setMeldinger([])
+    try { sessionStorage.removeItem(LAGER) } catch { /* */ }
+    felt.current?.focus()
+  }
+
+  const hei = navn ? `Hei, ${navn}! 👋` : 'Hei! 👋'
 
   return (
     <>
@@ -52,15 +112,19 @@ export function AiBoble() {
             <span className="ai-avatar">✨</span>
             <span className="ai-tittel-blokk">
               <span className="ai-tittel">Sentiqa AI-assistent</span>
-              <span className="ai-und">Spør om dine egne tall</span>
+              <span className="ai-und"><span className="ai-prikk" /> Tilkoblet · svarer fra dine tall</span>
             </span>
+            {meldinger.length > 0 && (
+              <button type="button" className="ai-ny" aria-label="Ny samtale" title="Ny samtale" onClick={nySamtale}>↺</button>
+            )}
             <button type="button" className="ai-lukk" aria-label="Lukk" onClick={() => setApen(false)}>✕</button>
           </header>
 
           <div className="ai-logg">
             {meldinger.length === 0 && (
               <div className="ai-tom">
-                <p>Hei! Spør meg om salget, svinnet eller regnskapet ditt — jeg svarer med tall fra dine egne data.</p>
+                <p>{hei}</p>
+                <p>Spør meg om salget, svinnet eller regnskapet ditt — jeg svarer med tall fra dine egne data, og viser kildene.</p>
                 <div className="forslag">
                   {FORSLAG.map((f) => (
                     <button key={f} type="button" onClick={() => send(f)} className="liten">{f}</button>
@@ -69,7 +133,7 @@ export function AiBoble() {
               </div>
             )}
             {meldinger.map((m, i) => (
-              <div key={i} className={`boble ${m.rolle}`}>
+              <div key={i} className={`boble ${m.rolle} ${strommer && i === meldinger.length - 1 ? 'strommer' : ''}`}>
                 <p>{m.tekst}</p>
                 {m.kilder && m.kilder.length > 0 && <p className="kilder">Kilder: {m.kilder.join(', ')}</p>}
               </div>
@@ -80,7 +144,7 @@ export function AiBoble() {
 
           <form className="ai-skriv" onSubmit={(e) => { e.preventDefault(); send(tekst) }}>
             <input ref={felt} value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Skriv en melding …" disabled={venter} />
-            <button type="submit" disabled={venter || !tekst.trim()} aria-label="Send">➤</button>
+            <button type="submit" disabled={venter || strommer || !tekst.trim()} aria-label="Send">➤</button>
           </form>
         </div>
       )}

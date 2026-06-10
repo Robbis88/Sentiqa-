@@ -145,7 +145,7 @@ export default async function BeskyttetLayout({
         </header>
         <main className="innhold">{children}</main>
       </div>
-      {erLeder(bruker.rolle) && <AiBoble />}
+      {erLeder(bruker.rolle) && <AiBoble navn={bruker.fulltNavn?.split(' ')[0]} />}
     </div>
   )
 }
