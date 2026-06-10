@@ -3,6 +3,14 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { hentVaerForAlle } from '@/lib/vaer'
+
+// Manuell vær-henting (test/oppfrisk). Cronen tar det automatisk hver natt.
+export async function oppdaterVaer(): Promise<{ ok: boolean; melding: string }> {
+  const r = await hentVaerForAlle()
+  if (r.ok) return { ok: true, melding: `Vær hentet for ${r.stasjoner} stasjon(er) — ${r.antall} dager.` }
+  return { ok: false, melding: r.grunn }
+}
 
 const STASJONSTYPER = ['utfart', 'pendler', 'bydel', 'gjennomfart', 'sentrum'] as const
 

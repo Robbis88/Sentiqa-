@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { StasjonSkjema } from './skjema'
+import { VaerKnapp } from './vaer-knapp'
 import { settTerskel, settStasjonstype, settPosisjon } from './handlinger'
 
 const TYPER: [string, string][] = [
@@ -51,7 +52,11 @@ export default async function StasjonerSide() {
       </section>
 
       <section className="kort">
-        <h2>{stasjoner.length} stasjon(er)</h2>
+        <div className="seksjon-topp">
+          <h2>{stasjoner.length} stasjon(er)</h2>
+          <VaerKnapp />
+        </div>
+        <p className="undertittel" style={{ marginBottom: '0.5rem' }}>Sett breddegrad/lengdegrad (fra Google Maps) → været hentes automatisk til produksjonsplanen.</p>
         {stasjoner.length === 0 ? (
           <p className="undertittel">Ingen stasjoner ennå.</p>
         ) : (
