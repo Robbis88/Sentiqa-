@@ -1,17 +1,24 @@
 @import "tailwindcss";
 
-/* Sentiqa — Fluent 2-inspirert basis (§12). Lys, tett, verktøy-aktig.
-   Full designpass kommer senere; dette er nok til at fundamentet ser ryddig ut. */
+/* Sentiqa — designsystem (§12). Lys, ryddig SaaS-flate med brand-gradient. */
 :root {
-  --bg: #f3f3f3;            /* lys grå arbeidsflate */
+  --bg: #f5f6f8;           /* svakt kjølig arbeidsflate */
   --kort: #ffffff;
-  --tekst: #1b1a19;
-  --tekst-svak: #605e5c;
-  --kant: #e1dfdd;
-  --skygge: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.06);
-  --primaer: #0f6cbd;       /* Fluent-blå */
+  --tekst: #15171c;
+  --tekst-svak: #5b606b;
+  --kant: #e7e9ee;
+  --kant-sterk: #d8dbe2;
+  --skygge: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.05);
+  --skygge-lov: 0 8px 24px rgba(16, 24, 40, 0.12);
+  --primaer: #2563eb;      /* moderne blå */
+  --primaer-mork: #1d4ed8;
+  --primaer-svak: #eef4ff; /* lys tint for aktiv/markering */
   --gradient: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6); /* brand-aksent */
-  --radius: 8px;
+  --radius: 10px;
+  --radius-stor: 14px;
+  --gronn: #15803d; --gronn-svak: #e7f6ec;
+  --gul: #92600a;  --gul-svak: #fbf1d3;
+  --rod: #b42318;  --rod-svak: #fdecea;
 }
 
 * { box-sizing: border-box; }
@@ -19,14 +26,17 @@
 body {
   background: var(--bg);
   color: var(--tekst);
-  font-family: "Segoe UI", system-ui, Arial, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a { color: inherit; text-decoration: none; }
-h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.25rem; }
-h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem; }
-.undertittel { color: var(--tekst-svak); margin: 0 0 1.25rem; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.3rem; }
+h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0.6rem; }
+h3 { letter-spacing: -0.01em; }
+.undertittel { color: var(--tekst-svak); margin: 0 0 1.25rem; line-height: 1.5; }
 
 /* =========================== Landingsside =========================== */
 .lp { color: var(--tekst); }
@@ -104,10 +114,11 @@ h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem; }
 .kort {
   background: var(--kort);
   border: 1px solid var(--kant);
-  border-radius: var(--radius);
+  border-radius: var(--radius-stor);
   box-shadow: var(--skygge);
   padding: 1.5rem;
 }
+.kort + .kort { margin-top: 1.1rem; }
 
 /* Innlogging */
 .logg-inn {
@@ -123,27 +134,31 @@ h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.5rem; }
 .skjema { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem; }
 .felt { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--tekst-svak); }
 .felt input {
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--kant);
-  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--kant-sterk);
+  border-radius: 8px;
   font-size: 0.95rem;
   color: var(--tekst);
   background: #fff;
+  transition: border-color 0.12s, box-shadow 0.12s;
 }
-.felt input:focus { outline: 2px solid var(--primaer); outline-offset: -1px; }
-.feil { color: #b10e1c; font-size: 0.85rem; margin: 0; white-space: pre-line; }
+.felt input:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
+.feil { color: var(--rod); font-size: 0.85rem; margin: 0; white-space: pre-line; }
 
 button {
   background: var(--primaer);
   color: #fff;
   border: 0;
-  border-radius: 6px;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.95rem;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
 }
-button:disabled { opacity: 0.6; cursor: default; }
+button:hover:not(:disabled) { background: var(--primaer-mork); box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
+button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+button:disabled { opacity: 0.55; cursor: default; }
 button.logg-ut { background: transparent; color: var(--tekst-svak); font-weight: 500; }
 button.logg-ut:hover { color: var(--tekst); }
 
@@ -167,13 +182,15 @@ button.logg-ut:hover { color: var(--tekst); }
   color: var(--tekst-svak); font-weight: 700; padding: 0 0.6rem; margin-bottom: 0.2rem;
 }
 .sidemeny nav a {
-  padding: 0.45rem 0.6rem;
-  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
   font-size: 0.9rem;
-  color: var(--tekst);
+  color: var(--tekst-svak);
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
 }
-.sidemeny nav a:hover { background: var(--bg); }
-.sidemeny nav a[aria-current="page"] { background: #e1eefb; color: var(--primaer); font-weight: 600; }
+.sidemeny nav a:hover { background: var(--bg); color: var(--tekst); }
+.sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--primaer); font-weight: 600; }
 /* Mobil-meny: skjult på desktop */
 .meny-hamburger, .meny-overlay { display: none; }
 
@@ -260,15 +277,17 @@ button.logg-ut:hover { color: var(--tekst); }
 
 /* Tabell */
 .tabell { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
-.tabell th, .tabell td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--kant); }
-.tabell th { color: var(--tekst-svak); font-weight: 600; font-size: 0.8rem; }
+.tabell th, .tabell td { text-align: left; padding: 0.6rem 0.7rem; border-bottom: 1px solid var(--kant); }
+.tabell th { color: var(--tekst-svak); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.tabell tbody tr { transition: background 0.1s; }
+.tabell tbody tr:hover { background: var(--bg); }
 
 /* Status-pip (grønn/gul/rød, §12) */
 .status-pip { font-size: 0.75rem; padding: 0.12rem 0.5rem; border-radius: 999px; font-weight: 600; }
-.status-pip.gronn { background: #def7df; color: #0b6a0b; }
-.status-pip.gul   { background: #fff4ce; color: #835c00; }
-.status-pip.rod   { background: #fde7e9; color: #b10e1c; }
-.status-pip.bla   { background: #e1eefb; color: #0f6cbd; } /* §8D: blå, aldri rød */
+.status-pip.gronn { background: var(--gronn-svak); color: var(--gronn); }
+.status-pip.gul   { background: var(--gul-svak);   color: var(--gul); }
+.status-pip.rod   { background: var(--rod-svak);   color: var(--rod); }
+.status-pip.bla   { background: var(--primaer-svak); color: var(--primaer); } /* §8D: blå, aldri rød */
 
 /* Brukeradministrasjon */
 .stasjon-valg { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.3rem; }
@@ -310,7 +329,7 @@ button.logg-ut:hover { color: var(--tekst); }
   transition: transform 0.1s, border-color 0.1s;
 }
 .puls-face:hover { transform: translateY(-2px); }
-.puls-face.valgt { border-color: var(--primaer); background: #e1eefb; }
+.puls-face.valgt { border-color: var(--primaer); background: var(--primaer-svak); }
 .puls-emoji { font-size: 2rem; line-height: 1; }
 .puls-tekst { font-size: 0.75rem; color: var(--tekst-svak); }
 .puls-form textarea { padding: 0.6rem 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font: inherit; font-size: 0.9rem; resize: vertical; }
@@ -476,7 +495,7 @@ button.liten.slett:hover { background: #fdecea; }
 /* Opplæring */
 .person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }
 .person-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--kant); border-radius: 6px; }
-.person-liste li.aktiv { background: #e1eefb; }
+.person-liste li.aktiv { background: var(--primaer-svak); }
 .person-liste li:last-child { border-bottom: 0; }
 .person-liste a { text-decoration: none; color: var(--tekst); }
 
@@ -532,8 +551,8 @@ button.liten.slett:hover { background: #fdecea; }
 }
 .kpi-tall { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
 .kpi-merke { font-size: 0.8rem; color: var(--tekst-svak); }
-.kpi.lenke { text-decoration: none; color: inherit; transition: box-shadow 0.15s; }
-.kpi.lenke:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.kpi.lenke { text-decoration: none; color: inherit; transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s; }
+.kpi.lenke:hover { box-shadow: var(--skygge-lov); transform: translateY(-2px); border-color: var(--kant-sterk); }
 
 /* Trenger oppmerksomhet (§12: leder med det som haster) */
 .oppmerksomhet { margin-top: 1rem; border-left: 3px solid #b10e1c; }
@@ -574,7 +593,7 @@ button.liten.slett:hover { background: #fdecea; }
 .fokus-tittel { font-size: 0.85rem; font-weight: 700; margin: 0 0 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .fokus-tittel.gronn { color: #0b6a0b; }
 .fokus-tittel.gul { color: #835c00; }
-.fokus-tittel.bla { color: #0f6cbd; }
+.fokus-tittel.bla { color: var(--primaer); }
 .fokus-liste { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.9rem; line-height: 1.4; }
 @media (max-width: 640px) { .fokus-kol { grid-template-columns: 1fr; } }
 
@@ -610,7 +629,7 @@ button.liten.slett:hover { background: #fdecea; }
 
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-.tabell tr.idag td { background: #e1eefb; font-weight: 600; }
+.tabell tr.idag td { background: var(--primaer-svak); font-weight: 600; }
 .type-form { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 .type-form select { padding: 0.3rem 0.4rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.82rem; background: #fff; }
 .terskel-form { display: flex; align-items: center; gap: 0.3rem; }
