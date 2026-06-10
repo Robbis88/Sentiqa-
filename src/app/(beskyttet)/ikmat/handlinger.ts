@@ -58,7 +58,7 @@ export async function registrerAvlesning(formData: FormData) {
 // Setter opp hele St1-standarden for en stasjon med ett klikk.
 export async function settOppStandard(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
+  if (!erLeder(bruker.rolle)) return
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   if (!stasjonId || !bruker.retailerId) return
 
@@ -115,7 +115,7 @@ export async function redigerKontrollpunkt(formData: FormData) {
 
 export async function leggTilPunkt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
+  if (!erLeder(bruker.rolle)) return
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   const navn = String(formData.get('navn') ?? '').trim()
   const type = String(formData.get('type') ?? 'kjol')

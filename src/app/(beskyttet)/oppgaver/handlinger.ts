@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 
 const Ny = z.object({
@@ -18,7 +19,7 @@ export async function leggTilOppgave(
   formData: FormData,
 ): Promise<OppgaveTilstand> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return { feil: 'Du kan ikke opprette oppgaver.' }
   }
   const felt = Ny.safeParse({
@@ -45,7 +46,7 @@ export async function leggTilOppgave(
 
 export async function slettOppgave(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
+  if (!erLeder(bruker.rolle)) return
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()

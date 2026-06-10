@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { HentKnapp } from './hent-knapp'
 
@@ -14,7 +15,7 @@ const dag = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', weekday:
 
 export default async function VaerSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til vær.</p>
   }
 

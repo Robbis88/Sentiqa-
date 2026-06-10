@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { markerLest } from './handlinger'
 
@@ -14,7 +15,7 @@ const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyl
 
 export default async function TilbakemeldingerSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return <p>Kun eier/butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
   const supabase = await lagSupabaseServerKlient()
   const [{ data: meldinger }, { data: stasjoner }] = await Promise.all([
     supabase.from('tilbakemelding').select('id, stasjon_id, alvorlighet, tekst, involvert_beskrivelse, opprettet_tid, lest_tid').order('opprettet_tid', { ascending: false }).limit(100).overrideTypes<Tilbake[]>(),

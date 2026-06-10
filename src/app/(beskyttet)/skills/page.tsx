@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { registrerSkills, slettSkills } from './handlinger'
 
@@ -7,7 +8,7 @@ const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyl
 
 export default async function SkillsSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return <p>Kun eier/butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
   const supabase = await lagSupabaseServerKlient()
   const [{ data: scorer }, { data: stasjoner }] = await Promise.all([
     supabase.from('skills_score').select('id, stasjon_id, prosent, kommentar, registrert_tid').order('registrert_tid', { ascending: false }).limit(50).overrideTypes<Score[]>(),

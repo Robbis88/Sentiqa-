@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar } from '@/lib/format'
 import type { Lederstotte } from '@/lib/ai/lederstotte'
@@ -10,7 +11,7 @@ type Rad = { stasjon_id: string; periode: string; rapport: Lederstotte }
 
 export default async function LederstotteSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til lederstøtte.</p>
   }
 

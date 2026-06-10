@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { settOppStandard, leggTilSporsmal, vekslAktivSporsmal, slettSporsmal } from '../handlinger'
 
@@ -7,7 +8,7 @@ type Sporsmal = { id: string; kategori: string; tekst: string; aktiv: boolean }
 
 export default async function SporsmalSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return <p>Ingen tilgang.</p>
+  if (!erLeder(bruker.rolle)) return <p>Ingen tilgang.</p>
   const supabase = await lagSupabaseServerKlient()
   const { data: sporsmal } = await supabase.from('puls_sporsmal').select('id, kategori, tekst, aktiv').is('slettet_tid', null).order('sortering').overrideTypes<Sporsmal[]>()
 

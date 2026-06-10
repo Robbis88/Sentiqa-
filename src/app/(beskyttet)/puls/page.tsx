@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { avsluttRunde, slettRunde } from './handlinger'
@@ -8,7 +9,7 @@ type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: 
 
 export default async function PulsSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Puls administreres av eier/butikksjef. Ansatte svarer på tableten.</p>
   }
   const supabase = await lagSupabaseServerKlient()

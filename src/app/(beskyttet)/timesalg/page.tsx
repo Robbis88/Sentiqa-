@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 
@@ -10,7 +11,7 @@ function startTime(t: string): number {
 
 export default async function TimesalgSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til timesalg.</p>
   }
 

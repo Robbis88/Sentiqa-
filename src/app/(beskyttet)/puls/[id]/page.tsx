@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 
@@ -8,7 +9,7 @@ type Svar = { skala: number | null; kommentar: string | null; stasjon_id: string
 
 export default async function RundeResultat({ params }: { params: Promise<{ id: string }> }) {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return <p>Ingen tilgang.</p>
+  if (!erLeder(bruker.rolle)) return <p>Ingen tilgang.</p>
   const { id } = await params
   const supabase = await lagSupabaseServerKlient()
 

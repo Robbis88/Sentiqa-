@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 import { registrerBruk, slettBruk, tildelPremie, vekslUtbetalt, slettTildeling } from './handlinger'
@@ -8,7 +9,7 @@ type Tildeling = { id: string; stasjon_id: string; beskrivelse: string; belop_kr
 
 export default async function PremierSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return <p>Kun eier/butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
   const supabase = await lagSupabaseServerKlient()
   const [{ data: stasjoner }, { data: tildelinger }, { data: bruk }] = await Promise.all([
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),

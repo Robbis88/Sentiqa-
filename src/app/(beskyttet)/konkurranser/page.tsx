@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 import { NyKonkurranse } from './ny-konkurranse'
@@ -20,7 +21,7 @@ type Konk = {
 
 export default async function KonkurranserSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til konkurranser.</p>
   }
   const erEier = bruker.rolle === 'retailer_admin'

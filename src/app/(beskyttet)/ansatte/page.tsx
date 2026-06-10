@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { NyAnsatt } from './ny-ansatt'
 import { deaktiverAnsatt } from './handlinger'
@@ -7,7 +8,7 @@ type Ansatt = { id: string; navn: string; stasjon_id: string }
 
 export default async function AnsatteSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Ansatte administreres av eier/butikksjef.</p>
   }
   const supabase = await lagSupabaseServerKlient()

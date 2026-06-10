@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { leggTilPunkt, veksle, slettPunkt } from './handlinger'
 
@@ -6,7 +7,7 @@ type Punkt = { id: string; tittel: string; gjentakende: boolean; fullfort_tid: s
 
 export default async function MinSjekkliste() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Personlig sjekkliste er for eier/butikksjef.</p>
   }
   const supabase = await lagSupabaseServerKlient()

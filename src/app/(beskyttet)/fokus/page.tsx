@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar } from '@/lib/format'
 import { GenererKnapp } from './generer-knapp'
@@ -12,7 +13,7 @@ type Punkt = {
 
 export default async function FokusSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') {
+  if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til fokuspunkter.</p>
   }
 

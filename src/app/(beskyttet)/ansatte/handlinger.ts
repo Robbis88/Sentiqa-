@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/ansatt'
 
@@ -15,7 +16,7 @@ export type AnsattTilstand = { ok?: true; feil?: string } | undefined
 
 export async function leggTilAnsatt(_t: AnsattTilstand, formData: FormData): Promise<AnsattTilstand> {
   const bruker = await hentInnloggetBruker()
-  if ((bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') || !bruker.retailerId) {
+  if ((!erLeder(bruker.rolle)) || !bruker.retailerId) {
     return { feil: 'Ikke tilgang.' }
   }
   const felt = Ny.safeParse({
@@ -42,7 +43,7 @@ export async function leggTilAnsatt(_t: AnsattTilstand, formData: FormData): Pro
 
 export async function deaktiverAnsatt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' && bruker.rolle !== 'butikksjef') return
+  if (!erLeder(bruker.rolle)) return
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
