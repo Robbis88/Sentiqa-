@@ -4,6 +4,7 @@
 export type Rapporttype =
   | 'st1_salgsstatistikk'
   | 'st1_salesperhour'
+  | 'st1_salesperhour_inneute'
   | 'st1_cashierstats'
   | 'salgsgrid_varetrans'
   | 'regnskap_resultat'
@@ -48,6 +49,8 @@ export type TimesalgRad = {
   mva: number
   antallVarer: number
   antallKunder: number
+  inneKunder?: number // butikk (0603-rapport)
+  uteKunder?: number // forgård/pumpe (0603-rapport)
 }
 export type SalesPerHourStasjon = {
   butikknummer: string | null // filen har kun navn → matches på navn (§6)
@@ -55,7 +58,7 @@ export type SalesPerHourStasjon = {
   timer: TimesalgRad[]
 }
 export type SalesPerHourResultat = {
-  rapporttype: 'st1_salesperhour'
+  rapporttype: 'st1_salesperhour' | 'st1_salesperhour_inneute'
   dato: string | null
   stasjoner: SalesPerHourStasjon[]
 }

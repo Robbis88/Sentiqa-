@@ -15,6 +15,8 @@ export async function gjenkjennRapporttype(
   const hint = `${arknavn.join(' ')} ${tittel} ${tittel2}`
 
   if (/0714|salgsstatistikk/.test(hint)) return 'st1_salgsstatistikk'
+  // 0603 (inne/ute) må sjekkes før 0758 – tittelen inneholder også "timesalg".
+  if (/0603|inne-? ?og ?utekund/.test(hint)) return 'st1_salesperhour_inneute'
   if (/0758|timesalg|salesperhour/.test(hint)) return 'st1_salesperhour'
   if (/0018|kassererstat|cashierstat/.test(hint)) return 'st1_cashierstats'
   if (/0452|varetransaksj|breakageandwaste/.test(hint)) return 'salgsgrid_varetrans'

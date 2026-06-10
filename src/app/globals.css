@@ -669,6 +669,12 @@ button.liten.slett:hover { background: #fdecea; }
 @keyframes ai-blink { 50% { opacity: 0; } }
 
 /* Heatmap (timesalg, §7) */
+/* Timesalg metrikk-bytte (Salg / Inne / Ute) */
+.metrikk-bytte { display: inline-flex; gap: 0.25rem; padding: 0.25rem; background: var(--bg); border: 1px solid var(--kant); border-radius: 12px; margin-bottom: 1.1rem; }
+.metrikk-bytte .metrikk-knapp { background: transparent; color: var(--tekst-svak); border: 0; padding: 0.45rem 1rem; border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: none; }
+.metrikk-bytte .metrikk-knapp:hover { background: transparent; color: var(--tekst); }
+.metrikk-bytte .metrikk-knapp.aktiv { background: var(--kort); color: var(--primaer); box-shadow: var(--skygge); }
+
 .heatmap-wrap { overflow-x: auto; }
 .heatmap { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
 .heatmap th, .heatmap td { padding: 0.35rem 0.6rem; text-align: right; white-space: nowrap; border: 1px solid var(--kant); }

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { gjenkjennRapporttype } from '@/lib/parsere/gjenkjenn'
 import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
 import { parseSalesPerHour } from '@/lib/parsere/salesperhour'
+import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
@@ -94,6 +95,13 @@ export async function behandleJobbKjerne(
       }
       case 'st1_salesperhour': {
         const r = await parseSalesPerHour(buffer)
+        dato = r.dato ?? datoFraFilnavn(filnavn)
+        if (!dato) throw new ParserFeil('Fant ingen dato i fil eller filnavn.')
+        res = await lagreTimesalg(supabase, retailerId, jobbId, oppslag.medNavn, r, dato)
+        break
+      }
+      case 'st1_salesperhour_inneute': {
+        const r = await parseSalesPerHourInneUte(buffer)
         dato = r.dato ?? datoFraFilnavn(filnavn)
         if (!dato) throw new ParserFeil('Fant ingen dato i fil eller filnavn.')
         res = await lagreTimesalg(supabase, retailerId, jobbId, oppslag.medNavn, r, dato)
@@ -195,7 +203,9 @@ async function lagreTimesalg(
       rader.push({
         retailer_id: retailerId, stasjon_id: stasjonId, dato, time: t.time,
         salg: t.salg, kostpris: t.kostpris, mva: t.mva,
-        antall_varer: t.antallVarer, antall_kunder: t.antallKunder, kilde_jobb_id: jobbId,
+        antall_varer: t.antallVarer, antall_kunder: t.antallKunder,
+        inne_kunder: t.inneKunder ?? null, ute_kunder: t.uteKunder ?? null,
+        kilde_jobb_id: jobbId,
       })
     }
   }
