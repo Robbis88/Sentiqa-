@@ -49,7 +49,7 @@ export async function registrerAvlesning(formData: FormData) {
       type: 'ikmat',
       tittel: `IK-mat avvik: ${punkt.navn}`,
       tekst: `Målt ${temp}°C (krav ${krav}).${tiltak ? ` Tiltak: ${tiltak}` : ' Husk å registrere avvik (S01).'}`,
-      lenke: '/avvik',
+      lenke: '/ikmat',
     })
   }
   revalidatePath('/ikmat')

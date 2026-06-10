@@ -9,7 +9,7 @@ const dir = join(process.cwd(), 'eksempelfiler')
 // (filnavn, forventet rapporttype) for de ekte eksempelfilene.
 const SAKER: [string, Rapporttype][] = [
   ['Salgsstatistikk 2026-05-01.xlsx', 'st1_salgsstatistikk'],
-  ['0758_SalesPerHour 2026-05-13 (1).xlsx', 'st1_salesperhour'],
+  ['Timesalgsrapport med inne- og utekunder 2026-06-10.xlsx', 'st1_salesperhour_inneute'],
   ['0018_CashierStatistics_std 2026-05-13.xlsx', 'st1_cashierstats'],
   ['Varetransaksjonsliste 2026-05-13.xlsx', 'salgsgrid_varetrans'],
   ['190 Kelsar Bil AS 202512-202512_3 (1).xlsx', 'regnskap_resultat'],

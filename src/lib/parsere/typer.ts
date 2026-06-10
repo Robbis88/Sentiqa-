@@ -3,7 +3,6 @@
 
 export type Rapporttype =
   | 'st1_salgsstatistikk'
-  | 'st1_salesperhour'
   | 'st1_salesperhour_inneute'
   | 'st1_cashierstats'
   | 'salgsgrid_varetrans'
@@ -58,7 +57,7 @@ export type SalesPerHourStasjon = {
   timer: TimesalgRad[]
 }
 export type SalesPerHourResultat = {
-  rapporttype: 'st1_salesperhour' | 'st1_salesperhour_inneute'
+  rapporttype: 'st1_salesperhour_inneute'
   dato: string | null
   stasjoner: SalesPerHourStasjon[]
 }

@@ -8,8 +8,7 @@ import { SendTilSjef } from './send-til-sjef'
 const TILES = [
   { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
   { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', ikon: '☑️' },
-  { sti: '/ikmat', tekst: 'IK-mat', ikon: '🌡️' },
-  { sti: '/avvik', tekst: 'Avvik', ikon: '⚠️' },
+  { sti: '/ikmat', tekst: 'IK-mat & avvik', ikon: '🌡️' },
   { sti: '/merker', tekst: 'Merker', ikon: '🏅' },
   { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },
 ]

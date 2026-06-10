@@ -39,7 +39,6 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   {
     tittel: 'AI & engasjement',
     punkter: [
-      { sti: '/assistent', tekst: 'Assistent', roller: [A, B] },
       { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
       { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
       { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
@@ -56,8 +55,7 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/rutiner/oversikt', tekst: 'Rutineoversikt', roller: [A, B] },
       { sti: '/rutiner/min', tekst: 'Min sjekkliste', roller: [A, B] },
       { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B, T] },
-      { sti: '/ikmat', tekst: 'IK-mat', roller: [A, B, T] },
-      { sti: '/avvik', tekst: 'Avvik', roller: [A, B, T] },
+      { sti: '/ikmat', tekst: 'IK-mat & avvik', roller: [A, B, T] },
       { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
       { sti: '/lenker', tekst: 'Lenker', roller: [A, B] },
       { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },

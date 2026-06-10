@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
 import { registrerAvlesning, settOppStandard, slettKontrollpunkt, redigerKontrollpunkt } from './handlinger'
+import { AvvikDel } from '../avvik/avvik-del'
 
 type Punkt = {
   id: string
@@ -52,7 +53,7 @@ export default async function IkMatSide() {
 
   return (
     <>
-      <h1>IK-mat — temperaturkontroll</h1>
+      <h1>IK-mat &amp; avvik</h1>
       <p className="undertittel">Logg temperaturer. Utenfor kravet flagges som avvik og varsler automatisk.</p>
 
       {(stasjoner ?? []).map((s) => {
@@ -127,6 +128,8 @@ export default async function IkMatSide() {
           </section>
         )
       })}
+
+      <AvvikDel />
     </>
   )
 }

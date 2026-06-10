@@ -669,6 +669,9 @@ button.liten.slett:hover { background: #fdecea; }
 @keyframes ai-blink { 50% { opacity: 0; } }
 
 /* Heatmap (timesalg, §7) */
+/* Seksjons-skille (f.eks. Avvik under IK-mat) */
+.del-skille { margin-top: 2.25rem; padding-top: 1.5rem; border-top: 2px solid var(--kant); font-size: 1.3rem; }
+
 /* Timesalg metrikk-bytte (Salg / Inne / Ute) */
 .metrikk-bytte { display: inline-flex; gap: 0.25rem; padding: 0.25rem; background: var(--bg); border: 1px solid var(--kant); border-radius: 12px; margin-bottom: 1.1rem; }
 .metrikk-bytte .metrikk-knapp { background: transparent; color: var(--tekst-svak); border: 0; padding: 0.45rem 1rem; border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: none; }

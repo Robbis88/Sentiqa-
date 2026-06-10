@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { gjenkjennRapporttype } from '@/lib/parsere/gjenkjenn'
 import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
-import { parseSalesPerHour } from '@/lib/parsere/salesperhour'
 import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
@@ -91,13 +90,6 @@ export async function behandleJobbKjerne(
         const r = await parseSalgsstatistikk(buffer)
         dato = r.dato
         res = await lagreSalgsstatistikk(supabase, retailerId, jobbId, oppslag.medNummer, r)
-        break
-      }
-      case 'st1_salesperhour': {
-        const r = await parseSalesPerHour(buffer)
-        dato = r.dato ?? datoFraFilnavn(filnavn)
-        if (!dato) throw new ParserFeil('Fant ingen dato i fil eller filnavn.')
-        res = await lagreTimesalg(supabase, retailerId, jobbId, oppslag.medNavn, r, dato)
         break
       }
       case 'st1_salesperhour_inneute': {
@@ -191,7 +183,7 @@ async function lagreTimesalg(
   retailerId: string,
   jobbId: string,
   medNavn: Map<string, string>,
-  r: Awaited<ReturnType<typeof parseSalesPerHour>>,
+  r: Awaited<ReturnType<typeof parseSalesPerHourInneUte>>,
   dato: string,
 ): Promise<Lagring> {
   const umatchet: string[] = []
