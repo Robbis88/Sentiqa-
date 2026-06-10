@@ -3,10 +3,12 @@ import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { genererLederstotteForRetailer } from '@/lib/ai/lederstotte'
+import { hentVaerMedKlient } from '@/lib/vaer'
 
-// AI-nattjobb (Vercel Cron). Regenererer auto-fokus + lederstøtte for ALLE
-// kjeder, så eierne våkner til ferske vurderinger. Beskyttet av CRON_SECRET
-// (Vercel sender den i Authorization-headeren). Kjører som service-role.
+// AI-nattjobb (Vercel Cron). Henter vær (analyse-input til produksjonsplan) +
+// regenererer auto-fokus + lederstøtte for ALLE kjeder, så eierne våkner til
+// ferske vurderinger. Beskyttet av CRON_SECRET (Vercel sender den i
+// Authorization-headeren). Kjører som service-role.
 export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
@@ -16,6 +18,15 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = lagSupabaseAdminKlient()
+
+  // Vær først — analyse-input til produksjonsplanen (alle stasjoner m/koordinater).
+  let vaer: Awaited<ReturnType<typeof hentVaerMedKlient>> | null = null
+  try {
+    vaer = await hentVaerMedKlient(supabase)
+  } catch {
+    // værfeil skal ikke velte nattjobben
+  }
+
   const { data: retailers } = await supabase.from('retailers').select('id').is('slettet_tid', null)
 
   let kjeder = 0
@@ -33,5 +44,5 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, kjeder })
+  return NextResponse.json({ ok: true, kjeder, vaer })
 }

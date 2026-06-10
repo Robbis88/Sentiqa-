@@ -1,4 +1,5 @@
 import 'server-only'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 
@@ -22,13 +23,11 @@ async function hentForStasjon(lat: number, lon: number): Promise<Daglig | null> 
   return j.daily ?? null
 }
 
-export async function hentVaerForAlle(): Promise<
-  { ok: true; antall: number; stasjoner: number } | { ok: false; grunn: string }
-> {
-  const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return { ok: false, grunn: 'Bare eier kan hente vær.' }
-  const supabase = await lagSupabaseServerKlient()
+type VaerResultat = { ok: true; antall: number; stasjoner: number } | { ok: false; grunn: string }
 
+// Kjernen — tar en klient (server- eller admin/cron-klient). Henter vær for
+// alle stasjoner som har koordinater og upserter i vaer-tabellen.
+export async function hentVaerMedKlient(supabase: SupabaseClient): Promise<VaerResultat> {
   const { data: stasjoner } = await supabase
     .from('stasjoner')
     .select('id, breddegrad, lengdegrad')
@@ -61,4 +60,13 @@ export async function hentVaerForAlle(): Promise<
   )
 
   return { ok: true, antall, stasjoner: stasjoner.length }
+}
+
+// Manuell trigger (eier). Cronen henter automatisk hver natt; denne beholdes
+// for ev. manuell oppfriskning.
+export async function hentVaerForAlle(): Promise<VaerResultat> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin') return { ok: false, grunn: 'Bare eier kan hente vær.' }
+  const supabase = await lagSupabaseServerKlient()
+  return hentVaerMedKlient(supabase)
 }
