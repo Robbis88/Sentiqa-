@@ -4,9 +4,11 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
+import { erLeder } from '@/lib/auth/roller'
 import { Vakt } from './vakt'
 import { Sidemeny } from './sidemeny'
 import { TabletSkall } from './tablet-skall'
+import { AiBoble } from './ai-boble'
 
 // Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
 type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
@@ -143,6 +145,7 @@ export default async function BeskyttetLayout({
         </header>
         <main className="innhold">{children}</main>
       </div>
+      {erLeder(bruker.rolle) && <AiBoble />}
     </div>
   )
 }
