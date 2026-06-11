@@ -318,6 +318,18 @@ button.logg-ut:hover { color: var(--tekst); }
 .puls-popp-takk { font-size: 1.3rem; font-weight: 700; text-align: center; margin: 1rem 0; }
 .puls-popp-kort textarea { width: 100%; margin-top: 0.75rem; padding: 0.6rem; border: 1px solid var(--kant); border-radius: 8px; font: inherit; resize: vertical; }
 .puls-popp-knapper { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1rem; }
+
+/* Sjekkpunkt-popup (sporadisk, Ja/Nei pr punkt) */
+.sjekk-liste { list-style: none; margin: 0.5rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; max-height: 52vh; overflow-y: auto; }
+.sjekk-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.7rem; background: var(--bg); border-radius: 10px; font-weight: 500; font-size: 0.95rem; }
+.sjekk-liste li.kritisk { background: var(--rod-svak); }
+.sjekk-knapper { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.sjekk-popp .sjekk-ja, .sjekk-popp .sjekk-nei { border: 0; border-radius: 8px; padding: 0.45rem 1rem; font-weight: 700; font-size: 0.9rem; cursor: pointer; box-shadow: none; }
+.sjekk-popp .sjekk-ja { background: var(--gronn-svak); color: var(--gronn); }
+.sjekk-popp .sjekk-nei { background: var(--rod-svak); color: var(--rod); }
+.sjekk-popp .sjekk-ja:hover { background: #d3f0db; }
+.sjekk-popp .sjekk-nei:hover { background: #fbdcd8; }
+.sjekk-popp .sjekk-ja:disabled, .sjekk-popp .sjekk-nei:disabled { opacity: 0.5; }
 .fordeling { display: inline-flex; gap: 0.3rem; }
 .fordeling span { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0.1rem 0.3rem; background: var(--bg); border-radius: 5px; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 

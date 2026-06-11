@@ -57,6 +57,25 @@ export async function slettSjekkpunkt(formData: FormData) {
   revalidatePath('/sjekkpunkt')
 }
 
+// Tablet: svar på ett sjekkpunkt (sporadisk popup). Tar args, ikke formData.
+export async function svarSjekkpunktTablet(sjekkpunktId: string, stasjonId: string, ja: boolean): Promise<{ ok: boolean }> {
+  const bruker = await hentInnloggetBruker()
+  if (!sjekkpunktId || !stasjonId) return { ok: false }
+  const ansatt = await lesAktivAnsatt()
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('sjekkpunkt_svar').upsert(
+    { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: ja, svart_av: bruker.id, svart_tid: new Date().toISOString(), ansatt_id: ansatt?.id ?? null },
+    { onConflict: 'sjekkpunkt_id,dato' },
+  )
+  if (!ja && bruker.retailerId) {
+    const { data: sp } = await supabase.from('sjekkpunkter').select('sporsmaal, kritisk').eq('id', sjekkpunktId).maybeSingle<{ sporsmaal: string; kritisk: boolean }>()
+    if (sp?.kritisk) {
+      await opprettVarsel(supabase, { retailer_id: bruker.retailerId, stasjon_id: stasjonId, type: 'sjekkpunkt', tittel: 'Kritisk sjekkpunkt: Nei', tekst: sp.sporsmaal, lenke: '/sjekkpunkt' })
+    }
+  }
+  return { ok: true }
+}
+
 export async function svar(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   const sjekkpunktId = String(formData.get('sjekkpunkt_id') ?? '')

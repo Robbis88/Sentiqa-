@@ -3,12 +3,12 @@ import { kr } from '@/lib/format'
 import type { HjemData } from '@/lib/tablethjem'
 import { TabletHero } from './tablet-hero'
 import { PulsPopp } from './puls-popp'
+import { SjekkpunktPopp } from './sjekkpunkt-popp'
 import { SendTilSjef } from './send-til-sjef'
 import { VekstKort } from './vekst-kort'
 
 const TILES = [
   { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
-  { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', ikon: '☑️' },
   { sti: '/ikmat', tekst: 'IK-mat & avvik', ikon: '🌡️' },
   { sti: '/merker', tekst: 'Merker', ikon: '🏅' },
   { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },
@@ -16,23 +16,27 @@ const TILES = [
 
 type Melding = { id: string; tekst: string; viktig: boolean }
 type PulsRunde = { id: string; tekst: string } | null
+type Sjekk = { id: string; sporsmaal: string; kritisk: boolean; stasjon_id: string }
 
 export function TabletHjem({
   navn,
   streak,
   meldinger = [],
   pulsRunde = null,
+  sjekkpunkter = [],
   hjem,
 }: {
   navn?: string
   streak: number
   meldinger?: Melding[]
   pulsRunde?: PulsRunde
+  sjekkpunkter?: Sjekk[]
   hjem: HjemData
 }) {
   return (
     <>
       <PulsPopp runde={pulsRunde} />
+      <SjekkpunktPopp punkter={sjekkpunkter} />
 
       {meldinger.length > 0 && (
         <div className="tablet-meldinger">

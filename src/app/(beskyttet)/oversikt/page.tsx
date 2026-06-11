@@ -18,11 +18,18 @@ export default async function OversiktSide() {
     const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
     const { cookies } = await import('next/headers')
     const sprak = (await cookies()).get('sprak')?.value ?? 'no'
-    const [{ data: st }, { data: meldinger }, { data: runde }] = await Promise.all([
+    const naaTid = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+    const [{ data: st }, { data: meldinger }, { data: runde }, { data: sjekkAlle }, { data: sjekkSvar }] = await Promise.all([
       supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>(),
       supabase.from('tablet_meldinger').select('id, tekst, viktig').is('slettet_tid', null).order('viktig', { ascending: false }).order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<{ id: string; tekst: string; viktig: boolean }[]>(),
       supabase.from('puls_runde').select('id, puls_sporsmal(tekst)').eq('status', 'aktiv').lte('start_dato', idag).gte('slutt_dato', idag).is('slettet_tid', null).order('opprettet_tid', { ascending: false }).limit(1).maybeSingle<{ id: string; puls_sporsmal: { tekst: string } | null }>(),
+      supabase.from('sjekkpunkter').select('id, stasjon_id, sporsmaal, klokkeslett, kritisk').is('slettet_tid', null).overrideTypes<{ id: string; stasjon_id: string; sporsmaal: string; klokkeslett: string | null; kritisk: boolean }[]>(),
+      supabase.from('sjekkpunkt_svar').select('sjekkpunkt_id').eq('dato', idag).overrideTypes<{ sjekkpunkt_id: string }[]>(),
     ])
+    const besvart = new Set((sjekkSvar ?? []).map((s) => s.sjekkpunkt_id))
+    const sjekkpunkter = (sjekkAlle ?? [])
+      .filter((p) => !besvart.has(p.id) && (!p.klokkeslett || p.klokkeslett <= naaTid))
+      .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, vekst: null }
     let pulsRunde: { id: string; tekst: string } | null = null
@@ -30,7 +37,7 @@ export default async function OversiktSide() {
       const o = await oversettMange([runde.puls_sporsmal.tekst], sprak)
       pulsRunde = { id: runde.id, tekst: o.get(runde.puls_sporsmal.tekst) ?? runde.puls_sporsmal.tekst }
     }
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} pulsRunde={pulsRunde} hjem={hjem} />
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} pulsRunde={pulsRunde} sjekkpunkter={sjekkpunkter} hjem={hjem} />
   }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)
