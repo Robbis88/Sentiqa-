@@ -1,12 +1,17 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
-import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+
+// Lenker er tablet-funksjonen (hurtiglenker for å hjelpe kunder). Alle i
+// tenanten (også tablet) kan legge til/fjerne — kun plattform-redaktør sperres.
+function kanLenke(rolle: string) {
+  return rolle !== 'plattform_redaktor'
+}
 
 export async function leggTilLenke(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle) || !bruker.retailerId) return
+  if (!kanLenke(bruker.rolle) || !bruker.retailerId) return
   const tittel = String(formData.get('tittel') ?? '').trim()
   let url = String(formData.get('url') ?? '').trim()
   const ikon = String(formData.get('ikon') ?? '').trim() || '🔗'
@@ -19,7 +24,7 @@ export async function leggTilLenke(formData: FormData) {
 
 export async function slettLenke(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
+  if (!kanLenke(bruker.rolle)) return
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
