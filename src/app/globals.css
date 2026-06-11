@@ -414,6 +414,10 @@ button.liten.slett:hover { background: #fdecea; }
 .lenke-rad:active { transform: scale(0.99); }
 .lenke-rad .lenke-tittel { flex: 1; }
 .lenke-rad .lenke-pil { color: var(--tekst-svak); font-size: 1.2rem; }
+/* Følger tablet-ens mørke designspråk (Lenker er tablet-only) */
+.tablet .lenke-rad { background: #13203b; border-color: rgba(255,255,255,0.08); color: #e6ebf5; box-shadow: none; padding: 1.15rem 1.2rem; }
+.tablet .lenke-rad:hover { border-color: var(--primaer); background: #18264a; box-shadow: none; }
+.tablet .lenke-rad .lenke-pil { color: #7c8aa8; }
 
 .lenke-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
 .lenke-kort { position: relative; }
