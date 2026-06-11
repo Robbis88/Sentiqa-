@@ -3,10 +3,11 @@ import { useState } from 'react'
 import { kr } from '@/lib/format'
 import type { VekstMetrikk } from '@/lib/tablethjem'
 
-type Valg = 'samlet' | 'mat'
+type Valg = 'samlet' | 'mat' | 'kaldDrikke'
 const VALG: { key: Valg; navn: string }[] = [
   { key: 'samlet', navn: 'Samlet' },
   { key: 'mat', navn: 'Mat' },
+  { key: 'kaldDrikke', navn: 'Kald drikke' },
 ]
 
 function Diff({ naa, ifjor }: { naa: number; ifjor: number }) {
@@ -21,7 +22,7 @@ function Diff({ naa, ifjor }: { naa: number; ifjor: number }) {
   )
 }
 
-export function VekstKort({ metrikker }: { metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk } }) {
+export function VekstKort({ metrikker }: { metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk } }) {
   const [valg, setValg] = useState<Valg>('samlet')
   const m = metrikker[valg]
 

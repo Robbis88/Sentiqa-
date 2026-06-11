@@ -15,7 +15,7 @@ export type HjemData = {
   premie: { vunnet: number; brukt: number; igjen: number }
   vekst: {
     sisteDato: string
-    metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk }
+    metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk }
   } | null
 }
 
@@ -37,7 +37,7 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     supabase.from('skills_score').select('prosent').eq('stasjon_id', stasjonId).order('registrert_tid', { ascending: false }).limit(1).maybeSingle<{ prosent: number }>(),
     supabase.from('pengepremie').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('pengepremie_bruk').select('belop_kr').eq('stasjon_id', stasjonId),
-    supabase.from('v_salg_per_stasjon_dag').select('dato, omsetning, mat_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; omsetning: number | null; mat_omsetning: number | null }[]>(),
+    supabase.from('v_salg_per_stasjon_dag').select('dato, omsetning, mat_omsetning, kald_drikke_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; omsetning: number | null; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]>(),
   ])
 
   const skills = skill ? { prosent: Number(skill.prosent), tekst: skillsTekst(Number(skill.prosent)) } : null
@@ -50,7 +50,7 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
   // Vekst mot fjoråret (−364 d): i dag, måneden hittil, og streak (dager på rad
   // over fjoråret) — for Samlet og Mat. Engasjement på tableten.
   let vekst: HjemData['vekst'] = null
-  const rader = (salg ?? []) as { dato: string; omsetning: number | null; mat_omsetning: number | null }[]
+  const rader = (salg ?? []) as { dato: string; omsetning: number | null; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]
   if (rader.length > 0) {
     const sisteDato = rader[0].dato
     const mndStart = `${sisteDato.slice(0, 7)}-01`
@@ -81,6 +81,7 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
       metrikker: {
         samlet: beregn((r) => r.omsetning ?? 0),
         mat: beregn((r) => r.mat_omsetning ?? 0),
+        kaldDrikke: beregn((r) => r.kald_drikke_omsetning ?? 0),
       },
     }
   }
