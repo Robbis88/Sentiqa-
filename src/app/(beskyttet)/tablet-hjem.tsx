@@ -4,6 +4,7 @@ import type { HjemData } from '@/lib/tablethjem'
 import { TabletHero } from './tablet-hero'
 import { PulsPopp } from './puls-popp'
 import { SendTilSjef } from './send-til-sjef'
+import { VekstKort } from './vekst-kort'
 
 const TILES = [
   { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
@@ -15,24 +16,6 @@ const TILES = [
 
 type Melding = { id: string; tekst: string; viktig: boolean }
 type PulsRunde = { id: string; tekst: string } | null
-
-function VekstRad({ tittel, naa, ifjor }: { tittel: string; naa: number; ifjor: number }) {
-  const diff = naa - ifjor
-  const pst = ifjor > 0 ? Math.round((diff / ifjor) * 1000) / 10 : null
-  const opp = diff >= 0
-  return (
-    <div className="vekst-rad">
-      <div className="vekst-venstre">
-        <span className="vekst-merke">{tittel}</span>
-        <span className="vekst-tall">{kr.format(naa)}</span>
-        {ifjor > 0 && <span className="undertittel">i fjor: {kr.format(ifjor)}</span>}
-      </div>
-      {ifjor > 0 && (
-        <span className={`vekst-diff ${opp ? 'opp' : 'ned'}`}>{opp ? '▲' : '▼'} {kr.format(Math.abs(diff))}{pst != null ? ` (${opp ? '+' : '−'}${Math.abs(pst)} %)` : ''}</span>
-      )}
-    </div>
-  )
-}
 
 export function TabletHjem({
   navn,
@@ -73,13 +56,7 @@ export function TabletHjem({
         ))}
       </div>
 
-      {hjem.vekst && (hjem.vekst.sisteIfjor > 0 || hjem.vekst.mtdIfjor > 0) && (
-        <section className="tablet-seksjon vekst">
-          <h2>📈 Vår vekst mot fjoråret</h2>
-          <VekstRad tittel="Siste salgsdag" naa={hjem.vekst.sisteOms} ifjor={hjem.vekst.sisteIfjor} />
-          <VekstRad tittel="Måneden hittil" naa={hjem.vekst.mtdOms} ifjor={hjem.vekst.mtdIfjor} />
-        </section>
-      )}
+      {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} />}
 
       <section className="tablet-seksjon premie">
         <h2>🎁 Vår premiesaldo</h2>

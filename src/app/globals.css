@@ -678,6 +678,18 @@ button.liten.slett:hover { background: #fdecea; }
 .metrikk-bytte .metrikk-knapp:hover { background: transparent; color: var(--tekst); }
 .metrikk-bytte .metrikk-knapp.aktiv { background: var(--kort); color: var(--primaer); box-shadow: var(--skygge); }
 
+/* Vekst-engasjement på tablet (Samlet/Mat + streak mot i fjor) */
+.vekst-eng-topp { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.vekst-eng-topp h2 { margin: 0; }
+.metrikk-bytte.mork { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
+.metrikk-bytte.mork .metrikk-knapp { color: #aeb8cc; }
+.metrikk-bytte.mork .metrikk-knapp:hover { color: #fff; background: transparent; }
+.metrikk-bytte.mork .metrikk-knapp.aktiv { background: #1f2d4d; color: #fff; box-shadow: none; }
+.vekst-streak-badge { display: inline-block; margin: 0.1rem 0 1rem; padding: 0.5rem 0.95rem; border-radius: 999px; background: linear-gradient(90deg, #b8540f, #f08c00); color: #fff; font-weight: 800; font-size: 0.95rem; }
+.vekst-tall-rad { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.vekst-celle { display: flex; flex-direction: column; gap: 0.15rem; }
+@media (max-width: 560px) { .vekst-tall-rad { grid-template-columns: 1fr; } }
+
 .heatmap-wrap { overflow-x: auto; }
 .heatmap { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
 .heatmap th, .heatmap td { padding: 0.35rem 0.6rem; text-align: right; white-space: nowrap; border: 1px solid var(--kant); }
