@@ -41,7 +41,7 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
 
   const [rangLinjeRes, rangSvinnRes, tilbakeRes, konk, oppgRes, fokus] = await Promise.all([
     sistePeriode
-      ? supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('periode', sistePeriode).in('seksjon', ['omsetning', 'bruttofortjeneste']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>()
+      ? supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('periode', sistePeriode).in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>()
       : Promise.resolve({ data: [] as { stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[] }),
     sistePeriode
       ? supabase.from('regnskap_usynlig_svinn').select('stasjon_id, kast, usynlig_kr').eq('periode', sistePeriode).is('slettet_tid', null).overrideTypes<{ stasjon_id: string; kast: number | null; usynlig_kr: number | null }[]>()
@@ -64,7 +64,7 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
   const avdMedData = new Set<string>()
   const sikre = (id: string) => {
     let r = rangMap.get(id)
-    if (!r) { r = { navn: navnFor.get(id) ?? '—', oms: {}, brf: {}, kast: 0, usynlig: 0 }; rangMap.set(id, r) }
+    if (!r) { r = { navn: navnFor.get(id) ?? '—', oms: {}, brf: {}, kost: {}, kast: 0, usynlig: 0 }; rangMap.set(id, r) }
     return r
   }
   for (const l of rangLinjeRes.data ?? []) {
@@ -72,7 +72,7 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     const kode = (l.kode ?? '').trim()
     if (!kode || kode === '40') continue // hopp rollup «40 CR totalt»
     const r = sikre(l.stasjon_id)
-    const mapp = l.seksjon === 'omsetning' ? r.oms : r.brf
+    const mapp = l.seksjon === 'omsetning' ? r.oms : l.seksjon === 'bruttofortjeneste' ? r.brf : r.kost
     const eks = mapp[kode] ?? { regnskap: 0, budsjett: 0 }
     mapp[kode] = { regnskap: eks.regnskap + (l.regnskap ?? 0), budsjett: eks.budsjett + (l.budsjett ?? 0) }
     if (l.seksjon === 'omsetning') avdMedData.add(kode)

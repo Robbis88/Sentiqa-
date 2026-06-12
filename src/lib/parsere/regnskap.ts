@@ -97,10 +97,24 @@ export async function parseRegnskap(
 // (nivå med «Gr») i omsetnings-seksjonen, og hopper «totalt»-rollups så
 // summering per stasjon blir ren.
 const SKOL = {
-  kode: 1, niva: 2, type: 3, navn: 7,
+  kode: 1, niva: 2, type: 3, nivaTall: 4, navn: 7,
   salgRegnskap: 8, salgBudsjett: 9, salgIndex: 10,
   bruttoRegnskap: 11, bruttoBudsjett: 13,
 } as const
+
+// St1-kontoplan: kostnadskonti i «Res»-seksjonen på per-stasjon-arket (kun
+// kode i regnearket, ikke navn). Brukes for per-stasjon driftskostnader.
+const KONTO_NAVN: Record<string, string> = {
+  '501': 'Faste lønninger', '502': 'Lønnstillegg', '503': 'Timelønn', '505': 'Sykelønn',
+  '508': 'Påløpte feriepenger', '509': 'Bonus', '540': 'Arb.avg av lønn', '541': 'Arb.avg av feriepenger',
+  '590': 'Andre personalkostnader', '621': 'Markedsbidrag', '622': 'Royalty', '623': 'FSA', '624': 'Franchiseavgift',
+  '627': 'Renhold', '628': 'Renovasjon', '629': 'Brøyting', '630': 'Leie driftsmidler', '631': 'Leie utstyr utleie',
+  '632': 'Utstyr & verktøy', '633': 'Forbruksmateriell', '634': 'Rep & vedlikehold', '635': 'Data & kortsystem',
+  '636': 'Pengehåndtering', '637': 'Fremmedtjenester & vakthold', '638': 'Kontorrekvisita', '639': 'Telefon',
+  '740': 'Bilutgifter', '741': 'Reise, møter, kurs', '742': 'Reklame', '743': 'Diverse', '744': 'Forsikringer',
+  '746': 'Kassedifferanse', '771': 'Bank & kortprovisjon', '780': 'Ekstraordinært tap/gevinst', '790': 'Avskrivninger',
+  '810': 'Finanskostnader', '840': 'Ikke driftsrelatert',
+}
 
 export async function parseRegnskapStasjoner(
   data: Buffer | ArrayBuffer,
@@ -117,8 +131,26 @@ export async function parseRegnskapStasjoner(
 
     for (let r = 4; r <= ws.rowCount; r++) {
       const rad = ws.getRow(r)
-      const niva = celletekst(rad.getCell(SKOL.niva).value)
       const type = celletekst(rad.getCell(SKOL.type).value).trim()
+
+      // Driftskostnader pr stasjon («Res»-seksjon): leaf-konto (nivå 1), kun
+      // kostnadskonti (>= 500). Regnskap=kol 8, Budsjett=kol 9 (som salg).
+      if (type === 'Res') {
+        if (celletekst(rad.getCell(SKOL.nivaTall).value).trim() !== '1') continue
+        const kk = celletekst(rad.getCell(SKOL.kode).value).trim()
+        if (!/^\d+$/.test(kk) || Number(kk) < 500) continue
+        const reg = celletall(rad.getCell(SKOL.salgRegnskap).value)
+        const bud = celletall(rad.getCell(SKOL.salgBudsjett).value)
+        if (reg === 0 && bud === 0) continue
+        linjer.push({
+          seksjon: 'driftskostnader', kode: kk, post: KONTO_NAVN[kk] ?? `Konto ${kk}`, sortering: null,
+          regnskap: reg, budsjett: bud, avvik: reg - bud, indexPct: bud ? ((reg - bud) / bud) * 100 : 0,
+          regnskapHittil: 0, budsjettHittil: 0,
+        })
+        continue
+      }
+
+      const niva = celletekst(rad.getCell(SKOL.niva).value)
       if (type !== 'Oms' || !/gr/i.test(niva)) continue // kun avdelings-rollup i omsetning
       const post = celletekst(rad.getCell(SKOL.navn).value).trim()
       if (!post || /totalt/i.test(post)) continue // hopp grand-total/CR-totalt
