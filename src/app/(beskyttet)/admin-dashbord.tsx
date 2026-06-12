@@ -110,6 +110,25 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     ? await supabase.from('daglig_salg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
     : { data: null }
 
+  // Regnskaps-nøkkeltall (cluster, siste måned)
+  type ClusterL = { seksjon: string; post: string; regnskap: number | null; budsjett: number | null }
+  const { data: clusterL } = sistePeriode
+    ? await supabase.from('regnskapslinjer').select('seksjon, post, regnskap, budsjett').eq('periode', sistePeriode).is('stasjon_id', null).overrideTypes<ClusterL[]>()
+    : { data: null }
+  const cl = clusterL ?? []
+  const finnC = (seksjon: string, re: RegExp) => cl.find((l) => l.seksjon === seksjon && re.test(l.post))
+  const avvikP = (l: ClusterL) => (l.budsjett ? (((l.regnskap ?? 0) - l.budsjett) / l.budsjett) * 100 : null)
+  const omsT = finnC('omsetning', /^omsetning totalt/i)
+  const bruttoT = finnC('bruttofortjeneste', /^bruttofortjeneste totalt/i)
+  const resEx = finnC('resultat', /ex 9900/i)
+  const persEx = finnC('driftskostnader', /personalkostnad ex 9900/i)
+  const lonnPst = omsT?.regnskap && persEx?.regnskap ? (persEx.regnskap / omsT.regnskap) * 100 : null
+  const kpiStrip: { merke: string; verdi: string; avvik: number | null }[] = []
+  if (omsT) kpiStrip.push({ merke: '💰 Omsetning', verdi: kr.format(omsT.regnskap ?? 0), avvik: avvikP(omsT) })
+  if (bruttoT) kpiStrip.push({ merke: '📈 Bruttofortjeneste', verdi: kr.format(bruttoT.regnskap ?? 0), avvik: avvikP(bruttoT) })
+  if (resEx) kpiStrip.push({ merke: '💵 Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx) })
+  if (lonnPst != null) kpiStrip.push({ merke: '👥 Lønn % av omsetning', verdi: `${lonnPst.toFixed(1)} %`, avvik: null })
+
   const fornavn = bruker.fulltNavn?.split(' ')[0] ?? bruker.fulltNavn ?? 'sjef'
 
   return (
@@ -129,6 +148,19 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
           </Link>
         ))}
       </nav>
+
+      {kpiStrip.length > 0 && (
+        <section className="nokkeltall">
+          {kpiStrip.map((k) => (
+            <Link key={k.merke} href="/regnskap" className="kpi lenke">
+              <span className="kpi-tall">{k.verdi}</span>
+              <span className="kpi-merke">
+                {k.merke}{k.avvik != null ? ` · ${k.avvik >= 0 ? '+' : '−'}${Math.abs(k.avvik).toFixed(0)} % vs budsjett` : ''}
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       {ukerapporter.length > 0 ? (
         <Sammenleggbar tittel="Forrige uke per stasjon" ikon="📅">
