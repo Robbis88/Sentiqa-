@@ -6,6 +6,7 @@ import { hentEllerLagUkerapport } from '@/lib/ukerapport'
 import { UkeKort } from './uke-kort'
 import { Sammenleggbar } from './sammenleggbar'
 import { AiKort } from './ai-kort'
+import { Stasjonsrangering, AVDELINGER, type RangRad } from './stasjonsrangering'
 
 const SNARVEIER = [
   { sti: '/regnskap', tekst: 'Regnskap', ikon: '📒' },
@@ -38,10 +39,13 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     .from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
   const sistePeriode = sisteReg?.periode ?? null
 
-  const [omsRes, tilbakeRes, konk, oppgRes, fokus] = await Promise.all([
+  const [rangLinjeRes, rangSvinnRes, tilbakeRes, konk, oppgRes, fokus] = await Promise.all([
     sistePeriode
-      ? supabase.from('regnskapslinjer').select('stasjon_id, regnskap').eq('periode', sistePeriode).eq('seksjon', 'omsetning').not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; regnskap: number | null }[]>()
-      : Promise.resolve({ data: [] as { stasjon_id: string; regnskap: number | null }[] }),
+      ? supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('periode', sistePeriode).in('seksjon', ['omsetning', 'bruttofortjeneste']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>()
+      : Promise.resolve({ data: [] as { stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[] }),
+    sistePeriode
+      ? supabase.from('regnskap_usynlig_svinn').select('stasjon_id, kast, usynlig_kr').eq('periode', sistePeriode).is('slettet_tid', null).overrideTypes<{ stasjon_id: string; kast: number | null; usynlig_kr: number | null }[]>()
+      : Promise.resolve({ data: [] as { stasjon_id: string; kast: number | null; usynlig_kr: number | null }[] }),
     supabase.from('tilbakemelding').select('id, stasjon_id, alvorlighet, tekst, opprettet_tid').is('lest_tid', null).order('opprettet_tid', { ascending: false }).limit(12)
       .overrideTypes<{ id: string; stasjon_id: string; alvorlighet: string; tekst: string; opprettet_tid: string }[]>(),
     supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv').is('slettet_tid', null).lte('periode_start', idag).gte('periode_slutt', idag).order('opprettet_tid', { ascending: false }).limit(1).maybeSingle<{ id: string; navn: string; premie_kr: number | null; periode_slutt: string }>(),
@@ -55,10 +59,35 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     })(),
   ])
 
-  // Rangering på omsetning (valgt = siste regnskapsmåned)
-  const omsSum = new Map<string, number>()
-  for (const r of omsRes.data ?? []) omsSum.set(r.stasjon_id, (omsSum.get(r.stasjon_id) ?? 0) + (r.regnskap ?? 0))
-  const rangering = [...omsSum.entries()].filter(([id]) => navnFor.has(id)).map(([id, v]) => ({ navn: navnFor.get(id)!, oms: Math.round(v) })).sort((a, b) => b.oms - a.oms)
+  // Stasjonsrangering: oms/BRF per avdeling + svinn per stasjon (siste regnskapsmåned)
+  const rangMap = new Map<string, RangRad>()
+  const avdMedData = new Set<string>()
+  const sikre = (id: string) => {
+    let r = rangMap.get(id)
+    if (!r) { r = { navn: navnFor.get(id) ?? '—', oms: {}, brf: {}, kast: 0, usynlig: 0 }; rangMap.set(id, r) }
+    return r
+  }
+  for (const l of rangLinjeRes.data ?? []) {
+    if (!navnFor.has(l.stasjon_id)) continue
+    const kode = (l.kode ?? '').trim()
+    if (!kode || kode === '40') continue // hopp rollup «40 CR totalt»
+    const r = sikre(l.stasjon_id)
+    const mapp = l.seksjon === 'omsetning' ? r.oms : r.brf
+    const eks = mapp[kode] ?? { regnskap: 0, budsjett: 0 }
+    mapp[kode] = { regnskap: eks.regnskap + (l.regnskap ?? 0), budsjett: eks.budsjett + (l.budsjett ?? 0) }
+    if (l.seksjon === 'omsetning') avdMedData.add(kode)
+  }
+  for (const s of rangSvinnRes.data ?? []) {
+    if (!navnFor.has(s.stasjon_id)) continue
+    const r = sikre(s.stasjon_id)
+    r.kast += s.kast ?? 0
+    r.usynlig += s.usynlig_kr ?? 0
+  }
+  const summer = (m: Record<string, { regnskap: number; budsjett: number }>) =>
+    Object.values(m).reduce((a, v) => ({ regnskap: a.regnskap + v.regnskap, budsjett: a.budsjett + v.budsjett }), { regnskap: 0, budsjett: 0 })
+  for (const r of rangMap.values()) { r.oms.total = summer(r.oms); r.brf.total = summer(r.brf) }
+  const rangRader = [...rangMap.values()]
+  const avdListe = AVDELINGER.filter((a) => avdMedData.has(a.kode))
 
   // Uleste tilbakemeldinger
   const tilbake = (tilbakeRes.data ?? []).map((t) => ({ ...t, stasjon: navnFor.get(t.stasjon_id) ?? '—', kritisk: KRITISK.has(t.alvorlighet) }))
@@ -136,18 +165,10 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         </section>
       )}
 
-      {rangering.length > 0 && (
-        <Sammenleggbar tittel="Stasjonsrangering · omsetning" ikon="📊">
-          <ol className="rangering-liste">
-            {rangering.map((r, i) => (
-              <li key={r.navn}>
-                <span className="rang-nr">{i + 1}</span>
-                <span className="rang-navn">{r.navn}</span>
-                <span className="rang-verdi">{kr.format(r.oms)}</span>
-              </li>
-            ))}
-          </ol>
-          {sistePeriode && <p className="undertittel">{manedAar.format(new Date(sistePeriode))}</p>}
+      {rangRader.length > 0 && (
+        <Sammenleggbar tittel="Stasjonsrangering" ikon="📊" apen={false}>
+          <Stasjonsrangering rader={rangRader} avdelinger={avdListe} />
+          {sistePeriode && <p className="undertittel" style={{ marginTop: '0.6rem' }}>{manedAar.format(new Date(sistePeriode))} · fra regnskapet</p>}
         </Sammenleggbar>
       )}
 

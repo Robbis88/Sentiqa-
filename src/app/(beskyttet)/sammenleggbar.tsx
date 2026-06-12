@@ -18,7 +18,7 @@ export function Sammenleggbar({
     <section className="kort sammenleggbar">
       <button type="button" className="sammenleggbar-topp" onClick={() => setApen((v) => !v)} aria-expanded={apen}>
         <h2>{ikon ? `${ikon} ` : ''}{tittel}</h2>
-        <span className={`sammenleggbar-pil ${apen ? 'apen' : ''}`}>▾</span>
+        <span className="sammenleggbar-toggle">{apen ? 'Skjul' : 'Vis'} <span className={`sammenleggbar-pil ${apen ? 'apen' : ''}`}>▾</span></span>
       </button>
       {apen && <div className="sammenleggbar-innhold">{children}</div>}
     </section>
