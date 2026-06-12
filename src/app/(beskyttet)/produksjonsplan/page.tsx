@@ -6,6 +6,7 @@ import { datoLang, iDag } from '@/lib/format'
 import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
+import { leggTilArrangement, slettArrangement } from './handlinger'
 
 const UKEDAG = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
 
@@ -52,15 +53,23 @@ export default async function ProduksjonsplanSide({
   }
   const sp = await searchParams
 
-  const { data: stasjoner } = await supabase
+  const { data: alleStasjoner } = await supabase
     .from('stasjoner')
-    .select('id, butikknummer, navn, stasjonstype')
+    .select('id, butikknummer, navn, stasjonstype, vaerfolsomhet')
     .is('slettet_tid', null)
     .order('butikknummer')
-    .overrideTypes<{ id: string; butikknummer: string; navn: string; stasjonstype: string }[]>()
+    .overrideTypes<{ id: string; butikknummer: string; navn: string; stasjonstype: string; vaerfolsomhet: number | null }[]>()
+
+  // Butikksjef låses til egne stasjoner (admin ser alle).
+  let stasjoner = alleStasjoner ?? []
+  if (bruker.rolle === 'butikksjef') {
+    const { data: tilgang } = await supabase.from('butikksjef_stasjoner').select('stasjon_id').eq('profil_id', bruker.id)
+    const ids = new Set((tilgang ?? []).map((t) => t.stasjon_id))
+    stasjoner = stasjoner.filter((s) => ids.has(s.id))
+  }
 
   const valgtNr = sp.butikknummer || stasjoner?.[0]?.butikknummer || ''
-  const stasjon = (stasjoner ?? []).find((s) => s.butikknummer === valgtNr)
+  const stasjon = stasjoner.find((s) => s.butikknummer === valgtNr)
 
   const imorgen = new Date()
   imorgen.setDate(imorgen.getDate() + 1)
@@ -72,6 +81,7 @@ export default async function ProduksjonsplanSide({
   let vaer: Vaerdag | null = null
   let advarsler: string[] = []
   let hodeData: { notat: string | null; publisert_tid: string | null } | null = null
+  let arrangementer: { id: string; navn: string; faktor: number }[] = []
 
   if (stasjon) {
     const fjorBase = leggTilDager(dato, -364)
@@ -83,22 +93,26 @@ export default async function ProduksjonsplanSide({
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
     const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
 
-    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }] = await Promise.all([
+    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: arr }] = await Promise.all([
       supabase.from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null).overrideTypes<SalgRad[]>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
       supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
       supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
+      supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
     ])
     vaer = vMaal ?? null
     hodeData = hode ?? null
+    arrangementer = (arr ?? []).filter((a) => a.stasjon_id === null || a.stasjon_id === stasjon.id).map((a) => ({ id: a.id, navn: a.navn, faktor: a.faktor }))
+    const arrangementFaktor = arrangementer.reduce((f, a) => f * a.faktor, 1)
     const punkter: SalgsPunkt[] = (salg ?? [])
       .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
       .filter((p) => p.varenavn)
     datadybde = new Set(punkter.map((p) => p.dato)).size
 
-    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: 0.5 })
+    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, arrangementFaktor })
     advarsler = plan.advarsler
+    if (arrangementer.length > 0) advarsler.push(`Arrangement-dag: ${arrangementer.map((a) => `${a.navn} (×${a.faktor})`).join(', ')} — forslaget er løftet.`)
 
     const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l]))
     const grupperMap = new Map<string, Gruppe>()
@@ -146,6 +160,29 @@ export default async function ProduksjonsplanSide({
           </p>
         )}
       </section>
+
+      {stasjon && (
+        <section className="kort">
+          <h2>🎟️ Arrangementer · {datoLang.format(new Date(dato))}</h2>
+          {arrangementer.length > 0 ? (
+            <ul className="arr-liste">
+              {arrangementer.map((a) => (
+                <li key={a.id}>
+                  <span>{a.navn} <span className="undertittel">×{a.faktor}</span></span>
+                  <form action={slettArrangement}><input type="hidden" name="id" value={a.id} /><button type="submit" className="liten slett">Fjern</button></form>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="undertittel">Ingen arrangementer denne dagen — legg til hvis det skjer noe (kamp, festival …) som løfter salget.</p>}
+          <form action={leggTilArrangement} className="rutine-form arr-form">
+            <input type="hidden" name="dato" value={dato} />
+            <input type="hidden" name="stasjon_id" value={stasjon.id} />
+            <input name="navn" placeholder="F.eks. Brann – Rosenborg" required />
+            <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Faktor" style={{ width: '5rem' }} />
+            <button type="submit" className="liten">Legg til</button>
+          </form>
+        </section>
+      )}
 
       {advarsler.length > 0 && (
         <section className="kort oppmerksomhet">

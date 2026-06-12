@@ -17,11 +17,17 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
 
-  const { data: stasjoner } = await supabase
+  const { data: alleStasjoner } = await supabase
     .from('stasjoner').select('id, butikknummer, navn').is('slettet_tid', null).order('butikknummer')
     .overrideTypes<{ id: string; butikknummer: string; navn: string }[]>()
-  const valgtNr = sp.butikknummer || stasjoner?.[0]?.butikknummer || ''
-  const stasjon = (stasjoner ?? []).find((s) => s.butikknummer === valgtNr)
+  let stasjoner = alleStasjoner ?? []
+  if (bruker.rolle === 'butikksjef') {
+    const { data: tilgang } = await supabase.from('butikksjef_stasjoner').select('stasjon_id').eq('profil_id', bruker.id)
+    const ids = new Set((tilgang ?? []).map((t) => t.stasjon_id))
+    stasjoner = stasjoner.filter((s) => ids.has(s.id))
+  }
+  const valgtNr = sp.butikknummer || stasjoner[0]?.butikknummer || ''
+  const stasjon = stasjoner.find((s) => s.butikknummer === valgtNr)
 
   let rader: Rad[] = []
   let totalTreff: number | null = null

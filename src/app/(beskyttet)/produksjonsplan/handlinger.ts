@@ -1,5 +1,7 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 
 export type LinjeData = {
@@ -59,6 +61,30 @@ export async function publiser(stasjon_id: string, dato: string): Promise<{ ok: 
     { onConflict: 'stasjon_id,dato' },
   )
   return { ok: !error }
+}
+
+// Arrangement (Brann-kamp o.l.) — egen faktor på forslaget for en dag.
+export async function leggTilArrangement(formData: FormData): Promise<void> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) return
+  const dato = String(formData.get('dato') ?? '')
+  const navn = String(formData.get('navn') ?? '').trim()
+  const stasjon_id = String(formData.get('stasjon_id') ?? '') || null
+  const faktor = Math.max(0.1, Math.min(5, Number(formData.get('faktor')) || 1.2))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dato) || !navn) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('arrangementer').insert({ retailer_id: bruker.retailerId, stasjon_id, dato, navn, faktor, opprettet_av: bruker.id })
+  revalidatePath('/produksjonsplan')
+}
+
+export async function slettArrangement(formData: FormData): Promise<void> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('arrangementer').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/produksjonsplan')
 }
 
 // Tablet: ansatte logger hvor mange som er lagd hittil (absolutt verdi).

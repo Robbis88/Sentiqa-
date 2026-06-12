@@ -81,6 +81,19 @@ export async function settPosisjon(formData: FormData) {
   revalidatePath('/stasjoner')
 }
 
+// Værfølsomhet (0–1): hvor mye værvarsel skal vekte produksjonsplan-forslaget.
+export async function settVaerfolsomhet(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin') return
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const raw = String(formData.get('vaerfolsomhet') ?? '').replace(',', '.').trim()
+  const n = Number(raw)
+  if (!stasjonId || !Number.isFinite(n)) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('stasjoner').update({ vaerfolsomhet: Math.max(0, Math.min(1, n)) }).eq('id', stasjonId)
+  revalidatePath('/stasjoner')
+}
+
 // Sett primær + valgfri sekundær stasjonstype (§7 – styrer analysene).
 export async function settStasjonstype(formData: FormData) {
   const bruker = await hentInnloggetBruker()

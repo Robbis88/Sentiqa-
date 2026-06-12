@@ -81,10 +81,12 @@ export function lagProduksjonsplan(opts: {
   vaerMaal: Vaerdag | null
   vaerFjor: Vaerdag | null
   vaerfolsomhet: number
+  arrangementFaktor?: number // produkt av arrangementer (Brann-kamp o.l.) for dagen
   ekskluderte?: Set<string>
   helligdag?: boolean // mål-dagen er helligdag → kun selve fjor-helligdagen, ingen naboer
 }): PlanForslag {
   const { maalDato, sisteSalgsdato, salg, vaerMaal, vaerFjor, vaerfolsomhet } = opts
+  const arrangementFaktor = opts.arrangementFaktor ?? 1
   const ekskluderte = opts.ekskluderte ?? new Set<string>()
   const advarsler: string[] = []
 
@@ -163,7 +165,7 @@ export function lagProduksjonsplan(opts: {
     if (fjorVerdier.length + sammeUkedag.length < 3) flagg.push('fa_data')
 
     const vf = vaerfaktor(vaerMaal, vaerFjor, vaerfolsomhet, a.gruppe ?? '')
-    const samletfaktor = vf * trendfaktor
+    const samletfaktor = vf * trendfaktor * arrangementFaktor
     const foreslatt = Math.max(0, Math.round(basis * samletfaktor))
 
     forslag.push({

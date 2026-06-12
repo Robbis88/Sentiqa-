@@ -569,6 +569,10 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-notat { width: 100%; box-sizing: border-box; }
 .pp-publiser { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; flex-wrap: wrap; }
 
+.arr-liste { list-style: none; margin: 0.3rem 0 0.7rem; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.arr-liste li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.arr-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
 /* Produksjonsplan på tableten (logging) */
 .pp-tab-liste { display: flex; flex-direction: column; gap: 0.6rem; }
 .pp-tab-rad { background: #13203b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0.8rem 0.9rem; }
