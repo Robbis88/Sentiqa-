@@ -6,6 +6,7 @@ import { env } from '@/lib/env'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { BUTIKKSJEF_KOSTNAD_KODER, BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
 
 // Auto-fokus er ikke-sanntid → Sonnet holder (PROSJEKT.md §8; batch-API senere).
 const MODELL = 'claude-sonnet-4-6'
@@ -32,12 +33,24 @@ async function forStasjon(
   navn: string,
   periode: string,
 ): Promise<{ forbedring: Punkt[]; positivt: Punkt[] } | null> {
-  const [{ data: oms }, { data: brf }, { data: svinn }] = await Promise.all([
+  const [{ data: oms }, { data: brf }, { data: svinn }, { data: kost }] = await Promise.all([
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'omsetning').overrideTypes<Linje[]>(),
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'bruttofortjeneste').overrideTypes<Linje[]>(),
     supabase.from('regnskap_usynlig_svinn').select('kode, navn, usynlig_kr, kast').eq('periode', periode).eq('stasjon_id', stasjonId).is('slettet_tid', null).overrideTypes<Svinn[]>(),
+    supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'driftskostnader').overrideTypes<Linje[]>(),
   ])
   if (!oms || oms.length === 0) return null
+
+  // Kun butikksjef-påvirkbare kostnader (personal samlet) — aldri royalty/husleie/finans.
+  const paavirkbar = (kost ?? []).filter((l) => BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? ''))
+  const personalSum = paavirkbar.filter((l) => BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? '')).reduce((a, l) => ({ r: a.r + (l.regnskap ?? 0), b: a.b + (l.budsjett ?? 0) }), { r: 0, b: 0 })
+  const kostLinjer = [
+    ...(personalSum.r || personalSum.b ? [{ navn: 'Personalkostnad', r: personalSum.r, b: personalSum.b }] : []),
+    ...paavirkbar.filter((l) => !BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? '')).map((l) => ({ navn: l.post, r: l.regnskap ?? 0, b: l.budsjett ?? 0 })),
+  ]
+  const kostTekst = kostLinjer.length
+    ? kostLinjer.map((k) => `${k.navn}: ${Math.round(k.r)} kr av budsjett ${Math.round(k.b)} kr (${k.b > 0 ? (((k.r - k.b) / k.b) * 100).toFixed(0) : '0'} % avvik)`).join('\n')
+    : 'Ingen kostnadsdata.'
 
   // Aggreger svinn (kast + usynlig) pr avdeling (kode 12010 → avd 120).
   const svinnPerAvd = new Map<number, { kast: number; usynlig: number }>()
@@ -78,6 +91,7 @@ async function forStasjon(
         `Stasjon: ${navn}. Periode-tall:\n` +
         `Total omsetning ${Math.round(totOms)} kr, total bruttofortjeneste ${Math.round(totBrf)} kr.\n\n` +
         `Per avdeling:\n${avdTekst}\n\n` +
+        `Påvirkbare kostnader:\n${kostTekst}\n\n` +
         'Gi nøyaktig 3 forbedringspunkter (kun svinn/kostnad) og nøyaktig 3 positive punkter.',
     }],
     output_config: { format: zodOutputFormat(FokusSchema) },

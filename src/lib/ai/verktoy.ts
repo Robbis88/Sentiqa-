@@ -2,6 +2,7 @@ import 'server-only'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import type { InnloggetBruker } from '@/lib/auth/typer'
+import { BUTIKKSJEF_KOSTNAD_KODER } from '@/lib/regnskap-tilgang'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
 export type VerktoyKtx = { supabase: Klient; bruker: InnloggetBruker }
@@ -99,19 +100,35 @@ export const VERKTOY: Record<string, Verktoy> = {
         properties: { periode: { type: 'string', description: 'YYYY-MM (valgfri)' } },
       },
     },
-    async kjor(input, { supabase }) {
+    async kjor(input, { supabase, bruker }) {
+      // Butikksjef ser kun EGEN stasjon + påvirkbare kostnader (aldri cluster/resultat).
+      const erButikksjef = bruker.rolle === 'butikksjef'
       let periode = input.periode ? `${input.periode}-01` : null
       if (!periode) {
-        const { data } = await supabase.from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
+        let q = supabase.from('regnskapslinjer').select('periode').order('periode', { ascending: false }).limit(1)
+        q = erButikksjef ? q.not('stasjon_id', 'is', null) : q.is('stasjon_id', null)
+        const { data } = await q.maybeSingle<{ periode: string }>()
         periode = data?.periode ?? null
       }
       if (!periode) return { feil: 'Ingen regnskapsdata funnet.' }
+
+      if (erButikksjef) {
+        const { data } = await supabase
+          .from('regnskapslinjer').select('stasjon_id, seksjon, kode, post, regnskap, budsjett, avvik, index_pct')
+          .eq('periode', periode).not('stasjon_id', 'is', null).order('sortering')
+          .overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }[]>()
+        const navn = await stasjonsNavn(supabase)
+        const synlig = (data ?? []).filter((l) => l.seksjon === 'omsetning' || l.seksjon === 'bruttofortjeneste' || (l.seksjon === 'driftskostnader' && BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? '')))
+        return {
+          periode, niva: 'din stasjon',
+          merk: 'Du ser kun omsetning, bruttofortjeneste og påvirkbare kostnader for din egen stasjon. Royalty, husleie, finans, varekost-detaljer og resultat ligger på admin-nivå — be Robert om det.',
+          linjer: synlig.map((l) => ({ stasjon: navn.get(l.stasjon_id), seksjon: l.seksjon, post: l.post, regnskap: l.regnskap, budsjett: l.budsjett, avvik: l.avvik, index_pct: l.index_pct })),
+        }
+      }
+
       const { data } = await supabase
-        .from('regnskapslinjer')
-        .select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct')
-        .eq('periode', periode)
-        .is('stasjon_id', null)
-        .order('sortering')
+        .from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct')
+        .eq('periode', periode).is('stasjon_id', null).order('sortering')
       return { periode, linjer: data ?? [] }
     },
   },

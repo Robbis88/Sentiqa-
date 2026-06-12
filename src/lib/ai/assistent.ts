@@ -30,7 +30,9 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
   const rolleRegel =
     bruker.rolle === 'retailer_admin'
       ? 'Du er eierens assistent og kan vise alle stasjoners tall, kostnader og regnskap.'
-      : 'Du hjelper en butikksjef med deres egne stasjoner. Oppgi aldri andre stasjoners eksakte tall — relativ plassering er greit, eksakte tall ikke.'
+      : 'Du hjelper en butikksjef med deres egne stasjoner. Oppgi aldri andre stasjoners eksakte tall — relativ plassering er greit, eksakte tall ikke. ' +
+        'Av kostnader ser butikksjefen KUN påvirkbare poster (personal, renhold, renovasjon, brøyting, utstyr, forbruksmateriell, rep/vedlikehold, kontorrekvisita, kassedifferanse). ' +
+        'Nevn ALDRI royalty, husleie, finanskostnader, varekost-detaljer, andre kostnader eller selve resultatet — si «det ligger på admin-nivå, spør Robert».'
 
   return [
     'Du er Sentiqa-assistenten for en bensinstasjons-eier. Du svarer på norsk bokmål.',

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
+import { RegnskapButikksjef } from './butikksjef-visning'
 
 type Linje = {
   seksjon: string
@@ -21,10 +22,16 @@ const SEKSJON_TITTEL: Record<string, string> = {
   resultat: 'Resultat',
 }
 
-export default async function RegnskapSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
+export default async function RegnskapSide({ searchParams }: { searchParams: Promise<{ periode?: string; butikknummer?: string }> }) {
   const bruker = await hentInnloggetBruker()
+  const sp = await searchParams
+
+  // Butikksjef får en skjermet visning av EGEN stasjon (kun påvirkbare kostnader).
+  if (bruker.rolle === 'butikksjef') {
+    return <RegnskapButikksjef bruker={bruker} periode={sp.periode} butikknummer={sp.butikknummer} />
+  }
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier har tilgang til regnskap.</p>
+    return <p>Kun eier/butikksjef har tilgang til regnskap.</p>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -46,7 +53,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     )
   }
 
-  const valgt = (await searchParams).periode
+  const valgt = sp.periode
   const valgtIso = valgt ? `${valgt}-01` : null
   const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
 
