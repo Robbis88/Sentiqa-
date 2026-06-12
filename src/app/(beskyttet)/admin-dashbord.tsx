@@ -45,6 +45,7 @@ type DashData = {
   ukerapporter: UkeRapport[]
   sisteSalg: { dato: string } | null
   kpiStrip: Kpi[]
+  feil: string | null
 }
 
 // All datahenting samlet og wrappet — dashbordet skal aldri kunne krasje siden.
@@ -52,7 +53,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
   const tomt: DashData = {
     stasjonsListe: [], navnFor: new Map(), sistePeriode: null, rangRader: [], avdListe: [],
     tilbake: [], aapne: [], forsinkede: [], fullfort30: 0, fokusPer: new Map(),
-    aktivKonk: null, ukerapporter: [], sisteSalg: null, kpiStrip: [],
+    aktivKonk: null, ukerapporter: [], sisteSalg: null, kpiStrip: [], feil: null,
   }
   try {
     const { data: stasjoner } = await supabase
@@ -154,9 +155,10 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     if (resEx) kpiStrip.push({ merke: '💵 Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx) })
     if (lonnPst != null) kpiStrip.push({ merke: '👥 Lønn % av omsetning', verdi: `${lonnPst.toFixed(1)} %`, avvik: null })
 
-    return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusPer, aktivKonk, ukerapporter, sisteSalg, kpiStrip }
-  } catch {
-    return tomt
+    return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusPer, aktivKonk, ukerapporter, sisteSalg, kpiStrip, feil: null }
+  } catch (e) {
+    console.error('AdminDashbord samleData feilet:', e)
+    return { ...tomt, feil: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }
   }
 }
 
@@ -171,6 +173,12 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
       <p className="undertittel">
         {d.sistePeriode ? `${manedAar.format(new Date(d.sistePeriode))} · ` : ''}{d.stasjonsListe.length} stasjoner
       </p>
+
+      {d.feil && (
+        <section className="kort oppmerksomhet">
+          <p className="feil">⚠️ Kunne ikke laste full oversikt. Teknisk: {d.feil}</p>
+        </section>
+      )}
 
       <AiKort />
 
