@@ -263,6 +263,26 @@ export const VERKTOY: Record<string, Verktoy> = {
     },
   },
 
+  sla_opp_kunnskap: {
+    schema: {
+      name: 'sla_opp_kunnskap',
+      description:
+        'Slå opp i kunnskapsbasen: tariffavtale (Energistasjonsoverenskomsten), lønnssatser, arbeidsrett, og interne rutiner/HMS/prosedyrer. Bruk ALLTID denne ved spørsmål om pauser, arbeidstid, overtid, tillegg (søndag/helg/natt), lønn/minstelønn/ansiennitet, ferie, sykepenger — eller «hvordan gjør vi X». Returnerer artikler med kilde (§). Finner du ikke svaret, si det ærlig.',
+      input_schema: { type: 'object', properties: { sporsmaal: { type: 'string', description: 'Søkeord eller spørsmål' } }, required: ['sporsmaal'] },
+    },
+    async kjor(input, { supabase }) {
+      const q = String(input.sporsmaal ?? '').trim()
+      if (!q) return { feil: 'Tomt søk.' }
+      const { data, error } = await supabase
+        .from('kunnskap').select('kategori, tittel, innhold, kilde')
+        .textSearch('fts', q, { type: 'websearch', config: 'norwegian' }).limit(5)
+      if (error || !data || data.length === 0) {
+        return { treff: [], merk: 'Ingen treff i kunnskapsbasen. Si at du ikke har det dekket — for juridiske/tariff-spørsmål, henvis til HR eller Virke.' }
+      }
+      return { treff: data }
+    },
+  },
+
   // --- Handling-verktøy (kun eier, to-stegs bekreftelse §8A) ---
   opprett_konkurranse: {
     kunAdmin: true,
