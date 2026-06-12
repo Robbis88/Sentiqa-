@@ -8,5 +8,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Kjør på alt unntatt API-ruter (egne webhooks), statiske filer og bilder.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
