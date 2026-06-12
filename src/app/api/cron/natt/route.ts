@@ -3,6 +3,7 @@ import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { genererLederstotteForRetailer } from '@/lib/ai/lederstotte'
+import { hentEllerLagUkerapport } from '@/lib/ukerapport'
 import { hentVaerMedKlient } from '@/lib/vaer'
 
 // AI-nattjobb (Vercel Cron). Henter vær (analyse-input til produksjonsplan) +
@@ -38,6 +39,13 @@ export async function GET(req: NextRequest) {
     }
     try {
       await genererLederstotteForRetailer(supabase, r.id)
+    } catch {
+      // hopp over
+    }
+    try {
+      // Ukerapport m/AI-sammendrag (genereres her, ikke i dashbord-render).
+      const { data: st } = await supabase.from('stasjoner').select('id, navn, butikknummer').eq('retailer_id', r.id).is('slettet_tid', null)
+      await hentEllerLagUkerapport(supabase, r.id, (st ?? []) as { id: string; navn: string; butikknummer: string }[], true)
     } catch {
       // hopp over
     }
