@@ -24,7 +24,7 @@ const SEKSJON_TITTEL: Record<string, string> = {
   resultat: 'Resultat',
 }
 
-export default async function RegnskapSide({ searchParams }: { searchParams: Promise<{ periode?: string; butikknummer?: string }> }) {
+export default async function RegnskapSide({ searchParams }: { searchParams: Promise<{ periode?: string; butikknummer?: string; stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
   const sp = await searchParams
 
@@ -59,7 +59,11 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const valgtIso = valgt ? `${valgt}-01` : null
   const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
 
-  const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler] = await Promise.all([
+  // Admin kan bore ned i én stasjon (?stasjon=<uuid>), ellers «alle samlet».
+  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
+
+  const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler, { data: stasjonLinjer }] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
@@ -78,9 +82,21 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     bruker.retailerId
       ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => [])
       : Promise.resolve([]),
+    valgtStasjon
+      ? supabase
+          .from('regnskapslinjer')
+          .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
+          .eq('periode', aktivPeriode)
+          .eq('stasjon_id', valgtStasjon)
+          .order('sortering', { ascending: true })
+          .overrideTypes<Linje[]>()
+      : Promise.resolve({ data: null as Linje[] | null }),
   ])
 
   const linjer = data ?? []
+  // Aktiv visning: valgt stasjon (hvis den har data) ellers hele clusteret.
+  const erStasjon = valgtStasjon != null && (stasjonLinjer?.length ?? 0) > 0
+  const visLinjer = erStasjon ? (stasjonLinjer ?? []) : linjer
 
   // Aggreger omsetning per stasjon (basis-avdelinger → ren sum, ingen dobbelttelling)
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
@@ -104,24 +120,50 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
       index: p.budsjett ? ((p.regnskap - p.budsjett) / p.budsjett) * 100 : 0,
     }))
     .sort((a, b) => b.regnskap - a.regnskap)
-  const seksjon = (navn: string) => linjer.filter((l) => l.seksjon === navn)
-  const finn = (re: RegExp, s = 'omsetning') =>
-    seksjon(s).find((l) => re.test(l.post))
+  const valgtNavn = valgtStasjon ? navnFor.get(valgtStasjon) ?? null : null
+  const seksjon = (navn: string) => visLinjer.filter((l) => l.seksjon === navn)
 
-  const omsetningTotalt = finn(/^omsetning totalt/i)
-  const brutto = seksjon('bruttofortjeneste').find((l) => /^bruttofortjeneste/i.test(l.post))
+  // KPI: cluster bruker navngitte totaler; stasjon bruker «40 CR»-linja.
+  // Per stasjon finnes ingen «Resultat»-linje (kun cluster) → utelat den.
+  const omsetningTotalt = erStasjon
+    ? seksjon('omsetning').find((l) => l.kode === '40')
+    : seksjon('omsetning').find((l) => /^omsetning totalt/i.test(l.post))
+  const brutto = erStasjon
+    ? seksjon('bruttofortjeneste').find((l) => l.kode === '40')
+    : seksjon('bruttofortjeneste').find((l) => /^bruttofortjeneste/i.test(l.post))
   const resultat = seksjon('resultat').find((l) => /^resultat$/i.test(l.post))
 
   const kpi = [
     { merke: 'Omsetning', l: omsetningTotalt },
     { merke: 'Bruttofortjeneste', l: brutto },
-    { merke: 'Resultat', l: resultat },
+    ...(erStasjon ? [] : [{ merke: 'Resultat', l: resultat }]),
   ]
+
+  // Varsler: stasjonsvisning viser kun valgt stasjons varsler; ellers alle.
+  const visVarsler = erStasjon ? varsler.filter((v) => v.omfang === valgtNavn) : varsler
 
   return (
     <>
       <h1>Regnskap</h1>
-      <p className="undertittel">{manedAar.format(new Date(aktivPeriode))} · hele clusteret</p>
+      <p className="undertittel">{manedAar.format(new Date(aktivPeriode))} · {erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'}</p>
+
+      {(stasjoner ?? []).length > 0 && (
+        <nav className="periode-trad" aria-label="Velg stasjon">
+          <Link href={`/regnskap?periode=${aktivPeriode.slice(0, 7)}`} className={`periode-chip ${!erStasjon ? 'aktiv' : ''}`} aria-current={!erStasjon ? 'page' : undefined}>
+            Alle samlet
+          </Link>
+          {[...(stasjoner ?? [])]
+            .sort((a, b) => a.butikknummer.localeCompare(b.butikknummer))
+            .map((s) => {
+              const aktiv = s.id === valgtStasjon
+              return (
+                <Link key={s.id} href={`/regnskap?periode=${aktivPeriode.slice(0, 7)}&stasjon=${s.id}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
+                  {s.butikknummer} {s.navn}
+                </Link>
+              )
+            })}
+        </nav>
+      )}
 
       {liste.length > 1 && (
         <nav className="periode-trad" aria-label="Tidligere regnskap">
@@ -129,7 +171,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
             const ym = p.slice(0, 7)
             const aktiv = p === aktivPeriode
             return (
-              <Link key={p} href={`/regnskap?periode=${ym}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
+              <Link key={p} href={`/regnskap?periode=${ym}${valgtStasjon ? `&stasjon=${valgtStasjon}` : ''}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
                 {manedAar.format(new Date(p))}
               </Link>
             )
@@ -149,9 +191,9 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         ))}
       </section>
 
-      <RegnskapVarsler varsler={varsler} />
+      <RegnskapVarsler varsler={visVarsler} />
 
-      {stasjonsrader.length > 0 && (
+      {!erStasjon && stasjonsrader.length > 0 && (
         <section className="kort">
           <h2>Omsetning per stasjon</h2>
           <table className="tabell">
