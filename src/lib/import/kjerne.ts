@@ -5,7 +5,10 @@ import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
+import { after } from 'next/server'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
+import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
+import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
 
@@ -144,10 +147,16 @@ export async function behandleJobbKjerne(
       })
       .eq('id', jobbId)
 
-    // MERK: den tunge AI-en (eier-analyse + butikksjef-fokus) kjøres IKKE her —
-    // den sprenger Vercels funksjonsgrense (504). Den trigges av nattjobben
-    // (api/cron/natt) + manuelt via «Kjør analyse»/«Generer fokuspunkter».
-    // Importen er dermed rask og kan aldri time ut.
+    // Tung AI kjøres i BAKGRUNNEN via after() — ETTER at svaret er sendt.
+    // Opplastingen returnerer umiddelbart og kan aldri time ut/feile, uansett
+    // hvor lenge analysen tar. Nattjobben + manuelle knapper er fallback hvis
+    // bakgrunnsvinduet (maxDuration) skulle ta slutt før alt er ferdig.
+    if (rapporttype === 'regnskap_resultat') {
+      after(async () => {
+        try { await kjorRegnskapsanalyse(supabase, retailerId) } catch { /* fallback: cron/knapp */ }
+        try { await genererFokusForRetailer(supabase, retailerId) } catch { /* fallback: cron/knapp */ }
+      })
+    }
   } catch (e) {
     await settFeil(e instanceof ParserFeil ? e.message : `Uventet feil: ${String(e)}`)
   }
