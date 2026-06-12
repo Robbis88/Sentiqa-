@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
@@ -20,7 +21,7 @@ const SEKSJON_TITTEL: Record<string, string> = {
   resultat: 'Resultat',
 }
 
-export default async function RegnskapSide() {
+export default async function RegnskapSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
     return <p>Kun eier har tilgang til regnskap.</p>
@@ -28,15 +29,13 @@ export default async function RegnskapSide() {
 
   const supabase = await lagSupabaseServerKlient()
 
-  const { data: siste } = await supabase
-    .from('regnskapslinjer')
-    .select('periode')
-    .is('stasjon_id', null)
-    .order('periode', { ascending: false })
-    .limit(1)
-    .maybeSingle<{ periode: string }>()
+  // Alle perioder (rød tråd) — velg via ?periode=YYYY-MM, ellers siste.
+  const { data: perioder } = await supabase
+    .from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false })
+    .overrideTypes<{ periode: string }[]>()
+  const liste = [...new Set((perioder ?? []).map((p) => p.periode))]
 
-  if (!siste) {
+  if (liste.length === 0) {
     return (
       <>
         <h1>Regnskap</h1>
@@ -47,18 +46,22 @@ export default async function RegnskapSide() {
     )
   }
 
+  const valgt = (await searchParams).periode
+  const valgtIso = valgt ? `${valgt}-01` : null
+  const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
+
   const [{ data }, { data: perStasjon }, { data: stasjoner }] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
-      .eq('periode', siste.periode)
+      .eq('periode', aktivPeriode)
       .is('stasjon_id', null)
       .order('sortering', { ascending: true })
       .overrideTypes<Linje[]>(),
     supabase
       .from('regnskapslinjer')
       .select('stasjon_id, regnskap, budsjett')
-      .eq('periode', siste.periode)
+      .eq('periode', aktivPeriode)
       .eq('seksjon', 'omsetning')
       .not('stasjon_id', 'is', null)
       .overrideTypes<{ stasjon_id: string; regnskap: number | null; budsjett: number | null }[]>(),
@@ -101,7 +104,21 @@ export default async function RegnskapSide() {
   return (
     <>
       <h1>Regnskap</h1>
-      <p className="undertittel">{manedAar.format(new Date(siste.periode))} · hele clusteret</p>
+      <p className="undertittel">{manedAar.format(new Date(aktivPeriode))} · hele clusteret</p>
+
+      {liste.length > 1 && (
+        <nav className="periode-trad" aria-label="Tidligere regnskap">
+          {liste.map((p) => {
+            const ym = p.slice(0, 7)
+            const aktiv = p === aktivPeriode
+            return (
+              <Link key={p} href={`/regnskap?periode=${ym}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
+                {manedAar.format(new Date(p))}
+              </Link>
+            )
+          })}
+        </nav>
+      )}
 
       <section className="nokkeltall">
         {kpi.map(({ merke, l }) => (
