@@ -9,6 +9,7 @@ import { VekstKort } from './vekst-kort'
 
 const TILES = [
   { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
+  { sti: '/produksjonsplan', tekst: 'Produksjon', ikon: '🥐' },
   { sti: '/ikmat', tekst: 'IK-mat & avvik', ikon: '🌡️' },
   { sti: '/merker', tekst: 'Merker', ikon: '🏅' },
   { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },

@@ -568,6 +568,18 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-ekskl:hover { color: var(--rod); }
 .pp-notat { width: 100%; box-sizing: border-box; }
 .pp-publiser { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; flex-wrap: wrap; }
+
+/* Produksjonsplan på tableten (logging) */
+.pp-tab-liste { display: flex; flex-direction: column; gap: 0.6rem; }
+.pp-tab-rad { background: #13203b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0.8rem 0.9rem; }
+.pp-tab-rad.ferdig { border-color: var(--gronn); background: #14301f; }
+.pp-tab-topp { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.pp-tab-navn { font-weight: 700; color: #e6ebf5; }
+.pp-tab-tall { font-weight: 800; color: #e6ebf5; font-size: 1.1rem; white-space: nowrap; }
+.pp-tab-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 999px; margin: 0.5rem 0; overflow: hidden; }
+.pp-tab-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
+.pp-tab-bunn { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pp-tab-start { font-size: 0.85rem; color: #9fb0cc; }
 .stepper.liten input { width: 2.6rem; }
 .stepper.liten button { width: 1.7rem; height: 1.7rem; font-size: 1rem; }
 .stepper { display: inline-flex; align-items: center; gap: 0.3rem; }

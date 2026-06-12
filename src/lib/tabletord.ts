@@ -8,7 +8,9 @@ export const TABLET_ORD: string[] = [
   'God natt', 'God morgen', 'God formiddag', 'God ettermiddag', 'God kveld',
   'dager på rad',
   // Fliser
-  'Rutiner', 'IK-mat & avvik', 'Merker',
+  'Rutiner', 'IK-mat & avvik', 'Merker', 'Produksjon',
+  // Produksjonsplan (tablet)
+  'Klart til morgen', 'Lagd',
   // Vekst
   'Vekst mot i fjor', 'Samlet', 'Mat', 'Kald drikke', 'I dag', 'Måneden hittil',
   'på rad over fjoråret!', 'dag', 'dager', 'mot i fjor',
