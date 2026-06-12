@@ -42,6 +42,7 @@ export default async function ProduksjonsplanSide({
   let datadybde = 0
   let vaer: Vaerdag | null = null
   let advarsler: string[] = []
+  let hodeData: { notat: string | null; publisert_tid: string | null } | null = null
 
   if (stasjon) {
     const fjorBase = leggTilDager(dato, -364)
@@ -53,13 +54,15 @@ export default async function ProduksjonsplanSide({
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
     const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
 
-    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }] = await Promise.all([
+    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }] = await Promise.all([
       supabase.from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null).overrideTypes<SalgRad[]>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
-      supabase.from('produksjonsplan_linjer').select('varenavn, planlagt').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number }[]>(),
+      supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
+      supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
     ])
     vaer = vMaal ?? null
+    hodeData = hode ?? null
     const punkter: SalgsPunkt[] = (salg ?? [])
       .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
       .filter((p) => p.varenavn)
@@ -68,10 +71,14 @@ export default async function ProduksjonsplanSide({
     const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: 0.5 })
     advarsler = plan.advarsler
 
-    const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l.planlagt]))
+    const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l]))
     const grupperMap = new Map<string, Gruppe>()
     for (const f of plan.forslag) {
-      const produkt: Produkt = { varenavn: f.varenavn, baseline: f.basis, faktor: f.samletfaktor, foreslatt: f.foreslatt, planlagt: lagretFor.get(f.varenavn) ?? f.foreslatt, flagg: f.flagg }
+      const l = lagretFor.get(f.varenavn)
+      const produkt: Produkt = {
+        varenavn: f.varenavn, baseline: f.basis, faktor: f.samletfaktor, foreslatt: f.foreslatt,
+        planlagt: l?.planlagt ?? f.foreslatt, start_antall: l?.start_antall ?? 0, ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
+      }
       const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)
       if (!g) { g = { kode: f.varegruppeKode, navn: f.varegruppeNavn ?? `Varegruppe ${f.varegruppeKode ?? '?'}`, produkter: [] }; grupperMap.set(nokkel, g) }
@@ -122,7 +129,7 @@ export default async function ProduksjonsplanSide({
         </section>
       ) : (
         <>
-          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} />
+          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} notat={hodeData?.notat ?? null} publisertTid={hodeData?.publisert_tid ?? null} />
           {datadybde < 14 && (
             <p className="undertittel">
               ⚠ Tynt datagrunnlag ({datadybde} dag{datadybde === 1 ? '' : 'er'}). Forslaget blir mer presist med mer historikk (§7).
