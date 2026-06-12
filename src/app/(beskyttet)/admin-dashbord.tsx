@@ -97,10 +97,19 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         ))}
       </nav>
 
-      {ukerapporter.length > 0 && (
+      {ukerapporter.length > 0 ? (
         <Sammenleggbar tittel="Forrige uke per stasjon" ikon="📅">
           <div className="uke-stabel">{ukerapporter.map((r) => <UkeKort key={r.stasjonId} rapport={r} />)}</div>
         </Sammenleggbar>
+      ) : (
+        <section className="kort">
+          <h2>📅 Forrige uke per stasjon</h2>
+          <p className="undertittel">
+            Ukerapporten («forrige uke vs i fjor») dukker opp automatisk når det finnes <strong>daglige salgsdata</strong> for
+            en komplett uke (man–søn). Det krever salgsstatistikken — det månedlige regnskapet inneholder ikke dag-for-dag-tall.
+            Last den opp under <Link href="/import">Import</Link>.
+          </p>
+        </section>
       )}
 
       {tilbake.length > 0 && (
