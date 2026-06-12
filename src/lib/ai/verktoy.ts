@@ -273,10 +273,20 @@ export const VERKTOY: Record<string, Verktoy> = {
     async kjor(input, { supabase }) {
       const q = String(input.sporsmaal ?? '').trim()
       if (!q) return { feil: 'Tomt søk.' }
-      const { data, error } = await supabase
+      let { data } = await supabase
         .from('kunnskap').select('kategori, tittel, innhold, kilde')
         .textSearch('fts', q, { type: 'websearch', config: 'norwegian' }).limit(5)
-      if (error || !data || data.length === 0) {
+      // Fallback når fulltekstsøket (AND) ikke treffer på sammensatte ord:
+      // bredere OR-søk på enkeltordene.
+      if (!data || data.length === 0) {
+        const ord = [...new Set(q.toLowerCase().split(/[^a-zæøå0-9]+/).filter((o) => o.length >= 4))].slice(0, 6)
+        if (ord.length > 0) {
+          const orFilter = ord.map((o) => `innhold.ilike.%${o}%,tittel.ilike.%${o}%`).join(',')
+          const res = await supabase.from('kunnskap').select('kategori, tittel, innhold, kilde').or(orFilter).limit(5)
+          data = res.data
+        }
+      }
+      if (!data || data.length === 0) {
         return { treff: [], merk: 'Ingen treff i kunnskapsbasen. Si at du ikke har det dekket — for juridiske/tariff-spørsmål, henvis til HR eller Virke.' }
       }
       return { treff: data }
