@@ -4,6 +4,11 @@
 // inn i en server-komponent, blir den en klient-referanse, ikke verdien.
 export type Avd = { kode: string; navn: string; ikon: string }
 
+// Drivstoff (10) og Pant (250) holdes utenfor butikksjef-/lederanalysene:
+// drivstoff er kommisjon/volum utenfor butikkdriften, pant er gjennomgang.
+// Sier lite om hvordan butikksjefen driver butikken → utelates generelt.
+export const UTELAT_KODER = new Set(['10', '250'])
+
 // St1-kontoplanen — salgsavdelinger med ikon (for kilde-velgeren).
 export const AVDELINGER: Avd[] = [
   { kode: '120', navn: 'Mat', ikon: '🍔' },

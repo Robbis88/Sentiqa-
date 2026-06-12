@@ -7,6 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { BUTIKKSJEF_KOSTNAD_KODER, BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
+import { UTELAT_KODER } from '@/lib/avdelinger'
 
 // Auto-fokus er ikke-sanntid → Sonnet holder (PROSJEKT.md §8; batch-API senere).
 const MODELL = 'claude-sonnet-4-6'
@@ -33,13 +34,16 @@ async function forStasjon(
   navn: string,
   periode: string,
 ): Promise<{ forbedring: Punkt[]; positivt: Punkt[] } | null> {
-  const [{ data: oms }, { data: brf }, { data: svinn }, { data: kost }] = await Promise.all([
+  const [{ data: omsRaw }, { data: brfRaw }, { data: svinn }, { data: kost }] = await Promise.all([
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'omsetning').overrideTypes<Linje[]>(),
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'bruttofortjeneste').overrideTypes<Linje[]>(),
     supabase.from('regnskap_usynlig_svinn').select('kode, navn, usynlig_kr, kast').eq('periode', periode).eq('stasjon_id', stasjonId).is('slettet_tid', null).overrideTypes<Svinn[]>(),
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'driftskostnader').overrideTypes<Linje[]>(),
   ])
-  if (!oms || oms.length === 0) return null
+  if (!omsRaw || omsRaw.length === 0) return null
+  // Drivstoff og pant utelates fra fokus — ikke en del av butikkdriften.
+  const oms = omsRaw.filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
+  const brf = (brfRaw ?? []).filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
 
   // Kun butikksjef-påvirkbare kostnader (personal samlet) — aldri royalty/husleie/finans.
   const paavirkbar = (kost ?? []).filter((l) => BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? ''))

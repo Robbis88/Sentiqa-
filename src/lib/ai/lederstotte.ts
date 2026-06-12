@@ -6,6 +6,7 @@ import { env } from '@/lib/env'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { UTELAT_KODER } from '@/lib/avdelinger'
 
 // Per-stasjon coaching → Sonnet (ikke-sanntid, §8).
 const MODELL = 'claude-sonnet-4-6'
@@ -30,14 +31,16 @@ async function forStasjon(
 ): Promise<Lederstotte | null> {
   const { data } = await supabase
     .from('regnskapslinjer')
-    .select('post, regnskap, budsjett, index_pct')
+    .select('kode, post, regnskap, budsjett, index_pct')
     .eq('periode', periode)
     .eq('stasjon_id', stasjonId)
     .eq('seksjon', 'omsetning')
-    .overrideTypes<{ post: string; regnskap: number | null; budsjett: number | null; index_pct: number | null }[]>()
+    .overrideTypes<{ kode: string | null; post: string; regnskap: number | null; budsjett: number | null; index_pct: number | null }[]>()
   if (!data || data.length === 0) return null
 
+  // Drivstoff og pant utelates — ikke en del av butikkdriften (§ generell regel).
   const tall = data
+    .filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
     .map((l) => `${l.post}: ${Math.round(l.regnskap ?? 0)} kr av budsjett ${Math.round(l.budsjett ?? 0)} kr (${(l.index_pct ?? 0).toFixed(1)} %)`)
     .join('\n')
 
