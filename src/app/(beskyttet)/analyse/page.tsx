@@ -1,8 +1,10 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { manedAar } from '@/lib/format'
+import { manedAar, kr } from '@/lib/format'
 import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
+
+type Svinn = { stasjon_id: string; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
 
 const STATUS_TEKST: Record<string, string> = { gronn: 'God', gul: 'Følg med', rod: 'Krever tiltak' }
 const PRIO_TEKST: Record<string, string> = { hoy: 'HØY', medium: 'MEDIUM', lav: 'LAV' }
@@ -22,6 +24,30 @@ export default async function AnalyseSide() {
     .maybeSingle<{ periode: string; rapport: Analyse; opprettet_tid: string }>()
 
   const a = data?.rapport
+
+  // Usynlig svinn per stasjon (+ = manko/penger borte, − = overskudd/positiv svinn)
+  let svinnPerStasjon: { navn: string; manko: number; overskudd: number; topp: Svinn[]; bunn: Svinn[] }[] = []
+  if (data?.periode) {
+    const [{ data: svinn }, { data: stasjoner }] = await Promise.all([
+      supabase.from('regnskap_usynlig_svinn').select('stasjon_id, navn, salg, usynlig_kr, usynlig_pst').eq('periode', data.periode).is('slettet_tid', null).overrideTypes<Svinn[]>(),
+      supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
+    ])
+    const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+    const grupper = new Map<string, Svinn[]>()
+    for (const s of svinn ?? []) { const l = grupper.get(s.stasjon_id) ?? []; l.push(s); grupper.set(s.stasjon_id, l) }
+    svinnPerStasjon = [...grupper.entries()].filter(([id]) => navnFor.has(id)).map(([id, liste]) => {
+      let manko = 0, overskudd = 0
+      for (const s of liste) { const v = s.usynlig_kr ?? 0; if (v > 0) manko += v; else overskudd += v }
+      const sortert = [...liste].sort((x, y) => (y.usynlig_kr ?? 0) - (x.usynlig_kr ?? 0))
+      return {
+        navn: navnFor.get(id)!,
+        manko: Math.round(manko),
+        overskudd: Math.round(overskudd),
+        topp: sortert.filter((s) => (s.usynlig_kr ?? 0) > 0).slice(0, 5),
+        bunn: sortert.filter((s) => (s.usynlig_kr ?? 0) < 0).slice(-5).reverse(),
+      }
+    }).sort((x, y) => y.manko - x.manko)
+  }
 
   return (
     <>
@@ -70,6 +96,27 @@ export default async function AnalyseSide() {
               </tbody>
             </table>
           </section>
+
+          {svinnPerStasjon.length > 0 && (
+            <section className="kort">
+              <h2>🔎 Usynlig svinn per stasjon</h2>
+              <p className="undertittel"><span className="svinn-manko">+ = manko (penger borte etter telling)</span> · <span className="svinn-overskudd">− = overskudd (positiv svinn)</span></p>
+              <div className="svinn-grid">
+                {svinnPerStasjon.map((s, i) => (
+                  <div className="svinn-kort" key={i}>
+                    <div className="svinn-topp">
+                      <strong>{s.navn}</strong>
+                      <span className="svinn-totaler"><span className="svinn-manko">+{kr.format(s.manko)}</span> <span className="svinn-overskudd">{kr.format(s.overskudd)}</span></span>
+                    </div>
+                    <ul className="svinn-liste">
+                      {s.topp.map((p, j) => <li key={`m${j}`}><span className="svinn-manko">+{kr.format(p.usynlig_kr ?? 0)}</span> {p.navn} <span className="svinn-pst">({Math.round(p.usynlig_pst ?? 0)} %)</span></li>)}
+                      {s.bunn.map((p, j) => <li key={`o${j}`}><span className="svinn-overskudd">{kr.format(p.usynlig_kr ?? 0)}</span> {p.navn} <span className="svinn-pst">({Math.round(p.usynlig_pst ?? 0)} %)</span></li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {a.rodeFlagg.length > 0 && (
             <section className="kort oppmerksomhet">

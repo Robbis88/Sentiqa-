@@ -600,6 +600,17 @@ button.liten.slett:hover { background: #fdecea; }
 .prio-medium { background: var(--gul-svak, #fff4e0); color: var(--gul, #9a6a00); }
 .prio-lav { background: var(--bg); color: var(--tekst-svak); }
 
+/* Usynlig svinn per stasjon (+ manko rødt / − overskudd grønt) */
+.svinn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; margin-top: 0.6rem; }
+.svinn-kort { border: 1px solid var(--kant); border-radius: 12px; padding: 0.8rem 0.9rem; background: var(--bg); }
+.svinn-topp { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
+.svinn-totaler { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.svinn-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+.svinn-liste li { display: flex; gap: 0.4rem; align-items: baseline; }
+.svinn-manko { color: var(--rod); font-weight: 700; }
+.svinn-overskudd { color: var(--gronn); font-weight: 700; }
+.svinn-pst { color: var(--tekst-svak); font-size: 0.78rem; margin-left: auto; }
+
 /* Rutiner / tablet-avkryssing (§11, §10 – store touch-targets ≥44px) */
 .rutine-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .rutine-liste li { display: flex; align-items: center; gap: 0.75rem; }
