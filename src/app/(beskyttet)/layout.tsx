@@ -5,7 +5,6 @@ import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { erLeder } from '@/lib/auth/roller'
-import { Vakt } from './vakt'
 import { Sidemeny } from './sidemeny'
 import { TabletSkall } from './tablet-skall'
 import { AiBoble } from './ai-boble'
@@ -98,14 +97,15 @@ export default async function BeskyttetLayout({
     .from('varsler')
     .select('*', { count: 'exact', head: true })
     .eq('lest', false)
-  const aktivAnsatt = await lesAktivAnsatt()
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
   })).filter((s) => s.punkter.length > 0)
 
-  // Tableten får sin egen mørke verden — aldri admin-skallet.
+  // Tableten får sin egen mørke verden — aldri admin-skallet. PIN/vakt gjelder
+  // KUN tableten; admin og butikksjef logger inn som seg selv (ingen vakt).
   if (bruker.rolle === 'butikkbruker_tablet') {
+    const aktivAnsatt = await lesAktivAnsatt()
     const { cookies } = await import('next/headers')
     const sprak = (await cookies()).get('sprak')?.value ?? 'no'
     const { oversettTabletOrd } = await import('@/lib/oversett')
@@ -135,7 +135,6 @@ export default async function BeskyttetLayout({
             <span className="rolle-pip">{ROLLE_ETIKETT[bruker.rolle]}</span>
           </span>
           <div className="topp-hoyre">
-            <Vakt aktiv={aktivAnsatt} />
             <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
               🔔
               {(uleste ?? 0) > 0 && <span className="varsel-teller">{uleste}</span>}
