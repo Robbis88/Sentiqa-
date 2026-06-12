@@ -611,6 +611,12 @@ button.liten.slett:hover { background: #fdecea; }
 .svinn-overskudd { color: var(--gronn); font-weight: 700; }
 .svinn-pst { color: var(--tekst-svak); font-size: 0.78rem; margin-left: auto; }
 
+/* Behandler-spinner (vises der noe tar tid) */
+@keyframes spinn { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 0.9em; height: 0.9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spinn 0.6s linear infinite; vertical-align: -0.12em; margin-right: 0.4em; }
+.laster-side { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9rem; padding: 4rem 1rem; color: var(--tekst-svak); }
+.laster-side .spinner { width: 2rem; height: 2rem; border-width: 3px; margin: 0; }
+
 /* Ukerapport-kort (gult) */
 .uke-kort { background: #fffdf3; border: 1px solid #f0e4bf; border-left: 4px solid #e0b000; }
 .uke-ai { background: rgba(0,0,0,0.035); border-radius: 10px; padding: 0.7rem 0.85rem; font-style: italic; margin: 0.3rem 0 0.85rem; line-height: 1.5; }

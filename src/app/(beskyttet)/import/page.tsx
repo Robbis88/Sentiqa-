@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Opplaster } from './opplaster'
 import { settAllowlist } from './handlinger'
+import { BehandleKnapp } from './behandle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
 
 const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
@@ -141,7 +142,7 @@ export default async function ImportSide() {
                       {kanBehandle ? (
                         <form action={behandleJobb}>
                           <input type="hidden" name="jobbId" value={j.id} />
-                          <button type="submit" className="liten">{knappetekst}</button>
+                          <BehandleKnapp tekst={knappetekst} />
                         </form>
                       ) : null}
                     </td>

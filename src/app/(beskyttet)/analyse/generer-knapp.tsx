@@ -18,7 +18,7 @@ export function AnalyseKnapp() {
           })
         }
       >
-        {venter ? 'Analyserer … (Opus, kan ta litt)' : 'Kjør analyse'}
+        {venter ? <><span className="spinner" />Analyserer … (Opus, kan ta litt)</> : 'Kjør analyse'}
       </button>
       {melding && <span className="generer-melding">{melding}</span>}
     </div>

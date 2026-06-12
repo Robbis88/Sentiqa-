@@ -125,9 +125,6 @@ export async function behandleJobbKjerne(
           const us = await parseUsynligSvinn(buffer)
           await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, us, dato)
         } catch { /* fila har kanskje ikke per-stasjon-ark */ }
-        // Auto-kjør eier-analysen + butikksjef-fokus rett etter (best effort).
-        try { await kjorRegnskapsanalyse(supabase, retailerId) } catch { /* manuell regenerering finnes */ }
-        try { await genererFokusForRetailer(supabase, retailerId) } catch { /* manuell knapp finnes */ }
         break
       }
       default:
@@ -148,6 +145,13 @@ export async function behandleJobbKjerne(
             : null,
       })
       .eq('id', jobbId)
+
+    // Tung AI kjøres ETTER at jobben er markert ferdig — da er data + status
+    // trygge selv om analysen skulle treffe en timeout. Best effort.
+    if (rapporttype === 'regnskap_resultat') {
+      try { await kjorRegnskapsanalyse(supabase, retailerId) } catch { /* manuell regenerering finnes */ }
+      try { await genererFokusForRetailer(supabase, retailerId) } catch { /* manuell knapp finnes */ }
+    }
   } catch (e) {
     await settFeil(e instanceof ParserFeil ? e.message : `Uventet feil: ${String(e)}`)
   }

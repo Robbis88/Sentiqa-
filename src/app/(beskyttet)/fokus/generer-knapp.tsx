@@ -22,7 +22,7 @@ export function GenererKnapp() {
           })
         }
       >
-        {venter ? 'Genererer …' : 'Generer fokuspunkter'}
+        {venter ? <><span className="spinner" />Genererer …</> : 'Generer fokuspunkter'}
       </button>
       {melding && <span className="generer-melding">{melding}</span>}
     </div>
