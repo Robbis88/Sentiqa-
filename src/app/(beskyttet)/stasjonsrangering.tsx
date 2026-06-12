@@ -43,12 +43,15 @@ export const AVDELINGER: Avd[] = [
 const FANER = [
   { id: 'oms', navn: 'Omsetning', ikon: '💰', velger: true },
   { id: 'brf', navn: 'Bruttofortjeneste', ikon: '📈', velger: true },
+  { id: 'lonn', navn: 'Lønn %', ikon: '👥', velger: false },
   { id: 'synlig', navn: 'Synlig svinn', ikon: '🗑️', velger: false },
   { id: 'usynlig', navn: 'Usynlig svinn', ikon: '👻', velger: false },
   { id: 'kostnad', navn: 'Kostnader', ikon: '💸', velger: true },
 ]
 const MEDALJE = ['🥇', '🥈', '🥉']
 const SVINN_IKON = ['🚨', '⚠️', '⚠️']
+// Personalkostnad-konti (St1) — for lønn%-fanen.
+const LONN_KONTI = ['501', '502', '503', '505', '508', '509', '540', '541', '590']
 
 export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avdelinger: Avd[] }) {
   const [fane, setFane] = useState('oms')
@@ -56,17 +59,26 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
   const [visAlle, setVisAlle] = useState(false)
 
   const harKost = rader.some((r) => Object.keys(r.kost ?? {}).length > 0)
-  const faner = FANER.filter((t) => t.id !== 'kostnad' || harKost)
+  const harLonn = rader.some((r) => LONN_KONTI.some((k) => r.kost?.[k]))
+  const faner = FANER.filter((t) => (t.id !== 'kostnad' || harKost) && (t.id !== 'lonn' || harLonn))
   const erKost = fane === 'kostnad'
   const velgerListe = erKost ? KOSTNADER.filter((k) => rader.some((r) => r.kost?.[k.kode])) : avdelinger
 
-  type Linje = { navn: string; verdi: number; budsjett: number | null }
+  type Linje = { navn: string; verdi: number; budsjett: number | null; pst?: boolean; under?: string }
   let linjer: Linje[]
   if (fane === 'oms' || fane === 'brf') {
     const kilde = fane === 'oms' ? 'oms' : 'brf'
     linjer = rader
       .map((r) => { const v = r[kilde][avd] ?? { regnskap: 0, budsjett: 0 }; return { navn: r.navn, verdi: v.regnskap, budsjett: v.budsjett } })
       .sort((a, b) => b.verdi - a.verdi) // best (mest) øverst
+  } else if (fane === 'lonn') {
+    linjer = rader
+      .map((r) => {
+        const lonn = LONN_KONTI.reduce((s, k) => s + (r.kost?.[k]?.regnskap ?? 0), 0)
+        const oms = r.oms.total?.regnskap ?? 0
+        return { navn: r.navn, verdi: oms > 0 ? (lonn / oms) * 100 : 0, budsjett: null, pst: true, under: `${kr.format(Math.round(lonn))} lønn` }
+      })
+      .sort((a, b) => a.verdi - b.verdi) // lavest lønn% = best øverst
   } else if (fane === 'kostnad') {
     linjer = rader
       .map((r) => { const v = r.kost?.[avd] ?? { regnskap: 0, budsjett: 0 }; return { navn: r.navn, verdi: v.regnskap, budsjett: v.budsjett } })
@@ -106,6 +118,7 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
           let klasse = ''
           if (fane === 'oms' || fane === 'brf') klasse = avvik != null ? (avvik >= 0 ? 'gronn' : 'rod') : ''
           else if (fane === 'kostnad') klasse = avvik != null ? (avvik <= 0 ? 'gronn' : 'rod') : '' // under budsjett = bra
+          else if (fane === 'lonn') klasse = l.verdi > 32 ? 'rod' : 'gronn' // > 32 % av omsetning = høyt
           else klasse = l.verdi > 0 ? 'rod' : 'gronn' // svinn: positivt (kast/manko) = dårlig
           return (
             <li key={l.navn}>
@@ -115,8 +128,10 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
                 {l.budsjett ? <span className="rang-budsjett"> · budsjett {kr.format(l.budsjett)}</span> : null}
               </span>
               <span className="rang-tall">
-                <span className="rang-verdi">{kr.format(l.verdi)}</span>
-                {avvik != null ? (
+                <span className="rang-verdi">{l.pst ? `${l.verdi.toFixed(1)} %` : kr.format(l.verdi)}</span>
+                {l.under ? (
+                  <span className={`rang-avvik ${klasse}`}>{l.under}</span>
+                ) : avvik != null ? (
                   <span className={`rang-avvik ${klasse}`}>
                     {avvik >= 0 ? '+' : '−'}{kr.format(Math.abs(avvik))}{avvikPst != null ? ` (${avvik >= 0 ? '+' : '−'}${Math.abs(avvikPst).toFixed(0)} %)` : ''}
                   </span>
