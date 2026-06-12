@@ -7,7 +7,8 @@ import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import { UkeKort } from './uke-kort'
 import { Sammenleggbar } from './sammenleggbar'
 import { AiKort } from './ai-kort'
-import { Stasjonsrangering, AVDELINGER, type RangRad } from './stasjonsrangering'
+import { Stasjonsrangering, type RangRad } from './stasjonsrangering'
+import { AVDELINGER } from '@/lib/avdelinger'
 
 const SNARVEIER = [
   { sti: '/regnskap', tekst: 'Regnskap', ikon: '📒' },

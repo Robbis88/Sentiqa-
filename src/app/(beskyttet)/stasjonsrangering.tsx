@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { kr } from '@/lib/format'
+import { type Avd } from '@/lib/avdelinger'
 
 type AvdVerdi = { regnskap: number; budsjett: number }
 export type RangRad = {
@@ -11,7 +12,6 @@ export type RangRad = {
   kast: number
   usynlig: number
 }
-type Avd = { kode: string; navn: string; ikon: string }
 
 // Butikksjef-påvirkbare kostnadskonti (for kostnad-fanens kilde-velger).
 const KOSTNADER: Avd[] = [
@@ -25,19 +25,6 @@ const KOSTNADER: Avd[] = [
   { kode: '741', navn: 'Reise, møter, kurs', ikon: '🚗' },
   { kode: '743', navn: 'Diverse', ikon: '📦' },
   { kode: '746', navn: 'Kassedifferanse', ikon: '💵' },
-]
-
-// St1-kontoplanen — salgsavdelinger med ikon (for kilde-velgeren).
-export const AVDELINGER: Avd[] = [
-  { kode: '120', navn: 'Mat', ikon: '🍔' },
-  { kode: '130', navn: 'Varm drikke', ikon: '☕' },
-  { kode: '140', navn: 'Kald drikke', ikon: '❄️' },
-  { kode: '160', navn: 'Kioskvarer', ikon: '🍫' },
-  { kode: '170', navn: 'Butikk', ikon: '🛒' },
-  { kode: '180', navn: 'Tobakk', ikon: '🚬' },
-  { kode: '190', navn: 'Fritidsartikler', ikon: '🎣' },
-  { kode: '200', navn: 'Bil', ikon: '🛠️' },
-  { kode: '210', navn: 'Bilvask', ikon: '🚗' },
 ]
 
 const FANER = [
