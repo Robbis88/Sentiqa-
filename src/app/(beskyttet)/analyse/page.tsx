@@ -5,6 +5,9 @@ import { manedAar, kr } from '@/lib/format'
 import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
 
+// «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
+export const maxDuration = 60
+
 type Svinn = { stasjon_id: string; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
 
 const STATUS_TEKST: Record<string, string> = { gronn: 'God', gul: 'Følg med', rod: 'Krever tiltak' }

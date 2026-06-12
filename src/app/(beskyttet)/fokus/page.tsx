@@ -4,6 +4,9 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar } from '@/lib/format'
 import { GenererKnapp } from './generer-knapp'
 
+// «Generer fokuspunkter» (AI per stasjon) kan ta litt — gi handlingen tid.
+export const maxDuration = 60
+
 type Punkt = {
   stasjon_id: string
   periode: string

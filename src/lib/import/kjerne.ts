@@ -6,8 +6,6 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
-import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
-import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
 
@@ -146,12 +144,10 @@ export async function behandleJobbKjerne(
       })
       .eq('id', jobbId)
 
-    // Tung AI kjøres ETTER at jobben er markert ferdig — da er data + status
-    // trygge selv om analysen skulle treffe en timeout. Best effort.
-    if (rapporttype === 'regnskap_resultat') {
-      try { await kjorRegnskapsanalyse(supabase, retailerId) } catch { /* manuell regenerering finnes */ }
-      try { await genererFokusForRetailer(supabase, retailerId) } catch { /* manuell knapp finnes */ }
-    }
+    // MERK: den tunge AI-en (eier-analyse + butikksjef-fokus) kjøres IKKE her —
+    // den sprenger Vercels funksjonsgrense (504). Den trigges av nattjobben
+    // (api/cron/natt) + manuelt via «Kjør analyse»/«Generer fokuspunkter».
+    // Importen er dermed rask og kan aldri time ut.
   } catch (e) {
     await settFeil(e instanceof ParserFeil ? e.message : `Uventet feil: ${String(e)}`)
   }
