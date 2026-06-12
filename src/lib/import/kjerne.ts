@@ -7,6 +7,7 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
+import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
 
@@ -124,8 +125,9 @@ export async function behandleJobbKjerne(
           const us = await parseUsynligSvinn(buffer)
           await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, us, dato)
         } catch { /* fila har kanskje ikke per-stasjon-ark */ }
-        // Auto-kjør eier-analysen rett etter (best effort + race-guard internt).
+        // Auto-kjør eier-analysen + butikksjef-fokus rett etter (best effort).
         try { await kjorRegnskapsanalyse(supabase, retailerId) } catch { /* manuell regenerering finnes */ }
+        try { await genererFokusForRetailer(supabase, retailerId) } catch { /* manuell knapp finnes */ }
         break
       }
       default:
@@ -167,8 +169,8 @@ async function lagreUsynligSvinn(
     const stasjonId = medNummer.get(st.butikknummer)
     if (!stasjonId) continue
     for (const p of st.produkter) {
-      if (Math.abs(p.usynligKr) < 1000) continue // kun meningsfulle utslag
-      rader.push({ retailer_id: retailerId, stasjon_id: stasjonId, periode, kode: p.kode, navn: p.navn, salg: p.salg, brf_pst: p.brfPst, usynlig_kr: p.usynligKr, usynlig_pst: p.usynligPst, kilde_jobb_id: jobbId })
+      if (Math.abs(p.usynligKr) < 1000 && Math.abs(p.kast) < 1000) continue // kun meningsfulle utslag
+      rader.push({ retailer_id: retailerId, stasjon_id: stasjonId, periode, kode: p.kode, navn: p.navn, salg: p.salg, brf_pst: p.brfPst, kast: p.kast, usynlig_kr: p.usynligKr, usynlig_pst: p.usynligPst, kilde_jobb_id: jobbId })
     }
   }
   if (rader.length > 0) await supabase.from('regnskap_usynlig_svinn').insert(rader)

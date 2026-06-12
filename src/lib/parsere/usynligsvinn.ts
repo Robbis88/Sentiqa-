@@ -2,14 +2,16 @@ import { celletekst, celletall, lastArbeidsbok, ParserFeil } from './felles'
 
 // Usynlig svinn pr produkt fra per-stasjon-arkene i regnskapsfila ("4177 ST1 Lone" …).
 // St1-formatet (fast oppsett): kol 1=kode, 2=type, 7=navn, 8=salg, 12=Brf %,
-// 23="Usynlig" (kr), 24=Usynlig %. Fortegn: + = manko, - = overskudd.
-const KOL = { kode: 1, type: 2, navn: 7, salg: 8, brfPst: 12, usynlig: 23, usynligPst: 24 } as const
+// 20="Kast" (synlig svinn), 23="Usynlig" (kr), 24=Usynlig %.
+// Fortegn usynlig: + = manko, - = overskudd. Kast: positivt = kastet/svunnet.
+const KOL = { kode: 1, type: 2, navn: 7, salg: 8, brfPst: 12, kast: 20, usynlig: 23, usynligPst: 24 } as const
 
 export type UsynligProdukt = {
   kode: string | null
   navn: string
   salg: number
   brfPst: number
+  kast: number
   usynligKr: number
   usynligPst: number
 }
@@ -62,6 +64,7 @@ export async function parseUsynligSvinn(data: Buffer | ArrayBuffer): Promise<Usy
         navn,
         salg,
         brfPst: celletall(rad.getCell(KOL.brfPst).value),
+        kast: celletall(rad.getCell(KOL.kast).value),
         usynligKr,
         usynligPst: celletall(rad.getCell(KOL.usynligPst).value),
       })

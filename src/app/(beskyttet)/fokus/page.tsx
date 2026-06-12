@@ -9,6 +9,8 @@ type Punkt = {
   periode: string
   type: string
   tekst: string
+  tittel: string | null
+  kategori: string | null
 }
 
 export default async function FokusSide() {
@@ -29,7 +31,7 @@ export default async function FokusSide() {
     siste
       ? supabase
           .from('fokuspunkter')
-          .select('stasjon_id, periode, type, tekst')
+          .select('stasjon_id, periode, type, tekst, tittel, kategori')
           .eq('periode', siste.periode)
           .overrideTypes<Punkt[]>()
       : Promise.resolve({ data: [] as Punkt[] }),
@@ -37,11 +39,11 @@ export default async function FokusSide() {
   ])
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
-  const perStasjon = new Map<string, { forbedring: string[]; positivt: string[] }>()
+  const perStasjon = new Map<string, { forbedring: Punkt[]; positivt: Punkt[] }>()
   for (const p of punkter ?? []) {
     const b = perStasjon.get(p.stasjon_id) ?? { forbedring: [], positivt: [] }
-    if (p.type === 'forbedring') b.forbedring.push(p.tekst)
-    else b.positivt.push(p.tekst)
+    if (p.type === 'forbedring') b.forbedring.push(p)
+    else b.positivt.push(p)
     perStasjon.set(p.stasjon_id, b)
   }
 
@@ -70,16 +72,16 @@ export default async function FokusSide() {
               <div>
                 <h3 className="fokus-tittel gronn">Bra jobbet</h3>
                 <ul className="fokus-liste">
-                  {b.positivt.map((t, i) => (
-                    <li key={i}>{t}</li>
+                  {b.positivt.map((p, i) => (
+                    <li key={i}>{p.tittel ? <strong>{p.tittel}: </strong> : null}{p.tekst}</li>
                   ))}
                 </ul>
               </div>
               <div>
                 <h3 className="fokus-tittel gul">Verdt et blikk</h3>
                 <ul className="fokus-liste">
-                  {b.forbedring.map((t, i) => (
-                    <li key={i}>{t}</li>
+                  {b.forbedring.map((p, i) => (
+                    <li key={i}>{p.tittel ? <strong>{p.tittel}: </strong> : null}{p.tekst}</li>
                   ))}
                 </ul>
               </div>

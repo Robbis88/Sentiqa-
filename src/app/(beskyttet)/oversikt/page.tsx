@@ -112,7 +112,7 @@ export default async function OversiktSide() {
   ])
 
   // Fokuspunkter til butikksjefen (deres landingsside)
-  let fokus: { type: string; tekst: string }[] = []
+  let fokus: { type: string; tekst: string; tittel: string | null }[] = []
   if (bruker.rolle === 'butikksjef') {
     const { data: sisteF } = await supabase
       .from('fokuspunkter')
@@ -123,10 +123,10 @@ export default async function OversiktSide() {
     if (sisteF) {
       const { data } = await supabase
         .from('fokuspunkter')
-        .select('type, tekst')
+        .select('type, tekst, tittel')
         .eq('periode', sisteF.periode)
         .limit(6)
-        .overrideTypes<{ type: string; tekst: string }[]>()
+        .overrideTypes<{ type: string; tekst: string; tittel: string | null }[]>()
       fokus = data ?? []
     }
   }
@@ -190,7 +190,7 @@ export default async function OversiktSide() {
                 <span className={`status-pip ${f.type === 'positivt' ? 'gronn' : 'gul'}`}>
                   {f.type === 'positivt' ? 'Bra' : 'Følg med'}
                 </span>{' '}
-                {f.tekst}
+                {f.tittel ? <strong>{f.tittel}: </strong> : null}{f.tekst}
               </li>
             ))}
           </ul>
