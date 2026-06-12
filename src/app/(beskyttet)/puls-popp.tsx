@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useActionState } from 'react'
 import { svarRunde, type SvarResultat } from './puls/handlinger'
+import { useT } from './oversett-kontekst'
 
 const FJES = [
   { v: 1, e: '😣' }, { v: 2, e: '🙁' }, { v: 3, e: '😐' }, { v: 4, e: '🙂' }, { v: 5, e: '😄' },
@@ -9,6 +10,7 @@ const FJES = [
 // Sporadisk puls-popup: dukker opp av og til (throttlet pr runde via
 // localStorage), ikke ved hver lasting. Svar er anonymt.
 export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | null }) {
+  const t = useT()
   const [vis, setVis] = useState(false)
   const [valgt, setValgt] = useState<number | null>(null)
   const [tilstand, handling, venter] = useActionState<SvarResultat | undefined, FormData>(svarRunde, undefined)
@@ -55,7 +57,7 @@ export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | nul
     <div className="puls-popp">
       <div className="puls-popp-kort">
         {tilstand?.ok ? (
-          <p className="puls-popp-takk">Takk for svaret! 💙</p>
+          <p className="puls-popp-takk">{t('Takk for svaret!')} 💙</p>
         ) : (
           <>
             <p className="puls-popp-q">{runde.tekst}</p>
@@ -69,10 +71,10 @@ export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | nul
                   </button>
                 ))}
               </div>
-              <textarea name="kommentar" rows={2} placeholder="Kommentar (valgfri, anonym)" />
+              <textarea name="kommentar" rows={2} placeholder={t('Kommentar (valgfri, anonym)')} />
               <div className="puls-popp-knapper">
-                <button type="button" className="liten" onClick={snooze}>Ikke nå</button>
-                <button type="submit" disabled={!valgt || venter}>{venter ? 'Sender …' : 'Send'}</button>
+                <button type="button" className="liten" onClick={snooze}>{t('Ikke nå')}</button>
+                <button type="submit" disabled={!valgt || venter}>{venter ? t('Sender …') : t('Send')}</button>
               </div>
               {tilstand?.feil ? <p className="feil">{tilstand.feil}</p> : null}
             </form>

@@ -6,6 +6,7 @@ import * as z from 'zod'
 import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { maalFor } from '@/lib/sprak'
+import { TABLET_ORD } from '@/lib/tabletord'
 
 const OversettSchema = z.object({ oversettelser: z.array(z.string()) })
 const hash = (t: string) => createHash('sha256').update(t).digest('hex')
@@ -48,7 +49,7 @@ export async function oversettMange(tekster: string[], sprak: string): Promise<M
     const resp = await anthropic.messages.parse({
       model: 'claude-haiku-4-5',
       max_tokens: 2048,
-      system: `Oversett hver norske tekst (rutiner i butikk) til ${maal}. Behold rekkefølgen og antall elementer. Naturlig og kortfattet, samme tone.`,
+      system: `Oversett hver norske tekst til ${maal}. Dette er korte tekster i en app for butikkansatte (knapper, etiketter, spørsmål, beskjeder). Behold rekkefølgen og nøyaktig antall elementer. Naturlig, kortfattet og idiomatisk — som i et profesjonelt grensesnitt.`,
       messages: [{ role: 'user', content: JSON.stringify(mangler) }],
       output_config: { format: zodOutputFormat(OversettSchema) },
     })
@@ -66,4 +67,11 @@ export async function oversettMange(tekster: string[], sprak: string): Promise<M
     // fallback: norsk (identity allerede satt)
   }
   return map
+}
+
+// Oversetter de faste tablet-tekstene → {norsk: oversatt} (serialiserbart til
+// klient-kontekst). Cache gjør gjentatte kall billige.
+export async function oversettTabletOrd(sprak: string): Promise<Record<string, string>> {
+  const map = await oversettMange(TABLET_ORD, sprak)
+  return Object.fromEntries(map)
 }

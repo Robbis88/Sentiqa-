@@ -4,7 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { hentHjemData } from '@/lib/tablethjem'
-import { oversettMange } from '@/lib/oversett'
+import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
 import { kr, prosent, datoLang, manedAar } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
 
@@ -32,12 +32,17 @@ export default async function OversiktSide() {
       .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, vekst: null }
-    let pulsRunde: { id: string; tekst: string } | null = null
-    if (runde?.puls_sporsmal?.tekst) {
-      const o = await oversettMange([runde.puls_sporsmal.tekst], sprak)
-      pulsRunde = { id: runde.id, tekst: o.get(runde.puls_sporsmal.tekst) ?? runde.puls_sporsmal.tekst }
-    }
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldinger ?? []} pulsRunde={pulsRunde} sjekkpunkter={sjekkpunkter} hjem={hjem} />
+
+    // Oversett: faste UI-ord + dynamisk innhold (puls, meldinger, sjekkpunkt)
+    const pulsTekst = runde?.puls_sporsmal?.tekst ?? null
+    const dyn = [...(pulsTekst ? [pulsTekst] : []), ...(meldinger ?? []).map((m) => m.tekst), ...sjekkpunkter.map((s) => s.sporsmaal)]
+    const [ord, dynMap] = await Promise.all([oversettTabletOrd(sprak), oversettMange(dyn, sprak)])
+    const o = (s: string) => dynMap.get(s) ?? s
+    const meldingerO = (meldinger ?? []).map((m) => ({ ...m, tekst: o(m.tekst) }))
+    const sjekkO = sjekkpunkter.map((s) => ({ ...s, sporsmaal: o(s.sporsmaal) }))
+    const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
+
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} ord={ord} />
   }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)

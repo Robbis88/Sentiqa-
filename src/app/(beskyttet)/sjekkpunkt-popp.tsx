@@ -1,11 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { svarSjekkpunktTablet } from './sjekkpunkt/handlinger'
+import { useT } from './oversett-kontekst'
 
 type Sjekk = { id: string; sporsmaal: string; kritisk: boolean; stasjon_id: string }
 
 // Sporadisk popup (som puls) med dagens ubesvarte sjekkpunkter. Throttlet 30 min.
 export function SjekkpunktPopp({ punkter }: { punkter: Sjekk[] }) {
+  const t = useT()
   const [igjen, setIgjen] = useState<Sjekk[]>(punkter)
   const [vis, setVis] = useState(false)
   const [venter, setVenter] = useState<string | null>(null)
@@ -45,20 +47,20 @@ export function SjekkpunktPopp({ punkter }: { punkter: Sjekk[] }) {
   return (
     <div className="puls-popp">
       <div className="puls-popp-kort sjekk-popp">
-        <p className="puls-popp-q">✅ Sjekkpunkter ({igjen.length})</p>
+        <p className="puls-popp-q">✅ {t('Sjekkpunkter')} ({igjen.length})</p>
         <ul className="sjekk-liste">
           {igjen.map((s) => (
             <li key={s.id} className={s.kritisk ? 'kritisk' : ''}>
               <span>{s.sporsmaal}{s.kritisk ? ' ❗' : ''}</span>
               <span className="sjekk-knapper">
-                <button type="button" className="sjekk-ja" disabled={venter === s.id} onClick={() => svarPunkt(s, true)}>Ja</button>
-                <button type="button" className="sjekk-nei" disabled={venter === s.id} onClick={() => svarPunkt(s, false)}>Nei</button>
+                <button type="button" className="sjekk-ja" disabled={venter === s.id} onClick={() => svarPunkt(s, true)}>{t('Ja')}</button>
+                <button type="button" className="sjekk-nei" disabled={venter === s.id} onClick={() => svarPunkt(s, false)}>{t('Nei')}</button>
               </span>
             </li>
           ))}
         </ul>
         <div className="puls-popp-knapper">
-          <button type="button" className="liten" onClick={snooze}>Ikke nå</button>
+          <button type="button" className="liten" onClick={snooze}>{t('Ikke nå')}</button>
         </div>
       </div>
     </div>

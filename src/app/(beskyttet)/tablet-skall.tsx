@@ -13,11 +13,13 @@ export function TabletSkall({
   aktivAnsatt,
   uleste,
   sprak,
+  ord = {},
 }: {
   children: React.ReactNode
   aktivAnsatt: AktivAnsatt | null
   uleste: number
   sprak: string
+  ord?: Record<string, string>
 }) {
   return (
     <div className="tablet">
@@ -27,11 +29,11 @@ export function TabletSkall({
         <div className="tablet-topp-hoyre">
           <SprakVelger aktiv={sprak} />
           <Vakt aktiv={aktivAnsatt} />
-          <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
+          <Link href="/varsler" className="klokke-lenke" aria-label={ord['Varsler'] ?? 'Varsler'}>
             🔔{uleste > 0 && <span className="varsel-teller">{uleste}</span>}
           </Link>
           <form action={loggUt}>
-            <button type="submit" className="tablet-utlogg">Logg ut</button>
+            <button type="submit" className="tablet-utlogg">{ord['Logg ut'] ?? 'Logg ut'}</button>
           </form>
         </div>
       </header>

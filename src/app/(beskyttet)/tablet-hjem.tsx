@@ -25,6 +25,7 @@ export function TabletHjem({
   pulsRunde = null,
   sjekkpunkter = [],
   hjem,
+  ord = {},
 }: {
   navn?: string
   streak: number
@@ -32,7 +33,9 @@ export function TabletHjem({
   pulsRunde?: PulsRunde
   sjekkpunkter?: Sjekk[]
   hjem: HjemData
+  ord?: Record<string, string>
 }) {
+  const t = (s: string) => ord[s] ?? s
   return (
     <>
       <PulsPopp runde={pulsRunde} />
@@ -52,10 +55,10 @@ export function TabletHjem({
       <TabletHero navn={navn} streak={streak} />
 
       <div className="tablet-tiles">
-        {TILES.map((t) => (
-          <Link key={t.sti} href={t.sti} className="tablet-tile">
-            <span className="tablet-tile-ikon">{t.ikon}</span>
-            <span className="tablet-tile-tekst">{t.tekst}</span>
+        {TILES.map((flis) => (
+          <Link key={flis.sti} href={flis.sti} className="tablet-tile">
+            <span className="tablet-tile-ikon">{flis.ikon}</span>
+            <span className="tablet-tile-tekst">{t(flis.tekst)}</span>
           </Link>
         ))}
       </div>
@@ -63,19 +66,19 @@ export function TabletHjem({
       {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} />}
 
       <section className="tablet-seksjon premie">
-        <h2>🎁 Vår premiesaldo</h2>
+        <h2>🎁 {t('Vår premiesaldo')}</h2>
         <div className="premie-saldo">
-          <div><span className="premie-tall">{kr.format(hjem.premie.vunnet)}</span><span className="premie-merke">🏆 Vunnet</span></div>
-          <div><span className="premie-tall">{kr.format(hjem.premie.brukt)}</span><span className="premie-merke">🛒 Brukt</span></div>
-          <div><span className="premie-tall gronn">{kr.format(hjem.premie.igjen)}</span><span className="premie-merke">💰 Igjen</span></div>
+          <div><span className="premie-tall">{kr.format(hjem.premie.vunnet)}</span><span className="premie-merke">🏆 {t('Vunnet')}</span></div>
+          <div><span className="premie-tall">{kr.format(hjem.premie.brukt)}</span><span className="premie-merke">🛒 {t('Brukt')}</span></div>
+          <div><span className="premie-tall gronn">{kr.format(hjem.premie.igjen)}</span><span className="premie-merke">💰 {t('Igjen')}</span></div>
         </div>
       </section>
 
       {hjem.skills && (
         <section className="tablet-seksjon skills">
-          <span className="skills-merke">🏆 Skills-score</span>
+          <span className="skills-merke">🏆 {t('Skills-score')}</span>
           <span className="skills-tall">{hjem.skills.prosent} %</span>
-          <span className="skills-tekst">{hjem.skills.tekst}</span>
+          <span className="skills-tekst">{t(hjem.skills.tekst)}</span>
         </section>
       )}
 

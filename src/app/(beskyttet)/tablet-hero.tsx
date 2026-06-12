@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useT } from './oversett-kontekst'
 
 function hilsen(time: number): string {
   if (time < 6) return 'God natt'
@@ -10,6 +11,7 @@ function hilsen(time: number): string {
 }
 
 export function TabletHero({ navn, streak }: { navn?: string; streak: number }) {
+  const t = useT()
   const [tid, setTid] = useState('')
   const [hei, setHei] = useState('Hei')
 
@@ -31,10 +33,10 @@ export function TabletHero({ navn, streak }: { navn?: string; streak: number }) 
   return (
     <div className="tablet-hero">
       <div className="tablet-hero-tekst">
-        <div className="tablet-hilsen">{hei}{navn ? `, ${navn}` : ''} 👋</div>
+        <div className="tablet-hilsen">{t(hei)}{navn ? `, ${navn}` : ''} 👋</div>
         <div className="tablet-klokke">{tid}</div>
       </div>
-      {streak > 0 && <div className="tablet-streak">🔥 {streak}<span>dager på rad</span></div>}
+      {streak > 0 && <div className="tablet-streak">🔥 {streak}<span>{t('dager på rad')}</span></div>}
     </div>
   )
 }

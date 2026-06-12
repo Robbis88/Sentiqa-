@@ -9,6 +9,7 @@ import { Vakt } from './vakt'
 import { Sidemeny } from './sidemeny'
 import { TabletSkall } from './tablet-skall'
 import { AiBoble } from './ai-boble'
+import { OversettProvider } from './oversett-kontekst'
 
 // Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
 type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
@@ -106,10 +107,14 @@ export default async function BeskyttetLayout({
   if (bruker.rolle === 'butikkbruker_tablet') {
     const { cookies } = await import('next/headers')
     const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+    const { oversettTabletOrd } = await import('@/lib/oversett')
+    const ord = await oversettTabletOrd(sprak)
     return (
-      <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0} sprak={sprak}>
-        {children}
-      </TabletSkall>
+      <OversettProvider ord={ord}>
+        <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0} sprak={sprak} ord={ord}>
+          {children}
+        </TabletSkall>
+      </OversettProvider>
     )
   }
 

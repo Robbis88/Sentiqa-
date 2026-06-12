@@ -79,7 +79,7 @@ export default async function RutinerSide() {
   // Flerspråk: oversett rutinetekstene til valgt språk (cache + Haiku).
   const { cookies } = await import('next/headers')
   const sprak = (await cookies()).get('sprak')?.value ?? 'no'
-  const tekster: string[] = []
+  const tekster: string[] = ['Alt klart! 🎉', '1 igjen — nesten i mål!', 'igjen', ...Object.values(VAKTTYPE_ETIKETT)]
   for (const { skjema, vindu } of aktive) {
     for (const r of (rutinerForSkjema.get(skjema.id) ?? []).filter((rr) => rutineGjelder(rr, vindu))) {
       tekster.push(r.tittel)
@@ -114,13 +114,13 @@ export default async function RutinerSide() {
               const alleFerdig = totalt > 0 && ferdigN === totalt
               const pst = totalt > 0 ? Math.round((ferdigN / totalt) * 100) : 0
               const igjen = totalt - ferdigN
-              const mikro = alleFerdig ? 'Alt klart! 🎉' : igjen === 1 ? '1 igjen — nesten i mål!' : `${igjen} igjen`
+              const mikro = alleFerdig ? o('Alt klart! 🎉') : igjen === 1 ? o('1 igjen — nesten i mål!') : `${igjen} ${o('igjen')}`
               // Åpne oppgaver øverst (ferdige synker ned)
               const rs = [...rs0].sort((a, b) => Number(utfortMap.has(`${a.id}|${vindu.vaktdato}`)) - Number(utfortMap.has(`${b.id}|${vindu.vaktdato}`)))
               return (
                 <div className="ik-gruppe" key={skjema.id}>
                   <Konfetti aktiv={alleFerdig} nokkel={`${skjema.id}-${vindu.vaktdato}`} />
-                  <h3>{VAKTTYPE_ETIKETT[skjema.vakttype]}{skjema.navn ? ` · ${skjema.navn}` : ''} <span className="undertittel">{skjema.tid_start}–{skjema.tid_slutt}</span></h3>
+                  <h3>{o(VAKTTYPE_ETIKETT[skjema.vakttype])}{skjema.navn ? ` · ${skjema.navn}` : ''} <span className="undertittel">{skjema.tid_start}–{skjema.tid_slutt}</span></h3>
                   {totalt > 0 && (
                     <div className="fremdrift">
                       <div className="fremdrift-bar"><div className={`fremdrift-fyll ${alleFerdig ? 'full' : ''}`} style={{ width: `${pst}%` }} /></div>
