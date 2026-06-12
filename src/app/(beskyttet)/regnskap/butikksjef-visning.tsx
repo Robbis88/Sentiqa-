@@ -3,6 +3,11 @@ import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
 import { BUTIKKSJEF_PERSONAL_KODER, BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
+import { UTELAT_KODER } from '@/lib/avdelinger'
+
+// Skjules i omsetning/BRF: drivstoff (10) + pant (250) + «40 CR» (total-linja,
+// som ellers dobbelteller mot avdelingene).
+const SKJUL_OMS = new Set([...UTELAT_KODER, '40'])
 
 type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
 type Kost = { navn: string; regnskap: number; budsjett: number }
@@ -40,7 +45,7 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
     .overrideTypes<Linje[]>()
   const linjer = data ?? []
 
-  const seksjon = (n: string) => linjer.filter((l) => l.seksjon === n)
+  const seksjon = (n: string) => linjer.filter((l) => l.seksjon === n && !SKJUL_OMS.has(l.kode ?? ''))
   const sumR = (ls: Linje[]) => ls.reduce((a, l) => a + (l.regnskap ?? 0), 0)
   const omsTot = sumR(seksjon('omsetning'))
   const brfTot = sumR(seksjon('bruttofortjeneste'))

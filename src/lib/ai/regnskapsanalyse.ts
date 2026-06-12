@@ -6,6 +6,7 @@ import * as z from 'zod'
 import { env } from '@/lib/env'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { UTELAT_KODER } from '@/lib/avdelinger'
 
 // Tung eier-regnskapsanalyse → Opus, der kvalitet teller (PROSJEKT.md §8).
 const MODELL = 'claude-opus-4-8'
@@ -30,7 +31,7 @@ export type Analyse = z.infer<typeof AnalyseSchema>
 type Klient = SupabaseClient
 type Resultat = { ok: true; periode: string; hoppet?: boolean } | { ok: false; grunn: string }
 
-type Linje = { seksjon: string; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
+type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
 type Usynlig = { stasjon_id: string; navn: string; salg: number | null; brf_pst: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
 
 // Kjernen — tar klient + retailer, så den kan kjøres både fra import (auto) og UI.
@@ -52,8 +53,8 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string)
   }
 
   const [{ data: cluster }, { data: perRader }, { data: stasjoner }, { data: usynlig }, { data: forrige }] = await Promise.all([
-    supabase.from('regnskapslinjer').select('seksjon, post, regnskap, budsjett, avvik, index_pct').eq('retailer_id', retailerId).eq('periode', periode).is('stasjon_id', null).order('sortering').overrideTypes<Linje[]>(),
-    supabase.from('regnskapslinjer').select('stasjon_id, regnskap, budsjett').eq('retailer_id', retailerId).eq('periode', periode).eq('seksjon', 'omsetning').not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; regnskap: number | null; budsjett: number | null }[]>(),
+    supabase.from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct').eq('retailer_id', retailerId).eq('periode', periode).is('stasjon_id', null).order('sortering').overrideTypes<Linje[]>(),
+    supabase.from('regnskapslinjer').select('stasjon_id, kode, regnskap, budsjett').eq('retailer_id', retailerId).eq('periode', periode).eq('seksjon', 'omsetning').not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     supabase.from('regnskap_usynlig_svinn').select('stasjon_id, navn, salg, brf_pst, usynlig_kr, usynlig_pst').eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null).overrideTypes<Usynlig[]>(),
     supabase.from('regnskapsanalyser').select('periode, rapport').eq('retailer_id', retailerId).lt('periode', periode).is('slettet_tid', null).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string; rapport: Analyse }>(),
@@ -61,14 +62,17 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string)
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 
-  // Cluster-P&L
+  // Cluster-P&L — drivstoff (10) og pant (250) utelates (ikke butikkdrift).
   const clusterTekst = (cluster ?? [])
+    .filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
     .map((l) => `[${l.seksjon}] ${l.post}: regnskap ${Math.round(l.regnskap ?? 0)} kr, budsjett ${Math.round(l.budsjett ?? 0)} kr, avvik ${Math.round(l.avvik ?? 0)} kr (${(l.index_pct ?? 0).toFixed(1)} %)`)
     .join('\n')
 
-  // Omsetning per stasjon
+  // Omsetning per stasjon — summer basis-avdelinger, utelat drivstoff (10),
+  // pant (250) og «40 CR»-totalen (sistnevnte ville dobbelttalt mot avdelingene).
   const perSum = new Map<string, { r: number; b: number }>()
   for (const r of perRader ?? []) {
+    if (UTELAT_KODER.has(r.kode ?? '') || r.kode === '40') continue
     const p = perSum.get(r.stasjon_id) ?? { r: 0, b: 0 }
     p.r += r.regnskap ?? 0; p.b += r.budsjett ?? 0; perSum.set(r.stasjon_id, p)
   }

@@ -3,6 +3,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 import type { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { BUTIKKSJEF_KOSTNAD_KODER } from '@/lib/regnskap-tilgang'
+import { UTELAT_KODER } from '@/lib/avdelinger'
 
 type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
 export type VerktoyKtx = { supabase: Klient; bruker: InnloggetBruker }
@@ -118,7 +119,10 @@ export const VERKTOY: Record<string, Verktoy> = {
           .eq('periode', periode).not('stasjon_id', 'is', null).order('sortering')
           .overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }[]>()
         const navn = await stasjonsNavn(supabase)
-        const synlig = (data ?? []).filter((l) => l.seksjon === 'omsetning' || l.seksjon === 'bruttofortjeneste' || (l.seksjon === 'driftskostnader' && BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? '')))
+        // Drivstoff (10) + pant (250) + «40 CR»-totalen utelates fra oms/BRF.
+        const synlig = (data ?? []).filter((l) =>
+          ((l.seksjon === 'omsetning' || l.seksjon === 'bruttofortjeneste') && !UTELAT_KODER.has(l.kode ?? '') && l.kode !== '40') ||
+          (l.seksjon === 'driftskostnader' && BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? '')))
         return {
           periode, niva: 'din stasjon',
           merk: 'Du ser kun omsetning, bruttofortjeneste og påvirkbare kostnader for din egen stasjon. Royalty, husleie, finans, varekost-detaljer og resultat ligger på admin-nivå — be Robert om det.',
