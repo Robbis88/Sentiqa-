@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { AVDELINGER } from '@/lib/avdelinger'
 
 const kr = new Intl.NumberFormat('nb-NO', {
   style: 'currency',
@@ -73,40 +74,50 @@ export default async function SalgSide({
   const valgtNavn = erStasjon ? navnFor.get(valgtStasjon!)! : null
   const valgtRad = erStasjon ? rader.find((r) => r.stasjon_id === valgtStasjon) ?? null : null
 
-  // Topp varegrupper: kjede-view for «alle samlet», ellers rett fra daglig_salg
-  // (viewet har ikke stasjon_id) summert per varegruppe for valgt stasjon.
-  let varegrupper: VaregruppeRad[]
-  if (erStasjon) {
-    const { data } = await supabase
-      .from('daglig_salg')
-      .select('varegruppe_navn, omsetning_eks_mva, antall')
-      .eq('dato', dato)
-      .eq('stasjon_id', valgtStasjon!)
-      .is('slettet_tid', null)
-      .not('varegruppe_kode', 'is', null)
-      .overrideTypes<{ varegruppe_navn: string | null; omsetning_eks_mva: number | null; antall: number | null }[]>()
-    const m = new Map<string, { omsetning: number; antall: number }>()
-    for (const r of data ?? []) {
-      const key = r.varegruppe_navn ?? '—'
-      const o = m.get(key) ?? { omsetning: 0, antall: 0 }
-      o.omsetning += r.omsetning_eks_mva ?? 0
-      o.antall += r.antall ?? 0
-      m.set(key, o)
-    }
-    varegrupper = [...m.entries()]
-      .map(([varegruppe_navn, v]) => ({ varegruppe_navn, ...v }))
-      .sort((a, b) => b.omsetning - a.omsetning)
-      .slice(0, 10)
-  } else {
-    const { data } = await supabase
-      .from('v_salg_per_varegruppe_dag')
-      .select('varegruppe_navn, omsetning, antall')
-      .eq('dato', dato)
-      .order('omsetning', { ascending: false })
-      .limit(10)
-      .overrideTypes<VaregruppeRad[]>()
-    varegrupper = data ?? []
+  // Salg per AVDELING (kategori) + topp VAREGRUPPER. Begge fra views som
+  // aggregerer i databasen. Per stasjon → filtrer på stasjon_id; ellers kjede.
+  const avdelingQ = supabase
+    .from('v_salg_per_avdeling_dag')
+    .select('avdeling_kode, avdeling_navn, omsetning, antall')
+    .eq('dato', dato)
+  const varegruppeQ = erStasjon
+    ? supabase
+        .from('v_salg_per_varegruppe_stasjon_dag')
+        .select('varegruppe_navn, omsetning, antall')
+        .eq('dato', dato)
+        .eq('stasjon_id', valgtStasjon!)
+        .order('omsetning', { ascending: false })
+        .limit(10)
+    : supabase
+        .from('v_salg_per_varegruppe_dag')
+        .select('varegruppe_navn, omsetning, antall')
+        .eq('dato', dato)
+        .order('omsetning', { ascending: false })
+        .limit(10)
+  if (erStasjon) avdelingQ.eq('stasjon_id', valgtStasjon!)
+
+  const [{ data: avdData }, { data: vgData }] = await Promise.all([
+    avdelingQ.overrideTypes<{ avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null; antall: number | null }[]>(),
+    varegruppeQ.overrideTypes<VaregruppeRad[]>(),
+  ])
+  const varegrupper: VaregruppeRad[] = vgData ?? []
+
+  // Avdeling-rader er per (avdeling, stasjon) → summer per avdeling. Pen navn/ikon
+  // fra AVDELINGER (St1-kontoplan), fallback til viewets avdeling_navn.
+  const ikonFor = new Map(AVDELINGER.map((a) => [a.kode, a.ikon]))
+  const pentNavn = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
+  const avdMap = new Map<string, { navn: string; omsetning: number; antall: number }>()
+  for (const r of avdData ?? []) {
+    const kode = r.avdeling_kode ?? ''
+    const a = avdMap.get(kode) ?? { navn: pentNavn.get(kode) ?? r.avdeling_navn ?? kode, omsetning: 0, antall: 0 }
+    a.omsetning += r.omsetning ?? 0
+    a.antall += r.antall ?? 0
+    avdMap.set(kode, a)
   }
+  const avdelinger = [...avdMap.entries()]
+    .map(([kode, a]) => ({ kode, ikon: ikonFor.get(kode) ?? '📦', ...a }))
+    .sort((x, y) => y.omsetning - x.omsetning)
+  const avdSum = avdelinger.reduce((s, a) => s + a.omsetning, 0)
 
   const totalOms = rader.reduce((a, r) => a + r.omsetning, 0)
   const totalAntall = rader.reduce((a, r) => a + r.antall, 0)
@@ -147,6 +158,27 @@ export default async function SalgSide({
           <span className="kpi-tall">{erStasjon ? kr.format(valgtRad?.mat_omsetning ?? 0) : tall.format(rader.length)}</span>
           <span className="kpi-merke">{erStasjon ? 'Matsalg' : 'Stasjoner med salg'}</span>
         </div>
+      </section>
+
+      <section className="kort">
+        <h2>Per kategori{erStasjon ? ` · ${valgtNavn}` : ''}</h2>
+        <table className="tabell">
+          <thead>
+            <tr><th>Kategori</th><th>Omsetning</th><th>Antall</th><th>Andel</th></tr>
+          </thead>
+          <tbody>
+            {avdelinger.length === 0 ? (
+              <tr><td colSpan={4} className="undertittel">Ingen kategori-salg denne dagen.</td></tr>
+            ) : avdelinger.map((a) => (
+              <tr key={a.kode}>
+                <td>{a.ikon} {a.navn}</td>
+                <td>{kr.format(a.omsetning)}</td>
+                <td>{tall.format(a.antall)}</td>
+                <td>{avdSum > 0 ? `${Math.round((a.omsetning / avdSum) * 100)} %` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       {!erStasjon && (
