@@ -5,6 +5,9 @@ import { settAllowlist } from './handlinger'
 import { BehandleKnapp } from './behandle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
 
+// Regnskaps-import utløser tung AI (Opus + fokus) — gi handlingen tid.
+export const maxDuration = 60
+
 const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
   mottatt: { tekst: 'Mottatt', klasse: 'gul' },
   behandler: { tekst: 'Behandler', klasse: 'gul' },

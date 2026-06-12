@@ -3,6 +3,7 @@ import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { genererLederstotteForRetailer } from '@/lib/ai/lederstotte'
+import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { hentEllerLagUkerapport } from '@/lib/ukerapport'
 import { hentVaerMedKlient } from '@/lib/vaer'
 
@@ -39,6 +40,12 @@ export async function GET(req: NextRequest) {
     }
     try {
       await genererLederstotteForRetailer(supabase, r.id)
+    } catch {
+      // hopp over
+    }
+    try {
+      // Admin-regnskapsanalyse (fallback hvis import-AI-en timet ut; race-guard internt).
+      await kjorRegnskapsanalyse(supabase, r.id)
     } catch {
       // hopp over
     }
