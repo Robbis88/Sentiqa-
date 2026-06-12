@@ -63,7 +63,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
   const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
-  const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler, { data: stasjonLinjer }] = await Promise.all([
+  const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler, { data: stasjonLinjer }, { data: driftRader }] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
@@ -91,6 +91,17 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
           .order('sortering', { ascending: true })
           .overrideTypes<Linje[]>()
       : Promise.resolve({ data: null as Linje[] | null }),
+    // Samlet-visning: per-konto driftskostnader summert på tvers av stasjonene
+    // (cluster-linjene er kun aggregerte totaler — dette gir full kontodetalj).
+    valgtStasjon
+      ? Promise.resolve({ data: null as { kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }[] | null })
+      : supabase
+          .from('regnskapslinjer')
+          .select('kode, post, sortering, regnskap, budsjett')
+          .eq('periode', aktivPeriode)
+          .eq('seksjon', 'driftskostnader')
+          .not('stasjon_id', 'is', null)
+          .overrideTypes<{ kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }[]>(),
   ])
 
   const linjer = data ?? []
@@ -120,6 +131,20 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
       index: p.budsjett ? ((p.regnskap - p.budsjett) / p.budsjett) * 100 : 0,
     }))
     .sort((a, b) => b.regnskap - a.regnskap)
+
+  // Driftskostnader per konto, summert over alle stasjoner (samlet-visning).
+  const kontoMap = new Map<string, { post: string; sortering: number; regnskap: number; budsjett: number }>()
+  for (const r of driftRader ?? []) {
+    const key = `${r.kode ?? ''}|${r.post}`
+    const k = kontoMap.get(key) ?? { post: r.post, sortering: r.sortering ?? 9999, regnskap: 0, budsjett: 0 }
+    k.regnskap += r.regnskap ?? 0
+    k.budsjett += r.budsjett ?? 0
+    kontoMap.set(key, k)
+  }
+  const kostnadPerKonto = [...kontoMap.values()]
+    .map((k) => ({ ...k, avvik: k.regnskap - k.budsjett, index: k.budsjett ? ((k.regnskap - k.budsjett) / k.budsjett) * 100 : null }))
+    .sort((a, b) => a.sortering - b.sortering || b.regnskap - a.regnskap)
+
   const valgtNavn = valgtStasjon ? navnFor.get(valgtStasjon) ?? null : null
   const seksjon = (navn: string) => visLinjer.filter((l) => l.seksjon === navn)
 
@@ -252,6 +277,37 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
           </table>
         </section>
       ))}
+
+      {!erStasjon && kostnadPerKonto.length > 0 && (
+        <section className="kort">
+          <h2>Kostnader per konto · hele kjeden</h2>
+          <p className="undertittel">Hver driftskostnad summert på tvers av alle stasjonene. Velg en stasjon over for å bryte ned per butikk.</p>
+          <table className="tabell">
+            <thead>
+              <tr>
+                <th>Konto</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th className="mob-skjul">Avvik</th><th>Mot budsjett</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kostnadPerKonto.map((k, i) => {
+                // Kostnad: over budsjett = dårlig (rød), godt under = bra (grønn).
+                const klasse = k.index == null ? '' : k.index > 5 ? 'rod' : k.index < -5 ? 'gronn' : 'gul'
+                return (
+                  <tr key={i}>
+                    <td>{k.post}</td>
+                    <td>{kr.format(k.regnskap)}</td>
+                    <td className="mob-skjul">{kr.format(k.budsjett)}</td>
+                    <td className="mob-skjul">{kr.format(k.avvik)}</td>
+                    <td>
+                      {k.index == null ? '—' : <span className={`status-pip ${klasse}`}>{prosent.format(k.index / 100)}</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
     </>
   )
 }
