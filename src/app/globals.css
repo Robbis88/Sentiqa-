@@ -595,6 +595,10 @@ button.liten.slett:hover { background: #fdecea; }
 
 /* Tiltaksliste (§8C) */
 .tiltak-liste { margin: 0.5rem 0 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.92rem; line-height: 1.4; }
+.prio { display: inline-block; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.03em; padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.5rem; vertical-align: middle; }
+.prio-hoy { background: var(--rod-svak); color: var(--rod); }
+.prio-medium { background: var(--gul-svak, #fff4e0); color: var(--gul, #9a6a00); }
+.prio-lav { background: var(--bg); color: var(--tekst-svak); }
 
 /* Rutiner / tablet-avkryssing (§11, §10 – store touch-targets ≥44px) */
 .rutine-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }

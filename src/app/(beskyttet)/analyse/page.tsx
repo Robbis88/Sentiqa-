@@ -5,6 +5,7 @@ import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
 
 const STATUS_TEKST: Record<string, string> = { gronn: 'God', gul: 'Følg med', rod: 'Krever tiltak' }
+const PRIO_TEKST: Record<string, string> = { hoy: 'HØY', medium: 'MEDIUM', lav: 'LAV' }
 
 export default async function AnalyseSide() {
   const bruker = await hentInnloggetBruker()
@@ -44,6 +45,14 @@ export default async function AnalyseSide() {
             <p>{a.sammendrag}</p>
           </section>
 
+          {(a.systemfeil ?? []).length > 0 && (
+            <section className="kort oppmerksomhet">
+              <h2>⚙️ Systemfeil (registrering)</h2>
+              <p className="undertittel">Mønstre på tvers av stasjoner — ikke ekte tap, men feilregistrering som forvrenger tallene.</p>
+              <ul>{(a.systemfeil ?? []).map((f, i) => <li key={i}>{f}</li>)}</ul>
+            </section>
+          )}
+
           <section className="kort">
             <h2>Per stasjon</h2>
             <table className="tabell">
@@ -76,8 +85,23 @@ export default async function AnalyseSide() {
 
           <section className="kort">
             <h2>Prioriterte tiltak</h2>
-            <ol className="tiltak-liste">{a.tiltak.map((t, i) => <li key={i}>{t}</li>)}</ol>
+            <ol className="tiltak-liste">{a.tiltak.map((t, i) => {
+              const prio = typeof t === 'string' ? 'medium' : t.prioritet
+              return (
+                <li key={i}>
+                  <span className={`prio prio-${prio}`}>{PRIO_TEKST[prio]}</span>
+                  {typeof t === 'string' ? t : t.tekst}
+                </li>
+              )
+            })}</ol>
           </section>
+
+          {(a.endringer ?? []).length > 0 && (
+            <section className="kort">
+              <h2>Endringer mot forrige periode</h2>
+              <ul className="fokus-liste">{(a.endringer ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
+            </section>
+          )}
         </>
       )}
     </>
