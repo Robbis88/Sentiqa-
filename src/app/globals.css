@@ -584,6 +584,18 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-tab-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
 .pp-tab-bunn { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .pp-tab-start { font-size: 0.85rem; color: #9fb0cc; }
+
+/* Produksjonsplan-kort på tablet-hjem */
+.pp-hjem { display: block; text-decoration: none; color: inherit; }
+.pp-hjem:active { transform: scale(0.995); }
+.pp-hjem-topp { display: flex; align-items: center; gap: 0.8rem; }
+.pp-hjem-ikon { font-size: 1.6rem; }
+.pp-hjem-tekst { display: flex; flex-direction: column; flex: 1; gap: 0.1rem; }
+.pp-hjem-tekst strong { color: #e6ebf5; font-size: 1.05rem; }
+.pp-hjem-tekst > span { color: #9fb0cc; font-size: 0.88rem; }
+.pp-hjem-pst { font-weight: 800; color: #e0b000; background: rgba(224,176,0,0.15); padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.9rem; white-space: nowrap; }
+.pp-hjem-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; margin-top: 0.6rem; overflow: hidden; }
+.pp-hjem-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
 .stepper.liten input { width: 2.6rem; }
 .stepper.liten button { width: 1.7rem; height: 1.7rem; font-size: 1rem; }
 .stepper { display: inline-flex; align-items: center; gap: 0.3rem; }

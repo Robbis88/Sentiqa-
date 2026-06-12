@@ -37,7 +37,7 @@ export default async function OversiktSide() {
       .filter((p) => !besvart.has(p.id) && (!p.klokkeslett || p.klokkeslett <= naaTid))
       .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
-    const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, vekst: null }
+    const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
 
     // Oversett: faste UI-ord + dynamisk innhold (puls, meldinger, sjekkpunkt)
     const pulsTekst = runde?.puls_sporsmal?.tekst ?? null

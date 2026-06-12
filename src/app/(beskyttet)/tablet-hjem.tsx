@@ -66,6 +66,23 @@ export function TabletHjem({
 
       {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} />}
 
+      {hjem.produksjon && hjem.produksjon.plan > 0 && (() => {
+        const pst = Math.min(100, Math.round((hjem.produksjon.lagd / hjem.produksjon.plan) * 100))
+        return (
+          <Link href="/produksjonsplan" className="tablet-seksjon pp-hjem">
+            <div className="pp-hjem-topp">
+              <span className="pp-hjem-ikon">📋</span>
+              <span className="pp-hjem-tekst">
+                <strong>{t('Produksjonsplan')}</strong>
+                <span>{t('I dag')}: {hjem.produksjon.antall} {t('produkter')} · {hjem.produksjon.lagd}/{hjem.produksjon.plan} {t('lagd')}</span>
+              </span>
+              <span className="pp-hjem-pst">{pst} %</span>
+            </div>
+            <div className="pp-hjem-bar"><span style={{ width: `${pst}%` }} /></div>
+          </Link>
+        )
+      })()}
+
       <section className="tablet-seksjon premie">
         <h2>🎁 {t('Vår premiesaldo')}</h2>
         <div className="premie-saldo">

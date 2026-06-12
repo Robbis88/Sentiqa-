@@ -13,6 +13,7 @@ export type VekstMetrikk = {
 export type HjemData = {
   skills: { prosent: number; tekst: string } | null
   premie: { vunnet: number; brukt: number; igjen: number }
+  produksjon: { antall: number; plan: number; lagd: number } | null
   vekst: {
     sisteDato: string
     metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk }
@@ -33,11 +34,20 @@ function minus(dato: string, dager: number): string {
 }
 
 export async function hentHjemData(supabase: Klient, stasjonId: string): Promise<HjemData> {
-  const [{ data: skill }, { data: tildelt }, { data: bruk }, { data: salg }] = await Promise.all([
+  const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+  const [{ data: skill }, { data: tildelt }, { data: bruk }, { data: salg }, produksjon] = await Promise.all([
     supabase.from('skills_score').select('prosent').eq('stasjon_id', stasjonId).order('registrert_tid', { ascending: false }).limit(1).maybeSingle<{ prosent: number }>(),
     supabase.from('pengepremie').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('pengepremie_bruk').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('v_salg_per_stasjon_dag').select('dato, omsetning, mat_omsetning, kald_drikke_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; omsetning: number | null; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]>(),
+    // Dagens publiserte produksjonsplan (kun hvis publisert) — fremdrift til tableten.
+    (async (): Promise<HjemData['produksjon']> => {
+      const { data: hode } = await supabase.from('produksjonsplan_hode').select('publisert_tid').eq('stasjon_id', stasjonId).eq('dato', idag).maybeSingle<{ publisert_tid: string | null }>()
+      if (!hode?.publisert_tid) return null
+      const { data: linjer } = await supabase.from('produksjonsplan_linjer').select('planlagt, lagd_hittil').eq('stasjon_id', stasjonId).eq('dato', idag).eq('ekskludert', false).gt('planlagt', 0).overrideTypes<{ planlagt: number; lagd_hittil: number }[]>()
+      const ls = linjer ?? []
+      return { antall: ls.length, plan: ls.reduce((a, l) => a + l.planlagt, 0), lagd: ls.reduce((a, l) => a + l.lagd_hittil, 0) }
+    })(),
   ])
 
   const skills = skill ? { prosent: Number(skill.prosent), tekst: skillsTekst(Number(skill.prosent)) } : null
@@ -86,5 +96,5 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     }
   }
 
-  return { skills, premie, vekst }
+  return { skills, premie, produksjon, vekst }
 }

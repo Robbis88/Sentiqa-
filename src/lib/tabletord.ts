@@ -10,7 +10,7 @@ export const TABLET_ORD: string[] = [
   // Fliser
   'Rutiner', 'IK-mat & avvik', 'Merker', 'Produksjon',
   // Produksjonsplan (tablet)
-  'Klart til morgen', 'Lagd',
+  'Klart til morgen', 'Lagd', 'Produksjonsplan', 'produkter', 'lagd',
   // Vekst
   'Vekst mot i fjor', 'Samlet', 'Mat', 'Kald drikke', 'I dag', 'Måneden hittil',
   'på rad over fjoråret!', 'dag', 'dager', 'mot i fjor',
