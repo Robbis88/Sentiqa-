@@ -41,10 +41,16 @@ export async function oppdaterSesjon(request: NextRequest) {
   )
 
   // VIKTIG: getUser() (verifisert mot Auth-server) må kalles før responsen
-  // genereres, ellers går en fersk token-fornying tapt.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // genereres, ellers går en fersk token-fornying tapt. Er Supabase
+  // utilgjengelig (pauset prosjekt/nettverk) behandler vi det som uinnlogget,
+  // slik at offentlige sider (logg-inn) ALLTID laster og hele siden ikke faller.
+  let user = null
+  try {
+    const res = await supabase.auth.getUser()
+    user = res.data.user
+  } catch {
+    user = null
+  }
 
   const sti = request.nextUrl.pathname
   const erOffentlig = erOffentligSti(sti)
