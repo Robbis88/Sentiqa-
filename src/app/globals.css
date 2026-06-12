@@ -709,6 +709,12 @@ button.liten.slett:hover { background: #fdecea; }
 .periode-chip:hover { border-color: var(--primaer); color: var(--tekst); }
 .periode-chip.aktiv { background: var(--primaer); border-color: var(--primaer); color: #fff; }
 
+/* Stasjons-velger (nedtrekk) — /salg, /regnskap */
+.stasjonsvelger { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0 0.9rem; }
+.stasjonsvelger span { font-weight: 600; font-size: 0.85rem; color: var(--tekst-svak); white-space: nowrap; }
+.stasjonsvelger select { padding: 0.5rem 0.75rem; border: 1px solid var(--kant); border-radius: 8px; background: var(--kort); color: var(--tekst); font: inherit; font-weight: 600; min-width: 15rem; cursor: pointer; }
+.stasjonsvelger select:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
+
 /* Admin-dashbord */
 .ai-kort { display: flex; align-items: center; gap: 0.9rem; width: 100%; text-align: left; padding: 1rem 1.1rem; margin: 0.6rem 0; border: 1px solid var(--kant); border-radius: var(--radius-stor); background: linear-gradient(135deg, var(--primaer-svak), var(--kort)); cursor: pointer; box-shadow: var(--skygge); transition: border-color 0.15s, box-shadow 0.15s; }
 .ai-kort:hover { border-color: var(--primaer); box-shadow: var(--skygge-lov); }

@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { AVDELINGER } from '@/lib/avdelinger'
+import { StasjonsVelger } from '../stasjonsvelger'
 
 const kr = new Intl.NumberFormat('nb-NO', {
   style: 'currency',
@@ -128,21 +129,12 @@ export default async function SalgSide({
       <p className="undertittel">{datoFmt.format(new Date(dato))} · {erStasjon ? valgtNavn : 'alle stasjoner samlet'}</p>
 
       {(stasjoner ?? []).length > 0 && (
-        <nav className="periode-trad" aria-label="Velg stasjon">
-          <Link href={`/salg?dato=${dato}`} className={`periode-chip ${!erStasjon ? 'aktiv' : ''}`} aria-current={!erStasjon ? 'page' : undefined}>
-            Alle samlet
-          </Link>
-          {[...(stasjoner ?? [])]
-            .sort((a, b) => a.butikknummer.localeCompare(b.butikknummer))
-            .map((s) => {
-              const aktiv = s.id === valgtStasjon
-              return (
-                <Link key={s.id} href={`/salg?dato=${dato}&stasjon=${s.id}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
-                  {s.butikknummer} {s.navn}
-                </Link>
-              )
-            })}
-        </nav>
+        <StasjonsVelger
+          stasjoner={[...(stasjoner ?? [])].sort((a, b) => a.butikknummer.localeCompare(b.butikknummer)).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+          valgtId={erStasjon ? valgtStasjon : null}
+          basePath="/salg"
+          bevar={{ dato }}
+        />
       )}
 
       <section className="nokkeltall">

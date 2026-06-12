@@ -5,6 +5,7 @@ import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
 import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 import { RegnskapButikksjef } from './butikksjef-visning'
 import { RegnskapVarsler } from './varsler-liste'
+import { StasjonsVelger } from '../stasjonsvelger'
 
 type Linje = {
   seksjon: string
@@ -173,21 +174,12 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
       <p className="undertittel">{manedAar.format(new Date(aktivPeriode))} · {erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'}</p>
 
       {(stasjoner ?? []).length > 0 && (
-        <nav className="periode-trad" aria-label="Velg stasjon">
-          <Link href={`/regnskap?periode=${aktivPeriode.slice(0, 7)}`} className={`periode-chip ${!erStasjon ? 'aktiv' : ''}`} aria-current={!erStasjon ? 'page' : undefined}>
-            Alle samlet
-          </Link>
-          {[...(stasjoner ?? [])]
-            .sort((a, b) => a.butikknummer.localeCompare(b.butikknummer))
-            .map((s) => {
-              const aktiv = s.id === valgtStasjon
-              return (
-                <Link key={s.id} href={`/regnskap?periode=${aktivPeriode.slice(0, 7)}&stasjon=${s.id}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
-                  {s.butikknummer} {s.navn}
-                </Link>
-              )
-            })}
-        </nav>
+        <StasjonsVelger
+          stasjoner={[...(stasjoner ?? [])].sort((a, b) => a.butikknummer.localeCompare(b.butikknummer)).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+          valgtId={erStasjon ? valgtStasjon : null}
+          basePath="/regnskap"
+          bevar={{ periode: aktivPeriode.slice(0, 7) }}
+        />
       )}
 
       {liste.length > 1 && (
