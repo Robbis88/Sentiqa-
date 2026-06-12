@@ -12,6 +12,7 @@ type Oppgave = {
   beskrivelse: string | null
   status: string
   frist: string | null
+  vis_paa_tablet: boolean
 }
 
 export default async function OppgaverSide() {
@@ -24,7 +25,7 @@ export default async function OppgaverSide() {
   const [{ data: oppgaver }, { data: stasjoner }] = await Promise.all([
     supabase
       .from('oppgaver')
-      .select('id, stasjon_id, tittel, beskrivelse, status, frist')
+      .select('id, stasjon_id, tittel, beskrivelse, status, frist, vis_paa_tablet')
       .is('slettet_tid', null)
       .order('status')
       .order('frist', { nullsFirst: false })
@@ -47,6 +48,7 @@ export default async function OppgaverSide() {
       </form>
       <div className="rutine-tekst">
         <strong>{o.tittel}</strong>
+        {o.vis_paa_tablet ? <span className="merke-tablet" title="Vises på tableten">📨 tablet</span> : null}
         <span className="undertittel"> · {navnFor.get(o.stasjon_id) ?? '—'}</span>
         {o.frist ? <span className="undertittel"> · frist {datoLang.format(new Date(o.frist))}</span> : null}
         {o.beskrivelse ? <div className="undertittel">{o.beskrivelse}</div> : null}

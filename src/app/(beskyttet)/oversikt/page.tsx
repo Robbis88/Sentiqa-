@@ -39,16 +39,41 @@ export default async function OversiktSide() {
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
 
+    // «Meldinger fra butikksjef» = oppgaver merket vis_paa_tablet for stasjonen.
+    // Åpne vises alltid; ferdige henger med i 24 t (kollapset) og forsvinner så.
+    const doegnSidenDato = new Date()
+    doegnSidenDato.setHours(doegnSidenDato.getHours() - 24)
+    const doegnSiden = doegnSidenDato.toISOString()
+    let sjefMeldinger: { id: string; tittel: string; beskrivelse: string | null; bilde_url: string | null; frist: string | null; fullfort: boolean }[] = []
+    if (st) {
+      const { data: opp } = await supabase
+        .from('oppgaver')
+        .select('id, tittel, beskrivelse, bilde_url, frist, status, fullfort_tid')
+        .eq('stasjon_id', st.id)
+        .eq('vis_paa_tablet', true)
+        .is('slettet_tid', null)
+        .overrideTypes<{ id: string; tittel: string; beskrivelse: string | null; bilde_url: string | null; frist: string | null; status: string; fullfort_tid: string | null }[]>()
+      sjefMeldinger = (opp ?? [])
+        .filter((o) => o.status !== 'fullfort' || (o.fullfort_tid != null && o.fullfort_tid >= doegnSiden))
+        .map((o) => ({ id: o.id, tittel: o.tittel, beskrivelse: o.beskrivelse, bilde_url: o.bilde_url, frist: o.frist, fullfort: o.status === 'fullfort' }))
+    }
+
     // Oversett: faste UI-ord + dynamisk innhold (puls, meldinger, sjekkpunkt)
     const pulsTekst = runde?.puls_sporsmal?.tekst ?? null
-    const dyn = [...(pulsTekst ? [pulsTekst] : []), ...(meldinger ?? []).map((m) => m.tekst), ...sjekkpunkter.map((s) => s.sporsmaal)]
+    const dyn = [
+      ...(pulsTekst ? [pulsTekst] : []),
+      ...(meldinger ?? []).map((m) => m.tekst),
+      ...sjekkpunkter.map((s) => s.sporsmaal),
+      ...sjefMeldinger.flatMap((m) => [m.tittel, ...(m.beskrivelse ? [m.beskrivelse] : [])]),
+    ]
     const [ord, dynMap] = await Promise.all([oversettTabletOrd(sprak), oversettMange(dyn, sprak)])
     const o = (s: string) => dynMap.get(s) ?? s
     const meldingerO = (meldinger ?? []).map((m) => ({ ...m, tekst: o(m.tekst) }))
     const sjekkO = sjekkpunkter.map((s) => ({ ...s, sporsmaal: o(s.sporsmaal) }))
+    const sjefMeldingerO = sjefMeldinger.map((m) => ({ ...m, tittel: o(m.tittel), beskrivelse: m.beskrivelse ? o(m.beskrivelse) : null }))
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} ord={ord} />
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} ord={ord} />
   }
 
   // Eier får sitt eget rike dashbord (hele kjeden).

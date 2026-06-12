@@ -6,6 +6,7 @@ import { PulsPopp } from './puls-popp'
 import { SjekkpunktPopp } from './sjekkpunkt-popp'
 import { SendTilSjef } from './send-til-sjef'
 import { VekstKort } from './vekst-kort'
+import { MeldingerFraSjef, type SjefMelding } from './meldinger-sjef'
 
 const TILES = [
   { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
@@ -23,6 +24,8 @@ export function TabletHjem({
   navn,
   streak,
   meldinger = [],
+  sjefMeldinger = [],
+  idag,
   pulsRunde = null,
   sjekkpunkter = [],
   hjem,
@@ -31,6 +34,8 @@ export function TabletHjem({
   navn?: string
   streak: number
   meldinger?: Melding[]
+  sjefMeldinger?: SjefMelding[]
+  idag: string
   pulsRunde?: PulsRunde
   sjekkpunkter?: Sjekk[]
   hjem: HjemData
@@ -63,6 +68,8 @@ export function TabletHjem({
           </Link>
         ))}
       </div>
+
+      <MeldingerFraSjef meldinger={sjefMeldinger} idag={idag} ord={ord} />
 
       {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} />}
 

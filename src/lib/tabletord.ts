@@ -26,6 +26,9 @@ export const TABLET_ORD: string[] = [
   'Send melding til butikksjef', 'Generelt', 'Uhell', 'Nestenuhell',
   'Krenkelse fra kunde', 'Hva vil du si til sjefen?',
   'Beskrivelse av involvert kunde (valgfri)', 'Avbryt', 'Sendt til butikksjef',
+  // Meldinger fra butikksjef
+  'Meldinger fra butikksjef', 'Ingen nye meldinger fra butikksjef', 'Utført', 'Angre',
+  'Ferdige', 'Frist', 'Frist i dag', 'Frist i morgen', 'Fristen er forbi',
   // Rutiner
   'Alt klart!', 'igjen', '1 igjen — nesten i mål!', 'Ingen aktive rutiner akkurat nå.',
   // Lenker

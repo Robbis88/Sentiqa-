@@ -29,6 +29,14 @@ export function NyOppgave({ stasjoner }: { stasjoner: { id: string; navn: string
         <span>Frist</span>
         <input name="frist" type="date" />
       </label>
+      <label className="felt avkryss">
+        <input name="vis_paa_tablet" type="checkbox" />
+        <span>Vis som melding på tableten (ansatte kan kvittere «utført»)</span>
+      </label>
+      <label className="felt">
+        <span>Bilde-lenke (valgfri)</span>
+        <input name="bilde_url" type="url" placeholder="https://…" />
+      </label>
       <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Legg til'}</button>
       {tilstand?.ok ? <p className="ok" role="status">Oppgave lagt til.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}

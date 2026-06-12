@@ -506,6 +506,28 @@ button.liten.slett:hover { background: #fdecea; }
 .send-sjef-knapper { display: flex; justify-content: space-between; gap: 0.75rem; }
 .send-sjef-takk { text-align: center; font-weight: 700; }
 
+/* Meldinger fra butikksjef (oppgave m/ vis_paa_tablet) */
+.sjefmeldinger { display: flex; flex-direction: column; gap: 0.7rem; }
+.sjefmeldinger-tom { color: #aeb8cc; text-align: center; padding: 0.4rem 0; font-size: 1.05rem; }
+.sjefmelding { display: flex; align-items: flex-start; gap: 0.9rem; padding: 1rem 1.1rem; border-radius: 14px; background: #0f1a30; border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #4a5a7a; }
+.sjefmelding.snart { border-left-color: #f0a500; }
+.sjefmelding.haster { border-left-color: #ff6b6b; background: #2a141a; }
+.sjefmelding.ferdig { opacity: 0.6; }
+.sjefmelding-tekst { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 0; }
+.sjefmelding-tekst strong { font-size: 1.1rem; }
+.sjefmelding-tekst p { margin: 0; color: #cdd5e6; font-size: 0.98rem; }
+.sjefmelding-bilde { max-width: 100%; max-height: 180px; width: auto; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); }
+.sjefmelding-frist { font-size: 0.82rem; font-weight: 700; color: #aeb8cc; }
+.sjefmelding-frist.snart { color: #f0a500; }
+.sjefmelding-frist.haster { color: #ff8787; }
+.sjefmelding-hak { flex-shrink: 0; min-height: 48px; padding: 0 1.1rem; border-radius: 12px; border: 1px solid rgba(80,200,120,0.5); background: #0f3320; color: #8ce0a6; font-weight: 800; font-size: 1rem; cursor: pointer; }
+.sjefmelding-hak:active { transform: scale(0.98); }
+.sjefmelding-hak.av { border-color: rgba(255,255,255,0.18); background: #1a2540; color: #aeb8cc; }
+.sjefmelding-hak:disabled { opacity: 0.6; }
+.sjefmeldinger-ferdige { display: flex; flex-direction: column; gap: 0.6rem; }
+.sjefmeldinger-ferdig-knapp { align-self: flex-start; background: none; border: 0; color: #aeb8cc; font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 0.2rem 0; }
+.merke-tablet { display: inline-block; margin-left: 0.4rem; font-size: 0.72rem; font-weight: 700; color: #8ab4ff; background: rgba(80,130,255,0.12); border: 1px solid rgba(80,130,255,0.3); border-radius: 6px; padding: 0.05rem 0.4rem; vertical-align: middle; }
+
 /* Rutine-bildebevis */
 .bilde-kryss { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 .bilde-kryss input[type="file"] { max-width: 9.5rem; font-size: 0.72rem; }

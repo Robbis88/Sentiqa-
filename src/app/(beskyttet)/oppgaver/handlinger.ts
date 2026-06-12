@@ -30,6 +30,8 @@ export async function leggTilOppgave(
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
 
+  const visPaaTablet = formData.get('vis_paa_tablet') === 'on'
+  const bilde = String(formData.get('bilde_url') ?? '').trim() || null
   const supabase = await lagSupabaseServerKlient()
   const { error } = await supabase.from('oppgaver').insert({
     retailer_id: bruker.retailerId,
@@ -37,6 +39,8 @@ export async function leggTilOppgave(
     tittel: felt.data.tittel,
     beskrivelse: felt.data.beskrivelse || null,
     frist: felt.data.frist || null,
+    vis_paa_tablet: visPaaTablet,
+    bilde_url: bilde,
     opprettet_av: bruker.id,
   })
   if (error) return { feil: error.message }
@@ -52,6 +56,14 @@ export async function slettOppgave(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   await supabase.from('oppgaver').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
   revalidatePath('/oppgaver')
+}
+
+// Tablet: ansatte kvitterer «utført» på en vis_paa_tablet-melding (RPC m/ RLS-sjekk).
+export async function kvitterTablet(oppgaveId: string, fullfort: boolean): Promise<void> {
+  await hentInnloggetBruker() // sikrer innlogget sesjon
+  if (!oppgaveId) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.rpc('kvitter_tablet_melding', { p_oppgave: oppgaveId, p_fullfort: fullfort })
 }
 
 export async function veksleOppgave(formData: FormData) {
