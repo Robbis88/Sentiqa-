@@ -2,7 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
-import { produksjonsfaktor, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 
 // Produksjons-varegrupper (St1): kun det som faktisk produseres/bakes.
@@ -41,65 +41,49 @@ export default async function ProduksjonsplanSide({
   let grupper: Gruppe[] = []
   let datadybde = 0
   let vaer: Vaerdag | null = null
+  let advarsler: string[] = []
 
   if (stasjon) {
-    const [{ data: salg }, { data: v }, { data: lagrede }] = await Promise.all([
-      supabase
-        .from('daglig_salg')
-        .select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
-        .eq('stasjon_id', stasjon.id)
-        .in('varegruppe_kode', KODER)
-        .is('slettet_tid', null)
-        .overrideTypes<SalgRad[]>(),
+    const fjorBase = leggTilDager(dato, -364)
+    // Siste dag med faktisk salg (ikke «i dag») — så manglende dager bakerst
+    // ikke trekker snittet ned.
+    const { data: sisteRad } = await supabase
+      .from('daglig_salg').select('dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).is('slettet_tid', null)
+      .order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+    const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
+    const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
+
+    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }] = await Promise.all([
+      supabase.from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null).overrideTypes<SalgRad[]>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
-      supabase
-        .from('produksjonsplan_linjer')
-        .select('varenavn, planlagt')
-        .eq('stasjon_id', stasjon.id)
-        .eq('dato', dato)
-        .overrideTypes<{ varenavn: string; planlagt: number }[]>(),
+      supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
+      supabase.from('produksjonsplan_linjer').select('varenavn, planlagt').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number }[]>(),
     ])
-    vaer = v ?? null
+    vaer = vMaal ?? null
+    const punkter: SalgsPunkt[] = (salg ?? [])
+      .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
+      .filter((p) => p.varenavn)
+    datadybde = new Set(punkter.map((p) => p.dato)).size
+
+    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: 0.5 })
+    advarsler = plan.advarsler
+
     const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l.planlagt]))
-
-    const dager = new Set<string>()
-    const per = new Map<string, { sum: number; kode: string | null; gruppenavn: string | null }>()
-    for (const r of salg ?? []) {
-      const navn = (r.varenavn ?? '').trim()
-      if (!navn) continue
-      dager.add(r.dato)
-      const p = per.get(navn) ?? { sum: 0, kode: r.varegruppe_kode, gruppenavn: r.varegruppe_navn }
-      p.sum += r.antall ?? 0
-      if (!p.kode && r.varegruppe_kode) p.kode = r.varegruppe_kode
-      if (!p.gruppenavn && r.varegruppe_navn) p.gruppenavn = r.varegruppe_navn
-      per.set(navn, p)
-    }
-    datadybde = dager.size || 1
-
     const grupperMap = new Map<string, Gruppe>()
-    for (const [varenavn, info] of per.entries()) {
-      const baseline = info.sum / datadybde
-      if (baseline <= 0) continue
-      const faktor = produksjonsfaktor(stasjon.stasjonstype, vaer, ukedag, info.gruppenavn ?? '')
-      const foreslatt = Math.round(baseline * faktor)
-      const produkt: Produkt = { varenavn, baseline, faktor, foreslatt, planlagt: lagretFor.get(varenavn) ?? foreslatt }
-      const nokkel = info.kode ?? info.gruppenavn ?? '—'
+    for (const f of plan.forslag) {
+      const produkt: Produkt = { varenavn: f.varenavn, baseline: f.basis, faktor: f.samletfaktor, foreslatt: f.foreslatt, planlagt: lagretFor.get(f.varenavn) ?? f.foreslatt, flagg: f.flagg }
+      const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)
-      if (!g) {
-        g = { kode: info.kode, navn: info.gruppenavn ?? `Varegruppe ${info.kode ?? '?'}`, produkter: [] }
-        grupperMap.set(nokkel, g)
-      }
+      if (!g) { g = { kode: f.varegruppeKode, navn: f.varegruppeNavn ?? `Varegruppe ${f.varegruppeKode ?? '?'}`, produkter: [] }; grupperMap.set(nokkel, g) }
       g.produkter.push(produkt)
     }
-    grupper = [...grupperMap.values()]
-      .map((g) => ({ ...g, produkter: g.produkter.sort((a, b) => b.foreslatt - a.foreslatt) }))
-      .sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? ''))
+    grupper = [...grupperMap.values()].sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? ''))
   }
 
   return (
     <>
       <h1>Produksjonsplan</h1>
-      <p className="undertittel">Forslag per produkt, gruppert på varegruppe. Juster antallene før du produserer.</p>
+      <p className="undertittel">Forslag bygd på fjorårets samme ukedag (median) + nylig trend + værvarsel, med kampanje-deteksjon. Juster før du produserer.</p>
 
       <section className="kort">
         <form method="get" className="plan-velg">
@@ -123,6 +107,12 @@ export default async function ProduksjonsplanSide({
           </p>
         )}
       </section>
+
+      {advarsler.length > 0 && (
+        <section className="kort oppmerksomhet">
+          <ul className="fokus-liste">{advarsler.map((a, i) => <li key={i}>{a}</li>)}</ul>
+        </section>
+      )}
 
       {grupper.length === 0 ? (
         <section className="kort">

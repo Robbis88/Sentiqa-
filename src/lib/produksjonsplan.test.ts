@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { produksjonsfaktor } from './produksjonsplan'
+import { produksjonsfaktor, lagProduksjonsplan, type SalgsPunkt } from './produksjonsplan'
 
 describe('produksjonsfaktor', () => {
   it('utfart + solrik helg løfter kald drikke', () => {
@@ -10,5 +10,57 @@ describe('produksjonsfaktor', () => {
   })
   it('nøytral hverdag på bydel uten vær = 1', () => {
     expect(produksjonsfaktor('bydel', null, 3, 'Baguett')).toBe(1)
+  })
+})
+
+const G = { varegruppeKode: '1201', varegruppeNavn: 'Baguett' as string | null }
+
+// Fjor-salg på de 5 match-datoene (mål − 364 dager ± 0/7/14).
+function fjorSalg(maalDato: string, navn: string, verdier: number[]): SalgsPunkt[] {
+  const base = new Date(`${maalDato}T12:00:00Z`); base.setUTCDate(base.getUTCDate() - 364)
+  const baseIso = base.toISOString().slice(0, 10)
+  return [-14, -7, 0, 7, 14].map((d, i) => {
+    const dt = new Date(`${baseIso}T12:00:00Z`); dt.setUTCDate(dt.getUTCDate() + d)
+    return { dato: dt.toISOString().slice(0, 10), varenavn: navn, ...G, antall: verdier[i] }
+  })
+}
+// Nylig salg på to søndager i 28-dagers-vinduet.
+function nyligSalg(navn: string, antall: number): SalgsPunkt[] {
+  return ['2026-05-31', '2026-06-07'].map((dato) => ({ dato, varenavn: navn, ...G, antall }))
+}
+
+describe('lagProduksjonsplan', () => {
+  const maalDato = '2026-06-14' // søndag
+  const sisteSalgsdato = '2026-06-10'
+
+  it('foreslår rundt fjor-median når trend/vær er nøytralt', () => {
+    const salg = [...fjorSalg(maalDato, 'Baguette skinke', [10, 12, 11, 9, 13]), ...nyligSalg('Baguette skinke', 11)]
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
+    const p = r.forslag.find((f) => f.varenavn === 'Baguette skinke')!
+    expect(p.fjorMedian).toBe(11)
+    expect(p.foreslatt).toBeGreaterThanOrEqual(8)
+    expect(p.foreslatt).toBeLessThanOrEqual(15)
+  })
+
+  it('flagger fjor-kampanje og bruker nabo-median', () => {
+    const salg = [...fjorSalg(maalDato, 'Pølse', [8, 9, 30, 10, 8]), ...nyligSalg('Pølse', 9)]
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
+    const p = r.forslag.find((f) => f.varenavn === 'Pølse')!
+    expect(p.flagg).toContain('fjor_kampanje')
+    expect(p.foreslatt).toBeLessThan(15) // ikke blåst opp av kampanjedagen
+  })
+
+  it('markerer nytt produkt (kun nylig salg)', () => {
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg: nyligSalg('Ny wrap', 6), vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
+    const p = r.forslag.find((f) => f.varenavn === 'Ny wrap')!
+    expect(p.flagg).toContain('ny')
+    expect(p.fjorMedian).toBeNull()
+    expect(p.foreslatt).toBe(6)
+  })
+
+  it('ekskluderte produkter utelates', () => {
+    const salg = [...fjorSalg(maalDato, 'Baguette ost', [5, 5, 5, 5, 5]), ...nyligSalg('Baguette ost', 5)]
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5, ekskluderte: new Set(['Baguette ost']) })
+    expect(r.forslag.find((f) => f.varenavn === 'Baguette ost')).toBeUndefined()
   })
 })

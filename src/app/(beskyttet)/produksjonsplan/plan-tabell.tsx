@@ -9,8 +9,16 @@ export type Produkt = {
   faktor: number
   foreslatt: number
   planlagt: number
+  flagg?: string[]
 }
 export type Gruppe = { kode: string | null; navn: string; produkter: Produkt[] }
+
+const FLAGG_MERKE: Record<string, { ikon: string; tekst: string }> = {
+  fjor_kampanje: { ikon: '🚩', tekst: 'Kampanje i fjor — justert ned' },
+  paagaaende_kampanje: { ikon: '🎯', tekst: 'Mulig pågående kampanje — vektet 50/50' },
+  ny: { ikon: '✨', tekst: 'Nytt produkt — basert på nylig salg' },
+  fa_data: { ikon: '⚠️', tekst: 'Lite historikk' },
+}
 
 export function PlanTabell({ grupper, stasjonId, dato }: { grupper: Gruppe[]; stasjonId: string; dato: string }) {
   const start0: Record<string, number> = {}
@@ -62,7 +70,10 @@ export function PlanTabell({ grupper, stasjonId, dato }: { grupper: Gruppe[]; st
               <tbody>
                 {g.produkter.map((p) => (
                   <tr key={p.varenavn}>
-                    <td>{p.varenavn}</td>
+                    <td>
+                      {p.varenavn}
+                      {(p.flagg ?? []).map((fl) => FLAGG_MERKE[fl] ? <span key={fl} className="pp-flagg" title={FLAGG_MERKE[fl].tekst}> {FLAGG_MERKE[fl].ikon}</span> : null)}
+                    </td>
                     <td className="mob-skjul">{tall.format(Math.round(p.baseline))}</td>
                     <td className="mob-skjul">×{p.faktor.toFixed(2)}</td>
                     <td>{tall.format(p.foreslatt)}</td>
