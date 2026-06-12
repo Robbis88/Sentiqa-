@@ -656,6 +656,14 @@ button.liten.slett:hover { background: #fdecea; }
 .oppmerksomhet ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .oppmerksomhet li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
+/* AI-hjelp i redaktør (formuler nyhet) */
+.ai-nyhet { background: var(--primaer-svak); border: 1px solid var(--kant); border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.ai-nyhet .felt { gap: 0.3rem; }
+.ai-nyhet textarea { width: 100%; }
+.ai-nyhet-rad { display: flex; gap: 0.5rem; align-items: center; }
+.ai-nyhet-rad select { padding: 0.4rem 0.5rem; border: 1px solid var(--kant); border-radius: 8px; background: var(--kort); }
+.ai-nyhet .undertittel { margin: 0; }
+
 /* Admin-varsler etter opplastet regnskap (regel-motor) */
 .varsler { margin-top: 1rem; }
 .varsler summary { list-style: none; cursor: pointer; }

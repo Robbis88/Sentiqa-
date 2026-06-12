@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { formulerNyhetstekst } from '@/lib/ai/nyhet'
 
 const Nytt = z.object({
   tittel: z.string().min(1, { error: 'Skriv en tittel.' }),
@@ -29,6 +30,23 @@ export async function opprettInnlegg(_t: RedTilstand, formData: FormData): Promi
   if (error) return { feil: error.message }
   revalidatePath('/redaktor')
   return { ok: true }
+}
+
+// AI-hjelp: formuler nyhetstekst fra stikkord. Returnerer forslag (ikke lagret).
+export async function formulerNyhet(
+  ide: string,
+  tone: string,
+): Promise<{ tittel: string; innhold: string } | { feil: string }> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'plattform_redaktor') return { feil: 'Kun plattform-redaktør.' }
+  if (!ide || ide.trim().length < 3) return { feil: 'Skriv noen stikkord om hva nyheten skal handle om.' }
+  try {
+    const r = await formulerNyhetstekst(ide.trim(), tone || 'nøytral og informativ')
+    if (!r) return { feil: 'AI er ikke tilgjengelig akkurat nå.' }
+    return { tittel: r.tittel, innhold: r.innhold }
+  } catch {
+    return { feil: 'Klarte ikke å lage forslag. Prøv igjen.' }
+  }
 }
 
 export async function settPublisert(formData: FormData) {
