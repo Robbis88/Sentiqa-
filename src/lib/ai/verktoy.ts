@@ -185,6 +185,67 @@ export const VERKTOY: Record<string, Verktoy> = {
     },
   },
 
+  hent_fokus_status: {
+    schema: {
+      name: 'hent_fokus_status',
+      description:
+        'Hent aktive fokuspunkter (satt etter regnskapet) per stasjon, OG om svinn-tallene (kast + usynlig manko) knyttet til fokuset har bedret seg siden fokusmåneden. Bruk når noen spør «hvordan går det», om oppfølging, eller hvordan det ligger an med fokuset. RLS: admin ser alle stasjoner, butikksjef kun egne.',
+      input_schema: { type: 'object', properties: {} },
+    },
+    async kjor(_input, { supabase }) {
+      const { data: sf } = await supabase
+        .from('fokuspunkter').select('periode').order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
+      if (!sf) return { feil: 'Ingen fokuspunkter ennå.' }
+      const fokusPeriode = sf.periode
+      const navn = await stasjonsNavn(supabase)
+      const { data: punkter } = await supabase
+        .from('fokuspunkter').select('stasjon_id, type, kategori, tittel, tekst').eq('periode', fokusPeriode)
+        .overrideTypes<{ stasjon_id: string; type: string; kategori: string | null; tittel: string | null; tekst: string }[]>()
+
+      const { data: sp } = await supabase
+        .from('regnskap_usynlig_svinn').select('periode').order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
+      const sistePeriode = sp?.periode ?? fokusPeriode
+
+      const svinnFor = async (periode: string) => {
+        const { data } = await supabase
+          .from('regnskap_usynlig_svinn').select('stasjon_id, kast, usynlig_kr').eq('periode', periode).is('slettet_tid', null)
+          .overrideTypes<{ stasjon_id: string; kast: number | null; usynlig_kr: number | null }[]>()
+        const m = new Map<string, { kast: number; manko: number }>()
+        for (const r of data ?? []) {
+          const e = m.get(r.stasjon_id) ?? { kast: 0, manko: 0 }
+          e.kast += r.kast ?? 0
+          if ((r.usynlig_kr ?? 0) > 0) e.manko += r.usynlig_kr ?? 0
+          m.set(r.stasjon_id, e)
+        }
+        return m
+      }
+      const [da, naa] = await Promise.all([
+        svinnFor(fokusPeriode),
+        sistePeriode !== fokusPeriode ? svinnFor(sistePeriode) : Promise.resolve(null),
+      ])
+
+      const perStasjon = new Map<string, { type: string; kategori: string | null; tittel: string | null; tekst: string }[]>()
+      for (const p of punkter ?? []) {
+        const e = perStasjon.get(p.stasjon_id) ?? []
+        e.push({ type: p.type, kategori: p.kategori, tittel: p.tittel, tekst: p.tekst })
+        perStasjon.set(p.stasjon_id, e)
+      }
+      const rund = (v?: { kast: number; manko: number }) => (v ? { kast: Math.round(v.kast), usynlig_manko: Math.round(v.manko) } : null)
+      return {
+        fokus_periode: fokusPeriode,
+        siste_periode: sistePeriode,
+        har_nyere_tall: sistePeriode !== fokusPeriode,
+        merk: 'usynlig_manko og kast: lavere = bedre. + usynlig = manko (penger borte), kast = synlig svinn.',
+        per_stasjon: [...perStasjon.entries()].map(([sid, pts]) => ({
+          stasjon: navn.get(sid),
+          fokuspunkter: pts,
+          svinn_fokusmnd: rund(da.get(sid)),
+          svinn_naa: naa ? rund(naa.get(sid)) : null,
+        })),
+      }
+    },
+  },
+
   // --- Handling-verktøy (kun eier, to-stegs bekreftelse §8A) ---
   opprett_konkurranse: {
     kunAdmin: true,

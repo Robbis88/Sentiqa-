@@ -6,7 +6,9 @@ import { beregnRutinestat } from '@/lib/rutinestat'
 import { hentHjemData } from '@/lib/tablethjem'
 import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
 import { kr, prosent, datoLang, manedAar } from '@/lib/format'
+import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import { TabletHjem } from '../tablet-hjem'
+import { UkeKort } from '../uke-kort'
 
 export default async function OversiktSide() {
   const bruker = await hentInnloggetBruker()
@@ -131,10 +133,22 @@ export default async function OversiktSide() {
     }
   }
 
+  // Ukerapport (forrige uke vs i fjor). Admin: alle stasjoner, butikksjef: egne
+  // (RLS scoper stasjon-spørringen). Lazy + cachet i uke_rapport.
+  let ukerapporter: UkeRapport[] = []
+  if ((bruker.rolle === 'retailer_admin' || bruker.rolle === 'butikksjef') && bruker.retailerId) {
+    const { data: mineStasjoner } = await supabase
+      .from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer')
+      .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
+    ukerapporter = await hentEllerLagUkerapport(supabase, bruker.retailerId, mineStasjoner ?? [])
+  }
+
   return (
     <>
       <h1>Oversikt</h1>
       <p className="undertittel">Hei, {bruker.fulltNavn ?? bruker.epost}.</p>
+
+      {ukerapporter.map((r) => <UkeKort key={r.stasjonId} rapport={r} />)}
 
       {oppmerksomhet.length > 0 && (
         <section className="kort oppmerksomhet">

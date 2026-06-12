@@ -611,6 +611,24 @@ button.liten.slett:hover { background: #fdecea; }
 .svinn-overskudd { color: var(--gronn); font-weight: 700; }
 .svinn-pst { color: var(--tekst-svak); font-size: 0.78rem; margin-left: auto; }
 
+/* Ukerapport-kort (gult) */
+.uke-kort { background: #fffdf3; border: 1px solid #f0e4bf; border-left: 4px solid #e0b000; }
+.uke-ai { background: rgba(0,0,0,0.035); border-radius: 10px; padding: 0.7rem 0.85rem; font-style: italic; margin: 0.3rem 0 0.85rem; line-height: 1.5; }
+.uke-tall { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.uke-metrikk { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.7rem 0.85rem; background: var(--kort); border: 1px solid var(--kant); border-radius: 10px; }
+.uke-merke { font-size: 0.8rem; color: var(--tekst-svak); }
+.uke-stor { font-size: 1.4rem; font-weight: 800; }
+.uke-vekst { font-size: 0.85rem; font-weight: 700; }
+.uke-vekst.gronn, .uke-avd-pst.gronn, .uke-avd-tittel.gronn { color: var(--gronn); }
+.uke-vekst.rod, .uke-avd-pst.rod, .uke-avd-tittel.rod { color: var(--rod); }
+.uke-ifjor { font-size: 0.78rem; color: var(--tekst-svak); }
+.uke-avd { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.85rem; }
+.uke-avd-tittel { font-size: 0.9rem; margin: 0 0 0.35rem; }
+.uke-avd-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.uke-avd-liste li { display: flex; justify-content: space-between; gap: 0.5rem; }
+.uke-avd-pst { font-weight: 700; white-space: nowrap; }
+@media (max-width: 560px) { .uke-tall, .uke-avd { grid-template-columns: 1fr; } }
+
 /* Rutiner / tablet-avkryssing (§11, §10 – store touch-targets ≥44px) */
 .rutine-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .rutine-liste li { display: flex; align-items: center; gap: 0.75rem; }
