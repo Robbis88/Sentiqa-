@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar, kr } from '@/lib/format'
@@ -9,19 +10,32 @@ type Svinn = { stasjon_id: string; navn: string; salg: number | null; usynlig_kr
 const STATUS_TEKST: Record<string, string> = { gronn: 'God', gul: 'Følg med', rod: 'Krever tiltak' }
 const PRIO_TEKST: Record<string, string> = { hoy: 'HØY', medium: 'MEDIUM', lav: 'LAV' }
 
-export default async function AnalyseSide() {
+export default async function AnalyseSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
     return <p>Kun eier har tilgang til regnskapsanalysen.</p>
   }
 
   const supabase = await lagSupabaseServerKlient()
-  const { data } = await supabase
-    .from('regnskapsanalyser')
-    .select('periode, rapport, opprettet_tid')
-    .order('periode', { ascending: false })
-    .limit(1)
-    .maybeSingle<{ periode: string; rapport: Analyse; opprettet_tid: string }>()
+
+  // Alle perioder med analyse (rød tråd) — velg via ?periode=YYYY-MM, ellers siste.
+  const { data: perioder } = await supabase
+    .from('regnskapsanalyser').select('periode').order('periode', { ascending: false })
+    .overrideTypes<{ periode: string }[]>()
+  const liste = [...new Set((perioder ?? []).map((p) => p.periode))]
+  const valgt = (await searchParams).periode
+  const valgtIso = valgt ? `${valgt}-01` : null
+  const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : (liste[0] ?? null)
+
+  const { data } = aktivPeriode
+    ? await supabase
+        .from('regnskapsanalyser')
+        .select('periode, rapport, opprettet_tid')
+        .eq('periode', aktivPeriode)
+        .order('opprettet_tid', { ascending: false })
+        .limit(1)
+        .maybeSingle<{ periode: string; rapport: Analyse; opprettet_tid: string }>()
+    : { data: null }
 
   const a = data?.rapport
 
@@ -55,6 +69,20 @@ export default async function AnalyseSide() {
       <p className="undertittel">
         {data ? `${manedAar.format(new Date(data.periode))} · eier-analyse` : 'Ingen analyse ennå'}
       </p>
+
+      {liste.length > 1 && (
+        <nav className="periode-trad" aria-label="Tidligere regnskap">
+          {liste.map((p) => {
+            const ym = p.slice(0, 7)
+            const aktiv = p === aktivPeriode
+            return (
+              <Link key={p} href={`/analyse?periode=${ym}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
+                {manedAar.format(new Date(p))}
+              </Link>
+            )
+          })}
+        </nav>
+      )}
 
       <AnalyseKnapp />
 
