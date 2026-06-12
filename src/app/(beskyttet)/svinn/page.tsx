@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
+import { StasjonsVelger } from '../stasjonsvelger'
 
 type Svinn = {
   stasjon_id: string
@@ -12,11 +13,15 @@ type Svinn = {
   nettopris_total: number | null
 }
 
-export default async function SvinnSide() {
+export default async function SvinnSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til svinn.</p>
   }
+
+  const sp = await searchParams
+  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase
@@ -78,12 +83,16 @@ export default async function SvinnSide() {
     else klasse = 'rod'
     return { navn: `${s.butikknummer} ${s.navn}`, pst, terskel, klasse, svinn, mat }
   })
-  const alle = rader ?? []
+  const alleRader = rader ?? []
+  const erStasjon = valgtStasjon != null && navnFor.has(valgtStasjon)
+  const valgtNavn = erStasjon ? navnFor.get(valgtStasjon!)! : null
+  // KPI + topp varer gjelder valgt stasjon; tabellene under viser hele kjeden.
+  const alle = erStasjon ? alleRader.filter((r) => r.stasjon_id === valgtStasjon) : alleRader
   const total = alle.reduce((a, r) => a + (r.nettopris_total ?? 0), 0)
 
-  // Per stasjon
+  // Per stasjon (alltid hele kjeden)
   const perStasjon = new Map<string, { sum: number; antall: number }>()
-  for (const r of alle) {
+  for (const r of alleRader) {
     const p = perStasjon.get(r.stasjon_id) ?? { sum: 0, antall: 0 }
     p.sum += r.nettopris_total ?? 0
     p.antall += r.antall ?? 0
@@ -105,7 +114,15 @@ export default async function SvinnSide() {
   return (
     <>
       <h1>Synlig svinn</h1>
-      <p className="undertittel">{datoLang.format(new Date(siste.dato))}</p>
+      <p className="undertittel">{datoLang.format(new Date(siste.dato))} · {erStasjon ? valgtNavn : 'alle stasjoner'}</p>
+
+      {(stasjoner ?? []).length > 0 && (
+        <StasjonsVelger
+          stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+          valgtId={erStasjon ? valgtStasjon : null}
+          basePath="/svinn"
+        />
+      )}
 
       <section className="nokkeltall">
         <div className="kpi">
@@ -144,24 +161,26 @@ export default async function SvinnSide() {
         </table>
       </section>
 
-      <section className="kort">
-        <h2>Per stasjon · {datoLang.format(new Date(siste.dato))}</h2>
-        <table className="tabell">
-          <thead><tr><th>Stasjon</th><th>Svinn</th><th>Enheter</th></tr></thead>
-          <tbody>
-            {stasjonsrader.map(([id, p]) => (
-              <tr key={id}>
-                <td>{navnFor.get(id) ?? '—'}</td>
-                <td>{kr.format(p.sum)}</td>
-                <td>{tall.format(p.antall)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      {!erStasjon && (
+        <section className="kort">
+          <h2>Per stasjon · {datoLang.format(new Date(siste.dato))}</h2>
+          <table className="tabell">
+            <thead><tr><th>Stasjon</th><th>Svinn</th><th>Enheter</th></tr></thead>
+            <tbody>
+              {stasjonsrader.map(([id, p]) => (
+                <tr key={id}>
+                  <td>{navnFor.get(id) ?? '—'}</td>
+                  <td>{kr.format(p.sum)}</td>
+                  <td>{tall.format(p.antall)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="kort">
-        <h2>Mest svinn (varer)</h2>
+        <h2>Mest svinn (varer){erStasjon ? ` · ${valgtNavn}` : ''}</h2>
         <table className="tabell">
           <thead><tr><th>Vare</th><th>Svinn</th><th>Enheter</th></tr></thead>
           <tbody>

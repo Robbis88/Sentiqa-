@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
+import { StasjonsVelger } from '../stasjonsvelger'
 
 type Kasserer = {
   stasjon_id: string
@@ -14,11 +15,15 @@ type Kasserer = {
   slettede_belop: number | null
 }
 
-export default async function KassererSide() {
+export default async function KassererSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til kassererstatistikk.</p>
   }
+
+  const sp = await searchParams
+  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase
@@ -56,14 +61,25 @@ export default async function KassererSide() {
     perStasjon.set(r.stasjon_id, liste)
   }
 
+  const medData = (stasjoner ?? []).filter((s) => perStasjon.has(s.id))
+  const erStasjon = valgtStasjon != null && perStasjon.has(valgtStasjon)
+  const valgtNavn = erStasjon ? medData.find((s) => s.id === valgtStasjon)?.navn ?? null : null
+  const vis = erStasjon ? medData.filter((s) => s.id === valgtStasjon) : medData
+
   return (
     <>
       <h1>Kasserer</h1>
-      <p className="undertittel">{datoLang.format(new Date(siste.dato))}</p>
+      <p className="undertittel">{datoLang.format(new Date(siste.dato))} · {erStasjon ? valgtNavn : 'alle stasjoner'}</p>
 
-      {(stasjoner ?? [])
-        .filter((s) => perStasjon.has(s.id))
-        .map((s) => (
+      {medData.length > 0 && (
+        <StasjonsVelger
+          stasjoner={medData.map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+          valgtId={erStasjon ? valgtStasjon : null}
+          basePath="/kasserer"
+        />
+      )}
+
+      {vis.map((s) => (
           <section className="kort" key={s.id}>
             <h2>{s.butikknummer} {s.navn}</h2>
             <table className="tabell">

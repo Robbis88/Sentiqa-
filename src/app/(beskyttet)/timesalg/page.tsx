@@ -3,14 +3,19 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { TimesalgKart } from './timesalg-kart'
+import { StasjonsVelger } from '../stasjonsvelger'
 
 type Rad = { stasjon_id: string; time: string; salg: number | null; inne_kunder: number | null; ute_kunder: number | null }
 
-export default async function TimesalgSide() {
+export default async function TimesalgSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til timesalg.</p>
   }
+
+  const sp = await searchParams
+  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase
@@ -34,23 +39,33 @@ export default async function TimesalgSide() {
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
   ])
 
-  const stasjonsliste = (stasjoner ?? [])
-    .filter((s) => (rader ?? []).some((r) => r.stasjon_id === s.id))
-    .map((s) => ({ id: s.id, navn: s.navn }))
+  const medData = (stasjoner ?? []).filter((s) => (rader ?? []).some((r) => r.stasjon_id === s.id))
+  const erStasjon = valgtStasjon != null && medData.some((s) => s.id === valgtStasjon)
+  const valgtNavn = erStasjon ? medData.find((s) => s.id === valgtStasjon)?.navn ?? null : null
 
-  const kartRader = (rader ?? []).map((r) => ({
+  const stasjonsliste = (erStasjon ? medData.filter((s) => s.id === valgtStasjon) : medData).map((s) => ({ id: s.id, navn: s.navn }))
+  const kartRaderAlle = (rader ?? []).map((r) => ({
     stasjon_id: r.stasjon_id,
     time: r.time,
     salg: r.salg ?? 0,
     inne: r.inne_kunder ?? 0,
     ute: r.ute_kunder ?? 0,
   }))
+  const kartRader = erStasjon ? kartRaderAlle.filter((r) => r.stasjon_id === valgtStasjon) : kartRaderAlle
   const harInneUte = (rader ?? []).some((r) => r.inne_kunder != null || r.ute_kunder != null)
 
   return (
     <>
       <h1>Timesalg</h1>
-      <p className="undertittel">{datoLang.format(new Date(siste.dato))} · pr time{harInneUte ? ' · inne/utekunder' : ''}</p>
+      <p className="undertittel">{datoLang.format(new Date(siste.dato))} · pr time{harInneUte ? ' · inne/utekunder' : ''} · {erStasjon ? valgtNavn : 'alle stasjoner'}</p>
+
+      {medData.length > 0 && (
+        <StasjonsVelger
+          stasjoner={medData.map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+          valgtId={erStasjon ? valgtStasjon : null}
+          basePath="/timesalg"
+        />
+      )}
 
       <section className="kort">
         <TimesalgKart stasjoner={stasjonsliste} rader={kartRader} harInneUte={harInneUte} />
