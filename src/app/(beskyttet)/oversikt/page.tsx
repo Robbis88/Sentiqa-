@@ -11,6 +11,9 @@ import { TabletHjem } from '../tablet-hjem'
 import { UkeKort } from '../uke-kort'
 import { AdminDashbord } from '../admin-dashbord'
 
+// Dashbordet kan gjøre litt tyngre oppslag (regnskap/ukerapport) — gi rom.
+export const maxDuration = 60
+
 export default async function OversiktSide() {
   const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
@@ -133,7 +136,7 @@ export default async function OversiktSide() {
     const { data: mineStasjoner } = await supabase
       .from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer')
       .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
-    ukerapporter = await hentEllerLagUkerapport(supabase, bruker.retailerId, mineStasjoner ?? [])
+    try { ukerapporter = await hentEllerLagUkerapport(supabase, bruker.retailerId, mineStasjoner ?? []) } catch { ukerapporter = [] }
   }
 
   return (

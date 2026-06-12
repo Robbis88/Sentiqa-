@@ -104,7 +104,8 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
   for (const f of fokus) fokusPer.set(f.stasjon_id, (fokusPer.get(f.stasjon_id) ?? 0) + 1)
 
   const aktivKonk = konk.data
-  const ukerapporter = await hentEllerLagUkerapport(supabase, retailerId, stasjonsListe)
+  let ukerapporter: Awaited<ReturnType<typeof hentEllerLagUkerapport>> = []
+  try { ukerapporter = await hentEllerLagUkerapport(supabase, retailerId, stasjonsListe) } catch { ukerapporter = [] }
   // Diagnose til tom-tilstanden: har vi daglige salgsdata i det hele tatt?
   const { data: sisteSalg } = ukerapporter.length === 0
     ? await supabase.from('daglig_salg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()

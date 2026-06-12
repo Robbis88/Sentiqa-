@@ -82,6 +82,7 @@ export async function hentEllerLagUkerapport(
   supabase: Klient,
   retailerId: string,
   stasjoner: { id: string; navn: string; butikknummer: string }[],
+  medAi = false, // AI-sammendrag genereres KUN når eksplisitt bedt om (cron), aldri i dashbord-render
 ): Promise<UkeRapport[]> {
   if (stasjoner.length === 0) return []
 
@@ -150,13 +151,21 @@ export async function hentEllerLagUkerapport(
       omsetning: oms, omsetningIfjor: omsIf, brutto, bruttoIfjor: bruttoIf,
       avdelinger, sammendrag: null,
     }
-    if (anthropic) rapport.sammendrag = await sammendragAI(anthropic, rapport)
-
+    // Cache TALLENE først — så en treg/feilende AI aldri lar dashbordet time ut.
     await supabase.from('uke_rapport').upsert({
       retailer_id: retailerId, stasjon_id: s.id, uke_mandag: mandag,
       omsetning: oms, omsetning_ifjor: omsIf, brutto, brutto_ifjor: bruttoIf,
-      avdelinger, ai_sammendrag: rapport.sammendrag, modell: rapport.sammendrag ? MODELL : null,
+      avdelinger, ai_sammendrag: null, modell: null,
     }, { onConflict: 'stasjon_id,uke_mandag', ignoreDuplicates: true })
+
+    // AI-sammendrag kun når eksplisitt bedt om (cron) — aldri i dashbord-render.
+    if (medAi && anthropic) {
+      const tekst = await sammendragAI(anthropic, rapport)
+      if (tekst) {
+        rapport.sammendrag = tekst
+        await supabase.from('uke_rapport').update({ ai_sammendrag: tekst, modell: MODELL }).eq('stasjon_id', s.id).eq('uke_mandag', mandag)
+      }
+    }
 
     return rapport
   }))
