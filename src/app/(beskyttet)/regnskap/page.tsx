@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
+import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 import { RegnskapButikksjef } from './butikksjef-visning'
+import { RegnskapVarsler } from './varsler-liste'
 
 type Linje = {
   seksjon: string
@@ -57,7 +59,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const valgtIso = valgt ? `${valgt}-01` : null
   const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
 
-  const [{ data }, { data: perStasjon }, { data: stasjoner }] = await Promise.all([
+  const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
@@ -67,20 +69,28 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
       .overrideTypes<Linje[]>(),
     supabase
       .from('regnskapslinjer')
-      .select('stasjon_id, regnskap, budsjett')
+      .select('stasjon_id, kode, regnskap, budsjett')
       .eq('periode', aktivPeriode)
       .eq('seksjon', 'omsetning')
       .not('stasjon_id', 'is', null)
-      .overrideTypes<{ stasjon_id: string; regnskap: number | null; budsjett: number | null }[]>(),
+      .overrideTypes<{ stasjon_id: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
+    bruker.retailerId
+      ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => [])
+      : Promise.resolve([]),
   ])
 
   const linjer = data ?? []
 
   // Aggreger omsetning per stasjon (basis-avdelinger → ren sum, ingen dobbelttelling)
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+  // «40 CR» er stasjonens total-linje (= sum av avdelingene). Bruk den når den
+  // finnes, ellers sum av basis-avdelingene — aldri begge (unngå dobbelttelling).
+  const omsRader = perStasjon ?? []
+  const harCR = omsRader.some((r) => r.kode === '40')
+  const kilde = harCR ? omsRader.filter((r) => r.kode === '40') : omsRader.filter((r) => r.kode !== '40')
   const perStasjonSum = new Map<string, { regnskap: number; budsjett: number }>()
-  for (const r of perStasjon ?? []) {
+  for (const r of kilde) {
     const p = perStasjonSum.get(r.stasjon_id) ?? { regnskap: 0, budsjett: 0 }
     p.regnskap += r.regnskap ?? 0
     p.budsjett += r.budsjett ?? 0
@@ -138,6 +148,8 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
           </div>
         ))}
       </section>
+
+      <RegnskapVarsler varsler={varsler} />
 
       {stasjonsrader.length > 0 && (
         <section className="kort">

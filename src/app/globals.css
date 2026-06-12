@@ -656,6 +656,27 @@ button.liten.slett:hover { background: #fdecea; }
 .oppmerksomhet ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .oppmerksomhet li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
+/* Admin-varsler etter opplastet regnskap (regel-motor) */
+.varsler { margin-top: 1rem; }
+.varsler summary { list-style: none; cursor: pointer; }
+.varsler summary::-webkit-details-marker { display: none; }
+.varsler summary h2 { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0; }
+.varsler-teller { display: inline-flex; gap: 0.4rem; }
+.varsler-liste { list-style: none; margin: 0.8rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.varsel { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--bg); border-left: 3px solid var(--kant); }
+.varsel.rod { border-left-color: var(--rod); background: var(--rod-svak); }
+.varsel.gul { border-left-color: var(--gul); background: var(--gul-svak, #fff4e0); }
+.varsel-dott { flex-shrink: 0; width: 9px; height: 9px; border-radius: 999px; margin-top: 0.4rem; }
+.varsel.rod .varsel-dott { background: var(--rod); }
+.varsel.gul .varsel-dott { background: var(--gul); }
+.varsel-tekst { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.varsel-topp { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.varsel-topp strong { font-size: 0.95rem; }
+.varsel-omfang { font-size: 0.72rem; font-weight: 700; color: var(--tekst-svak); background: var(--kort); border: 1px solid var(--kant); border-radius: 6px; padding: 0.02rem 0.4rem; white-space: nowrap; }
+.varsel-detalj { font-size: 0.85rem; color: var(--tekst-svak); line-height: 1.35; }
+.varsler-tom { margin-top: 1rem; border-left: 3px solid var(--gronn); }
+.varsler-tom p { margin: 0; font-weight: 600; }
+
 /* Tiltaksliste (§8C) */
 .tiltak-liste { margin: 0.5rem 0 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.92rem; line-height: 1.4; }
 .prio { display: inline-block; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.03em; padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.5rem; vertical-align: middle; }
