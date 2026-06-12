@@ -5,6 +5,9 @@
 
 export type Vaerdag = { temp_maks: number | null; nedbor_mm: number | null }
 
+// Produksjons-varegrupper (St1): kun det som faktisk produseres/bakes.
+export const PRODUKSJON_KODER = ['1201', '1202', '1203', '1216', '1217', '1218', '1219', '1221']
+
 // ── Dato-hjelpere (UTC-middag unngår tidssone-drift) ───────────────────────
 export function leggTilDager(iso: string, n: number): string {
   const d = new Date(`${iso}T12:00:00Z`)

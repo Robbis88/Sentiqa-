@@ -1,13 +1,12 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
-import { lagProduksjonsplan, leggTilDager, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
 
-// Produksjons-varegrupper (St1): kun det som faktisk produseres/bakes.
-const KODER = ['1201', '1202', '1203', '1216', '1217', '1218', '1219', '1221']
 const UKEDAG = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
 
 type SalgRad = { varenavn: string | null; varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string }
@@ -120,7 +119,10 @@ export default async function ProduksjonsplanSide({
   return (
     <>
       <h1>Produksjonsplan</h1>
-      <p className="undertittel">Forslag bygd på fjorårets samme ukedag (median) + nylig trend + værvarsel, med kampanje-deteksjon. Juster før du produserer.</p>
+      <p className="undertittel">
+        Forslag bygd på fjorårets samme ukedag (median) + nylig trend + værvarsel, med kampanje-deteksjon.{' '}
+        <Link href="/produksjonsplan/treffsikkerhet">📊 Se treffsikkerhet →</Link>
+      </p>
 
       <section className="kort">
         <form method="get" className="plan-velg">
