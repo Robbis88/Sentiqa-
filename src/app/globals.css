@@ -719,6 +719,10 @@ button.liten.slett:hover { background: #fdecea; }
 .fokus-per-liste li { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid var(--kant); }
 .fokus-per-liste li:last-child { border-bottom: 0; }
 .fokus-antall { font-weight: 700; color: var(--primaer); }
+.fokus-stasjon { padding: 0.7rem 0; border-bottom: 1px solid var(--kant); }
+.fokus-stasjon:last-of-type { border-bottom: 0; }
+.fokus-stasjon > h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.fokus-stasjon h4 { font-size: 0.82rem; margin: 0 0 0.3rem; }
 
 .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
 .konk-boks { display: flex; flex-direction: column; gap: 0.3rem; }

@@ -31,6 +31,8 @@ type Oppgave = { id: string; stasjon_id: string; tittel: string; frist: string |
 type Tilbake = { id: string; stasjon: string; alvorlighet: string; tekst: string; kritisk: boolean }
 type Kpi = { merke: string; verdi: string; avvik: number | null }
 type Konk = { id: string; navn: string; premie_kr: number | null; periode_slutt: string }
+type FPunkt = { tittel: string | null; tekst: string }
+type FokusGruppe = { id: string; navn: string; forbedring: FPunkt[]; positivt: FPunkt[] }
 type DashData = {
   stasjonsListe: { id: string; navn: string; butikknummer: string }[]
   navnFor: Map<string, string>
@@ -41,7 +43,7 @@ type DashData = {
   aapne: Oppgave[]
   forsinkede: Oppgave[]
   fullfort30: number
-  fokusPer: Map<string, number>
+  fokusGrupper: FokusGruppe[]
   aktivKonk: Konk | null
   ukerapporter: UkeRapport[]
   sisteSalg: { dato: string } | null
@@ -53,7 +55,7 @@ type DashData = {
 async function samleData(supabase: SupabaseClient, retailerId: string, idag: string): Promise<DashData> {
   const tomt: DashData = {
     stasjonsListe: [], navnFor: new Map(), sistePeriode: null, rangRader: [], avdListe: [],
-    tilbake: [], aapne: [], forsinkede: [], fullfort30: 0, fokusPer: new Map(),
+    tilbake: [], aapne: [], forsinkede: [], fullfort30: 0, fokusGrupper: [],
     aktivKonk: null, ukerapporter: [], sisteSalg: null, kpiStrip: [], feil: null,
   }
   try {
@@ -80,8 +82,8 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
       supabase.from('oppgaver').select('id, stasjon_id, tittel, frist, status, fullfort_tid').is('slettet_tid', null).overrideTypes<Oppgave[]>(),
       (async () => {
         const { data: sf } = await supabase.from('fokuspunkter').select('periode').order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
-        if (!sf) return [] as { stasjon_id: string; type: string }[]
-        const { data } = await supabase.from('fokuspunkter').select('stasjon_id, type').eq('periode', sf.periode).overrideTypes<{ stasjon_id: string; type: string }[]>()
+        if (!sf) return [] as { stasjon_id: string; type: string; tittel: string | null; tekst: string }[]
+        const { data } = await supabase.from('fokuspunkter').select('stasjon_id, type, tittel, tekst').eq('periode', sf.periode).overrideTypes<{ stasjon_id: string; type: string; tittel: string | null; tekst: string }[]>()
         return data ?? []
       })(),
     ])
@@ -124,8 +126,14 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     const for30 = minus30(idag)
     const fullfort30 = oppgaver.filter((o) => o.status === 'fullfort' && o.fullfort_tid && o.fullfort_tid.slice(0, 10) >= for30).length
 
-    const fokusPer = new Map<string, number>()
-    for (const f of fokus) fokusPer.set(f.stasjon_id, (fokusPer.get(f.stasjon_id) ?? 0) + 1)
+    const fokusMap = new Map<string, FokusGruppe>()
+    for (const f of fokus) {
+      if (!navnFor.has(f.stasjon_id)) continue
+      let g = fokusMap.get(f.stasjon_id)
+      if (!g) { g = { id: f.stasjon_id, navn: navnFor.get(f.stasjon_id)!, forbedring: [], positivt: [] }; fokusMap.set(f.stasjon_id, g) }
+      ;(f.type === 'forbedring' ? g.forbedring : g.positivt).push({ tittel: f.tittel, tekst: f.tekst })
+    }
+    const fokusGrupper = [...fokusMap.values()]
 
     const aktivKonk = konk.data
 
@@ -156,7 +164,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     if (resEx) kpiStrip.push({ merke: '💵 Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx) })
     if (lonnPst != null) kpiStrip.push({ merke: '👥 Lønn % av omsetning', verdi: `${lonnPst.toFixed(1)} %`, avvik: null })
 
-    return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusPer, aktivKonk, ukerapporter, sisteSalg, kpiStrip, feil: null }
+    return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusGrupper, aktivKonk, ukerapporter, sisteSalg, kpiStrip, feil: null }
   } catch (e) {
     console.error('AdminDashbord samleData feilet:', e)
     return { ...tomt, feil: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }
@@ -247,17 +255,24 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         </Sammenleggbar>
       )}
 
-      {d.fokusPer.size > 0 && (
-        <Sammenleggbar tittel="Fokuspunkter per stasjon" ikon="🎯">
-          <ul className="fokus-per-liste">
-            {d.stasjonsListe.filter((s) => d.fokusPer.get(s.id)).map((s) => (
-              <li key={s.id}>
-                <span>{s.butikknummer} {s.navn}</span>
-                <span className="fokus-antall">{d.fokusPer.get(s.id)} aktive</span>
-              </li>
-            ))}
-          </ul>
-          <p className="undertittel"><Link href="/fokus">Se alle fokuspunkter →</Link></p>
+      {d.fokusGrupper.length > 0 && (
+        <Sammenleggbar tittel="Fokuspunkter per stasjon" ikon="🎯" apen={false}>
+          {d.fokusGrupper.map((g) => (
+            <div className="fokus-stasjon" key={g.id}>
+              <h3>{g.navn}</h3>
+              <div className="fokus-kol">
+                <div>
+                  <h4 className="fokus-tittel gronn">Bra jobbet</h4>
+                  <ul className="fokus-liste">{g.positivt.map((p, i) => <li key={i}>{p.tittel ? <strong>{p.tittel}: </strong> : null}{p.tekst}</li>)}</ul>
+                </div>
+                <div>
+                  <h4 className="fokus-tittel gul">Verdt et blikk</h4>
+                  <ul className="fokus-liste">{g.forbedring.map((p, i) => <li key={i}>{p.tittel ? <strong>{p.tittel}: </strong> : null}{p.tekst}</li>)}</ul>
+                </div>
+              </div>
+            </div>
+          ))}
+          <p className="undertittel"><Link href="/fokus">Se alle / historikk →</Link></p>
         </Sammenleggbar>
       )}
 
