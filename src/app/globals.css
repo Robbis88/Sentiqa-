@@ -617,6 +617,61 @@ button.liten.slett:hover { background: #fdecea; }
 .periode-chip:hover { border-color: var(--primaer); color: var(--tekst); }
 .periode-chip.aktiv { background: var(--primaer); border-color: var(--primaer); color: #fff; }
 
+/* Admin-dashbord */
+.ai-kort { display: flex; align-items: center; gap: 0.9rem; width: 100%; text-align: left; padding: 1rem 1.1rem; margin: 0.6rem 0; border: 1px solid var(--kant); border-radius: var(--radius-stor); background: linear-gradient(135deg, var(--primaer-svak), var(--kort)); cursor: pointer; box-shadow: var(--skygge); transition: border-color 0.15s, box-shadow 0.15s; }
+.ai-kort:hover { border-color: var(--primaer); box-shadow: var(--skygge-lov); }
+.ai-kort-ikon { font-size: 1.8rem; }
+.ai-kort-tekst { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
+.ai-kort-tekst strong { font-size: 1rem; }
+.ai-kort-tekst span { font-size: 0.85rem; color: var(--tekst-svak); }
+.ai-kort-pil { color: var(--primaer); font-size: 1.3rem; }
+
+.snarveier { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; margin: 0.6rem 0 1rem; }
+.snarvei-kort { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.9rem 0.5rem; border: 1px solid var(--kant); border-radius: 12px; background: var(--kort); text-decoration: none; color: var(--tekst); font-weight: 600; font-size: 0.88rem; box-shadow: var(--skygge); transition: border-color 0.15s, transform 0.1s; }
+.snarvei-kort:hover { border-color: var(--primaer); }
+.snarvei-kort:active { transform: scale(0.97); }
+.snarvei-ikon { font-size: 1.5rem; }
+
+.sammenleggbar { padding: 0; overflow: hidden; }
+.sammenleggbar-topp { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: 0; padding: 1rem 1.1rem; cursor: pointer; color: inherit; box-shadow: none; }
+.sammenleggbar-topp h2 { margin: 0; }
+.sammenleggbar-pil { transition: transform 0.2s; color: var(--tekst-svak); }
+.sammenleggbar-pil.apen { transform: rotate(180deg); }
+.sammenleggbar-innhold { padding: 0 1.1rem 1.1rem; }
+.uke-stabel { display: flex; flex-direction: column; gap: 0.8rem; }
+.uke-stabel .uke-kort { margin: 0; }
+
+.tilbake-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.tilbake-liste li { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.6rem; border-radius: 8px; background: var(--kort); }
+.tilbake-liste li.kritisk { background: var(--rod-svak); }
+.tilbake-tekst { flex: 1; font-size: 0.9rem; }
+.tilbake-lenke { font-size: 0.85rem; font-weight: 600; flex-shrink: 0; }
+
+.rangering-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.rangering-liste li { display: flex; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-bottom: 1px solid var(--kant); }
+.rangering-liste li:last-child { border-bottom: 0; }
+.rang-nr { width: 1.6rem; height: 1.6rem; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primaer-svak); color: var(--primaer); font-weight: 800; font-size: 0.85rem; }
+.rang-navn { flex: 1; font-weight: 600; }
+.rang-verdi { font-weight: 700; }
+
+.fokus-per-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.fokus-per-liste li { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid var(--kant); }
+.fokus-per-liste li:last-child { border-bottom: 0; }
+.fokus-antall { font-weight: 700; color: var(--primaer); }
+
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.konk-boks { display: flex; flex-direction: column; gap: 0.3rem; }
+.oppg-tall { display: flex; gap: 1rem; }
+.oppg-tall > div { display: flex; flex-direction: column; }
+.oppg-stor { font-size: 1.8rem; font-weight: 800; }
+.oppg-stor.rod { color: var(--rod); }
+.oppg-stor.gronn { color: var(--gronn); }
+.oppg-merke { font-size: 0.8rem; color: var(--tekst-svak); }
+.forsinket-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.forsinket-liste li { display: flex; align-items: baseline; gap: 0.6rem; }
+.forsinket-frist { color: var(--rod); font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+@media (max-width: 560px) { .dash-grid { grid-template-columns: 1fr; } }
+
 /* Behandler-spinner (vises der noe tar tid) */
 @keyframes spinn { to { transform: rotate(360deg); } }
 .spinner { display: inline-block; width: 0.9em; height: 0.9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spinn 0.6s linear infinite; vertical-align: -0.12em; margin-right: 0.4em; }

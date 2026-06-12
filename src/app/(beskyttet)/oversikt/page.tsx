@@ -5,10 +5,11 @@ import { lesAktivAnsatt } from '@/lib/ansatt'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { hentHjemData } from '@/lib/tablethjem'
 import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
-import { kr, prosent, datoLang, manedAar } from '@/lib/format'
+import { kr, prosent, datoLang, iDag } from '@/lib/format'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import { TabletHjem } from '../tablet-hjem'
 import { UkeKort } from '../uke-kort'
+import { AdminDashbord } from '../admin-dashbord'
 
 export default async function OversiktSide() {
   const bruker = await hentInnloggetBruker()
@@ -45,6 +46,11 @@ export default async function OversiktSide() {
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
     return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} ord={ord} />
+  }
+
+  // Eier får sitt eget rike dashbord (hele kjeden).
+  if (bruker.rolle === 'retailer_admin') {
+    return <AdminDashbord bruker={bruker} idag={iDag()} />
   }
 
   // Siste salgsdag + total omsetning (RLS scoper til brukerens stasjoner)
@@ -90,19 +96,6 @@ export default async function OversiktSide() {
       .map((l) => ({ post: l.post, index_pct: l.index_pct ?? 0, avvik: l.avvik ?? 0 }))
   }
 
-  // Resultat (regnskap-verdi, ikke avvik) til KPI
-  let resultatRegnskap: number | null = null
-  if (sisteReg) {
-    const { data } = await supabase
-      .from('regnskapslinjer')
-      .select('regnskap')
-      .eq('periode', sisteReg.periode)
-      .is('stasjon_id', null)
-      .eq('seksjon', 'resultat')
-      .ilike('post', 'resultat')
-      .maybeSingle<{ regnskap: number }>()
-    resultatRegnskap = data?.regnskap ?? null
-  }
 
   // Dagens drift-status (RLS scoper til brukerens stasjoner)
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -136,7 +129,7 @@ export default async function OversiktSide() {
   // Ukerapport (forrige uke vs i fjor). Admin: alle stasjoner, butikksjef: egne
   // (RLS scoper stasjon-spørringen). Lazy + cachet i uke_rapport.
   let ukerapporter: UkeRapport[] = []
-  if ((bruker.rolle === 'retailer_admin' || bruker.rolle === 'butikksjef') && bruker.retailerId) {
+  if (bruker.rolle === 'butikksjef' && bruker.retailerId) {
     const { data: mineStasjoner } = await supabase
       .from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer')
       .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
@@ -171,16 +164,6 @@ export default async function OversiktSide() {
             Omsetning {sisteDag ? datoLang.format(new Date(sisteDag.dato)) : '– ingen data'}
           </span>
         </Link>
-        {bruker.rolle === 'retailer_admin' && (
-          <Link href="/regnskap" className="kpi lenke">
-            <span className="kpi-tall">
-              {resultatRegnskap != null ? kr.format(resultatRegnskap) : '–'}
-            </span>
-            <span className="kpi-merke">
-              Resultat {sisteReg ? manedAar.format(new Date(sisteReg.periode)) : '– ingen data'}
-            </span>
-          </Link>
-        )}
         {(rutTot ?? 0) > 0 && (
           <Link href="/rutiner" className="kpi lenke">
             <span className="kpi-tall">{rutGjort ?? 0} / {rutTot}</span>

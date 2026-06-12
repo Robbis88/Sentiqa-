@@ -52,6 +52,13 @@ export function AiBoble({ navn }: { navn?: string }) {
 
   useEffect(() => () => { if (intervall.current) clearInterval(intervall.current) }, [])
 
+  // Åpnes også fra AI-inngangskortet på dashbordet (sentiqa-ai-open-event).
+  useEffect(() => {
+    const aapne = () => setApen(true)
+    window.addEventListener('sentiqa-ai-open', aapne)
+    return () => window.removeEventListener('sentiqa-ai-open', aapne)
+  }, [])
+
   function strømUt(full: string, kilder?: string[]) {
     setMeldinger((f) => [...f, { rolle: 'assistent', tekst: '', kilder }])
     setStrommer(true)
