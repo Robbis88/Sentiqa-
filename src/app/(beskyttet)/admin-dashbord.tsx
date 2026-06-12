@@ -76,6 +76,10 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
 
   const aktivKonk = konk.data
   const ukerapporter = await hentEllerLagUkerapport(supabase, retailerId, stasjonsListe)
+  // Diagnose til tom-tilstanden: har vi daglige salgsdata i det hele tatt?
+  const { data: sisteSalg } = ukerapporter.length === 0
+    ? await supabase.from('daglig_salg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+    : { data: null }
 
   const fornavn = bruker.fulltNavn?.split(' ')[0] ?? bruker.fulltNavn ?? 'sjef'
 
@@ -108,6 +112,11 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
             Ukerapporten («forrige uke vs i fjor») dukker opp automatisk når det finnes <strong>daglige salgsdata</strong> for
             en komplett uke (man–søn). Det krever salgsstatistikken — det månedlige regnskapet inneholder ikke dag-for-dag-tall.
             Last den opp under <Link href="/import">Import</Link>.
+          </p>
+          <p className="undertittel" style={{ marginTop: '0.5rem' }}>
+            {sisteSalg
+              ? `Siste daglige salgsdag i systemet: ${sisteSalg.dato}. Mangler du en komplett man–søn-uke (eller fjorårsuka), kommer rapporten først når den er på plass.`
+              : '⚠️ Ingen daglige salgsdata er lastet opp ennå — derfor er rapporten tom.'}
           </p>
         </section>
       )}
