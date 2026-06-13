@@ -61,8 +61,12 @@ function AutoVideo({ src, className }: { src: string; className?: string }) {
     if (!el) return
     el.muted = true
     el.defaultMuted = true
-    const p = el.play()
-    if (p && typeof p.catch === 'function') p.catch(() => {})
+    const spill = () => { const p = el.play(); if (p && typeof p.catch === 'function') p.catch(() => {}) }
+    spill()
+    // Prøv på nytt når videoen faktisk har data (første play() kan komme for tidlig).
+    el.addEventListener('loadeddata', spill)
+    el.addEventListener('canplay', spill)
+    return () => { el.removeEventListener('loadeddata', spill); el.removeEventListener('canplay', spill) }
   }, [])
   // Versjons-query tvinger nettleser + CDN til å hente de NYE (transkodede)
   // filene — ellers serveres gamle bytes fra samme URL.
