@@ -1,7 +1,8 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
-import { registrerAvlesning, settOppStandard, slettKontrollpunkt, redigerKontrollpunkt } from './handlinger'
+import { registrerAvlesning, settOppStandard } from './handlinger'
 import { AvvikDel } from '../avvik/avvik-del'
 
 type Punkt = {
@@ -54,7 +55,10 @@ export default async function IkMatSide() {
   return (
     <>
       <h1>IK-mat &amp; avvik</h1>
-      <p className="undertittel">Logg temperaturer. Utenfor kravet flagges som avvik og varsler automatisk.</p>
+      <p className="undertittel">
+        Logg temperaturer. Utenfor kravet flagges som avvik og varsler automatisk.
+        {kanRedigere ? <> · <Link href="/ikmat/oppsett">⚙️ Rediger oppsett</Link></> : null}
+      </p>
 
       {(stasjoner ?? []).map((s) => {
         const sineP = punkterPerStasjon.get(s.id) ?? []
@@ -78,7 +82,7 @@ export default async function IkMatSide() {
                   <h3>{FREKVENS_ETIKETT[frekvens]}</h3>
                   <table className="tabell ik-tabell">
                     <thead>
-                      <tr><th>Punkt</th><th>Krav</th><th>I dag</th><th>Registrer</th>{kanRedigere && <th></th>}</tr>
+                      <tr><th>Punkt</th><th>Krav</th><th>I dag</th><th>Registrer</th></tr>
                     </thead>
                     <tbody>
                       {sineP.filter((p) => p.frekvens === frekvens).map((p) => {
@@ -99,24 +103,6 @@ export default async function IkMatSide() {
                                 <button type="submit" className="liten">Lagre</button>
                               </form>
                             </td>
-                            {kanRedigere && (
-                              <td className="adm-celle">
-                                <details className="rediger-detalj">
-                                  <summary>⋯</summary>
-                                  <form action={redigerKontrollpunkt} className="rediger-form">
-                                    <input type="hidden" name="id" value={p.id} />
-                                    <input name="navn" defaultValue={p.navn} aria-label="Navn" />
-                                    <input name="min_temp" inputMode="decimal" defaultValue={p.min_temp ?? ''} placeholder="min" aria-label="Min" />
-                                    <input name="max_temp" inputMode="decimal" defaultValue={p.max_temp ?? ''} placeholder="maks" aria-label="Maks" />
-                                    <button type="submit" className="liten">Lagre</button>
-                                  </form>
-                                  <form action={slettKontrollpunkt}>
-                                    <input type="hidden" name="id" value={p.id} />
-                                    <button type="submit" className="liten slett">Slett punkt</button>
-                                  </form>
-                                </details>
-                              </td>
-                            )}
                           </tr>
                         )
                       })}

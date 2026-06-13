@@ -83,6 +83,7 @@ export async function settOppStandard(formData: FormData) {
   }))
   await supabase.from('ik_kontrollpunkter').insert(rader)
   revalidatePath('/ikmat')
+  revalidatePath('/ikmat/oppsett')
 }
 
 export async function slettKontrollpunkt(formData: FormData) {
@@ -93,23 +94,30 @@ export async function slettKontrollpunkt(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   await supabase.from('ik_kontrollpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
   revalidatePath('/ikmat')
+  revalidatePath('/ikmat/oppsett')
 }
 
-export async function redigerKontrollpunkt(formData: FormData) {
+function tilTall(formData: FormData, felt: string): number | null {
+  const v = String(formData.get(felt) ?? '').replace(',', '.').trim()
+  return v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null
+}
+
+// Full redigering av et kontrollpunkt (navn, type, frekvens, krav).
+export async function oppdaterPunkt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return
   const id = String(formData.get('id') ?? '')
   const navn = String(formData.get('navn') ?? '').trim()
   if (!id || !navn) return
-  const num = (felt: string) => {
-    const v = String(formData.get(felt) ?? '').replace(',', '.').trim()
-    return v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null
-  }
   const supabase = await lagSupabaseServerKlient()
-  await supabase
-    .from('ik_kontrollpunkter')
-    .update({ navn, min_temp: num('min_temp'), max_temp: num('max_temp') })
-    .eq('id', id)
+  await supabase.from('ik_kontrollpunkter').update({
+    navn,
+    type: String(formData.get('type') ?? 'kjol'),
+    frekvens: String(formData.get('frekvens') ?? 'daglig'),
+    min_temp: tilTall(formData, 'min_temp'),
+    max_temp: tilTall(formData, 'max_temp'),
+  }).eq('id', id)
+  revalidatePath('/ikmat/oppsett')
   revalidatePath('/ikmat')
 }
 
@@ -120,23 +128,31 @@ export async function leggTilPunkt(formData: FormData) {
   const navn = String(formData.get('navn') ?? '').trim()
   const type = String(formData.get('type') ?? 'kjol')
   const frekvens = String(formData.get('frekvens') ?? 'daglig')
-  const num = (felt: string) => {
-    const v = String(formData.get(felt) ?? '').replace(',', '.').trim()
-    return v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null
-  }
   if (!stasjonId || !navn) return
 
   const supabase = await lagSupabaseServerKlient()
+  const { data: siste } = await supabase.from('ik_kontrollpunkter').select('sortering').eq('stasjon_id', stasjonId).is('slettet_tid', null).order('sortering', { ascending: false }).limit(1).maybeSingle<{ sortering: number | null }>()
   await supabase.from('ik_kontrollpunkter').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     navn,
     type,
     frekvens,
-    min_temp: num('min_temp'),
-    max_temp: num('max_temp'),
-    sortering: 999,
+    min_temp: tilTall(formData, 'min_temp'),
+    max_temp: tilTall(formData, 'max_temp'),
+    sortering: (siste?.sortering ?? -1) + 1,
     opprettet_av: bruker.id,
   })
+  revalidatePath('/ikmat/oppsett')
+  revalidatePath('/ikmat')
+}
+
+// Drag-and-drop rekkefølge: sortering = posisjon i lista (per stasjon).
+export async function lagrePunktRekkefolge(stasjonId: string, ids: string[]): Promise<void> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle) || !stasjonId || !Array.isArray(ids)) return
+  const supabase = await lagSupabaseServerKlient()
+  await Promise.all(ids.map((id, i) => supabase.from('ik_kontrollpunkter').update({ sortering: i }).eq('id', id).eq('stasjon_id', stasjonId)))
+  revalidatePath('/ikmat/oppsett')
   revalidatePath('/ikmat')
 }

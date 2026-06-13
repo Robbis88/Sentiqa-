@@ -569,6 +569,10 @@ button.liten.slett:hover { background: #fdecea; }
 .rutine-kort-form input:focus, .rutine-kort-form textarea:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
 .rutine-kort-knapper { display: flex; justify-content: flex-end; }
 .rutine-kort-slett { display: flex; justify-content: flex-end; }
+.ik-punkt-rad { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 0.5rem; align-items: end; }
+.ik-punkt-rad select, .ik-punkt-rad input { padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 8px; background: var(--kort); color: var(--tekst); font: inherit; width: 100%; }
+.ik-punkt-rad input[inputmode="decimal"] { max-width: 6.5rem; }
+@media (max-width: 560px) { .ik-punkt-rad { grid-template-columns: 1fr 1fr; } }
 
 /* Opplæring */
 .person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }
