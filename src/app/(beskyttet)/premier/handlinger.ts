@@ -34,10 +34,10 @@ export async function slettBruk(formData: FormData) {
   revalidatePath('/premier')
 }
 
-// ---- Tildeling av premie (utenom konkurranse) ----
+// ---- Tildeling av premie (utenom konkurranse) — KUN admin/eier ----
 export async function tildelPremie(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle) || !bruker.retailerId) return
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   const beskrivelse = String(formData.get('beskrivelse') ?? '').trim()
   const belop = Number(String(formData.get('belop_kr') ?? '').replace(',', '.'))
@@ -57,7 +57,7 @@ export async function tildelPremie(formData: FormData) {
 
 export async function vekslUtbetalt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
+  if (bruker.rolle !== 'retailer_admin') return
   const id = String(formData.get('id') ?? '')
   const til = String(formData.get('til') ?? '') === 'ja'
   if (!id) return
@@ -68,7 +68,7 @@ export async function vekslUtbetalt(formData: FormData) {
 
 export async function slettTildeling(formData: FormData) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
+  if (bruker.rolle !== 'retailer_admin') return
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()

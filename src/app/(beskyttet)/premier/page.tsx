@@ -10,6 +10,7 @@ type Tildeling = { id: string; stasjon_id: string; beskrivelse: string; belop_kr
 export default async function PremierSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
+  const erAdmin = bruker.rolle === 'retailer_admin'
   const supabase = await lagSupabaseServerKlient()
   const [{ data: stasjoner }, { data: tildelinger }, { data: bruk }] = await Promise.all([
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
@@ -49,26 +50,28 @@ export default async function PremierSide() {
         </table>
       </section>
 
-      <section className="kort">
-        <h2>Tildel pengepremie</h2>
-        <p className="undertittel">Gi en stasjon premiepenger utenom konkurranser (f.eks. ekstra innsats).</p>
-        <form action={tildelPremie} className="rutine-form">
-          <select name="stasjon_id" required defaultValue="">
-            <option value="" disabled>Stasjon …</option>
-            {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-          </select>
-          <input name="beskrivelse" placeholder="f.eks. Toppinnsats i juli" required />
-          <input name="belop_kr" type="number" min="1" step="1" placeholder="kr" required style={{ maxWidth: '7rem' }} />
-          <input name="dato" type="date" />
-          <button type="submit" className="liten">Tildel</button>
-        </form>
-      </section>
+      {erAdmin && (
+        <section className="kort">
+          <h2>Tildel pengepremie</h2>
+          <p className="undertittel">Gi en stasjon premiepenger utenom konkurranser (f.eks. ekstra innsats). Kun eier kan tildele.</p>
+          <form action={tildelPremie} className="rutine-form">
+            <select name="stasjon_id" required defaultValue="">
+              <option value="" disabled>Stasjon …</option>
+              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+            </select>
+            <input name="beskrivelse" placeholder="f.eks. Toppinnsats i juli" required />
+            <input name="belop_kr" type="number" min="1" step="1" placeholder="kr" required style={{ maxWidth: '7rem' }} />
+            <input name="dato" type="date" />
+            <button type="submit" className="liten">Tildel</button>
+          </form>
+        </section>
+      )}
 
       {(tildelinger ?? []).length > 0 && (
         <section className="kort">
           <h2>Tildelinger</h2>
           <table className="tabell">
-            <thead><tr><th>Stasjon</th><th>Beskrivelse</th><th>Beløp</th><th>Dato</th><th>Utbetalt</th><th></th></tr></thead>
+            <thead><tr><th>Stasjon</th><th>Beskrivelse</th><th>Beløp</th><th>Dato</th><th>Utbetalt</th>{erAdmin && <th></th>}</tr></thead>
             <tbody>
               {(tildelinger ?? []).map((t) => (
                 <tr key={t.id}>
@@ -77,13 +80,17 @@ export default async function PremierSide() {
                   <td>{kr.format(Number(t.belop_kr))}</td>
                   <td>{datoLang.format(new Date(t.dato))}</td>
                   <td>
-                    <form action={vekslUtbetalt}>
-                      <input type="hidden" name="id" value={t.id} />
-                      <input type="hidden" name="til" value={t.utbetalt ? 'nei' : 'ja'} />
-                      <button type="submit" className={`status-pip ${t.utbetalt ? 'gronn' : 'gul'}`} style={{ border: 0, cursor: 'pointer' }}>{t.utbetalt ? 'Ja' : 'Nei'}</button>
-                    </form>
+                    {erAdmin ? (
+                      <form action={vekslUtbetalt}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="til" value={t.utbetalt ? 'nei' : 'ja'} />
+                        <button type="submit" className={`status-pip ${t.utbetalt ? 'gronn' : 'gul'}`} style={{ border: 0, cursor: 'pointer' }}>{t.utbetalt ? 'Ja' : 'Nei'}</button>
+                      </form>
+                    ) : (
+                      <span className={`status-pip ${t.utbetalt ? 'gronn' : 'gul'}`}>{t.utbetalt ? 'Ja' : 'Nei'}</span>
+                    )}
                   </td>
-                  <td><form action={slettTildeling}><input type="hidden" name="id" value={t.id} /><button type="submit" className="liten slett">✕</button></form></td>
+                  {erAdmin && <td><form action={slettTildeling}><input type="hidden" name="id" value={t.id} /><button type="submit" className="liten slett">✕</button></form></td>}
                 </tr>
               ))}
             </tbody>
