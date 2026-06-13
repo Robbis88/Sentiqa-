@@ -737,6 +737,16 @@ button.liten.slett:hover { background: #fdecea; }
 .varsler-tom { margin-top: 1rem; border-left: 3px solid var(--gronn); }
 .varsler-tom p { margin: 0; font-weight: 600; }
 
+/* Butikksjef-dashbord: snarveier + pott-banner */
+.snarvei-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.8rem; margin: 1rem 0 1.2rem; }
+.snarvei-kort { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; padding: 1rem; border: 1px solid var(--kant); border-radius: 12px; background: var(--kort); box-shadow: var(--skygge); text-decoration: none; color: var(--tekst); font-weight: 600; transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s; }
+.snarvei-kort:hover { border-color: var(--primaer); transform: translateY(-2px); box-shadow: var(--skygge-lov); }
+.snarvei-ikon { font-size: 1.6rem; }
+.pott-banner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; text-decoration: none; color: var(--tekst); border-left: 4px solid var(--gronn); background: var(--gronn-svak); font-size: 1.02rem; }
+.pott-pil { font-weight: 800; color: var(--gronn); white-space: nowrap; }
+.kpi-tall.gul { color: var(--gul); }
+.kpi-tall.rod { color: var(--rod); }
+
 /* Tiltaksliste (§8C) */
 .tiltak-liste { margin: 0.5rem 0 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.92rem; line-height: 1.4; }
 .prio { display: inline-block; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.03em; padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.5rem; vertical-align: middle; }
