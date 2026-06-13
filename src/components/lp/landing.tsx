@@ -52,12 +52,31 @@ function Teller({ til, desim = 0, suffiks = '', merke }: { til: number; desim?: 
   )
 }
 
+// ---- Autoplay-video: tvinger muted som DOM-egenskap (React-attributtet alene
+// er ikke nok → desktop-Chrome/Firefox blokkerer ellers autoplay) + kaller play().
+function AutoVideo({ src, className }: { src: string; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.muted = true
+    el.defaultMuted = true
+    const p = el.play()
+    if (p && typeof p.catch === 'function') p.catch(() => {})
+  }, [])
+  return (
+    <video ref={ref} className={className} autoPlay muted loop playsInline preload="auto" disablePictureInPicture>
+      <source src={src} type="video/mp4" />
+    </video>
+  )
+}
+
 // ---- Video-slot: ekte video hvis fila finnes, ellers ren placeholder ----
 function VideoSlot({ src, label, tilgjengelig }: { src: string; label: string; tilgjengelig: boolean }) {
   if (tilgjengelig) {
     return (
       <div className="lp-vslot">
-        <video autoPlay muted loop playsInline preload="metadata"><source src={src} type="video/mp4" /></video>
+        <AutoVideo src={src} />
       </div>
     )
   }
@@ -104,7 +123,7 @@ export function Landing() {
         {/* 1 — HERO (Video 1) */}
         <header className="lp-hero">
           <div className="lp-hero-video" aria-hidden>
-            <video autoPlay muted loop playsInline preload="metadata"><source src="/video/hero.mp4" type="video/mp4" /></video>
+            <AutoVideo src="/video/hero.mp4" />
             <div className="lp-hero-overlay" />
           </div>
           <div className="lp-mid">
