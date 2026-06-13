@@ -1017,6 +1017,10 @@ button.liten.slett:hover { background: #fdecea; }
 .dekning-prikk.har { background: var(--gronn); }
 .dekning-prikk.mangler { background: var(--rod); }
 .dekning-prikk.vente { background: var(--kant-sterk); }
+.dekning-mnd td, .dekning-mnd th { text-align: left; }
+.dekning-mnd .status-pip { font-variant-numeric: tabular-nums; }
+.dekning-mnd-detalj summary { cursor: pointer; font-weight: 600; }
+.dekning-mnd-detalj .heatmap-wrap { margin-top: 0.7rem; }
 
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
