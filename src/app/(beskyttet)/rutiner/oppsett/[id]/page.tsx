@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPE_ETIKETT, UKEDAG_NAVN } from '@/lib/rutineskjema'
-import { oppdaterSkjema, leggTilRutine, oppdaterRutine, slettRutine, flyttRutine } from '../handlinger'
+import { oppdaterSkjema, leggTilRutine } from '../handlinger'
+import { RutineListe } from './rutine-liste'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
@@ -75,38 +76,11 @@ export default async function SkjemaEditor({ params }: { params: Promise<{ id: s
         </form>
       </section>
 
-      {/* Rutiner i dette skjemaet */}
+      {/* Rutiner i dette skjemaet — drag-and-drop rekkefølge */}
       <section className="kort">
         <h2>Rutiner i dette skjemaet <span className="undertittel">· {rutiner.length}</span></h2>
-        {rutiner.length === 0 ? (
-          <p className="undertittel">Ingen rutiner ennå — legg til den første over.</p>
-        ) : (
-          <ul className="rutine-kort-liste">
-            {rutiner.map((r, i) => (
-              <li className="rutine-kort" key={r.id}>
-                <div className="rutine-kort-flytt">
-                  <form action={flyttRutine}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="skjema_id" value={skjema.id} /><input type="hidden" name="retning" value="opp" /><button type="submit" className="flytt-knapp" aria-label="Flytt opp" disabled={i === 0}>▲</button></form>
-                  <form action={flyttRutine}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="skjema_id" value={skjema.id} /><input type="hidden" name="retning" value="ned" /><button type="submit" className="flytt-knapp" aria-label="Flytt ned" disabled={i === rutiner.length - 1}>▼</button></form>
-                </div>
-                <div className="rutine-kort-innhold">
-                  <form action={oppdaterRutine} className="rutine-kort-form">
-                    <input type="hidden" name="id" value={r.id} />
-                    <input type="hidden" name="skjema_id" value={skjema.id} />
-                    <input name="tittel" defaultValue={r.tittel} required />
-                    <textarea name="beskrivelse" rows={2} defaultValue={r.beskrivelse ?? ''} placeholder="Notis (valgfri)" />
-                    <label className="avkryss bilde-krav"><input type="checkbox" name="paakrevd_bilde" defaultChecked={r.paakrevd_bilde} /> <span>📷 Krev bilde</span></label>
-                    <span className="undertittel">Ukedager (tom = alle skjema-dager)</span>
-                    <Ukedager valgt={(r.ukedager ?? []) as number[]} />
-                    <div className="rutine-kort-knapper">
-                      <button type="submit" className="liten">Lagre</button>
-                    </div>
-                  </form>
-                  <form action={slettRutine} className="rutine-kort-slett"><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten slett">Slett rutine</button></form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        {rutiner.length > 0 && <p className="undertittel">Dra i ⠿-håndtaket for å endre rekkefølgen.</p>}
+        <RutineListe skjemaId={skjema.id} rutiner={rutiner.map((r) => ({ ...r, ukedager: (r.ukedager ?? []) as number[] }))} />
       </section>
     </>
   )

@@ -103,26 +103,12 @@ export async function oppdaterRutine(formData: FormData) {
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
 }
 
-// Flytt en rutine opp/ned ved å bytte plass med naboen. Normaliserer sortering
-// til posisjon (0..n) og skriver bare radene som faktisk endrer seg.
-export async function flyttRutine(formData: FormData) {
+// Lagre ny rekkefølge fra drag-and-drop: sortering = posisjon i lista.
+export async function lagreRekkefolge(skjemaId: string, ids: string[]): Promise<void> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  const skjemaId = String(formData.get('skjema_id') ?? '')
-  const retning = String(formData.get('retning') ?? '')
-  if (!id || !skjemaId) return
+  if (!erLeder(bruker.rolle) || !skjemaId || !Array.isArray(ids)) return
   const supabase = await lagSupabaseServerKlient()
-  const { data } = await supabase.from('rutiner').select('id, sortering').eq('skjema_id', skjemaId).is('slettet_tid', null).order('sortering', { ascending: true }).order('opprettet_tid', { ascending: true }).overrideTypes<{ id: string; sortering: number | null }[]>()
-  const arr = data ?? []
-  const idx = arr.findIndex((r) => r.id === id)
-  const naboIdx = retning === 'opp' ? idx - 1 : idx + 1
-  if (idx < 0 || naboIdx < 0 || naboIdx >= arr.length) return
-  const orden = arr.map((r) => r.id)
-  ;[orden[idx], orden[naboIdx]] = [orden[naboIdx], orden[idx]]
-  await Promise.all(
-    orden.map((rid, i) => (arr[i].sortering === i && arr[i].id === rid) ? null : supabase.from('rutiner').update({ sortering: i }).eq('id', rid)).filter(Boolean),
-  )
+  await Promise.all(ids.map((id, i) => supabase.from('rutiner').update({ sortering: i }).eq('id', id).eq('skjema_id', skjemaId)))
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
 }
 
