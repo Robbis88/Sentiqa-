@@ -68,13 +68,11 @@ function AutoVideo({ src, className }: { src: string; className?: string }) {
     el.addEventListener('canplay', spill)
     return () => { el.removeEventListener('loadeddata', spill); el.removeEventListener('canplay', spill) }
   }, [])
-  // Versjons-query tvinger nettleser + CDN til å hente de NYE (transkodede)
-  // filene — ellers serveres gamle bytes fra samme URL.
-  const v = '?v=3'
-  const poster = src.replace(/\.mp4$/, '.jpg') + v
+  // Nytt filnavn (-2) = sikker cache-bust mot CDN som ignorerer query-strenger.
+  const poster = src.replace(/\.mp4$/, '.jpg')
   return (
     <video ref={ref} className={className} poster={poster} autoPlay muted loop playsInline preload="auto" disablePictureInPicture>
-      <source src={src + v} type="video/mp4" />
+      <source src={src} type="video/mp4" />
     </video>
   )
 }
@@ -143,7 +141,7 @@ export function Landing() {
         {/* 1 — HERO (Video 1) */}
         <header className="lp-hero">
           <div className="lp-hero-video" aria-hidden>
-            <AutoVideo src="/video/hero.mp4" />
+            <AutoVideo src="/video/hero-2.mp4" />
             <div className="lp-hero-overlay" />
           </div>
           <div className="lp-mid">
@@ -185,7 +183,7 @@ export function Landing() {
               </div>
             </div>
             <div className="lp-akt-visuell reveal">
-              <VideoSlot src="/video/fornemmer.mp4" label="Vær & signaler" tilgjengelig={HAR.fornemmer} />
+              <VideoSlot src="/video/fornemmer-2.mp4" label="Vær & signaler" tilgjengelig={HAR.fornemmer} />
             </div>
           </div>
         </section>
@@ -240,7 +238,7 @@ export function Landing() {
               </div>
             </div>
             <div className="lp-akt-visuell reveal">
-              <VideoSlot src="/video/forutser.mp4" label="Sol, trafikk & bilvask" tilgjengelig={HAR.forutser} />
+              <VideoSlot src="/video/forutser-2.mp4" label="Sol, trafikk & bilvask" tilgjengelig={HAR.forutser} />
             </div>
           </div>
         </section>
@@ -280,7 +278,7 @@ export function Landing() {
               </div>
             </div>
             <div className="lp-akt-visuell reveal">
-              <VideoSlot src="/video/direktor.mp4" label="Kontrollrom / ledelse" tilgjengelig={HAR.direktor} />
+              <VideoSlot src="/video/direktor-2.mp4" label="Kontrollrom / ledelse" tilgjengelig={HAR.direktor} />
             </div>
           </div>
         </section>
