@@ -9,8 +9,9 @@ export default async function LenkerSide() {
   if (bruker.rolle === 'plattform_redaktor') return <p>Ingen tilgang.</p>
 
   const supabase = await lagSupabaseServerKlient()
+  // Oversettelse kun for tableten; admin/butikksjef ser alltid norsk.
   const { cookies } = await import('next/headers')
-  const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+  const sprak = bruker.rolle === 'butikkbruker_tablet' ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
   const { data } = await supabase.from('lenker').select('id, tittel, url, ikon').is('slettet_tid', null).order('sortering').overrideTypes<Lenke[]>()
 
   const fast = ['Lenker', 'Hurtiglenker for å hjelpe kunder.', 'Ingen lenker lagt inn.']

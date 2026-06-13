@@ -26,8 +26,10 @@ export default async function AnvisningerSide() {
     grupper.set(a.kategori, l)
   }
 
+  // Oversettelse gjelder KUN tableten. Admin/butikksjef ser alltid norsk
+  // (selv om sprak-cookien er satt av en tablet-bruker i samme nettleser).
   const { cookies } = await import('next/headers')
-  const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+  const sprak = bruker.rolle === 'butikkbruker_tablet' ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
   const fast = ['Anvisninger', 'Prosedyrer og oppskrifter — slå opp når du trenger det.', 'Ingen anvisninger ennå.']
   const oversatt = await oversettMange([...fast, ...(data ?? []).flatMap((a) => [a.kategori, a.tittel, a.innhold])], sprak)
   const o = (s: string) => oversatt.get(s) ?? s

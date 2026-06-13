@@ -93,8 +93,9 @@ export default async function RutinerSide() {
   )
 
   // Flerspråk: oversett rutinetekstene til valgt språk (cache + Haiku).
+  // Oversettelse kun for tableten; admin/butikksjef ser alltid norsk.
   const { cookies } = await import('next/headers')
-  const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+  const sprak = bruker.rolle === 'butikkbruker_tablet' ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
   const tekster: string[] = ['Alt klart! 🎉', '1 igjen — nesten i mål!', 'igjen', 'Ferdige', ...Object.values(VAKTTYPE_ETIKETT)]
   for (const { skjema, vindu } of aktive) {
     for (const r of (rutinerForSkjema.get(skjema.id) ?? []).filter((rr) => rutineGjelder(rr, vindu))) {
