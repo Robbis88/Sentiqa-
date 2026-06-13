@@ -547,6 +547,28 @@ button.liten.slett:hover { background: #fdecea; }
 .skjema-form { display: flex; flex-direction: column; gap: 0.6rem; max-width: 460px; margin-top: 0.6rem; }
 .skjema-form .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .nytt-skjema summary { font-weight: 600; color: var(--primaer); }
+.skjema-handlinger { margin-left: auto; display: inline-flex; gap: 0.5rem; align-items: center; }
+.lenke-knapp { text-decoration: none; display: inline-flex; align-items: center; padding: 0.3rem 0.75rem; border: 1px solid var(--primaer); border-radius: 8px; color: var(--primaer); font-weight: 600; }
+
+/* Rutineskjema-editor (rik, per skjema) */
+.skjema-rediger, .rutine-rediger { display: flex; flex-direction: column; gap: 0.7rem; max-width: 600px; }
+.skjema-rediger .rad-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.primaer-knapp { align-self: flex-start; padding: 0.55rem 1.1rem; border: 0; border-radius: 10px; background: var(--primaer); color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+.primaer-knapp:active { transform: scale(0.99); }
+.primaer-knapp.gul { background: #f0a500; color: #2a1c00; }
+.bilde-krav { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 600; font-size: 0.9rem; }
+.skjema-rediger .ukedag, .rutine-rediger .ukedag, .rutine-kort-form .ukedag { border: 1px solid var(--kant); border-radius: 999px; padding: 0.3rem 0.7rem; font-size: 0.82rem; }
+.rutine-kort-liste { list-style: none; margin: 0.8rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+.rutine-kort { display: grid; grid-template-columns: auto 1fr; gap: 0.7rem; border: 1px solid var(--kant); border-radius: 12px; padding: 0.9rem; }
+.rutine-kort-flytt { display: flex; flex-direction: column; gap: 0.3rem; }
+.flytt-knapp { width: 30px; height: 30px; border: 1px solid var(--kant); border-radius: 7px; background: var(--bg); color: var(--tekst-svak); cursor: pointer; font-size: 0.7rem; line-height: 1; }
+.flytt-knapp:disabled { opacity: 0.3; cursor: default; }
+.rutine-kort-innhold { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.rutine-kort-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.rutine-kort-form input, .rutine-kort-form textarea { padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 8px; background: var(--kort); color: var(--tekst); font: inherit; width: 100%; }
+.rutine-kort-form input:focus, .rutine-kort-form textarea:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
+.rutine-kort-knapper { display: flex; justify-content: flex-end; }
+.rutine-kort-slett { display: flex; justify-content: flex-end; }
 
 /* Opplæring */
 .person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }

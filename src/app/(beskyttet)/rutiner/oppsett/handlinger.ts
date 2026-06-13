@@ -44,6 +44,20 @@ export async function slettSkjema(formData: FormData) {
   revalidatePath('/rutiner/oppsett')
 }
 
+export async function oppdaterSkjema(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  const navn = String(formData.get('navn') ?? '').trim() || null
+  const start = String(formData.get('tid_start') ?? '')
+  const slutt = String(formData.get('tid_slutt') ?? '')
+  if (!id || !/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(slutt)) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('rutineskjemaer').update({ navn, tid_start: start, tid_slutt: slutt, ukedager: ukedagerFra(formData) }).eq('id', id)
+  revalidatePath(`/rutiner/oppsett/${id}`)
+  revalidatePath('/rutiner/oppsett')
+}
+
 export async function leggTilRutine(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !bruker.retailerId) return
@@ -55,6 +69,8 @@ export async function leggTilRutine(formData: FormData) {
   if (!skjemaId || !stasjonId || !tittel) return
 
   const supabase = await lagSupabaseServerKlient()
+  // Plasser nederst: sortering = høyeste i skjemaet + 1.
+  const { data: siste } = await supabase.from('rutiner').select('sortering').eq('skjema_id', skjemaId).is('slettet_tid', null).order('sortering', { ascending: false }).limit(1).maybeSingle<{ sortering: number | null }>()
   await supabase.from('rutiner').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
@@ -63,9 +79,51 @@ export async function leggTilRutine(formData: FormData) {
     beskrivelse,
     ukedager: ukedagerFra(formData),
     paakrevd_bilde: paakrevdBilde,
+    sortering: (siste?.sortering ?? -1) + 1,
     opprettet_av: bruker.id,
   })
+  revalidatePath(`/rutiner/oppsett/${skjemaId}`)
   revalidatePath('/rutiner/oppsett')
+}
+
+export async function oppdaterRutine(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  const skjemaId = String(formData.get('skjema_id') ?? '')
+  const tittel = String(formData.get('tittel') ?? '').trim()
+  if (!id || !tittel) return
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.from('rutiner').update({
+    tittel,
+    beskrivelse: String(formData.get('beskrivelse') ?? '').trim() || null,
+    ukedager: ukedagerFra(formData),
+    paakrevd_bilde: formData.get('paakrevd_bilde') === 'on',
+  }).eq('id', id)
+  revalidatePath(`/rutiner/oppsett/${skjemaId}`)
+}
+
+// Flytt en rutine opp/ned ved å bytte plass med naboen. Normaliserer sortering
+// til posisjon (0..n) og skriver bare radene som faktisk endrer seg.
+export async function flyttRutine(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return
+  const id = String(formData.get('id') ?? '')
+  const skjemaId = String(formData.get('skjema_id') ?? '')
+  const retning = String(formData.get('retning') ?? '')
+  if (!id || !skjemaId) return
+  const supabase = await lagSupabaseServerKlient()
+  const { data } = await supabase.from('rutiner').select('id, sortering').eq('skjema_id', skjemaId).is('slettet_tid', null).order('sortering', { ascending: true }).order('opprettet_tid', { ascending: true }).overrideTypes<{ id: string; sortering: number | null }[]>()
+  const arr = data ?? []
+  const idx = arr.findIndex((r) => r.id === id)
+  const naboIdx = retning === 'opp' ? idx - 1 : idx + 1
+  if (idx < 0 || naboIdx < 0 || naboIdx >= arr.length) return
+  const orden = arr.map((r) => r.id)
+  ;[orden[idx], orden[naboIdx]] = [orden[naboIdx], orden[idx]]
+  await Promise.all(
+    orden.map((rid, i) => (arr[i].sortering === i && arr[i].id === rid) ? null : supabase.from('rutiner').update({ sortering: i }).eq('id', rid)).filter(Boolean),
+  )
+  revalidatePath(`/rutiner/oppsett/${skjemaId}`)
 }
 
 export async function slettRutine(formData: FormData) {

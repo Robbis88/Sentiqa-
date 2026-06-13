@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER, VAKTTYPE_ETIKETT, UKEDAG_NAVN } from '@/lib/rutineskjema'
-import { leggTilSkjema, slettSkjema, leggTilRutine, slettRutine } from './handlinger'
+import { leggTilSkjema, slettSkjema } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
@@ -59,39 +59,15 @@ export default async function OppsettSide() {
             <div className="skjema-kort" key={sk.id}>
               <div className="skjema-topp">
                 <strong>{VAKTTYPE_ETIKETT[sk.vakttype]}{sk.navn ? ` · ${sk.navn}` : ''}</strong>
-                <span className="undertittel"> {sk.tid_start}–{sk.tid_slutt} · {dagerTekst(sk.ukedager)}</span>
-                <form action={slettSkjema} style={{ marginLeft: 'auto' }}>
-                  <input type="hidden" name="id" value={sk.id} />
-                  <button type="submit" className="liten slett">Slett skjema</button>
-                </form>
+                <span className="undertittel"> {sk.tid_start}–{sk.tid_slutt} · {dagerTekst(sk.ukedager)} · {(rutinerForSkjema.get(sk.id) ?? []).length} rutiner</span>
+                <span className="skjema-handlinger">
+                  <Link href={`/rutiner/oppsett/${sk.id}`} className="liten lenke-knapp">Rediger</Link>
+                  <form action={slettSkjema}>
+                    <input type="hidden" name="id" value={sk.id} />
+                    <button type="submit" className="liten slett">Slett skjema</button>
+                  </form>
+                </span>
               </div>
-
-              <ul className="rutine-liste">
-                {(rutinerForSkjema.get(sk.id) ?? []).map((r) => (
-                  <li key={r.id}>
-                    <div className="rutine-tekst">
-                      {r.tittel}
-                      {r.beskrivelse ? <span className="undertittel"> — {r.beskrivelse}</span> : null}
-                      {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
-                      {r.ukedager.length > 0 ? <span className="undertittel"> · {dagerTekst(r.ukedager)}</span> : null}
-                    </div>
-                    <form action={slettRutine}>
-                      <input type="hidden" name="id" value={r.id} />
-                      <button type="submit" className="liten slett" aria-label="Slett">✕</button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-
-              <form action={leggTilRutine} className="rutine-form">
-                <input type="hidden" name="skjema_id" value={sk.id} />
-                <input type="hidden" name="stasjon_id" value={st.id} />
-                <input name="tittel" placeholder="Ny rutine" required />
-                <input name="beskrivelse" placeholder="Beskrivelse (valgfri)" />
-                <UkedagVelger />
-                <label className="avkryss"><input type="checkbox" name="paakrevd_bilde" /> 📷 bilde</label>
-                <button type="submit" className="liten">Legg til rutine</button>
-              </form>
             </div>
           ))}
 
