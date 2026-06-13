@@ -1,6 +1,7 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { BUTIKKSJEF_PERSONAL_KODER } from './regnskap-tilgang'
+import { SKJUL_OMS_KODER as SKJUL_OMS } from './avdelinger'
 
 // Deterministisk regel-motor: «varsle admin om ALT som ikke er bra» rett etter
 // opplastet regnskap. Ingen AI — kjører umiddelbart på lagrede tall, kan aldri
@@ -24,7 +25,8 @@ const T = {
   driftRod: 10, driftGul: 3, // driftskostnader, % over budsjett
   brfGul: -5, // bruttofortjeneste, index % under budsjett
   resGul: -10_000, // resultat, kr under budsjett (men positivt)
-  lonnRod: 70, lonnGul: 60, // lønn som % av bruttofortjeneste
+  lonnOverRod: 10, lonnOverGul: 5, // lønn over LØNNSBUDSJETT i % (St1 setter budsjett)
+  lonnBruttoMiss: -3, // brutto under budsjett % når lønnsbudsjettet er brukt
   mankoRod: 15_000, mankoGul: 5_000, mankoPstRod: 10, mankoPstGul: 4,
   overskudd: 5_000, overskuddPst: 4,
   kast: 4_000, kastPst: 3,
@@ -95,18 +97,16 @@ export async function hentRegnskapVarsler(
 
   for (const [id, liste] of perStasjon) {
     const navn = navnFor.get(id)!
-    // Per stasjon finnes en egen total-linje «40 CR» (= sum av avdelingene).
-    // Summerer vi ALLE linjene dobbelteller vi → bruk CR-linja som total.
+    // Omsetning/BRF: summer basis-avdelinger eks drivstoff/pant/CR (ingen dobbel).
     const total = (seksjon: string) => {
-      const ls = liste.filter((l) => l.seksjon === seksjon)
-      const cr = ls.find((l) => l.kode === '40')
-      if (cr) return { r: cr.regnskap ?? 0, b: cr.budsjett ?? 0 }
-      const base = ls.filter((l) => l.kode !== '40')
-      return { r: base.reduce((a, l) => a + (l.regnskap ?? 0), 0), b: base.reduce((a, l) => a + (l.budsjett ?? 0), 0) }
+      const ls = liste.filter((l) => l.seksjon === seksjon && !SKJUL_OMS.has(l.kode ?? ''))
+      return { r: ls.reduce((a, l) => a + (l.regnskap ?? 0), 0), b: ls.reduce((a, l) => a + (l.budsjett ?? 0), 0) }
     }
     const { r: omsR, b: omsB } = total('omsetning')
-    const { r: brf } = total('bruttofortjeneste')
-    const personal = liste.filter((l) => l.seksjon === 'driftskostnader' && BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? '')).reduce((a, l) => a + (l.regnskap ?? 0), 0)
+    const { r: brfR, b: brfB } = total('bruttofortjeneste')
+    const personalLinjer = liste.filter((l) => l.seksjon === 'driftskostnader' && BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? ''))
+    const lonnR = personalLinjer.reduce((a, l) => a + (l.regnskap ?? 0), 0)
+    const lonnB = personalLinjer.reduce((a, l) => a + (l.budsjett ?? 0), 0)
 
     if (omsB > 0) {
       const i = ((omsR - omsB) / omsB) * 100
@@ -114,11 +114,20 @@ export async function hentRegnskapVarsler(
       else if (i <= T.omsGul) legg('gul', navn, `Omsetning ${pst1(i)} mot budsjett`, `${kr0(Math.abs(omsR - omsB))} under budsjett.`, Math.abs(omsR - omsB), 1)
     }
 
-    if (brf > 0 && personal > 0) {
-      const lonnPst = (personal / brf) * 100
-      // Vekt på kr-skala (personalkostnad) så lønn ikke synker under kron-varslene.
-      if (lonnPst >= T.lonnRod) legg('rod', navn, `Lønn ${Math.round(lonnPst)} % av bruttofortjeneste`, `Personalkostnad ${kr0(personal)} av BRF ${kr0(brf)} — sjekk bemanning/vaktplan.`, personal, 1)
-      else if (lonnPst >= T.lonnGul) legg('gul', navn, `Lønn ${Math.round(lonnPst)} % av bruttofortjeneste`, `Personalkostnad ${kr0(personal)} av BRF ${kr0(brf)}.`, personal, 1)
+    // Lønn MOT LØNNSBUDSJETT (ikke mot omsetning/BRF). To budskap:
+    // (1) over lønnsbudsjett → skjerp; (2) brukt lønnsbudsjett men brutto under.
+    if (lonnB > 0) {
+      const avvik = lonnR - lonnB
+      const lonnPst = (avvik / lonnB) * 100
+      const brfPst = brfB > 0 ? ((brfR - brfB) / brfB) * 100 : 0
+      if (lonnPst >= T.lonnOverRod) {
+        legg('rod', navn, `Lønn ${pst1(lonnPst)} over budsjett`, `Personalkostnad ${kr0(lonnR)} mot lønnsbudsjett ${kr0(lonnB)} — ${kr0(avvik)} over. Skjerp bemanning/vaktplan.`, Math.abs(avvik), 1)
+      } else if (lonnPst >= T.lonnOverGul) {
+        legg('gul', navn, `Lønn ${pst1(lonnPst)} over budsjett`, `Personalkostnad ${kr0(lonnR)} mot lønnsbudsjett ${kr0(lonnB)} — ${kr0(avvik)} over.`, Math.abs(avvik), 1)
+      } else if (lonnPst >= -10 && brfPst <= T.lonnBruttoMiss && brfB > 0) {
+        // Brukte (nær) hele lønnsbudsjettet, men leverer ikke brutto.
+        legg('gul', navn, `Lønn brukt, men brutto ${pst1(brfPst)} under budsjett`, `Bruker lønnsbudsjettet (${kr0(lonnR)} av ${kr0(lonnB)}), men bruttofortjenesten ligger ${kr0(Math.abs(brfR - brfB))} under budsjett — bemanningen leverer ikke nok salg/brutto.`, Math.abs(brfR - brfB), 1)
+      }
     }
 
     const res = liste.find((l) => l.seksjon === 'resultat' && /^resultat$/i.test(l.post))

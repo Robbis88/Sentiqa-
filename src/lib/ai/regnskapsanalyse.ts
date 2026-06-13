@@ -6,7 +6,8 @@ import * as z from 'zod'
 import { env } from '@/lib/env'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
-import { UTELAT_KODER } from '@/lib/avdelinger'
+import { UTELAT_KODER, SKJUL_OMS_KODER } from '@/lib/avdelinger'
+import { BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
 
 // Tung eier-regnskapsanalyse → Opus, der kvalitet teller (PROSJEKT.md §8).
 const MODELL = 'claude-opus-4-8'
@@ -54,7 +55,7 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string)
 
   const [{ data: cluster }, { data: perRader }, { data: stasjoner }, { data: usynlig }, { data: forrige }] = await Promise.all([
     supabase.from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct').eq('retailer_id', retailerId).eq('periode', periode).is('stasjon_id', null).order('sortering').overrideTypes<Linje[]>(),
-    supabase.from('regnskapslinjer').select('stasjon_id, kode, regnskap, budsjett').eq('retailer_id', retailerId).eq('periode', periode).eq('seksjon', 'omsetning').not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>(),
+    supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('retailer_id', retailerId).eq('periode', periode).in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     supabase.from('regnskap_usynlig_svinn').select('stasjon_id, navn, salg, brf_pst, usynlig_kr, usynlig_pst').eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null).overrideTypes<Usynlig[]>(),
     supabase.from('regnskapsanalyser').select('periode, rapport').eq('retailer_id', retailerId).lt('periode', periode).is('slettet_tid', null).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string; rapport: Analyse }>(),
@@ -68,16 +69,20 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string)
     .map((l) => `[${l.seksjon}] ${l.post}: regnskap ${Math.round(l.regnskap ?? 0)} kr, budsjett ${Math.round(l.budsjett ?? 0)} kr, avvik ${Math.round(l.avvik ?? 0)} kr (${(l.index_pct ?? 0).toFixed(1)} %)`)
     .join('\n')
 
-  // Omsetning per stasjon — summer basis-avdelinger, utelat drivstoff (10),
-  // pant (250) og «40 CR»-totalen (sistnevnte ville dobbelttalt mot avdelingene).
-  const perSum = new Map<string, { r: number; b: number }>()
+  // Per stasjon: omsetning + brutto (basis-avd eks drivstoff/pant/CR) og lønn
+  // mot LØNNSBUDSJETT (personalkoder). Avvik i %.
+  type Tre = { oms: { r: number; b: number }; brf: { r: number; b: number }; lonn: { r: number; b: number } }
+  const perStasjon = new Map<string, Tre>()
   for (const r of perRader ?? []) {
-    if (UTELAT_KODER.has(r.kode ?? '') || r.kode === '40') continue
-    const p = perSum.get(r.stasjon_id) ?? { r: 0, b: 0 }
-    p.r += r.regnskap ?? 0; p.b += r.budsjett ?? 0; perSum.set(r.stasjon_id, p)
+    const t = perStasjon.get(r.stasjon_id) ?? { oms: { r: 0, b: 0 }, brf: { r: 0, b: 0 }, lonn: { r: 0, b: 0 } }
+    if (r.seksjon === 'omsetning' && !SKJUL_OMS_KODER.has(r.kode ?? '')) { t.oms.r += r.regnskap ?? 0; t.oms.b += r.budsjett ?? 0 }
+    else if (r.seksjon === 'bruttofortjeneste' && !SKJUL_OMS_KODER.has(r.kode ?? '')) { t.brf.r += r.regnskap ?? 0; t.brf.b += r.budsjett ?? 0 }
+    else if (r.seksjon === 'driftskostnader' && BUTIKKSJEF_PERSONAL_KODER.has(r.kode ?? '')) { t.lonn.r += r.regnskap ?? 0; t.lonn.b += r.budsjett ?? 0 }
+    perStasjon.set(r.stasjon_id, t)
   }
-  const stasjonTekst = [...perSum.entries()].filter(([id]) => navnFor.has(id))
-    .map(([id, p]) => `${navnFor.get(id)}: omsetning ${Math.round(p.r)} kr av budsjett ${Math.round(p.b)} kr (${p.b ? (((p.r - p.b) / p.b) * 100).toFixed(1) : '0'} %)`)
+  const avp = (x: { r: number; b: number }) => (x.b ? (((x.r - x.b) / x.b) * 100).toFixed(1) : '0')
+  const stasjonTekst = [...perStasjon.entries()].filter(([id]) => navnFor.has(id))
+    .map(([id, t]) => `${navnFor.get(id)}: omsetning ${Math.round(t.oms.r)} av budsjett ${Math.round(t.oms.b)} kr (${avp(t.oms)} %); brutto ${Math.round(t.brf.r)} av ${Math.round(t.brf.b)} kr (${avp(t.brf)} %); lønn ${Math.round(t.lonn.r)} mot lønnsbudsjett ${Math.round(t.lonn.b)} kr (${avp(t.lonn)} %)`)
     .join('\n')
 
   // Usynlig svinn pr stasjon (fortegn: + manko, - overskudd) + kryss-stasjon
@@ -119,13 +124,14 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string)
       'FORTEGNS-REGEL på usynlig svinn: positivt tall = MANKO (penger forsvinner = tap). Negativt tall = OVERSKUDD på lager (som regel feilslag/registreringsfeil på kassa). Si ALLTID «manko» eller «overskudd», aldri bare «svinn».\n' +
       'Let etter MØNSTRE PÅ TVERS av stasjoner = systemfeil, ikke enkeltstasjon. Eksempler: KAFFE-manko + KAFFELOJALITET-overskudd = lojalitetskaffe registreres feil; MASKINVASK APP-overskudd = app-betalinger lekker og MASKERER ekte manko. Slike funn skal i «systemfeil».\n' +
       'Bruk RESULTAT EX 9900 (uten admin-stasjon 9900) mot budsjett for driftsvurderingen, og total-RESULTAT for bunnlinja.\n' +
-      'Status per stasjon: gronn (på/over budsjett, lite reell manko), gul (litt under), rod (klart under / reell manko). 2–4 setninger med konkrete tall per stasjon.\n' +
+      'LØNN måles MOT LØNNSBUDSJETTET (St1 setter budsjettet) — ALDRI mot omsetning eller bruttofortjeneste. To viktige poeng per stasjon: (a) bruker stasjonen MER lønn enn budsjett → si tydelig fra at de må skjerpe bemanning/vaktplan; (b) bruker de (nær) hele lønnsbudsjettet MEN brutto ligger under budsjett → bemanningen leverer ikke nok salg/brutto. Drivstoff og pant er holdt utenfor alle tall.\n' +
+      'Status per stasjon: gronn (på/over budsjett, lite reell manko, lønn i rute), gul (litt under), rod (klart under / reell manko / lønn klart over budsjett). 2–4 setninger med konkrete tall per stasjon.\n' +
       'Tiltak: 3–5 konkrete handlinger med prioritet (hoy/medium/lav) — «sjekk vaktplan på Lone man–ons», ikke «vurder bemanning». Maks 5 røde flagg.',
     messages: [{
       role: 'user',
       content:
         `MÅNEDSREGNSKAP (cluster-P&L):\n${clusterTekst}\n\n` +
-        `OMSETNING PER STASJON:\n${stasjonTekst}\n\n` +
+        `NØKKELTALL PER STASJON (omsetning, brutto, lønn mot lønnsbudsjett — eks. drivstoff/pant):\n${stasjonTekst}\n\n` +
         `USYNLIG SVINN PER STASJON (+ = manko, − = overskudd):\n${svinnTekst || 'Ingen usynlig svinn-data.'}\n\n` +
         `KRYSS-STASJON (samme vare på flere stasjoner):\n${kryssTekst || 'Ingen tydelige kryss-mønstre.'}\n\n` +
         `${forrigeTekst}\n\n` +

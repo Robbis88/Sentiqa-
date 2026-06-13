@@ -7,7 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { BUTIKKSJEF_KOSTNAD_KODER, BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
-import { UTELAT_KODER } from '@/lib/avdelinger'
+import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
 
 // Auto-fokus er ikke-sanntid → Sonnet holder (PROSJEKT.md §8; batch-API senere).
 const MODELL = 'claude-sonnet-4-6'
@@ -41,9 +41,9 @@ async function forStasjon(
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'driftskostnader').overrideTypes<Linje[]>(),
   ])
   if (!omsRaw || omsRaw.length === 0) return null
-  // Drivstoff og pant utelates fra fokus — ikke en del av butikkdriften.
-  const oms = omsRaw.filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
-  const brf = (brfRaw ?? []).filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
+  // Drivstoff, pant og «40 CR»-totalen utelates — ikke butikkdrift / dobbelteller.
+  const oms = omsRaw.filter((l) => !SKJUL_OMS_KODER.has(l.kode ?? ''))
+  const brf = (brfRaw ?? []).filter((l) => !SKJUL_OMS_KODER.has(l.kode ?? ''))
 
   // Kun butikksjef-påvirkbare kostnader (personal samlet) — aldri royalty/husleie/finans.
   const paavirkbar = (kost ?? []).filter((l) => BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? ''))
@@ -78,7 +78,9 @@ async function forStasjon(
   }).join('\n')
 
   const totOms = oms.reduce((s, l) => s + (l.regnskap ?? 0), 0)
-  const totBrf = (brf ?? []).reduce((s, l) => s + (l.regnskap ?? 0), 0)
+  const totOmsB = oms.reduce((s, l) => s + (l.budsjett ?? 0), 0)
+  const totBrf = brf.reduce((s, l) => s + (l.regnskap ?? 0), 0)
+  const totBrfB = brf.reduce((s, l) => s + (l.budsjett ?? 0), 0)
 
   const resp = await anthropic.messages.parse({
     model: MODELL,
@@ -86,17 +88,19 @@ async function forStasjon(
     system:
       'Du er driftsrådgiver for en butikksjef på én bensinstasjon. Norsk bokmål. Vennlig, men konkret — bruk avdelingsnavn, kroner og %-avvik. ALDRI finn på tall; bruk kun tallene du får.\n' +
       'FORTEGN usynlig svinn: positivt tall = MANKO (penger/varer borte etter telling = dårlig). Negativt tall = OVERSKUDD (uforklart, oftest feilslag) — IKKE flagg overskudd som en forbedring. Kast = synlig svinn: positivt = kastet/svunnet (dårlig).\n' +
-      'Lag NØYAKTIG 3 forbedringspunkter — KUN på: høyt kast (synlig svinn), usynlig MANKO (positivt tall), eller kostnader over budsjett. ALDRI foreslå forbedring på omsetning eller bruttofortjeneste (det er andre prosesser).\n' +
-      'Lag NØYAKTIG 3 positive punkter — det stasjonen gjør bra: lavt/negativt svinn på en avdeling, kostnad godt under budsjett, eller solid omsetning/BRF (her ER omsetning/BRF lov å rose).\n' +
+      'LØNN måles MOT LØNNSBUDSJETTET (St1 setter budsjettet) — ALDRI mot omsetning eller bruttofortjeneste. To viktige poeng: (a) bruker stasjonen MER lønn enn budsjett → be dem skjerpe bemanning/vaktplan; (b) bruker de (nær) hele lønnsbudsjettet MEN bruttofortjenesten ligger under budsjett → bemanningen leverer ikke nok, det er et forbedringspunkt.\n' +
+      'Lag NØYAKTIG 3 forbedringspunkter — KUN på: høyt kast (synlig svinn), usynlig MANKO (positivt tall), kostnader over budsjett, lønn over lønnsbudsjett, eller lønnsbudsjett brukt uten å treffe brutto. ALDRI klag på lav omsetning eller BRF i seg selv (kun via lønn-koblingen over). Drivstoff og pant skal aldri med.\n' +
+      'Lag NØYAKTIG 3 positive punkter — lavt/negativt svinn, kostnad eller lønn godt under budsjett, eller solid omsetning/BRF mot budsjett (her ER det lov å rose).\n' +
       'Hvert punkt: kort tittel + én konkret setning (beskrivelse) med tall, og riktig kategori.',
     messages: [{
       role: 'user',
       content:
-        `Stasjon: ${navn}. Periode-tall:\n` +
-        `Total omsetning ${Math.round(totOms)} kr, total bruttofortjeneste ${Math.round(totBrf)} kr.\n\n` +
+        `Stasjon: ${navn}. Periode-tall (eks. drivstoff og pant):\n` +
+        `Omsetning ${Math.round(totOms)} kr av budsjett ${Math.round(totOmsB)} kr. Bruttofortjeneste ${Math.round(totBrf)} kr av budsjett ${Math.round(totBrfB)} kr.\n` +
+        `Lønn (personalkostnad) ${Math.round(personalSum.r)} kr mot lønnsbudsjett ${Math.round(personalSum.b)} kr.\n\n` +
         `Per avdeling:\n${avdTekst}\n\n` +
         `Påvirkbare kostnader:\n${kostTekst}\n\n` +
-        'Gi nøyaktig 3 forbedringspunkter (kun svinn/kostnad) og nøyaktig 3 positive punkter.',
+        'Gi nøyaktig 3 forbedringspunkter og nøyaktig 3 positive punkter.',
     }],
     output_config: { format: zodOutputFormat(FokusSchema) },
   })

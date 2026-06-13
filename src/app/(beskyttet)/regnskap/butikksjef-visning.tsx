@@ -3,11 +3,7 @@ import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
 import { BUTIKKSJEF_PERSONAL_KODER, BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
-import { UTELAT_KODER } from '@/lib/avdelinger'
-
-// Skjules i omsetning/BRF: drivstoff (10) + pant (250) + «40 CR» (total-linja,
-// som ellers dobbelteller mot avdelingene).
-const SKJUL_OMS = new Set([...UTELAT_KODER, '40'])
+import { SKJUL_OMS_KODER as SKJUL_OMS } from '@/lib/avdelinger'
 
 type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
 type Kost = { navn: string; regnskap: number; budsjett: number }

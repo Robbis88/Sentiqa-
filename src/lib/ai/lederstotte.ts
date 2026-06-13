@@ -6,7 +6,8 @@ import { env } from '@/lib/env'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
-import { UTELAT_KODER } from '@/lib/avdelinger'
+import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
+import { BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
 
 // Per-stasjon coaching → Sonnet (ikke-sanntid, §8).
 const MODELL = 'claude-sonnet-4-6'
@@ -31,18 +32,26 @@ async function forStasjon(
 ): Promise<Lederstotte | null> {
   const { data } = await supabase
     .from('regnskapslinjer')
-    .select('kode, post, regnskap, budsjett, index_pct')
+    .select('seksjon, kode, post, regnskap, budsjett, index_pct')
     .eq('periode', periode)
     .eq('stasjon_id', stasjonId)
-    .eq('seksjon', 'omsetning')
-    .overrideTypes<{ kode: string | null; post: string; regnskap: number | null; budsjett: number | null; index_pct: number | null }[]>()
-  if (!data || data.length === 0) return null
+    .in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader'])
+    .overrideTypes<{ seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; index_pct: number | null }[]>()
+  const linjer = data ?? []
+  // Drivstoff, pant og «40 CR»-totalen utelates fra omsetning/BRF.
+  const oms = linjer.filter((l) => l.seksjon === 'omsetning' && !SKJUL_OMS_KODER.has(l.kode ?? ''))
+  if (oms.length === 0) return null
 
-  // Drivstoff og pant utelates — ikke en del av butikkdriften (§ generell regel).
-  const tall = data
-    .filter((l) => !UTELAT_KODER.has(l.kode ?? ''))
+  const tall = oms
     .map((l) => `${l.post}: ${Math.round(l.regnskap ?? 0)} kr av budsjett ${Math.round(l.budsjett ?? 0)} kr (${(l.index_pct ?? 0).toFixed(1)} %)`)
     .join('\n')
+  const sumSek = (sek: string) =>
+    linjer.filter((l) => l.seksjon === sek && !SKJUL_OMS_KODER.has(l.kode ?? '')).reduce((a, l) => ({ r: a.r + (l.regnskap ?? 0), b: a.b + (l.budsjett ?? 0) }), { r: 0, b: 0 })
+  const o = sumSek('omsetning')
+  const b = sumSek('bruttofortjeneste')
+  const lonn = linjer
+    .filter((l) => l.seksjon === 'driftskostnader' && BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? ''))
+    .reduce((a, l) => ({ r: a.r + (l.regnskap ?? 0), b: a.b + (l.budsjett ?? 0) }), { r: 0, b: 0 })
 
   const resp = await anthropic.messages.parse({
     model: MODELL,
@@ -50,12 +59,19 @@ async function forStasjon(
     system:
       'Du er Sentiqa-assistenten og skriver en utviklingsorientert lederstøtte-rapport til en butikksjef. ' +
       'Coaching-tone: oppmuntrende og fremovervendt, ALDRI anklagende. Bruk status gronn (sterkt), gul (på god vei) ' +
-      'eller bla (utviklingspotensial) — ALDRI ord som «dårlig» eller «rødt». Norsk bokmål. Bruk konkrete tall.',
+      'eller bla (utviklingspotensial) — ALDRI ord som «dårlig» eller «rødt». Norsk bokmål. Bruk konkrete tall.\n' +
+      'LØNN vurderes MOT LØNNSBUDSJETTET (St1 setter det) — aldri mot omsetning eller bruttofortjeneste. ' +
+      'Er lønn over lønnsbudsjettet, løft bemanning/vaktplan som et tydelig utviklingsområde. ' +
+      'Er (nær) hele lønnsbudsjettet brukt men bruttofortjenesten ligger under budsjett, påpek at bemanningen bør gi mer igjen i salg/brutto. ' +
+      'Drivstoff og pant skal aldri med.',
     messages: [
       {
         role: 'user',
         content:
-          `Stasjon: ${navn}. Omsetning mot budsjett denne måneden:\n${tall}\n\n` +
+          `Stasjon: ${navn}. Tall denne måneden (eks. drivstoff og pant):\n` +
+          `Omsetning ${Math.round(o.r)} kr av budsjett ${Math.round(o.b)} kr. Bruttofortjeneste ${Math.round(b.r)} kr av budsjett ${Math.round(b.b)} kr.\n` +
+          `Lønn (personalkostnad) ${Math.round(lonn.r)} kr mot lønnsbudsjett ${Math.round(lonn.b)} kr.\n\n` +
+          `Omsetning per avdeling:\n${tall}\n\n` +
           'Skriv: kort oppsummering, 2–3 styrker, 2–3 utviklingsområder (formulert som muligheter), og 2–3 konkrete neste steg.',
       },
     ],
