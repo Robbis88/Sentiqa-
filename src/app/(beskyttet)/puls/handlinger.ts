@@ -56,12 +56,27 @@ export async function slettSporsmal(formData: FormData) {
 export async function startRunde(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !bruker.retailerId) return
-  const sporsmalId = String(formData.get('sporsmal_id') ?? '')
+  let sporsmalId = String(formData.get('sporsmal_id') ?? '')
+  const nyTekst = String(formData.get('nytt_sporsmal') ?? '').trim()
   const start = String(formData.get('start_dato') ?? '')
   const slutt = String(formData.get('slutt_dato') ?? '')
   const notat = String(formData.get('notat') ?? '').trim() || null
-  if (!sporsmalId || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(slutt)) return
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(slutt)) return
   const supabase = await lagSupabaseServerKlient()
+
+  // Skrev de et nytt spørsmål rett her? Opprett det først, så slipper de å
+  // innom spørsmålsbiblioteket — alt i ett steg.
+  if (nyTekst) {
+    const kategori = String(formData.get('kategori') ?? '').trim() || 'Trivsel'
+    const { data: nytt } = await supabase
+      .from('puls_sporsmal')
+      .insert({ retailer_id: bruker.retailerId, kategori, tekst: nyTekst, sortering: 999 })
+      .select('id')
+      .single()
+    sporsmalId = nytt?.id ?? ''
+  }
+  if (!sporsmalId) return
+
   await supabase.from('puls_runde').insert({
     retailer_id: bruker.retailerId,
     sporsmal_id: sporsmalId,

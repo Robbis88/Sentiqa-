@@ -38,7 +38,7 @@ export default async function PulsSide() {
       <p className="undertittel">Korte pulsmålinger — ett spørsmål om gangen. <Link href="/puls/ny">+ Start måling</Link> · <Link href="/puls/sporsmal">Spørsmål</Link></p>
 
       {(runder ?? []).length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen målinger ennå. <Link href="/puls/sporsmal">Sett opp spørsmål</Link> og <Link href="/puls/ny">start en måling</Link>.</p></section>
+        <section className="kort"><p className="undertittel">Ingen målinger ennå. <Link href="/puls/ny">Start en måling</Link> — skriv spørsmålet rett i skjemaet.</p></section>
       ) : (
         (runder ?? []).map((r) => {
           const n = antall.get(r.id) ?? 0

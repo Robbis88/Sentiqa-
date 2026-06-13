@@ -15,31 +15,43 @@ export default async function NyRundeSide() {
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
   const om7 = new Date(idag); om7.setDate(om7.getDate() + 7)
 
+  const harSporsmal = (sporsmal ?? []).length > 0
+
   return (
     <>
       <h1>Start pulsmåling</h1>
-      <p className="undertittel">Velg ett spørsmål og en periode. <Link href="/puls">Tilbake</Link></p>
+      <p className="undertittel">Skriv et spørsmål og en periode — så er den publisert. <Link href="/puls">Tilbake</Link></p>
 
-      {(sporsmal ?? []).length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen aktive spørsmål. <Link href="/puls/sporsmal">Sett opp spørsmål først</Link>.</p></section>
-      ) : (
-        <section className="kort">
-          <form action={startRunde} className="skjema" style={{ maxWidth: 520 }}>
-            <label className="felt"><span>Spørsmål</span>
-              <select name="sporsmal_id" required defaultValue="">
-                <option value="" disabled>Velg …</option>
+      <section className="kort">
+        <form action={startRunde} className="skjema" style={{ maxWidth: 520 }}>
+          <label className="felt"><span>Spørsmål</span>
+            <input name="nytt_sporsmal" placeholder="f.eks. Hvordan har trivselen vært denne uka?" />
+          </label>
+          <label className="felt"><span>Kategori</span>
+            <input name="kategori" defaultValue="Trivsel" placeholder="Trivsel" />
+          </label>
+
+          {harSporsmal && (
+            <label className="felt"><span>… eller gjenbruk et tidligere spørsmål</span>
+              <select name="sporsmal_id" defaultValue="">
+                <option value="">– skriv et nytt over –</option>
                 {(sporsmal ?? []).map((s) => <option key={s.id} value={s.id}>{s.kategori}: {s.tekst}</option>)}
               </select>
             </label>
-            <div className="rad-2">
-              <label className="felt"><span>Fra</span><input type="date" name="start_dato" defaultValue={idag} required /></label>
-              <label className="felt"><span>Til</span><input type="date" name="slutt_dato" defaultValue={om7.toISOString().slice(0, 10)} required /></label>
-            </div>
-            <label className="felt"><span>Notat (valgfri)</span><input name="notat" placeholder="internt notat" /></label>
-            <button type="submit">Start måling</button>
-          </form>
-        </section>
-      )}
+          )}
+
+          <div className="rad-2">
+            <label className="felt"><span>Fra</span><input type="date" name="start_dato" defaultValue={idag} required /></label>
+            <label className="felt"><span>Til</span><input type="date" name="slutt_dato" defaultValue={om7.toISOString().slice(0, 10)} required /></label>
+          </div>
+          <label className="felt"><span>Notat (valgfri)</span><input name="notat" placeholder="internt notat" /></label>
+          <button type="submit">Start måling</button>
+        </form>
+      </section>
+
+      <p className="undertittel" style={{ marginTop: '0.6rem' }}>
+        Vil du administrere et fast spørsmålsbibliotek? <Link href="/puls/sporsmal">Spørsmål</Link>
+      </p>
     </>
   )
 }
