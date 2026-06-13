@@ -100,6 +100,18 @@ function Chip({ ikon, navn, verdi, retning }: { ikon: string; navn: string; verd
 
 export function Landing() {
   const ref = useReveal()
+  // Sikkerhetsnett: noen desktop-nettlesere blokkerer autoplay. Spill av alle
+  // videoer ved første interaksjon (klikk/scroll/tast) — og prøv umiddelbart.
+  useEffect(() => {
+    const root = ref.current
+    if (!root) return
+    const spill = () => root.querySelectorAll('video').forEach((v) => { v.muted = true; const p = v.play(); if (p && typeof p.catch === 'function') p.catch(() => {}) })
+    spill()
+    const evs: (keyof WindowEventMap)[] = ['pointerdown', 'click', 'keydown', 'touchstart', 'scroll', 'pointermove']
+    const handler = () => spill()
+    evs.forEach((e) => window.addEventListener(e, handler, { passive: true }))
+    return () => evs.forEach((e) => window.removeEventListener(e, handler))
+  }, [ref])
   // Videofilene ligger i public/video/
   const HAR = { fornemmer: true, forutser: true, direktor: true }
   return (
