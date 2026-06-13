@@ -57,7 +57,6 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B] },
       { sti: '/ikmat', tekst: 'IK-mat & avvik', roller: [A, B, T] },
       { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
-      { sti: '/kunnskap', tekst: 'Kunnskapsbase', roller: [A, B] },
       { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
       { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
       { sti: '/skills', tekst: 'Skills-score', roller: [A, B] },
@@ -81,7 +80,10 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   },
   {
     tittel: 'Plattform',
-    punkter: [{ sti: '/redaktor', tekst: 'Publisering', roller: ['plattform_redaktor'] }],
+    punkter: [
+      { sti: '/redaktor', tekst: 'Publisering', roller: ['plattform_redaktor'] },
+      { sti: '/kunnskap', tekst: 'Kunnskapsbase', roller: ['plattform_redaktor'] },
+    ],
   },
 ]
 
