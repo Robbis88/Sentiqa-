@@ -81,8 +81,8 @@ function Chip({ ikon, navn, verdi, retning }: { ikon: string; navn: string; verd
 
 export function Landing() {
   const ref = useReveal()
-  // Sett til true når videofilene er lagt i public/video/
-  const HAR = { fornemmer: false, forutser: false, direktor: false }
+  // Videofilene ligger i public/video/
+  const HAR = { fornemmer: true, forutser: true, direktor: true }
   return (
     <div className="lp" ref={ref}>
       <div className="lp-bg" aria-hidden>
