@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER } from '@/lib/rutineskjema'
+import { IKMAT_RUTINE } from '@/lib/ikmat/rutine'
 
 function ukedagerFra(formData: FormData): number[] {
   return formData.getAll('ukedager').map((u) => Number(u)).filter((n) => n >= 0 && n <= 6)
@@ -79,6 +80,33 @@ export async function leggTilRutine(formData: FormData) {
     beskrivelse,
     ukedager: ukedagerFra(formData),
     paakrevd_bilde: paakrevdBilde,
+    sortering: (siste?.sortering ?? -1) + 1,
+    opprettet_av: bruker.id,
+  })
+  revalidatePath(`/rutiner/oppsett/${skjemaId}`)
+  revalidatePath('/rutiner/oppsett')
+}
+
+export async function leggTilIkmatRutine(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) return
+  const skjemaId = String(formData.get('skjema_id') ?? '')
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const frekvens = String(formData.get('frekvens') ?? '')
+  const mal = IKMAT_RUTINE[frekvens]
+  if (!skjemaId || !stasjonId || !mal) return
+
+  const supabase = await lagSupabaseServerKlient()
+  const { data: siste } = await supabase.from('rutiner').select('sortering').eq('skjema_id', skjemaId).is('slettet_tid', null).order('sortering', { ascending: false }).limit(1).maybeSingle<{ sortering: number | null }>()
+  await supabase.from('rutiner').insert({
+    retailer_id: bruker.retailerId,
+    stasjon_id: stasjonId,
+    skjema_id: skjemaId,
+    tittel: mal.tittel,
+    beskrivelse: mal.tekst,
+    ukedager: ukedagerFra(formData),
+    paakrevd_bilde: false,
+    ikmat_frekvens: frekvens,
     sortering: (siste?.sortering ?? -1) + 1,
     opprettet_av: bruker.id,
   })

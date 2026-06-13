@@ -9,7 +9,8 @@ import { Konfetti } from '../konfetti'
 import { kryssAv, kryssAvMedBilde, fjernKryss } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
-type Rutine = { id: string; skjema_id: string | null; stasjon_id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; opprettet_dato: string; paakrevd_bilde: boolean }
+type Rutine = { id: string; skjema_id: string | null; stasjon_id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; opprettet_dato: string; paakrevd_bilde: boolean; ikmat_frekvens: string | null }
+type IkPunkt = { id: string; stasjon_id: string; frekvens: string }
 
 export default async function RutinerSide() {
   const bruker = await hentInnloggetBruker()
@@ -19,11 +20,24 @@ export default async function RutinerSide() {
   const supabase = await lagSupabaseServerKlient()
   const naa = osloNaa(new Date())
 
-  const [{ data: stasjoner }, { data: skjemaer }, { data: rutiner }] = await Promise.all([
+  const [{ data: stasjoner }, { data: skjemaer }, { data: rutiner }, { data: ikPunkter }, { data: ikIdag }] = await Promise.all([
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
     supabase.from('rutineskjemaer').select('id, stasjon_id, vakttype, navn, tid_start, tid_slutt, ukedager').eq('aktiv', true).is('slettet_tid', null).overrideTypes<Skjema[]>(),
-    supabase.from('rutiner').select('id, skjema_id, stasjon_id, tittel, beskrivelse, ukedager, opprettet_dato, paakrevd_bilde').not('skjema_id', 'is', null).is('slettet_tid', null).order('sortering').overrideTypes<Rutine[]>(),
+    supabase.from('rutiner').select('id, skjema_id, stasjon_id, tittel, beskrivelse, ukedager, opprettet_dato, paakrevd_bilde, ikmat_frekvens').not('skjema_id', 'is', null).is('slettet_tid', null).order('sortering').overrideTypes<Rutine[]>(),
+    supabase.from('ik_kontrollpunkter').select('id, stasjon_id, frekvens').is('slettet_tid', null).overrideTypes<IkPunkt[]>(),
+    supabase.from('ik_avlesninger').select('kontrollpunkt_id').eq('dato', naa.dato).overrideTypes<{ kontrollpunkt_id: string }[]>(),
   ])
+
+  // IK-mat: enheter pr stasjon + hva som er målt i dag (for auto-haking).
+  const ikPerStasjon = new Map<string, IkPunkt[]>()
+  for (const p of ikPunkter ?? []) { const l = ikPerStasjon.get(p.stasjon_id) ?? []; l.push(p); ikPerStasjon.set(p.stasjon_id, l) }
+  const maaltIdag = new Set((ikIdag ?? []).map((a) => a.kontrollpunkt_id))
+  // Due-enheter for en IK-mat-rutine, og hvor mange som er målt.
+  const ikmatStatus = (r: Rutine) => {
+    const due = (ikPerStasjon.get(r.stasjon_id) ?? []).filter((p) => p.frekvens === r.ikmat_frekvens)
+    const malt = due.filter((p) => maaltIdag.has(p.id)).length
+    return { antall: due.length, malt, ferdig: due.length > 0 && malt === due.length }
+  }
 
   // Aktive skjemaer nå (med vaktvindu)
   const aktive: { skjema: Skjema; vindu: Vaktvindu }[] = []
@@ -50,6 +64,8 @@ export default async function RutinerSide() {
       utfortMap.set(`${u.rutine_id}|${u.dato}`, u.bilde_sti)
     }
   }
+  // Gjort = vanlig rutine avhuket, ELLER IK-mat-gruppe ferdig målt i dag.
+  const erGjort = (r: Rutine, vaktdato: string) => (r.ikmat_frekvens ? ikmatStatus(r).ferdig : utfortMap.has(`${r.id}|${vaktdato}`))
   // Batchede signerte URL-er for bildebevis (aldri i loop, §15)
   const stier = [...utfortMap.values()].filter((s): s is string => Boolean(s))
   const signertFor = new Map<string, string>()
@@ -108,15 +124,18 @@ export default async function RutinerSide() {
           <section className="kort" key={sid}>
             <h2>{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className="streak"> 🔥 {streaks.get(sid)}</span>}</h2>
             {liste.map(({ skjema, vindu }) => {
-              const rs0 = (rutinerForSkjema.get(skjema.id) ?? []).filter((r) => rutineGjelder(r, vindu))
-              const ferdigN = rs0.filter((r) => utfortMap.has(`${r.id}|${vindu.vaktdato}`)).length
+              const rs0 = (rutinerForSkjema.get(skjema.id) ?? [])
+                .filter((r) => rutineGjelder(r, vindu))
+                // Skjul IK-mat-kort uten enheter å måle for gruppen.
+                .filter((r) => !r.ikmat_frekvens || ikmatStatus(r).antall > 0)
+              const ferdigN = rs0.filter((r) => erGjort(r, vindu.vaktdato)).length
               const totalt = rs0.length
               const alleFerdig = totalt > 0 && ferdigN === totalt
               const pst = totalt > 0 ? Math.round((ferdigN / totalt) * 100) : 0
               const igjen = totalt - ferdigN
               const mikro = alleFerdig ? o('Alt klart! 🎉') : igjen === 1 ? o('1 igjen — nesten i mål!') : `${igjen} ${o('igjen')}`
               // Åpne oppgaver øverst (ferdige synker ned)
-              const rs = [...rs0].sort((a, b) => Number(utfortMap.has(`${a.id}|${vindu.vaktdato}`)) - Number(utfortMap.has(`${b.id}|${vindu.vaktdato}`)))
+              const rs = [...rs0].sort((a, b) => Number(erGjort(a, vindu.vaktdato)) - Number(erGjort(b, vindu.vaktdato)))
               return (
                 <div className="ik-gruppe" key={skjema.id}>
                   <Konfetti aktiv={alleFerdig} nokkel={`${skjema.id}-${vindu.vaktdato}`} />
@@ -133,6 +152,19 @@ export default async function RutinerSide() {
                     <ul className="rutine-liste">
                       {rs.map((r) => {
                         const key = `${r.id}|${vindu.vaktdato}`
+                        // IK-mat-kort: lenke til måle-arket, auto-haket når alt er målt.
+                        if (r.ikmat_frekvens) {
+                          const st = ikmatStatus(r)
+                          return (
+                            <li key={r.id} className={`ikmat-rutine ${st.ferdig ? 'gjort' : ''}`}>
+                              <span className={`kryss ${st.ferdig ? 'av' : ''}`} aria-hidden>{st.ferdig ? '✓' : '🌡️'}</span>
+                              <Link href={`/ikmat/maaling?stasjon=${r.stasjon_id}&frekvens=${r.ikmat_frekvens}`} className="rutine-tekst ikmat-lenke">
+                                <strong>{o(r.tittel)}</strong>
+                                <span className="undertittel"> — {st.malt}/{st.antall} målt{st.ferdig ? ' ✓' : ' · trykk for å måle'}</span>
+                              </Link>
+                            </li>
+                          )
+                        }
                         const gjort = utfortMap.has(key)
                         const lagretSti = utfortMap.get(key)
                         const bildeUrl = lagretSti ? signertFor.get(lagretSti) : undefined

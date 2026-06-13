@@ -6,7 +6,7 @@ import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
-import { STANDARD_KONTROLLPUNKTER } from '@/lib/ikmat/standard'
+import { STANDARD_KONTROLLPUNKTER, kravTekst } from '@/lib/ikmat/standard'
 
 // Tablet/ansatt logger en temperatur. Utenfor kravet → avvik + varsel (§16.5).
 export async function registrerAvlesning(formData: FormData) {
@@ -53,6 +53,52 @@ export async function registrerAvlesning(formData: FormData) {
     })
   }
   revalidatePath('/ikmat')
+}
+
+// Tablet-måling: logg temperatur, og ved avvik (utenfor krav) opprett et ekte
+// avvik med strakstiltak der og da. Returnerer resultat så klienten kan reagere.
+export type MaalingResultat = { ok?: true; innenfor?: boolean; feil?: string }
+export async function loggMaaling(punktId: string, tempStr: string, strakstiltak: string): Promise<MaalingResultat> {
+  const bruker = await hentInnloggetBruker()
+  if (!bruker.retailerId) return { feil: 'Mangler tilgang.' }
+  const temp = Number(String(tempStr ?? '').replace(',', '.').trim())
+  if (!punktId || !Number.isFinite(temp)) return { feil: 'Skriv en temperatur.' }
+
+  const supabase = await lagSupabaseServerKlient()
+  const { data: punkt } = await supabase
+    .from('ik_kontrollpunkter').select('navn, stasjon_id, min_temp, max_temp')
+    .eq('id', punktId).maybeSingle<{ navn: string; stasjon_id: string; min_temp: number | null; max_temp: number | null }>()
+  if (!punkt) return { feil: 'Fant ikke kontrollpunktet.' }
+
+  const innenfor = !(punkt.min_temp != null && temp < punkt.min_temp) && !(punkt.max_temp != null && temp > punkt.max_temp)
+  const tiltak = String(strakstiltak ?? '').trim()
+  if (!innenfor && !tiltak) return { innenfor: false, feil: 'Skriv strakstiltak for avviket.' }
+
+  const ansatt = await lesAktivAnsatt()
+  await supabase.from('ik_avlesninger').insert({
+    kontrollpunkt_id: punktId, stasjon_id: punkt.stasjon_id, dato: iDag(),
+    temperatur: temp, innenfor, tiltak: innenfor ? null : tiltak, avlest_av: bruker.id, ansatt_id: ansatt?.id ?? null,
+  })
+
+  if (!innenfor) {
+    // Ekte avvik (HACCP) med løpenr + varsel til leder.
+    const { count } = await supabase.from('avvik').select('*', { count: 'exact', head: true }).eq('retailer_id', bruker.retailerId)
+    await supabase.from('avvik').insert({
+      retailer_id: bruker.retailerId, stasjon_id: punkt.stasjon_id, lopenr: (count ?? 0) + 1,
+      kategori: 'utstyr', dato: iDag(),
+      beskrivelse: `IK-mat: ${punkt.navn} målt ${temp}°C (krav ${kravTekst(punkt.min_temp, punkt.max_temp)}).`,
+      strakstiltak: tiltak, opprettet_av: bruker.id,
+    })
+    await opprettVarsel(supabase, {
+      retailer_id: bruker.retailerId, stasjon_id: punkt.stasjon_id, type: 'ikmat',
+      tittel: `IK-mat avvik: ${punkt.navn}`,
+      tekst: `Målt ${temp}°C (krav ${kravTekst(punkt.min_temp, punkt.max_temp)}). Strakstiltak: ${tiltak}`,
+      lenke: '/avvik',
+    })
+  }
+  revalidatePath('/ikmat')
+  revalidatePath('/rutiner')
+  return { ok: true, innenfor }
 }
 
 // Setter opp hele St1-standarden for en stasjon med ett klikk.

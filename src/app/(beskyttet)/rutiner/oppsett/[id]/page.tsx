@@ -2,14 +2,17 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPE_ETIKETT, UKEDAG_NAVN } from '@/lib/rutineskjema'
-import { oppdaterSkjema, leggTilRutine } from '../handlinger'
+import { oppdaterSkjema, leggTilRutine, leggTilIkmatRutine, slettRutine } from '../handlinger'
+import { IKMAT_RUTINE } from '@/lib/ikmat/rutine'
 import { RutineListe } from './rutine-liste'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
-type Rutine = { id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
+type Rutine = { id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean; ikmat_frekvens: string | null }
 
 // Mandag først (referansen), men behold verdien 0=Søn..6=Lør.
 const DAG_REKKE = [1, 2, 3, 4, 5, 6, 0]
+const IKMAT_FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
+function dagerKort(d: number[]) { return d.length === 0 ? 'alle dager' : d.map((i) => UKEDAG_NAVN[i]).join(', ') }
 
 function Ukedager({ valgt }: { valgt: number[] }) {
   return (
@@ -36,10 +39,12 @@ export default async function SkjemaEditor({ params }: { params: Promise<{ id: s
   if (!skjema) return <p>Fant ikke skjemaet. <Link href="/rutiner/oppsett">Tilbake</Link></p>
 
   const { data: rutinerData } = await supabase
-    .from('rutiner').select('id, tittel, beskrivelse, ukedager, paakrevd_bilde')
+    .from('rutiner').select('id, tittel, beskrivelse, ukedager, paakrevd_bilde, ikmat_frekvens')
     .eq('skjema_id', id).is('slettet_tid', null).order('sortering').order('opprettet_tid')
     .overrideTypes<Rutine[]>()
-  const rutiner = rutinerData ?? []
+  const alleRutiner = rutinerData ?? []
+  const rutiner = alleRutiner.filter((r) => !r.ikmat_frekvens)
+  const ikmatRutiner = alleRutiner.filter((r) => r.ikmat_frekvens)
 
   return (
     <>
@@ -73,6 +78,38 @@ export default async function SkjemaEditor({ params }: { params: Promise<{ id: s
           <label className="felt"><span>Hvilke ukedager? (tom = alle dager skjemaet er aktivt)</span><Ukedager valgt={[]} /></label>
           <label className="avkryss bilde-krav"><input type="checkbox" name="paakrevd_bilde" /> <span>📷 Krev bilde — rutinen kan ikke hakes av uten bildebevis</span></label>
           <button type="submit" className="primaer-knapp gul">+ Legg til rutine</button>
+        </form>
+      </section>
+
+      {/* IK-mat-kontroll i vakta */}
+      <section className="kort">
+        <h2>🌡️ IK-mat-kontroll</h2>
+        <p className="undertittel">Legg temperaturkontrollen inn i denne vakta. På tableten blir den et kort som lenker til måle-arket, og hakes av når alt er målt. Velg ukedager for når den skal gjøres.</p>
+
+        {ikmatRutiner.length > 0 && (
+          <ul className="rutine-liste">
+            {ikmatRutiner.map((r) => (
+              <li key={r.id}>
+                <div className="rutine-tekst">
+                  <strong>{r.tittel}</strong>
+                  <span className="undertittel"> · {dagerKort((r.ukedager ?? []) as number[])}</span>
+                </div>
+                <form action={slettRutine}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten slett" aria-label="Slett">✕</button></form>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form action={leggTilIkmatRutine} className="rutine-rediger" style={{ marginTop: '0.6rem' }}>
+          <input type="hidden" name="skjema_id" value={skjema.id} />
+          <input type="hidden" name="stasjon_id" value={skjema.stasjon_id} />
+          <label className="felt"><span>Frekvens-gruppe</span>
+            <select name="frekvens" defaultValue="daglig">
+              {IKMAT_FREKVENSER.map((f) => <option key={f} value={f}>{IKMAT_RUTINE[f].tittel}</option>)}
+            </select>
+          </label>
+          <label className="felt"><span>Hvilke ukedager?</span><Ukedager valgt={[]} /></label>
+          <button type="submit" className="primaer-knapp">+ Legg til IK-mat-kontroll</button>
         </form>
       </section>
 

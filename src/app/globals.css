@@ -574,6 +574,24 @@ button.liten.slett:hover { background: #fdecea; }
 .ik-punkt-rad input[inputmode="decimal"] { max-width: 6.5rem; }
 @media (max-width: 560px) { .ik-punkt-rad { grid-template-columns: 1fr 1fr; } }
 
+/* IK-mat som rutine på tableten */
+.ikmat-rutine { align-items: center; }
+.ikmat-lenke { text-decoration: none; color: inherit; flex: 1; }
+.ikmat-lenke:hover strong { text-decoration: underline; }
+
+/* IK-mat måle-ark (tablet) */
+.maaling-liste { list-style: none; margin: 0.7rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.maaling-rad { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem 0.8rem; align-items: center; padding: 0.8rem 0.9rem; border: 1px solid var(--kant); border-radius: 12px; }
+.maaling-rad.ok-rad { border-color: var(--gronn); background: var(--gronn-svak); }
+.maaling-rad.avvik-rad { border-color: var(--rod); background: var(--rod-svak); }
+.maaling-navn { font-weight: 700; }
+.maaling-rad .krav { color: var(--tekst-svak); font-size: 0.85rem; white-space: nowrap; }
+.maaling-input { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.4rem; }
+.maaling-input-rad { display: flex; gap: 0.5rem; }
+.maaling-input input { width: 6.5rem; padding: 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font: inherit; font-size: 1.05rem; }
+.maaling-input input:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
+.maaling-tiltak { width: 100%; padding: 0.6rem; border: 1px solid var(--rod); border-radius: 8px; font: inherit; background: var(--kort); }
+
 /* Opplæring */
 .person-liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; }
 .person-liste li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--kant); border-radius: 6px; }
