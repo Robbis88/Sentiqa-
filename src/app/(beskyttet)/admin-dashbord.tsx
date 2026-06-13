@@ -9,6 +9,7 @@ import { Sammenleggbar } from './sammenleggbar'
 import { AiKort } from './ai-kort'
 import { Stasjonsrangering, type RangRad } from './stasjonsrangering'
 import { AVDELINGER } from '@/lib/avdelinger'
+import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 
 const SNARVEIER = [
   { sti: '/regnskap', tekst: 'Regnskap', ikon: '📒' },
@@ -48,6 +49,7 @@ type DashData = {
   ukerapporter: UkeRapport[]
   sisteSalg: { dato: string } | null
   kpiStrip: Kpi[]
+  driftsstatus: { navn: string; status: string; grunn: string }[]
   feil: string | null
 }
 
@@ -56,7 +58,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
   const tomt: DashData = {
     stasjonsListe: [], navnFor: new Map(), sistePeriode: null, rangRader: [], avdListe: [],
     tilbake: [], aapne: [], forsinkede: [], fullfort30: 0, fokusGrupper: [],
-    aktivKonk: null, ukerapporter: [], sisteSalg: null, kpiStrip: [], feil: null,
+    aktivKonk: null, ukerapporter: [], sisteSalg: null, kpiStrip: [], driftsstatus: [], feil: null,
   }
   try {
     const { data: stasjoner } = await supabase
@@ -157,14 +159,31 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     const bruttoT = finnC('bruttofortjeneste', /^bruttofortjeneste totalt/i)
     const resEx = finnC('resultat', /ex 9900/i)
     const persEx = finnC('driftskostnader', /personalkostnad ex 9900/i)
-    const lonnPst = omsT?.regnskap && persEx?.regnskap ? (persEx.regnskap / omsT.regnskap) * 100 : null
     const kpiStrip: Kpi[] = []
     if (omsT) kpiStrip.push({ merke: '💰 Omsetning', verdi: kr.format(omsT.regnskap ?? 0), avvik: avvikP(omsT) })
     if (bruttoT) kpiStrip.push({ merke: '📈 Bruttofortjeneste', verdi: kr.format(bruttoT.regnskap ?? 0), avvik: avvikP(bruttoT) })
     if (resEx) kpiStrip.push({ merke: '💵 Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx) })
-    if (lonnPst != null) kpiStrip.push({ merke: '👥 Lønn % av omsetning', verdi: `${lonnPst.toFixed(1)} %`, avvik: null })
+    // Lønn mot LØNNSBUDSJETT (ikke mot omsetning).
+    if (persEx) kpiStrip.push({ merke: '👥 Lønn vs budsjett', verdi: kr.format(persEx.regnskap ?? 0), avvik: avvikP(persEx) })
 
-    return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusGrupper, aktivKonk, ukerapporter, sisteSalg, kpiStrip, feil: null }
+    // Driftsstatus per stasjon (grønn/gul/rød) fra varsel-motoren — samme
+    // «alt som ikke er bra»-logikk som /regnskap. Mest kritiske øverst.
+    let driftsstatus: DashData['driftsstatus'] = []
+    if (sistePeriode) {
+      const varsler = await hentRegnskapVarsler(supabase, retailerId, sistePeriode).catch(() => [])
+      const rang: Record<string, number> = { rod: 0, gul: 1, gronn: 2 }
+      driftsstatus = stasjonsListe.map((s) => {
+        const navn = `${s.butikknummer} ${s.navn}`
+        const mine = varsler.filter((v) => v.omfang === navn)
+        const rod = mine.find((v) => v.nivaa === 'rod')
+        const gul = mine.find((v) => v.nivaa === 'gul')
+        if (rod) return { navn, status: 'rod', grunn: rod.tittel }
+        if (gul) return { navn, status: 'gul', grunn: gul.tittel }
+        return { navn, status: 'gronn', grunn: 'Alt i rute' }
+      }).sort((a, b) => rang[a.status] - rang[b.status])
+    }
+
+    return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusGrupper, aktivKonk, ukerapporter, sisteSalg, kpiStrip, driftsstatus, feil: null }
   } catch (e) {
     console.error('AdminDashbord samleData feilet:', e)
     return { ...tomt, feil: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }
@@ -210,6 +229,22 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
               </span>
             </Link>
           ))}
+        </section>
+      )}
+
+      {d.driftsstatus.length > 0 && (
+        <section className="kort driftsstatus">
+          <h2>🎛️ Driftsstatus per stasjon</h2>
+          <p className="undertittel">Grønt går bra, rødt trenger handling — basert på regnskapet{d.sistePeriode ? ` (${manedAar.format(new Date(d.sistePeriode))})` : ''}. Mest kritiske øverst.</p>
+          <ul className="driftsstatus-liste">
+            {d.driftsstatus.map((s) => (
+              <li key={s.navn} className={`driftsstatus-rad ${s.status}`}>
+                <span className="driftsstatus-prikk" />
+                <span className="driftsstatus-navn">{s.navn}</span>
+                <span className="driftsstatus-grunn">{s.grunn}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
