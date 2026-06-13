@@ -111,6 +111,12 @@ export function Landing() {
       <div className="lp-inn">
         {/* HERO */}
         <header className="lp-hero">
+          <div className="lp-hero-video" aria-hidden>
+            <video autoPlay muted loop playsInline preload="metadata">
+              <source src="/video/hero.mp4" type="video/mp4" />
+            </video>
+            <div className="lp-hero-overlay" />
+          </div>
           <div className="lp-mid">
             <span className="lp-merke"><span className="lp-prikk" />AI-drevet drift for servicehandelen</span>
             <h1 className="lp-h1"><span className="grad">Fornemmer.<br />Forstår.<br />Forutser.</span></h1>
