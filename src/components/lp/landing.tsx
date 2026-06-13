@@ -64,8 +64,9 @@ function AutoVideo({ src, className }: { src: string; className?: string }) {
     const p = el.play()
     if (p && typeof p.catch === 'function') p.catch(() => {})
   }, [])
+  const poster = src.replace(/\.mp4$/, '.jpg')
   return (
-    <video ref={ref} className={className} autoPlay muted loop playsInline preload="auto" disablePictureInPicture>
+    <video ref={ref} className={className} poster={poster} autoPlay muted loop playsInline preload="auto" disablePictureInPicture>
       <source src={src} type="video/mp4" />
     </video>
   )
