@@ -581,6 +581,12 @@ button.liten.slett:hover { background: #fdecea; }
 .ikmat-lenke { text-decoration: none; color: inherit; flex: 1; }
 .ikmat-lenke:hover strong { text-decoration: underline; }
 
+/* Kollapset «Ferdige»-seksjon i rutiner */
+.ferdige-rutiner { margin-top: 0.6rem; }
+.ferdige-rutiner summary { cursor: pointer; color: var(--tekst-svak); font-weight: 600; font-size: 0.85rem; padding: 0.4rem 0; list-style: none; }
+.ferdige-rutiner summary::-webkit-details-marker { display: none; }
+.ferdige-rutiner .rutine-liste { opacity: 0.75; }
+
 /* IK-mat måle-ark (tablet) */
 .maaling-liste { list-style: none; margin: 0.7rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .maaling-rad { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem 0.8rem; align-items: center; padding: 0.8rem 0.9rem; border: 1px solid var(--kant); border-radius: 12px; }
@@ -997,6 +1003,20 @@ button.liten.slett:hover { background: #fdecea; }
 .heatmap th { color: var(--tekst-svak); font-weight: 600; font-size: 0.78rem; background: #fff; }
 .heatmap td.time, .heatmap th:first-child { text-align: left; font-variant-numeric: tabular-nums; color: var(--tekst-svak); }
 .heatmap tr.sum td { font-weight: 700; border-top: 2px solid var(--kant); background: #fff; }
+
+/* Datadekning */
+.dekning td, .dekning th { padding: 0.3rem 0.45rem; text-align: center; }
+.dekning .dekning-dag { font-size: 0.68rem; line-height: 1.1; }
+.dekning .dekning-navn { text-align: left; font-weight: 600; white-space: nowrap; }
+.dekning-celle { font-size: 0.75rem; font-weight: 700; }
+.dekning-celle.har { background: var(--gronn-svak); color: var(--gronn); }
+.dekning-celle.mangler { background: var(--rod-svak); color: var(--rod); }
+.dekning-celle.vente { background: var(--bg); color: var(--tekst-svak); }
+.dekning-tegn { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
+.dekning-prikk { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin: 0 0.1rem 0 0.5rem; vertical-align: middle; }
+.dekning-prikk.har { background: var(--gronn); }
+.dekning-prikk.mangler { background: var(--rod); }
+.dekning-prikk.vente { background: var(--kant-sterk); }
 
 /* Liten knapp i tabeller */
 button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; }

@@ -74,6 +74,7 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     tittel: 'Innstillinger',
     punkter: [
       { sti: '/import', tekst: 'Import', roller: [A] },
+      { sti: '/dekning', tekst: 'Datadekning', roller: [A] },
       { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },
       { sti: '/brukere', tekst: 'Brukere', roller: [A] },
       { sti: '/abonnement', tekst: 'Abonnement', roller: [A] },

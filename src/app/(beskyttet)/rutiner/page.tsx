@@ -95,7 +95,7 @@ export default async function RutinerSide() {
   // Flerspråk: oversett rutinetekstene til valgt språk (cache + Haiku).
   const { cookies } = await import('next/headers')
   const sprak = (await cookies()).get('sprak')?.value ?? 'no'
-  const tekster: string[] = ['Alt klart! 🎉', '1 igjen — nesten i mål!', 'igjen', ...Object.values(VAKTTYPE_ETIKETT)]
+  const tekster: string[] = ['Alt klart! 🎉', '1 igjen — nesten i mål!', 'igjen', 'Ferdige', ...Object.values(VAKTTYPE_ETIKETT)]
   for (const { skjema, vindu } of aktive) {
     for (const r of (rutinerForSkjema.get(skjema.id) ?? []).filter((rr) => rutineGjelder(rr, vindu))) {
       tekster.push(r.tittel)
@@ -134,8 +134,56 @@ export default async function RutinerSide() {
               const pst = totalt > 0 ? Math.round((ferdigN / totalt) * 100) : 0
               const igjen = totalt - ferdigN
               const mikro = alleFerdig ? o('Alt klart! 🎉') : igjen === 1 ? o('1 igjen — nesten i mål!') : `${igjen} ${o('igjen')}`
-              // Åpne oppgaver øverst (ferdige synker ned)
-              const rs = [...rs0].sort((a, b) => Number(erGjort(a, vindu.vaktdato)) - Number(erGjort(b, vindu.vaktdato)))
+              // Én rutine-rad (gjenbrukes for åpne + ferdige).
+              const rad = (r: Rutine) => {
+                const key = `${r.id}|${vindu.vaktdato}`
+                if (r.ikmat_frekvens) {
+                  const st = ikmatStatus(r)
+                  return (
+                    <li key={r.id} className={`ikmat-rutine ${st.ferdig ? 'gjort' : ''}`}>
+                      <span className={`kryss ${st.ferdig ? 'av' : ''}`} aria-hidden>{st.ferdig ? '✓' : '🌡️'}</span>
+                      <Link href={`/ikmat/maaling?stasjon=${r.stasjon_id}&frekvens=${r.ikmat_frekvens}`} className="rutine-tekst ikmat-lenke">
+                        <strong>{o(r.tittel)}</strong>
+                        <span className="undertittel"> — {st.malt}/{st.antall} målt{st.ferdig ? ' ✓' : ' · trykk for å måle'}</span>
+                      </Link>
+                    </li>
+                  )
+                }
+                const gjort = utfortMap.has(key)
+                const lagretSti = utfortMap.get(key)
+                const bildeUrl = lagretSti ? signertFor.get(lagretSti) : undefined
+                return (
+                  <li key={r.id} className={gjort ? 'gjort' : ''}>
+                    {r.paakrevd_bilde && !gjort ? (
+                      <form action={kryssAvMedBilde} className="bilde-kryss">
+                        <input type="hidden" name="rutine_id" value={r.id} />
+                        <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
+                        <input type="hidden" name="dato" value={vindu.vaktdato} />
+                        <input type="file" name="bilde" accept="image/*" capture="environment" required aria-label="Ta bilde" />
+                        <button type="submit" className="liten" aria-label="Kryss av med bilde">📷</button>
+                      </form>
+                    ) : (
+                      <form action={gjort ? fjernKryss : kryssAv}>
+                        <input type="hidden" name="rutine_id" value={r.id} />
+                        <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
+                        <input type="hidden" name="dato" value={vindu.vaktdato} />
+                        <button type="submit" className={`kryss ${gjort ? 'av' : ''}`} aria-label="Kryss av">{gjort ? '✓' : ''}</button>
+                      </form>
+                    )}
+                    <div className="rutine-tekst">
+                      <strong>{o(r.tittel)}</strong>
+                      {r.beskrivelse ? <span className="undertittel"> — {o(r.beskrivelse)}</span> : null}
+                      {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
+                    </div>
+                    {bildeUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <a href={bildeUrl} target="_blank" rel="noopener" className="bevis-lenke"><img src={bildeUrl} alt="Bevis" className="bevis-bilde" /></a>
+                    )}
+                  </li>
+                )
+              }
+              const aapne = rs0.filter((r) => !erGjort(r, vindu.vaktdato))
+              const ferdige = rs0.filter((r) => erGjort(r, vindu.vaktdato))
               return (
                 <div className="ik-gruppe" key={skjema.id}>
                   <Konfetti aktiv={alleFerdig} nokkel={`${skjema.id}-${vindu.vaktdato}`} />
@@ -146,59 +194,18 @@ export default async function RutinerSide() {
                       <span className="fremdrift-tekst">{mikro}</span>
                     </div>
                   )}
-                  {rs.length === 0 ? (
+                  {rs0.length === 0 ? (
                     <p className="undertittel">Ingen rutiner for denne vakten i dag.</p>
                   ) : (
-                    <ul className="rutine-liste">
-                      {rs.map((r) => {
-                        const key = `${r.id}|${vindu.vaktdato}`
-                        // IK-mat-kort: lenke til måle-arket, auto-haket når alt er målt.
-                        if (r.ikmat_frekvens) {
-                          const st = ikmatStatus(r)
-                          return (
-                            <li key={r.id} className={`ikmat-rutine ${st.ferdig ? 'gjort' : ''}`}>
-                              <span className={`kryss ${st.ferdig ? 'av' : ''}`} aria-hidden>{st.ferdig ? '✓' : '🌡️'}</span>
-                              <Link href={`/ikmat/maaling?stasjon=${r.stasjon_id}&frekvens=${r.ikmat_frekvens}`} className="rutine-tekst ikmat-lenke">
-                                <strong>{o(r.tittel)}</strong>
-                                <span className="undertittel"> — {st.malt}/{st.antall} målt{st.ferdig ? ' ✓' : ' · trykk for å måle'}</span>
-                              </Link>
-                            </li>
-                          )
-                        }
-                        const gjort = utfortMap.has(key)
-                        const lagretSti = utfortMap.get(key)
-                        const bildeUrl = lagretSti ? signertFor.get(lagretSti) : undefined
-                        return (
-                          <li key={r.id} className={gjort ? 'gjort' : ''}>
-                            {r.paakrevd_bilde && !gjort ? (
-                              <form action={kryssAvMedBilde} className="bilde-kryss">
-                                <input type="hidden" name="rutine_id" value={r.id} />
-                                <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
-                                <input type="hidden" name="dato" value={vindu.vaktdato} />
-                                <input type="file" name="bilde" accept="image/*" capture="environment" required aria-label="Ta bilde" />
-                                <button type="submit" className="liten" aria-label="Kryss av med bilde">📷</button>
-                              </form>
-                            ) : (
-                              <form action={gjort ? fjernKryss : kryssAv}>
-                                <input type="hidden" name="rutine_id" value={r.id} />
-                                <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
-                                <input type="hidden" name="dato" value={vindu.vaktdato} />
-                                <button type="submit" className={`kryss ${gjort ? 'av' : ''}`} aria-label="Kryss av">{gjort ? '✓' : ''}</button>
-                              </form>
-                            )}
-                            <div className="rutine-tekst">
-                              <strong>{o(r.tittel)}</strong>
-                              {r.beskrivelse ? <span className="undertittel"> — {o(r.beskrivelse)}</span> : null}
-                              {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
-                            </div>
-                            {bildeUrl && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <a href={bildeUrl} target="_blank" rel="noopener" className="bevis-lenke"><img src={bildeUrl} alt="Bevis" className="bevis-bilde" /></a>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
+                    <>
+                      {aapne.length > 0 && <ul className="rutine-liste">{aapne.map(rad)}</ul>}
+                      {ferdige.length > 0 && (
+                        <details className="ferdige-rutiner">
+                          <summary>✓ {o('Ferdige')} ({ferdige.length})</summary>
+                          <ul className="rutine-liste">{ferdige.map(rad)}</ul>
+                        </details>
+                      )}
+                    </>
                   )}
                 </div>
               )
