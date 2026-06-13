@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
-// ---- Scroll-reveal: legg .vis på alle .reveal når de kommer i syne ----
+// ---- Scroll-reveal ----
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -18,34 +18,7 @@ function useReveal() {
   return ref
 }
 
-// ---- Hero-konsoll: typer ut AI-sekvensen linje for linje ----
-const SEKVENS = ['Regn registrert over Bergen.', '+17 % forventet salg av kaffe.', 'Produksjon justert.', 'Bemanning optimalisert.', 'Varebestilling sendt.']
-function Konsoll() {
-  const [ferdige, setFerdige] = useState<string[]>([])
-  const [aktiv, setAktiv] = useState('')
-  const [ferdig, setFerdig] = useState(false)
-  useEffect(() => {
-    let li = 0, ci = 0, t: ReturnType<typeof setTimeout>
-    const steg = () => {
-      if (li >= SEKVENS.length) { setFerdig(true); return }
-      const full = SEKVENS[li]
-      if (ci <= full.length) { setAktiv(full.slice(0, ci)); ci++; t = setTimeout(steg, 34) }
-      else { setFerdige((p) => [...p, full]); setAktiv(''); li++; ci = 0; t = setTimeout(steg, 430) }
-    }
-    t = setTimeout(steg, 700)
-    return () => clearTimeout(t)
-  }, [])
-  return (
-    <div className="lp-konsoll">
-      <div className="lp-konsoll-topp"><i />sentiqa · sanntid</div>
-      {ferdige.map((l, i) => <div className="lp-linje" key={i}><span className="pil">→</span><span>{l}</span></div>)}
-      {!ferdig && <div className="lp-linje"><span className="pil">→</span><span>{aktiv}<span className="lp-caret" /></span></div>}
-      {ferdig && <div className="lp-ferdig">Sentiqa er allerede i gang.</div>}
-    </div>
-  )
-}
-
-// ---- Animert teller når den scrolles inn ----
+// ---- Animert teller ----
 function Teller({ til, desim = 0, suffiks = '', merke }: { til: number; desim?: number; suffiks?: string; merke: string }) {
   const [v, setV] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
@@ -79,18 +52,37 @@ function Teller({ til, desim = 0, suffiks = '', merke }: { til: number; desim?: 
   )
 }
 
-function Chip({ ikon, navn, verdi, retning }: { ikon: string; navn: string; verdi: string; retning?: 'opp' | 'ned' }) {
+// ---- Video-slot: ekte video hvis fila finnes, ellers ren placeholder ----
+function VideoSlot({ src, label, tilgjengelig }: { src: string; label: string; tilgjengelig: boolean }) {
+  if (tilgjengelig) {
+    return (
+      <div className="lp-vslot">
+        <video autoPlay muted loop playsInline preload="metadata"><source src={src} type="video/mp4" /></video>
+      </div>
+    )
+  }
+  return (
+    <div className="lp-vslot lp-vslot-tom">
+      <div className="lp-vslot-spill">🎬</div>
+      <div className="lp-vslot-tekst"><strong>{label}</strong><span>Videoslot — slipp inn <code>{src}</code></span></div>
+    </div>
+  )
+}
+
+function Chip({ ikon, navn, verdi, retning }: { ikon: string; navn: string; verdi?: string; retning?: 'opp' | 'ned' }) {
   return (
     <div className="lp-chip">
       <span className="ikon">{ikon}</span>
       <span>{navn}</span>
-      <span className={`verdi ${retning ?? ''}`}>{verdi}</span>
+      {verdi && <span className={`verdi ${retning ?? ''}`}>{verdi}</span>}
     </div>
   )
 }
 
 export function Landing() {
   const ref = useReveal()
+  // Sett til true når videofilene er lagt i public/video/
+  const HAR = { fornemmer: false, forutser: false, direktor: false }
   return (
     <div className="lp" ref={ref}>
       <div className="lp-bg" aria-hidden>
@@ -109,168 +101,158 @@ export function Landing() {
       </nav>
 
       <div className="lp-inn">
-        {/* HERO */}
+        {/* 1 — HERO (Video 1) */}
         <header className="lp-hero">
           <div className="lp-hero-video" aria-hidden>
-            <video autoPlay muted loop playsInline preload="metadata">
-              <source src="/video/hero.mp4" type="video/mp4" />
-            </video>
+            <video autoPlay muted loop playsInline preload="metadata"><source src="/video/hero.mp4" type="video/mp4" /></video>
             <div className="lp-hero-overlay" />
           </div>
           <div className="lp-mid">
             <span className="lp-merke"><span className="lp-prikk" />AI-drevet drift for servicehandelen</span>
             <h1 className="lp-h1"><span className="grad">Fornemmer.<br />Forstår.<br />Forutser.</span></h1>
-            <p className="lp-sub">Mindre tid på kontoret. <b>Mer tid i butikken.</b></p>
-            <Konsoll />
+            <p className="lp-sub">AI som analyserer <b>vær, trafikk, salg og drift</b> før mulighetene oppstår.</p>
             <div className="lp-knapper">
-              <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Demo av Sentiqa">Be om en demo →</a>
+              <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Live demo av Sentiqa">Se live demo →</a>
               <Link className="lp-knapp sekundaer" href="/logg-inn">Logg inn</Link>
             </div>
           </div>
         </header>
 
-        {/* TELLERE */}
-        <div className="lp-mid">
-          <div className="lp-tellere reveal">
-            <Teller til={12000000} suffiks="+" merke="datapunkter analysert" />
-            <Teller til={1500000} suffiks="+" merke="transaksjoner forstått" />
-            <Teller til={94} suffiks=" %" merke="prognose­treffsikkerhet" />
-            <Teller til={99.9} desim={1} suffiks=" %" merke="systemtilgjengelighet" />
+        {/* 2 — PROBLEMET */}
+        <section className="lp-seksjon">
+          <div className="lp-mid">
+            <h2 className="lp-stort reveal">De fleste butikker reagerer på <span className="dim">gårsdagen.</span><br />Sentiqa reagerer på <span className="grad">morgendagen.</span></h2>
+            <div className="lp-tellere reveal">
+              <Teller til={12000000} suffiks="+" merke="datapunkter analysert" />
+              <Teller til={94} suffiks=" %" merke="prognosetreff" />
+              <Teller til={500} suffiks="+" merke="faktorer overvåket" />
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* AKT 1 — FORNEMMER */}
+        {/* 3 — FORNEMMER (Video 2) */}
         <section className="lp-seksjon">
           <div className="lp-mid lp-akt">
             <div className="reveal">
               <div className="lp-kapittel">01 — Fornemmer</div>
               <h2 className="lp-akt-h2">Den ser hele bildet, hele tiden.</h2>
-              <p className="lp-akt-tekst">Vær, trafikk, utfartsmønster, drivstoffpriser, kampanjer og historiske salgstall strømmer inn kontinuerlig. Sentiqa kobler det sammen — slik en erfaren driftssjef ville gjort, bare uten å sove.</p>
+              <p className="lp-akt-tekst">Sentiqa tar inn signalene som faktisk styrer dagen din — og kobler dem sammen kontinuerlig.</p>
+              <div className="lp-rader" style={{ padding: 0, marginTop: '1.2rem' }}>
+                <Chip ikon="☀️" navn="Vær" verdi="Live varsel" />
+                <Chip ikon="🚗" navn="Trafikk" verdi="Sanntid" />
+                <Chip ikon="⛽" navn="Drivstoffpriser" />
+                <Chip ikon="📅" navn="Helligdager" />
+                <Chip ikon="🏟️" navn="Arrangementer" />
+              </div>
             </div>
             <div className="lp-akt-visuell reveal">
-              <div className="lp-panel">
-                <div className="lp-panel-glod" />
-                <div className="lp-stream" />
-                <div className="lp-rader">
-                  <Chip ikon="🌧️" navn="Vær · Bergen" verdi="Regn om 15 min" />
-                  <Chip ikon="🚗" navn="Trafikk E39" verdi="+12 %" retning="opp" />
-                  <Chip ikon="⛽" navn="Drivstoffpris" verdi="−0,4 kr/l" retning="ned" />
-                  <Chip ikon="📈" navn="Historikk · samme dag i fjor" verdi="Matchet" />
-                </div>
-              </div>
+              <VideoSlot src="/video/fornemmer.mp4" label="Vær & signaler" tilgjengelig={HAR.fornemmer} />
             </div>
           </div>
         </section>
 
-        {/* AKT 2 — FORSTÅR */}
-        <section className="lp-seksjon">
-          <div className="lp-mid lp-akt snu">
-            <div className="reveal">
-              <div className="lp-kapittel">02 — Forstår</div>
-              <h2 className="lp-akt-h2">Den vet hva tallene egentlig betyr.</h2>
-              <p className="lp-akt-tekst">Uforklart svinn, avvik mot budsjett, lavtsalg på en avdeling, lønn som ikke står i stil med bruttoen. Sentiqa forklarer årsaken med kroner og prosent — ikke et dashbord du må tolke selv.</p>
-            </div>
-            <div className="lp-akt-visuell reveal">
-              <div className="lp-panel">
-                <div className="lp-panel-glod" />
-                <div className="lp-stream" />
-                <div className="lp-rader">
-                  <Chip ikon="📦" navn="Usynlig manko · Kaffe" verdi="−8 940 kr" retning="ned" />
-                  <Chip ikon="🌡️" navn="IK-mat avvik" verdi="Kjøl 7 °C" retning="ned" />
-                  <Chip ikon="🥐" navn="Lavtsalg · Bakeri" verdi="−12 %" retning="ned" />
-                  <Chip ikon="👥" navn="Lønn vs budsjett" verdi="+29 %" retning="ned" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* AKT 3 — FORUTSER */}
-        <section className="lp-seksjon">
-          <div className="lp-mid lp-akt">
-            <div className="reveal">
-              <div className="lp-kapittel">03 — Forutser</div>
-              <h2 className="lp-akt-h2">Den handler før problemet oppstår.</h2>
-              <p className="lp-akt-tekst">Rush klokka 16. Salgstopp i helga. Lagerbehov til fredag. Sentiqa gir konkrete anbefalinger — produksjonsmengde, bemanning, bestilling — slik at du er forberedt, ikke overrasket.</p>
-            </div>
-            <div className="lp-akt-visuell reveal">
-              <div className="lp-panel">
-                <div className="lp-panel-glod" />
-                <div className="lp-stream" />
-                <div className="lp-rader">
-                  <Chip ikon="⏰" navn="Forventet rush" verdi="16:00–17:30" />
-                  <Chip ikon="☕" navn="Produser kaffe" verdi="+17 %" retning="opp" />
-                  <Chip ikon="🧑‍🍳" navn="Bemanning" verdi="+1 person" />
-                  <Chip ikon="🛒" navn="Bestilling fredag" verdi="Klar" retning="opp" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* WOW — filmsekvens */}
-        <section className="lp-wow">
-          <div className="lp-mid">
-            <div className="reveal" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <div className="lp-kapittel" style={{ display: 'inline-block' }}>Ett regnskyll. Én ettermiddag.</div>
-              <h2 className="lp-akt-h2" style={{ marginTop: '0.6rem' }}>Slik ser intelligens ut i drift.</h2>
-            </div>
-            <div className="lp-wow-rute reveal">
-              <div className="lp-regn" aria-hidden />
-              <div className="lp-wow-inn">
-                <div className="lp-tidslinje">
-                  <div className="lp-steg"><span className="tid">14:02</span><span className="hva"><strong>Det begynner å regne i Bergen.</strong><span>Sentiqa fanger væromslaget før første dråpe treffer taket.</span></span></div>
-                  <div className="lp-steg"><span className="tid">14:05</span><span className="hva"><strong>Øk kaffeproduksjonen. Fyll på bakervarer.</strong><span>Anbefaling sendt til tableten — store, enkle knapper for de ansatte.</span></span></div>
-                  <div className="lp-steg"><span className="tid">14:18</span><span className="hva"><strong>Bemann én ekstra på kassa.</strong><span>Forventet rush mellom 15:30 og 17:00, basert på vær + trafikk + historikk.</span></span></div>
-                  <div className="lp-steg"><span className="tid">17:30</span><span className="hva"><strong>Resultatet er inne.</strong><span>Riktig vare, riktig bemanning, riktig øyeblikk.</span></span></div>
-                </div>
-                <div className="lp-resultat">
-                  <div className="tall">+18 700 kr</div>
-                  <div className="merke">over forventet salg — på én ettermiddag</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* VIDEO-PLACEHOLDERE */}
+        {/* 4 — FORSTÅR (ekte system-mock) */}
         <section className="lp-seksjon">
           <div className="lp-mid">
             <div className="reveal" style={{ marginBottom: '2rem' }}>
-              <div className="lp-kapittel">Se den i arbeid</div>
-              <h2 className="lp-akt-h2" style={{ marginTop: '0.6rem' }}>Fire øyeblikk fra driftssentralen.</h2>
+              <div className="lp-kapittel">02 — Forstår</div>
+              <h2 className="lp-akt-h2">Den vet hva tallene egentlig betyr.</h2>
+              <p className="lp-akt-tekst">Ikke et dashbord du må tolke selv — Sentiqa forklarer årsaken, i kroner og prosent.</p>
             </div>
-            <div className="lp-videoer">
-              {[
-                { t: 'AI analyserer værdata', u: 'Sanntid mot salgshistorikk' },
-                { t: 'AI oppdager svinn', u: 'Usynlig manko, forklart i kroner' },
-                { t: 'AI lager produksjonsplan', u: 'Vær- og trendjustert, per avdeling' },
-                { t: 'Butikksjef chatter med AI', u: 'Spør på norsk, få svar med kilder' },
-              ].map((v) => (
-                <div className="lp-video reveal" key={v.t} role="img" aria-label={v.t}>
-                  <div className="lp-video-spill">▶</div>
-                  <div className="lp-video-tekst">{v.t}<span>{v.u}</span></div>
-                </div>
-              ))}
+            <div className="lp-skjerm-grid">
+              <div className="lp-skjerm reveal">
+                <div className="lp-skjerm-topp">📊 Salgsanalyse</div>
+                <div className="lp-bars">{[60, 80, 45, 90, 55, 70, 38].map((h, i) => <span key={i} style={{ height: `${h}%` }} />)}</div>
+                <div className="lp-skjerm-bunn">Omsetning per avdeling · mot i fjor</div>
+              </div>
+              <div className="lp-skjerm reveal">
+                <div className="lp-skjerm-topp">⚠️ Lavtsalg oppdaget</div>
+                <div className="lp-chip"><span className="ikon">🥐</span><span>Bakeri</span><span className="verdi ned">−12 %</span></div>
+                <div className="lp-chip"><span className="ikon">🌭</span><span>Pølser</span><span className="verdi ned">−19 %</span></div>
+                <div className="lp-skjerm-bunn">Avvik fra forventet, flagget automatisk</div>
+              </div>
+              <div className="lp-skjerm reveal">
+                <div className="lp-skjerm-topp">📋 Produksjonsplan</div>
+                <div className="lp-chip"><span className="ikon">☕</span><span>Kaffe</span><span className="verdi opp">+17 %</span></div>
+                <div className="lp-chip"><span className="ikon">🥐</span><span>Baguette</span><span className="verdi">48 stk</span></div>
+                <div className="lp-skjerm-bunn">Vær- og trendjustert, per avdeling</div>
+              </div>
+              <div className="lp-skjerm reveal">
+                <div className="lp-skjerm-topp">🔎 Svinnanalyse</div>
+                <div className="lp-stor-tall ned">−8 940 kr</div>
+                <div className="lp-skjerm-bunn">Usynlig manko · Kaffe · forklart i kroner</div>
+              </div>
             </div>
+            <p className="lp-merknad reveal">Ekte skjermbilder fra ditt eget system kan bytte ut disse mockene.</p>
           </div>
         </section>
 
-        {/* AVSENDER */}
+        {/* 5 — FORUTSER (Video 3) */}
         <section className="lp-seksjon">
-          <div className="lp-mid lp-sitat reveal">
-            <p>«Bygget av en som har stått på gulvet i 24 år — ikke av et programvareselskap. Jeg lagde verktøyet jeg selv ville hatt for å bli best.»</p>
-            <div className="sign">— Grunnleggeren av Sentiqa</div>
+          <div className="lp-mid lp-akt snu">
+            <div className="reveal">
+              <div className="lp-kapittel">03 — Forutser</div>
+              <h2 className="lp-akt-h2">Det blir 23 °C i Bergen på lørdag.</h2>
+              <p className="lp-akt-tekst">Sentiqa forventer — og forbereder deg på det, før helga starter:</p>
+              <div className="lp-prognose">
+                <ProgRad ikon="🚗" navn="Bilvask" til={31} />
+                <ProgRad ikon="🥤" navn="Kald drikke" til={18} />
+                <ProgRad ikon="⛽" navn="Drivstoff" til={11} />
+              </div>
+            </div>
+            <div className="lp-akt-visuell reveal">
+              <VideoSlot src="/video/forutser.mp4" label="Sol, trafikk & bilvask" tilgjengelig={HAR.forutser} />
+            </div>
           </div>
         </section>
 
-        {/* SLUTT-CTA */}
+        {/* 6 — AI-ASSISTENT (ekte chat-eksempel) */}
+        <section className="lp-seksjon">
+          <div className="lp-mid">
+            <div className="reveal" style={{ marginBottom: '2rem', textAlign: 'center' }}>
+              <div className="lp-kapittel" style={{ display: 'inline-block' }}>Spør på vanlig norsk</div>
+              <h2 className="lp-akt-h2" style={{ marginTop: '0.6rem' }}>AI-assistenten svarer med dine egne tall.</h2>
+            </div>
+            <div className="lp-chat reveal">
+              <div className="lp-chat-boble bruker">Hvorfor falt pølsesalget i går?</div>
+              <div className="lp-chat-boble ai">
+                <span className="lp-chat-navn">Sentiqa</span>
+                Temperaturen nådde <b>27 °C</b>. Iskremsalget økte <b>+34 %</b>, mens pølser falt <b>−19 %</b> — folk valgte kaldt framfor varmt.
+                <div className="lp-chat-anbef">💡 Anbefaling: reduser pølseproduksjonen på varme dager, og øk softis og kald drikke.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 7 — DIREKTØR / KJEDE (Video 4) */}
+        <section className="lp-seksjon">
+          <div className="lp-mid lp-akt">
+            <div className="reveal">
+              <div className="lp-kapittel">Hele kjeden — ett blikk</div>
+              <h2 className="lp-akt-h2">Driftssentralen for ledelsen.</h2>
+              <p className="lp-akt-tekst">Status på hver stasjon i sanntid. Grønt går bra, rødt trenger handling — du ser hvor du skal sette inn støtet.</p>
+              <div className="lp-status-panel">
+                {[
+                  { n: 'ST1 Bønes', s: 'gronn' }, { n: 'ST1 Varden', s: 'gronn' },
+                  { n: 'ST1 Lone', s: 'gul' }, { n: 'ST1 Dale', s: 'rod' },
+                ].map((r) => (
+                  <div className="lp-status-rad" key={r.n}><span>{r.n}</span><span className={`lp-prikk-st ${r.s}`} /></div>
+                ))}
+              </div>
+            </div>
+            <div className="lp-akt-visuell reveal">
+              <VideoSlot src="/video/direktor.mp4" label="Kontrollrom / ledelse" tilgjengelig={HAR.direktor} />
+            </div>
+          </div>
+        </section>
+
+        {/* 8 — CTA */}
         <section className="lp-slutt">
           <div className="lp-mid reveal">
-            <h2>Se fremtidens drift med dine egne tall.</h2>
+            <h2>Drift basert på <span className="grad">fakta.</span><br />Ikke magefølelse.</h2>
             <p>Ta inn rapportene du allerede eksporterer — få svar, ikke dashbord å lete i.</p>
             <div className="lp-knapper" style={{ justifyContent: 'center' }}>
-              <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Demo av Sentiqa">Ta kontakt for pris og demo →</a>
+              <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Demo av Sentiqa">Bestill demo →</a>
             </div>
           </div>
         </section>
@@ -280,6 +262,16 @@ export function Landing() {
           <a href="mailto:post@sentiqa.ai">post@sentiqa.ai</a>
         </footer>
       </div>
+    </div>
+  )
+}
+
+function ProgRad({ ikon, navn, til }: { ikon: string; navn: string; til: number }) {
+  return (
+    <div className="lp-prog">
+      <span className="lp-prog-ikon">{ikon}</span>
+      <span className="lp-prog-navn">{navn}</span>
+      <Teller til={til} suffiks=" %" merke="" />
     </div>
   )
 }
