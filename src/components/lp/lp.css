@@ -1,0 +1,177 @@
+/* =====================================================================
+   Sentiqa landingsside — egen mørk, kinoaktig flate. Scoped under .lp så
+   systemets lyse design (globals.css) er helt urørt.
+   ===================================================================== */
+.lp {
+  --bla: #4f7cff;
+  --cyan: #22d3ee;
+  --violett: #8b5cf6;
+  --tekst: #e8edf7;
+  --svak: #9aa6be;
+  --glass: rgba(255, 255, 255, 0.04);
+  --glass-kant: rgba(255, 255, 255, 0.10);
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: #05070d;
+  color: var(--tekst);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+.lp * { box-sizing: border-box; }
+.lp a { color: inherit; text-decoration: none; }
+
+/* ---- Bakgrunnslag (faste, bak alt) ---- */
+.lp-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.lp-aurora {
+  position: absolute; inset: -30%;
+  background:
+    radial-gradient(40% 50% at 20% 20%, rgba(79,124,255,0.30), transparent 60%),
+    radial-gradient(45% 55% at 80% 15%, rgba(139,92,246,0.25), transparent 60%),
+    radial-gradient(50% 60% at 60% 85%, rgba(34,211,238,0.18), transparent 60%);
+  filter: blur(40px);
+  animation: lp-drift 24s ease-in-out infinite alternate;
+}
+.lp-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 60% at 50% 30%, #000 30%, transparent 80%);
+}
+.lp-orb { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }
+.lp-orb.a { width: 420px; height: 420px; left: -120px; top: 10%; background: #1e3a8a; animation: lp-float 18s ease-in-out infinite; }
+.lp-orb.b { width: 360px; height: 360px; right: -100px; top: 40%; background: #4c1d95; animation: lp-float 22s ease-in-out infinite reverse; }
+.lp-noise { position: absolute; inset: 0; opacity: 0.5; mix-blend-mode: overlay;
+  background-image: radial-gradient(rgba(255,255,255,0.5) 0.5px, transparent 0.5px); background-size: 3px 3px; }
+
+@keyframes lp-drift { from { transform: translate3d(-4%, -2%, 0) rotate(0deg); } to { transform: translate3d(4%, 3%, 0) rotate(8deg); } }
+@keyframes lp-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-40px); } }
+
+/* ---- Innholds-wrapper ---- */
+.lp-inn { position: relative; z-index: 1; }
+.lp-mid { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem; }
+
+/* ---- Nav ---- */
+.lp-nav { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px);
+  background: rgba(5,7,13,0.55); border-bottom: 1px solid var(--glass-kant); }
+.lp-nav-inn { max-width: 1120px; margin: 0 auto; padding: 0.9rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+.lp-logo { font-weight: 800; letter-spacing: 0.02em; font-size: 1.15rem; }
+.lp-logo b { background: linear-gradient(90deg, var(--cyan), var(--bla)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lp-nav-cta { font-size: 0.9rem; font-weight: 600; padding: 0.5rem 1rem; border: 1px solid var(--glass-kant); border-radius: 999px; background: var(--glass); transition: border-color .2s, transform .15s; }
+.lp-nav-cta:hover { border-color: var(--bla); transform: translateY(-1px); }
+
+/* ---- Hero ---- */
+.lp-hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 7rem 0 5rem; }
+.lp-merke { display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-start; font-size: 0.8rem; font-weight: 600; color: var(--svak);
+  border: 1px solid var(--glass-kant); background: var(--glass); padding: 0.4rem 0.9rem; border-radius: 999px; backdrop-filter: blur(8px); }
+.lp-prikk { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); animation: lp-puls 2s infinite; }
+@keyframes lp-puls { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.lp-h1 { font-size: clamp(2.8rem, 8vw, 6rem); line-height: 0.98; font-weight: 800; letter-spacing: -0.03em; margin: 1.6rem 0 0; }
+.lp-h1 .grad { background: linear-gradient(100deg, #fff 10%, var(--cyan) 45%, var(--bla) 70%, var(--violett) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lp-sub { font-size: clamp(1.1rem, 2.4vw, 1.6rem); color: var(--svak); margin: 1.3rem 0 0; font-weight: 500; letter-spacing: 0.04em; }
+.lp-sub b { color: var(--tekst); }
+
+/* Dynamisk AI-sekvens (typet) */
+.lp-konsoll { margin-top: 2.4rem; max-width: 620px; border: 1px solid var(--glass-kant); border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); backdrop-filter: blur(16px); padding: 1.1rem 1.3rem; box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
+.lp-konsoll-topp { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--svak); margin-bottom: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.lp-konsoll-topp i { width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); font-style: normal; }
+.lp-linje { display: flex; gap: 0.6rem; align-items: baseline; font-size: 0.98rem; line-height: 1.7; }
+.lp-linje .pil { color: var(--cyan); }
+.lp-caret { display: inline-block; width: 9px; height: 1.05em; background: var(--cyan); margin-left: 2px; vertical-align: -2px; animation: lp-blink 1s steps(1) infinite; }
+@keyframes lp-blink { 50% { opacity: 0; } }
+.lp-ferdig { color: var(--svak); font-size: 0.85rem; margin-top: 0.7rem; }
+
+.lp-knapper { display: flex; gap: 0.9rem; margin-top: 2.4rem; flex-wrap: wrap; }
+.lp-knapp { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1rem; padding: 0.95rem 1.7rem; border-radius: 999px; position: relative; transition: transform .15s, box-shadow .25s; }
+.lp-knapp.primaer { color: #061026; background: linear-gradient(100deg, var(--cyan), var(--bla)); box-shadow: 0 12px 40px rgba(79,124,255,0.45); }
+.lp-knapp.primaer:hover { transform: translateY(-2px); box-shadow: 0 18px 60px rgba(79,124,255,0.6); }
+.lp-knapp.sekundaer { border: 1px solid var(--glass-kant); background: var(--glass); color: var(--tekst); }
+.lp-knapp.sekundaer:hover { border-color: var(--bla); }
+
+/* ---- Tellere ---- */
+.lp-tellere { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 3rem 0; border-top: 1px solid var(--glass-kant); border-bottom: 1px solid var(--glass-kant); }
+.lp-teller { text-align: center; }
+.lp-teller-tall { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  background: linear-gradient(120deg, #fff, var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lp-teller-merke { color: var(--svak); font-size: 0.82rem; margin-top: 0.3rem; letter-spacing: 0.02em; }
+
+/* ---- Seksjoner / akter ---- */
+.lp-seksjon { padding: 7rem 0; }
+.lp-kapittel { font-size: 0.8rem; letter-spacing: 0.35em; text-transform: uppercase; color: var(--cyan); font-weight: 700; }
+.lp-akt-h2 { font-size: clamp(2rem, 5vw, 3.4rem); font-weight: 800; letter-spacing: -0.02em; margin: 0.8rem 0 0; }
+.lp-akt-tekst { color: var(--svak); font-size: 1.15rem; line-height: 1.7; margin: 1.1rem 0 0; max-width: 540px; }
+.lp-akt { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+.lp-akt.snu .lp-akt-visuell { order: -1; }
+
+/* Glass-panel med data-strøm */
+.lp-panel { position: relative; border: 1px solid var(--glass-kant); border-radius: 22px; overflow: hidden; min-height: 320px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); backdrop-filter: blur(14px); box-shadow: 0 30px 80px rgba(0,0,0,0.45); }
+.lp-panel-glod { position: absolute; inset: 0; background: radial-gradient(60% 50% at 30% 20%, rgba(79,124,255,0.25), transparent 70%); }
+.lp-rader { position: relative; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.lp-chip { display: flex; align-items: center; gap: 0.7rem; border: 1px solid var(--glass-kant); border-radius: 12px; padding: 0.7rem 0.9rem; background: rgba(255,255,255,0.03); font-size: 0.92rem; }
+.lp-chip .ikon { font-size: 1.1rem; }
+.lp-chip .verdi { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lp-chip .opp { color: #4ade80; } .lp-chip .ned { color: #f87171; }
+.lp-stream { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); opacity: 0.7; animation: lp-scan 3.5s linear infinite; }
+@keyframes lp-scan { 0% { top: -2%; } 100% { top: 102%; } }
+
+/* ---- WOW / filmsekvens ---- */
+.lp-wow { padding: 7rem 0; position: relative; }
+.lp-wow-rute { position: relative; border: 1px solid var(--glass-kant); border-radius: 26px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(13,20,40,0.7), rgba(5,7,13,0.7)); backdrop-filter: blur(10px); }
+.lp-regn { position: absolute; inset: 0; background:
+  repeating-linear-gradient(102deg, rgba(120,170,255,0.10) 0 1px, transparent 1px 9px); animation: lp-regn 0.7s linear infinite; opacity: 0.5; }
+@keyframes lp-regn { from { background-position: 0 0; } to { background-position: 60px 200px; } }
+.lp-wow-inn { position: relative; padding: clamp(1.5rem, 4vw, 3rem); }
+.lp-tidslinje { display: flex; flex-direction: column; gap: 1.1rem; margin-top: 1.8rem; }
+.lp-steg { display: flex; gap: 1rem; align-items: flex-start; border-left: 2px solid rgba(79,124,255,0.4); padding: 0.2rem 0 0.2rem 1.2rem; position: relative; }
+.lp-steg::before { content: ''; position: absolute; left: -7px; top: 0.35rem; width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 14px var(--cyan); }
+.lp-steg .tid { color: var(--cyan); font-weight: 700; font-size: 0.85rem; min-width: 6.5rem; }
+.lp-steg .hva strong { display: block; font-size: 1.05rem; }
+.lp-steg .hva span { color: var(--svak); font-size: 0.92rem; }
+.lp-resultat { margin-top: 2rem; text-align: center; padding: 2rem; border-radius: 20px; border: 1px solid rgba(74,222,128,0.3); background: radial-gradient(60% 100% at 50% 0%, rgba(74,222,128,0.12), transparent 70%); }
+.lp-resultat .tall { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; color: #4ade80; letter-spacing: -0.02em; }
+.lp-resultat .merke { color: var(--svak); margin-top: 0.3rem; }
+
+/* ---- Video-placeholdere ---- */
+.lp-videoer { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.4rem; }
+.lp-video { position: relative; aspect-ratio: 16/10; border-radius: 18px; overflow: hidden; border: 1px solid var(--glass-kant);
+  background: linear-gradient(160deg, rgba(79,124,255,0.14), rgba(139,92,246,0.10)); display: flex; align-items: flex-end; }
+.lp-video::after { content: ''; position: absolute; inset: 0; background: radial-gradient(50% 60% at 50% 40%, rgba(34,211,238,0.18), transparent 70%); }
+.lp-video-spill { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(255,255,255,0.10); border: 1px solid var(--glass-kant); backdrop-filter: blur(8px); display: grid; place-items: center; font-size: 1.4rem; transition: transform .2s; }
+.lp-video:hover .lp-video-spill { transform: translate(-50%,-50%) scale(1.1); }
+.lp-video-tekst { position: relative; z-index: 1; padding: 1rem 1.2rem; font-weight: 600; }
+.lp-video-tekst span { display: block; color: var(--svak); font-weight: 400; font-size: 0.85rem; }
+
+/* ---- Avsender / sitat ---- */
+.lp-sitat { text-align: center; max-width: 760px; margin: 0 auto; }
+.lp-sitat p { font-size: clamp(1.4rem, 3.2vw, 2rem); font-weight: 600; line-height: 1.4; letter-spacing: -0.01em; }
+.lp-sitat .sign { color: var(--svak); margin-top: 1.2rem; font-size: 0.95rem; }
+
+/* ---- Slutt-CTA ---- */
+.lp-slutt { text-align: center; padding: 7rem 0; }
+.lp-slutt h2 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 800; letter-spacing: -0.02em; }
+.lp-slutt p { color: var(--svak); font-size: 1.15rem; margin: 1rem 0 2rem; }
+
+.lp-foot { border-top: 1px solid var(--glass-kant); padding: 2.5rem 0; color: var(--svak); font-size: 0.85rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+
+/* ---- Scroll-reveal ---- */
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.9s cubic-bezier(.2,.7,.2,1), transform 0.9s cubic-bezier(.2,.7,.2,1); will-change: opacity, transform; }
+.reveal.vis { opacity: 1; transform: none; }
+
+@media (max-width: 820px) {
+  .lp-tellere { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+  .lp-akt { grid-template-columns: 1fr; gap: 2rem; }
+  .lp-akt.snu .lp-akt-visuell { order: 0; }
+  .lp-videoer { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-aurora, .lp-orb, .lp-stream, .lp-regn, .lp-prikk, .lp-caret, .lp-konsoll-topp i { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
