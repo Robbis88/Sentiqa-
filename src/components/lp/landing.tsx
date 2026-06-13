@@ -64,10 +64,13 @@ function AutoVideo({ src, className }: { src: string; className?: string }) {
     const p = el.play()
     if (p && typeof p.catch === 'function') p.catch(() => {})
   }, [])
-  const poster = src.replace(/\.mp4$/, '.jpg')
+  // Versjons-query tvinger nettleser + CDN til å hente de NYE (transkodede)
+  // filene — ellers serveres gamle bytes fra samme URL.
+  const v = '?v=3'
+  const poster = src.replace(/\.mp4$/, '.jpg') + v
   return (
     <video ref={ref} className={className} poster={poster} autoPlay muted loop playsInline preload="auto" disablePictureInPicture>
-      <source src={src} type="video/mp4" />
+      <source src={src + v} type="video/mp4" />
     </video>
   )
 }
