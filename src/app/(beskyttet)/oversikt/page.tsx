@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
@@ -73,6 +74,9 @@ export default async function OversiktSide() {
 
     return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} ord={ord} />
   }
+
+  // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.
+  if (bruker.rolle === 'plattform_redaktor') redirect('/plattform')
 
   // Eier får sitt eget rike dashbord (hele kjeden).
   if (bruker.rolle === 'retailer_admin') {
