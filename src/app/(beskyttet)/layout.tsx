@@ -81,6 +81,7 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     tittel: 'Plattform',
     punkter: [
       { sti: '/plattform', tekst: 'Plattform-oversikt', roller: ['plattform_redaktor'] },
+      { sti: '/trafikk', tekst: 'Trafikk', roller: ['plattform_redaktor'] },
       { sti: '/redaktor', tekst: 'Publisering', roller: ['plattform_redaktor'] },
       { sti: '/kunnskap', tekst: 'Kunnskapsbase', roller: ['plattform_redaktor'] },
     ],

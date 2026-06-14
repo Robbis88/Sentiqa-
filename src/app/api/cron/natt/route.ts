@@ -7,6 +7,7 @@ import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { hentEllerLagUkerapport } from '@/lib/ukerapport'
 import { hentVaerMedKlient } from '@/lib/vaer'
 import { importerAlleKalenderKilder } from '@/lib/ical'
+import { hentTrafikkMedKlient } from '@/lib/trafikk'
 
 // AI-nattjobb (Vercel Cron). Henter vær (analyse-input til produksjonsplan) +
 // regenererer auto-fokus + lederstøtte for ALLE kjeder, så eierne våkner til
@@ -36,6 +37,14 @@ export async function GET(req: NextRequest) {
     kalender = await importerAlleKalenderKilder(supabase)
   } catch {
     // kalenderfeil skal ikke velte nattjobben
+  }
+
+  // Trafikk (Vegvesen) → døgnvolum for stasjoner med aktiv måling.
+  let trafikk: Awaited<ReturnType<typeof hentTrafikkMedKlient>> | null = null
+  try {
+    trafikk = await hentTrafikkMedKlient(supabase)
+  } catch {
+    // trafikkfeil skal ikke velte nattjobben
   }
 
   const { data: retailers } = await supabase.from('retailers').select('id').is('slettet_tid', null)
@@ -68,5 +77,5 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, kjeder, vaer, kalender })
+  return NextResponse.json({ ok: true, kjeder, vaer, kalender, trafikk })
 }
