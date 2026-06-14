@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { beregnAbonnement } from '@/lib/pris'
 import { kr, datoLang } from '@/lib/format'
+import { NyKunde } from './ny-kunde'
 
 // Plattform-eierens tverr-tenant-oversikt: hvem bruker systemet, omfang og hva
 // du skal fakturere. Service-role (leser på tvers av kjeder) — derfor streng
@@ -87,6 +88,15 @@ export default async function PlattformSide() {
         <p className="undertittel" style={{ marginTop: '0.6rem' }}>
           Listepris: {kr.format(beregnAbonnement(0, false).maaned)}/mnd per kjede + 249/mnd per stasjon. Årlig = 10 mnd (2 gratis ved forskudd). «Siste opplasting» er nyeste fil i import-kø — et aktivitetssignal.
         </p>
+      </section>
+
+      <section className="kort">
+        <h2>Ny kunde</h2>
+        <p className="undertittel">
+          Oppretter kjeden og sender en e-postinvitasjon til admin-kontakten, som velger eget passord via lenken.
+          Krever at du har koblet en e-postleverandør (SMTP) i Supabase → Authentication → SMTP. Deretter legger du inn stasjonene på vegne av kunden under Stasjoner.
+        </p>
+        <NyKunde />
       </section>
     </>
   )
