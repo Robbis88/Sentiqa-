@@ -150,7 +150,6 @@ export function Landing() {
             <p className="lp-sub">AI som analyserer <b>vær, salgshistorikk og drift</b> før mulighetene oppstår.</p>
             <div className="lp-knapper">
               <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Live demo av Sentiqa">Se live demo →</a>
-              <Link className="lp-knapp sekundaer" href="/logg-inn">Logg inn</Link>
             </div>
           </div>
         </header>
