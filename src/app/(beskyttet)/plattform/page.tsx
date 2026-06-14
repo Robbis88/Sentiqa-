@@ -92,7 +92,7 @@ export default async function PlattformSide() {
                   <td>{kr.format(r.maaned)}</td>
                   <td>
                     <div className="plattform-handlinger">
-                      {r.adminInfo && !r.adminInfo.aktivert && r.adminInfo.epost ? (
+                      {r.adminInfo?.epost ? (
                         <BekreftKnapp action={sendInvitasjonPaaNytt} epost={r.adminInfo.epost} etikett="Send på nytt" sporsmaal={`Sende påloggingslenke på nytt til ${r.adminInfo.epost}?`} />
                       ) : null}
                       <BekreftKnapp action={deaktiverKunde} id={r.id} etikett="Deaktiver" klasse="liten slett" sporsmaal={`Deaktivere ${r.navn}? Brukerne mister tilgang, men data beholdes (kan reaktiveres).`} />
