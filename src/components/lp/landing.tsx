@@ -227,6 +227,35 @@ export function Landing() {
           </div>
         </section>
 
+        {/* CAMPAIGN INTELLIGENCE (premium) — mellom Forstår og Forutser */}
+        <section className="lp-seksjon">
+          <div className="lp-mid lp-akt">
+            <div className="reveal">
+              <div className="lp-kapittel">Campaign Intelligence</div>
+              <h2 className="lp-akt-h2">Fra vei til salg.</h2>
+              <p className="lp-akt-tekst">Sentiqa analyserer trafikkdata, værdata og salgsdata i sanntid for å forstå hvilke kampanjer som faktisk får kundene til å stoppe.</p>
+              <ul className="ci-liste">
+                <li>Trafikkdata fra Statens vegvesen</li>
+                <li>Innekunder og utekunder</li>
+                <li>Kampanjeanalyse per produkt</li>
+                <li>Værpåvirkning på salg</li>
+                <li>Faktisk konvertering fra trafikk til kjøp</li>
+              </ul>
+              <div className="ci-stat-grid">
+                <Teller til={24382} merke="Biler passerte" />
+                <Teller til={1248} merke="Kunder stoppet" />
+                <Teller til={91} merke="Kjøpte kampanjeprodukt" />
+                <Teller til={7.3} desim={1} suffiks=" %" merke="Konvertering" />
+              </div>
+            </div>
+            <div className="lp-akt-visuell reveal">
+              <div className="lp-vslot ci-vslot">
+                <AutoVideo src="/videos/campaign-intelligence.mp4" />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* 5 — FORUTSER (Video 3) */}
         <section className="lp-seksjon">
           <div className="lp-mid lp-akt snu">
