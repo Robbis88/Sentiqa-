@@ -26,12 +26,13 @@ export function lagSalgsprognose(opts: {
   vaerFjor: Vaerdag | null
   vaerfolsomhet: number
   stasjonstype: string
+  helligdag?: boolean // mål-dagen er helligdag → kun selve fjor-helligdagen, ingen naboer
 }): SalgsPrognose {
   const { maalDato, sisteSalgsdato, salg, vaerMaal, vaerFjor, vaerfolsomhet, stasjonstype } = opts
   const advarsler: string[] = []
   const wd = ukedag(maalDato)
   const fjorBase = leggTilDager(maalDato, -364)
-  const fjorSett = new Set([-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d)))
+  const fjorSett = opts.helligdag ? new Set([fjorBase]) : new Set([-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d)))
   const nyligStart = leggTilDager(sisteSalgsdato, -27)
 
   type Agg = { navn: string; fjor: Map<string, number>; nylig: { dato: string; oms: number }[] }

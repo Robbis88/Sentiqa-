@@ -6,6 +6,7 @@ import { genererLederstotteForRetailer } from '@/lib/ai/lederstotte'
 import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { hentEllerLagUkerapport } from '@/lib/ukerapport'
 import { hentVaerMedKlient } from '@/lib/vaer'
+import { importerAlleKalenderKilder } from '@/lib/ical'
 
 // AI-nattjobb (Vercel Cron). Henter vær (analyse-input til produksjonsplan) +
 // regenererer auto-fokus + lederstøtte for ALLE kjeder, så eierne våkner til
@@ -27,6 +28,14 @@ export async function GET(req: NextRequest) {
     vaer = await hentVaerMedKlient(supabase)
   } catch {
     // værfeil skal ikke velte nattjobben
+  }
+
+  // iCal-arrangementer → forslag (lederen bekrefter senere).
+  let kalender: Awaited<ReturnType<typeof importerAlleKalenderKilder>> | null = null
+  try {
+    kalender = await importerAlleKalenderKilder(supabase)
+  } catch {
+    // kalenderfeil skal ikke velte nattjobben
   }
 
   const { data: retailers } = await supabase.from('retailers').select('id').is('slettet_tid', null)
@@ -59,5 +68,5 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, kjeder, vaer })
+  return NextResponse.json({ ok: true, kjeder, vaer, kalender })
 }

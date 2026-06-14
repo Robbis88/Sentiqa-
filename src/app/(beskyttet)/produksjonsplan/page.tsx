@@ -4,9 +4,10 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
 import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
-import { leggTilArrangement, slettArrangement } from './handlinger'
+import { leggTilArrangement, slettArrangement, bekreftArrangement, forkastArrangement, leggTilKalenderKilde, slettKalenderKilde } from './handlinger'
 
 const UKEDAG = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
 
@@ -82,6 +83,8 @@ export default async function ProduksjonsplanSide({
   let advarsler: string[] = []
   let hodeData: { notat: string | null; publisert_tid: string | null } | null = null
   let arrangementer: { id: string; navn: string; faktor: number }[] = []
+  let forslag: { id: string; navn: string; faktor: number }[] = []
+  let kilder: { id: string; navn: string; ical_url: string; stasjon_id: string | null; standard_faktor: number }[] = []
 
   if (stasjon) {
     const fjorBase = leggTilDager(dato, -364)
@@ -93,25 +96,31 @@ export default async function ProduksjonsplanSide({
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
     const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
 
-    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: arr }] = await Promise.all([
+    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: arr }, { data: kalKilder }] = await Promise.all([
       supabase.from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null).overrideTypes<SalgRad[]>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
       supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
       supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
-      supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
+      supabase.from('arrangementer').select('id, navn, faktor, stasjon_id, status').eq('dato', dato).is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null; status: string }[]>(),
+      supabase.from('kalender_kilder').select('id, navn, ical_url, stasjon_id, standard_faktor').is('slettet_tid', null).overrideTypes<{ id: string; navn: string; ical_url: string; stasjon_id: string | null; standard_faktor: number }[]>(),
     ])
     vaer = vMaal ?? null
     hodeData = hode ?? null
-    arrangementer = (arr ?? []).filter((a) => a.stasjon_id === null || a.stasjon_id === stasjon.id).map((a) => ({ id: a.id, navn: a.navn, faktor: a.faktor }))
+    kilder = kalKilder ?? []
+    const forDenne = (arr ?? []).filter((a) => a.stasjon_id === null || a.stasjon_id === stasjon.id)
+    arrangementer = forDenne.filter((a) => a.status !== 'forslag').map((a) => ({ id: a.id, navn: a.navn, faktor: a.faktor }))
+    forslag = forDenne.filter((a) => a.status === 'forslag').map((a) => ({ id: a.id, navn: a.navn, faktor: a.faktor }))
+    // Kun BEKREFTEDE arrangementer løfter planen — forslag teller ikke før lederen godkjenner.
     const arrangementFaktor = arrangementer.reduce((f, a) => f * a.faktor, 1)
     const punkter: SalgsPunkt[] = (salg ?? [])
       .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
       .filter((p) => p.varenavn)
     datadybde = new Set(punkter.map((p) => p.dato)).size
 
-    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, arrangementFaktor })
+    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, arrangementFaktor, helligdag: erHelligdag(dato) })
     advarsler = plan.advarsler
+    if (helligdagNavn(dato)) advarsler.push(`🔴 ${helligdagNavn(dato)} — forslaget bygger på fjorårets samme helligdag, ikke vanlige ukedager.`)
     if (arrangementer.length > 0) advarsler.push(`Arrangement-dag: ${arrangementer.map((a) => `${a.navn} (×${a.faktor})`).join(', ')} — forslaget er løftet.`)
 
     const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l]))
@@ -174,6 +183,26 @@ export default async function ProduksjonsplanSide({
               ))}
             </ul>
           ) : <p className="undertittel">Ingen arrangementer denne dagen — legg til hvis det skjer noe (kamp, festival …) som løfter salget.</p>}
+
+          {forslag.length > 0 && (
+            <div className="arr-forslag">
+              <h3>📥 Forslag fra kalender <span className="undertittel">— teller ikke før du bekrefter</span></h3>
+              <ul className="arr-liste">
+                {forslag.map((f) => (
+                  <li key={f.id}>
+                    <span>{f.navn}</span>
+                    <form action={bekreftArrangement} className="arr-form">
+                      <input type="hidden" name="id" value={f.id} />
+                      <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue={f.faktor} aria-label="Faktor" style={{ width: '4.5rem' }} />
+                      <button type="submit" className="liten">Bekreft</button>
+                    </form>
+                    <form action={forkastArrangement}><input type="hidden" name="id" value={f.id} /><button type="submit" className="liten slett">Forkast</button></form>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <form action={leggTilArrangement} className="rutine-form arr-form">
             <input type="hidden" name="dato" value={dato} />
             <input type="hidden" name="stasjon_id" value={stasjon.id} />
@@ -181,6 +210,30 @@ export default async function ProduksjonsplanSide({
             <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Faktor" style={{ width: '5rem' }} />
             <button type="submit" className="liten">Legg til</button>
           </form>
+
+          <details className="kalender-kilder">
+            <summary>🗓️ Kalender-kilder (iCal) — {kilder.length}</summary>
+            <p className="undertittel" style={{ marginTop: '0.5rem' }}>
+              Lim inn en .ics-lenke (kampoppsett, festivalkalender e.l.). Nattjobben henter hendelser de neste 60 dagene som forslag du bekrefter over.
+            </p>
+            {kilder.length > 0 && (
+              <ul className="arr-liste">
+                {kilder.map((k) => (
+                  <li key={k.id}>
+                    <span>{k.navn} <span className="undertittel">×{k.standard_faktor}{k.stasjon_id ? '' : ' · alle stasjoner'}</span></span>
+                    <form action={slettKalenderKilde}><input type="hidden" name="id" value={k.id} /><button type="submit" className="liten slett">Fjern</button></form>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form action={leggTilKalenderKilde} className="rutine-form arr-form">
+              <input type="hidden" name="stasjon_id" value={stasjon.id} />
+              <input name="navn" placeholder="Navn (f.eks. Brann hjemmekamper)" required />
+              <input name="ical_url" type="url" placeholder="https://…/kalender.ics" required style={{ flex: '1 1 16rem' }} />
+              <input name="standard_faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Standardfaktor" style={{ width: '5rem' }} />
+              <button type="submit" className="liten">Legg til kilde</button>
+            </form>
+          </details>
         </section>
       )}
 

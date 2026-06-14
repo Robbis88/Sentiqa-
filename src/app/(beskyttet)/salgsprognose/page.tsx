@@ -5,10 +5,23 @@ import { kr, iDag } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { leggTilDager, type Vaerdag } from '@/lib/produksjonsplan'
 import { lagSalgsprognose, type AvdSalg } from '@/lib/salgsprognose'
+import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { StasjonsVelger } from '../stasjonsvelger'
 
 const datoLang = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Oslo' })
 const UTELAT = new Set(['10', '250', '40']) // drivstoff/pant/CR — ikke butikkdrift
+
+// Signaler bak prognosen. 'live' = i bruk nå, 'kommer' = bygges/venter (lett å
+// skru på: bytt status til 'live' når datakilden er på plass).
+const SIGNALER: { ikon: string; navn: string; status: 'live' | 'kommer' }[] = [
+  { ikon: '☀️', navn: 'Vær', status: 'live' },
+  { ikon: '📅', navn: 'Helligdager', status: 'live' },
+  { ikon: '📈', navn: 'Salgshistorikk (år mot år)', status: 'live' },
+  { ikon: '🔥', navn: 'Trend', status: 'live' },
+  { ikon: '🏟️', navn: 'Arrangementer', status: 'live' },
+  { ikon: '🚗', navn: 'Trafikk', status: 'kommer' },
+  { ikon: '⛽', navn: 'Drivstoffpriser', status: 'kommer' },
+]
 
 export default async function SalgsprognoseSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
@@ -30,6 +43,8 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   const idag = iDag()
   const maalDato = leggTilDager(idag, 1) // i morgen
   const fjorBase = leggTilDager(maalDato, -364)
+  const helligdag = erHelligdag(maalDato)
+  const roddagNavn = helligdagNavn(maalDato)
 
   const [{ data: nylig }, { data: fjor }, { data: vMaal }, { data: vFjor }] = await Promise.all([
     supabase.from('v_salg_per_avdeling_dag').select('dato, avdeling_kode, avdeling_navn, omsetning').eq('stasjon_id', valgtId).gte('dato', leggTilDager(idag, -35)).lte('dato', idag).overrideTypes<{ dato: string; avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null }[]>(),
@@ -46,7 +61,7 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   const sisteSalgsdato = datoer.length ? datoer[datoer.length - 1] : idag
 
   const prognose = salg.length > 0
-    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, stasjonstype: stasjon.stasjonstype })
+    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, stasjonstype: stasjon.stasjonstype, helligdag })
     : null
 
   const ikonFor = new Map(AVDELINGER.map((a) => [a.kode, a.ikon]))
@@ -57,6 +72,7 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
       <h1>Salgsprognose · i morgen</h1>
       <p className="undertittel">
         Forventet salg per kategori {datoLang.format(new Date(`${maalDato}T12:00:00Z`))} for {stasjon.butikknummer} {stasjon.navn}.
+        {roddagNavn ? ` 🔴 ${roddagNavn} — prognosen bruker fjorårets samme helligdag.` : ''}
         {vMaal?.temp_maks != null ? ` Varsel: ${vMaal.temp_maks.toFixed(0)}°${vMaal.nedbor_mm != null && vMaal.nedbor_mm >= 1 ? `, ${vMaal.nedbor_mm.toFixed(0)} mm regn` : ''}.` : ''}
       </p>
 
@@ -117,6 +133,20 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
           </section>
         </>
       )}
+
+      <section className="kort">
+        <h2>Signaler bak prognosen</h2>
+        <div className="signal-stripe">
+          {SIGNALER.map((s) => (
+            <span key={s.navn} className={`signal-pip ${s.status}`}>
+              {s.ikon} {s.navn}{s.status === 'kommer' ? <em> · kommer</em> : ''}
+            </span>
+          ))}
+        </div>
+        <p className="undertittel" style={{ marginTop: '0.6rem' }}>
+          Trafikk (Vegvesenets tellepunkt) og drivstoffpriser er klare å koble på når vi avgjør dem — prognosen bruker dem ikke ennå.
+        </p>
+      </section>
     </>
   )
 }

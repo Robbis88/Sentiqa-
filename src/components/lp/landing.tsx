@@ -147,7 +147,7 @@ export function Landing() {
           <div className="lp-mid">
             <span className="lp-merke"><span className="lp-prikk" />AI-drevet drift for servicehandelen</span>
             <h1 className="lp-h1"><span className="grad">Fornemmer.<br />Forstår.<br />Forutser.</span></h1>
-            <p className="lp-sub">AI som analyserer <b>vær, trafikk, salg og drift</b> før mulighetene oppstår.</p>
+            <p className="lp-sub">AI som analyserer <b>vær, salgshistorikk og drift</b> før mulighetene oppstår.</p>
             <div className="lp-knapper">
               <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Live demo av Sentiqa">Se live demo →</a>
               <Link className="lp-knapp sekundaer" href="/logg-inn">Logg inn</Link>
@@ -175,11 +175,14 @@ export function Landing() {
               <h2 className="lp-akt-h2">Den ser hele bildet, hele tiden.</h2>
               <p className="lp-akt-tekst">Sentiqa tar inn signalene som faktisk styrer dagen din — og kobler dem sammen kontinuerlig.</p>
               <div className="lp-rader" style={{ padding: 0, marginTop: '1.2rem' }}>
-                <Chip ikon="☀️" navn="Vær" verdi="Live varsel" />
-                <Chip ikon="🚗" navn="Trafikk" verdi="Sanntid" />
-                <Chip ikon="⛽" navn="Drivstoffpriser" />
-                <Chip ikon="📅" navn="Helligdager" />
-                <Chip ikon="🏟️" navn="Arrangementer" />
+                <Chip ikon="☀️" navn="Vær" verdi="Varsel + historikk" />
+                <Chip ikon="📈" navn="Salgshistorikk" verdi="År mot år" />
+                <Chip ikon="🔥" navn="Trend" verdi="Siste uker" />
+                <Chip ikon="📅" navn="Helligdager" verdi="Auto" />
+                <Chip ikon="🏟️" navn="Arrangementer" verdi="iCal + manuelt" />
+                <Chip ikon="📍" navn="Stasjonstype" verdi="Utfart / pendler" />
+                <Chip ikon="🚗" navn="Trafikk" verdi="Kommer" />
+                <Chip ikon="⛽" navn="Drivstoffpriser" verdi="Kommer" />
               </div>
             </div>
             <div className="lp-akt-visuell reveal">
@@ -234,11 +237,11 @@ export function Landing() {
               <div className="lp-prognose">
                 <ProgRad ikon="🚗" navn="Bilvask" til={31} />
                 <ProgRad ikon="🥤" navn="Kald drikke" til={18} />
-                <ProgRad ikon="⛽" navn="Drivstoff" til={11} />
+                <ProgRad ikon="🍦" navn="Iskrem" til={22} />
               </div>
             </div>
             <div className="lp-akt-visuell reveal">
-              <VideoSlot src="/video/forutser-2.mp4" label="Sol, trafikk & bilvask" tilgjengelig={HAR.forutser} />
+              <VideoSlot src="/video/forutser-2.mp4" label="Sol, vær & bilvask" tilgjengelig={HAR.forutser} />
             </div>
           </div>
         </section>
