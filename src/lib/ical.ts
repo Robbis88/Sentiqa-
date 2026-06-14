@@ -48,25 +48,39 @@ export async function importerAlleKalenderKilder(
 ): Promise<{ kilder: number; forslag: number }> {
   const { data: kilder } = await supabase
     .from('kalender_kilder')
-    .select('id, retailer_id, stasjon_id, navn, ical_url, standard_faktor')
+    .select('id, retailer_id, stasjon_ider, navn, ical_url, standard_faktor')
     .eq('aktiv', true).is('slettet_tid', null)
 
   const idag = new Date().toISOString().slice(0, 10)
   const grense = new Date(Date.now() + dagerFram * 86400000).toISOString().slice(0, 10)
   let antall = 0
+  const alleStasjonerCache = new Map<string, string[]>() // retailer_id → stasjon-id-er
 
-  for (const k of (kilder ?? []) as { id: string; retailer_id: string; stasjon_id: string | null; navn: string; ical_url: string; standard_faktor: number }[]) {
+  for (const k of (kilder ?? []) as { id: string; retailer_id: string; stasjon_ider: string[] | null; navn: string; ical_url: string; standard_faktor: number }[]) {
     try {
+      // Hvilke stasjoner gjelder kilden? Tomt = alle stasjoner i kjeden.
+      let stasjoner = k.stasjon_ider ?? []
+      if (stasjoner.length === 0) {
+        let alle = alleStasjonerCache.get(k.retailer_id)
+        if (!alle) {
+          const { data: st } = await supabase.from('stasjoner').select('id').eq('retailer_id', k.retailer_id).is('slettet_tid', null)
+          alle = (st ?? []).map((s: { id: string }) => s.id)
+          alleStasjonerCache.set(k.retailer_id, alle)
+        }
+        stasjoner = alle
+      }
       const res = await fetch(k.ical_url, { headers: { accept: 'text/calendar' } })
       if (!res.ok) continue
       const hendelser = parseICal(await res.text()).filter((e) => e.dato >= idag && e.dato <= grense)
       for (const e of hendelser) {
         const navn = k.navn ? `${k.navn}: ${e.tittel}` : e.tittel
-        const { error } = await supabase.from('arrangementer').upsert(
-          { retailer_id: k.retailer_id, stasjon_id: k.stasjon_id, dato: e.dato, navn, faktor: k.standard_faktor, kilde_id: k.id, ekstern_uid: e.uid, status: 'forslag' },
-          { onConflict: 'kilde_id,ekstern_uid', ignoreDuplicates: true },
-        )
-        if (!error) antall++
+        for (const stasjon_id of stasjoner) {
+          const { error } = await supabase.from('arrangementer').upsert(
+            { retailer_id: k.retailer_id, stasjon_id, dato: e.dato, navn, faktor: k.standard_faktor, kilde_id: k.id, ekstern_uid: e.uid, status: 'forslag' },
+            { onConflict: 'kilde_id,ekstern_uid,stasjon_id', ignoreDuplicates: true },
+          )
+          if (!error) antall++
+        }
       }
     } catch {
       // én kilde skal ikke velte resten

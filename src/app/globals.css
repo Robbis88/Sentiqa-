@@ -656,6 +656,9 @@ button.liten.slett:hover { background: #fdecea; }
 .arr-forslag .arr-liste li { flex-wrap: wrap; }
 .kalender-kilder { margin-top: 0.8rem; border-top: 1px solid var(--kant); padding-top: 0.7rem; }
 .kalender-kilder summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.stasjon-valg { border: 1px solid var(--kant); border-radius: 10px; padding: 0.6rem 0.8rem; margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
+.stasjon-valg legend { font-size: 0.8rem; font-weight: 600; padding: 0 0.3rem; }
+.stasjon-kryss { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
 
 /* Signaler bak prognosen */
 .signal-stripe { display: flex; flex-wrap: wrap; gap: 0.4rem; }
