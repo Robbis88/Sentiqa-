@@ -4,6 +4,12 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
+import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+
+async function erEier(): Promise<boolean> {
+  const bruker = await hentInnloggetBruker()
+  return bruker.rolle === 'plattform_redaktor'
+}
 
 const Skjema = z.object({
   firma: z.string().min(2, { error: 'Skriv inn firmanavn.' }),
@@ -69,4 +75,62 @@ export async function opprettKunde(_t: KundeTilstand, formData: FormData): Promi
 
   revalidatePath('/plattform')
   return { ok: `${firma} opprettet. Invitasjon sendt til ${epost}.` }
+}
+
+// Send påloggingslenke på nytt (kunden fikk aldri / mistet invitasjonen).
+// Bruker recovery-e-post → samme /auth/bekreft → /sett-passord-flyt.
+export async function sendInvitasjonPaaNytt(formData: FormData): Promise<void> {
+  if (!(await erEier())) return
+  const epost = String(formData.get('epost') ?? '').trim()
+  if (!epost) return
+  const h = await headers()
+  const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
+  const supabase = await lagSupabaseServerKlient()
+  await supabase.auth.resetPasswordForEmail(epost, { redirectTo: `${origin}/auth/bekreft` })
+  revalidatePath('/plattform')
+}
+
+// Deaktiver (mykt, reversibelt): sperr innlogging for kjedens brukere + skjul kjeden.
+export async function deaktiverKunde(formData: FormData): Promise<void> {
+  if (!(await erEier())) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  let admin
+  try { admin = lagSupabaseAdminKlient() } catch { return }
+  const { data: profiler } = await admin.from('profiler').select('id').eq('retailer_id', id)
+  for (const p of (profiler ?? []) as { id: string }[]) {
+    await admin.auth.admin.updateUserById(p.id, { ban_duration: '876000h' }) // ~100 år = sperret
+  }
+  await admin.from('retailers').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/plattform')
+}
+
+// Reaktiver: opphev sperringen + vis kjeden igjen.
+export async function reaktiverKunde(formData: FormData): Promise<void> {
+  if (!(await erEier())) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  let admin
+  try { admin = lagSupabaseAdminKlient() } catch { return }
+  const { data: profiler } = await admin.from('profiler').select('id').eq('retailer_id', id)
+  for (const p of (profiler ?? []) as { id: string }[]) {
+    await admin.auth.admin.updateUserById(p.id, { ban_duration: 'none' })
+  }
+  await admin.from('retailers').update({ slettet_tid: null }).eq('id', id)
+  revalidatePath('/plattform')
+}
+
+// Slett permanent (GDPR): all data + auth-brukere for godt. Uopprettelig.
+export async function slettKundePermanent(formData: FormData): Promise<void> {
+  if (!(await erEier())) return
+  const id = String(formData.get('id') ?? '')
+  if (!id) return
+  let admin
+  try { admin = lagSupabaseAdminKlient() } catch { return }
+  const { data: profiler } = await admin.from('profiler').select('id').eq('retailer_id', id)
+  const brukerIder = (profiler ?? []).map((p: { id: string }) => p.id)
+  const { error } = await admin.rpc('slett_retailer_permanent', { p_retailer: id })
+  if (error) return
+  for (const uid of brukerIder) await admin.auth.admin.deleteUser(uid)
+  revalidatePath('/plattform')
 }

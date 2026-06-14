@@ -659,6 +659,7 @@ button.liten.slett:hover { background: #fdecea; }
 .stasjon-valg { border: 1px solid var(--kant); border-radius: 10px; padding: 0.6rem 0.8rem; margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
 .stasjon-valg legend { font-size: 0.8rem; font-weight: 600; padding: 0 0.3rem; }
 .stasjon-kryss { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+.plattform-handlinger { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 
 /* Signaler bak prognosen */
 .signal-stripe { display: flex; flex-wrap: wrap; gap: 0.4rem; }
