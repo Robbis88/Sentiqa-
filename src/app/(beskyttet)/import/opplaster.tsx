@@ -22,9 +22,15 @@ export function Opplaster() {
       </button>
 
       {tilstand?.ok === true ? (
-        <p className="ok" role="status">
-          {tilstand.antall} fil(er) mottatt – venter på behandling.
-        </p>
+        <div role="status">
+          <p className="ok">
+            {tilstand.antall} fil(er) mottatt – venter på behandling
+            {tilstand.hoppet > 0 ? ` · ${tilstand.hoppet} hoppet over (allerede lastet opp)` : ''}.
+          </p>
+          {tilstand.feilet.length > 0 ? (
+            <p className="feil">{tilstand.feilet.length} fil(er) feilet: {tilstand.feilet.join('; ')}</p>
+          ) : null}
+        </div>
       ) : null}
       {tilstand?.ok === false ? (
         <p className="feil" role="alert">

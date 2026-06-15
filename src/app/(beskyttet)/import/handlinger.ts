@@ -7,7 +7,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 const BUCKET = 'raa-filer'
 
 export type OpplastingTilstand =
-  | { ok: true; antall: number }
+  | { ok: true; antall: number; hoppet: number; feilet: string[] }
   | { ok: false; feil: string }
   | undefined
 
@@ -27,53 +27,56 @@ export async function lastOppFiler(
 
   const supabase = await lagSupabaseServerKlient()
   let antall = 0
+  let hoppet = 0
+  const feilet: string[] = []
 
+  // Per-fil-isolasjon: en duplikat eller én rar fil HOPPER VI OVER og fortsetter
+  // — aldri stopp hele bunken på grunn av én. Last opp 5, har 1 → 4 inn, 1 hoppet.
   for (const fil of filer) {
-    const bytes = Buffer.from(await fil.arrayBuffer())
-    const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const sti = `${bruker.retailerId}/${randomUUID()}-${fil.name}`
+    try {
+      const bytes = Buffer.from(await fil.arrayBuffer())
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      const sti = `${bruker.retailerId}/${randomUUID()}-${fil.name}`
 
-    const opplasting = await supabase.storage
-      .from(BUCKET)
-      .upload(sti, bytes, { contentType: fil.type || 'application/octet-stream' })
-    if (opplasting.error) {
-      return { ok: false, feil: `Opplasting feilet: ${opplasting.error.message}` }
-    }
+      const opplasting = await supabase.storage
+        .from(BUCKET)
+        .upload(sti, bytes, { contentType: fil.type || 'application/octet-stream' })
+      if (opplasting.error) { feilet.push(`${fil.name}: ${opplasting.error.message}`); continue }
 
-    const { data: raaFil, error: filFeil } = await supabase
-      .from('raa_filer')
-      .insert({
-        retailer_id: bruker.retailerId,
-        filnavn: fil.name,
-        storage_bucket: BUCKET,
-        storage_sti: sti,
-        mottakskanal: 'drop_zone',
-        storrelse_bytes: bytes.length,
-        sha256,
-      })
-      .select('id')
-      .single()
+      const { data: raaFil, error: filFeil } = await supabase
+        .from('raa_filer')
+        .insert({
+          retailer_id: bruker.retailerId,
+          filnavn: fil.name,
+          storage_bucket: BUCKET,
+          storage_sti: sti,
+          mottakskanal: 'drop_zone',
+          storrelse_bytes: bytes.length,
+          sha256,
+        })
+        .select('id')
+        .single()
 
-    if (filFeil) {
-      // Rydd opp den opplastede filen ved DB-feil (f.eks. duplikat-sha)
-      await supabase.storage.from(BUCKET).remove([sti])
-      if (filFeil.code === '23505') {
-        return { ok: false, feil: `"${fil.name}" er allerede lastet opp tidligere.` }
+      if (filFeil) {
+        await supabase.storage.from(BUCKET).remove([sti]) // rydd opp ved DB-feil
+        if (filFeil.code === '23505') { hoppet++; continue } // allerede lastet opp → hopp over
+        feilet.push(`${fil.name}: ${filFeil.message}`); continue
       }
-      return { ok: false, feil: filFeil.message }
+
+      const { error: jobbFeil } = await supabase.from('import_jobber').insert({
+        raa_fil_id: raaFil.id,
+        retailer_id: bruker.retailerId,
+      })
+      if (jobbFeil) { feilet.push(`${fil.name}: ${jobbFeil.message}`); continue }
+
+      antall++
+    } catch (e) {
+      feilet.push(`${fil.name}: ${e instanceof Error ? e.message : String(e)}`)
     }
-
-    const { error: jobbFeil } = await supabase.from('import_jobber').insert({
-      raa_fil_id: raaFil.id,
-      retailer_id: bruker.retailerId,
-    })
-    if (jobbFeil) return { ok: false, feil: jobbFeil.message }
-
-    antall++
   }
 
   revalidatePath('/import')
-  return { ok: true, antall }
+  return { ok: true, antall, hoppet, feilet }
 }
 
 // Avsender-allowlist for e-post-inntak (§6).
