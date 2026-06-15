@@ -1,9 +1,10 @@
-import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar, kr } from '@/lib/format'
+import { byggPeriodeGrupper } from '@/lib/perioder'
 import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
+import { PeriodeVelger } from '../periode-velger'
 
 // «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -73,18 +74,10 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
         {data ? `${manedAar.format(new Date(data.periode))} · eier-analyse` : 'Ingen analyse ennå'}
       </p>
 
-      {liste.length > 1 && (
-        <nav className="periode-trad" aria-label="Tidligere regnskap">
-          {liste.map((p) => {
-            const ym = p.slice(0, 7)
-            const aktiv = p === aktivPeriode
-            return (
-              <Link key={p} href={`/analyse?periode=${ym}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
-                {manedAar.format(new Date(p))}
-              </Link>
-            )
-          })}
-        </nav>
+      {liste.length > 0 && aktivPeriode && (
+        <div className="regnskap-velgere">
+          <PeriodeVelger valgt={aktivPeriode.slice(0, 7)} grupper={byggPeriodeGrupper(liste, false)} basePath="/analyse" />
+        </div>
       )}
 
       <AnalyseKnapp />

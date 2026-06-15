@@ -800,6 +800,8 @@ button.liten.slett:hover { background: #fdecea; }
 .periode-chip.aktiv { background: var(--primaer); border-color: var(--primaer); color: #fff; }
 
 /* Stasjons-velger (nedtrekk) — /salg, /regnskap */
+.regnskap-velgere { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; }
+.regnskap-velgere .stasjonsvelger { margin: 0.4rem 0 0.9rem; }
 .stasjonsvelger { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0 0.9rem; }
 .stasjonsvelger span { font-weight: 600; font-size: 0.85rem; color: var(--tekst-svak); white-space: nowrap; }
 .stasjonsvelger select { padding: 0.5rem 0.75rem; border: 1px solid var(--kant); border-radius: 8px; background: var(--kort); color: var(--tekst); font: inherit; font-weight: 600; min-width: 15rem; cursor: pointer; }

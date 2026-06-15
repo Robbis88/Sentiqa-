@@ -1,11 +1,12 @@
-import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
 import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
+import { byggPeriodeGrupper } from '@/lib/perioder'
 import { RegnskapButikksjef } from './butikksjef-visning'
 import { RegnskapVarsler } from './varsler-liste'
 import { StasjonsVelger } from '../stasjonsvelger'
+import { PeriodeVelger } from '../periode-velger'
 
 type Linje = {
   seksjon: string
@@ -16,6 +17,8 @@ type Linje = {
   budsjett: number | null
   avvik: number | null
   index_pct: number | null
+  regnskap_hittil?: number | null
+  budsjett_hittil?: number | null
 }
 
 const SEKSJON_TITTEL: Record<string, string> = {
@@ -56,9 +59,27 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     )
   }
 
+  // Periode: enkeltmåned (YYYY-MM) eller hittil i år (YYYY-hittil). År skilles.
   const valgt = sp.periode
-  const valgtIso = valgt ? `${valgt}-01` : null
-  const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
+  const ytdAar = valgt && /^\d{4}-hittil$/.test(valgt) ? valgt.slice(0, 4) : null
+  const hittil = ytdAar != null
+  let aktivPeriode: string
+  let valgtVerdi: string
+  if (hittil) {
+    const iAaret = liste.filter((p) => p.slice(0, 4) === ytdAar).sort()
+    aktivPeriode = iAaret[iAaret.length - 1] ?? liste[0] // siste mnd i året = full hittil-sum
+    valgtVerdi = `${ytdAar}-hittil`
+  } else {
+    const valgtIso = valgt && /^\d{4}-\d{2}$/.test(valgt) ? `${valgt}-01` : null
+    aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
+    valgtVerdi = aktivPeriode.slice(0, 7)
+  }
+  // Hittil-modus: bytt ut måned-tall med hittil-i-år-kolonnene (regnskap_hittil).
+  const normRad = <T extends { regnskap: number | null; budsjett: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null; avvik?: number | null; index_pct?: number | null }>(r: T): T => {
+    if (!hittil) return r
+    const rg = r.regnskap_hittil ?? 0, bg = r.budsjett_hittil ?? 0
+    return { ...r, regnskap: rg, budsjett: bg, avvik: rg - bg, index_pct: bg ? ((rg - bg) / bg) * 100 : null }
+  }
 
   // Admin kan bore ned i én stasjon (?stasjon=<uuid>), ellers «alle samlet».
   const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
@@ -67,18 +88,18 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler, { data: stasjonLinjer }, { data: driftRader }] = await Promise.all([
     supabase
       .from('regnskapslinjer')
-      .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
+      .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct, regnskap_hittil, budsjett_hittil')
       .eq('periode', aktivPeriode)
       .is('stasjon_id', null)
       .order('sortering', { ascending: true })
       .overrideTypes<Linje[]>(),
     supabase
       .from('regnskapslinjer')
-      .select('stasjon_id, kode, regnskap, budsjett')
+      .select('stasjon_id, kode, regnskap, budsjett, regnskap_hittil, budsjett_hittil')
       .eq('periode', aktivPeriode)
       .eq('seksjon', 'omsetning')
       .not('stasjon_id', 'is', null)
-      .overrideTypes<{ stasjon_id: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>(),
+      .overrideTypes<{ stasjon_id: string; kode: string | null; regnskap: number | null; budsjett: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     bruker.retailerId
       ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => [])
@@ -86,7 +107,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     valgtStasjon
       ? supabase
           .from('regnskapslinjer')
-          .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct')
+          .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct, regnskap_hittil, budsjett_hittil')
           .eq('periode', aktivPeriode)
           .eq('stasjon_id', valgtStasjon)
           .order('sortering', { ascending: true })
@@ -98,23 +119,23 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
       ? Promise.resolve({ data: null as { kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }[] | null })
       : supabase
           .from('regnskapslinjer')
-          .select('kode, post, sortering, regnskap, budsjett')
+          .select('kode, post, sortering, regnskap, budsjett, regnskap_hittil, budsjett_hittil')
           .eq('periode', aktivPeriode)
           .eq('seksjon', 'driftskostnader')
           .not('stasjon_id', 'is', null)
-          .overrideTypes<{ kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }[]>(),
+          .overrideTypes<{ kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }[]>(),
   ])
 
-  const linjer = data ?? []
+  const linjer = (data ?? []).map(normRad)
   // Aktiv visning: valgt stasjon (hvis den har data) ellers hele clusteret.
   const erStasjon = valgtStasjon != null && (stasjonLinjer?.length ?? 0) > 0
-  const visLinjer = erStasjon ? (stasjonLinjer ?? []) : linjer
+  const visLinjer = erStasjon ? (stasjonLinjer ?? []).map(normRad) : linjer
 
   // Aggreger omsetning per stasjon (basis-avdelinger → ren sum, ingen dobbelttelling)
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   // «40 CR» er stasjonens total-linje (= sum av avdelingene). Bruk den når den
   // finnes, ellers sum av basis-avdelingene — aldri begge (unngå dobbelttelling).
-  const omsRader = perStasjon ?? []
+  const omsRader = (perStasjon ?? []).map(normRad)
   const harCR = omsRader.some((r) => r.kode === '40')
   const kilde = harCR ? omsRader.filter((r) => r.kode === '40') : omsRader.filter((r) => r.kode !== '40')
   const perStasjonSum = new Map<string, { regnskap: number; budsjett: number }>()
@@ -135,7 +156,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
 
   // Driftskostnader per konto, summert over alle stasjoner (samlet-visning).
   const kontoMap = new Map<string, { post: string; sortering: number; regnskap: number; budsjett: number }>()
-  for (const r of driftRader ?? []) {
+  for (const r of (driftRader ?? []).map(normRad)) {
     const key = `${r.kode ?? ''}|${r.post}`
     const k = kontoMap.get(key) ?? { post: r.post, sortering: r.sortering ?? 9999, regnskap: 0, budsjett: 0 }
     k.regnskap += r.regnskap ?? 0
@@ -171,30 +192,24 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   return (
     <>
       <h1>Regnskap</h1>
-      <p className="undertittel">{manedAar.format(new Date(aktivPeriode))} · {erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'}</p>
+      <p className="undertittel">{hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))} · {erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'}</p>
 
-      {(stasjoner ?? []).length > 0 && (
-        <StasjonsVelger
-          stasjoner={[...(stasjoner ?? [])].sort((a, b) => a.butikknummer.localeCompare(b.butikknummer)).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-          valgtId={erStasjon ? valgtStasjon : null}
+      <div className="regnskap-velgere">
+        {(stasjoner ?? []).length > 0 && (
+          <StasjonsVelger
+            stasjoner={[...(stasjoner ?? [])].sort((a, b) => a.butikknummer.localeCompare(b.butikknummer)).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+            valgtId={erStasjon ? valgtStasjon : null}
+            basePath="/regnskap"
+            bevar={{ periode: valgtVerdi }}
+          />
+        )}
+        <PeriodeVelger
+          valgt={valgtVerdi}
+          grupper={byggPeriodeGrupper(liste, true)}
           basePath="/regnskap"
-          bevar={{ periode: aktivPeriode.slice(0, 7) }}
+          bevar={valgtStasjon ? { stasjon: valgtStasjon } : {}}
         />
-      )}
-
-      {liste.length > 1 && (
-        <nav className="periode-trad" aria-label="Tidligere regnskap">
-          {liste.map((p) => {
-            const ym = p.slice(0, 7)
-            const aktiv = p === aktivPeriode
-            return (
-              <Link key={p} href={`/regnskap?periode=${ym}${valgtStasjon ? `&stasjon=${valgtStasjon}` : ''}`} className={`periode-chip ${aktiv ? 'aktiv' : ''}`} aria-current={aktiv ? 'page' : undefined}>
-                {manedAar.format(new Date(p))}
-              </Link>
-            )
-          })}
-        </nav>
-      )}
+      </div>
 
       <section className="nokkeltall">
         {kpi.map(({ merke, l }) => (
