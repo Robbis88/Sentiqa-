@@ -48,16 +48,15 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
     valgtVerdi = aktivPeriode.slice(0, 7)
   }
 
-  const { data } = await supabase
-    .from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct, regnskap_hittil, budsjett_hittil')
-    .eq('stasjon_id', stasjon.id).eq('periode', aktivPeriode).order('sortering')
-    .overrideTypes<Linje[]>()
-  // Hittil-modus: bytt måned-tall mot hittil-i-år-kolonnene.
-  const linjer = (data ?? []).map((r) => {
-    if (!hittil) return r
-    const rg = r.regnskap_hittil ?? 0, bg = r.budsjett_hittil ?? 0
-    return { ...r, regnskap: rg, budsjett: bg, avvik: rg - bg, index_pct: bg ? ((rg - bg) / bg) * 100 : null }
-  })
+  // Summer månedene jan→valgt (hittil) eller den ene måneden — RLS gir kun egne
+  // stasjoner; vi filtrerer til valgt stasjon. (Per-stasjon-hittil i basen er 0.)
+  const fra = hittil ? `${ytdAar}-01-01` : aktivPeriode
+  const { data: alle } = await supabase.rpc('regnskap_sum', { p_fra: fra, p_til: aktivPeriode })
+  type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
+  const linjer: Linje[] = ((alle ?? []) as SumRad[])
+    .filter((r) => r.stasjon_id === stasjon.id)
+    .map((r) => ({ ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0), index_pct: r.budsjett ? (((r.regnskap ?? 0) - r.budsjett) / r.budsjett) * 100 : null }))
+    .sort((a, b) => (a.sortering ?? 9999) - (b.sortering ?? 9999))
 
   const seksjon = (n: string) => linjer.filter((l) => l.seksjon === n && !SKJUL_OMS.has(l.kode ?? ''))
   const sumR = (ls: Linje[]) => ls.reduce((a, l) => a + (l.regnskap ?? 0), 0)

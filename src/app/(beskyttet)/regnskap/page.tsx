@@ -74,94 +74,65 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : liste[0]
     valgtVerdi = aktivPeriode.slice(0, 7)
   }
-  // Hittil-modus: bytt ut måned-tall med hittil-i-år-kolonnene (regnskap_hittil).
-  const normRad = <T extends { regnskap: number | null; budsjett: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null; avvik?: number | null; index_pct?: number | null }>(r: T): T => {
-    if (!hittil) return r
-    const rg = r.regnskap_hittil ?? 0, bg = r.budsjett_hittil ?? 0
-    return { ...r, regnskap: rg, budsjett: bg, avvik: rg - bg, index_pct: bg ? ((rg - bg) / bg) * 100 : null }
-  }
+  // Periodevindu: hittil = sum av månedene jan→valgt; måned = den ene måneden.
+  const fra = hittil ? `${ytdAar}-01-01` : aktivPeriode
+  const til = aktivPeriode
 
   // Admin kan bore ned i én stasjon (?stasjon=<uuid>), ellers «alle samlet».
   const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
   const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
-  const [{ data }, { data: perStasjon }, { data: stasjoner }, varsler, { data: stasjonLinjer }, { data: driftRader }] = await Promise.all([
-    supabase
-      .from('regnskapslinjer')
-      .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct, regnskap_hittil, budsjett_hittil')
-      .eq('periode', aktivPeriode)
-      .is('stasjon_id', null)
-      .order('sortering', { ascending: true })
-      .overrideTypes<Linje[]>(),
-    supabase
-      .from('regnskapslinjer')
-      .select('stasjon_id, kode, regnskap, budsjett, regnskap_hittil, budsjett_hittil')
-      .eq('periode', aktivPeriode)
-      .eq('seksjon', 'omsetning')
-      .not('stasjon_id', 'is', null)
-      .overrideTypes<{ stasjon_id: string; kode: string | null; regnskap: number | null; budsjett: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }[]>(),
+  // Én funksjon summerer linjene over perioden (RLS-scopet). Vi filtrerer
+  // cluster vs. per-stasjon i JS. Summerer månedene selv — så måned/år henger
+  // sammen og per-stasjon-hittil ikke blir null (Azets fyller hittil kun cluster).
+  type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
+  const [{ data: alle }, { data: stasjoner }, varsler] = await Promise.all([
+    supabase.rpc('regnskap_sum', { p_fra: fra, p_til: til }),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
-    bruker.retailerId
-      ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => [])
-      : Promise.resolve([]),
-    valgtStasjon
-      ? supabase
-          .from('regnskapslinjer')
-          .select('seksjon, kode, post, sortering, regnskap, budsjett, avvik, index_pct, regnskap_hittil, budsjett_hittil')
-          .eq('periode', aktivPeriode)
-          .eq('stasjon_id', valgtStasjon)
-          .order('sortering', { ascending: true })
-          .overrideTypes<Linje[]>()
-      : Promise.resolve({ data: null as Linje[] | null }),
-    // Samlet-visning: per-konto driftskostnader summert på tvers av stasjonene
-    // (cluster-linjene er kun aggregerte totaler — dette gir full kontodetalj).
-    valgtStasjon
-      ? Promise.resolve({ data: null as { kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }[] | null })
-      : supabase
-          .from('regnskapslinjer')
-          .select('kode, post, sortering, regnskap, budsjett, regnskap_hittil, budsjett_hittil')
-          .eq('periode', aktivPeriode)
-          .eq('seksjon', 'driftskostnader')
-          .not('stasjon_id', 'is', null)
-          .overrideTypes<{ kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }[]>(),
+    bruker.retailerId ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => []) : Promise.resolve([]),
   ])
 
-  const linjer = (data ?? []).map(normRad)
-  // Aktiv visning: valgt stasjon (hvis den har data) ellers hele clusteret.
+  const medAvvik = <T extends { regnskap: number | null; budsjett: number | null }>(r: T) => ({
+    ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0),
+    index_pct: r.budsjett ? (((r.regnskap ?? 0) - r.budsjett) / r.budsjett) * 100 : null,
+  })
+  const etterSort = (a: { sortering: number | null }, b: { sortering: number | null }) => (a.sortering ?? 9999) - (b.sortering ?? 9999)
+  const rader = (alle ?? []) as SumRad[]
+  const linjer: Linje[] = rader.filter((r) => r.stasjon_id == null).map(medAvvik).sort(etterSort)
+  const stasjonLinjer: Linje[] | null = valgtStasjon ? rader.filter((r) => r.stasjon_id === valgtStasjon).map(medAvvik).sort(etterSort) : null
   const erStasjon = valgtStasjon != null && (stasjonLinjer?.length ?? 0) > 0
-  const visLinjer = erStasjon ? (stasjonLinjer ?? []).map(normRad) : linjer
+  const visLinjer = erStasjon ? (stasjonLinjer ?? []) : linjer
 
-  // Aggreger omsetning per stasjon (basis-avdelinger → ren sum, ingen dobbelttelling)
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
-  // «40 CR» er stasjonens total-linje (= sum av avdelingene). Bruk den når den
-  // finnes, ellers sum av basis-avdelingene — aldri begge (unngå dobbelttelling).
-  const omsRader = (perStasjon ?? []).map(normRad)
-  const harCR = omsRader.some((r) => r.kode === '40')
-  const kilde = harCR ? omsRader.filter((r) => r.kode === '40') : omsRader.filter((r) => r.kode !== '40')
-  const perStasjonSum = new Map<string, { regnskap: number; budsjett: number }>()
-  for (const r of kilde) {
-    const p = perStasjonSum.get(r.stasjon_id) ?? { regnskap: 0, budsjett: 0 }
-    p.regnskap += r.regnskap ?? 0
-    p.budsjett += r.budsjett ?? 0
-    perStasjonSum.set(r.stasjon_id, p)
+
+  // Per stasjon: omsetning + brutto («40 CR» om den finnes, ellers sum basis) +
+  // driftskostnader (sum) → driftsresultat = brutto − drift. Viser hva HVER
+  // stasjon faktisk tjener, ikke bare omsetning.
+  const perStasjon = rader.filter((r) => r.stasjon_id != null)
+  const sumSeksjon = (sid: string, seks: string, brukCR: boolean) => {
+    const ls = perStasjon.filter((r) => r.stasjon_id === sid && r.seksjon === seks)
+    const kilde = brukCR && ls.some((r) => r.kode === '40') ? ls.filter((r) => r.kode === '40') : ls.filter((r) => r.kode !== '40')
+    return kilde.reduce((a, r) => a + (r.regnskap ?? 0), 0)
   }
-  const stasjonsrader = [...perStasjonSum.entries()]
-    .filter(([id]) => navnFor.has(id))
-    .map(([id, p]) => ({
-      navn: navnFor.get(id)!,
-      ...p,
-      index: p.budsjett ? ((p.regnskap - p.budsjett) / p.budsjett) * 100 : 0,
-    }))
-    .sort((a, b) => b.regnskap - a.regnskap)
+  const stasjonsrader = [...new Set(perStasjon.map((r) => r.stasjon_id as string))]
+    .filter((id) => navnFor.has(id))
+    .map((id) => {
+      const brutto = sumSeksjon(id, 'bruttofortjeneste', true)
+      const drift = sumSeksjon(id, 'driftskostnader', false)
+      return { navn: navnFor.get(id)!, regnskap: sumSeksjon(id, 'omsetning', true), brutto, resultat: brutto - drift }
+    })
+    .sort((a, b) => b.resultat - a.resultat)
 
   // Driftskostnader per konto, summert over alle stasjoner (samlet-visning).
   const kontoMap = new Map<string, { post: string; sortering: number; regnskap: number; budsjett: number }>()
-  for (const r of (driftRader ?? []).map(normRad)) {
-    const key = `${r.kode ?? ''}|${r.post}`
-    const k = kontoMap.get(key) ?? { post: r.post, sortering: r.sortering ?? 9999, regnskap: 0, budsjett: 0 }
-    k.regnskap += r.regnskap ?? 0
-    k.budsjett += r.budsjett ?? 0
-    kontoMap.set(key, k)
+  if (!valgtStasjon) {
+    for (const r of perStasjon.filter((r) => r.seksjon === 'driftskostnader')) {
+      const key = `${r.kode ?? ''}|${r.post}`
+      const k = kontoMap.get(key) ?? { post: r.post, sortering: r.sortering ?? 9999, regnskap: 0, budsjett: 0 }
+      k.regnskap += r.regnskap ?? 0
+      k.budsjett += r.budsjett ?? 0
+      kontoMap.set(key, k)
+    }
   }
   const kostnadPerKonto = [...kontoMap.values()]
     .map((k) => ({ ...k, avvik: k.regnskap - k.budsjett, index: k.budsjett ? ((k.regnskap - k.budsjett) / k.budsjett) * 100 : null }))
@@ -234,26 +205,23 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
 
       {!erStasjon && stasjonsrader.length > 0 && (
         <section className="kort">
-          <h2>Omsetning per stasjon</h2>
+          <h2>Per stasjon</h2>
           <table className="tabell">
             <thead>
-              <tr><th>Stasjon</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th>Mot budsjett</th></tr>
+              <tr><th>Stasjon</th><th>Omsetning</th><th className="mob-skjul">Brutto</th><th>Driftsresultat</th></tr>
             </thead>
             <tbody>
               {stasjonsrader.map((s) => (
                 <tr key={s.navn}>
                   <td>{s.navn}</td>
                   <td>{kr.format(s.regnskap)}</td>
-                  <td className="mob-skjul">{kr.format(s.budsjett)}</td>
-                  <td>
-                    <span className={`status-pip ${avviksKlasse(s.index)}`}>
-                      {prosent.format(s.index / 100)}
-                    </span>
-                  </td>
+                  <td className="mob-skjul">{kr.format(s.brutto)}</td>
+                  <td><span className={`status-pip ${s.resultat >= 0 ? 'gronn' : 'rod'}`}>{kr.format(s.resultat)}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <p className="undertittel" style={{ marginTop: '0.5rem' }}>Driftsresultat = bruttofortjeneste − driftskostnader per stasjon (før felleskostnader på selskapsnivå).</p>
         </section>
       )}
 
