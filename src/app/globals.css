@@ -935,7 +935,8 @@ button.liten.slett:hover { background: #fdecea; }
 .janei.nei.valgt { background: #fde7e9; border-color: #b10e1c; color: #b10e1c; }
 
 /* Auto-fokus (§8B) */
-.generer { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
+.generer { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
+.generer .sekundaer { background: transparent; color: var(--primaer); border: 1px solid var(--primaer); }
 .generer-melding { font-size: 0.85rem; color: var(--tekst-svak); }
 .fokus-kol { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 0.5rem; }
 .fokus-tittel { font-size: 0.85rem; font-weight: 700; margin: 0 0 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; }

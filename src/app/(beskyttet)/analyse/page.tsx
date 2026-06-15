@@ -1,7 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar, kr } from '@/lib/format'
-import { byggPeriodeGrupper } from '@/lib/perioder'
+import { manedNavn } from '@/lib/perioder'
 import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
 import { PeriodeVelger } from '../periode-velger'
@@ -22,24 +22,52 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
 
   const supabase = await lagSupabaseServerKlient()
 
-  // Alle perioder med analyse (rød tråd) — velg via ?periode=YYYY-MM, ellers siste.
-  const { data: perioder } = await supabase
-    .from('regnskapsanalyser').select('periode').order('periode', { ascending: false })
-    .overrideTypes<{ periode: string }[]>()
-  const liste = [...new Set((perioder ?? []).map((p) => p.periode))]
-  const valgt = (await searchParams).periode
-  const valgtIso = valgt ? `${valgt}-01` : null
-  const aktivPeriode = valgtIso && liste.includes(valgtIso) ? valgtIso : (liste[0] ?? null)
+  // Analyser finnes per MÅNED ('maaned') og evt. HITTIL I ÅR ('hittil').
+  // Velg via ?periode=YYYY-MM (måned) eller ?periode=YYYY-hittil (hele året).
+  const { data: alleAn } = await supabase
+    .from('regnskapsanalyser').select('periode, omfang').is('slettet_tid', null).order('periode', { ascending: false })
+    .overrideTypes<{ periode: string; omfang: string }[]>()
+  const maaneder = [...new Set((alleAn ?? []).filter((a) => a.omfang !== 'hittil').map((a) => a.periode))]
+  const hittilAar = new Set((alleAn ?? []).filter((a) => a.omfang === 'hittil').map((a) => a.periode.slice(0, 4)))
 
-  const { data } = aktivPeriode
-    ? await supabase
-        .from('regnskapsanalyser')
-        .select('periode, rapport, opprettet_tid')
-        .eq('periode', aktivPeriode)
-        .order('opprettet_tid', { ascending: false })
-        .limit(1)
+  const valgt = (await searchParams).periode
+  const ytdAar = valgt && /^\d{4}-hittil$/.test(valgt) ? valgt.slice(0, 4) : null
+  const erHittil = ytdAar != null && hittilAar.has(ytdAar)
+
+  let aktivPeriode: string | null
+  let valgtVerdi = ''
+  if (erHittil) {
+    aktivPeriode = null
+    valgtVerdi = `${ytdAar}-hittil`
+  } else {
+    const valgtIso = valgt && /^\d{4}-\d{2}$/.test(valgt) ? `${valgt}-01` : null
+    aktivPeriode = valgtIso && maaneder.includes(valgtIso) ? valgtIso : (maaneder[0] ?? null)
+    valgtVerdi = aktivPeriode ? aktivPeriode.slice(0, 7) : (hittilAar.size ? `${[...hittilAar].sort().reverse()[0]}-hittil` : '')
+  }
+
+  const { data } = erHittil
+    ? await supabase.from('regnskapsanalyser').select('periode, rapport, opprettet_tid')
+        .eq('omfang', 'hittil').gte('periode', `${ytdAar}-01-01`).lte('periode', `${ytdAar}-12-31`)
+        .order('periode', { ascending: false }).limit(1)
         .maybeSingle<{ periode: string; rapport: Analyse; opprettet_tid: string }>()
-    : { data: null }
+    : aktivPeriode
+      ? await supabase.from('regnskapsanalyser').select('periode, rapport, opprettet_tid')
+          .eq('periode', aktivPeriode).eq('omfang', 'maaned')
+          .order('opprettet_tid', { ascending: false }).limit(1)
+          .maybeSingle<{ periode: string; rapport: Analyse; opprettet_tid: string }>()
+      : { data: null }
+
+  // Nedtrekksmeny: år-grupper med «Hittil i år» (der den finnes) + måneder.
+  const perAar = new Map<string, string[]>()
+  for (const p of maaneder) { const y = p.slice(0, 4); const l = perAar.get(y) ?? []; l.push(p); perAar.set(y, l) }
+  const grupper = [...new Set([...perAar.keys(), ...hittilAar])].sort().reverse().map((y) => ({
+    aar: y,
+    valg: [
+      ...(hittilAar.has(y) ? [{ verdi: `${y}-hittil`, navn: 'Hittil i år' }] : []),
+      ...(perAar.get(y) ?? []).sort().reverse().map((p) => ({ verdi: p.slice(0, 7), navn: manedNavn(p) })),
+    ],
+  }))
+  const aktivtAar = (erHittil ? ytdAar : aktivPeriode?.slice(0, 4)) ?? maaneder[0]?.slice(0, 4) ?? [...hittilAar][0]
 
   const a = data?.rapport
 
@@ -71,16 +99,16 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
     <>
       <h1>Regnskapsanalyse</h1>
       <p className="undertittel">
-        {data ? `${manedAar.format(new Date(data.periode))} · eier-analyse` : 'Ingen analyse ennå'}
+        {data ? `${erHittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(data.periode))} · eier-analyse` : 'Ingen analyse ennå'}
       </p>
 
-      {liste.length > 0 && aktivPeriode && (
+      {grupper.length > 0 && (
         <div className="regnskap-velgere">
-          <PeriodeVelger valgt={aktivPeriode.slice(0, 7)} grupper={byggPeriodeGrupper(liste, false)} basePath="/analyse" />
+          <PeriodeVelger valgt={valgtVerdi} grupper={grupper} basePath="/analyse" />
         </div>
       )}
 
-      <AnalyseKnapp />
+      <AnalyseKnapp aar={aktivtAar} />
 
       {!a ? (
         <section className="kort">
