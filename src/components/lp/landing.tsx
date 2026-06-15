@@ -148,7 +148,7 @@ export function Landing() {
             <span className="lp-merke"><span className="lp-prikk" />AI-drevet drift for servicehandelen</span>
             <h1 className="lp-h1"><span className="grad">Fornemmer.<br />Forstår.<br />Forutser.</span></h1>
             <p className="lp-sub">AI som analyserer <b>vær, salgshistorikk og drift</b> før mulighetene oppstår.</p>
-            <div className="lp-knapper">
+            <div className="lp-knapper" style={{ justifyContent: 'center' }}>
               <a className="lp-knapp primaer" href="mailto:post@sentiqa.ai?subject=Live demo av Sentiqa">Se live demo →</a>
             </div>
           </div>
