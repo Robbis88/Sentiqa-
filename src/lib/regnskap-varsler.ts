@@ -38,19 +38,31 @@ type Svinn = { stasjon_id: string | null; navn: string; salg: number | null; usy
 const kr0 = (n: number) => `${Math.round(n).toLocaleString('nb-NO')} kr`
 const pst1 = (n: number) => `${n.toFixed(1)} %`
 
+// Vurderingen er HITTIL I ÅR (ny start hvert år): summen jan→valgt periode, slik
+// at en enkelt minus-måned som netter ut over året ikke flagges. Status (rød/
+// gul/grønn) skal speile den røde tråden — ikke en tilfeldig måned.
 export async function hentRegnskapVarsler(
   supabase: SupabaseClient,
   retailerId: string,
   periode: string,
 ): Promise<RegnskapVarsel[]> {
-  const [{ data: linjer }, { data: stasjoner }, { data: svinn }] = await Promise.all([
-    supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, post, regnskap, budsjett, avvik, index_pct').eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null).overrideTypes<Linje[]>(),
+  const fra = `${periode.slice(0, 4)}-01-01` // ny start hvert år
+  type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
+  type SvinnRad = { stasjon_id: string | null; navn: string; salg: number | null; usynlig_kr: number | null; kast: number | null }
+  const [{ data: sumLinjer }, { data: stasjoner }, { data: sumSvinn }] = await Promise.all([
+    supabase.rpc('regnskap_sum', { p_fra: fra, p_til: periode }),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
-    supabase.from('regnskap_usynlig_svinn').select('stasjon_id, navn, salg, usynlig_kr, usynlig_pst, kast').eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null).overrideTypes<Svinn[]>(),
+    supabase.rpc('svinn_sum', { p_fra: fra, p_til: periode }),
   ])
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
-  const alle = linjer ?? []
+  const alle: Linje[] = ((sumLinjer ?? []) as SumRad[]).map((r) => ({
+    ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0),
+    index_pct: r.budsjett ? (((r.regnskap ?? 0) - r.budsjett) / r.budsjett) * 100 : null,
+  }))
+  const svinn: Svinn[] = ((sumSvinn ?? []) as SvinnRad[]).map((s) => ({
+    ...s, usynlig_pst: s.salg ? ((s.usynlig_kr ?? 0) / s.salg) * 100 : 0,
+  }))
   const cluster = alle.filter((l) => l.stasjon_id == null)
   const v: RegnskapVarsel[] = []
   const legg = (nivaa: VarselNiva, omfang: string, tittel: string, detalj: string, vekt: number, gruppe: number) =>
@@ -82,7 +94,7 @@ export async function hentRegnskapVarsler(
   // Total-RESULTAT inkluderer 9900/finans og kan være negativ strukturelt.
   const resEx = finn('resultat', /resultat ex 9900/i) ?? finn('resultat', /^resultat$/i)
   if (resEx) {
-    if ((resEx.regnskap ?? 0) < 0) legg('rod', 'Selskap', 'Negativt driftsresultat', `Resultat (ex 9900) er ${kr0(resEx.regnskap ?? 0)} denne perioden.`, Math.abs(resEx.regnskap ?? 0), 0)
+    if ((resEx.regnskap ?? 0) < 0) legg('rod', 'Selskap', 'Negativt driftsresultat', `Resultat (ex 9900) er ${kr0(resEx.regnskap ?? 0)} hittil i år.`, Math.abs(resEx.regnskap ?? 0), 0)
     else if ((resEx.avvik ?? 0) <= T.resGul) legg('gul', 'Selskap', 'Driftsresultat under budsjett', `${kr0(Math.abs(resEx.avvik ?? 0))} svakere enn budsjettert.`, Math.abs(resEx.avvik ?? 0), 0)
   }
 
