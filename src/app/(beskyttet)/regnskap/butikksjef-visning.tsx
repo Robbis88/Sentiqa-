@@ -1,11 +1,12 @@
-import Link from 'next/link'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
+import { byggPeriodeGrupper } from '@/lib/perioder'
 import { BUTIKKSJEF_PERSONAL_KODER, BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
 import { SKJUL_OMS_KODER as SKJUL_OMS } from '@/lib/avdelinger'
+import { PeriodeVelger } from '../periode-velger'
 
-type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
+type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }
 type Kost = { navn: string; regnskap: number; budsjett: number }
 
 // Butikksjef ser kun EGEN stasjon: omsetning + BRF + påvirkbare kostnader.
@@ -32,14 +33,31 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
       </>
     )
   }
-  const valgtIso = valgtPeriode ? `${valgtPeriode}-01` : null
-  const aktivPeriode = valgtIso && perioder.includes(valgtIso) ? valgtIso : perioder[0]
+  // Periode: enkeltmåned (YYYY-MM) eller hittil i år (YYYY-hittil). År skilles.
+  const ytdAar = valgtPeriode && /^\d{4}-hittil$/.test(valgtPeriode) ? valgtPeriode.slice(0, 4) : null
+  const hittil = ytdAar != null
+  let aktivPeriode: string
+  let valgtVerdi: string
+  if (hittil) {
+    const iAaret = perioder.filter((p) => p.slice(0, 4) === ytdAar).sort()
+    aktivPeriode = iAaret[iAaret.length - 1] ?? perioder[0]
+    valgtVerdi = `${ytdAar}-hittil`
+  } else {
+    const valgtIso = valgtPeriode && /^\d{4}-\d{2}$/.test(valgtPeriode) ? `${valgtPeriode}-01` : null
+    aktivPeriode = valgtIso && perioder.includes(valgtIso) ? valgtIso : perioder[0]
+    valgtVerdi = aktivPeriode.slice(0, 7)
+  }
 
   const { data } = await supabase
-    .from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct')
+    .from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct, regnskap_hittil, budsjett_hittil')
     .eq('stasjon_id', stasjon.id).eq('periode', aktivPeriode).order('sortering')
     .overrideTypes<Linje[]>()
-  const linjer = data ?? []
+  // Hittil-modus: bytt måned-tall mot hittil-i-år-kolonnene.
+  const linjer = (data ?? []).map((r) => {
+    if (!hittil) return r
+    const rg = r.regnskap_hittil ?? 0, bg = r.budsjett_hittil ?? 0
+    return { ...r, regnskap: rg, budsjett: bg, avvik: rg - bg, index_pct: bg ? ((rg - bg) / bg) * 100 : null }
+  })
 
   const seksjon = (n: string) => linjer.filter((l) => l.seksjon === n && !SKJUL_OMS.has(l.kode ?? ''))
   const sumR = (ls: Linje[]) => ls.reduce((a, l) => a + (l.regnskap ?? 0), 0)
@@ -61,7 +79,7 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   return (
     <>
       <h1>Regnskap · {stasjon.butikknummer} {stasjon.navn}</h1>
-      <p className="undertittel">{manedAar.format(new Date(aktivPeriode))} · din stasjon. Du ser omsetning, BRF og kostnadene du selv kan påvirke.</p>
+      <p className="undertittel">{hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))} · din stasjon. Du ser omsetning, BRF og kostnadene du selv kan påvirke.</p>
 
       {(stasjoner ?? []).length > 1 && (
         <section className="kort">
@@ -76,12 +94,15 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
         </section>
       )}
 
-      {perioder.length > 1 && (
-        <nav className="periode-trad" aria-label="Tidligere måneder">
-          {perioder.map((p) => (
-            <Link key={p} href={`/regnskap?periode=${p.slice(0, 7)}${stasjoner && stasjoner.length > 1 ? `&butikknummer=${valgtNr}` : ''}`} className={`periode-chip ${p === aktivPeriode ? 'aktiv' : ''}`}>{manedAar.format(new Date(p))}</Link>
-          ))}
-        </nav>
+      {perioder.length > 0 && (
+        <div className="regnskap-velgere">
+          <PeriodeVelger
+            valgt={valgtVerdi}
+            grupper={byggPeriodeGrupper(perioder, true)}
+            basePath="/regnskap"
+            bevar={stasjoner && stasjoner.length > 1 ? { butikknummer: valgtNr } : {}}
+          />
+        </div>
       )}
 
       <section className="nokkeltall">
