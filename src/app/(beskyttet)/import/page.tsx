@@ -3,10 +3,12 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Opplaster } from './opplaster'
 import { settAllowlist } from './handlinger'
 import { BehandleKnapp } from './behandle-knapp'
+import { BehandleAlleKnapp } from './behandle-alle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
 
-// Regnskaps-import utløser tung AI (Opus + fokus) — gi handlingen tid.
-export const maxDuration = 60
+// Regnskaps-import utløser tung AI (Opus + fokus), og «Behandle alle» kan kjøre
+// mange filer — gi handlingen god tid.
+export const maxDuration = 300
 
 const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
   mottatt: { tekst: 'Mottatt', klasse: 'gul' },
@@ -107,6 +109,7 @@ export default async function ImportSide() {
 
       <section className="kort">
         <h2>Status</h2>
+        <BehandleAlleKnapp antall={jobber.filter((j) => j.status === 'mottatt').length} />
         {jobber.length === 0 ? (
           <p className="undertittel">Ingen filer lastet opp ennå.</p>
         ) : (

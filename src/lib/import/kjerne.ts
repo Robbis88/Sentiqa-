@@ -18,6 +18,20 @@ import { opprettVarsel } from '@/lib/varsler'
 type Klient = SupabaseClient
 type Lagring = { antallRader: number; umatchet: string[] }
 
+// Skriver rader i batcher (ikke én diger insert) — holder hvert kall raskt og
+// under grensene, så store/mange filer ikke timer ut. Feiler en batch, sies
+// hvilken (resten av importen kan kjøres på nytt idempotent).
+const BATCH = 500
+async function skrivBatch(supabase: Klient, tabell: string, rader: Record<string, unknown>[], onConflict?: string): Promise<void> {
+  for (let i = 0; i < rader.length; i += BATCH) {
+    const bit = rader.slice(i, i + BATCH)
+    const { error } = onConflict
+      ? await supabase.from(tabell).upsert(bit, { onConflict })
+      : await supabase.from(tabell).insert(bit)
+    if (error) throw new ParserFeil(`Lagring feilet (batch ${Math.floor(i / BATCH) + 1} av ${Math.ceil(rader.length / BATCH)}): ${error.message}`)
+  }
+}
+
 async function hentStasjonsoppslag(supabase: Klient) {
   const { data } = await supabase
     .from('stasjoner')
@@ -182,7 +196,7 @@ async function lagreUsynligSvinn(
       rader.push({ retailer_id: retailerId, stasjon_id: stasjonId, periode, kode: p.kode, navn: p.navn, salg: p.salg, brf_pst: p.brfPst, kast: p.kast, usynlig_kr: p.usynligKr, usynlig_pst: p.usynligPst, kilde_jobb_id: jobbId })
     }
   }
-  if (rader.length > 0) await supabase.from('regnskap_usynlig_svinn').insert(rader)
+  if (rader.length > 0) await skrivBatch(supabase, 'regnskap_usynlig_svinn', rader)
 }
 
 async function lagreSalgsstatistikk(
@@ -210,12 +224,7 @@ async function lagreSalgsstatistikk(
       })
     }
   }
-  if (rader.length > 0) {
-    const { error } = await supabase
-      .from('daglig_salg')
-      .upsert(rader, { onConflict: 'retailer_id,stasjon_id,dato,ean' })
-    if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
-  }
+  if (rader.length > 0) await skrivBatch(supabase, 'daglig_salg', rader, 'retailer_id,stasjon_id,dato,ean')
   return { antallRader: rader.length, umatchet }
 }
 
@@ -242,12 +251,7 @@ async function lagreTimesalg(
       })
     }
   }
-  if (rader.length > 0) {
-    const { error } = await supabase
-      .from('timesalg')
-      .upsert(rader, { onConflict: 'retailer_id,stasjon_id,dato,time' })
-    if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
-  }
+  if (rader.length > 0) await skrivBatch(supabase, 'timesalg', rader, 'retailer_id,stasjon_id,dato,time')
   return { antallRader: rader.length, umatchet }
 }
 
@@ -275,12 +279,7 @@ async function lagreKasserer(
       })
     }
   }
-  if (rader.length > 0) {
-    const { error } = await supabase
-      .from('kassererstatistikk')
-      .upsert(rader, { onConflict: 'retailer_id,stasjon_id,dato,kasserer_nr' })
-    if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
-  }
+  if (rader.length > 0) await skrivBatch(supabase, 'kassererstatistikk', rader, 'retailer_id,stasjon_id,dato,kasserer_nr')
   return { antallRader: rader.length, umatchet }
 }
 
@@ -319,10 +318,7 @@ async function lagreSvinn(
       .in('stasjon_id', [...matchedeIder])
       .in('dato', [...datoer])
   }
-  if (rader.length > 0) {
-    const { error } = await supabase.from('synlig_svinn').insert(rader)
-    if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
-  }
+  if (rader.length > 0) await skrivBatch(supabase, 'synlig_svinn', rader)
   return { antallRader: rader.length, umatchet }
 }
 
@@ -357,9 +353,6 @@ async function lagreRegnskap(
     .eq('retailer_id', retailerId)
     .eq('periode', periode)
 
-  if (rader.length > 0) {
-    const { error } = await supabase.from('regnskapslinjer').insert(rader)
-    if (error) throw new ParserFeil(`Lagring feilet: ${error.message}`)
-  }
+  if (rader.length > 0) await skrivBatch(supabase, 'regnskapslinjer', rader)
   return { antallRader: rader.length, umatchet }
 }
