@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Opplaster } from './opplaster'
+import { KlientOpplaster } from './klient-opplaster'
 import { settAllowlist } from './handlinger'
 import { BehandleKnapp } from './behandle-knapp'
 import { BehandleAlleKnapp } from './behandle-alle-knapp'
@@ -84,7 +85,11 @@ export default async function ImportSide() {
 
       <section className="kort">
         <h2>Last opp filer</h2>
-        <Opplaster />
+        <KlientOpplaster />
+        <details style={{ marginTop: '1rem' }}>
+          <summary className="undertittel" style={{ cursor: 'pointer' }}>Alternativ: last opp server-side (parser i kø)</summary>
+          <div style={{ marginTop: '0.75rem' }}><Opplaster /></div>
+        </details>
       </section>
 
       <section className="kort">

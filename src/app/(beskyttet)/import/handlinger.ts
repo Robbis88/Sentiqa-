@@ -3,8 +3,23 @@ import { randomUUID, createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { lagreForhandsparset } from '@/lib/import/kjerne'
+import type { ForhandsPayload } from '@/lib/import/typer'
 
 const BUCKET = 'raa-filer'
+
+// Browser-parsing: klienten har parset fila lokalt og sender resultatet hit.
+// Serveren gjør kun (batchet) lagring — ingen parse/nedlasting → ingen timeout.
+export async function importerForhandsparset(arg: {
+  filnavn: string; sha256: string; storrelse: number; payload: ForhandsPayload
+}): Promise<{ ok: boolean; hoppet?: boolean; antallRader?: number; feil?: string }> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return { ok: false, feil: 'Bare eier kan importere.' }
+  const supabase = await lagSupabaseServerKlient()
+  const res = await lagreForhandsparset(supabase, bruker.retailerId, { filnavn: arg.filnavn, sha256: arg.sha256, storrelse: arg.storrelse }, arg.payload)
+  revalidatePath('/import')
+  return res
+}
 
 export type OpplastingTilstand =
   | { ok: true; antall: number; hoppet: number; feilet: string[] }

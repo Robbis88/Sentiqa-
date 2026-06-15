@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { randomUUID } from 'node:crypto'
+import type { ForhandsPayload } from './typer'
 import { gjenkjennRapporttype } from '@/lib/parsere/gjenkjenn'
 import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
 import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
@@ -173,6 +175,82 @@ export async function behandleJobbKjerne(
     }
   } catch (e) {
     await settFeil(e instanceof ParserFeil ? e.message : `Uventet feil: ${String(e)}`)
+  }
+}
+
+// Browser-parsing: klienten parser fila lokalt (ingen server-parse-timeout) og
+// sender PARSER-RESULTATET hit. Vi lagrer kun (batchet) + fører en jobb-rad.
+// Ingen rå-fil i Storage (klienten har den) — sentinel-sti tilfredsstiller NOT NULL.
+export async function lagreForhandsparset(
+  supabase: Klient,
+  retailerId: string,
+  meta: { filnavn: string; sha256: string; storrelse: number },
+  payload: ForhandsPayload,
+): Promise<{ ok: boolean; hoppet?: boolean; antallRader?: number; feil?: string }> {
+  const { data: raaFil, error: filFeil } = await supabase
+    .from('raa_filer')
+    .insert({ retailer_id: retailerId, filnavn: meta.filnavn, storage_sti: `klient/${randomUUID()}-${meta.filnavn}`, mottakskanal: 'drop_zone', storrelse_bytes: meta.storrelse, sha256: meta.sha256 })
+    .select('id').single<{ id: string }>()
+  if (filFeil || !raaFil) {
+    if (filFeil?.code === '23505') return { ok: true, hoppet: true } // allerede importert
+    return { ok: false, feil: filFeil?.message ?? 'Kunne ikke registrere fil.' }
+  }
+  const { data: jobb } = await supabase
+    .from('import_jobber')
+    .insert({ raa_fil_id: raaFil.id, retailer_id: retailerId, rapporttype: payload.type, status: 'behandler' })
+    .select('id').single<{ id: string }>()
+  const jobbId = jobb!.id
+
+  const settFeil = async (m: string) => {
+    await supabase.from('import_jobber').update({ status: 'feilet', feilmelding: m }).eq('id', jobbId)
+    return { ok: false, feil: m }
+  }
+  try {
+    const oppslag = await hentStasjonsoppslag(supabase)
+    let res: Lagring
+    let dato: string | null = null
+    switch (payload.type) {
+      case 'st1_salgsstatistikk':
+        dato = payload.salg.dato
+        res = await lagreSalgsstatistikk(supabase, retailerId, jobbId, oppslag.medNummer, payload.salg)
+        break
+      case 'st1_salesperhour_inneute':
+        dato = payload.timesalg.dato ?? datoFraFilnavn(meta.filnavn)
+        if (!dato) throw new ParserFeil('Fant ingen dato i fil eller filnavn.')
+        res = await lagreTimesalg(supabase, retailerId, jobbId, oppslag.medNavn, payload.timesalg, dato)
+        break
+      case 'st1_cashierstats':
+        dato = payload.kasserer.dato ?? datoFraFilnavn(meta.filnavn)
+        if (!dato) throw new ParserFeil('Fant ingen dato i fil eller filnavn.')
+        res = await lagreKasserer(supabase, retailerId, jobbId, oppslag.medNummer, payload.kasserer, dato)
+        break
+      case 'salgsgrid_varetrans':
+        res = await lagreSvinn(supabase, retailerId, jobbId, oppslag.medNummer, payload.svinn)
+        break
+      case 'regnskap_resultat':
+        dato = payload.regnskap.periode ?? periodeFraFilnavn(meta.filnavn)
+        if (!dato) throw new ParserFeil('Fant ingen periode i fil eller filnavn.')
+        res = await lagreRegnskap(supabase, retailerId, jobbId, payload.regnskap, dato, payload.stasjoner, oppslag.medNummer)
+        if (payload.usynlig) { try { await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, payload.usynlig, dato) } catch { /* mangler per-stasjon-ark */ } }
+        break
+      default:
+        return await settFeil('Ukjent rapporttype.')
+    }
+    await supabase.from('import_jobber').update({
+      status: res.antallRader === 0 ? 'feilet' : 'parset',
+      gjelder_dato: dato, antall_rader: res.antallRader, parset_tid: new Date().toISOString(),
+      feilmelding: res.umatchet.length > 0 ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}` : null,
+    }).eq('id', jobbId)
+    if (payload.type === 'regnskap_resultat') {
+      after(async () => {
+        try { await kjorRegnskapsanalyse(supabase, retailerId) } catch { /* fallback: cron/knapp */ }
+        try { await genererFokusForRetailer(supabase, retailerId) } catch { /* fallback */ }
+      })
+    }
+    if (res.antallRader === 0) return { ok: false, feil: 'Ingen rader lagret — sjekk at stasjonene er registrert.' }
+    return { ok: true, antallRader: res.antallRader }
+  } catch (e) {
+    return await settFeil(e instanceof ParserFeil ? e.message : `Uventet feil: ${String(e)}`)
   }
 }
 
