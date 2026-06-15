@@ -2,8 +2,8 @@
 import { revalidatePath } from 'next/cache'
 import { genererRegnskapsanalyse, genererRegnskapsanalyseHittil } from '@/lib/ai/regnskapsanalyse'
 
-export async function generer() {
-  const res = await genererRegnskapsanalyse()
+export async function generer(periode?: string) {
+  const res = await genererRegnskapsanalyse(periode)
   revalidatePath('/analyse')
   return res
 }

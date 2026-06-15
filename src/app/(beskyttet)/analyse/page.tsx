@@ -69,6 +69,13 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
   }))
   const aktivtAar = (erHittil ? ytdAar : aktivPeriode?.slice(0, 4)) ?? maaneder[0]?.slice(0, 4) ?? [...hittilAar][0]
 
+  // Alle opplastede regnskaps-måneder (også uten analyse ennå) — så du kan kjøre
+  // analyse for hvilken som helst måned, ikke bare den siste.
+  const { data: regnPer } = await supabase
+    .from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false }).limit(2000)
+    .overrideTypes<{ periode: string }[]>()
+  const regnskapMnd = [...new Set((regnPer ?? []).map((p) => p.periode))].map((p) => ({ verdi: p.slice(0, 7), navn: `${manedNavn(p)} ${p.slice(0, 4)}` }))
+
   const a = data?.rapport
 
   // Usynlig svinn per stasjon (+ = manko/penger borte, − = overskudd/positiv svinn)
@@ -108,7 +115,7 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
         </div>
       )}
 
-      <AnalyseKnapp aar={aktivtAar} />
+      <AnalyseKnapp aar={aktivtAar} maaneder={regnskapMnd} />
 
       {!a ? (
         <section className="kort">

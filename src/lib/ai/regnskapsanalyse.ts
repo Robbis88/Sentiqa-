@@ -64,15 +64,19 @@ async function kjorOpusOgLagre(supabase: Klient, retailerId: string, periode: st
   return { ok: true, periode }
 }
 
-// Kjernen — tar klient + retailer, så den kan kjøres både fra import (auto) og UI.
-export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string): Promise<Resultat> {
+// Kjernen — tar klient + retailer (+ evt. valgt måned), så den kan kjøres både
+// fra import (auto = siste måned) og UI (en hvilken som helst opplastet måned).
+export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string, valgtPeriode?: string): Promise<Resultat> {
   if (!env.ANTHROPIC_API_KEY) return { ok: false, grunn: 'AI er ikke aktivert (mangler ANTHROPIC_API_KEY).' }
 
-  const { data: siste } = await supabase
-    .from('regnskapslinjer').select('periode').eq('retailer_id', retailerId).is('stasjon_id', null)
-    .order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
-  if (!siste) return { ok: false, grunn: 'Ingen regnskap ennå. Behandle en regnskapsfil først.' }
-  const periode = siste.periode
+  let periode = valgtPeriode && /^\d{4}-\d{2}/.test(valgtPeriode) ? `${valgtPeriode.slice(0, 7)}-01` : null
+  if (!periode) {
+    const { data: siste } = await supabase
+      .from('regnskapslinjer').select('periode').eq('retailer_id', retailerId).is('stasjon_id', null)
+      .order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>()
+    if (!siste) return { ok: false, grunn: 'Ingen regnskap ennå. Behandle en regnskapsfil først.' }
+    periode = siste.periode
+  }
 
   // Race-guard: ikke kjør på nytt innen 30 sek (auto + UI kan kollidere).
   const { data: nylig } = await supabase
@@ -152,14 +156,14 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string)
   return kjorOpusOgLagre(supabase, retailerId, periode, 'maaned', brukerMelding)
 }
 
-// UI-trigger (eier, manuell regenerering).
-export async function genererRegnskapsanalyse(): Promise<Resultat> {
+// UI-trigger (eier, manuell regenerering — evt. for en valgt måned).
+export async function genererRegnskapsanalyse(periode?: string): Promise<Resultat> {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
     return { ok: false, grunn: 'Bare eier kan kjøre regnskapsanalysen.' }
   }
   const supabase = await lagSupabaseServerKlient()
-  return kjorRegnskapsanalyse(supabase, bruker.retailerId)
+  return kjorRegnskapsanalyse(supabase, bruker.retailerId, periode)
 }
 
 // HITTIL I ÅR-analyse (regnskapsfører på årsbasis; for onboarding/hele året).
