@@ -130,7 +130,10 @@ export async function hentRegnskapVarsler(
       }
     }
 
-    const res = liste.find((l) => l.seksjon === 'resultat' && /^resultat$/i.test(l.post))
+    // Bruk RESULTAT EX 9900 (før eierlønn) — ellers flagges «tap» feilaktig når
+    // eierlønnen 9900 er trukket fra. Faller tilbake til total-RESULTAT.
+    const res = liste.find((l) => l.seksjon === 'resultat' && /resultat ex 9900/i.test(l.post))
+      ?? liste.find((l) => l.seksjon === 'resultat' && /^resultat$/i.test(l.post))
     if (res && (res.regnskap ?? 0) < 0) {
       const andel = omsR > 0 ? Math.abs((res.regnskap ?? 0) / omsR) * 100 : 0
       legg('rod', navn, 'Negativt resultat', `${kr0(res.regnskap ?? 0)}${andel ? ` (${andel.toFixed(1)} % av omsetning)` : ''}.`, Math.abs(res.regnskap ?? 0), 1)

@@ -178,12 +178,19 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const brutto = erStasjon
     ? seksjon('bruttofortjeneste').find((l) => l.kode === '40')
     : seksjon('bruttofortjeneste').find((l) => /^bruttofortjeneste/i.test(l.post))
-  const resultat = seksjon('resultat').find((l) => /^resultat$/i.test(l.post))
+  // To resultatlinjer i Azets-rapporten: «RESULTAT EX 9900» (før eierlønn 9900 —
+  // det bedriften faktisk tjener) og «RESULTAT» (bunnlinjen, etter eierlønn).
+  // Vi viser begge så det ikke ser ut som tap når eierlønnen er trukket fra.
+  const resultatInkl = seksjon('resultat').find((l) => /^resultat$/i.test(l.post.trim()))
+  const resultatEks = seksjon('resultat').find((l) => /9900/.test(l.post))
 
   const kpi = [
     { merke: 'Omsetning', l: omsetningTotalt },
     { merke: 'Bruttofortjeneste', l: brutto },
-    ...(erStasjon ? [] : [{ merke: 'Resultat', l: resultat }]),
+    ...(erStasjon ? [] : [
+      ...(resultatEks ? [{ merke: 'Resultat eks. 9900', l: resultatEks }] : []),
+      { merke: 'Resultat inkl. 9900', l: resultatInkl },
+    ]),
   ]
 
   // Varsler: stasjonsvisning viser kun valgt stasjons varsler; ellers alle.
