@@ -71,9 +71,6 @@ export default async function DekningSide() {
         Hvilke dager vi har tall fra, {MAANEDER} måneder bakover. År-mot-år-analysene trenger ~13–14 mnd historikk.
         Rødt = mangler opplasting. Gjenopplasting erstatter tallene for datoen — den dupliserer aldri.
       </p>
-      <p className="undertittel" style={{ background: 'var(--gul-svak)', padding: '0.4rem 0.7rem', borderRadius: 8 }}>
-        🔎 Leser <b>{settPer.get('daglig_salg')?.size ?? 0}</b> salgsdager · innlogget som <b>{bruker.epost}</b> · kjede <b>{bruker.retailerId ?? 'INGEN'}</b> · oppdatert {new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', timeStyle: 'medium' }).format(new Date())}
-      </p>
 
       <section className="nokkeltall">
         {oppsummering.map((d) => (
