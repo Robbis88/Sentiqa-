@@ -11,7 +11,7 @@ export async function behandleJobb(formData: FormData) {
   if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return
   const supabase = await lagSupabaseServerKlient()
   await behandleJobbKjerne(supabase, bruker.retailerId, jobbId)
-  revalidatePath('/import')
+  revalidatePath('/', 'layout') // ny data → frisk opp alle datasider
 }
 
 // «Behandle alle» — kjører hele 'mottatt'-køen i en løkke med feil-isolasjon
@@ -33,6 +33,6 @@ export async function behandleAlle(): Promise<{ ok: number; feil: number }> {
       feil++ // kjernen setter selv status='feilet'; dette er ekstra sikring så løkka går videre
     }
   }
-  revalidatePath('/import')
+  revalidatePath('/', 'layout') // ny data → frisk opp alle datasider
   return { ok, feil }
 }

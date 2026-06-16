@@ -17,7 +17,7 @@ export async function importerForhandsparset(arg: {
   if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return { ok: false, feil: 'Bare eier kan importere.' }
   const supabase = await lagSupabaseServerKlient()
   const res = await lagreForhandsparset(supabase, bruker.retailerId, { filnavn: arg.filnavn, sha256: arg.sha256, storrelse: arg.storrelse }, arg.payload)
-  revalidatePath('/import')
+  revalidatePath('/', 'layout') // ny data → frisk opp ALLE datasider (salg/dekning/oversikt …)
   return res
 }
 
