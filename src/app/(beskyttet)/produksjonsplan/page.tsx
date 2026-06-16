@@ -58,10 +58,10 @@ export default async function ProduksjonsplanSide({
 
   const { data: alleStasjoner } = await supabase
     .from('stasjoner')
-    .select('id, butikknummer, navn, stasjonstype, vaerfolsomhet')
+    .select('id, butikknummer, navn, stasjonstype, vaerfolsomhet, vaerfolsomhet_laert')
     .is('slettet_tid', null)
     .order('butikknummer')
-    .overrideTypes<{ id: string; butikknummer: string; navn: string; stasjonstype: string; vaerfolsomhet: number | null }[]>()
+    .overrideTypes<{ id: string; butikknummer: string; navn: string; stasjonstype: string; vaerfolsomhet: number | null; vaerfolsomhet_laert: number | null }[]>()
 
   // Butikksjef låses til egne stasjoner (admin ser alle).
   let stasjoner = alleStasjoner ?? []
@@ -128,7 +128,7 @@ export default async function ProduksjonsplanSide({
       .filter((p) => p.varenavn)
     datadybde = new Set(punkter.map((p) => p.dato)).size
 
-    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, arrangementFaktor, helligdag: erHelligdag(dato) })
+    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, arrangementFaktor, helligdag: erHelligdag(dato) })
     advarsler = plan.advarsler
     if (helligdagNavn(dato)) advarsler.push(`🔴 ${helligdagNavn(dato)} — forslaget bygger på fjorårets samme helligdag, ikke vanlige ukedager.`)
     if (arrangementer.length > 0) advarsler.push(`Arrangement-dag: ${arrangementer.map((a) => `${a.navn} (×${a.faktor})`).join(', ')} — forslaget er løftet.`)

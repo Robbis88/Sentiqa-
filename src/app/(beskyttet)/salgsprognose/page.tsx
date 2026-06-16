@@ -31,8 +31,8 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
 
   const supabase = await lagSupabaseServerKlient()
   const { data: stasjoner } = await supabase
-    .from('stasjoner').select('id, navn, butikknummer, stasjonstype, vaerfolsomhet').is('slettet_tid', null).order('butikknummer')
-    .overrideTypes<{ id: string; navn: string; butikknummer: string; stasjonstype: string; vaerfolsomhet: number | null }[]>()
+    .from('stasjoner').select('id, navn, butikknummer, stasjonstype, vaerfolsomhet, vaerfolsomhet_laert').is('slettet_tid', null).order('butikknummer')
+    .overrideTypes<{ id: string; navn: string; butikknummer: string; stasjonstype: string; vaerfolsomhet: number | null; vaerfolsomhet_laert: number | null }[]>()
   const liste = stasjoner ?? []
   if (liste.length === 0) return <><h1>Salgsprognose</h1><p className="undertittel">Ingen stasjoner tilgjengelig.</p></>
 
@@ -61,7 +61,7 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   const sisteSalgsdato = datoer.length ? datoer[datoer.length - 1] : idag
 
   const prognose = salg.length > 0
-    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet ?? 0.5, stasjonstype: stasjon.stasjonstype, helligdag })
+    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, stasjonstype: stasjon.stasjonstype, helligdag })
     : null
 
   const ikonFor = new Map(AVDELINGER.map((a) => [a.kode, a.ikon]))

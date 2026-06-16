@@ -22,6 +22,9 @@ type Stasjon = {
   breddegrad: number | null
   lengdegrad: number | null
   vaerfolsomhet: number | null
+  vaerfolsomhet_laert: number | null
+  vaer_temp_korr: number | null
+  vaer_nedbor_korr: number | null
 }
 
 export default async function StasjonerSide() {
@@ -33,7 +36,7 @@ export default async function StasjonerSide() {
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('stasjoner')
-    .select('id, butikknummer, navn, stasjonstype, stasjonstype_sekundaer, svinnterskel_prosent, breddegrad, lengdegrad, vaerfolsomhet')
+    .select('id, butikknummer, navn, stasjonstype, stasjonstype_sekundaer, svinnterskel_prosent, breddegrad, lengdegrad, vaerfolsomhet, vaerfolsomhet_laert, vaer_temp_korr, vaer_nedbor_korr')
     .is('slettet_tid', null)
     .order('butikknummer')
     .overrideTypes<Stasjon[]>()
@@ -100,9 +103,14 @@ export default async function StasjonerSide() {
                   <td>
                     <form action={settVaerfolsomhet} className="terskel-form">
                       <input type="hidden" name="stasjon_id" value={s.id} />
-                      <input name="vaerfolsomhet" inputMode="decimal" defaultValue={s.vaerfolsomhet ?? 0.5} placeholder="0.5" aria-label="Værfølsomhet 0–1" style={{ width: '4rem' }} />
+                      <input name="vaerfolsomhet" inputMode="decimal" defaultValue={s.vaerfolsomhet ?? 0.5} placeholder="0.5" aria-label="Værfølsomhet 0–1 (manuell fallback)" style={{ width: '4rem' }} />
                       <button type="submit" className="liten">Lagre</button>
                     </form>
+                    {s.vaerfolsomhet_laert != null ? (
+                      <div className="undertittel" style={{ marginTop: '0.3rem', fontSize: '0.78rem' }}>
+                        🤖 Lært: <b>{s.vaerfolsomhet_laert.toFixed(2)}</b> · temp {s.vaer_temp_korr != null ? `${s.vaer_temp_korr >= 0 ? '+' : ''}${s.vaer_temp_korr.toFixed(2)}` : '–'} · nedbør {s.vaer_nedbor_korr != null ? `${s.vaer_nedbor_korr >= 0 ? '+' : ''}${s.vaer_nedbor_korr.toFixed(2)}` : '–'} <span title="Motoren bruker den lærte verdien; tallet over er kun fallback">(i bruk)</span>
+                      </div>
+                    ) : null}
                   </td>
                   <td>
                     <form action={settPosisjon} className="posisjon-form">

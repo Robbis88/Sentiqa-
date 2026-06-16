@@ -47,6 +47,15 @@ export async function GET(req: NextRequest) {
     // trafikkfeil skal ikke velte nattjobben
   }
 
+  // Lært værprofil per stasjon (ukedagsjustert korrelasjon) → kalibrert følsomhet.
+  let vaerprofil: number | null = null
+  try {
+    const { data } = await supabase.rpc('beregn_vaerprofil')
+    vaerprofil = typeof data === 'number' ? data : null
+  } catch {
+    // profilfeil skal ikke velte nattjobben
+  }
+
   const { data: retailers } = await supabase.from('retailers').select('id').is('slettet_tid', null)
 
   let kjeder = 0
@@ -77,5 +86,5 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, kjeder, vaer, kalender, trafikk })
+  return NextResponse.json({ ok: true, kjeder, vaer, kalender, trafikk, vaerprofil })
 }
