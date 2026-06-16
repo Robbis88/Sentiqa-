@@ -8,6 +8,9 @@ import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
 
+// Paginert henting av et helt års salg kan ta litt — gi handlingen tid.
+export const maxDuration = 60
+
 const UKEDAG = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
 
 type SalgRad = { varenavn: string | null; varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string }
@@ -93,8 +96,7 @@ export default async function ProduksjonsplanSide({
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
     const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
 
-    const [{ data: salg }, { data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: arr }] = await Promise.all([
-      supabase.from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null).overrideTypes<SalgRad[]>(),
+    const [{ data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: arr }] = await Promise.all([
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
       supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
@@ -102,11 +104,26 @@ export default async function ProduksjonsplanSide({
       // Kun BEKREFTEDE arrangementer løfter planen (forslag styres på /arrangementer).
       supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).neq('status', 'forslag').is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
     ])
+
+    // PostgREST kapper på 1000 rader. Et helt års produksjonssalg (~12k rader) må
+    // derfor hentes i SIDER — ellers får motoren ikke fjorårets dager, og
+    // år-mot-år-matchen blir feil. Ordnet på (dato, ean) for stabil paginering.
+    const salg: SalgRad[] = []
+    for (let side = 0; side < 100; side++) {
+      const { data, error } = await supabase
+        .from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
+        .eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null)
+        .order('dato').order('ean').range(side * 1000, side * 1000 + 999).overrideTypes<SalgRad[]>()
+      if (error || !data || data.length === 0) break
+      salg.push(...data)
+      if (data.length < 1000) break
+    }
+
     vaer = vMaal ?? null
     hodeData = hode ?? null
     arrangementer = (arr ?? []).filter((a) => a.stasjon_id === null || a.stasjon_id === stasjon.id).map((a) => ({ id: a.id, navn: a.navn, faktor: a.faktor }))
     const arrangementFaktor = arrangementer.reduce((f, a) => f * a.faktor, 1)
-    const punkter: SalgsPunkt[] = (salg ?? [])
+    const punkter: SalgsPunkt[] = salg
       .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
       .filter((p) => p.varenavn)
     datadybde = new Set(punkter.map((p) => p.dato)).size
