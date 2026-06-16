@@ -2,6 +2,10 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, manedAar } from '@/lib/format'
 
+// Aldri cache — datadekning skal alltid speile basen med en gang.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Datasett med dato-kolonne. Distinkte datoer kommer fra v_datodekning (0059).
 const DATASETT = [
   { key: 'daglig_salg', navn: 'Salg' },
@@ -66,6 +70,9 @@ export default async function DekningSide() {
       <p className="undertittel">
         Hvilke dager vi har tall fra, {MAANEDER} måneder bakover. År-mot-år-analysene trenger ~13–14 mnd historikk.
         Rødt = mangler opplasting. Gjenopplasting erstatter tallene for datoen — den dupliserer aldri.
+      </p>
+      <p className="undertittel" style={{ background: 'var(--gul-svak)', padding: '0.4rem 0.7rem', borderRadius: 8 }}>
+        🔎 Leser nå <b>{settPer.get('daglig_salg')?.size ?? 0}</b> salgsdager fra basen (i {MAANEDER}-mnd-vinduet) · oppdatert {new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', timeStyle: 'medium' }).format(new Date())}
       </p>
 
       <section className="nokkeltall">
