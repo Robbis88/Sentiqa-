@@ -2,13 +2,28 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { datoLang, iDag, tall } from '@/lib/format'
-import { PRODUKSJON_KODER, leggTilDager } from '@/lib/produksjonsplan'
+import { datoLang, tall, kr } from '@/lib/format'
+import { AVDELINGER } from '@/lib/avdelinger'
+import { OppdaterKnapp } from './oppdater-knapp'
 
-type Rad = { dato: string; planlagt: number; foreslatt: number; faktisk: number; treff: number }
+// Backtesten kan ta litt når den kjøres fra knappen (motorene × ~60 dager × stasjoner).
+export const maxDuration = 120
 
-function treffKlasse(t: number): string {
+type TreffRad = { type: 'produksjonsplan' | 'salgsprognose'; dato: string; kategori: string; forventet: number; faktisk: number; treff: number }
+type Type = 'produksjonsplan' | 'salgsprognose'
+
+function klasse(t: number): string {
   return t >= 80 ? 'gronn' : t >= 60 ? 'gul' : 'rod'
+}
+
+const AVD_NAVN = new Map(AVDELINGER.map((a) => [a.kode, `${a.ikon} ${a.navn}`]))
+const PROD_NAVN = new Map<string, string>([
+  ['1201', '🥐 Boller'], ['1202', '🥖 Brød/bakst'], ['1203', '🥪 Smørbrød'],
+  ['1216', '🍕 Varmmat'], ['1217', '🌭 Pølser'], ['1218', '🍗 Kylling'],
+  ['1219', '🍩 Søtt'], ['1221', '🥗 Salat'],
+])
+function katNavn(type: Type, kode: string): string {
+  return (type === 'salgsprognose' ? AVD_NAVN.get(kode) : PROD_NAVN.get(kode)) ?? `Kode ${kode}`
 }
 
 export default async function TreffsikkerhetSide({ searchParams }: { searchParams: Promise<{ butikknummer?: string }> }) {
@@ -29,88 +44,170 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
   const valgtNr = sp.butikknummer || stasjoner[0]?.butikknummer || ''
   const stasjon = stasjoner.find((s) => s.butikknummer === valgtNr)
 
-  let rader: Rad[] = []
-  let totalTreff: number | null = null
+  // Alle treff-rader for stasjonen (paginert — kan være >1000).
+  const rader: TreffRad[] = []
   if (stasjon) {
-    const idag = iDag()
-    const fra = leggTilDager(idag, -30)
-    const { data: plan } = await supabase
-      .from('produksjonsplan_linjer').select('dato, varenavn, planlagt, foreslatt')
-      .eq('stasjon_id', stasjon.id).gte('dato', fra).lt('dato', idag).gt('planlagt', 0)
-      .overrideTypes<{ dato: string; varenavn: string; planlagt: number; foreslatt: number }[]>()
-
-    if (plan && plan.length > 0) {
-      const min = plan.reduce((m, p) => (p.dato < m ? p.dato : m), plan[0].dato)
-      const { data: salg } = await supabase
-        .from('daglig_salg').select('dato, varenavn, antall')
-        .eq('stasjon_id', stasjon.id).in('varegruppe_kode', PRODUKSJON_KODER).gte('dato', min).lt('dato', idag).is('slettet_tid', null)
-        .overrideTypes<{ dato: string; varenavn: string | null; antall: number | null }[]>()
-      const faktisk = new Map<string, number>()
-      for (const s of salg ?? []) {
-        const k = `${s.dato}|${(s.varenavn ?? '').trim()}`
-        faktisk.set(k, (faktisk.get(k) ?? 0) + (s.antall ?? 0))
-      }
-      const perDato = new Map<string, { planlagt: number; foreslatt: number; faktisk: number }>()
-      for (const p of plan) {
-        const f = faktisk.get(`${p.dato}|${p.varenavn.trim()}`) ?? 0
-        const d = perDato.get(p.dato) ?? { planlagt: 0, foreslatt: 0, faktisk: 0 }
-        d.planlagt += p.planlagt; d.foreslatt += p.foreslatt; d.faktisk += f
-        perDato.set(p.dato, d)
-      }
-      rader = [...perDato.entries()].map(([dato, d]) => {
-        const treff = Math.max(0, 100 - Math.round((Math.abs(d.planlagt - d.faktisk) / Math.max(d.faktisk, d.planlagt, 1)) * 100))
-        return { dato, ...d, treff }
-      }).sort((a, b) => (a.dato < b.dato ? 1 : -1))
-      totalTreff = rader.length ? Math.round(rader.reduce((a, r) => a + r.treff, 0) / rader.length) : null
+    for (let side = 0; side < 20; side++) {
+      const { data, error } = await supabase
+        .from('prognose_treff').select('type, dato, kategori, forventet, faktisk, treff')
+        .eq('stasjon_id', stasjon.id).order('dato').range(side * 1000, side * 1000 + 999)
+        .overrideTypes<TreffRad[]>()
+      if (error || !data || data.length === 0) break
+      rader.push(...data)
+      if (data.length < 1000) break
     }
+  }
+  const { data: kalRader } = stasjon
+    ? await supabase.from('prognose_kalibrering').select('type, kategori, korreksjon, n').eq('stasjon_id', stasjon.id)
+    : { data: [] }
+  const kalibrering = new Map<string, { korreksjon: number; n: number }>()
+  for (const k of (kalRader ?? []) as { type: string; kategori: string; korreksjon: number; n: number }[]) {
+    kalibrering.set(`${k.type}|${k.kategori}`, { korreksjon: k.korreksjon, n: k.n })
+  }
+
+  // Aggreger pr type.
+  function byggType(type: Type) {
+    const total = rader.filter((r) => r.type === type && r.kategori === '*')
+    const snitt = total.length ? Math.round(total.reduce((a, r) => a + r.treff, 0) / total.length) : null
+    const dager = total.length
+    const perKat = new Map<string, { treff: number[]; forventet: number; faktisk: number; n: number }>()
+    for (const r of rader) {
+      if (r.type !== type || r.kategori === '*') continue
+      const v = perKat.get(r.kategori) ?? { treff: [], forventet: 0, faktisk: 0, n: 0 }
+      v.treff.push(r.treff); v.forventet += r.forventet; v.faktisk += r.faktisk; v.n += 1
+      perKat.set(r.kategori, v)
+    }
+    const kategorier = [...perKat.entries()].map(([kode, v]) => ({
+      kode,
+      treff: Math.round(v.treff.reduce((a, b) => a + b, 0) / v.treff.length),
+      forventet: v.forventet / v.n, faktisk: v.faktisk / v.n,
+      kal: kalibrering.get(`${type}|${kode}`) ?? null,
+    })).sort((a, b) => a.treff - b.treff) // svakeste øverst (der det er mest å hente)
+    return { snitt, dager, kategorier, trend: total }
+  }
+  const prod = byggType('produksjonsplan')
+  const salg = byggType('salgsprognose')
+
+  // Felles dags-trend (siste 21 dager) for begge.
+  const trendMap = new Map<string, { prod?: number; salg?: number }>()
+  for (const r of prod.trend) { const d = trendMap.get(r.dato) ?? {}; d.prod = r.treff; trendMap.set(r.dato, d) }
+  for (const r of salg.trend) { const d = trendMap.get(r.dato) ?? {}; d.salg = r.treff; trendMap.set(r.dato, d) }
+  const trendDager = [...trendMap.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).slice(0, 21)
+
+  const harData = prod.snitt != null || salg.snitt != null
+
+  const renderSeksjon = (tittel: string, type: Type, t: ReturnType<typeof byggType>, fmt: (n: number) => string) => {
+    if (t.snitt == null) {
+      return (
+        <section className="kort">
+          <h2>{tittel}</h2>
+          <p className="undertittel">Ingen målte dager ennå. Kjør «Oppdater treffsikkerhet» — eller vent til nattjobben.</p>
+        </section>
+      )
+    }
+    return (
+      <section className="kort">
+        <div className="seksjon-topp">
+          <h2>{tittel}</h2>
+          <span className={`kpi-tall ${klasse(t.snitt)}`} style={{ fontSize: '1.6rem' }}>{t.snitt} %</span>
+        </div>
+        <p className="undertittel" style={{ marginBottom: '0.6rem' }}>Snitt treffsikkerhet over {t.dager} målte dager (forventet vs. faktisk).</p>
+        <table className="tabell">
+          <thead><tr><th>Kategori</th><th>Treff</th><th>Snitt forventet</th><th>Snitt faktisk</th><th>Selvlæring</th></tr></thead>
+          <tbody>
+            {t.kategorier.map((k) => (
+              <tr key={k.kode}>
+                <td>{katNavn(type, k.kode)}</td>
+                <td><span className={`status-pip ${klasse(k.treff)}`}>{k.treff} %</span></td>
+                <td>{fmt(Math.round(k.forventet))}</td>
+                <td>{fmt(Math.round(k.faktisk))}</td>
+                <td>
+                  {k.kal ? (
+                    <span className="undertittel" title={`Basert på ${k.kal.n} dager`}>
+                      🤖 ×{k.kal.korreksjon.toFixed(2)} {k.kal.korreksjon > 1.02 ? '(løfter)' : k.kal.korreksjon < 0.98 ? '(demper)' : '(nøytral)'}
+                    </span>
+                  ) : <span className="undertittel">—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    )
   }
 
   return (
     <>
       <h1>Treffsikkerhet</h1>
-      <p className="undertittel">Hvor godt traff planen faktisk salg? <Link href="/produksjonsplan">← Tilbake til planen</Link></p>
+      <p className="undertittel">
+        Hvor godt traff prognosene faktisk salg? Målt ved å kjøre motorene bakover på din egen historikk («backtest»).{' '}
+        <Link href="/produksjonsplan">← Tilbake til planen</Link>
+      </p>
 
       <section className="kort">
         <form method="get" className="plan-velg">
           <label className="felt">
             <span>Stasjon</span>
             <select name="butikknummer" defaultValue={valgtNr}>
-              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
+              {stasjoner.map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
             </select>
           </label>
           <button type="submit">Vis</button>
         </form>
+        {bruker.rolle === 'retailer_admin' && (
+          <div style={{ marginTop: '0.9rem' }}>
+            <OppdaterKnapp />
+            <p className="undertittel" style={{ marginTop: '0.4rem' }}>
+              Kjører backtesten på nytt for alle dine stasjoner og oppdaterer selvlæringen. Skjer også automatisk hver natt.
+            </p>
+          </div>
+        )}
       </section>
 
-      {rader.length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen publiserte planer med faktisk salg å sammenligne ennå.</p></section>
+      {!harData ? (
+        <section className="kort">
+          <p className="undertittel">
+            Ingen treffdata ennå for denne stasjonen.{bruker.rolle === 'retailer_admin' ? ' Trykk «Oppdater treffsikkerhet» over for å kjøre backtesten første gang.' : ' Kommer etter nattens kjøring.'}
+          </p>
+        </section>
       ) : (
         <>
-          {totalTreff != null && (
-            <section className="nokkeltall">
-              <div className="kpi">
-                <span className={`kpi-tall ${treffKlasse(totalTreff)}`}>{totalTreff} %</span>
-                <span className="kpi-merke">Snitt treffsikkerhet (siste 30 d)</span>
-              </div>
+          <section className="nokkeltall">
+            <div className="kpi">
+              <span className={`kpi-tall ${prod.snitt != null ? klasse(prod.snitt) : ''}`}>{prod.snitt != null ? `${prod.snitt} %` : '—'}</span>
+              <span className="kpi-merke">Produksjonsplan (antall)</span>
+            </div>
+            <div className="kpi">
+              <span className={`kpi-tall ${salg.snitt != null ? klasse(salg.snitt) : ''}`}>{salg.snitt != null ? `${salg.snitt} %` : '—'}</span>
+              <span className="kpi-merke">Salgsprognose (omsetning)</span>
+            </div>
+          </section>
+
+          {renderSeksjon('Produksjonsplan', 'produksjonsplan', prod, (n) => tall.format(n))}
+          {renderSeksjon('Salgsprognose', 'salgsprognose', salg, (n) => kr.format(n))}
+
+          {trendDager.length > 0 && (
+            <section className="kort">
+              <h2>Dag for dag (siste {trendDager.length})</h2>
+              <table className="tabell">
+                <thead><tr><th>Dag</th><th>Produksjonsplan</th><th>Salgsprognose</th></tr></thead>
+                <tbody>
+                  {trendDager.map(([dato, v]) => (
+                    <tr key={dato}>
+                      <td>{datoLang.format(new Date(`${dato}T12:00:00Z`))}</td>
+                      <td>{v.prod != null ? <span className={`status-pip ${klasse(v.prod)}`}>{v.prod} %</span> : '—'}</td>
+                      <td>{v.salg != null ? <span className={`status-pip ${klasse(v.salg)}`}>{v.salg} %</span> : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           )}
+
           <section className="kort">
-            <table className="tabell">
-              <thead>
-                <tr><th>Dag</th><th>Forslag</th><th>Planlagt</th><th>Faktisk</th><th>Treff</th></tr>
-              </thead>
-              <tbody>
-                {rader.map((r) => (
-                  <tr key={r.dato}>
-                    <td>{datoLang.format(new Date(r.dato))}</td>
-                    <td>{tall.format(r.foreslatt)}</td>
-                    <td>{tall.format(r.planlagt)}</td>
-                    <td>{tall.format(r.faktisk)}</td>
-                    <td><span className={`status-pip ${treffKlasse(r.treff)}`}>{r.treff} %</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <p className="undertittel">
+              🤖 <b>Selvlæring:</b> der prognosen bommer systematisk lærer systemet en korreksjonsfaktor per kategori (klemt 0,6–1,6, minst 8 dager bak) som ganges inn i framtidige forslag. Den oppdateres hver natt — så treffsikkerheten skal stige over tid.
+            </p>
           </section>
         </>
       )}

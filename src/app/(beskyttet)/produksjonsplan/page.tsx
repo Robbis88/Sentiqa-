@@ -4,6 +4,8 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
 import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { hentKalibrering } from '@/lib/backtest'
+import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
@@ -128,8 +130,12 @@ export default async function ProduksjonsplanSide({
       .filter((p) => p.varenavn)
     datadybde = new Set(punkter.map((p) => p.dato)).size
 
-    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, arrangementFaktor, helligdag: erHelligdag(dato) })
+    const vaerKoeff = await hentVaerKoeff(supabase, stasjon.id, 'varegruppe')
+    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, vaerKoeff, arrangementFaktor, helligdag: erHelligdag(dato) })
+    // Selvlæring: gang inn korreksjon pr varegruppe fra egen treffhistorikk (§7).
+    const kalibrering = await hentKalibrering(supabase, stasjon.id, 'produksjonsplan')
     advarsler = plan.advarsler
+    if (kalibrering.size > 0) advarsler.push('🤖 Selvlært kalibrering aktiv — forslaget er justert mot stasjonens egen treffhistorikk.')
     if (helligdagNavn(dato)) advarsler.push(`🔴 ${helligdagNavn(dato)} — forslaget bygger på fjorårets samme helligdag, ikke vanlige ukedager.`)
     if (arrangementer.length > 0) advarsler.push(`Arrangement-dag: ${arrangementer.map((a) => `${a.navn} (×${a.faktor})`).join(', ')} — forslaget er løftet.`)
 
@@ -137,9 +143,13 @@ export default async function ProduksjonsplanSide({
     const grupperMap = new Map<string, Gruppe>()
     for (const f of plan.forslag) {
       const l = lagretFor.get(f.varenavn)
+      const korr = kalibrering.get(f.varegruppeKode ?? '') ?? 1
+      const justert = Math.max(0, Math.round(f.foreslatt * korr))
       const produkt: Produkt = {
-        varenavn: f.varenavn, baseline: f.basis, faktor: f.samletfaktor, foreslatt: f.foreslatt,
-        planlagt: l?.planlagt ?? f.foreslatt, start_antall: l?.start_antall ?? 0, ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
+        varenavn: f.varenavn, baseline: f.basis,
+        faktor: korr !== 1 ? Math.round(f.samletfaktor * korr * 100) / 100 : f.samletfaktor,
+        foreslatt: justert,
+        planlagt: l?.planlagt ?? justert, start_antall: l?.start_antall ?? 0, ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
       }
       const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)

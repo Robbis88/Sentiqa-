@@ -5,6 +5,8 @@ import { kr, iDag } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { leggTilDager, type Vaerdag } from '@/lib/produksjonsplan'
 import { lagSalgsprognose, type AvdSalg } from '@/lib/salgsprognose'
+import { hentKalibrering } from '@/lib/backtest'
+import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { StasjonsVelger } from '../stasjonsvelger'
 
@@ -60,8 +62,23 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   const datoer = (nylig ?? []).map((r) => r.dato).sort()
   const sisteSalgsdato = datoer.length ? datoer[datoer.length - 1] : idag
 
-  const prognose = salg.length > 0
-    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, stasjonstype: stasjon.stasjonstype, helligdag })
+  const vaerKoeff = await hentVaerKoeff(supabase, valgtId, 'avdeling')
+  const raaPrognose = salg.length > 0
+    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, vaerKoeff, stasjonstype: stasjon.stasjonstype, helligdag })
+    : null
+  // Selvlæring: gang inn korreksjon pr avdeling fra egen treffhistorikk.
+  const kalibrering = raaPrognose ? await hentKalibrering(supabase, valgtId, 'salgsprognose') : new Map<string, number>()
+  const prognose = raaPrognose
+    ? (() => {
+        const forslag = raaPrognose.forslag.map((f) => {
+          const korr = kalibrering.get(f.kode) ?? 1
+          return korr === 1 ? f : { ...f, forventet: Math.max(0, Math.round(f.forventet * korr)) }
+        })
+        const advarsler = kalibrering.size > 0
+          ? [...raaPrognose.advarsler, '🤖 Selvlært kalibrering aktiv — justert mot stasjonens egen treffhistorikk.']
+          : raaPrognose.advarsler
+        return { ...raaPrognose, forslag, advarsler, totalForventet: forslag.reduce((s, f) => s + f.forventet, 0) }
+      })()
     : null
 
   const ikonFor = new Map(AVDELINGER.map((a) => [a.kode, a.ikon]))

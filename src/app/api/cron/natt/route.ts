@@ -8,6 +8,7 @@ import { hentEllerLagUkerapport } from '@/lib/ukerapport'
 import { hentVaerMedKlient } from '@/lib/vaer'
 import { importerAlleKalenderKilder } from '@/lib/ical'
 import { hentTrafikkMedKlient } from '@/lib/trafikk'
+import { kjorBacktestAlle } from '@/lib/backtest'
 
 // AI-nattjobb (Vercel Cron). Henter vær (analyse-input til produksjonsplan) +
 // regenererer auto-fokus + lederstøtte for ALLE kjeder, så eierne våkner til
@@ -56,6 +57,24 @@ export async function GET(req: NextRequest) {
     // profilfeil skal ikke velte nattjobben
   }
 
+  // Lært vær-effekt pr kategori (avdeling + varegruppe) → datadrevet vaerfaktor.
+  let kategoriVaerprofil: number | null = null
+  try {
+    const { data } = await supabase.rpc('beregn_kategori_vaerprofil')
+    kategoriVaerprofil = typeof data === 'number' ? data : null
+  } catch {
+    // profilfeil skal ikke velte nattjobben
+  }
+
+  // Backtest + selvlæring: kjør prognosene bakover på historikken, mål treff,
+  // oppdater kalibreringen. Etter værprofilen (bruker lært følsomhet).
+  let treffsikkerhet: number | null = null
+  try {
+    treffsikkerhet = await kjorBacktestAlle(supabase)
+  } catch {
+    // backtestfeil skal ikke velte nattjobben
+  }
+
   const { data: retailers } = await supabase.from('retailers').select('id').is('slettet_tid', null)
 
   let kjeder = 0
@@ -86,5 +105,5 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, kjeder, vaer, kalender, trafikk, vaerprofil })
+  return NextResponse.json({ ok: true, kjeder, vaer, kalender, trafikk, vaerprofil, kategoriVaerprofil, treffsikkerhet })
 }

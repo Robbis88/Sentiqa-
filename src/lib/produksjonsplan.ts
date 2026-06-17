@@ -29,20 +29,32 @@ function snitt(xs: number[]): number {
 
 // ── Værfaktor: forventet vær (mål) vs fjorårets vær på match-dagen ──────────
 // Sammenligner det vi venter mot det som faktisk var, vektet av stasjonens
-// værfølsomhet (0 = uberørt, 1 = full effekt) og produktgruppens karakter.
-export function vaerfaktor(maal: Vaerdag | null, fjor: Vaerdag | null, folsomhet: number, varegruppeNavn: string): number {
+// værfølsomhet (0 = uberørt, 1 = full effekt). Bruker LÆRT retning+styrke pr
+// kategori (korr) når den finnes — ellers regex på varenavnet som fallback.
+export type VaerKoeff = { temp: number | null; nedbor: number | null }
+const KOEFF_TERSKEL = 0.12 // svakere korr enn dette = støy → bruk regex i stedet
+export function vaerfaktor(maal: Vaerdag | null, fjor: Vaerdag | null, folsomhet: number, varegruppeNavn: string, koeff?: VaerKoeff | null): number {
   if (!maal || maal.temp_maks == null) return 1
-  const navn = varegruppeNavn.toLowerCase()
-  const kald = /(kaffe|varm|suppe|oppvarmet|sjokolade)/.test(navn)
-  const varm = /(drikke|is|salat|kald)/.test(navn)
   let f = 1
   const fjorTemp = fjor?.temp_maks ?? maal.temp_maks // mangler fjor-vær → ingen delta
   const dTemp = maal.temp_maks - fjorTemp // + = varmere enn i fjor
-  if (varm && dTemp !== 0) f *= 1 + Math.max(-0.4, Math.min(0.4, dTemp * 0.02))
-  if (kald && dTemp !== 0) f *= 1 + Math.max(-0.4, Math.min(0.4, -dTemp * 0.02))
-  // Regn demper utesalg/ferskvare litt
-  const regn = maal.nedbor_mm != null && maal.nedbor_mm >= 5
-  if (regn && varm) f *= 0.92
+  const dNedbor = (maal.nedbor_mm ?? 0) - (fjor?.nedbor_mm ?? maal.nedbor_mm ?? 0)
+
+  const harKoeff = koeff && ((koeff.temp != null && Math.abs(koeff.temp) >= KOEFF_TERSKEL) || (koeff.nedbor != null && Math.abs(koeff.nedbor) >= KOEFF_TERSKEL))
+  if (harKoeff) {
+    // Datadrevet: fortegnet (retning) og styrken kommer fra stasjonens egen korrelasjon.
+    if (koeff!.temp != null && Math.abs(koeff!.temp) >= KOEFF_TERSKEL && dTemp !== 0) f *= 1 + Math.max(-0.4, Math.min(0.4, koeff!.temp * dTemp * 0.02))
+    if (koeff!.nedbor != null && Math.abs(koeff!.nedbor) >= KOEFF_TERSKEL && dNedbor !== 0) f *= 1 + Math.max(-0.25, Math.min(0.25, koeff!.nedbor * dNedbor * 0.01))
+  } else {
+    // Regex-fallback (uendret): grov klassifisering ut fra varenavnet.
+    const navn = varegruppeNavn.toLowerCase()
+    const kald = /(kaffe|varm|suppe|oppvarmet|sjokolade)/.test(navn)
+    const varm = /(drikke|is|salat|kald)/.test(navn)
+    if (varm && dTemp !== 0) f *= 1 + Math.max(-0.4, Math.min(0.4, dTemp * 0.02))
+    if (kald && dTemp !== 0) f *= 1 + Math.max(-0.4, Math.min(0.4, -dTemp * 0.02))
+    const regn = maal.nedbor_mm != null && maal.nedbor_mm >= 5
+    if (regn && varm) f *= 0.92
+  }
   // Skaler mot stasjonens lærte følsomhet
   return 1 + (f - 1) * Math.max(0, Math.min(1, folsomhet))
 }
@@ -81,6 +93,7 @@ export function lagProduksjonsplan(opts: {
   vaerMaal: Vaerdag | null
   vaerFjor: Vaerdag | null
   vaerfolsomhet: number
+  vaerKoeff?: Map<string, VaerKoeff> // lært vær-korr pr varegruppe-kode (valgfri)
   arrangementFaktor?: number // produkt av arrangementer (Brann-kamp o.l.) for dagen
   ekskluderte?: Set<string>
   helligdag?: boolean // mål-dagen er helligdag → kun selve fjor-helligdagen, ingen naboer
@@ -164,7 +177,7 @@ export function lagProduksjonsplan(opts: {
 
     if (fjorVerdier.length + sammeUkedag.length < 3) flagg.push('fa_data')
 
-    const vf = vaerfaktor(vaerMaal, vaerFjor, vaerfolsomhet, a.gruppe ?? '')
+    const vf = vaerfaktor(vaerMaal, vaerFjor, vaerfolsomhet, a.gruppe ?? '', a.kode ? opts.vaerKoeff?.get(a.kode) : null)
     const samletfaktor = vf * trendfaktor * arrangementFaktor
     const foreslatt = Math.max(0, Math.round(basis * samletfaktor))
 

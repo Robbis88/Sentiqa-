@@ -2,7 +2,7 @@
 // produksjonsplanen (fjorårets samme ukedag ±2 uker som median + nylig trend +
 // værfaktor + ukedag/stasjonstype), men for omsetning per kategori i stedet for
 // produksjonsmengder. Ren, testbar logikk — datahenting skjer i kall-laget.
-import { leggTilDager, ukedag, vaerfaktor, produksjonsfaktor, type Vaerdag } from './produksjonsplan'
+import { leggTilDager, ukedag, vaerfaktor, produksjonsfaktor, type Vaerdag, type VaerKoeff } from './produksjonsplan'
 
 export type AvdSalg = { dato: string; avdelingKode: string; avdelingNavn: string; omsetning: number }
 export type AvdForslag = { kode: string; navn: string; forventet: number; basis: number; endringPst: number; vaerfaktor: number }
@@ -25,6 +25,7 @@ export function lagSalgsprognose(opts: {
   vaerMaal: Vaerdag | null
   vaerFjor: Vaerdag | null
   vaerfolsomhet: number
+  vaerKoeff?: Map<string, VaerKoeff> // lært vær-korr pr avdeling-kode (valgfri)
   stasjonstype: string
   helligdag?: boolean // mål-dagen er helligdag → kun selve fjor-helligdagen, ingen naboer
 }): SalgsPrognose {
@@ -64,7 +65,7 @@ export function lagSalgsprognose(opts: {
     else if (nyligSnitt != null) basis = nyligSnitt
     else continue
 
-    const vf = vaerfaktor(vaerMaal, vaerFjor, vaerfolsomhet, a.navn)
+    const vf = vaerfaktor(vaerMaal, vaerFjor, vaerfolsomhet, a.navn, opts.vaerKoeff?.get(kode))
     const tf = produksjonsfaktor(stasjonstype, vaerMaal, wd, a.navn)
     const forventet = Math.max(0, Math.round(basis * vf * tf * trendfaktor))
     forslag.push({
