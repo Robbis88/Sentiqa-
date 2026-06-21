@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import * as z from 'zod'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { loggHendelse } from '@/lib/kontrollrom'
 
 const Skjema = z.object({
   firma: z.string().min(2, { error: 'Skriv inn firmanavn.' }),
@@ -76,6 +77,14 @@ export async function registrer(_t: RegTilstand, formData: FormData): Promise<Re
     await admin.auth.admin.deleteUser(brukerId)
     return { feil: 'Kunne ikke fullføre registreringen.' }
   }
+
+  await loggHendelse({
+    type: 'onboarding',
+    alvorlighet: 'info',
+    tittel: `Ny kjede registrert: ${firma}`,
+    detaljer: { firma, org_nr, slug, epost },
+    bruker_ref: fullt_navn,
+  })
 
   // 5. Logg inn (setter sesjon-cookie) og videre til onboarding.
   const supabase = await lagSupabaseServerKlient()
