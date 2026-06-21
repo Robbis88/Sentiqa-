@@ -9,7 +9,11 @@ import { rapporterBruk } from '@/lib/kontrollrom'
 export async function GET(request: Request) {
   if (process.env.CRON_SECRET) {
     const auth = request.headers.get('authorization')
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    const nokkel = request.headers.get('x-api-key')
+    const ok =
+      auth === `Bearer ${process.env.CRON_SECRET}` ||
+      (!!process.env.KONTROLLROM_KEY && nokkel === process.env.KONTROLLROM_KEY)
+    if (!ok) {
       return new Response('Unauthorized', { status: 401 })
     }
   }
