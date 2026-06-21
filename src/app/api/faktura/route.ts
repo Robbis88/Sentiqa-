@@ -3,6 +3,7 @@ import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { PRIS } from '@/lib/pris'
 import { opprettKunde, opprettFaktura, sendFaktura, fikenKonfigurert, type Fakturalinje } from '@/lib/fiken'
+import { loggHendelse } from '@/lib/kontrollrom'
 
 // Operatør-endepunkt: generer + send EHF-faktura for én tenant via Fiken.
 // Beskyttet med FAKTURA_SECRET (header x-faktura-secret eller ?secret=).
@@ -88,8 +89,21 @@ export async function POST(req: NextRequest) {
     })
     await sendFaktura(token, slug, invoiceId, ['auto']) // EHF først
 
+    await loggHendelse({
+      type: 'system',
+      alvorlighet: 'info',
+      tittel: `Faktura sendt: ${retailer.navn}`,
+      detaljer: { invoiceId, antallStasjoner, retailer_id: retailerId },
+    })
+
     return NextResponse.json({ ok: true, invoiceId, antallStasjoner })
   } catch (e) {
+    await loggHendelse({
+      type: 'feil',
+      alvorlighet: 'warning',
+      tittel: `Faktura feilet: ${retailer.navn}`,
+      detaljer: { retailer_id: retailerId, feil: String(e) },
+    })
     return NextResponse.json({ feil: String(e) }, { status: 502 })
   }
 }
