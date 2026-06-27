@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { useActionState } from 'react'
 import { registrer, type RegTilstand } from './handlinger'
 
@@ -26,6 +27,14 @@ export function RegistrerSkjema() {
       <label className="felt">
         <span>Passord (min. 8 tegn)</span>
         <input name="passord" type="password" autoComplete="new-password" required />
+      </label>
+
+      <label className="felt-avkrysning">
+        <input type="checkbox" name="dpa" value="ja" required />
+        <span>
+          Jeg har lest og godtar <Link href="/databehandleravtale" target="_blank">databehandleravtalen</Link> og{' '}
+          <Link href="/personvern" target="_blank">personvernerklæringen</Link>.
+        </span>
       </label>
 
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}

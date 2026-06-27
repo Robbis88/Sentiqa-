@@ -31,7 +31,7 @@ export default function PersonvernSide() {
         Sentiqa eies og driftes av <strong>R-G Invest AS</strong>, org.nr <strong>937 861 621</strong>
         («vi», «oss»). For personopplysninger som behandles i tjenesten på vegne av den enkelte kjede/butikk
         («kunden»), er vi <strong>databehandler</strong> og kunden er <strong>behandlingsansvarlig</strong>.
-        Behandlingen reguleres av en databehandleravtale (DPA) mellom oss og hver kunde.
+        Behandlingen reguleres av en <Link href="/databehandleravtale">databehandleravtale (DPA)</Link> mellom oss og hver kunde.
       </p>
       <p>
         For opplysninger vi behandler om våre egne kontakt- og fakturaforhold (f.eks. ved registrering og

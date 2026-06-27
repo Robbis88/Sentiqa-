@@ -151,6 +151,9 @@ h3 { letter-spacing: -0.01em; }
 /* Skjema */
 .skjema { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem; }
 .felt { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--tekst-svak); }
+.felt-avkrysning { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.82rem; line-height: 1.45; color: var(--tekst-svak); }
+.felt-avkrysning input { margin-top: 0.15rem; flex: none; }
+.felt-avkrysning a { color: #2563eb; text-decoration: underline; }
 .felt input, .felt textarea, .felt select {
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--kant-sterk);

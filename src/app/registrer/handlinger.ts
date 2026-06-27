@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { loggHendelse } from '@/lib/kontrollrom'
+import { DPA_VERSJON } from '@/lib/juss'
 
 const Skjema = z.object({
   firma: z.string().min(2, { error: 'Skriv inn firmanavn.' }),
@@ -11,6 +12,7 @@ const Skjema = z.object({
   fullt_navn: z.string().min(1, { error: 'Skriv inn navnet ditt.' }),
   epost: z.email({ error: 'Skriv inn en gyldig e-post.' }),
   passord: z.string().min(8, { error: 'Passordet må være minst 8 tegn.' }),
+  dpa: z.literal(true, { error: 'Du må godta databehandleravtalen og personvernerklæringen for å opprette konto.' }),
 })
 
 export type RegTilstand = { feil?: string } | undefined
@@ -31,6 +33,7 @@ export async function registrer(_t: RegTilstand, formData: FormData): Promise<Re
     fullt_navn: formData.get('fullt_navn'),
     epost: formData.get('epost'),
     passord: formData.get('passord'),
+    dpa: formData.get('dpa') === 'ja',
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
   const { firma, org_nr, fullt_navn, epost, passord } = felt.data
@@ -57,10 +60,14 @@ export async function registrer(_t: RegTilstand, formData: FormData): Promise<Re
     slug = `${slugify(firma)}-${i + 2}`
   }
 
-  // 3. Opprett tenant (org.nr lagres for EHF-fakturering).
+  // 3. Opprett tenant (org.nr lagres for EHF-fakturering). DPA-aksepten
+  //    fra registreringsskjemaet stemples på raden (versjon + tid + hvem).
   const { data: retailer, error: re } = await admin
     .from('retailers')
-    .insert({ navn: firma, org_nr, slug, inntak_epost: `${slug}@sentiqa.ai` })
+    .insert({
+      navn: firma, org_nr, slug, inntak_epost: `${slug}@sentiqa.ai`,
+      dpa_akseptert_tid: new Date().toISOString(), dpa_versjon: DPA_VERSJON, dpa_akseptert_av: fullt_navn,
+    })
     .select('id')
     .single()
   if (re || !retailer) {
@@ -82,7 +89,7 @@ export async function registrer(_t: RegTilstand, formData: FormData): Promise<Re
     type: 'onboarding',
     alvorlighet: 'info',
     tittel: `Ny kjede registrert: ${firma}`,
-    detaljer: { firma, org_nr, slug, epost },
+    detaljer: { firma, org_nr, slug, epost, dpa_versjon: DPA_VERSJON },
     bruker_ref: fullt_navn,
   })
 
