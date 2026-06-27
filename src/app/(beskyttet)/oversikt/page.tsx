@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { hentHjemData } from '@/lib/tablethjem'
+import { beregnMalekort, tabletKort, type Malekort, type TabletKort } from '@/lib/malekort'
 import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
 import { iDag } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
@@ -37,6 +38,24 @@ export default async function OversiktSide() {
       .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
     const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
+
+    // Målekort delt med tablet → egen butikks stilling (motiverende kort).
+    let maling: TabletKort[] = []
+    if (st) {
+      const { data: stData } = await supabase.rpc('malekort_stasjoner')
+      const malStasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[])
+        .map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))
+      const { data: kortData } = await supabase
+        .from('malekort')
+        .select('id, navn, metrikk, normalisering, periode, retning, krev_fullstendig_periode, anonymiser')
+        .eq('vis_tablet', true)
+        .is('slettet_tid', null)
+        .order('sortering')
+        .overrideTypes<Malekort[]>()
+      const malkort = kortData ?? []
+      const malRes = await Promise.all(malkort.map((k) => beregnMalekort(supabase, k, malStasjoner)))
+      maling = malkort.map((k, i) => tabletKort(k.navn, malRes[i], st.id))
+    }
 
     // «Meldinger fra butikksjef» = oppgaver merket vis_paa_tablet for stasjonen.
     // Åpne vises alltid; ferdige henger med i 24 t (kollapset) og forsvinner så.
@@ -72,7 +91,7 @@ export default async function OversiktSide() {
     const sjefMeldingerO = sjefMeldinger.map((m) => ({ ...m, tittel: o(m.tittel), beskrivelse: m.beskrivelse ? o(m.beskrivelse) : null }))
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} ord={ord} />
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} maling={maling} ord={ord} />
   }
 
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.

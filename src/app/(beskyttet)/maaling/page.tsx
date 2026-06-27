@@ -23,52 +23,71 @@ const PERIODE_ETIKETT: Record<string, string> = {
 }
 
 type MalekortDb = Malekort & {
+  vis_butikksjef: boolean
+  vis_tablet: boolean
   malekort_scope: { nivaa: string; kode: string; navn: string | null }[]
 }
 
 export default async function MalingSide() {
   const bruker = await hentInnloggetBruker()
+  const erAdmin = bruker.rolle === 'retailer_admin'
+  const erButikksjef = bruker.rolle === 'butikksjef'
 
-  // Fase 1–2: admin-administrasjon + rangering. Butikksjef/tablet-visning er
-  // egne faser.
-  if (bruker.rolle !== 'retailer_admin') {
+  if (!erAdmin && !erButikksjef) {
     return (
       <>
         <h1>Måling</h1>
-        <p className="undertittel">Rangering av butikkene kommer her snart.</p>
+        <p className="undertittel">Måling er for eier og butikksjef.</p>
       </>
     )
   }
 
   const supabase = await lagSupabaseServerKlient()
-  const [{ data: kortData }, { data: stasjonData }, tre] = await Promise.all([
-    supabase
-      .from('malekort')
-      .select('id, navn, metrikk, normalisering, periode, retning, krev_fullstendig_periode, anonymiser, vis_butikksjef, vis_tablet, malekort_scope(nivaa, kode, navn)')
-      .is('slettet_tid', null)
-      .order('sortering')
-      .order('opprettet_tid')
-      .overrideTypes<(MalekortDb & { vis_butikksjef: boolean; vis_tablet: boolean })[]>(),
-    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
-    hentVarehierarki(supabase),
-  ])
-  const malekort = kortData ?? []
-  const stasjoner = (stasjonData ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))
 
-  // Regn ut rangeringen for hvert målekort (parallelt).
-  const resultater = await Promise.all(malekort.map((m) => beregnMalekort(supabase, m, stasjoner)))
+  // Alle cluster-stasjoner (navn) via definer-RPC — butikksjef ser ellers bare
+  // sine egne via RLS, men leaderboardet trenger alle.
+  const { data: stData } = await supabase.rpc('malekort_stasjoner')
+  const stasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[]).map((s) => ({
+    id: s.id,
+    navn: `${s.butikknummer} ${s.navn}`,
+  }))
+
+  // Butikksjefens egen(e) stasjon(er) — for uthevingen.
+  let egenIds: Set<string> | undefined
+  if (erButikksjef) {
+    const { data: mine } = await supabase.from('stasjoner').select('id').is('slettet_tid', null)
+    egenIds = new Set((mine ?? []).map((m) => m.id))
+  }
+
+  let q = supabase
+    .from('malekort')
+    .select('id, navn, metrikk, normalisering, periode, retning, krev_fullstendig_periode, anonymiser, vis_butikksjef, vis_tablet, malekort_scope(nivaa, kode, navn)')
+    .is('slettet_tid', null)
+    .order('sortering')
+    .order('opprettet_tid')
+  if (erButikksjef) q = q.eq('vis_butikksjef', true) // butikksjef ser kun delte
+  const { data: kortData } = await q.overrideTypes<MalekortDb[]>()
+  const malekort = kortData ?? []
+
+  const [resultater, tre] = await Promise.all([
+    Promise.all(malekort.map((m) => beregnMalekort(supabase, m, stasjoner))),
+    erAdmin ? hentVarehierarki(supabase) : Promise.resolve([]),
+  ])
 
   return (
     <>
       <h1>Måling</h1>
       <p className="undertittel">
-        Rangering av butikkene dine mot hverandre og mot i fjor. Du velger hva som måles og på hvilke
-        varer. Butikksjef og tablet ser kun de du deler med dem.
+        {erAdmin
+          ? 'Rangering av butikkene mot hverandre og mot i fjor. Du velger hva som måles og på hvilke varer. Butikksjef og tablet ser kun de du deler.'
+          : 'Slik ligger butikken din an mot de andre, og mot samme periode i fjor.'}
       </p>
 
       {malekort.length === 0 ? (
         <section className="kort">
-          <p className="undertittel">Ingen målekort ennå — lag ditt første nedenfor.</p>
+          <p className="undertittel">
+            {erAdmin ? 'Ingen målekort ennå — lag ditt første nedenfor.' : 'Ingen målekort er delt med deg ennå.'}
+          </p>
         </section>
       ) : (
         malekort.map((m, i) => (
@@ -81,23 +100,27 @@ export default async function MalingSide() {
                   {m.malekort_scope.length > 0
                     ? ` · ${m.malekort_scope.map((s) => s.navn ?? s.kode).join(', ')}`
                     : ' · alt salg'}
-                  {' · '}{m.vis_butikksjef ? '👤 ' : ''}{m.vis_tablet ? '📱' : ''}
+                  {erAdmin ? ` · ${m.vis_butikksjef ? '👤 ' : ''}${m.vis_tablet ? '📱' : ''}` : ''}
                 </span>
               </div>
-              <form action={slettMalekort}>
-                <input type="hidden" name="id" value={m.id} />
-                <button type="submit" className="logg-ut">Slett</button>
-              </form>
+              {erAdmin && (
+                <form action={slettMalekort}>
+                  <input type="hidden" name="id" value={m.id} />
+                  <button type="submit" className="logg-ut">Slett</button>
+                </form>
+              )}
             </div>
-            <Leaderboard resultat={resultater[i]} />
+            <Leaderboard resultat={resultater[i]} egenIds={egenIds} anonymiser={erButikksjef && m.anonymiser} />
           </section>
         ))
       )}
 
-      <section className="kort">
-        <h2>+ Nytt målekort</h2>
-        <MalekortSkjema tre={tre} />
-      </section>
+      {erAdmin && (
+        <section className="kort">
+          <h2>+ Nytt målekort</h2>
+          <MalekortSkjema tre={tre} />
+        </section>
+      )}
     </>
   )
 }

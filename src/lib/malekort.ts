@@ -181,3 +181,37 @@ export async function beregnMalekort(
 
   return { klar: true, enhet: enhetFor(kort), etikett: valgt.etikett, rader }
 }
+
+// Tablet-kort: plukker ut egen butikks plassering fra et beregnet resultat.
+// Motiverende form — viser kun egen stilling + (anonym) toppverdi, aldri andre
+// butikkers navn på den delte tablet-enheten.
+export type TabletKort = {
+  navn: string
+  klar: boolean
+  grunn?: string
+  enhet?: Enhet
+  etikett?: string
+  verdi?: number
+  rang?: number
+  antall?: number
+  vekstPst?: number | null
+  topp?: number
+}
+
+export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjonId: string): TabletKort {
+  if (!resultat.klar) return { navn, klar: false, grunn: resultat.grunn }
+  const idx = resultat.rader.findIndex((r) => r.stasjonId === egenStasjonId)
+  if (idx < 0) return { navn, klar: false, grunn: 'Ingen tall for din butikk i perioden.' }
+  const egen = resultat.rader[idx]
+  return {
+    navn,
+    klar: true,
+    enhet: resultat.enhet,
+    etikett: resultat.etikett,
+    verdi: egen.verdi,
+    rang: idx + 1,
+    antall: resultat.rader.length,
+    vekstPst: egen.vekstPst,
+    topp: resultat.rader[0].verdi,
+  }
+}

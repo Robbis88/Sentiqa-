@@ -6,6 +6,8 @@ import { PulsPopp } from './puls-popp'
 import { SjekkpunktPopp } from './sjekkpunkt-popp'
 import { SendTilSjef } from './send-til-sjef'
 import { VekstKort } from './vekst-kort'
+import { MalekortTablet } from './maaling-tablet'
+import type { TabletKort } from '@/lib/malekort'
 import { MeldingerFraSjef, type SjefMelding } from './meldinger-sjef'
 
 const TILES = [
@@ -29,6 +31,7 @@ export function TabletHjem({
   pulsRunde = null,
   sjekkpunkter = [],
   hjem,
+  maling = [],
   ord = {},
 }: {
   navn?: string
@@ -39,6 +42,7 @@ export function TabletHjem({
   pulsRunde?: PulsRunde
   sjekkpunkter?: Sjekk[]
   hjem: HjemData
+  maling?: TabletKort[]
   ord?: Record<string, string>
 }) {
   const t = (s: string) => ord[s] ?? s
@@ -72,6 +76,8 @@ export function TabletHjem({
       <MeldingerFraSjef meldinger={sjefMeldinger} idag={idag} ord={ord} />
 
       {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} />}
+
+      <MalekortTablet kort={maling} />
 
       {hjem.produksjon && hjem.produksjon.plan > 0 && (() => {
         const pst = Math.min(100, Math.round((hjem.produksjon.lagd / hjem.produksjon.plan) * 100))
