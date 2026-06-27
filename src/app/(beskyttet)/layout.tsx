@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { mfaHandling } from '@/lib/auth/mfa'
 import { loggUt } from '@/lib/auth/handlinger'
 import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
@@ -99,6 +101,16 @@ export default async function BeskyttetLayout({
   // Gate + henter visningsdata. RLS er den egentlige muren; dette er laget over.
   const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
+
+  // To-faktor-gate (§3, §15). Tablet er unntatt (delt PIN-enhet). Alle andre:
+  //   steg_opp  → har faktor, men sesjonen er aal1 → skriv inn engangskode
+  //   innruller → privilegert rolle uten faktor → tving oppsett før innslipp
+  if (bruker.rolle !== 'butikkbruker_tablet') {
+    const handling = await mfaHandling(supabase, bruker.rolle)
+    if (handling === 'steg_opp') redirect('/logg-inn/totp')
+    if (handling === 'innruller') redirect('/sikkerhet?paakrevd=1')
+  }
+
   const { count: uleste } = await supabase
     .from('varsler')
     .select('*', { count: 'exact', head: true })
@@ -145,6 +157,7 @@ export default async function BeskyttetLayout({
               🔔
               {(uleste ?? 0) > 0 && <span className="varsel-teller">{uleste}</span>}
             </Link>
+            <Link href="/sikkerhet" className="klokke-lenke" aria-label="Sikkerhet" title="To-faktor / sikkerhet">🔒</Link>
             <form action={loggUt}>
               <button type="submit" className="logg-ut">Logg ut</button>
             </form>

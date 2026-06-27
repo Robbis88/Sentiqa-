@@ -154,6 +154,12 @@ h3 { letter-spacing: -0.01em; }
 .felt-avkrysning { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.82rem; line-height: 1.45; color: var(--tekst-svak); }
 .felt-avkrysning input { margin-top: 0.15rem; flex: none; }
 .felt-avkrysning a { color: #2563eb; text-decoration: underline; }
+
+/* To-faktor (MFA) */
+.mfa-status { display: flex; flex-direction: column; gap: 0.6rem; }
+.mfa-paa { color: #166534; font-weight: 600; margin: 0; }
+.mfa-qr { width: 180px; height: 180px; align-self: center; border: 1px solid var(--kant); border-radius: 8px; background: #fff; padding: 6px; }
+.mfa-hemmelig { display: inline-block; margin-top: 0.3rem; padding: 0.2rem 0.45rem; background: var(--bg); border: 1px solid var(--kant); border-radius: 6px; font-family: var(--font-geist-mono), monospace; font-size: 0.85rem; letter-spacing: 0.05em; word-break: break-all; }
 .felt input, .felt textarea, .felt select {
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--kant-sterk);

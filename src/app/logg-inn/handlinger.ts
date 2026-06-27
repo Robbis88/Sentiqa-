@@ -39,5 +39,13 @@ export async function loggInn(
   // Kun interne stier som returmål (hindrer open-redirect).
   const retur = felt.data.retur
   const mål = retur && retur.startsWith('/') && !retur.startsWith('//') ? retur : '/oversikt'
+
+  // Har brukeren en verifisert to-faktor? → krev engangskode før innslipp.
+  // (Layouten håndhever uansett som backstop; dette gir ren UX + bevart retur.)
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+    redirect(`/logg-inn/totp?retur=${encodeURIComponent(mål)}`)
+  }
+
   redirect(mål)
 }

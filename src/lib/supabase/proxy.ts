@@ -63,8 +63,10 @@ export async function oppdaterSesjon(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Innlogget som besøker innloggingssiden → til oversikten.
-  if (user && sti.startsWith('/logg-inn')) {
+  // Innlogget som besøker selve innloggingssiden → til oversikten. Eksakt
+  // match: steg-opp-siden (/logg-inn/totp) krever en aal1-sesjon og må IKKE
+  // bounces bort, ellers kommer brukeren aldri til engangskode-steget.
+  if (user && sti === '/logg-inn') {
     const url = request.nextUrl.clone()
     url.pathname = '/oversikt'
     url.search = ''
