@@ -14,7 +14,7 @@ const ScopeRad = z.object({
 const Skjema = z.object({
   navn: z.string().min(2, { error: 'Gi målekortet et navn.' }),
   metrikk: z.enum(['omsetning', 'antall', 'brutto', 'snittpris_kunde', 'snittbong', 'kunder']),
-  normalisering: z.enum(['ra', 'per_kunde', 'vekst_pst']),
+  normalisering: z.enum(['per_kunde', 'vekst_pst']),
   periode: z.enum(['uke', 'maaned', 'rullende4uker']),
   retning: z.enum(['hoy', 'lav']),
   krev_fullstendig_periode: z.boolean(),

@@ -131,7 +131,6 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
           <select name="normalisering" defaultValue="per_kunde">
             <option value="per_kunde">Per kunde (rettferdig)</option>
             <option value="vekst_pst">Vekst % mot i fjor</option>
-            <option value="ra">Rå sum</option>
           </select>
         </label>
         <label className="felt">
