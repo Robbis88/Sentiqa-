@@ -15,7 +15,12 @@ export default function RegistrerSide() {
         <p className="undertittel" style={{ marginTop: '1rem' }}>
           Har du allerede konto? <Link href="/logg-inn">Logg inn</Link>
         </p>
+        <p className="undertittel" style={{ marginTop: '0.75rem', fontSize: '0.78rem' }}>
+          Ved å opprette konto godtar du at R-G Invest AS behandler opplysningene som beskrevet i{' '}
+          <Link href="/personvern">personvernerklæringen</Link>.
+        </p>
       </div>
+      <footer className="auth-bunn">R-G Invest AS · Org.nr 937 861 621 · <Link href="/personvern">Personvern</Link></footer>
     </main>
   )
 }

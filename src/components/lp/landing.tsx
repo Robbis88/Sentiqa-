@@ -326,8 +326,8 @@ export function Landing() {
         </section>
 
         <footer className="lp-mid lp-foot">
-          <span>© 2026 Sentiqa · Fornemmer. Forstår. Forutser.</span>
-          <a href="mailto:post@sentiqa.ai">post@sentiqa.ai</a>
+          <span>© 2026 Sentiqa · R-G Invest AS · Org.nr 937 861 621</span>
+          <span><Link href="/personvern">Personvern</Link> · <a href="mailto:post@sentiqa.ai">post@sentiqa.ai</a></span>
         </footer>
       </div>
     </div>

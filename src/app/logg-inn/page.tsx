@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { InnloggingSkjema } from './skjema'
 
 export const metadata: Metadata = { title: 'Logg inn – Sentiqa' }
@@ -18,6 +19,7 @@ export default async function LoggInnSide({
         <p className="undertittel">Fornemmer. Forstår. Forutser.</p>
         <InnloggingSkjema retur={retur} />
       </div>
+      <footer className="auth-bunn">R-G Invest AS · Org.nr 937 861 621 · <Link href="/personvern">Personvern</Link></footer>
     </main>
   )
 }
