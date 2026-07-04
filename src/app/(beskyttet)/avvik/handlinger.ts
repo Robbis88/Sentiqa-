@@ -59,7 +59,8 @@ export async function opprettAvvik(_t: AvvikTilstand, formData: FormData): Promi
 }
 
 export async function settGjennomfort(formData: FormData) {
-  await hentInnloggetBruker()
+  const bruker = await hentInnloggetBruker()
+  if (!['retailer_admin', 'butikksjef'].includes(bruker.rolle)) return
   const id = String(formData.get('id') ?? '')
   const til = String(formData.get('til') ?? '') === 'ja'
   if (!id) return

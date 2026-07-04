@@ -4,18 +4,19 @@ import { rapporterBruk } from '@/lib/kontrollrom'
 
 /**
  * Daglig (se vercel.json): rapporterer kjeder + månedspris + antall til
- * kontrollrommet. Krever CRON_SECRET kun hvis satt.
+ * kontrollrommet. Fail-closed: krever gyldig CRON_SECRET (Vercel Cron) ELLER
+ * KONTROLLROM_KEY (manuell trigger). Uten gyldig nøkkel -> 401, så ruten aldri
+ * lekker kjeders navn/e-post/pris uautentisert.
  */
 export async function GET(request: Request) {
-  if (process.env.CRON_SECRET) {
-    const auth = request.headers.get('authorization')
-    const nokkel = request.headers.get('x-api-key')
-    const ok =
-      auth === `Bearer ${process.env.CRON_SECRET}` ||
-      (!!process.env.KONTROLLROM_KEY && nokkel === process.env.KONTROLLROM_KEY)
-    if (!ok) {
-      return new Response('Unauthorized', { status: 401 })
-    }
+  const auth = request.headers.get('authorization')
+  const nokkel = request.headers.get('x-api-key')
+  const okCron =
+    !!process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`
+  const okKey =
+    !!process.env.KONTROLLROM_KEY && nokkel === process.env.KONTROLLROM_KEY
+  if (!okCron && !okKey) {
+    return new Response('Unauthorized', { status: 401 })
   }
 
   const admin = lagSupabaseAdminKlient()
