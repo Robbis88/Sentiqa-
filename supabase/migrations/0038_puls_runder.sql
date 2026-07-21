@@ -34,8 +34,18 @@ create index if not exists puls_runde_retailer_idx on public.puls_runde (retaile
 alter table public.puls_svar add column if not exists runde_id uuid references public.puls_runde(id) on delete cascade;
 alter table public.puls_svar add column if not exists skala int;
 alter table public.puls_svar add column if not exists ansatt_navn text;
-alter table public.puls_svar alter column humor drop not null;
-alter table public.puls_svar alter column dato drop not null;
+-- Begge kolonnene ble droppet i 0044. Vakten gjør at fila kan kjøres om
+-- igjen mot en base som allerede har vært gjennom 0044.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'puls_svar' and column_name = 'humor') then
+    alter table public.puls_svar alter column humor drop not null;
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'puls_svar' and column_name = 'dato') then
+    alter table public.puls_svar alter column dato drop not null;
+  end if;
+end $$;
 do $$ begin
   alter table public.puls_svar add constraint puls_svar_skala_sjekk check (skala is null or skala between 1 and 5);
 exception when duplicate_object then null; end $$;

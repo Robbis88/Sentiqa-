@@ -14,9 +14,17 @@ create table if not exists public.puls_svar (
   kommentar     text,
   opprettet_tid timestamptz not null default now()
 );
-create index if not exists puls_svar_stasjon_dato_idx on public.puls_svar (stasjon_id, dato);
--- Ett svar per ansatt per dag (kan oppdateres).
-create unique index if not exists puls_svar_ansatt_dag on public.puls_svar (ansatt_id, dato) where ansatt_id is not null;
+-- Kolonnen «dato» ble droppet i 0044 (puls gikk over til runde-modellen i
+-- 0038). Indeksene under gjelder derfor kun en base som ennå ikke har kjørt
+-- 0044 — uten vakten feiler hele denne fila ved full gjennomkjøring.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'puls_svar' and column_name = 'dato') then
+    create index if not exists puls_svar_stasjon_dato_idx on public.puls_svar (stasjon_id, dato);
+    -- Ett svar per ansatt per dag (kan oppdateres).
+    create unique index if not exists puls_svar_ansatt_dag on public.puls_svar (ansatt_id, dato) where ansatt_id is not null;
+  end if;
+end $$;
 
 alter table public.puls_svar enable row level security;
 
