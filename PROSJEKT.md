@@ -396,6 +396,23 @@ Felles innhold fra St1: IK-mat-maler, monteringsanvisninger, kunnskap publiseres
 
 Tverrgående gjennom alt: design (§12), driftssikkerhet (§14), personvern (§15). Skriv tester for parsere + analyselag underveis, ikke etterpå.
 
+### Status per 2026-07-21
+
+Lag 1–7 er bygget. Siste arbeid var en **full SQL-helsesjekk** (migrasjon `0077`–`0080`), ikke ny funksjonalitet:
+
+- `0077` — `for all`-skrivepolicyene ble trukket inn i hver leseplan og gjorde `0067`-ytelsesfiksen halvveis virkningsløs. Splittet i insert/update/delete på de varme tabellene. Ny `mine_stasjoner()` erstatter `har_stasjonstilgang(kolonne)`, som aldri kan bli initplan. Nye RPC-er `svinn_vindu_sum` / `matsalg_vindu_sum`.
+- `0078` — **privilegie-eskalering lukket:** `profiler_update_selv` lot en innlogget bruker PATCHe seg selv til `retailer_admin` eller inn i en annen kjede via PostgREST, fordi rolle/tenant kun ble håndhevet i app-laget. `authenticated` har nå ikke skrivetilgang til `profiler` (alle appflyter bruker service-rollen). Ni volumtabeller over på initplan.
+- `0079` — løpenummer på avvik tildeles av en trigger med lås per kjede. Tidligere `count(*) + 1` i app-laget, som gikk gjennom RLS og ga kolliderende numre.
+- `0080` — unik indeks på løpenummer, trygg uuid-cast i storage-policyene, `avvik` over på initplan.
+
+Kodeendringer i samme runde: svinn% regnes på hele 30-dagersvinduet (var kappet på 1000 rader av PostgREST, ga grønn status på stasjoner over terskel), IK-mat svelger ikke lenger `error` fra insert, `hentAlt` flyttet til `src/lib/paginer.ts`.
+
+Ny test `supabase/tests/rls_vakthund.sql` — se AGENTS.md.
+
+**Åpen post:** `/brukere` og `/plattform` er ikke klikket gjennom etter at skrivetilgangen til `profiler` ble fjernet i `0078`. Alle kjente skrivinger går via service-rollen, men det bør verifiseres i praksis. Brekker noe, er det en appflyt som feilaktig bruker brukerklienten — da skal **den** fikses, ikke grantet gis tilbake.
+
+**Bevisst ikke gjort:** ~26 `for all`-policyer på definisjonstabeller (`vaer`, `merker`, `lenker`, `sjekkpunkter`, `puls_sporsmal`). Noen hundre rader hver — per-rad-kall koster ingenting der, og hver policy som røres er en sjanse til å brekke tenant-isolasjonen.
+
 ## 17. Åpne avklaringer (samlet)
 
 1. **Stasjonstyper:** stemmer de fem (utfart/pendler/bydel/gjennomfart/sentrum), eller skal pendler ut / en legges til?
