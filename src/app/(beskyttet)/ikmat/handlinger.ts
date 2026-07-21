@@ -30,7 +30,7 @@ export async function registrerAvlesning(formData: FormData) {
   const innenfor = !underMin && !overMax
   const ansatt = await lesAktivAnsatt()
 
-  await supabase.from('ik_avlesninger').insert({
+  const { error: avlesningFeil } = await supabase.from('ik_avlesninger').insert({
     kontrollpunkt_id: punktId,
     stasjon_id: punkt.stasjon_id,
     dato: iDag(),
@@ -40,6 +40,7 @@ export async function registrerAvlesning(formData: FormData) {
     avlest_av: bruker.id,
     ansatt_id: ansatt?.id ?? null,
   })
+  if (avlesningFeil) return
 
   if (!innenfor && bruker.retailerId) {
     const krav = punkt.max_temp != null ? `maks ${punkt.max_temp}°C` : `min +${punkt.min_temp}°C`
@@ -75,20 +76,23 @@ export async function loggMaaling(punktId: string, tempStr: string, strakstiltak
   if (!innenfor && !tiltak) return { innenfor: false, feil: 'Skriv strakstiltak for avviket.' }
 
   const ansatt = await lesAktivAnsatt()
-  await supabase.from('ik_avlesninger').insert({
+  const { error: avlesningFeil } = await supabase.from('ik_avlesninger').insert({
     kontrollpunkt_id: punktId, stasjon_id: punkt.stasjon_id, dato: iDag(),
     temperatur: temp, innenfor, tiltak: innenfor ? null : tiltak, avlest_av: bruker.id, ansatt_id: ansatt?.id ?? null,
   })
+  if (avlesningFeil) return { feil: 'Kunne ikke lagre målingen. Prøv igjen.' }
 
   if (!innenfor) {
-    // Ekte avvik (HACCP) med løpenr + varsel til leder.
-    const { count } = await supabase.from('avvik').select('*', { count: 'exact', head: true }).eq('retailer_id', bruker.retailerId)
-    await supabase.from('avvik').insert({
-      retailer_id: bruker.retailerId, stasjon_id: punkt.stasjon_id, lopenr: (count ?? 0) + 1,
+    // Ekte avvik (HACCP) + varsel til leder. Løpenr tildeles av basen (mig 0079)
+    // — en count() her ville gått gjennom RLS og gitt kolliderende numre.
+    const { error: avvikFeil } = await supabase.from('avvik').insert({
+      retailer_id: bruker.retailerId, stasjon_id: punkt.stasjon_id,
       kategori: 'utstyr', dato: iDag(),
       beskrivelse: `IK-mat: ${punkt.navn} målt ${temp}°C (krav ${kravTekst(punkt.min_temp, punkt.max_temp)}).`,
       strakstiltak: tiltak, opprettet_av: bruker.id,
     })
+    // Målingen er lagret, men avviket mangler — det skal ikke se ut som alt gikk bra.
+    if (avvikFeil) return { innenfor: false, feil: 'Målingen er lagret, men avviket ble ikke registrert. Meld fra til leder.' }
     await opprettVarsel(supabase, {
       retailer_id: bruker.retailerId, stasjon_id: punkt.stasjon_id, type: 'ikmat',
       tittel: `IK-mat avvik: ${punkt.navn}`,

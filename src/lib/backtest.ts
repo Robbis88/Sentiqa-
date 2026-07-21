@@ -11,6 +11,7 @@ import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type Salgs
 import { lagSalgsprognose, type AvdSalg } from './salgsprognose'
 import { hentVaerKoeff } from './vaerprofil'
 import { erHelligdag } from './helligdager'
+import { hentAlt } from './paginer'
 
 type Klient = SupabaseClient
 const UTELAT = new Set(['10', '250', '40']) // drivstoff/pant/CR — ikke butikkdrift
@@ -33,18 +34,6 @@ function klem(x: number, lav: number, hoy: number): number {
 function dagerMellom(fra: string, til: string): string[] {
   const ut: string[] = []
   for (let d = fra; d < til; d = leggTilDager(d, 1)) ut.push(d)
-  return ut
-}
-
-// Paginert henting (PostgREST kapper på 1000) — stabil rekkefølge via tiebreaker.
-async function hentAlt<T>(lag: (fra: number, til: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const ut: T[] = []
-  for (let side = 0; side < 200; side++) {
-    const { data, error } = await lag(side * 1000, side * 1000 + 999)
-    if (error || !data || data.length === 0) break
-    ut.push(...data)
-    if (data.length < 1000) break
-  }
   return ut
 }
 

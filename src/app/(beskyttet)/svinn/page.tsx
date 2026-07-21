@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
+import { hentAlt } from '@/lib/paginer'
 import { StasjonsVelger } from '../stasjonsvelger'
 
 type Svinn = {
@@ -48,29 +49,37 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   startD.setDate(startD.getDate() - 29)
   const start = startD.toISOString().slice(0, 10)
 
-  const [{ data: rader }, { data: stasjoner }, { data: svinnVindu }, { data: matVindu }] = await Promise.all([
-    supabase
-      .from('synlig_svinn')
-      .select('stasjon_id, dato, ean, varenavn, antall, nettopris_total')
-      .eq('dato', siste.dato)
-      .overrideTypes<Svinn[]>(),
+  // Vindussummene aggregeres i basen (mig 0077). Tidligere ble råe
+  // transaksjonsrader hentet og summert her, men PostgREST kapper på 1000
+  // rader — svinn% ble regnet på en vilkårlig delmengde, og en stasjon over
+  // terskel kunne vises som grønn.
+  const [rader, { data: stasjoner }, { data: svinnVindu }, { data: matVindu }] = await Promise.all([
+    hentAlt<Svinn>((fra, til) =>
+      supabase
+        .from('synlig_svinn')
+        .select('stasjon_id, dato, ean, varenavn, antall, nettopris_total')
+        .eq('dato', siste.dato)
+        .order('id')
+        .range(fra, til)
+        .overrideTypes<Svinn[]>(),
+    ),
     supabase
       .from('stasjoner')
       .select('id, navn, butikknummer, svinnterskel_prosent')
       .is('slettet_tid', null)
       .order('butikknummer')
       .overrideTypes<{ id: string; navn: string; butikknummer: string; svinnterskel_prosent: number | null }[]>(),
-    supabase.from('synlig_svinn').select('stasjon_id, nettopris_total').gte('dato', start).lte('dato', slutt).overrideTypes<{ stasjon_id: string; nettopris_total: number | null }[]>(),
-    supabase.from('v_salg_per_stasjon_dag').select('stasjon_id, mat_omsetning').gte('dato', start).lte('dato', slutt).overrideTypes<{ stasjon_id: string; mat_omsetning: number | null }[]>(),
+    supabase.rpc('svinn_vindu_sum', { p_fra: start, p_til: slutt }),
+    supabase.rpc('matsalg_vindu_sum', { p_fra: start, p_til: slutt }),
   ])
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 
   // Svinn% = synlig svinn / matsalg i vinduet, mot terskel per stasjon.
-  const svinnSum = new Map<string, number>()
-  for (const r of svinnVindu ?? []) svinnSum.set(r.stasjon_id, (svinnSum.get(r.stasjon_id) ?? 0) + (r.nettopris_total ?? 0))
-  const matSum = new Map<string, number>()
-  for (const r of matVindu ?? []) matSum.set(r.stasjon_id, (matSum.get(r.stasjon_id) ?? 0) + (r.mat_omsetning ?? 0))
+  type SvinnSum = { stasjon_id: string; svinn_kr: number | null }
+  type MatSum = { stasjon_id: string; mat_omsetning: number | null }
+  const svinnSum = new Map(((svinnVindu ?? []) as SvinnSum[]).map((r) => [r.stasjon_id, r.svinn_kr ?? 0]))
+  const matSum = new Map(((matVindu ?? []) as MatSum[]).map((r) => [r.stasjon_id, r.mat_omsetning ?? 0]))
   const terskelrader = (stasjoner ?? []).map((s) => {
     const svinn = svinnSum.get(s.id) ?? 0
     const mat = matSum.get(s.id) ?? 0

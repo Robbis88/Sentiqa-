@@ -34,16 +34,12 @@ export async function opprettAvvik(_t: AvvikTilstand, formData: FormData): Promi
   const d = felt.data
 
   const supabase = await lagSupabaseServerKlient()
-  const { count } = await supabase
-    .from('avvik')
-    .select('*', { count: 'exact', head: true })
-    .eq('retailer_id', bruker.retailerId)
-  const lopenr = (count ?? 0) + 1
-
+  // Løpenr tildeles av basen (mig 0079). Tidligere ble det regnet ut som
+  // count(*) + 1 her, men tellingen går gjennom RLS: en butikksjef ser bare
+  // egne stasjoner og fikk derfor et nummer som allerede var i bruk.
   const { error } = await supabase.from('avvik').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: d.stasjon_id,
-    lopenr,
     kategori: d.kategori,
     dato: d.dato,
     beskrivelse: d.beskrivelse,
