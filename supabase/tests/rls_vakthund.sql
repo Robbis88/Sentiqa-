@@ -42,10 +42,15 @@ begin
     from pg_policies
     where schemaname = 'public'
       and tablename = any(varme)
-      and (coalesce(qual, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
-        or coalesce(with_check, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)')
-      and coalesce(qual, '') !~ '\( SELECT'
-      and coalesce(with_check, '') !~ '\( SELECT'
+      -- Vurder USING og WITH CHECK hver for seg: en policy kan ha wrappet
+      -- den ene og rå den andre, og da er den fortsatt per-rad på skriv.
+      and (
+        (coalesce(qual, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
+         and coalesce(qual, '') !~ '\( SELECT')
+        or
+        (coalesce(with_check, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
+         and coalesce(with_check, '') !~ '\( SELECT')
+      )
     order by tablename, policyname
   loop
     raise warning 'PER-RAD-KALL  %.% (%) - pakk i (select ...) eller bruk mine_stasjoner()',

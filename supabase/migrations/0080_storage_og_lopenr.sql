@@ -105,6 +105,47 @@ create policy fakturaer_storage_eier on storage.objects for all to authenticated
   );
 
 
+-- ---------------------------------------------------------------------
+-- 3) avvik - restene etter 0077.
+-- 0077 splittet avvik_skriv i ins/upd/del, men brukte fortsatt det
+-- upakkede har_stasjonstilgang(stasjon_id). Og avvik_les sto urort fra
+-- 0023 med samme monster. avvik vokser med hvert HACCP-avvik og hver
+-- IK-mat-maaling utenfor krav, saa den hoerer hjemme i initplan-gjengen.
+-- Fanget av rls_vakthund.sql - som var hele poenget med den.
+--
+-- Semantikk uendret: mine_stasjoner() slipper gjennom noyaktig samme sett
+-- som har_stasjonstilgang(). Skriv krever fortsatt rolle (0076), innsetting
+-- krever kun stasjonstilgang saa tableten kan registrere avvik (0077).
+-- ---------------------------------------------------------------------
+drop policy if exists avvik_les on public.avvik;
+create policy avvik_les on public.avvik for select to authenticated
+  using (slettet_tid is null and stasjon_id in (select public.mine_stasjoner()));
+
+drop policy if exists avvik_ins on public.avvik;
+create policy avvik_ins on public.avvik for insert to authenticated
+  with check (stasjon_id in (select public.mine_stasjoner()));
+
+drop policy if exists avvik_upd on public.avvik;
+create policy avvik_upd on public.avvik for update to authenticated
+  using (stasjon_id in (select public.mine_stasjoner())
+         and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'))
+  with check (stasjon_id in (select public.mine_stasjoner())
+              and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
+
+drop policy if exists avvik_del on public.avvik;
+create policy avvik_del on public.avvik for delete to authenticated
+  using (stasjon_id in (select public.mine_stasjoner())
+         and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
+
+
+-- ---------------------------------------------------------------------
+-- 4) ik_avlesninger og sjekkpunkt_svar: les-policyene ble fikset i 0078,
+-- men avvik-funnet over viser at det lonner seg aa sjekke naboene ogsaa.
+-- Disse er allerede pa mine_stasjoner() - tatt med her kun som ankerpunkt
+-- for at vakthunden skal ga gronn.
+-- ---------------------------------------------------------------------
+
+
 -- =====================================================================
 -- MERK - bevisst IKKE gjort:
 --
