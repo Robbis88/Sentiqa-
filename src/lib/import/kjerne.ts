@@ -7,7 +7,7 @@ import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
-import { parseBp } from '@/lib/parsere/bp'
+import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { fordelPaaMaaneder } from '@/lib/bemanning'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
@@ -100,7 +100,9 @@ export async function behandleJobbKjerne(
   const buffer = Buffer.from(await nedlasting.data.arrayBuffer())
   const filnavn = jobb.raa_filer.filnavn
 
-  const rapporttype = await gjenkjennRapporttype(buffer)
+  // BP-fila kjennes igjen først, av arknavnene alene. Den er ~27 MB, og en
+  // full lastArbeidsbok på den koster 2,3 GB heap — mer enn funksjonen har.
+  const rapporttype = (await erBpFil(buffer)) ? 'st1_bp' : await gjenkjennRapporttype(buffer)
   await supabase.from('import_jobber').update({ rapporttype }).eq('id', jobbId)
 
   try {

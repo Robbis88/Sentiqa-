@@ -1,6 +1,7 @@
 import { Readable } from 'node:stream'
 import ExcelJS from 'exceljs'
 import { celletall, celletekst, ParserFeil } from './felles'
+import { ER_BP } from './gjenkjenn'
 import type { BpResultat, BpStasjon } from './typer'
 
 // =====================================================================
@@ -95,6 +96,20 @@ function kategori(raa: string): { kode: string; post: string } | null {
   const m = raa.match(/^(\d+)\s*\[(.+)\]$/)
   if (!m) return null
   return { kode: m[1], post: `${m[1]} ${m[2]}` }
+}
+
+// Kjenner igjen BP-fila uten å laste den. Arknavnene alene holder, og de kan
+// strømmes for noen titalls MB i stedet for 2,3 GB. Ligger her og ikke i
+// gjenkjenn.ts fordi den filen også kjøres i nettleseren.
+export async function erBpFil(data: Buffer | ArrayBuffer): Promise<boolean> {
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
+  const leser = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(buffer), {
+    worksheets: 'emit', sharedStrings: 'ignore', styles: 'ignore',
+    hyperlinks: 'ignore', entries: 'ignore',
+  })
+  const navn: string[] = []
+  for await (const ws of leser as AsyncIterable<{ name: string }>) navn.push(ws.name.toLowerCase())
+  return ER_BP.test(navn.join(' '))
 }
 
 export async function parseBp(data: Buffer | ArrayBuffer): Promise<BpResultat> {
