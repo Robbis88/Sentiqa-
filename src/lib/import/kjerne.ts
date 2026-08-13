@@ -9,6 +9,7 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { parseBp } from '@/lib/parsere/bp'
 import { fordelPaaMaaneder } from '@/lib/bemanning'
+import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
@@ -144,6 +145,10 @@ export async function behandleJobbKjerne(
           const us = await parseUsynligSvinn(buffer)
           await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, us, dato)
         } catch { /* fila har kanskje ikke per-stasjon-ark */ }
+        // Bemanningsvarsler — også best effort.
+        try {
+          await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
+        } catch { /* varsler skal aldri velte en import */ }
         break
       }
       case 'st1_bp': {
@@ -493,6 +498,31 @@ async function lagreBp(
     )
   }
 
+  // Låste måneder: en måned som allerede er avlagt bærer sitt eget budsjett i
+  // regnskapsrapporten, og det er det kjeden måler mot. En senere revisjon av
+  // BP-en kan ikke endre en lukket måned — Dale ble replanlagt ned i den
+  // reviderte BP-en, men januar og februar sto igjen med de opprinnelige
+  // tallene. For slike måneder brukes regnskapets brutto i fordelingen, og vi
+  // skriver ingen bp_*-linjer.
+  const { data: avlagt } = await supabase
+    .from('regnskapslinjer')
+    .select('stasjon_id, periode, kode, budsjett')
+    .eq('retailer_id', retailerId)
+    .eq('seksjon', 'bruttofortjeneste')
+    .is('slettet_tid', null)
+    .not('stasjon_id', 'is', null)
+    .gte('periode', `${ar}-01-01`)
+    .lte('periode', `${ar}-12-01`)
+  const laast = new Map<string, number>()
+  for (const rad of (avlagt ?? []) as {
+    stasjon_id: string; periode: string; kode: string | null; budsjett: number | null
+  }[]) {
+    if ((rad.kode ?? '') === '40') continue // CR-rollup, ville dublert kategoriene
+    const maned = Number.parseInt(rad.periode.slice(5, 7), 10)
+    const n = `${rad.stasjon_id}|${maned}`
+    laast.set(n, (laast.get(n) ?? 0) + (rad.budsjett ?? 0))
+  }
+
   // Bevar reserve/sikkerhet som er satt manuelt fra før.
   const { data: eksisterende } = await supabase
     .from('bemanning_aar')
@@ -527,7 +557,8 @@ async function lagreBp(
       oppdatert_tid: new Date().toISOString(),
     })
 
-    const brutto = s.maaneder.map((m) => m.bruttoKr)
+    // Avlagt måned slår BP-en; åpne og framtidige måneder tar BP-tallet.
+    const brutto = s.maaneder.map((m) => laast.get(`${stasjonId}|${m.maned}`) ?? m.bruttoKr)
     const bruttoSum = brutto.reduce((a, b) => a + b, 0)
     const timerPerMaaned = fordelPaaMaaneder(timerAar, brutto, {
       reservePst,
@@ -535,13 +566,15 @@ async function lagreBp(
     })
 
     for (const m of s.maaneder) {
+      const erLaast = laast.has(`${stasjonId}|${m.maned}`)
+      const bruttoMnd = brutto[m.maned - 1]
       // Rå månedsramme før fradrag — det retailer ser.
-      const andel = bruttoSum > 0 ? m.bruttoKr / bruttoSum : 1 / 12
+      const andel = bruttoSum > 0 ? bruttoMnd / bruttoSum : 1 / 12
       budsjettRader.push({
         stasjon_id: stasjonId, ar, maned: m.maned,
         timer: timerAar * andel,
         lonn_kr: m.timelonnKr,
-        brutto_bp_kr: m.bruttoKr,
+        brutto_bp_kr: bruttoMnd,
         reserve_pst: reservePst,
         oppdatert_tid: new Date().toISOString(),
       })
@@ -556,6 +589,7 @@ async function lagreBp(
       // regnskapslinjer fra noen annen kilde, så de legges inn herfra med
       // egne seksjonsnavn (bp_*) — da kan de slettes presist ved ny
       // innlasting uten å røre regnskapets egne linjer.
+      if (erLaast) continue // regnskapet bærer allerede budsjettet for denne måneden
       const periode = `${ar}-${String(m.maned).padStart(2, '0')}-01`
       const bpLinje = (seksjon: string, kode: string, post: string, budsjett: number) => ({
         retailer_id: retailerId, stasjon_id: stasjonId, periode, seksjon, kode, post,
@@ -594,6 +628,103 @@ async function lagreBp(
     antallRader:
       aarRader.length + budsjettRader.length + manedRader.length + bpLinjer.length,
     umatchet: [],
+  }
+}
+
+// ---------------------------------------------------------------------
+// Varsler etter regnskapsimport: hvordan gikk bemanningen forrige måned?
+//
+// Alt vi trenger kom nettopp inn i samme fil — «Sammenstilling» gir timer,
+// timesats, brutto per variabel time og lønnsandel per stasjon. Rammen de
+// måles mot ligger i bemanning_maned, som BP-opplastingen fylte.
+//
+// Best effort: et varsel som feiler skal aldri velte importen.
+// ---------------------------------------------------------------------
+async function varsleBemanning(
+  supabase: Klient,
+  retailerId: string,
+  perStasjon: Awaited<ReturnType<typeof parseRegnskapStasjoner>>,
+  periode: string,
+  medNummer: Map<string, string>,
+): Promise<void> {
+  const ar = Number.parseInt(periode.slice(0, 4), 10)
+  const maned = Number.parseInt(periode.slice(5, 7), 10)
+  if (!ar || !maned) return
+
+  const tall = (linjer: { seksjon: string; post: string; regnskap: number }[], post: string) =>
+    linjer.find((l) => l.seksjon === 'nokkeltall' && l.post === post)?.regnskap ?? 0
+
+  const maalt = perStasjon
+    .map((st) => {
+      const stasjonId = medNummer.get(st.butikknummer)
+      if (!stasjonId) return null
+      const timer = tall(st.linjer, 'Timelønn - antall timer')
+      if (timer <= 0) return null
+      return {
+        stasjonId,
+        timer,
+        sats: tall(st.linjer, 'Timelønn - gj.sn. timesats'),
+        bruttoPrTime: tall(st.linjer, 'Bruttofortj pr variabel time'),
+        lonnAvBrutto: tall(st.linjer, 'Lønns% av bruttofortjeneste'),
+        // 505 sykelønn + 506 refusjon = nettokostnad.
+        sykelonn: st.linjer
+          .filter((l) => l.seksjon === 'driftskostnader' && (l.kode === '505' || l.kode === '506'))
+          .reduce((a, l) => a + l.regnskap, 0),
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+  if (maalt.length === 0) return
+
+  // Clusterets brutto per bemanningstime — målestokken den enkelte stasjon
+  // sammenlignes mot. Brutto per stasjon er timer × brutto-per-time.
+  const timerSum = maalt.reduce((a, m) => a + m.timer, 0)
+  const bruttoSum = maalt.reduce((a, m) => a + m.timer * m.bruttoPrTime, 0)
+  const clusterBruttoPrTime = timerSum > 0 ? bruttoSum / timerSum : 0
+
+  const ider = maalt.map((m) => m.stasjonId)
+  const [{ data: rammer }, { data: budsjetter }] = await Promise.all([
+    supabase.from('bemanning_maned').select('stasjon_id, disponible_timer')
+      .eq('ar', ar).eq('maned', maned).in('stasjon_id', ider),
+    supabase.from('bemanning_budsjett').select('stasjon_id, timer, lonn_kr, brutto_bp_kr, reserve_pst')
+      .eq('ar', ar).eq('maned', maned).in('stasjon_id', ider),
+  ])
+  const ramme = new Map(
+    ((rammer ?? []) as { stasjon_id: string; disponible_timer: number }[])
+      .map((r) => [r.stasjon_id, r.disponible_timer]),
+  )
+  const budsjett = new Map(
+    ((budsjetter ?? []) as {
+      stasjon_id: string; timer: number; lonn_kr: number | null
+      brutto_bp_kr: number | null; reserve_pst: number | null
+    }[]).map((b) => [b.stasjon_id, b]),
+  )
+
+  for (const m of maalt) {
+    const b = budsjett.get(m.stasjonId)
+    const varsler = lagBemanningsvarsler({
+      maned,
+      timerBrukt: m.timer,
+      timerDisponible: ramme.get(m.stasjonId) ?? null,
+      timesatsFaktisk: m.sats,
+      timesatsBudsjett: b?.lonn_kr && b.timer > 0 ? b.lonn_kr / b.timer : null,
+      bruttoPrTime: m.bruttoPrTime,
+      bruttoPrTimeCluster: clusterBruttoPrTime,
+      bruttoFaktisk: m.timer * m.bruttoPrTime,
+      bruttoBudsjett: b?.brutto_bp_kr ?? null,
+      sykelonnNetto: m.sykelonn,
+      reserveKr: b?.reserve_pst != null && b.lonn_kr ? (b.reserve_pst / 100) * b.lonn_kr : null,
+      lonnAvBrutto: m.lonnAvBrutto,
+    })
+    for (const v of varsler) {
+      await opprettVarsel(supabase, {
+        retailer_id: retailerId,
+        stasjon_id: m.stasjonId,
+        type: v.type,
+        tittel: v.tittel,
+        tekst: v.tekst,
+        lenke: '/bemanning',
+      })
+    }
   }
 }
 
