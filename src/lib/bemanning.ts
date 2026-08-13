@@ -88,6 +88,96 @@ export function dagerPerUkedag(ar: number, maned: number): number[] {
   return ut
 }
 
+// Gulvet for én måned: bemannet vindu × minimumsbemanning, hevet av
+// krav-vinduene, minus det de faste vaktene dekker. Regnes uten å planlegge,
+// fordi årsfordelingen må kjenne gulvet i alle tolv månedene før den kan
+// fordele noe som helst.
+export function bundneTimer(opts: {
+  ar: number; maned: number; vinduer: Vindu[]; krav: Krav[]; fasteVakter: FastVakt[]
+}): number {
+  const antall = dagerPerUkedag(opts.ar, opts.maned)
+  let sum = 0
+  for (const v of opts.vinduer) {
+    for (let t = v.fraTime; t < v.tilTime; t++) {
+      const kravHer = opts.krav
+        .filter((k) => k.ukedag === v.ukedag && iVindu(t, k.fraTime, k.tilTime))
+        .reduce((m, k) => Math.max(m, k.antall), 0)
+      const fast = opts.fasteVakter.some(
+        (f) => f.ukedag === v.ukedag && iVindu(t, f.fraTime, f.tilTime),
+      ) ? 1 : 0
+      sum += Math.max(0, Math.max(v.minBemanning, kravHer) - fast) * antall[v.ukedag]
+    }
+  }
+  return sum
+}
+
+export type Aarsfordeling = {
+  maaneder: { maned: number; bundne: number; fri: number; disponible: number }[]
+  pool: number // årets ramme
+  sumBundne: number
+  fri: number
+  gjennomforbar: boolean
+  underskudd: number
+}
+
+/**
+ * Fordeler årets ramme på måneder ETTER at gulvet er trukket fra.
+ *
+ * En døgnåpen stasjon trenger 720 timer bare for å holde én person i luften i
+ * juni. Fordeler man året etter bruttokurven først, får juni kanskje 690 og
+ * stopper — mens oktober sitter med slakk den ikke kan bruke. Gulvet er ikke
+ * forhandlingsbart; det er resten som skal styres dit kundene er.
+ *
+ * Rekkefølgen blir derfor: gulv i alle tolv månedene, summér, og fordel det
+ * som er igjen etter vektene (månedens andel av årets brutto).
+ *
+ * `rammer` er de tolv radene fra bemanning_maned. Summen er årets ramme, og
+ * verdiene brukes som vekter — de er allerede proporsjonale med BP-bruttoen.
+ */
+export function fordelAaret(opts: {
+  ar: number
+  rammer: { maned: number; timer: number }[]
+  vinduer: Vindu[]
+  krav: Krav[]
+  fasteVakter: FastVakt[]
+}): Aarsfordeling {
+  const pool = opts.rammer.reduce((a, r) => a + r.timer, 0)
+  const vektSum = pool
+
+  const bundne = opts.rammer.map((r) => ({
+    maned: r.maned,
+    vekt: r.timer,
+    bundne: bundneTimer({
+      ar: opts.ar, maned: r.maned,
+      vinduer: opts.vinduer, krav: opts.krav, fasteVakter: opts.fasteVakter,
+    }),
+  }))
+  const sumBundne = bundne.reduce((a, b) => a + b.bundne, 0)
+  const fri = pool - sumBundne
+
+  if (fri <= 0) {
+    // Gulvet alene sprenger året. Da er det ikke en fordelingsjobb lenger —
+    // enten må åpningstiden ned, eller så er rammen for stram.
+    return {
+      maaneder: bundne.map((b) => ({ maned: b.maned, bundne: b.bundne, fri: 0, disponible: b.bundne })),
+      pool, sumBundne, fri: 0,
+      gjennomforbar: false,
+      underskudd: -fri,
+    }
+  }
+
+  return {
+    maaneder: bundne.map((b) => {
+      const andel = vektSum > 0 ? b.vekt / vektSum : 1 / 12
+      const friHer = fri * andel
+      return { maned: b.maned, bundne: b.bundne, fri: friHer, disponible: b.bundne + friHer }
+    }),
+    pool, sumBundne, fri,
+    gjennomforbar: true,
+    underskudd: 0,
+  }
+}
+
 /**
  * Fordeler månedens disponible timer på ukedag × klokketime.
  *

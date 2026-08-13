@@ -1,7 +1,10 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { planleggMaaned, dagerPerUkedag, type Krav, type Vindu, type FastVakt } from '@/lib/bemanning'
+import {
+  fordelAaret, planleggMaaned, dagerPerUkedag,
+  type Krav, type Vindu, type FastVakt,
+} from '@/lib/bemanning'
 import { FastVaktSkjema, KravSkjema, VinduSkjema } from './skjemaer'
 import { slettFastVakt, slettKrav, slettVindu } from './handlinger'
 
@@ -104,10 +107,13 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const maned = Number(sok.maned) || nesteManed
   const iDag = naa.toISOString().slice(0, 10)
 
-  const [{ data: ramme }, { data: vinduer }, { data: krav }, { data: vakter }, profilen] =
+  const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter }, profilen] =
     await Promise.all([
-      supabase.from('bemanning_maned').select('disponible_timer')
-        .eq('stasjon_id', valgt.id).eq('ar', ar).eq('maned', maned).maybeSingle(),
+      // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
+      // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
+      // bruttokurven gir den, og de timene finnes i en roligere måned.
+      supabase.from('bemanning_maned').select('maned, disponible_timer')
+        .eq('stasjon_id', valgt.id).eq('ar', ar).order('maned'),
       supabase.from('bemanning_vindu').select('id, ukedag, fra_time, til_time, min_bemanning, gjelder_fra')
         .eq('stasjon_id', valgt.id).order('ukedag').order('gjelder_fra', { ascending: false }),
       supabase.from('bemanning_krav').select('id, ukedag, fra_time, til_time, antall, begrunnelse')
@@ -126,18 +132,27 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     if (!gjeldende.has(v.ukedag)) gjeldende.set(v.ukedag, v)
   }
 
-  const disponible = (ramme as { disponible_timer: number } | null)?.disponible_timer ?? null
   const kravListe = (krav ?? []) as KravRad[]
   const vaktListe = (vakter ?? []) as VaktRad[]
+  const aarsrammer = ((rammer ?? []) as { maned: number; disponible_timer: number }[])
+    .map((r) => ({ maned: r.maned, timer: r.disponible_timer }))
 
-  const plan = disponible !== null && gjeldende.size > 0
-    ? planleggMaaned({
-      disponibleTimer: disponible, ar, maned,
-      vinduer: [...gjeldende.values()].map(tilVindu),
-      krav: kravListe.map(tilKrav),
-      fasteVakter: vaktListe.map(tilVakt),
-      profil: profilen.profil,
-    })
+  const oppsett = {
+    vinduer: [...gjeldende.values()].map(tilVindu),
+    krav: kravListe.map(tilKrav),
+    fasteVakter: vaktListe.map(tilVakt),
+  }
+  // Årsfordelingen først — gulvet i alle tolv månedene, så resten etter
+  // bruttokurven. Det er den som avgjør hva denne måneden faktisk har.
+  const aar = aarsrammer.length > 0
+    ? fordelAaret({ ar, rammer: aarsrammer, ...oppsett })
+    : null
+  const iMnd = aar?.maaneder.find((m) => m.maned === maned) ?? null
+  const disponible = iMnd?.disponible ?? null
+  const raaRamme = aarsrammer.find((r) => r.maned === maned)?.timer ?? null
+
+  const plan = disponible !== null && gjeldende.size > 0 && aar?.gjennomforbar
+    ? planleggMaaned({ disponibleTimer: disponible, ar, maned, ...oppsett, profil: profilen.profil })
     : null
   const dager = dagerPerUkedag(ar, maned)
   const rutenett = new Map(plan?.timer.map((t) => [`${t.ukedag}:${t.time}`, t]) ?? [])
@@ -170,16 +185,24 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           <p className="undertittel">
             Ingen ramme for denne måneden ennå. Eier må laste opp forretningsplanen på <a href="/import">/import</a>.
           </p>
+        ) : aar && !aar.gjennomforbar ? (
+          <p className="feil">
+            Minimumsbemanningen koster {Math.round(aar.sumBundne)} timer i året — {Math.round(aar.underskudd)} mer
+            enn hele årsrammen på {Math.round(aar.pool)}. Dette løses ikke ved å flytte timer mellom
+            måneder. Enten må åpningstiden kortes ned, eller så er rammen for stram. Si ifra til eier.
+          </p>
         ) : (
           <>
             <p><strong>{Math.round(disponible)} timer</strong> til disposisjon.</p>
+            {iMnd && raaRamme !== null && Math.abs(disponible - raaRamme) >= 1 && (
+              <p className="undertittel">
+                {disponible > raaRamme
+                  ? `Måneden låner ${Math.round(disponible - raaRamme)} timer fra resten av året — gulvet her koster ${Math.round(iMnd.bundne)} timer, mer enn bruttokurven alene ville gitt.`
+                  : `Måneden avgir ${Math.round(raaRamme - disponible)} timer til måneder med tyngre gulv.`}
+              </p>
+            )}
             {plan === null ? (
               <p className="undertittel">Legg inn bemannet vindu nedenfor, så regner jeg ut forslaget.</p>
-            ) : !plan.gjennomforbar ? (
-              <p className="feil">
-                Minimumsbemanningen alene koster {Math.round(plan.bundneTimer)} timer — {Math.round(plan.underskudd)} mer
-                enn rammen. Enten må åpningstiden kortes ned, eller så er rammen for stram. Si ifra til eier.
-              </p>
             ) : (
               <p className="undertittel">
                 {Math.round(plan.bundneTimer)} timer er bundet av minimumsbemanning, krav og faste vakter.

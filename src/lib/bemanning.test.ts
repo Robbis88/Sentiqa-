@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import {
+  bundneTimer,
   dagerPerUkedag,
   disponibleTimerAar,
+  fordelAaret,
   fordelPaaMaaneder,
   planleggMaaned,
   type Vindu,
@@ -51,6 +53,64 @@ describe('dagerPerUkedag', () => {
 
   test('februar 2026 har 28 dager', () => {
     expect(dagerPerUkedag(2026, 2).slice(1).reduce((a, b) => a + b, 0)).toBe(28)
+  })
+})
+
+// Døgnåpent alle sju dager, én person i gulvet: 24 x antall dager i maaneden.
+const DOGNAAPENT: Vindu[] = [1, 2, 3, 4, 5, 6, 7].map((ukedag) => ({
+  ukedag, fraTime: 0, tilTime: 24, minBemanning: 1,
+}))
+
+describe('fordelAaret', () => {
+  const rammer = (timer: number[]) => timer.map((t, i) => ({ maned: i + 1, timer: t }))
+
+  test('gulvet regnes per maaned etter antall dager', () => {
+    // Juni har 30 dager, juli 31.
+    expect(bundneTimer({ ar: 2026, maned: 6, vinduer: DOGNAAPENT, krav: [], fasteVakter: [] })).toBe(720)
+    expect(bundneTimer({ ar: 2026, maned: 7, vinduer: DOGNAAPENT, krav: [], fasteVakter: [] })).toBe(744)
+  })
+
+  test('en maaned som ikke dekker sitt eget gulv henter fra aaret', () => {
+    // Vardens juni: 690 timer i brutto-fordelingen, men dognaapent koster 720.
+    const varden = [770, 750, 773, 938, 1041, 690, 705, 658, 696, 595, 634, 636]
+    const f = fordelAaret({ ar: 2026, rammer: rammer(varden), vinduer: DOGNAAPENT, krav: [], fasteVakter: [] })
+    const juni = f.maaneder.find((m) => m.maned === 6)!
+    expect(juni.bundne).toBe(720)
+    expect(juni.disponible).toBeGreaterThan(720) // gulvet er dekket, pluss litt
+    // Aarsrammen holdes — timene er flyttet, ikke skapt.
+    expect(f.maaneder.reduce((a, m) => a + m.disponible, 0)).toBeCloseTo(f.pool, 6)
+  })
+
+  test('de frie timene folger fortsatt bruttokurven', () => {
+    const r = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 200]
+    // Gulv 0: ingen vinduer i det hele tatt.
+    const f = fordelAaret({ ar: 2026, rammer: rammer(r), vinduer: [], krav: [], fasteVakter: [] })
+    const des = f.maaneder.find((m) => m.maned === 12)!
+    const jan = f.maaneder.find((m) => m.maned === 1)!
+    expect(des.disponible / jan.disponible).toBeCloseTo(2, 6)
+  })
+
+  test('flagger aaret som ugjennomforbart naar gulvet sprenger hele rammen', () => {
+    // 12 x 720-744 = 8760 timer dognaapent. Ramme paa 5000 holder ikke.
+    const f = fordelAaret({
+      ar: 2026, rammer: rammer(new Array(12).fill(5000 / 12)),
+      vinduer: DOGNAAPENT, krav: [], fasteVakter: [],
+    })
+    expect(f.gjennomforbar).toBe(false)
+    expect(f.sumBundne).toBe(8760)
+    expect(Math.round(f.underskudd)).toBe(3760)
+  })
+
+  test('faste vakter senker gulvet og frigjor timer til fordeling', () => {
+    const rr = rammer(new Array(12).fill(1000))
+    const uten = fordelAaret({ ar: 2026, rammer: rr, vinduer: DOGNAAPENT, krav: [], fasteVakter: [] })
+    const med = fordelAaret({
+      ar: 2026, rammer: rr, vinduer: DOGNAAPENT, krav: [],
+      fasteVakter: [1, 2, 3, 4, 5].map((ukedag) => ({ ukedag, fraTime: 7, tilTime: 15 })),
+    })
+    expect(med.sumBundne).toBeLessThan(uten.sumBundne)
+    expect(med.fri).toBeGreaterThan(uten.fri)
+    expect(med.pool).toBe(uten.pool) // rammen er den samme
   })
 })
 
