@@ -88,17 +88,18 @@ export default async function ImportSide() {
       <section className="kort">
         <h2>Last opp filer</h2>
         <KlientOpplaster />
-        {/* Store filer må hit: feltet over parser i nettleseren, og
-            forretningsplanen (~27 MB) sprenger fanen. Her lagres fila rå og
-            serveren strømmer den. Åpen som standard — den var for godt gjemt. */}
-        <details style={{ marginTop: '1rem' }} open>
+        {/* Reserveveien. Fila går gjennom en server action, og plattformen
+            avviser kropper over noen få MB med 413 — store filer hører derfor
+            hjemme i feltet over, som laster rett til Storage. */}
+        <details style={{ marginTop: '1rem' }}>
           <summary className="undertittel" style={{ cursor: 'pointer' }}>
-            Store filer (forretningsplan) — last opp server-side
+            Reserve: last opp uten å parse i nettleseren
           </summary>
           <div style={{ marginTop: '0.75rem' }}>
             <p className="undertittel">
-              Filer over 12 MB, som St1s forretningsplan, må lastes opp her. Fila legges i kø og
-              parses på serveren — trykk «Behandle» i statuslista under når den er mottatt.
+              For små filer som feltet over ikke klarer å tolke. Fila legges i kø og parses på
+              serveren. Bruk ikke denne til forretningsplanen — den er for stor og blir avvist
+              (413); store filer tar feltet over.
             </p>
             <Opplaster />
           </div>
