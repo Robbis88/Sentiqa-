@@ -1212,3 +1212,114 @@ html { scroll-behavior: smooth; }
 .logg-inn { background: radial-gradient(900px 480px at 50% -10%, rgba(59,130,246,0.10), transparent 60%), var(--bg); }
 .logg-inn .kort { box-shadow: var(--skygge-lov); padding: 2rem; }
 .logg-inn .merke { font-size: 1.7rem; text-align: center; }
+
+/* =====================================================================
+   Butikksjefens forside (sq = Sentiqa-workspace).
+   Kroma er reservert for betydning: interaktivt er blått, mens rødt og
+   gult KUN brukes på alvorlighetsstriper og status. Ingenting er farget
+   for pynt, og derfor leses en kritisk sak på et halvt sekund.
+   ===================================================================== */
+.sq { display: flex; flex-direction: column; gap: 1.75rem; }
+.sq-merkelapp {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tekst-svak); font-weight: 600;
+}
+a.sq-merkelapp:hover { color: var(--primaer); }
+
+.sq-hode { display: flex; flex-direction: column; gap: 0.15rem; }
+.sq-hils { color: var(--tekst-svak); font-size: 0.9rem; }
+.sq-hode h1 { font-size: 1.9rem; line-height: 1.15; margin: 0; }
+.sq-ferskhet { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.35rem; }
+.sq-pip { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sq-pip::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gronn); flex: none;
+}
+
+/* Puls: to store tall, ikke fire like kort */
+.sq-puls {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 2rem; padding: 1.5rem 0; border-top: 1px solid var(--kant); border-bottom: 1px solid var(--kant);
+}
+.sq-puls h2 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 0.4rem; }
+.sq-forklar { color: var(--tekst-svak); font-size: 0.92rem; max-width: 46ch; }
+.sq-kilde { margin-top: 0.6rem; }
+.sq-maal-par { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-content: start; }
+.sq-maal { display: flex; flex-direction: column; gap: 0.15rem; }
+.sq-verdi { font-size: 1.9rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sq-under { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.sq-delta { font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.sq-delta.opp { color: var(--gronn); }
+.sq-delta.ned { color: var(--rod); }
+
+.sq-seksjon { display: flex; flex-direction: column; }
+.sq-seksjon-hode {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; margin-bottom: 0.6rem;
+}
+.sq-seksjon-hode h2 { font-size: 1rem; margin: 0; }
+
+/* Ett funn = én rad med alvorlighetsstripe */
+.sq-sak { border-top: 1px solid var(--kant); }
+.sq-sak summary {
+  display: grid; grid-template-columns: 3px 1fr auto; gap: 0 1rem;
+  align-items: center; padding: 0.9rem 0; cursor: pointer; list-style: none;
+}
+.sq-sak summary::-webkit-details-marker { display: none; }
+.sq-stripe { align-self: stretch; border-radius: 2px; background: var(--kant-sterk); }
+.sq-sak[data-niva='kritisk'] .sq-stripe { background: var(--rod); }
+.sq-sak[data-niva='folg'] .sq-stripe { background: var(--gul); }
+.sq-sak-tekst { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.sq-sak-tittel { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.sq-sak-tittel b { font-size: 0.98rem; }
+.sq-endring { font-weight: 700; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.sq-sak[data-niva='kritisk'] .sq-endring { color: var(--rod); }
+.sq-sak[data-niva='folg'] .sq-endring { color: var(--gul); }
+.sq-sak-under { color: var(--tekst-svak); font-size: 0.86rem; }
+.sq-sak-hoyre { display: flex; align-items: center; gap: 0.8rem; color: var(--tekst-svak); }
+.sq-pil { flex: none; transition: transform 0.16s ease; }
+.sq-sak[open] .sq-pil { transform: rotate(90deg); }
+
+.sq-utdyp { display: grid; gap: 0.9rem; padding: 0.2rem 0 1.1rem 1.15rem; }
+.sq-utdyp-rad { display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem; }
+.sq-utdyp-rad p { color: var(--tekst-svak); font-size: 0.9rem; max-width: 58ch; margin: 0; }
+.sq-bevis { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sq-bevis span {
+  font-size: 0.78rem; padding: 0.15rem 0.45rem; border: 1px solid var(--kant-sterk);
+  border-radius: 4px; color: var(--tekst-svak); font-variant-numeric: tabular-nums;
+}
+.sq-handlinger { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sq-knapp {
+  font-size: 0.85rem; padding: 0.35rem 0.75rem; border-radius: 6px;
+  border: 1px solid var(--kant-sterk); background: #fff; color: var(--tekst);
+}
+.sq-knapp.primar { background: var(--primaer); border-color: var(--primaer); color: #fff; }
+.sq-knapp:hover { border-color: var(--tekst-svak); }
+.sq-knapp.primar:hover { background: var(--primaer-mork); border-color: var(--primaer-mork); }
+
+.sq-to { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.sq-liste { display: flex; flex-direction: column; list-style: none; padding: 0; margin: 0; }
+.sq-liste li {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.55rem 0; border-top: 1px solid var(--kant); font-size: 0.92rem;
+}
+.sq-liste li:first-child { border-top: 0; }
+.sq-h { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.88rem; }
+
+@media (max-width: 820px) {
+  .sq-puls { grid-template-columns: 1fr; gap: 1.25rem; }
+  .sq-to { grid-template-columns: 1fr; gap: 1.5rem; }
+}
+@media (max-width: 520px) {
+  .sq-maal-par { grid-template-columns: 1fr; gap: 1rem; }
+  .sq-utdyp-rad { grid-template-columns: 1fr; gap: 0.2rem; }
+}
+@media (prefers-reduced-motion: reduce) { .sq-pil { transition: none; } }
+.sq-ai { margin-top: 0.7rem; }
+.sq-ai summary {
+  cursor: pointer; font-size: 0.85rem; color: var(--primaer); font-weight: 500;
+  list-style: none; display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.sq-ai summary::-webkit-details-marker { display: none; }
+.sq-ai summary::before { content: '✦'; opacity: 0.7; }
+.sq-ai p { margin-top: 0.5rem; color: var(--tekst-svak); font-size: 0.9rem; max-width: 58ch; }
