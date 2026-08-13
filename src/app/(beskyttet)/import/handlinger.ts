@@ -21,6 +21,54 @@ export async function importerForhandsparset(arg: {
   return res
 }
 
+// Store filer (St1s forretningsplan er ~27 MB) kan ikke gå gjennom en server
+// action — plattformen avviser kroppen med 413 lenge før Next får se den, og
+// bodySizeLimit hjelper ikke mot det. Nettleseren laster derfor rett til
+// Storage med sin egen sesjon (policy raa_filer_storage_admin, 0080), og
+// serveren registrerer bare fila. Samme kø, samme «Behandle»-knapp.
+export async function registrerRaaFil(arg: {
+  filnavn: string; sha256: string; storrelse: number; sti: string
+}): Promise<{ ok: boolean; hoppet?: boolean; feil?: string }> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
+    return { ok: false, feil: 'Bare eier kan laste opp filer.' }
+  }
+  // Stien er skrevet av klienten — sjekk at den ligger under egen mappe, så en
+  // manipulert forespørsel ikke kan registrere en annen kundes fil.
+  if (!arg.sti.startsWith(`${bruker.retailerId}/`)) {
+    return { ok: false, feil: 'Ugyldig sti.' }
+  }
+
+  const supabase = await lagSupabaseServerKlient()
+  const { data: raaFil, error: filFeil } = await supabase
+    .from('raa_filer')
+    .insert({
+      retailer_id: bruker.retailerId,
+      filnavn: arg.filnavn,
+      storage_bucket: BUCKET,
+      storage_sti: arg.sti,
+      mottakskanal: 'drop_zone',
+      storrelse_bytes: arg.storrelse,
+      sha256: arg.sha256,
+    })
+    .select('id')
+    .single()
+
+  if (filFeil) {
+    await supabase.storage.from(BUCKET).remove([arg.sti])
+    if (filFeil.code === '23505') return { ok: true, hoppet: true } // allerede lastet opp
+    return { ok: false, feil: filFeil.message }
+  }
+
+  const { error: jobbFeil } = await supabase
+    .from('import_jobber')
+    .insert({ raa_fil_id: raaFil.id, retailer_id: bruker.retailerId })
+  if (jobbFeil) return { ok: false, feil: jobbFeil.message }
+
+  revalidatePath('/import')
+  return { ok: true }
+}
+
 export type OpplastingTilstand =
   | { ok: true; antall: number; hoppet: number; feilet: string[] }
   | { ok: false; feil: string }

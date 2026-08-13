@@ -8,7 +8,8 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import type { ForhandsPayload } from '@/lib/import/typer'
-import { importerForhandsparset } from './handlinger'
+import { importerForhandsparset, registrerRaaFil } from './handlinger'
+import { lagSupabaseNettleserKlient } from '@/lib/supabase/client'
 
 // Nettleseren laster hele arbeidsboka i minnet for å parse den. St1s
 // forretningsplan er ~27 MB med et ark på 289 000 rader og koster over 2 GB —
@@ -44,6 +45,31 @@ async function byggPayload(buf: ArrayBuffer): Promise<ForhandsPayload | null> {
   }
 }
 
+// Laster fila rett til Storage fra nettleseren og ber serveren registrere den.
+// Stien må ligge under {retailer_id}/ — det er både storage-policyen (0080) og
+// serverens egen sjekk. Retailer-id-en hentes fra profilen, ikke fra klienten.
+async function tilStorage(fil: File): Promise<{ ok: boolean; hoppet?: boolean; feil?: string }> {
+  const supabase = lagSupabaseNettleserKlient()
+  const { data: bruker } = await supabase.auth.getUser()
+  if (!bruker.user) return { ok: false, feil: 'Ikke innlogget.' }
+
+  const { data: profil } = await supabase
+    .from('profiler').select('retailer_id').eq('id', bruker.user.id).single()
+  const retailerId = (profil as { retailer_id: string } | null)?.retailer_id
+  if (!retailerId) return { ok: false, feil: 'Fant ingen kjede på brukeren.' }
+
+  const buf = await fil.arrayBuffer()
+  const sha = await sha256Hex(buf)
+  const sti = `${retailerId}/${crypto.randomUUID()}-${fil.name}`
+
+  const { error } = await supabase.storage
+    .from('raa-filer')
+    .upload(sti, fil, { contentType: fil.type || 'application/octet-stream' })
+  if (error) return { ok: false, feil: `Opplasting feilet: ${error.message}` }
+
+  return await registrerRaaFil({ filnavn: fil.name, sha256: sha, storrelse: fil.size, sti })
+}
+
 export function KlientOpplaster() {
   const [filer, setFiler] = useState<FilRad[]>([])
   const [kjorer, setKjorer] = useState(false)
@@ -57,8 +83,14 @@ export function KlientOpplaster() {
 
     for (let i = 0; i < valgte.length; i++) {
       try {
+        // Store filer parses ikke her — de lastes rett til Storage og legges i
+        // kø for serveren. Nettleseren ville brukt over 2 GB på å åpne dem.
         if (valgte[i].size > FOR_STOR) {
-          sett(i, 'hoppet', `${Math.round(valgte[i].size / 1024 / 1024)} MB — bruk drop-zonen under, den parser på server`)
+          sett(i, 'lagrer')
+          const res = await tilStorage(valgte[i])
+          if (res.hoppet) sett(i, 'hoppet', 'Allerede lastet opp')
+          else if (res.ok) sett(i, 'ferdig', 'Lagt i kø — trykk «Behandle» under')
+          else sett(i, 'feilet', res.feil)
           continue
         }
         sett(i, 'parser')
@@ -91,7 +123,12 @@ export function KlientOpplaster() {
         disabled={kjorer}
         onChange={(e) => kjor([...(e.target.files ?? [])])}
       />
-      <p className="undertittel">Filene parses lokalt i nettleseren din og importeres én og én — store/mange filer timer aldri ut, og én rar fil stopper ikke resten. Ideelt for onboarding (mange salgsdager om gangen).</p>
+      <p className="undertittel">
+        Filene parses lokalt i nettleseren din og importeres én og én — store/mange filer timer aldri
+        ut, og én rar fil stopper ikke resten. Ideelt for onboarding (mange salgsdager om gangen).
+        Filer over {Math.round(FOR_STOR / 1024 / 1024)} MB, som forretningsplanen, lastes rett til
+        lagring og legges i kø for serveren — trykk «Behandle» i statuslista under når de er inne.
+      </p>
 
       {filer.length > 0 && (
         <>
