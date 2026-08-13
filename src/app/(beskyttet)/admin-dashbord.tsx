@@ -2,7 +2,13 @@ import Link from 'next/link'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { kr, manedAar } from '@/lib/format'
+import { kr, manedAar, datoLang } from '@/lib/format'
+import {
+  klyngebilde, pulsOverskrift, rangerSignaler,
+  type RaaSignal, type Signal,
+} from '@/lib/signaler'
+import { Oppmerksomhet } from './oppmerksomhet'
+import { Maal } from './sq-maal'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import { UkeKort } from './uke-kort'
 import { Sammenleggbar } from './sammenleggbar'
@@ -11,15 +17,6 @@ import { Stasjonsrangering, type RangRad } from './stasjonsrangering'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 
-const SNARVEIER = [
-  { sti: '/regnskap', tekst: 'Regnskap', ikon: '📒' },
-  { sti: '/analyse', tekst: 'Analyse', ikon: '🧠' },
-  { sti: '/import', tekst: 'Import', ikon: '📥' },
-  { sti: '/konkurranser', tekst: 'Konkurranser', ikon: '🏆' },
-  { sti: '/oppgaver', tekst: 'Oppgaver', ikon: '✅' },
-  { sti: '/stasjoner', tekst: 'Stasjoner', ikon: '⛽' },
-]
-const ALVOR_IKON: Record<string, string> = { generelt: '💬', uhell: '🩹', nestenuhell: '⚠️', krenkelse: '🚫' }
 const KRITISK = new Set(['uhell', 'krenkelse'])
 
 function minus30(iso: string): string {
@@ -190,63 +187,175 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
   }
 }
 
+// Eierens akse er en annen enn butikksjefens. Butikksjefen spør «hva
+// trenger meg?». Eieren kan ikke spørre det fem ganger — da blir det fem
+// dashbord. Eieren må spørre «er dette stasjonen eller er det markedet?»,
+// og bare det første er noe en butikksjef kan gjøre noe med.
+function byggSignaler(d: DashData, idag: string, klynge: ReturnType<typeof klyngebilde>): Signal[] {
+  const raa: RaaSignal[] = [...klynge.signaler]
+
+  for (const t of d.tilbake) {
+    if (!t.kritisk) continue
+    raa.push({
+      id: `tilbake-${t.id}`, merke: 'Tilbakemelding', tittel: `${t.stasjon}`,
+      detalj: t.tekst.slice(0, 160), niva: 'kritisk', lenke: '/tilbakemeldinger',
+    })
+  }
+
+  // Regnskapsvarslene er allerede en signalmotor — rød/gul per stasjon med
+  // begrunnelse. De trenger bare å rangeres sammen med resten.
+  for (const s of d.driftsstatus) {
+    if (s.status === 'gronn') continue
+    raa.push({
+      id: `drift-${s.navn}`, merke: 'Regnskap', tittel: s.navn, detalj: s.grunn,
+      niva: s.status === 'rod' ? 'kritisk' : 'folg', lenke: '/regnskap',
+    })
+  }
+
+  if (d.forsinkede.length > 0) {
+    const eldst = d.forsinkede[0]
+    raa.push({
+      id: 'oppgaver-forsinket', merke: 'Oppgaver',
+      tittel: `${d.forsinkede.length} ${d.forsinkede.length === 1 ? 'oppgave' : 'oppgaver'} over frist`,
+      endring: eldst.frist ? `eldst ${eldst.frist}` : undefined,
+      detalj: d.forsinkede.slice(0, 3).map((o) => `${d.navnFor.get(o.stasjon_id) ?? ''} · ${o.tittel}`).join(' — '),
+      niva: 'folg', lenke: '/oppgaver',
+      dager: eldst.frist
+        ? Math.round((Date.parse(`${idag}T12:00:00Z`) - Date.parse(`${eldst.frist}T12:00:00Z`)) / 86400000)
+        : null,
+    })
+  }
+
+  const ulesteIkkeKritiske = d.tilbake.filter((t) => !t.kritisk).length
+  if (ulesteIkkeKritiske > 0) {
+    raa.push({
+      id: 'tilbake-uleste', merke: 'Tilbakemelding',
+      tittel: `${ulesteIkkeKritiske} uleste tilbakemeldinger`,
+      detalj: 'Fra tabletene. Ingen av dem er merket som alvorlige.',
+      niva: 'info', lenke: '/tilbakemeldinger',
+    })
+  }
+
+  return rangerSignaler(raa)
+}
+
 export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker; idag: string }) {
   const supabase = await lagSupabaseServerKlient()
   const fornavn = bruker.fulltNavn?.split(' ')[0] ?? bruker.fulltNavn ?? 'sjef'
   const d = await samleData(supabase, bruker.retailerId as string, idag)
 
+  const klynge = klyngebilde(d.ukerapporter.map((r) => ({
+    stasjonId: r.stasjonId, navn: r.navn,
+    omsetning: r.omsetning, omsetningIfjor: r.omsetningIfjor,
+  })))
+  const signaler = byggSignaler(d, idag, klynge)
+  const bruttoNaa = d.ukerapporter.reduce((a, r) => a + r.brutto, 0)
+  const bruttoIfjor = d.ukerapporter.reduce((a, r) => a + r.bruttoIfjor, 0)
+  const time = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Oslo', hour: '2-digit', hour12: false,
+  }).format(new Date()))
+  const hils = time < 5 ? 'God natt' : time < 10 ? 'God morgen' : time < 18 ? 'God dag' : 'God kveld'
+
   return (
-    <>
-      <h1>God dag, {fornavn} 👋</h1>
-      <p className="undertittel">
-        {d.sistePeriode ? `${manedAar.format(new Date(d.sistePeriode))} · ` : ''}{d.stasjonsListe.length} stasjoner
-      </p>
+    <div className="sq">
+      {/* 1 · Kontekst. To ulike ferskheter: salg er dagen etter, regnskap er
+          måneden etter. De skal aldri blandes. */}
+      <header className="sq-hode">
+        <p className="sq-hils">{hils}, {fornavn}</p>
+        <h1>{d.stasjonsListe.length} stasjoner</h1>
+        <div className="sq-ferskhet">
+          <span className="sq-merkelapp">{datoLang.format(new Date(`${idag}T12:00:00Z`))}</span>
+          {d.ukerapporter.length > 0 && (
+            <span className="sq-merkelapp sq-pip">Salg: forrige hele uke</span>
+          )}
+          {d.sistePeriode && (
+            <span className="sq-merkelapp">Regnskap: {manedAar.format(new Date(d.sistePeriode))}</span>
+          )}
+        </div>
+      </header>
 
       {d.feil && (
         <section className="kort oppmerksomhet">
-          <p className="feil">⚠️ Kunne ikke laste full oversikt. Teknisk: {d.feil}</p>
+          <p className="feil">Kunne ikke laste full oversikt. Teknisk: {d.feil}</p>
         </section>
       )}
 
-      <AiKort />
-
-      <nav className="snarveier" aria-label="Snarveier">
-        {SNARVEIER.map((s) => (
-          <Link key={s.sti} href={s.sti} className="snarvei-kort">
-            <span className="snarvei-ikon">{s.ikon}</span>
-            <span>{s.tekst}</span>
-          </Link>
-        ))}
-      </nav>
-
-      {d.kpiStrip.length > 0 && (
-        <section className="nokkeltall">
-          {d.kpiStrip.map((k) => (
-            <Link key={k.merke} href="/regnskap" className="kpi lenke">
-              <span className="kpi-tall">{k.verdi}</span>
-              <span className="kpi-merke">
-                {k.merke}{k.avvik != null ? ` · ${k.avvik >= 0 ? '+' : '−'}${Math.abs(k.avvik).toFixed(0)} % vs budsjett` : ''}
-              </span>
-            </Link>
-          ))}
+      {/* 2 · Puls for klyngen */}
+      {klynge.omsetningIfjor > 0 && (
+        <section className="sq-puls">
+          <div>
+            <h2>{pulsOverskrift('Klyngen', klynge.vekstPst)}</h2>
+            <p className="sq-forklar">
+              Forrige hele uke mot samme uke i fjor, alle stasjoner samlet.
+              {klynge.rader.length > 1 &&
+                ` Spennet mellom beste og svakeste stasjon er ${Math.abs(
+                  klynge.rader[klynge.rader.length - 1].avvikPp - klynge.rader[0].avvikPp,
+                ).toFixed(0)} prosentpoeng.`}
+            </p>
+          </div>
+          <div className="sq-maal-par">
+            <Maal merke="Omsetning · forrige uke" naa={klynge.omsetning} ifjor={klynge.omsetningIfjor} />
+            <Maal merke="Bruttofortjeneste" naa={bruttoNaa} ifjor={bruttoIfjor} />
+          </div>
         </section>
       )}
 
-      {d.driftsstatus.length > 0 && (
-        <section className="kort driftsstatus">
-          <h2>🎛️ Driftsstatus per stasjon</h2>
-          <p className="undertittel">Grønt går bra, rødt trenger handling — basert på regnskapet{d.sistePeriode ? ` (${manedAar.format(new Date(d.sistePeriode))})` : ''}. Mest kritiske øverst.</p>
-          <ul className="driftsstatus-liste">
-            {d.driftsstatus.map((s) => (
-              <li key={s.navn} className={`driftsstatus-rad ${s.status}`}>
-                <span className="driftsstatus-prikk" />
-                <span className="driftsstatus-navn">{s.navn}</span>
-                <span className="driftsstatus-grunn">{s.grunn}</span>
+      {/* 3 · Oppmerksomhet — markedet skilt fra stasjonene */}
+      <Oppmerksomhet signaler={signaler} />
+
+      {/* 4 · Stasjonene rangert etter AVVIK, ikke etter størrelse. At Dale er
+          større enn Bønes hver måned er ingen nyhet. */}
+      {klynge.rader.length > 0 && (
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Stasjonene mot hverandre</h2>
+            <span className="sq-merkelapp">Avvik fra de øvrige · svakest først</span>
+          </div>
+          <ul className="sq-liste">
+            {klynge.rader.map((r) => (
+              <li key={r.stasjonId}>
+                <span className={`status-pip ${r.avvikPp < -12 ? 'rod' : r.avvikPp > 12 ? 'gronn' : 'gul'}`}>
+                  {r.avvikPp >= 0 ? '+' : '−'}{Math.abs(r.avvikPp).toFixed(0)} pp
+                </span>
+                <span>{r.navn}</span>
+                <span className="sq-h">
+                  {r.vekstPst >= 0 ? '+' : '−'}{Math.abs(r.vekstPst).toFixed(0)} %
+                </span>
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      {/* 5 · Regnskap — egen tidslinje, tydelig merket */}
+      {d.kpiStrip.length > 0 && (
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Regnskap</h2>
+            <Link href="/regnskap" className="sq-merkelapp">
+              {d.sistePeriode ? manedAar.format(new Date(d.sistePeriode)) : ''} · se alt →
+            </Link>
+          </div>
+          <div className="sq-regnskap">
+            {d.kpiStrip.map((k) => (
+              <div className="sq-maal" key={k.merke}>
+                <span className="sq-merkelapp">{k.merke.replace(/^[^\p{L}]+/u, '')}</span>
+                <span className="sq-verdi">{k.verdi}</span>
+                {k.avvik != null && (
+                  <span className="sq-under">
+                    <span className={`sq-delta ${k.avvik >= 0 ? 'opp' : 'ned'}`}>
+                      {k.avvik >= 0 ? '+' : '−'}{Math.abs(k.avvik).toFixed(0)} %
+                    </span>
+                    <span className="sq-merkelapp">mot budsjett</span>
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <AiKort />
 
       {d.ukerapporter.length > 0 ? (
         <Sammenleggbar tittel="Forrige uke per stasjon" ikon="📅">
@@ -265,21 +374,6 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
               ? `Siste daglige salgsdag i systemet: ${d.sisteSalg.dato}. Mangler du en komplett man–søn-uke (eller fjorårsuka), kommer rapporten først når den er på plass.`
               : '⚠️ Ingen daglige salgsdata er lastet opp ennå — derfor er rapporten tom.'}
           </p>
-        </section>
-      )}
-
-      {d.tilbake.length > 0 && (
-        <section className="kort oppmerksomhet">
-          <h2>🔔 Trenger oppmerksomhet</h2>
-          <ul className="tilbake-liste">
-            {d.tilbake.map((t) => (
-              <li key={t.id} className={t.kritisk ? 'kritisk' : ''}>
-                <span>{t.kritisk ? '🚨' : ALVOR_IKON[t.alvorlighet] ?? '💬'}</span>
-                <span className="tilbake-tekst"><strong>{t.stasjon}</strong> — {t.tekst}</span>
-                <Link href="/tilbakemeldinger" className="tilbake-lenke">Åpne</Link>
-              </li>
-            ))}
-          </ul>
         </section>
       )}
 
@@ -338,20 +432,6 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         </section>
       </div>
 
-      {d.forsinkede.length > 0 && (
-        <section className="kort oppmerksomhet">
-          <h2>⚠️ Forsinkede oppgaver</h2>
-          <ul className="forsinket-liste">
-            {d.forsinkede.slice(0, 5).map((o) => (
-              <li key={o.id}>
-                <span className="forsinket-frist">{o.frist}</span>
-                <span>{o.tittel}</span>
-                <span className="undertittel">{d.navnFor.get(o.stasjon_id) ?? ''}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
+    </div>
   )
 }

@@ -8,6 +8,7 @@ import {
   avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
 } from '@/lib/signaler'
 import { Oppmerksomhet } from './oppmerksomhet'
+import { Maal } from './sq-maal'
 
 // =====================================================================
 // Butikksjefens forside.
@@ -203,25 +204,6 @@ function byggSignaler(d: Data, idag: string): Signal[] {
   }
 
   return rangerSignaler(raa)
-}
-
-function Maal({ merke, naa, ifjor }: { merke: string; naa: number; ifjor: number }) {
-  const pst = ifjor > 0 ? ((naa - ifjor) / ifjor) * 100 : 0
-  const opp = pst >= 0
-  return (
-    <div className="sq-maal">
-      <span className="sq-merkelapp">{merke}</span>
-      <span className="sq-verdi">{kr.format(naa)}</span>
-      <span className="sq-under">
-        <span className={`sq-delta ${opp ? 'opp' : 'ned'}`}>
-          {opp ? '↑' : '↓'} {Math.abs(pst).toFixed(0)} %
-        </span>
-        <span className="sq-merkelapp">
-          {opp ? '+' : '−'}{kr.format(Math.abs(naa - ifjor))} mot i fjor
-        </span>
-      </span>
-    </div>
-  )
 }
 
 export async function ButikksjefDashbord({ bruker }: { bruker: InnloggetBruker }) {

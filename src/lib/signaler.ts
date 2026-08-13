@@ -50,6 +50,116 @@ export function rangerSignaler(raa: RaaSignal[]): Signal[] {
     .sort((a, b) => b.poeng - a.poeng || a.tittel.localeCompare(b.tittel, 'nb'))
 }
 
+// --- Eierens akse: er det stasjonen eller er det markedet? -----------
+
+export type Stasjonsrapport = {
+  stasjonId: string
+  navn: string
+  omsetning: number
+  omsetningIfjor: number
+}
+
+export type Klyngebilde = {
+  omsetning: number
+  omsetningIfjor: number
+  vekstPst: number
+  /** Stasjoner sortert etter hvor mye de avviker fra klyngen, verst først. */
+  rader: {
+    stasjonId: string
+    navn: string
+    vekstPst: number
+    /** Prosentpoeng over/under klyngen. Negativt = henger etter. */
+    avvikPp: number
+    /** Kroner stasjonen ligger unna der den ville vært med klyngens vekst. */
+    residualKr: number
+  }[]
+  signaler: RaaSignal[]
+}
+
+// Hvor mange prosentpoeng en stasjon må avvike fra klyngen for å bli en sak.
+const STASJON_AVVIK_PP = 12
+// Og hvor mange kroner residualen minst må utgjøre.
+const STASJON_MIN_KR = 15000
+
+/**
+ * Skiller stasjonsspesifikke problemer fra markedet.
+ *
+ * Faller alle stasjonene, er det vær, sesong eller pris — ingenting en
+ * butikksjef kan gjøre noe med i morgen, og fem varsler om det samme er
+ * bare støy. Faller én mens de andre ligger flatt, er det den stasjonen,
+ * og da skal saken havne hos én person med et navn.
+ *
+ * Residualen er det ærlige tallet: hvor mange kroner stasjonen ligger unna
+ * der den ville vært om den hadde beveget seg som klyngen.
+ */
+export function klyngebilde(rapporter: Stasjonsrapport[]): Klyngebilde {
+  const omsetning = rapporter.reduce((a, r) => a + r.omsetning, 0)
+  const omsetningIfjor = rapporter.reduce((a, r) => a + r.omsetningIfjor, 0)
+  const vekstPst = omsetningIfjor > 0 ? ((omsetning - omsetningIfjor) / omsetningIfjor) * 100 : 0
+
+  // Målestokken for én stasjon er DE ANDRE stasjonene, ikke klyngen den selv
+  // inngår i. Dale er størst; lar vi Dale telle med i sin egen målestokk,
+  // trekker den snittet ned mot seg selv og under-oppdager sitt eget avvik.
+  const rader = rapporter
+    .filter((r) => r.omsetningIfjor > 0)
+    .map((r) => {
+      const egen = ((r.omsetning - r.omsetningIfjor) / r.omsetningIfjor) * 100
+      const andre = rapporter.filter((x) => x.stasjonId !== r.stasjonId)
+      const andreIfjor = andre.reduce((a, x) => a + x.omsetningIfjor, 0)
+      const andreVekst = andreIfjor > 0
+        ? ((andre.reduce((a, x) => a + x.omsetning, 0) - andreIfjor) / andreIfjor) * 100
+        : null
+      // Én stasjon alene har ingen målestokk — da kan vi ikke skille
+      // stasjonen fra markedet, og skal ikke late som.
+      const maalestokk = andreVekst ?? egen
+      return {
+        stasjonId: r.stasjonId,
+        navn: r.navn,
+        vekstPst: egen,
+        avvikPp: egen - maalestokk,
+        residualKr: r.omsetning - r.omsetningIfjor * (1 + maalestokk / 100),
+      }
+    })
+    .sort((a, b) => a.avvikPp - b.avvikPp)
+
+  const signaler: RaaSignal[] = []
+
+  // Faller hele klyngen, er det ÉN sak — ikke én per stasjon.
+  if (vekstPst <= -5 && rader.length > 1 && rader.every((r) => r.vekstPst < 0)) {
+    signaler.push({
+      id: 'klynge-ned',
+      merke: 'Marked',
+      tittel: 'Alle stasjonene faller',
+      endring: `↓ ${Math.abs(vekstPst).toFixed(0)} %`,
+      detalj:
+        'Nedgangen er felles for hele klyngen. Da er det sesong, vær eller pris — ' +
+        'ikke noe den enkelte butikksjefen kan rette opp i neste uke.',
+      niva: 'folg',
+      lenke: '/salg',
+      konsekvensKr: omsetning - omsetningIfjor,
+    })
+  }
+
+  for (const r of rader) {
+    if (r.avvikPp > -STASJON_AVVIK_PP) continue
+    if (Math.abs(r.residualKr) < STASJON_MIN_KR) continue
+    signaler.push({
+      id: `stasjon-${r.stasjonId}`,
+      merke: 'Stasjon',
+      tittel: r.navn,
+      endring: `${r.avvikPp.toFixed(0)} pp mot klyngen`,
+      detalj:
+        `${Math.abs(Math.round(r.residualKr)).toLocaleString('nb-NO')} kr under der stasjonen ` +
+        `ville vært med klyngens utvikling. De øvrige stasjonene forklarer ikke dette.`,
+      niva: Math.abs(r.residualKr) >= 60000 ? 'kritisk' : 'folg',
+      lenke: '/regnskap',
+      konsekvensKr: r.residualKr,
+    })
+  }
+
+  return { omsetning, omsetningIfjor, vekstPst, rader, signaler }
+}
+
 // Overskriften i pulsen. Skrevet ut fra tallet, ikke av en modell — den
 // skal si det samme hver gang for samme tall, og aldri koste et API-kall.
 export function pulsOverskrift(navn: string, vekstPst: number): string {
