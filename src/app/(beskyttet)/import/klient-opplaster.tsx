@@ -10,6 +10,13 @@ import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import type { ForhandsPayload } from '@/lib/import/typer'
 import { importerForhandsparset } from './handlinger'
 
+// Nettleseren laster hele arbeidsboka i minnet for å parse den. St1s
+// forretningsplan er ~27 MB med et ark på 289 000 rader og koster over 2 GB —
+// fanen ryker før den er ferdig. Slike filer skal gjennom drop-zonen, der
+// serveren strømmer dem. Grensen ligger godt over alt vi ellers mottar
+// (regnskapsrapporten er ~1,2 MB, timesalg noen hundre kB).
+const FOR_STOR = 12 * 1024 * 1024
+
 type Tilstand = 'venter' | 'parser' | 'lagrer' | 'ferdig' | 'hoppet' | 'feilet'
 type FilRad = { navn: string; tilstand: Tilstand; melding?: string }
 
@@ -50,6 +57,10 @@ export function KlientOpplaster() {
 
     for (let i = 0; i < valgte.length; i++) {
       try {
+        if (valgte[i].size > FOR_STOR) {
+          sett(i, 'hoppet', `${Math.round(valgte[i].size / 1024 / 1024)} MB — bruk drop-zonen under, den parser på server`)
+          continue
+        }
         sett(i, 'parser')
         const buf = await valgte[i].arrayBuffer()
         const payload = await byggPayload(buf)

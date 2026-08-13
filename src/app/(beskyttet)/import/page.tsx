@@ -21,9 +21,11 @@ const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
 const RAPPORT_ETIKETT: Record<string, string> = {
   st1_salgsstatistikk: 'Salgsstatistikk',
   st1_salesperhour: 'Timesalg',
+  st1_salesperhour_inneute: 'Timesalg',
   st1_cashierstats: 'Kassererstat.',
   salgsgrid_varetrans: 'Synlig svinn',
   regnskap_resultat: 'Regnskap',
+  st1_bp: 'Forretningsplan',
   ukjent: '—',
 }
 
@@ -86,9 +88,20 @@ export default async function ImportSide() {
       <section className="kort">
         <h2>Last opp filer</h2>
         <KlientOpplaster />
-        <details style={{ marginTop: '1rem' }}>
-          <summary className="undertittel" style={{ cursor: 'pointer' }}>Alternativ: last opp server-side (parser i kø)</summary>
-          <div style={{ marginTop: '0.75rem' }}><Opplaster /></div>
+        {/* Store filer må hit: feltet over parser i nettleseren, og
+            forretningsplanen (~27 MB) sprenger fanen. Her lagres fila rå og
+            serveren strømmer den. Åpen som standard — den var for godt gjemt. */}
+        <details style={{ marginTop: '1rem' }} open>
+          <summary className="undertittel" style={{ cursor: 'pointer' }}>
+            Store filer (forretningsplan) — last opp server-side
+          </summary>
+          <div style={{ marginTop: '0.75rem' }}>
+            <p className="undertittel">
+              Filer over 12 MB, som St1s forretningsplan, må lastes opp her. Fila legges i kø og
+              parses på serveren — trykk «Behandle» i statuslista under når den er mottatt.
+            </p>
+            <Opplaster />
+          </div>
         </details>
       </section>
 

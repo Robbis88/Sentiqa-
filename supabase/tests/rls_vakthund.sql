@@ -30,7 +30,12 @@ declare
     'sjekkpunkt_svar', 'ik_avlesninger', 'ansatte', 'oppgaver',
     'tablet_meldinger', 'skills_score', 'tildelte_merker',
     'opplaering_skift', 'opplaering_utfort', 'avvik', 'malekort',
-    'malekort_scope', 'rutiner'
+    'malekort_scope', 'rutiner',
+    -- Oppsett for bemanningsplanleggeren (0081). Faa rader, men de
+    -- joines mot timesalg per time - en upakket policy her trekker
+    -- per-rad-kall inn i hver eneste planberegning.
+    'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
+    'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned'
   ];
   r record;
   feil int := 0;
