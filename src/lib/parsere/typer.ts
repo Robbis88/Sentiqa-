@@ -7,6 +7,7 @@ export type Rapporttype =
   | 'st1_cashierstats'
   | 'salgsgrid_varetrans'
   | 'regnskap_resultat'
+  | 'st1_bp'
   | 'ukjent'
 
 // Én produktlinje fra Salgsstatistikk (St1 0714), med drilldown-kontekst.
@@ -115,6 +116,7 @@ export type RegnskapSeksjon =
   | 'bruttofortjeneste'
   | 'driftskostnader'
   | 'resultat'
+  | 'nokkeltall' // «Sammenstilling»-arket: timer, timesats, lønns% per stasjon
 
 export type RegnskapLinje = {
   seksjon: RegnskapSeksjon
@@ -134,6 +136,39 @@ export type RegnskapResultat = {
   periode: string | null // ISO første-i-måneden, f.eks. '2025-12-01'
   retailerNavn: string | null
   linjer: RegnskapLinje[]
+}
+
+// --- St1 forretningsplan (BP), årsbudsjett ---------------------------
+export type BpKategori = {
+  kode: string // '120'
+  post: string // '120 Mat' — samme form som regnskapslinjer bruker
+  salgKr: number
+  varekostKr: number
+}
+export type BpKonto = {
+  kode: string // '6312'
+  post: string // '6312 Royalty'
+  belopKr: number
+}
+export type BpMaaned = {
+  maned: number // 1–12
+  salgKr: number // CR salg, butikk (drivstoff er ikke med i BP-en)
+  varekostKr: number
+  bruttoKr: number // salg − varekost; kurven timene fordeles etter
+  timelonnKr: number // konto 5012
+  fastlonnKr: number // konto 5010, butikksjefens fastlønn
+  kategorier: BpKategori[] // omsetning og varekost per varegruppe
+  konti: BpKonto[] // alle kostnadskonti, hele P&L-en framover
+}
+export type BpStasjon = {
+  butikknummer: string
+  timerAar: number | null // variabel årsramme; ett årsverk er allerede trukket fra
+  maaneder: BpMaaned[] // alltid 12, januar først
+}
+export type BpResultat = {
+  rapporttype: 'st1_bp'
+  ar: number | null
+  stasjoner: BpStasjon[] // hele kjeden — filtreres mot retailer ved lagring
 }
 
 // Per-stasjon-ark i regnskapsfila (avdelingsnivå: omsetning + bruttofortjeneste).

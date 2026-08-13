@@ -106,6 +106,7 @@ const SKOL = {
 // kode i regnearket, ikke navn). Brukes for per-stasjon driftskostnader.
 const KONTO_NAVN: Record<string, string> = {
   '501': 'Faste lønninger', '502': 'Lønnstillegg', '503': 'Timelønn', '505': 'Sykelønn',
+  '506': 'Refundert sykelønn',
   '508': 'Påløpte feriepenger', '509': 'Bonus', '540': 'Arb.avg av lønn', '541': 'Arb.avg av feriepenger',
   '590': 'Andre personalkostnader', '621': 'Markedsbidrag', '622': 'Royalty', '623': 'FSA', '624': 'Franchiseavgift',
   '627': 'Renhold', '628': 'Renovasjon', '629': 'Brøyting', '630': 'Leie driftsmidler', '631': 'Leie utstyr utleie',
@@ -114,6 +115,81 @@ const KONTO_NAVN: Record<string, string> = {
   '740': 'Bilutgifter', '741': 'Reise, møter, kurs', '742': 'Reklame', '743': 'Diverse', '744': 'Forsikringer',
   '746': 'Kassedifferanse', '771': 'Bank & kortprovisjon', '780': 'Ekstraordinært tap/gevinst', '790': 'Avskrivninger',
   '810': 'Finanskostnader', '840': 'Ikke driftsrelatert',
+}
+
+// «Sammenstilling»-arket. Her ligger stasjonene som KOLONNER, ikke rader, og
+// arket har to like blokker: inneværende måned og hittil i år. Herfra henter vi
+// nøkkeltallene St1 selv regner ut — særlig «Timelønn - antall timer», som er
+// eneste sted i rapporten faktiske timer finnes (resten av kontoplanen er kroner).
+//
+// Blokkene finnes ved å lete etter overskriftsrader der cellene fra kolonne 4 og
+// utover ser ut som «4177 ST1 Lone» — da slipper vi å hardkode radnumre, som
+// flytter seg mellom versjoner av rapporten. Cluster-kolonnen («190 Kelsar Bil
+// AS») faller utenfor av seg selv: tre siffer, ikke fire.
+const NOKKELTALL: Record<string, string> = {
+  'totale personalkostnader (i 1000 kr)': 'Totale personalkostnader',
+  'herav timelønn og overtid (eks fp/aga)': 'Timelønn og overtid',
+  'lønnskost vs budsjett': 'Lønnskost vs budsjett',
+  'personalkost vs budsjett': 'Personalkost vs budsjett',
+  'lønnskost pr åpningstime (døgnåpent)': 'Lønnskost pr åpningstime',
+  'lønns% av omsetning': 'Lønns% av omsetning',
+  'lønns% av bruttofortjeneste': 'Lønns% av bruttofortjeneste',
+  'timelønn - antall timer': 'Timelønn - antall timer',
+  'timelønn - gj.sn. timesats (ink overtid)': 'Timelønn - gj.sn. timesats',
+  'timelønn - gj.sn. timesats': 'Timelønn - gj.sn. timesats',
+  'omsetning pr variabel time': 'Omsetning pr variabel time',
+  'bruttofortj pr variabel time': 'Bruttofortj pr variabel time',
+}
+
+// Etiketter i regnearket har linjeskift og dobbeltmellomrom om hverandre.
+const normaliser = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+
+type Nokkelverdi = { mnd: number | null; ytd: number | null }
+
+function parseNokkeltall(
+  wb: Awaited<ReturnType<typeof lastArbeidsbok>>,
+): Map<string, { navn: string; verdier: Map<string, Nokkelverdi> }> {
+  const ut = new Map<string, { navn: string; verdier: Map<string, Nokkelverdi> }>()
+  const ws = wb.worksheets.find((w) => normaliser(w.name) === 'sammenstilling')
+  if (!ws) return ut
+
+  let kolonner: { kol: number; butikknummer: string; navn: string }[] = []
+  let hittil = false
+
+  for (let r = 1; r <= ws.rowCount; r++) {
+    const rad = ws.getRow(r)
+
+    const funnet: typeof kolonner = []
+    for (let c = 4; c <= Math.min(ws.columnCount, 20); c++) {
+      const m = celletekst(rad.getCell(c).value).trim().match(/^(\d{4})\s+(.+)$/)
+      if (m) funnet.push({ kol: c, butikknummer: m[1], navn: m[2].trim() })
+    }
+    if (funnet.length >= 2) {
+      kolonner = funnet
+      hittil = /hittil/i.test(celletekst(rad.getCell(3).value))
+      continue
+    }
+    if (kolonner.length === 0) continue
+
+    const post = NOKKELTALL[normaliser(celletekst(rad.getCell(3).value))]
+    if (!post) continue
+
+    for (const k of kolonner) {
+      const celle = rad.getCell(k.kol).value
+      if (celle === null || celle === undefined) continue
+      let stasjon = ut.get(k.butikknummer)
+      if (!stasjon) {
+        stasjon = { navn: k.navn, verdier: new Map<string, Nokkelverdi>() }
+        ut.set(k.butikknummer, stasjon)
+      }
+      const verdi = stasjon.verdier.get(post) ?? { mnd: null, ytd: null }
+      if (hittil) verdi.ytd = celletall(celle)
+      else verdi.mnd = celletall(celle)
+      stasjon.verdier.set(post, verdi)
+    }
+  }
+
+  return ut
 }
 
 export async function parseRegnskapStasjoner(
@@ -177,6 +253,27 @@ export async function parseRegnskapStasjoner(
     }
 
     if (linjer.length > 0) stasjoner.push({ butikknummer, navn: navn.trim(), linjer })
+  }
+
+  // Nøkkeltallene fra «Sammenstilling» legges på samme stasjon. Måneden havner
+  // i regnskap, hittil-i-år i regnskapHittil — samme mønster som resten.
+  for (const [butikknummer, data] of parseNokkeltall(wb)) {
+    const linjer: RegnskapLinje[] = [...data.verdier].map(([post, v]) => ({
+      seksjon: 'nokkeltall' as const,
+      kode: null,
+      post,
+      sortering: null,
+      regnskap: v.mnd ?? 0,
+      budsjett: 0,
+      avvik: 0,
+      indexPct: 0,
+      regnskapHittil: v.ytd ?? 0,
+      budsjettHittil: 0,
+    }))
+    if (linjer.length === 0) continue
+    const eksisterende = stasjoner.find((s) => s.butikknummer === butikknummer)
+    if (eksisterende) eksisterende.linjer.push(...linjer)
+    else stasjoner.push({ butikknummer, navn: data.navn, linjer })
   }
 
   return stasjoner
