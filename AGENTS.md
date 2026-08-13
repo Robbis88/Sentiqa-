@@ -4,6 +4,25 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Salgstall: les `v_butikksalg`, aldri `daglig_salg`
+
+Drivstoff (avdeling `ENERGI`, kode `10`) ligger i `daglig_salg` og er **~68 %
+av omsetningen**. Det betjener seg selv på pumpa, bidrar ikke til stasjonens
+P&L, og skal aldri måles mot butikkens bemanning, kategorier, målekort eller
+konkurranser.
+
+Det kom inn i salgsstatistikken i løpet av april 2026. Fram til 0084/0085 var
+det ikke filtrert noe sted, og ukerapporten sammenlignet årets uke *med*
+drivstoff mot fjorårets *uten*: forsiden viste **+216 % vekst som ikke fantes**.
+
+**Regel: alt som summerer kroner eller antall skal lese `v_butikksalg`.**
+Den har samme kolonner som `daglig_salg`, minus drivstoff. Trenger du
+drivstoff eksplisitt (sjelden), les `daglig_salg` og skriv i kommentaren
+hvorfor.
+
+Sjekk før du er ferdig: `grep -rn "from('daglig_salg')" src/` skal ikke gi
+treff, og nye SQL-funksjoner skal lese `public.v_butikksalg`.
+
 # Database og RLS
 
 Migrasjonene kjøres **manuelt** i Supabase SQL Editor (prosjekt-ref `ahsetswpwzvcizkurymg`), ikke via `supabase db push`. Det finnes derfor ingen historikk-tabell, og hele settet `0001 →` kjøres av og til om igjen fra bunn.

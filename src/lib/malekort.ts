@@ -133,7 +133,7 @@ export async function beregnMalekort(
   if (stasjoner.length === 0) return { klar: false, grunn: 'Ingen stasjoner.' }
 
   const { data: siste } = await supabase
-    .from('daglig_salg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+    .from('v_butikksalg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
   if (!siste) return { klar: false, grunn: 'Ingen salgsdata ennå.' }
 
   // Velg periode: nyeste KOMPLETTE (eller bare nyeste hvis regelen er av).

@@ -24,7 +24,7 @@ export async function maalKonkurranse(
   if (!k) return null
 
   let q = supabase
-    .from('daglig_salg')
+    .from('v_butikksalg')
     .select('stasjon_id, omsetning_eks_mva, antall')
     .gte('dato', k.periode_start)
     .lte('dato', k.periode_slutt)

@@ -93,7 +93,7 @@ export default async function ProduksjonsplanSide({
     // Siste dag med faktisk salg (ikke «i dag») — så manglende dager bakerst
     // ikke trekker snittet ned.
     const { data: sisteRad } = await supabase
-      .from('daglig_salg').select('dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).is('slettet_tid', null)
+      .from('v_butikksalg').select('dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).is('slettet_tid', null)
       .order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
     const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
@@ -113,7 +113,7 @@ export default async function ProduksjonsplanSide({
     const salg: SalgRad[] = []
     for (let side = 0; side < 100; side++) {
       const { data, error } = await supabase
-        .from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
+        .from('v_butikksalg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
         .eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null)
         .order('dato').order('ean').range(side * 1000, side * 1000 + 999).overrideTypes<SalgRad[]>()
       if (error || !data || data.length === 0) break

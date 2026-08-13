@@ -141,7 +141,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     try { ukerapporter = await hentEllerLagUkerapport(supabase, retailerId, stasjonsListe) } catch { ukerapporter = [] }
     let sisteSalg: { dato: string } | null = null
     if (ukerapporter.length === 0) {
-      const { data } = await supabase.from('daglig_salg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+      const { data } = await supabase.from('v_butikksalg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
       sisteSalg = data
     }
 

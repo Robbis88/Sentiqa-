@@ -87,14 +87,14 @@ export async function hentEllerLagUkerapport(
   if (stasjoner.length === 0) return []
 
   const { data: siste } = await supabase
-    .from('daglig_salg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+    .from('v_butikksalg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
   if (!siste) return []
 
   // Mest nylige søndag på/før siste dato; gå opptil 6 uker bakover etter data.
   let sondag = leggTil(siste.dato, -ukedag(siste.dato))
   let funnet = false
   for (let i = 0; i < 6; i++) {
-    const { count } = await supabase.from('daglig_salg').select('dato', { count: 'exact', head: true }).eq('dato', sondag)
+    const { count } = await supabase.from('v_butikksalg').select('dato', { count: 'exact', head: true }).eq('dato', sondag)
     if ((count ?? 0) > 0) { funnet = true; break }
     sondag = leggTil(sondag, -7)
   }

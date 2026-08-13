@@ -51,7 +51,7 @@ export async function kjorBacktestForStasjon(
   // Produksjonssalg (antall pr produkt) + avdelingssalg (omsetning) + vær — alt for stasjonen, én gang.
   const [prodRaa, avdRaa, vaerRaa] = await Promise.all([
     hentAlt<{ varenavn: string | null; varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string }>((f, t) =>
-      supabase.from('daglig_salg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
+      supabase.from('v_butikksalg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
         .eq('stasjon_id', st.id).in('varegruppe_kode', KODER).gte('dato', hentFra).lte('dato', idag).is('slettet_tid', null)
         .order('dato').order('ean').range(f, t)),
     hentAlt<{ dato: string; avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null }>((f, t) =>
