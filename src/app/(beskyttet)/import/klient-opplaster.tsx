@@ -116,18 +116,24 @@ export function KlientOpplaster() {
 
   return (
     <div className="klient-opplaster">
-      <input
-        type="file"
-        multiple
-        accept=".csv,.txt,.xlsx,.xls"
-        disabled={kjorer}
-        onChange={(e) => kjor([...(e.target.files ?? [])])}
-      />
+      <label className="felt">
+        <span><strong>Velg filer</strong> — salgsstatistikk, timesalg, regnskap, forretningsplan</span>
+        <input
+          type="file"
+          multiple
+          accept=".csv,.txt,.xlsx,.xls"
+          disabled={kjorer}
+          onChange={(e) => kjor([...(e.target.files ?? [])])}
+        />
+      </label>
       <p className="undertittel">
-        Filene parses lokalt i nettleseren din og importeres én og én — store/mange filer timer aldri
-        ut, og én rar fil stopper ikke resten. Ideelt for onboarding (mange salgsdager om gangen).
-        Filer over {Math.round(FOR_STOR / 1024 / 1024)} MB, som forretningsplanen, lastes rett til
-        lagring og legges i kø for serveren — trykk «Behandle» i statuslista under når de er inne.
+        Starter med én gang — ingen knapp å trykke. Velg gjerne mange på én gang; de tas én og én, og
+        én rar fil stopper ikke resten.
+      </p>
+      <p className="undertittel">
+        <strong>Forretningsplanen</strong> (og andre filer over {Math.round(FOR_STOR / 1024 / 1024)} MB)
+        lastes rett til lagring og legges i kø. Den blir <em>ikke</em> importert med det samme — du må
+        trykke <strong>«Behandle»</strong> på raden i statuslista lenger ned.
       </p>
 
       {filer.length > 0 && (
