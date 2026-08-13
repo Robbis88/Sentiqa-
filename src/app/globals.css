@@ -1324,3 +1324,52 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-ai summary::before { content: '✦'; opacity: 0.7; }
 .sq-ai p { margin-top: 0.5rem; color: var(--tekst-svak); font-size: 0.9rem; max-width: 58ch; }
 .sq-regnskap { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1.5rem; }
+
+/* Kommandopalett — én inngang til alt, ⌘K */
+.sq-sokknapp {
+  display: flex; align-items: center; gap: 0.5rem; flex: 1; max-width: 26rem;
+  padding: 0.4rem 0.6rem; border: 1px solid var(--kant-sterk); border-radius: 8px;
+  background: var(--bg); color: var(--tekst-svak); font-size: 0.85rem;
+  font-family: inherit; cursor: text; text-align: left;
+}
+.sq-sokknapp:hover { border-color: var(--tekst-svak); }
+.sq-sokknapp kbd {
+  margin-left: auto; font-size: 0.68rem; border: 1px solid var(--kant-sterk);
+  border-radius: 4px; padding: 0.05rem 0.3rem; font-family: inherit;
+}
+.sq-dim {
+  position: fixed; inset: 0; background: rgba(16, 24, 40, 0.42); z-index: 60;
+  display: flex; align-items: flex-start; justify-content: center; padding: 12vh 1rem;
+}
+.sq-palett {
+  width: min(38rem, 100%); background: #fff; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--kant-sterk); box-shadow: var(--skygge-lov);
+}
+.sq-palett-felt {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--kant); color: var(--tekst-svak);
+}
+.sq-palett-felt input {
+  flex: 1; border: 0; outline: none; font: inherit; font-size: 1rem; color: var(--tekst);
+  background: none;
+}
+.sq-palett-liste { list-style: none; margin: 0; padding: 0.35rem; }
+.sq-palett-liste li {
+  display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0.65rem;
+  border-radius: 8px; font-size: 0.92rem; cursor: pointer;
+}
+.sq-palett-liste li[data-valgt='true'] { background: var(--primaer-svak); }
+.sq-palett-liste li.sq-tom { color: var(--tekst-svak); cursor: default; }
+.sq-k { margin-left: auto; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--tekst-svak); }
+.sq-palett-svar { padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+.sq-palett-svar p { margin: 0; font-size: 0.94rem; line-height: 1.6; white-space: pre-wrap; }
+.sq-palett-forslag { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0 0.7rem 0.8rem; }
+.sq-palett-forslag button {
+  font: inherit; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 999px;
+  border: 1px solid var(--kant-sterk); background: #fff; color: var(--tekst-svak); cursor: pointer;
+}
+.sq-palett-forslag button:hover { color: var(--tekst); border-color: var(--tekst-svak); }
+.sq-knapp-form { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sq-knapp[disabled] { opacity: 0.75; cursor: default; }
+.sq-feil { color: var(--rod); font-size: 0.8rem; }
+@media (max-width: 640px) { .sq-sokknapp span { display: none; } .sq-sokknapp { flex: 0; } }

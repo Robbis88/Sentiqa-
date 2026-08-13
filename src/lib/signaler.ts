@@ -31,6 +31,9 @@ export type RaaSignal = {
   lenke: string
   konsekvensKr?: number | null
   dager?: number | null
+  /** Hvilken stasjon funnet gjelder. Butikksjefen har som regel én, så den
+      utledes ved skriving; eierens stasjonssignaler peker på en bestemt. */
+  stasjonId?: string
 }
 
 export type Signal = RaaSignal & { poeng: number }
@@ -145,6 +148,7 @@ export function klyngebilde(rapporter: Stasjonsrapport[]): Klyngebilde {
     if (Math.abs(r.residualKr) < STASJON_MIN_KR) continue
     signaler.push({
       id: `stasjon-${r.stasjonId}`,
+      stasjonId: r.stasjonId,
       merke: 'Stasjon',
       tittel: r.navn,
       endring: `${r.avvikPp.toFixed(0)} pp mot klyngen`,

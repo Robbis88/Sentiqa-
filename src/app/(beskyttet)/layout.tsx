@@ -10,6 +10,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { Sidemeny } from './sidemeny'
 import { TabletSkall } from './tablet-skall'
 import { AiBoble } from './ai-boble'
+import { Kommandopalett } from './kommandopalett'
 import { OversettProvider } from './oversett-kontekst'
 
 // Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
@@ -161,6 +162,13 @@ export default async function BeskyttetLayout({
 
       <div className="hoved">
         <header className="toppstripe">
+          {erLeder(bruker.rolle) && (
+            <Kommandopalett
+              punkter={menyData.flatMap((s) =>
+                s.punkter.map((p) => ({ ...p, gruppe: s.tittel })),
+              )}
+            />
+          )}
           <span className="bruker">
             {bruker.fulltNavn ?? bruker.epost}
             <span className="rolle-pip">{ROLLE_ETIKETT[bruker.rolle]}</span>

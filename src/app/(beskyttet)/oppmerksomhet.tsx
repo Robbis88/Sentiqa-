@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Signal } from '@/lib/signaler'
+import { SignalKnapper } from './signal-knapper'
 
 // Ett funn = én rad, ikke ett kort. Et kort sier «her er en modul»; en rad
 // med alvorlighetsstripe sier «her er en sak». Rekkefølgen er informasjon,
@@ -72,6 +73,7 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
               <span className="sq-merkelapp">Neste steg</span>
               <span className="sq-handlinger">
                 <Link href={s.lenke} className="sq-knapp primar">Undersøk</Link>
+                <SignalKnapper tittel={s.tittel} detalj={s.detalj} stasjonId={s.stasjonId} />
               </span>
             </div>
           </div>
