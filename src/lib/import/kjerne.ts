@@ -102,7 +102,11 @@ export async function behandleJobbKjerne(
 
   // BP-fila kjennes igjen først, av arknavnene alene. Den er ~27 MB, og en
   // full lastArbeidsbok på den koster 2,3 GB heap — mer enn funksjonen har.
-  const rapporttype = (await erBpFil(buffer)) ? 'st1_bp' : await gjenkjennRapporttype(buffer)
+  //
+  // Feiler den, er fila bare ikke en xlsx (CSV, PDF …). Da skal gjenkjenneren
+  // få si det med sin egen feilmelding, ikke zip-leseren med sin.
+  const erBp = await erBpFil(buffer).catch(() => false)
+  const rapporttype = erBp ? 'st1_bp' : await gjenkjennRapporttype(buffer)
   await supabase.from('import_jobber').update({ rapporttype }).eq('id', jobbId)
 
   try {
