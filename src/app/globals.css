@@ -1373,3 +1373,20 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-knapp[disabled] { opacity: 0.75; cursor: default; }
 .sq-feil { color: var(--rod); font-size: 0.8rem; }
 @media (max-width: 640px) { .sq-sokknapp span { display: none; } .sq-sokknapp { flex: 0; } }
+
+/* Kontekstuell AI — der spørsmålet oppstår, ikke i en boble i hjørnet */
+.sq-aikontekst { margin: 0.35rem 0 0.9rem; }
+.sq-aikontekst > button {
+  font: inherit; font-size: 0.85rem; padding: 0.3rem 0.7rem; border-radius: 999px;
+  border: 1px solid var(--kant-sterk); background: #fff; color: var(--primaer);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.sq-aikontekst > button:hover:not([disabled]) { border-color: var(--primaer); }
+.sq-aikontekst > button[disabled] { color: var(--tekst-svak); cursor: default; }
+.sq-aisvar {
+  margin-top: 0.6rem; padding: 0.85rem 1rem; border: 1px solid var(--kant);
+  border-radius: 10px; background: var(--kort); display: flex; flex-direction: column;
+  gap: 0.6rem; align-items: flex-start; max-width: 62ch;
+}
+.sq-aisvar p { margin: 0; font-size: 0.92rem; line-height: 1.6; white-space: pre-wrap; }
+.sq-knapp.sq-dempet { color: var(--tekst-svak); }

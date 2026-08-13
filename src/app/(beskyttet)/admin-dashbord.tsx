@@ -7,6 +7,7 @@ import {
   klyngebilde, pulsOverskrift, rangerSignaler,
   type RaaSignal, type Signal,
 } from '@/lib/signaler'
+import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
 import { Oppmerksomhet } from './oppmerksomhet'
 import { Maal } from './sq-maal'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
@@ -191,8 +192,8 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
 // trenger meg?». Eieren kan ikke spørre det fem ganger — da blir det fem
 // dashbord. Eieren må spørre «er dette stasjonen eller er det markedet?»,
 // og bare det første er noe en butikksjef kan gjøre noe med.
-function byggSignaler(d: DashData, idag: string, klynge: ReturnType<typeof klyngebilde>): Signal[] {
-  const raa: RaaSignal[] = [...klynge.signaler]
+function byggSignaler(d: DashData, idag: string, klynge: ReturnType<typeof klyngebilde>, ekstra: RaaSignal[] = []): Signal[] {
+  const raa: RaaSignal[] = [...klynge.signaler, ...ekstra]
 
   for (const t of d.tilbake) {
     if (!t.kritisk) continue
@@ -248,7 +249,13 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     stasjonId: r.stasjonId, navn: r.navn,
     omsetning: r.omsetning, omsetningIfjor: r.omsetningIfjor,
   })))
-  const signaler = byggSignaler(d, idag, klynge)
+  const stasjoner = d.stasjonsListe.map((x) => ({ id: x.id, navn: `${x.butikknummer} ${x.navn}` }))
+  const [utsolgt, treff] = await Promise.all([
+    utsolgtSignaler(supabase, stasjoner, idag).catch(() => []),
+    treffSignaler(supabase, stasjoner, idag).catch(() => []),
+  ])
+  const alle = byggSignaler(d, idag, klynge, [...utsolgt, ...treff])
+  const signaler = await filtrerLukkede(supabase, alle, idag).catch(() => alle)
   const bruttoNaa = d.ukerapporter.reduce((a, r) => a + r.brutto, 0)
   const bruttoIfjor = d.ukerapporter.reduce((a, r) => a + r.bruttoIfjor, 0)
   const time = Number(new Intl.DateTimeFormat('en-GB', {

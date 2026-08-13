@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
 import { hentAlt } from '@/lib/paginer'
 import { StasjonsVelger } from '../stasjonsvelger'
+import { AiKontekst } from '../ai-kontekst'
 
 type Svinn = {
   stasjon_id: string
@@ -123,6 +124,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   return (
     <>
       <h1>Synlig svinn</h1>
+      <AiKontekst tekst="Finn arsaken" sporsmal="Hva er de viktigste arsakene til svinnet vart den siste tiden?" />
       <p className="undertittel">{datoLang.format(new Date(siste.dato))} · {erStasjon ? valgtNavn : 'alle stasjoner'}</p>
 
       {(stasjoner ?? []).length > 0 && (

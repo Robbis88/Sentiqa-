@@ -7,6 +7,7 @@ import { RegnskapButikksjef } from './butikksjef-visning'
 import { RegnskapVarsler } from './varsler-liste'
 import { StasjonsVelger } from '../stasjonsvelger'
 import { PeriodeVelger } from '../periode-velger'
+import { AiKontekst } from '../ai-kontekst'
 
 type Linje = {
   seksjon: string
@@ -170,6 +171,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   return (
     <>
       <h1>Regnskap</h1>
+      <AiKontekst tekst="Hva skiller seg ut?" sporsmal="Hva skiller seg mest ut i regnskapet for siste periode, og hvorfor?" />
       <p className="undertittel">{hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))} · {erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'}</p>
 
       <div className="regnskap-velgere">

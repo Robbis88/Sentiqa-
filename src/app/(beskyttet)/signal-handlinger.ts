@@ -100,3 +100,32 @@ export async function sendTilTablet(_t: SignalTilstand, fd: FormData): Promise<S
   revalidatePath('/meldinger')
   return { ok: 'Sendt til tableten' }
 }
+
+// --- Skjule et funn --------------------------------------------------
+
+// Sju dager. Lenge nok til at en sak man har tatt tak i ikke maser videre,
+// kort nok til at et problem man ikke løste kommer tilbake og spør igjen.
+const SKJUL_DAGER = 7
+
+export async function skjulSignal(_t: SignalTilstand, fd: FormData): Promise<SignalTilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) return { feil: 'Ikke tilgang.' }
+  const signalId = String(fd.get('signal_id') ?? '').slice(0, 200)
+  if (!signalId) return { feil: 'Mangler signal.' }
+  const stasjonId = String(fd.get('stasjon_id') ?? '') || null
+
+  const til = new Date()
+  til.setUTCDate(til.getUTCDate() + SKJUL_DAGER)
+
+  const supabase = await lagSupabaseServerKlient()
+  const { error } = await supabase.from('signal_lukket').upsert({
+    retailer_id: bruker.retailerId,
+    stasjon_id: stasjonId,
+    signal_id: signalId,
+    gjelder_til: til.toISOString().slice(0, 10),
+    lukket_av: bruker.id,
+  }, { onConflict: 'retailer_id,stasjon_id,signal_id' })
+  if (error) return { feil: error.message }
+  revalidatePath('/oversikt')
+  return { ok: `Skjult i ${SKJUL_DAGER} dager` }
+}

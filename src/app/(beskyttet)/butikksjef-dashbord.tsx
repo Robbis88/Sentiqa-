@@ -7,6 +7,7 @@ import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import {
   avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
 } from '@/lib/signaler'
+import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
 import { Oppmerksomhet } from './oppmerksomhet'
 import { Maal } from './sq-maal'
 
@@ -32,6 +33,7 @@ type Varsel = { id: string; tittel: string; tekst: string | null; type: string; 
 
 type Data = {
   stasjonsnavn: string
+  stasjoner: { id: string; navn: string }[]
   apneOppgaver: number
   forsinkede: Oppgave[]
   uleste: number
@@ -51,7 +53,7 @@ type Data = {
 }
 
 const TOM: Data = {
-  stasjonsnavn: 'Stasjonen', apneOppgaver: 0, forsinkede: [], uleste: 0, harKrenkelse: false,
+  stasjonsnavn: 'Stasjonen', stasjoner: [], apneOppgaver: 0, forsinkede: [], uleste: 0, harKrenkelse: false,
   premieIgjen: 0, sisteDato: null, rutTot: 0, rutGjort: 0, sjekkTot: 0, sjekkSvart: 0,
   fokus: [], ukerapport: null, konk: [], arr: [], avvik: [], varsler: [],
 }
@@ -117,6 +119,7 @@ async function samle(supabase: SupabaseClient, bruker: InnloggetBruker, idag: st
     const apne = oppgRes.data ?? []
     return {
       stasjonsnavn,
+      stasjoner: stasjonsListe.map((x) => ({ id: x.id, navn: x.navn })),
       apneOppgaver: apne.length,
       forsinkede: apne.filter((o) => o.frist && o.frist < idag),
       uleste: ulesteTilb.length,
@@ -141,8 +144,8 @@ async function samle(supabase: SupabaseClient, bruker: InnloggetBruker, idag: st
 
 // Alle kilder samles til én rangert liste. Rekkefølgen mellom dem avgjøres
 // av signaler.ts, ikke av hvilken spørring som kom først.
-function byggSignaler(d: Data, idag: string): Signal[] {
-  const raa: RaaSignal[] = []
+function byggSignaler(d: Data, idag: string, ekstra: RaaSignal[] = []): Signal[] {
+  const raa: RaaSignal[] = [...ekstra]
 
   if (d.harKrenkelse) {
     raa.push({
@@ -210,7 +213,16 @@ export async function ButikksjefDashbord({ bruker }: { bruker: InnloggetBruker }
   const supabase = await lagSupabaseServerKlient()
   const idag = iDag()
   const d = await samle(supabase, bruker, idag)
-  const signaler = byggSignaler(d, idag)
+
+  // Utsolgt og treffsikkerhet krever egne spørringer, og skal aldri kunne
+  // velte forsiden — derfor best effort, hver for seg.
+  const [utsolgt, treff] = await Promise.all([
+    utsolgtSignaler(supabase, d.stasjoner, idag).catch(() => []),
+    treffSignaler(supabase, d.stasjoner, idag).catch(() => []),
+  ])
+  const signaler = await filtrerLukkede(
+    supabase, byggSignaler(d, idag, [...utsolgt, ...treff]), idag,
+  ).catch(() => byggSignaler(d, idag, [...utsolgt, ...treff]))
 
   const fornavn = bruker.fulltNavn?.split(' ')[0] ?? bruker.epost
   const time = Number(new Intl.DateTimeFormat('en-GB', {

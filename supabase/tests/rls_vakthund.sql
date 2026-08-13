@@ -35,7 +35,9 @@ declare
     -- joines mot timesalg per time - en upakket policy her trekker
     -- per-rad-kall inn i hver eneste planberegning.
     'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
-    'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned'
+    'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned',
+    -- Leses paa hver forside for aa filtrere feeden (0083).
+    'signal_lukket'
   ];
   r record;
   feil int := 0;

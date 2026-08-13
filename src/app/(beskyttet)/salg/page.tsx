@@ -4,6 +4,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { StasjonsVelger } from '../stasjonsvelger'
+import { AiKontekst } from '../ai-kontekst'
 
 const kr = new Intl.NumberFormat('nb-NO', {
   style: 'currency',
@@ -126,6 +127,7 @@ export default async function SalgSide({
   return (
     <>
       <h1>Salg</h1>
+      <AiKontekst tekst="Forklar utviklingen" sporsmal="Forklar utviklingen i salget for denne stasjonen den siste tiden. Hva driver den?" />
       <p className="undertittel">{datoFmt.format(new Date(dato))} · {erStasjon ? valgtNavn : 'alle stasjoner samlet'}</p>
 
       {(stasjoner ?? []).length > 0 && (

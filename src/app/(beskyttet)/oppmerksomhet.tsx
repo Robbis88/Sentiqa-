@@ -73,7 +73,7 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
               <span className="sq-merkelapp">Neste steg</span>
               <span className="sq-handlinger">
                 <Link href={s.lenke} className="sq-knapp primar">Undersøk</Link>
-                <SignalKnapper tittel={s.tittel} detalj={s.detalj} stasjonId={s.stasjonId} />
+                <SignalKnapper signalId={s.id} tittel={s.tittel} detalj={s.detalj} stasjonId={s.stasjonId} />
               </span>
             </div>
           </div>
