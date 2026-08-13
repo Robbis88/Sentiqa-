@@ -18,65 +18,76 @@ const A: Brukerrolle = 'retailer_admin'
 const B: Brukerrolle = 'butikksjef'
 const T: Brukerrolle = 'butikkbruker_tablet'
 
+// Gruppert etter hva brukeren HOLDER PÅ MED, ikke etter hvilken modul noe
+// hører til. Tidligere lå 32 punkter flatt fordelt på «Analyse», «AI &
+// engasjement», «Drift» og «Innstillinger» — inndelinger som beskriver
+// systemet, ikke arbeidet. En butikksjef som lurer på om produksjonsplanen
+// traff, tenker ikke «det er analyse».
+//
+// Ingen ruter er fjernet og ingen roller er endret; punktene er flyttet.
+// Tableten ser aldri denne menyen (den returnerer tidlig med TabletSkall).
 const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   {
     tittel: '',
     punkter: [
-      { sti: '/oversikt', tekst: 'Oversikt', roller: [A, B] },
-      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
+      { sti: '/oversikt', tekst: 'I dag', roller: [A, B] },
     ],
   },
   {
-    tittel: 'Analyse',
-    punkter: [
-      { sti: '/salg', tekst: 'Salg', roller: [A, B] },
-      { sti: '/timesalg', tekst: 'Timesalg', roller: [A, B] },
-      { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: [A, B] },
-      { sti: '/produksjonsplan/treffsikkerhet', tekst: 'Treffsikkerhet', roller: [A, B] },
-      { sti: '/bemanning', tekst: 'Bemanning', roller: [A, B] },
-      { sti: '/salgsprognose', tekst: 'Salgsprognose', roller: [A, B] },
-      { sti: '/utsolgt', tekst: 'Mulig utsolgt', roller: [A, B] },
-      { sti: '/arrangementer', tekst: 'Arrangementer', roller: [A] },
-      { sti: '/svinn', tekst: 'Svinn', roller: [A, B] },
-      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
-      { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
-      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
-      { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
-    ],
-  },
-  {
-    tittel: 'AI & engasjement',
-    punkter: [
-      { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
-      { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
-      { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
-      { sti: '/puls', tekst: 'Puls', roller: [A, B] },
-      { sti: '/merker', tekst: 'Merker', roller: [A, B, T] },
-    ],
-  },
-  {
+    // Det som skjer på stasjonen nå og de nærmeste dagene.
     tittel: 'Drift',
     punkter: [
+      { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: [A, B] },
+      { sti: '/utsolgt', tekst: 'Mulig utsolgt', roller: [A, B] },
+      { sti: '/bemanning', tekst: 'Bemanning', roller: [A, B] },
       { sti: '/oppgaver', tekst: 'Oppgaver', roller: [A, B] },
       { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
-      { sti: '/rutiner/oppsett', tekst: 'Rutineoppsett', roller: [B] },
       { sti: '/rutiner/oversikt', tekst: 'Rutineoversikt', roller: [A, B] },
       { sti: '/rutiner/min', tekst: 'Min sjekkliste', roller: [A, B] },
+      { sti: '/rutiner/oppsett', tekst: 'Rutineoppsett', roller: [B] },
       { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B] },
       { sti: '/ikmat', tekst: 'IK-mat & avvik', roller: [A, B, T] },
       { sti: '/ikmat/oppsett', tekst: 'IK-mat oppsett', roller: [A, B] },
-      { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
-      { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
-      { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
-      { sti: '/skills', tekst: 'Skills-score', roller: [A, B] },
-      { sti: '/premier', tekst: 'Premiesaldo', roller: [A, B] },
-      { sti: '/opplaring', tekst: 'Opplæring', roller: [B] },
-      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
+      { sti: '/svinn', tekst: 'Svinn', roller: [A, B] },
+      { sti: '/arrangementer', tekst: 'Arrangementer', roller: [A] },
     ],
   },
   {
-    tittel: 'Innstillinger',
+    // Det som allerede har skjedd, til og med siste salgsdag.
+    tittel: 'Resultater',
     punkter: [
+      { sti: '/salg', tekst: 'Salg', roller: [A, B] },
+      { sti: '/timesalg', tekst: 'Timesalg', roller: [A, B] },
+      { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
+      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
+      { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
+      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
+      { sti: '/salgsprognose', tekst: 'Salgsprognose', roller: [A, B] },
+      { sti: '/produksjonsplan/treffsikkerhet', tekst: 'Treffsikkerhet', roller: [A, B] },
+    ],
+  },
+  {
+    // Menneskene: hva de skal fokusere på, hva de sier, hva de kan.
+    tittel: 'Team',
+    punkter: [
+      { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
+      { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
+      { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
+      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
+      { sti: '/opplaring', tekst: 'Opplæring', roller: [B] },
+      { sti: '/skills', tekst: 'Skills-score', roller: [A, B] },
+      { sti: '/merker', tekst: 'Merker', roller: [A, B, T] },
+      { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
+      { sti: '/premier', tekst: 'Premiesaldo', roller: [A, B] },
+      { sti: '/puls', tekst: 'Puls', roller: [A, B] },
+      { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Mer',
+    punkter: [
+      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
+      { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
       { sti: '/import', tekst: 'Import', roller: [A] },
       { sti: '/dekning', tekst: 'Datadekning', roller: [A] },
       { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },

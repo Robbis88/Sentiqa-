@@ -251,10 +251,20 @@ button.logg-ut:hover { color: var(--tekst); }
 }
 .sidemeny nav { flex: 1; display: flex; flex-direction: column; gap: 0.9rem; overflow-y: auto; }
 .meny-seksjon { display: flex; flex-direction: column; gap: 0.1rem; }
+/* Gruppetittel er en bryter, ikke bare en etikett — gruppen du står i er
+   åpen, resten foldet. Den skal fortsatt lese som en etikett, ikke som en
+   knapp som roper. */
 .meny-tittel {
   font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--tekst-svak); font-weight: 700; padding: 0 0.6rem; margin-bottom: 0.2rem;
+  color: var(--tekst-svak); font-weight: 700; padding: 0.3rem 0.6rem; margin-bottom: 0.1rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  background: none; border: 0; width: 100%; text-align: left; cursor: pointer;
+  font-family: inherit; border-radius: 8px;
 }
+.meny-tittel:hover { background: var(--bg); color: var(--tekst); }
+.meny-pil { flex: none; opacity: 0.6; transition: transform 0.16s ease; }
+.meny-seksjon.apen > .meny-tittel .meny-pil { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .meny-pil { transition: none; } }
 .sidemeny nav a {
   padding: 0.5rem 0.7rem;
   border-radius: 8px;
