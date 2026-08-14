@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
-  avdelingsSignaler, klyngebilde, poengFor, rangerSignaler,
+  avdelingsSignaler, ferskhet, klyngebilde, poengFor, rangerSignaler,
   type RaaSignal, type Stasjonsrapport,
 } from './signaler'
 
@@ -172,4 +172,24 @@ test('en enslig stasjon har ingen maalestokk og gir ingen stasjonssignal', () =>
   ])
   expect(k.rader[0].avvikPp).toBe(0)
   expect(k.signaler.filter((s) => s.merke === 'Stasjon')).toEqual([])
+})
+
+describe('ferskhet', () => {
+  test('en dag gammelt er normalt, ikke et avvik', () => {
+    // Salgsdata kommer alltid dagen etter.
+    expect(ferskhet('2026-08-13', '2026-08-14').nivaa).toBe('fersk')
+    expect(ferskhet('2026-08-13', '2026-08-14').tekst).toBe('')
+  })
+
+  test('to og tre dager er sent', () => {
+    expect(ferskhet('2026-08-12', '2026-08-14').nivaa).toBe('sen')
+    expect(ferskhet('2026-08-11', '2026-08-14').nivaa).toBe('sen')
+  })
+
+  test('over tre dager sier at importen har stoppet', () => {
+    const f = ferskhet('2026-08-09', '2026-08-14')
+    expect(f.nivaa).toBe('gammel')
+    expect(f.dager).toBe(5)
+    expect(f.tekst).toContain('stoppet')
+  })
 })

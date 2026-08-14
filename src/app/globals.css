@@ -1390,3 +1390,8 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 .sq-aisvar p { margin: 0; font-size: 0.92rem; line-height: 1.6; white-space: pre-wrap; }
 .sq-knapp.sq-dempet { color: var(--tekst-svak); }
+/* Ferskhet: prikken skal aldri lyve. Grønn kun når tallene er i går. */
+.sq-pip.fersk::before  { background: var(--gronn); }
+.sq-pip.sen::before    { background: var(--gul); }
+.sq-pip.gammel::before { background: var(--rod); }
+.sq-pip.gammel { color: var(--rod); font-weight: 700; }

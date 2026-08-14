@@ -5,7 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang, iDag } from '@/lib/format'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import {
-  avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
+  avdelingsSignaler, ferskhet, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
 import { Oppmerksomhet } from './oppmerksomhet'
@@ -241,11 +241,15 @@ export async function ButikksjefDashbord({ bruker }: { bruker: InnloggetBruker }
         <h1>{d.stasjonsnavn}</h1>
         <div className="sq-ferskhet">
           <span className="sq-merkelapp">{datoLang.format(new Date(`${idag}T12:00:00Z`))}</span>
-          {d.sisteDato && (
-            <span className="sq-merkelapp sq-pip">
-              Siste salgsdag {datoLang.format(new Date(`${d.sisteDato}T12:00:00Z`))}
-            </span>
-          )}
+          {d.sisteDato && (() => {
+            const f = ferskhet(d.sisteDato, idag)
+            return (
+              <span className={`sq-merkelapp sq-pip ${f.nivaa}`}>
+                Siste salgsdag {datoLang.format(new Date(`${d.sisteDato}T12:00:00Z`))}
+                {f.tekst ? ` · ${f.tekst}` : ''}
+              </span>
+            )
+          })()}
         </div>
       </header>
 

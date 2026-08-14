@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, manedAar, datoLang } from '@/lib/format'
 import {
-  klyngebilde, pulsOverskrift, rangerSignaler,
+  ferskhet, klyngebilde, pulsOverskrift, rangerSignaler,
   type RaaSignal, type Signal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
@@ -139,11 +139,12 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
 
     let ukerapporter: UkeRapport[] = []
     try { ukerapporter = await hentEllerLagUkerapport(supabase, retailerId, stasjonsListe) } catch { ukerapporter = [] }
-    let sisteSalg: { dato: string } | null = null
-    if (ukerapporter.length === 0) {
-      const { data } = await supabase.from('v_butikksalg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
-      sisteSalg = data
-    }
+    // Hentes ALLTID, ikke bare naar ukerapporten mangler: med automatisk
+    // nattlig import er dette det eneste som roper at kjeden har stoppet.
+    const { data: sisteSalgRad } = await supabase
+      .from('v_butikksalg').select('dato').order('dato', { ascending: false }).limit(1)
+      .maybeSingle<{ dato: string }>()
+    const sisteSalg = sisteSalgRad
 
     // Regnskaps-nøkkeltall (cluster)
     type ClusterL = { seksjon: string; post: string; regnskap: number | null; budsjett: number | null }
@@ -275,6 +276,15 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
           {d.ukerapporter.length > 0 && (
             <span className="sq-merkelapp sq-pip">Salg: forrige hele uke</span>
           )}
+          {d.sisteSalg && (() => {
+            const f = ferskhet(d.sisteSalg.dato, idag)
+            return (
+              <span className={`sq-merkelapp sq-pip ${f.nivaa}`}>
+                Siste salgsdag {datoLang.format(new Date(`${d.sisteSalg.dato}T12:00:00Z`))}
+                {f.tekst ? ` · ${f.tekst}` : ''}
+              </span>
+            )
+          })()}
           {d.sistePeriode && (
             <span className="sq-merkelapp">Regnskap: {manedAar.format(new Date(d.sistePeriode))}</span>
           )}

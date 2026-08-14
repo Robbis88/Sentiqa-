@@ -9,6 +9,7 @@ import { hentVaerMedKlient } from '@/lib/vaer'
 import { importerAlleKalenderKilder } from '@/lib/ical'
 import { hentTrafikkMedKlient } from '@/lib/trafikk'
 import { kjorBacktestAlle } from '@/lib/backtest'
+import { behandleKoen } from '@/lib/import/ko'
 
 // AI-nattjobb (Vercel Cron). Henter vær (analyse-input til produksjonsplan) +
 // regenererer auto-fokus + lederstøtte for ALLE kjeder, så eierne våkner til
@@ -24,7 +25,18 @@ export async function GET(req: NextRequest) {
 
   const supabase = lagSupabaseAdminKlient()
 
-  // Vær først — analyse-input til produksjonsplanen (alle stasjoner m/koordinater).
+  // IMPORTKØEN FØRST. Alt under — ukerapport, fokus, lederstøtte,
+  // regnskapsanalyse, backtest — leser salgsdata. Behandles gårsdagens fil
+  // etter at analysene har kjørt, regner de på forgårsdagens tall, hver
+  // eneste natt. Rekkefølgen her er ikke tilfeldig.
+  let importko: Awaited<ReturnType<typeof behandleKoen>> | null = null
+  try {
+    importko = await behandleKoen(supabase)
+  } catch {
+    // En feilende kø skal ikke velte resten av natten.
+  }
+
+  // Vær — analyse-input til produksjonsplanen (alle stasjoner m/koordinater).
   let vaer: Awaited<ReturnType<typeof hentVaerMedKlient>> | null = null
   try {
     vaer = await hentVaerMedKlient(supabase)
@@ -105,5 +117,5 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, kjeder, vaer, kalender, trafikk, vaerprofil, kategoriVaerprofil, treffsikkerhet })
+  return NextResponse.json({ ok: true, importko, kjeder, vaer, kalender, trafikk, vaerprofil, kategoriVaerprofil, treffsikkerhet })
 }

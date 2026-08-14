@@ -230,3 +230,24 @@ export function avdelingsSignaler(opts: {
   }
   return ut
 }
+
+// --- Ferskhet på salgsdata -------------------------------------------
+
+export type Ferskhet = { nivaa: 'fersk' | 'sen' | 'gammel'; dager: number; tekst: string }
+
+/**
+ * Hvor gamle er salgstallene, og skal det uroe noen?
+ *
+ * Salgsdata kommer alltid dagen etter — én dag gammelt er normaltilstanden,
+ * ikke et avvik. Men fra og med natten filene lastes opp automatisk, er
+ * dette det ENESTE stedet som røper at rørledningen har stoppet. En prikk
+ * som alltid er grønn ville løyet i nøyaktig den situasjonen den finnes for.
+ */
+export function ferskhet(sisteSalgsdag: string, idag: string): Ferskhet {
+  const dager = Math.round(
+    (Date.parse(`${idag}T12:00:00Z`) - Date.parse(`${sisteSalgsdag}T12:00:00Z`)) / 86400000,
+  )
+  if (dager <= 1) return { nivaa: 'fersk', dager, tekst: '' }
+  if (dager <= 3) return { nivaa: 'sen', dager, tekst: `${dager} dager gamle` }
+  return { nivaa: 'gammel', dager, tekst: `${dager} dager gamle — importen har trolig stoppet` }
+}
