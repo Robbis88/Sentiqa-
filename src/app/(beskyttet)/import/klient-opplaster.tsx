@@ -18,11 +18,14 @@ import { lagSupabaseNettleserKlient } from '@/lib/supabase/client'
 // (regnskapsrapporten er ~1,2 MB, timesalg noen hundre kB).
 const FOR_STOR = 12 * 1024 * 1024
 
-type Tilstand = 'venter' | 'parser' | 'lagrer' | 'ferdig' | 'hoppet' | 'feilet'
+type Tilstand = 'venter' | 'parser' | 'lagrer' | 'ferdig' | 'iko' | 'hoppet' | 'feilet'
 type FilRad = { navn: string; tilstand: Tilstand; melding?: string }
 
-const PIP: Record<Tilstand, string> = { venter: '', parser: 'gul', lagrer: 'gul', ferdig: 'gronn', hoppet: 'bla', feilet: 'rod' }
-const ETIKETT: Record<Tilstand, string> = { venter: 'Venter', parser: 'Parser …', lagrer: 'Lagrer …', ferdig: 'Importert', hoppet: 'Hoppet over', feilet: 'Feilet' }
+// 'iko' er BLA, ikke gronn: fila er lagret, men ingen data er importert
+// enda. Gronn skal vaere reservert for tall som faktisk ligger i basen -
+// ellers leser man den gronne prikken og lar forretningsplanen ligge.
+const PIP: Record<Tilstand, string> = { venter: '', parser: 'gul', lagrer: 'gul', ferdig: 'gronn', iko: 'bla', hoppet: 'bla', feilet: 'rod' }
+const ETIKETT: Record<Tilstand, string> = { venter: 'Venter', parser: 'Leser fila …', lagrer: 'Lagrer …', ferdig: 'Importert', iko: 'Ikke importert ennå', hoppet: 'Hoppet over', feilet: 'Feilet' }
 
 async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   const d = await crypto.subtle.digest('SHA-256', buf)
@@ -89,7 +92,7 @@ export function KlientOpplaster() {
           sett(i, 'lagrer')
           const res = await tilStorage(valgte[i])
           if (res.hoppet) sett(i, 'hoppet', 'Allerede lastet opp')
-          else if (res.ok) sett(i, 'ferdig', 'Lagt i kø — trykk «Behandle» under')
+          else if (res.ok) sett(i, 'iko', 'Ligger i kø — behandles i natt, eller trykk «Behandle» under')
           else sett(i, 'feilet', res.feil)
           continue
         }
@@ -132,8 +135,8 @@ export function KlientOpplaster() {
       </p>
       <p className="undertittel">
         <strong>Forretningsplanen</strong> (og andre filer over {Math.round(FOR_STOR / 1024 / 1024)} MB)
-        lastes rett til lagring og legges i kø. Den blir <em>ikke</em> importert med det samme — du må
-        trykke <strong>«Behandle»</strong> på raden i statuslista lenger ned.
+        lastes rett til lagring og legges i kø. Den behandles automatisk i natt — vil du ha tallene
+        inn med én gang, trykk <strong>«Behandle»</strong> på raden i statuslista lenger ned.
       </p>
 
       {filer.length > 0 && (

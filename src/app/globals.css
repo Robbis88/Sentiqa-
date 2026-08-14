@@ -1395,3 +1395,25 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-pip.sen::before    { background: var(--gul); }
 .sq-pip.gammel::before { background: var(--rod); }
 .sq-pip.gammel { color: var(--rod); font-weight: 700; }
+
+/* Ukedagsvelger i bemanning: gjenbruker .ukedag-velger/.ukedag, men som
+   ekte piller med 44 px trykkflate — hele etiketten er klikkbar. */
+.sq-ukedager { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.sq-ukedager legend { padding: 0; font-size: 0.8rem; color: var(--tekst-svak); font-weight: 600; }
+.sq-ukedager .ukedag {
+  border: 1px solid var(--kant-sterk); border-radius: 999px;
+  padding: 0.4rem 0.75rem; min-height: 44px; font-size: 0.9rem; cursor: pointer;
+}
+.sq-ukedager .ukedag:hover { border-color: var(--tekst-svak); }
+.sq-ukedager .ukedag:has(input:checked) {
+  background: var(--primaer-svak); border-color: var(--primaer); color: var(--primaer); font-weight: 600;
+}
+.sq-ukedager input { width: 18px; height: 18px; }
+
+/* Alvorlighet i ord ved siden av stripen */
+.sq-nivaa {
+  font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700;
+  padding: 0.1rem 0.4rem; border-radius: 4px; background: var(--bg); color: var(--tekst-svak);
+}
+.sq-sak[data-niva='kritisk'] .sq-nivaa { background: var(--rod-svak); color: var(--rod); }
+.sq-sak[data-niva='folg'] .sq-nivaa { background: var(--gul-svak); color: var(--gul); }

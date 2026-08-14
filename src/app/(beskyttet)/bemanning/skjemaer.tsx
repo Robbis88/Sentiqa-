@@ -7,21 +7,29 @@ const UKEDAGER = [
   { nr: 4, kort: 'tor' }, { nr: 5, kort: 'fre' }, { nr: 6, kort: 'lør' }, { nr: 7, kort: 'søn' },
 ]
 
+// role="alert" gjør at skjermlesere faktisk annonserer at lagringen feilet.
+// Uten den er en mislykket innsending helt stille.
 function Svar({ tilstand }: { tilstand: Tilstand }) {
-  if (tilstand?.ok) return <span className="ok">Lagret.</span>
-  if (tilstand?.feil) return <span className="feil">{tilstand.feil}</span>
+  if (tilstand?.ok) return <span className="ok" role="status">Lagret.</span>
+  if (tilstand?.feil) return <span className="feil" role="alert">{tilstand.feil}</span>
   return null
 }
 
-function Ukedagsvelger() {
+// Avkryssing er riktig mønster for flervalg av uavhengige dager — men det
+// må pakkes: uten fieldset/legend leser skjermleseren sju løsrevne «man/tir»
+// uten å si hva de er, og uten pillestil er trykkflaten 13 px.
+function Ukedagsvelger({ alleAv = false }: { alleAv?: boolean }) {
   return (
-    <span className="ukedager">
-      {UKEDAGER.map((u) => (
-        <label key={u.nr}>
-          <input type="checkbox" name="ukedag" value={u.nr} /> {u.kort}
-        </label>
-      ))}
-    </span>
+    <fieldset className="sq-ukedager">
+      <legend>Hvilke dager?</legend>
+      <span className="ukedag-velger">
+        {UKEDAGER.map((u) => (
+          <label className="ukedag" key={u.nr}>
+            <input type="checkbox" name="ukedag" value={u.nr} defaultChecked={alleAv} /> {u.kort}
+          </label>
+        ))}
+      </span>
+    </fieldset>
   )
 }
 

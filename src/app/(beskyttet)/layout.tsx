@@ -41,6 +41,9 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: [A, B] },
       { sti: '/utsolgt', tekst: 'Mulig utsolgt', roller: [A, B] },
       { sti: '/bemanning', tekst: 'Bemanning', roller: [A, B] },
+      // En prognose er det motsatte av "det som har skjedd" - den hoerer hjemme
+      // her sammen med produksjonsplan og bemanning.
+      { sti: '/salgsprognose', tekst: 'Salgsprognose', roller: [A, B] },
       { sti: '/oppgaver', tekst: 'Oppgaver', roller: [A, B] },
       { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
       { sti: '/rutiner/oversikt', tekst: 'Rutineoversikt', roller: [A, B] },
@@ -63,7 +66,6 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
       { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
       { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
-      { sti: '/salgsprognose', tekst: 'Salgsprognose', roller: [A, B] },
       { sti: '/produksjonsplan/treffsikkerhet', tekst: 'Treffsikkerhet', roller: [A, B] },
     ],
   },

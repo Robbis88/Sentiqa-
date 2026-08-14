@@ -25,7 +25,7 @@ function Knapp({
       <button type="submit" className={`sq-knapp ${primar ? 'primar' : ''}`} disabled={venter || Boolean(tilstand?.ok)}>
         {tilstand?.ok ?? (venter ? '…' : tekst)}
       </button>
-      {tilstand?.feil ? <span className="sq-feil">{tilstand.feil}</span> : null}
+      {tilstand?.feil ? <span className="sq-feil" role="alert">{tilstand.feil}</span> : null}
     </form>
   )
 }
@@ -41,7 +41,7 @@ function Skjul({ signalId, stasjonId }: { signalId: string; stasjonId?: string }
       <button type="submit" className="sq-knapp sq-dempet" disabled={venter || Boolean(tilstand?.ok)}>
         {tilstand?.ok ?? (venter ? '…' : 'Skjul i 7 dager')}
       </button>
-      {tilstand?.feil ? <span className="sq-feil">{tilstand.feil}</span> : null}
+      {tilstand?.feil ? <span className="sq-feil" role="alert">{tilstand.feil}</span> : null}
     </form>
   )
 }

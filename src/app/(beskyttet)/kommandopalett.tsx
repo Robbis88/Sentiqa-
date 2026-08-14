@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { spørAssistent } from './assistent/handlinger'
 
@@ -29,6 +29,16 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
   const [valgt, setValgt] = useState(0)
   const felt = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  // Snarveien lytter paa bade Cmd og Ctrl, men hintet viste alltid ⌘ - som
+  // pa Windows leses som et ukjent tegn, og da proever man den aldri.
+  // useSyncExternalStore i stedet for en effekt: serveren rendrer "Ctrl K",
+  // klienten bytter ved hydrering, uten hydreringsavvik.
+  const erMac = useSyncExternalStore(
+    () => () => {},
+    () => /mac|iphone|ipad/i.test(navigator.userAgent),
+    () => false,
+  )
 
   // Nullstillingen hører hjemme i lukkingen, ikke i en effekt som reagerer
   // på at noe ble lukket — da kjører den også ved første montering.
@@ -92,7 +102,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
           <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <span>Spør Sentiqa eller finn noe…</span>
-        <kbd>⌘K</kbd>
+        <kbd>{erMac ? '⌘K' : 'Ctrl K'}</kbd>
       </button>
 
       {apen && (

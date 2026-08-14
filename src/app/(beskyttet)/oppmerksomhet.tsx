@@ -8,6 +8,24 @@ import { SignalKnapper } from './signal-knapper'
 //
 // <details> er bevisst: utvidelsen virker uten JavaScript, og skjermlesere
 // får åpne/lukke gratis.
+
+const NIVAA_ORD: Record<string, string> = {
+  kritisk: 'Haster',
+  folg: 'Følg med',
+  info: 'Til orientering',
+}
+
+// «7 ting trenger oppmerksomhet» sier ikke om det er sju kritiske eller sju
+// uleste meldinger. Da må sjefen lese alle sju for å finne de to som betyr
+// noe — nøyaktig jobben denne lista skulle spare hen for.
+function overskrift(signaler: Signal[]): string {
+  const haster = signaler.filter((s) => s.niva === 'kritisk').length
+  const resten = signaler.length - haster
+  if (haster === 0) return `${resten} ${resten === 1 ? 'ting' : 'ting'} å se på`
+  if (resten === 0) return `${haster} ting haster`
+  return `${haster} ting haster · ${resten} til orientering`
+}
+
 export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
   if (signaler.length === 0) {
     return (
@@ -25,10 +43,8 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
   return (
     <section className="sq-seksjon">
       <div className="sq-seksjon-hode">
-        <h2>
-          {signaler.length} {signaler.length === 1 ? 'ting trenger' : 'ting trenger'} oppmerksomhet
-        </h2>
-        <span className="sq-merkelapp">Sortert etter konsekvens</span>
+        <h2>{overskrift(signaler)}</h2>
+        <span className="sq-merkelapp">Viktigst øverst</span>
       </div>
 
       {signaler.map((s) => (
@@ -37,6 +53,10 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
             <span className="sq-stripe" aria-hidden="true" />
             <span className="sq-sak-tekst">
               <span className="sq-sak-tittel">
+                {/* Alvorligheten må stå i ord, ikke bare i 3 px farge — stripen
+                    er usynlig for skjermlesere, og rødt mot gult er ikke noe
+                    alle skiller. */}
+                <span className="sq-nivaa">{NIVAA_ORD[s.niva] ?? s.niva}</span>
                 <b>{s.tittel}</b>
                 {s.endring ? <span className="sq-endring">{s.endring}</span> : null}
               </span>
@@ -51,20 +71,20 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
             </span>
           </summary>
 
+          {/* Utvidelsen gjentok tidligere samme setning som sto i sammendraget
+              — man betalte et klikk for null ny informasjon. Nå står bare det
+              som ikke fikk plass over: grunnlaget og hva man kan gjøre. */}
           <div className="sq-utdyp">
-            <div className="sq-utdyp-rad">
-              <span className="sq-merkelapp">Hva Sentiqa ser</span>
-              <p>{s.detalj}</p>
-            </div>
-
             {(s.konsekvensKr != null || s.dager != null) && (
               <div className="sq-utdyp-rad">
                 <span className="sq-merkelapp">Grunnlag</span>
                 <span className="sq-bevis">
                   {s.konsekvensKr != null && (
-                    <span>{Math.abs(Math.round(s.konsekvensKr)).toLocaleString('nb-NO')} kr</span>
+                    <span>{Math.abs(Math.round(s.konsekvensKr)).toLocaleString('nb-NO')} kr i utslag</span>
                   )}
-                  {s.dager != null && <span>{s.dager} {s.dager === 1 ? 'dag' : 'dager'}</span>}
+                  {s.dager != null && (
+                    <span>{s.dager} {s.dager === 1 ? 'dag' : 'dager'} på rad</span>
+                  )}
                 </span>
               </div>
             )}

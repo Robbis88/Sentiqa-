@@ -11,10 +11,13 @@ import { behandleJobb } from '@/lib/import/behandle'
 // mange filer — gi handlingen god tid.
 export const maxDuration = 300
 
+// Brukerens ord, ikke systemets. «Parset» betyr ingenting for en
+// stasjonseier, og «Mottatt» er verre — det antyder at systemet gjør
+// resten, mens det i praksis betyr «ligger i kø».
 const STATUS_ETIKETT: Record<string, { tekst: string; klasse: string }> = {
-  mottatt: { tekst: 'Mottatt', klasse: 'gul' },
-  behandler: { tekst: 'Behandler', klasse: 'gul' },
-  parset: { tekst: 'Parset', klasse: 'gronn' },
+  mottatt: { tekst: 'I kø', klasse: 'bla' },
+  behandler: { tekst: 'Leser fila …', klasse: 'gul' },
+  parset: { tekst: 'Importert', klasse: 'gronn' },
   feilet: { tekst: 'Feilet', klasse: 'rod' },
 }
 

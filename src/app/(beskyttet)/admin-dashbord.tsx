@@ -331,8 +331,10 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
           <ul className="sq-liste">
             {klynge.rader.map((r) => (
               <li key={r.stasjonId}>
+                {/* Fortegn velges paa det AVRUNDEDE tallet, ellers blir
+                    -0,4 til "-0 pp". */}
                 <span className={`status-pip ${r.avvikPp < -12 ? 'rod' : r.avvikPp > 12 ? 'gronn' : 'gul'}`}>
-                  {r.avvikPp >= 0 ? '+' : '−'}{Math.abs(r.avvikPp).toFixed(0)} pp
+                  {Math.round(r.avvikPp) >= 0 ? '+' : '−'}{Math.abs(Math.round(r.avvikPp))} pp
                 </span>
                 <span>{r.navn}</span>
                 <span className="sq-h">

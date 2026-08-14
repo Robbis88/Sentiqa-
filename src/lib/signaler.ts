@@ -156,7 +156,9 @@ export function klyngebilde(rapporter: Stasjonsrapport[]): Klyngebilde {
         `${Math.abs(Math.round(r.residualKr)).toLocaleString('nb-NO')} kr under der stasjonen ` +
         `ville vært med klyngens utvikling. De øvrige stasjonene forklarer ikke dette.`,
       niva: Math.abs(r.residualKr) >= 60000 ? 'kritisk' : 'folg',
-      lenke: '/regnskap',
+      // Regnet paa UKESSALG - da skal "Undersok" foere til salget, ikke til
+      // maanedsregnskapet der tallet ikke finnes igjen.
+      lenke: '/salg',
       konsekvensKr: r.residualKr,
     })
   }
