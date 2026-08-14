@@ -1,6 +1,6 @@
 'use client'
 import { useActionState } from 'react'
-import { lagreVindu, leggTilFastVakt, leggTilKrav, type Tilstand } from './handlinger'
+import { lagreTak, lagreVindu, leggTilFastVakt, leggTilKrav, type Tilstand } from './handlinger'
 
 const UKEDAGER = [
   { nr: 1, kort: 'man' }, { nr: 2, kort: 'tir' }, { nr: 3, kort: 'ons' },
@@ -150,6 +150,38 @@ export function KravSkjema({ stasjonId }: { stasjonId: string }) {
       <div className="sq-skjema-bunn">
         <button type="submit" className="sq-knapp primar" disabled={venter}>
           {venter ? 'Legger til …' : 'Legg til'}
+        </button>
+        <Svar tilstand={tilstand} />
+      </div>
+    </form>
+  )
+}
+
+// Taket. Fordelingen er proporsjonal og bruker opp rammen, så en stasjon med
+// mye slakk og én dag som skiller seg ut får alt dumpet der — søndagen med sju
+// personer klokka 13. Matematisk riktig, fysisk umulig. Dette er stasjonens
+// egen grense, og den kjenner bare butikksjefen.
+export function TakSkjema({ stasjonId, naa }: { stasjonId: string; naa: number | null }) {
+  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreTak, undefined)
+  return (
+    <form action={handling} className="sq-skjema">
+      <input type="hidden" name="stasjon_id" value={stasjonId} />
+      <div className="sq-skjema-rad">
+        <label className="felt sq-smalt">
+          <span>Flest på jobb samtidig</span>
+          <input
+            name="maks_bemanning"
+            type="number"
+            min={1}
+            max={20}
+            defaultValue={naa ?? ''}
+            placeholder="uten tak"
+          />
+        </label>
+      </div>
+      <div className="sq-skjema-bunn">
+        <button type="submit" className="sq-knapp primar" disabled={venter}>
+          {venter ? 'Lagrer …' : 'Lagre'}
         </button>
         <Svar tilstand={tilstand} />
       </div>

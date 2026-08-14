@@ -153,6 +153,38 @@ export async function leggTilKrav(_t: Tilstand, fd: FormData): Promise<Tilstand>
   return { ok: `Lagt til på ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
+// Tomt felt = intet tak. Det er et gyldig svar, ikke en glemt utfylling,
+// saa det lagres som null i stedet for aa avvises.
+const Tak = z.object({
+  stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
+  maks_bemanning: z.union([
+    z.literal('').transform(() => null),
+    z.coerce.number().int().min(1).max(20),
+  ]),
+})
+
+export async function lagreTak(_t: Tilstand, fd: FormData): Promise<Tilstand> {
+  const supabase = await klient()
+  if (!supabase) return { feil: 'Ikke tilgang.' }
+  const felt = Tak.safeParse({
+    stasjon_id: fd.get('stasjon_id'),
+    maks_bemanning: fd.get('maks_bemanning') ?? '',
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  const { error } = await supabase.from('bemanning_stasjon').upsert(
+    { ...felt.data, oppdatert_tid: new Date().toISOString() },
+    { onConflict: 'stasjon_id' },
+  )
+  if (error) return { feil: error.message }
+  revalidatePath('/bemanning')
+  return {
+    ok: felt.data.maks_bemanning === null
+      ? 'Taket er fjernet'
+      : `Maks ${felt.data.maks_bemanning} i timen`,
+  }
+}
+
 async function slett(tabell: string, fd: FormData) {
   const supabase = await klient()
   if (!supabase) return

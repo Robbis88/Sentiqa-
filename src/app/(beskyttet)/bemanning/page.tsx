@@ -5,7 +5,7 @@ import {
   fordelAaret, planleggMaaned, dagerPerUkedag,
   type Krav, type Vindu, type FastVakt,
 } from '@/lib/bemanning'
-import { FastVaktSkjema, KravSkjema, VinduSkjema } from './skjemaer'
+import { FastVaktSkjema, KravSkjema, TakSkjema, VinduSkjema } from './skjemaer'
 import { slettFastVakt, slettKrav, slettVindu } from './handlinger'
 
 const UKEDAG = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn']
@@ -110,7 +110,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const maned = Number(sok.maned) || nesteManed
   const iDag = naa.toISOString().slice(0, 10)
 
-  const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter }, profilen] =
+  const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
+    { data: grenser }, profilen] =
     await Promise.all([
       // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
       // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
@@ -123,8 +124,11 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         .eq('stasjon_id', valgt.id).order('ukedag'),
       supabase.from('bemanning_fast_vakt').select('id, navn, ukedag, fra_time, til_time, timelonnet')
         .eq('stasjon_id', valgt.id).order('navn').order('ukedag'),
+      supabase.from('bemanning_stasjon').select('maks_bemanning')
+        .eq('stasjon_id', valgt.id).maybeSingle<{ maks_bemanning: number | null }>(),
       hentProfil(supabase, valgt.id, ar, maned),
     ])
+  const maksBemanning = grenser?.maks_bemanning ?? undefined
 
   // Databasen er snake_case, motoren camelCase. Mappingen står her, ett sted.
   const alleVinduer = (vinduer ?? []) as VinduRad[]
@@ -155,7 +159,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const raaRamme = aarsrammer.find((r) => r.maned === maned)?.timer ?? null
 
   const plan = disponible !== null && gjeldende.size > 0 && aar?.gjennomforbar
-    ? planleggMaaned({ disponibleTimer: disponible, ar, maned, ...oppsett, profil: profilen.profil })
+    ? planleggMaaned({
+      disponibleTimer: disponible, ar, maned, ...oppsett,
+      profil: profilen.profil, maksBemanning,
+    })
     : null
   const dager = dagerPerUkedag(ar, maned)
   const rutenett = new Map(plan?.timer.map((t) => [`${t.ukedag}:${t.time}`, t]) ?? [])
@@ -211,6 +218,13 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 {Math.round(plan.bundneTimer)} timer går til minimumsbemanning, timer som krever flere, og faste vakter.
                 {' '}{Math.round(plan.brukteTimer)} er fordelt etter kundetrykk.
                 {' '}Kundeformen er hentet fra {profilen.kilde} ({profilen.dager} dager).
+              </p>
+            )}
+            {plan !== null && plan.frieTimer - plan.brukteTimer >= 1 && (
+              <p className="undertittel">
+                {Math.round(plan.frieTimer - plan.brukteTimer)} timer er ikke fordelt — taket på{' '}
+                {maksBemanning} er nådd i de timene kundene er der. Bruk dem på opplæring,
+                vareflytting eller vask, eller gi dem tilbake.
               </p>
             )}
           </>
@@ -283,6 +297,16 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
             </tbody>
           </table>
         )}
+      </section>
+
+      <section className="kort">
+        <h2>Hvor mange får plass?</h2>
+        <p className="undertittel">
+          Flest personer planen har lov å foreslå i én time. Har dere to kasser, er det ingen
+          vits i sju. Uten tak fordeles hele rammen etter kundetrykk, og da havner slakken på
+          den travleste dagen. Står feltet tomt, er det intet tak.
+        </p>
+        <TakSkjema stasjonId={valgt.id} naa={grenser?.maks_bemanning ?? null} />
       </section>
 
       <section className="kort">
