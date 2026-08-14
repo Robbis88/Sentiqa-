@@ -218,3 +218,22 @@ export function rodtPaaslagTimer(
     0,
   )
 }
+
+/**
+ * Månedens datoer delt i uker, mandag først.
+ *
+ * Første og siste uke er som regel avkortet — en måned starter sjelden
+ * på en mandag. De vises som de er, med de dagene de faktisk har, i
+ * stedet for å fylles ut med nabomånedens dager. Butikksjefen planlegger
+ * innenfor en måned fordi rammen er månedlig.
+ */
+export function ukerIMaaned(ar: number, maned: number): string[][] {
+  const uker: string[][] = []
+  for (const dato of datoerIMaaned(ar, maned)) {
+    const d = new Date(`${dato}T12:00:00Z`).getUTCDay()
+    const mandag = (d === 0 ? 7 : d) === 1
+    if (mandag || uker.length === 0) uker.push([dato])
+    else uker[uker.length - 1].push(dato)
+  }
+  return uker
+}

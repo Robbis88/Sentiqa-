@@ -1470,3 +1470,18 @@ button.liten { min-height: 40px; }
 .stilling-rad { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .stilling-rad input { width: 4.5rem; }
 .tabell tr.valgt-rad { background: var(--flate-svak, rgba(0,0,0,0.035)); font-weight: 600; }
+
+/* Ukevelgeren. Uker med røde dager er merket med en prikk, så man ser
+   påskeuka uten å åpne den. */
+.bem-ukevelger { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 0.75rem; }
+.bem-ukevelger a {
+  padding: 0.45rem 0.7rem; border: 1px solid var(--kant, #d8d8dc); border-radius: 6px;
+  text-decoration: none; color: inherit; font-size: 0.85rem; white-space: nowrap;
+  min-height: 44px; display: inline-flex; align-items: center;
+}
+.bem-ukevelger a:hover { border-color: var(--aksent, #4f46e5); }
+.bem-ukevelger a.valgt {
+  border-color: var(--aksent, #4f46e5); background: var(--aksent, #4f46e5); color: #fff;
+}
+.bem-ukevelger .rod-prikk { color: var(--rod, #b4232a); }
+.bem-ukevelger a.valgt .rod-prikk { color: #ffd9db; }

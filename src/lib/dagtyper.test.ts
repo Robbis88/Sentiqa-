@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { datoerIMaaned, dagsprofiler, rodtPaaslagTimer, timekostnad, RODT_PAASLAG } from './dagtyper'
+import {
+  datoerIMaaned, dagsprofiler, rodtPaaslagTimer, timekostnad, ukerIMaaned, RODT_PAASLAG,
+} from './dagtyper'
 import { erHelligdag } from './helligdager'
 import { aftenNavn } from './dagtyper'
 
@@ -133,5 +135,41 @@ describe('datoerIMaaned', () => {
   })
   test('desember slutter på 31', () => {
     expect(datoerIMaaned(2026, 12).at(-1)).toBe('2026-12-31')
+  })
+})
+
+describe('ukerIMaaned', () => {
+  test('mars 2026 starter på en søndag — første uke har én dag', () => {
+    const u = ukerIMaaned(2026, 3)
+    expect(u[0]).toEqual(['2026-03-01'])
+    expect(u[1][0]).toBe('2026-03-02') // mandag
+    expect(u[1]).toHaveLength(7)
+  })
+
+  test('alle dagene er med, ingen dobbelt', () => {
+    for (const m of [1, 2, 6, 12]) {
+      const flat = ukerIMaaned(2026, m).flat()
+      expect(flat).toEqual(datoerIMaaned(2026, m))
+    }
+  })
+
+  test('en uke starter alltid på mandag, bortsett fra den første', () => {
+    for (const uke of ukerIMaaned(2026, 6).slice(1)) {
+      const d = new Date(`${uke[0]}T12:00:00Z`).getUTCDay()
+      expect(d).toBe(1)
+    }
+  })
+
+  test('februar 2026 gir fem uker', () => {
+    // 1. feb 2026 er en søndag: [1], så tre hele uker, og siste uke er
+    // avkortet fordi 28. februar er en lørdag.
+    const u = ukerIMaaned(2026, 2)
+    expect(u).toHaveLength(5)
+    expect(u[0]).toEqual(['2026-02-01'])
+    expect(u[1]).toHaveLength(7)
+    expect(u.at(-1)).toEqual([
+      '2026-02-23', '2026-02-24', '2026-02-25',
+      '2026-02-26', '2026-02-27', '2026-02-28',
+    ])
   })
 })

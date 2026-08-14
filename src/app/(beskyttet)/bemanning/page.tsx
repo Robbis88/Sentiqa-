@@ -6,7 +6,7 @@ import {
   vaktliste,
   type Krav, type Vindu, type FastVakt, type Dagsvekt,
 } from '@/lib/bemanning'
-import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
+import { dagsprofiler, datoerIMaaned, ukerIMaaned } from '@/lib/dagtyper'
 import {
   formendring, formendringTekst, historiskTak, justerProfil, kapasitet,
   planMotFaktisk, sammenlignStasjoner, stillingsanslag,
@@ -21,7 +21,7 @@ const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
 const kl = (t: number) => `${String(t).padStart(2, '0')}:00`
 
-type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string }>
+type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string; uke?: string }>
 
 // Radene som de ligger i basen. Motoren bruker camelCase, så mappingen
 // skjer ett sted (tilVindu/tilKrav/tilVakt) i stedet for spredt utover.
@@ -336,13 +336,27 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const rutenett = new Map(plan?.timer.map((t) => [`${t.dato}:${t.time}`, t]) ?? [])
   const timerVist = plan ? [...new Set(plan.timer.map((t) => t.time))].sort((a, b) => a - b) : []
 
-  // Uke for uke. Mandag først, og en uke som starter i forrige måned vises
-  // med de dagene den faktisk har — påskeuka skal se ut som påskeuka.
-  const uker: { nr: number; profiler: typeof profiler }[] = []
-  for (const p of profiler) {
-    const forrige = uker[uker.length - 1]
-    if (forrige && p.ukedag !== 1) forrige.profiler.push(p)
-    else uker.push({ nr: uker.length + 1, profiler: [p] })
+  // Én uke om gangen. En hel måned nedover er ikke noe man planlegger
+  // etter — man setter opp én uke, så neste.
+  const ukeDatoer = ukerIMaaned(ar, maned)
+  const perDato = new Map(profiler.map((p) => [p.dato, p]))
+  const alleUker = ukeDatoer.map((datoer, i) => ({
+    nr: i + 1,
+    profiler: datoer.map((d) => perDato.get(d)!).filter(Boolean),
+  }))
+  // Standard er uka vi står i, ikke den første i måneden.
+  const iDagsUke = alleUker.findIndex((u) => u.profiler.some((p) => p.dato >= iDag)) + 1
+  const valgtUkeNr = Math.min(
+    alleUker.length,
+    Math.max(1, Number(sok.uke) || (iDagsUke > 0 ? iDagsUke : 1)),
+  )
+  const uker = alleUker.filter((u) => u.nr === valgtUkeNr)
+  const ukeLenke = (nr: number) =>
+    `?stasjon=${valgt.id}&ar=${ar}&maned=${maned}&uke=${nr}`
+  const ukeSpenn = (u: (typeof alleUker)[number]) => {
+    const f = u.profiler[0]
+    const t = u.profiler[u.profiler.length - 1]
+    return `${Number(f.dato.slice(8))}.–${Number(t.dato.slice(8))}. ${MND[maned - 1]}`
   }
   const dagsum = new Map<string, number>()
   for (const t of plan?.timer ?? []) dagsum.set(t.dato, (dagsum.get(t.dato) ?? 0) + t.sum)
@@ -507,7 +521,20 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
       {plan && plan.gjennomforbar && (
         <section className="kort">
-          <h2>Forslag, uke for uke</h2>
+          <h2>Forslag for uke {valgtUkeNr}</h2>
+          <nav className="bem-ukevelger" aria-label="Bytt uke">
+            {alleUker.map((u) => (
+              <a
+                key={u.nr}
+                href={ukeLenke(u.nr)}
+                className={u.nr === valgtUkeNr ? 'valgt' : undefined}
+                aria-current={u.nr === valgtUkeNr ? 'page' : undefined}
+              >
+                {ukeSpenn(u)}
+                {u.profiler.some((p) => p.navn) && <span className="rod-prikk" aria-label="rød dag"> ●</span>}
+              </a>
+            ))}
+          </nav>
           <p className="undertittel">
             Tallet er antall personer den timen. * betyr at en fast vakt dekker en av dem.
             Røde dager er merket — de koster dobbelt, så en time der spiser to av rammen.
@@ -564,7 +591,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           <table className="tabell">
             <thead><tr><th>Dag</th><th>Grunnbemanning</th><th>I tillegg</th><th>Timer</th></tr></thead>
             <tbody>
-              {profiler.map((p) => {
+              {(uker[0]?.profiler ?? []).map((p) => {
                 const v = vakterPerDag.get(p.dato) ?? []
                 if (v.length === 0) return null
                 const tid = (x: { fraTime: number; tilTime: number }) =>
