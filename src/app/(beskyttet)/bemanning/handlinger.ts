@@ -33,7 +33,7 @@ const Ukedag = z.coerce.number().int().min(1).max(7)
 
 const Vindu = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
-  ukedag: Ukedag,
+  ukedager: z.array(Ukedag).min(1, { error: 'Velg minst én ukedag.' }),
   fra_time: Tid,
   til_time: Tid,
   min_bemanning: z.coerce.number().int().min(0).max(20),
@@ -57,7 +57,10 @@ const Krav = z.object({
   begrunnelse: z.string().optional(),
 }).transform(midnattEr24).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
 
-export type Tilstand = { ok?: true; feil?: string } | undefined
+// ok baerer en tekst: "Lagret." alene sa ingenting om HVA som ble lagret,
+// og da et skjema for flere dager bare lagret en av dem, var meldingen den
+// eneste tilbakemeldingen - og den loy.
+export type Tilstand = { ok?: string; feil?: string } | undefined
 
 async function klient() {
   const bruker = await hentInnloggetBruker()
@@ -72,7 +75,7 @@ export async function lagreVindu(_t: Tilstand, fd: FormData): Promise<Tilstand> 
   if (!supabase) return { feil: 'Ikke tilgang.' }
   const felt = Vindu.safeParse({
     stasjon_id: fd.get('stasjon_id'),
-    ukedag: fd.get('ukedag'),
+    ukedager: ukedagerFra(fd),
     fra_time: fd.get('fra_time'),
     til_time: fd.get('til_time'),
     min_bemanning: fd.get('min_bemanning'),
@@ -80,13 +83,18 @@ export async function lagreVindu(_t: Tilstand, fd: FormData): Promise<Tilstand> 
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
 
-  const { error } = await supabase
-    .from('bemanning_vindu')
-    .upsert({ ...felt.data, oppdatert_tid: new Date().toISOString() },
-      { onConflict: 'stasjon_id,ukedag,gjelder_fra' })
+  // En rad per ukedag — samme utrulling som faste vakter og krav-vinduer.
+  const { stasjon_id, fra_time, til_time, min_bemanning, gjelder_fra } = felt.data
+  const { error } = await supabase.from('bemanning_vindu').upsert(
+    felt.data.ukedager.map((ukedag) => ({
+      stasjon_id, ukedag, fra_time, til_time, min_bemanning, gjelder_fra,
+      oppdatert_tid: new Date().toISOString(),
+    })),
+    { onConflict: 'stasjon_id,ukedag,gjelder_fra' },
+  )
   if (error) return { feil: error.message }
   revalidatePath('/bemanning')
-  return { ok: true }
+  return { ok: `Lagret for ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
 export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilstand> {
@@ -111,7 +119,7 @@ export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilst
   )
   if (error) return { feil: error.message }
   revalidatePath('/bemanning')
-  return { ok: true }
+  return { ok: `Lagt til på ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
 export async function leggTilKrav(_t: Tilstand, fd: FormData): Promise<Tilstand> {
@@ -136,7 +144,7 @@ export async function leggTilKrav(_t: Tilstand, fd: FormData): Promise<Tilstand>
   )
   if (error) return { feil: error.message }
   revalidatePath('/bemanning')
-  return { ok: true }
+  return { ok: `Lagt til på ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
 async function slett(tabell: string, fd: FormData) {

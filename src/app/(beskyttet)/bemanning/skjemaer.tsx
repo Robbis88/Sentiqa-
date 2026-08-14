@@ -10,7 +10,7 @@ const UKEDAGER = [
 // role="alert" gjør at skjermlesere faktisk annonserer at lagringen feilet.
 // Uten den er en mislykket innsending helt stille.
 function Svar({ tilstand }: { tilstand: Tilstand }) {
-  if (tilstand?.ok) return <span className="ok" role="status">Lagret.</span>
+  if (tilstand?.ok) return <span className="ok" role="status">{tilstand.ok}.</span>
   if (tilstand?.feil) return <span className="feil" role="alert">{tilstand.feil}</span>
   return null
 }
