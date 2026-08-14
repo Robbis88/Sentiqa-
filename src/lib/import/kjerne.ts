@@ -10,6 +10,7 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
+import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling } from '@/lib/parsere/stempling'
 import { fordelPaaMaaneder } from '@/lib/bemanning'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
@@ -45,13 +46,14 @@ async function hentStasjonsoppslag(supabase: Klient) {
     .from('stasjoner')
     .select('id, butikknummer, navn')
     .is('slettet_tid', null)
+  const stasjoner = (data ?? []) as { id: string; butikknummer: string; navn: string }[]
   const medNummer = new Map<string, string>()
   const medNavn = new Map<string, string>()
-  for (const s of (data ?? []) as { id: string; butikknummer: string; navn: string }[]) {
+  for (const s of stasjoner) {
     medNummer.set(s.butikknummer, s.id)
     medNavn.set(s.navn.trim().toLowerCase(), s.id)
   }
-  return { medNummer, medNavn }
+  return { medNummer, medNavn, stasjoner }
 }
 
 function datoFraFilnavn(filnavn: string): string | null {
@@ -192,7 +194,7 @@ export async function behandleJobbKjerne(
       case 'easyatwork_stempling': {
         const r = parseStempling(tekst as string)
         dato = r.fraDato
-        res = await lagreStempling(supabase, jobbId, oppslag.medNavn, r)
+        res = await lagreStempling(supabase, jobbId, oppslag.stasjoner, r)
         break
       }
       case 'st1_bp': {
@@ -246,14 +248,10 @@ export async function behandleJobbKjerne(
 async function lagreStempling(
   supabase: Klient,
   jobbId: string,
-  medNavn: Map<string, string>,
+  stasjonsnavn: { id: string; navn: string }[],
   r: { stemplinger: import('@/lib/parsere/stempling').Stempling[] },
 ): Promise<Lagring> {
-  const finnStasjon = (lokasjon: string) => {
-    const hel = lokasjon.trim().toLowerCase()
-    const reint = hel.replace(/^st1\s*-\s*/, '').trim()
-    return medNavn.get(reint) ?? medNavn.get(hel)
-  }
+  const finnStasjon = lagStasjonsmatcher(stasjonsnavn)
 
   const perStasjon = new Map<string, typeof r.stemplinger>()
   const umatchet = new Set<string>()
@@ -285,7 +283,16 @@ async function lagreStempling(
     )
     lagret += liste.length
   }
-  return { antallRader: lagret, umatchet: [...umatchet] }
+  // Feilmeldingen skal si hva vi lette BLANT. «Ukjente stasjoner: St1 -
+  // Bones» forteller ikke om stasjonen mangler eller bare heter noe annet,
+  // og da blir neste steg gjetting.
+  const kjente = stasjonsnavn.map((s) => s.navn).sort().join(', ')
+  return {
+    antallRader: lagret,
+    umatchet: umatchet.size > 0
+      ? [`${[...umatchet].join(', ')} (stasjoner i Sentiqa: ${kjente || 'ingen'})`]
+      : [],
+  }
 }
 
 // Browser-parsing: klienten parser fila lokalt (ingen server-parse-timeout) og
