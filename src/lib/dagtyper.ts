@@ -22,9 +22,47 @@
 // viser det.
 // =====================================================================
 
-import { helligdagNavn } from './helligdager'
+import { helligdagNavn, paaskedag } from './helligdager'
 
-export type Dagtype = 'vanlig' | 'rod'
+// Aftenene er roede fra klokka 15. Julaften, nyttaarsaften, paaskeaften og
+// pinseaften - de fire som faktisk har halv dag i tariffen. Dagen for 1. mai
+// og dagen for 17. mai har det IKKE, saa en regel om «dagen for en rod dag»
+// ville tatt for mye.
+//
+// Konsekvensen er at kostnaden ikke er en egenskap ved dagen, men ved TIMEN:
+// julaften 10:00 koster en, julaften 16:00 koster to.
+const AFTEN_FRA_TIME = 15
+
+function aftenerForAar(year: number): Map<string, string> {
+  const p = paaskedag(year)
+  const dagFor = (iso: string) => {
+    const d = new Date(`${iso}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - 1)
+    return d.toISOString().slice(0, 10)
+  }
+  const pinsedag = (() => {
+    const d = new Date(`${p}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + 49)
+    return d.toISOString().slice(0, 10)
+  })()
+  return new Map([
+    [dagFor(p), 'Påskeaften'],
+    [dagFor(pinsedag), 'Pinseaften'],
+    [`${year}-12-24`, 'Julaften'],
+    [`${year}-12-31`, 'Nyttårsaften'],
+  ])
+}
+
+const aftenCache = new Map<number, Map<string, string>>()
+export function aftenNavn(iso: string): string | null {
+  const year = Number(iso.slice(0, 4))
+  if (!year) return null
+  let m = aftenCache.get(year)
+  if (!m) { m = aftenerForAar(year); aftenCache.set(year, m) }
+  return m.get(iso) ?? null
+}
+
+export type Dagtype = 'vanlig' | 'rod' | 'aften'
 
 export type Dagsprofil = {
   dato: string
@@ -35,8 +73,19 @@ export type Dagsprofil = {
   faktor: number
   /** Hvor mange historiske dager faktoren bygger på. 0 = ren gjetning. */
   grunnlag: number
-  /** Timekostnad mot rammen. Røde dager koster dobbelt. */
-  kostnad: number
+  /** Fra hvilken klokketime timene koster dobbelt. null = ingen. */
+  rodFraTime: number | null
+}
+
+/**
+ * Hva én time denne dagen trekker fra rammen.
+ *
+ * 100 % tillegg betyr at en rød time koster to. På en aften gjelder det
+ * bare fra klokka 15 — julaften 10:00 er en vanlig time, julaften 16:00
+ * er ikke det.
+ */
+export function timekostnad(p: { rodFraTime: number | null }, time: number): number {
+  return p.rodFraTime !== null && time >= p.rodFraTime ? RODT_PAASLAG : 1
 }
 
 export type Dagsobservasjon = { dato: string; kunder: number }
@@ -84,7 +133,7 @@ export function dagsprofiler(
 
   for (const h of historikk) {
     if (h.kunder <= 0) continue
-    const navn = helligdagNavn(h.dato)
+    const navn = helligdagNavn(h.dato) ?? aftenNavn(h.dato)
     if (navn) {
       const liste = rodePerNavn.get(navn) ?? []
       liste.push(h.kunder)
@@ -106,28 +155,30 @@ export function dagsprofiler(
 
   return datoer.map((dato) => {
     const u = isodow(dato)
-    const navn = helligdagNavn(dato)
-    const type: Dagtype = navn ? 'rod' : 'vanlig'
-    const kostnad = navn ? RODT_PAASLAG : 1
+    const rodNavn = helligdagNavn(dato)
+    const aften = rodNavn ? null : aftenNavn(dato)
+    const navn = rodNavn ?? aften
+    const type: Dagtype = rodNavn ? 'rod' : aften ? 'aften' : 'vanlig'
+    const rodFraTime = rodNavn ? 0 : aften ? AFTEN_FRA_TIME : null
 
     if (!navn) {
       // Vanlige dager ER normalen. Ukedagsformen ligger allerede i
       // planleggerens kundeprofil, så her er faktoren 1.
       const n = vanligePerUkedag.get(u)?.length ?? 0
-      return { dato, ukedag: u, type, navn: null, faktor: 1, grunnlag: n, kostnad }
+      return { dato, ukedag: u, type, navn: null, faktor: 1, grunnlag: n, rodFraTime }
     }
 
     const egne = rodePerNavn.get(navn) ?? []
     const nevner = normaltOverhodet || normalFor(u)
     if (nevner <= 0) {
-      return { dato, ukedag: u, type, navn, faktor: 1, grunnlag: 0, kostnad }
+      return { dato, ukedag: u, type, navn, faktor: 1, grunnlag: 0, rodFraTime }
     }
 
     const teller = egne.length > 0
       ? median(egne)
       : alleRode.length > 0 ? median(alleRode) : 0
     if (teller <= 0) {
-      return { dato, ukedag: u, type, navn, faktor: 1, grunnlag: 0, kostnad }
+      return { dato, ukedag: u, type, navn, faktor: 1, grunnlag: 0, rodFraTime }
     }
 
     const raa = teller / nevner
@@ -138,7 +189,7 @@ export function dagsprofiler(
       navn,
       faktor: Math.min(MAKS_FAKTOR, Math.max(MIN_FAKTOR, raa)),
       grunnlag: egne.length,
-      kostnad,
+      rodFraTime,
     }
   })
 }
@@ -159,9 +210,11 @@ export function datoerIMaaned(ar: number, maned: number): string[] {
  */
 export function rodtPaaslagTimer(
   profiler: Dagsprofil[],
-  timerPerDag: (p: Dagsprofil) => number,
+  /** Timene stasjonen er bemannet denne dagen, som klokketimer. */
+  timerPerDag: (p: Dagsprofil) => number[],
 ): number {
-  return profiler
-    .filter((p) => p.type === 'rod')
-    .reduce((sum, p) => sum + timerPerDag(p) * (p.kostnad - 1), 0)
+  return profiler.reduce(
+    (sum, p) => sum + timerPerDag(p).reduce((a, t) => a + (timekostnad(p, t) - 1), 0),
+    0,
+  )
 }

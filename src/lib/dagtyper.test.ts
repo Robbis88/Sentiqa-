@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { datoerIMaaned, dagsprofiler, rodtPaaslagTimer, RODT_PAASLAG } from './dagtyper'
+import { datoerIMaaned, dagsprofiler, rodtPaaslagTimer, timekostnad, RODT_PAASLAG } from './dagtyper'
 import { erHelligdag } from './helligdager'
+import { aftenNavn } from './dagtyper'
 
 // Påsken 2025: skjærtorsdag 17. april, langfredag 18., 2. påskedag 21.
 // Påsken 2026: skjærtorsdag 2. april, langfredag 3., 2. påskedag 6.
@@ -16,7 +17,7 @@ const historikk = (kunder: (dato: string) => number, fra = '2025-01-01', til = '
 describe('dagsprofiler', () => {
   test('vanlige dager har faktor 1 — ukedagsformen ligger i kundeprofilen', () => {
     const p = dagsprofiler(['2026-04-01'], historikk(() => 100))
-    expect(p[0]).toMatchObject({ type: 'vanlig', faktor: 1, kostnad: 1, navn: null })
+    expect(p[0]).toMatchObject({ type: 'vanlig', faktor: 1, rodFraTime: null, navn: null })
   })
 
   test('skjærtorsdag måles mot skjærtorsdag i fjor, ikke mot en formel', () => {
@@ -39,7 +40,7 @@ describe('dagsprofiler', () => {
     // Bare langfredag av de røde er med i historikken. 2. juledag arver
     // nivået derfra i stedet for å bli behandlet som en vanlig dag.
     const h = historikk((d) => (d === '2025-04-18' ? 40 : 100))
-      .filter((x) => x.dato === '2025-04-18' || !erHelligdag(x.dato))
+      .filter((x) => x.dato === '2025-04-18' || (!erHelligdag(x.dato) && !aftenNavn(x.dato)))
     const p = dagsprofiler(['2026-12-26'], h)
     expect(p[0].navn).toBe('2. juledag')
     expect(p[0].faktor).toBeCloseTo(0.4, 2)
@@ -64,26 +65,64 @@ describe('dagsprofiler', () => {
     expect(p[0].faktor).toBeCloseTo(2.5, 2) // kappet fra 5
   })
 
-  test('røde dager koster dobbelt mot rammen', () => {
+  test('røde dager koster dobbelt hele dagen', () => {
     const p = dagsprofiler(['2026-05-01', '2026-05-04'], historikk(() => 100))
-    expect(p[0].kostnad).toBe(RODT_PAASLAG)
-    expect(p[1].kostnad).toBe(1)
+    expect(timekostnad(p[0], 8)).toBe(RODT_PAASLAG)
+    expect(timekostnad(p[0], 20)).toBe(RODT_PAASLAG)
+    expect(timekostnad(p[1], 8)).toBe(1)
+  })
+
+  test('aftener er røde fra 15, ikke før', () => {
+    // Julaften, nyttårsaften, påskeaften (2026: 4. april), pinseaften (23. mai).
+    for (const [dato, navn] of [
+      ['2026-12-24', 'Julaften'], ['2026-12-31', 'Nyttårsaften'],
+      ['2026-04-04', 'Påskeaften'], ['2026-05-23', 'Pinseaften'],
+    ] as const) {
+      const p = dagsprofiler([dato], historikk(() => 100))[0]
+      expect(p.navn, dato).toBe(navn)
+      expect(p.type, dato).toBe('aften')
+      expect(timekostnad(p, 14), `${dato} kl 14`).toBe(1)
+      expect(timekostnad(p, 15), `${dato} kl 15`).toBe(2)
+      expect(timekostnad(p, 22), `${dato} kl 22`).toBe(2)
+    }
+  })
+
+  test('dagen før 1. mai og 17. mai er IKKE aften', () => {
+    for (const d of ['2026-04-30', '2026-05-16']) {
+      expect(dagsprofiler([d], historikk(() => 100))[0].type, d).toBe('vanlig')
+    }
+  })
+
+  test('aftener måles hver for seg, ikke som en vanlig torsdag', () => {
+    // Julaften 2025 (onsdag) med halve trykket. Vanlige onsdager skal ikke
+    // dras ned, og julaften 2026 skal arve nivået.
+    const h = historikk((d) => (d === '2025-12-24' ? 50 : 100))
+    const p = dagsprofiler(['2026-12-24'], h)[0]
+    expect(p.faktor).toBeCloseTo(0.5, 2)
+    expect(p.grunnlag).toBe(1)
   })
 })
 
 describe('rodtPaaslagTimer', () => {
+  const apent = Array.from({ length: 19 }, (_, i) => i + 5) // 05–23
+
   test('setter et tall på hva de røde dagene tar ekstra', () => {
-    // Mai 2026: 1. mai, 14. mai (Kristi himmelfart), 17. mai, 25. mai (2. pinsedag).
+    // Mai 2026: 1. mai, Kristi himmelfart 14., Grunnlovsdagen 17.,
+    // pinse 24.–25., og pinseaften 23. (rød fra 15).
     const p = dagsprofiler(datoerIMaaned(2026, 5), historikk(() => 100))
-    const rode = p.filter((x) => x.type === 'rod')
-    expect(rode.length).toBeGreaterThanOrEqual(3)
-    // 19 timer bemanning på en rød dag koster 19 timer EKSTRA.
-    expect(rodtPaaslagTimer(p, () => 19)).toBe(rode.length * 19)
+    const rode = p.filter((x) => x.type === 'rod').length
+    // Fem hele dager x 19 timer, pluss ni timer (15–23) på pinseaften.
+    expect(rodtPaaslagTimer(p, () => apent)).toBe(rode * 19 + 9)
+  })
+
+  test('en aften koster bare timene etter 15', () => {
+    const p = dagsprofiler(['2026-12-24'], historikk(() => 100))
+    expect(rodtPaaslagTimer(p, () => apent)).toBe(9) // 15,16,…,23
   })
 
   test('null røde dager koster ingenting ekstra', () => {
     const p = dagsprofiler(datoerIMaaned(2026, 9), historikk(() => 100))
-    expect(rodtPaaslagTimer(p, () => 19)).toBe(0)
+    expect(rodtPaaslagTimer(p, () => apent)).toBe(0)
   })
 })
 

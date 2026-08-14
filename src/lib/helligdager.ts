@@ -13,7 +13,8 @@ function leggTil(iso: string, n: number): string {
 }
 
 // Påskedag (1. påskedag) for et gitt år — gregoriansk computus.
-function paaskedag(year: number): string {
+// Eksportert fordi aftenene (påskeaften, pinseaften) regnes ut fra den.
+export function paaskedag(year: number): string {
   const a = year % 19
   const b = Math.floor(year / 100)
   const c = year % 100

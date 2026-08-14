@@ -428,3 +428,198 @@ export function planleggMaaned(opts: {
     frieTimer, brukteTimer, gjennomforbar: true, underskudd: 0,
   }
 }
+
+// =====================================================================
+// Trinn 2b: måned → DATO × klokketime
+//
+// planleggMaaned gir «en vanlig uke». Det holder til å se formen, men
+// skjærtorsdag er ikke en torsdag — den er en dato, med sitt eget
+// kundetrykk og dobbelt lønn. Så lenge planen bare kjenner ukedager
+// finnes det ikke noe sted å si «to på jobb 2. april».
+//
+// Her legges tre ting på:
+//
+//   DAGFAKTOR   målt per stasjon fra dens egen historikk (dagtyper.ts).
+//               Utfartsdager og røde dager kommer inn av seg selv.
+//
+//   KOSTNAD     en rød time trekker to fra rammen, fordi den koster
+//               100 % tillegg. Uten dette ser 1. mai ut som en fredag.
+//
+//   FERIE       en fast vakt som ikke er der, dekker ikke gulvet. Da må
+//               timene kjøpes, og de skal belaste rammen den måneden.
+// =====================================================================
+
+export type Dagsvekt = {
+  dato: string
+  ukedag: number
+  faktor: number // kundetrykk mot en vanlig samme ukedag
+  /** Fra hvilken klokketime timene koster dobbelt. null = ingen.
+      0 = hele dagen (rød dag), 15 = aften. Kostnaden er en egenskap ved
+      TIMEN, ikke ved dagen: julaften 10:00 er en vanlig time. */
+  rodFraTime: number | null
+}
+
+const kostnadFor = (d: Dagsvekt, time: number) =>
+  (d.rodFraTime !== null && time >= d.rodFraTime ? 2 : 1)
+
+export type Dagsbemanning = {
+  dato: string
+  ukedag: number
+  time: number
+  fast: number
+  gulv: number
+  ekstra: number
+  sum: number
+  kunder: number // etter dagfaktor
+  kostnad: number // per person-time denne dagen
+}
+
+export type Kalenderplan = {
+  timer: Dagsbemanning[]
+  bundneTimer: number // rammetimer bundet av gulvet, rødt talt dobbelt
+  fasteTimer: number
+  frieTimer: number
+  brukteTimer: number
+  rodtPaaslag: number // hvor mye av bundneTimer som ER påslaget
+  gjennomforbar: boolean
+  underskudd: number
+}
+
+/** Er den faste vakten borte denne datoen? */
+export type Fravaer = { navn: string; fraDato: string; tilDato: string }
+
+export function planleggKalender(opts: {
+  disponibleTimer: number
+  dager: Dagsvekt[]
+  vinduer: Vindu[]
+  krav: Krav[]
+  fasteVakter: (FastVakt & { navn?: string })[]
+  fravaer?: Fravaer[]
+  profil: Map<string, number> // `${ukedag}:${time}` → snitt innekunder
+  maksBemanning?: number
+  minVaktTimer?: number
+  tak?: Map<string, number>
+}): Kalenderplan {
+  const { disponibleTimer, dager, vinduer, krav, fasteVakter, profil } = opts
+  const maks = opts.maksBemanning ?? Number.POSITIVE_INFINITY
+  const minVaktTimer = Math.max(1, opts.minVaktTimer ?? MIN_VAKT_TIMER)
+  const fravaer = opts.fravaer ?? []
+  const takFor = (ukedag: number, time: number) =>
+    Math.min(maks, opts.tak?.get(`${ukedag}:${time}`) ?? Number.POSITIVE_INFINITY)
+
+  // En fast vakt som er i ferie står ikke der. Da faller den ut av
+  // dekningen, gulvet stiger, og timene må kjøpes av rammen. Det er
+  // dette som gjør at fem ukers ferie HENTER timer i stedet for å spare.
+  const erBorte = (navn: string | undefined, dato: string) =>
+    navn !== undefined
+    && fravaer.some((f) => f.navn === navn && dato >= f.fraDato && dato <= f.tilDato)
+
+  const rader: Dagsbemanning[] = []
+  let bundneTimer = 0
+  let fasteTimer = 0
+  let rodtPaaslag = 0
+
+  for (const d of dager) {
+    for (const v of vinduer.filter((x) => x.ukedag === d.ukedag)) {
+      for (let t = v.fraTime; t < v.tilTime; t++) {
+        const kravHer = krav
+          .filter((k) => k.ukedag === d.ukedag && iVindu(t, k.fraTime, k.tilTime))
+          .reduce((m, k) => Math.max(m, k.antall), 0)
+        const dekker = fasteVakter.filter(
+          (f) => f.ukedag === d.ukedag && iVindu(t, f.fraTime, f.tilTime) && !erBorte(f.navn, d.dato),
+        )
+        const fast = dekker.length
+        const gulv = Math.max(0, Math.max(v.minBemanning, kravHer) - fast)
+        const kostnad = kostnadFor(d, t)
+        bundneTimer += gulv * kostnad
+        rodtPaaslag += gulv * (kostnad - 1)
+        fasteTimer += fast
+        // Timelønte faste vakter belaster rammen på lik linje.
+        const timelonte = dekker.filter((f) => f.timelonnet).length
+        bundneTimer += timelonte * kostnad
+        rodtPaaslag += timelonte * (kostnad - 1)
+
+        rader.push({
+          dato: d.dato,
+          ukedag: d.ukedag,
+          time: t,
+          fast,
+          gulv,
+          ekstra: 0,
+          sum: fast + gulv,
+          kunder: (profil.get(`${d.ukedag}:${t}`) ?? 0) * d.faktor,
+          kostnad,
+        })
+      }
+    }
+  }
+
+  const frieTimer = disponibleTimer - bundneTimer
+  if (frieTimer <= 0) {
+    return {
+      timer: rader, bundneTimer, fasteTimer, frieTimer: 0, brukteTimer: 0,
+      rodtPaaslag, gjennomforbar: frieTimer >= 0, underskudd: Math.max(0, -frieTimer),
+    }
+  }
+
+  // Fritt lag: sammenhengende vakter innenfor ÉN dato.
+  const indeks = new Map<string, number>()
+  rader.forEach((r, i) => indeks.set(`${r.dato}:${r.time}`, i))
+  const kjeder = new Map<string, number[]>()
+  for (const r of rader) {
+    const liste = kjeder.get(r.dato) ?? []
+    liste.push(r.time)
+    kjeder.set(r.dato, liste)
+  }
+  for (const liste of kjeder.values()) liste.sort((a, b) => a - b)
+
+  let igjen = frieTimer
+  let brukteTimer = 0
+
+  for (;;) {
+    let beste: { rader: number[]; kost: number } | null = null
+    let besteVerdi = 0
+
+    for (const [dato, timer] of kjeder) {
+      for (let start = 0; start < timer.length; start++) {
+        for (let lengde = minVaktTimer; start + lengde <= timer.length; lengde++) {
+          if (timer[start + lengde - 1] - timer[start] !== lengde - 1) break
+          const idxer: number[] = []
+          let kunder = 0
+          let bemanningEtter = 0
+          let kost = 0
+          let plass = true
+          for (let k = 0; k < lengde; k++) {
+            const i = indeks.get(`${dato}:${timer[start + k]}`)
+            if (i === undefined) { plass = false; break }
+            const r = rader[i]
+            if (r.sum >= takFor(r.ukedag, r.time)) { plass = false; break }
+            idxer.push(i)
+            kunder += r.kunder
+            bemanningEtter += r.sum + 1
+            // Kostnaden summeres per time: en vakt 12–18 på julaften er
+            // tre vanlige timer og tre doble, ikke seks av det ene.
+            kost += r.kostnad
+          }
+          if (!plass || kunder <= 0) continue
+          if (kost > igjen) continue
+
+          // Kundedekning per krone, ikke per time. En rød time må gi
+          // dobbelt igjen for å være verdt like mye som en vanlig.
+          const verdi = kunder / bemanningEtter / (kost / lengde)
+          if (verdi > besteVerdi) { besteVerdi = verdi; beste = { rader: idxer, kost } }
+        }
+      }
+    }
+
+    if (!beste) break
+    for (const i of beste.rader) { rader[i].ekstra++; rader[i].sum++ }
+    igjen -= beste.kost
+    brukteTimer += beste.kost
+  }
+
+  return {
+    timer: rader, bundneTimer, fasteTimer, frieTimer, brukteTimer,
+    rodtPaaslag, gjennomforbar: true, underskudd: 0,
+  }
+}
