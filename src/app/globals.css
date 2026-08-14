@@ -1453,3 +1453,15 @@ button.liten { min-height: 40px; }
 .rutine-form .felt { flex: 1 1 12rem; gap: 0.25rem; }
 .rutine-form .felt.sq-smalt { flex: 0 1 9rem; }
 .rutine-form { align-items: flex-end; }
+
+/* Bemanningskalenderen: uke for uke, med røde dager merket. Fargen sier
+   «dette koster dobbelt», ikke «dette er feil» — derfor en rolig tone og
+   ikke varselrødt. */
+.bem-uke { margin-bottom: 1.25rem; overflow-x: auto; }
+.bem-kalender { table-layout: fixed; }
+.bem-kalender th, .bem-kalender td { text-align: center; padding: 0.3rem 0.2rem; }
+.bem-kalender th:first-child, .bem-kalender td:first-child {
+  text-align: left; width: 4.5rem; white-space: nowrap;
+}
+.bem-kalender th.rod-dag { color: var(--rod, #b4232a); }
+.bem-kalender td.rod-time { background: rgba(180, 35, 42, 0.07); }

@@ -2,9 +2,11 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import {
-  fordelAaret, planleggMaaned, dagerPerUkedag, maanedsvekter,
-  type Krav, type Vindu, type FastVakt,
+  fordelAaret, planleggKalender, maanedsvekter,
+  type Krav, type Vindu, type FastVakt, type Dagsvekt,
 } from '@/lib/bemanning'
+import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
+import { historiskTak } from '@/lib/bemanningsanalyse'
 import { FastVaktSkjema, KravSkjema, TakSkjema, VinduSkjema } from './skjemaer'
 import { slettFastVakt, slettKrav, slettVindu } from './handlinger'
 
@@ -39,6 +41,44 @@ const tilKrav = (k: KravRad): Krav => ({
 const tilVakt = (v: VaktRad): FastVakt => ({
   ukedag: v.ukedag, fraTime: v.fra_time, tilTime: v.til_time, timelonnet: v.timelonnet,
 })
+
+// Stemplingene: hva stasjonen FAKTISK har hatt på jobb. To ting hentes ut —
+// taket per ukedag × time (planen skal ikke foreslå to der de aldri har vært
+// to), og dagstrykket, som gir helligdagsfaktorene.
+async function hentStemplinger(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  stasjonId: string,
+  fra: string,
+) {
+  const { data } = await supabase
+    .from('stempling')
+    .select('dato, fra_tid, til_tid, minutter')
+    .eq('stasjon_id', stasjonId)
+    .eq('betalt', true)
+    .gte('dato', fra)
+  return (data ?? []) as { dato: string; fra_tid: string; til_tid: string; minutter: number }[]
+}
+
+// Kunder per DATO — grunnlaget for helligdagsfaktorene. Ikke per måned:
+// skjærtorsdag er en dato, og det er den vi skal måle.
+async function hentDagskunder(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  stasjonId: string,
+  fra: string,
+): Promise<{ dato: string; kunder: number }[]> {
+  const { data } = await supabase
+    .from('timesalg')
+    .select('dato, inne_kunder')
+    .eq('stasjon_id', stasjonId)
+    .is('slettet_tid', null)
+    .not('inne_kunder', 'is', null)
+    .gte('dato', fra)
+  const sum = new Map<string, number>()
+  for (const r of (data ?? []) as { dato: string; inne_kunder: number }[]) {
+    sum.set(r.dato, (sum.get(r.dato) ?? 0) + r.inne_kunder)
+  }
+  return [...sum].map(([dato, kunder]) => ({ dato, kunder }))
+}
 
 // Kunder per måned i fjor. Dette er vektene årsrammen fordeles etter — ikke
 // BP-kurven. BP-bruttoen er formet av hva stasjonen gjorde i fjor, inkludert
@@ -144,7 +184,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const iDag = naa.toISOString().slice(0, 10)
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
-    { data: grenser }, profilen, maanedskunder] =
+    { data: grenser }, profilen, maanedskunder, dagskunder, stemplinger] =
     await Promise.all([
       // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
       // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
@@ -161,6 +201,9 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         .eq('stasjon_id', valgt.id).maybeSingle<{ maks_bemanning: number | null }>(),
       hentProfil(supabase, valgt.id, ar, maned),
       hentMaanedskunder(supabase, valgt.id, ar),
+      // To år tilbake: da har vi hver røde dag minst én gang, ofte to.
+      hentDagskunder(supabase, valgt.id, `${ar - 2}-01-01`),
+      hentStemplinger(supabase, valgt.id, `${ar - 2}-01-01`),
     ])
   const maksBemanning = grenser?.maks_bemanning ?? undefined
 
@@ -203,15 +246,39 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const disponible = iMnd?.disponible ?? null
   const raaRamme = aarsrammer.find((r) => r.maned === maned)?.timer ?? null
 
+  // Dagtypene: helligdager fra kalenderen, effekten målt fra stasjonens
+  // egen historikk. Ingen liste over utfartsdager — de ER dagene som
+  // avviker oppover, og det faller ut av tallene.
+  const profiler = dagsprofiler(datoerIMaaned(ar, maned), dagskunder)
+  const dagsvekter: Dagsvekt[] = profiler.map((p) => ({
+    dato: p.dato, ukedag: p.ukedag, faktor: p.faktor, rodFraTime: p.rodFraTime,
+  }))
+  // Taket: har de aldri vært to tirsdag 09, skal planen ikke foreslå det.
+  const tak = stemplinger.length > 0
+    ? historiskTak(stemplinger.map((s) => ({
+      dato: s.dato, fraTid: s.fra_tid.slice(0, 5), tilTid: s.til_tid.slice(0, 5),
+    })))
+    : undefined
+
   const plan = disponible !== null && gjeldende.size > 0 && aar?.gjennomforbar
-    ? planleggMaaned({
-      disponibleTimer: disponible, ar, maned, ...oppsett,
-      profil: profilen.profil, maksBemanning,
+    ? planleggKalender({
+      disponibleTimer: disponible, dager: dagsvekter, ...oppsett,
+      profil: profilen.profil, maksBemanning, tak,
     })
     : null
-  const dager = dagerPerUkedag(ar, maned)
-  const rutenett = new Map(plan?.timer.map((t) => [`${t.ukedag}:${t.time}`, t]) ?? [])
+  const rutenett = new Map(plan?.timer.map((t) => [`${t.dato}:${t.time}`, t]) ?? [])
   const timerVist = plan ? [...new Set(plan.timer.map((t) => t.time))].sort((a, b) => a - b) : []
+
+  // Uke for uke. Mandag først, og en uke som starter i forrige måned vises
+  // med de dagene den faktisk har — påskeuka skal se ut som påskeuka.
+  const uker: { nr: number; profiler: typeof profiler }[] = []
+  for (const p of profiler) {
+    const forrige = uker[uker.length - 1]
+    if (forrige && p.ukedag !== 1) forrige.profiler.push(p)
+    else uker.push({ nr: uker.length + 1, profiler: [p] })
+  }
+  const dagsum = new Map<string, number>()
+  for (const t of plan?.timer ?? []) dagsum.set(t.dato, (dagsum.get(t.dato) ?? 0) + t.sum)
 
   return (
     <>
@@ -292,37 +359,69 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
       {plan && plan.gjennomforbar && (
         <section className="kort">
-          <h2>Forslag til en vanlig uke</h2>
-          <table className="tabell">
-            <thead>
-              <tr>
-                <th></th>
-                {[1, 2, 3, 4, 5, 6, 7].map((u) => (
-                  <th key={u}>{UKEDAG[u]}<br /><span className="undertittel">{dager[u]} dg</span></th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timerVist.map((t) => (
-                <tr key={t}>
-                  <td>{kl(t)}</td>
-                  {[1, 2, 3, 4, 5, 6, 7].map((u) => {
-                    const c = rutenett.get(`${u}:${t}`)
-                    if (!c) return <td key={u} className="undertittel">—</td>
-                    return (
-                      <td key={u} title={`${Math.round(c.kunder)} kunder i snitt`}>
-                        {c.sum}{c.fast > 0 ? '*' : ''}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2>Forslag, uke for uke</h2>
           <p className="undertittel">
             Tallet er antall personer den timen. * betyr at en fast vakt dekker en av dem.
+            Røde dager er merket — de koster dobbelt, så en time der spiser to av rammen.
             Hold musen over for kundetrykket.
           </p>
+          {uker.map((uke) => (
+            <div key={uke.nr} className="bem-uke">
+              <table className="tabell bem-kalender">
+                <thead>
+                  <tr>
+                    <th></th>
+                    {uke.profiler.map((p) => (
+                      <th key={p.dato} className={p.type === 'rod' ? 'rod-dag' : undefined}>
+                        {UKEDAG[p.ukedag]} {Number(p.dato.slice(8))}.
+                        <br />
+                        <span className="undertittel">
+                          {p.navn
+                            ? `${p.navn}${p.type === 'aften' ? ' (rød fra 15)' : ''}`
+                            : `${Math.round(dagsum.get(p.dato) ?? 0)} t`}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {timerVist.map((t) => (
+                    <tr key={t}>
+                      <td>{kl(t)}</td>
+                      {uke.profiler.map((p) => {
+                        const c = rutenett.get(`${p.dato}:${t}`)
+                        if (!c) return <td key={p.dato} className="undertittel">—</td>
+                        return (
+                          <td
+                            key={p.dato}
+                            className={c.kostnad > 1 ? 'rod-time' : undefined}
+                            title={`${Math.round(c.kunder)} kunder i snitt`
+                              + (c.kostnad > 1 ? ' · dobbel lønn' : '')}
+                          >
+                            {c.sum}{c.fast > 0 ? '*' : ''}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          {plan.rodtPaaslag >= 1 && (
+            <p className="undertittel">
+              De røde timene denne måneden koster <strong>{Math.round(plan.rodtPaaslag)} timer
+              ekstra</strong> av rammen, fordi de betales med 100 % tillegg. Det er allerede
+              trukket fra før resten ble fordelt.
+            </p>
+          )}
+          {profiler.some((p) => p.navn && p.grunnlag === 0) && (
+            <p className="undertittel">
+              {profiler.filter((p) => p.navn && p.grunnlag === 0).map((p) => p.navn).join(', ')}
+              {' '}har vi ikke sett før i tallene deres — bemanningen der er et anslag fra de
+              andre røde dagene, ikke en måling.
+            </p>
+          )}
         </section>
       )}
 
