@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   bundneTimer,
+  maanedsvekter,
   dagerPerUkedag,
   disponibleTimerAar,
   fordelAaret,
@@ -40,6 +41,54 @@ describe('årsramme til måned', () => {
 
   test('avviser feil antall månedstall', () => {
     expect(() => fordelPaaMaaneder(1000, [1, 2, 3], FRADRAG)).toThrow(/12/)
+  })
+})
+
+describe('maanedsvekter', () => {
+  const bp = [615671, 632617, 663619, 712681, 725674, 864280,
+    977680, 845240, 638803, 590060, 490579, 548666]
+
+  test('malte kunder styrer, ikke BP-kurven', () => {
+    // Kundene sier juli er dobbelt saa travel som januar. BP sier 1,6x.
+    // Kundene skal vinne.
+    const kunder = new Array(12).fill(1000)
+    kunder[6] = 2000
+    const v = maanedsvekter(kunder, bp)
+    expect(v[6] / v[0]).toBeCloseTo(2, 6)
+    expect(v.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9)
+  })
+
+  test('en maaned uten kundedata faar vekt fra BP, ikke null timer', () => {
+    // Vi har lastet opp januar-juni. Juli-desember mangler. De kan ikke
+    // faa null timer bare fordi opplastingen ikke har naadd dem.
+    const kunder: (number | null)[] = [1000, 1000, 1000, 1000, 1000, 1000,
+      null, null, null, null, null, null]
+    const v = maanedsvekter(kunder, bp)
+    expect(v.every((x) => x > 0)).toBe(true)
+    // Juli har hoyest BP av de manglende -> hoyest vekt av dem.
+    expect(Math.max(...v.slice(6))).toBe(v[6])
+    expect(v.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9)
+  })
+
+  test('uten kundedata i det hele tatt faller den tilbake paa BP', () => {
+    const v = maanedsvekter(new Array(12).fill(null), bp)
+    const sum = bp.reduce((a, b) => a + b, 0)
+    expect(v[6]).toBeCloseTo(bp[6] / sum, 9)
+  })
+
+  test('uten noe som helst blir det flatt', () => {
+    const v = maanedsvekter(new Array(12).fill(null), new Array(12).fill(0))
+    expect(v).toEqual(new Array(12).fill(1 / 12))
+  })
+
+  test('BP i kroner og kunder i personer blandes ikke som samme enhet', () => {
+    // Halve aaret malt (1000 kunder), halve fra BP i hundretusener. Uten
+    // skalering ville BP-maanedene fatt 600x vekten av de malte.
+    const kunder: (number | null)[] = [1000, 1000, 1000, 1000, 1000, 1000,
+      null, null, null, null, null, null]
+    const v = maanedsvekter(kunder, new Array(12).fill(700000))
+    // Flat BP + flate kunder -> alle tolv skal vaere like.
+    for (const x of v) expect(x).toBeCloseTo(1 / 12, 6)
   })
 })
 

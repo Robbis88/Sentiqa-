@@ -45,6 +45,52 @@ export function fordelPaaMaaneder(
   return bruttoPerMaaned.map((b) => (b / sum) * netto)
 }
 
+// Månedsvekter fra stasjonens EGNE kunder, ikke fra BP-kurven.
+//
+// BP-en er kjedens budsjett, og bruttoen i den er formet av hva stasjonen
+// gjorde i fjor — inkludert timene butikksjefen brukte fordi hun hadde dem.
+// Fordeler man timene etter den kurven, får man forrige års bemanning tilbake
+// med et nytt tall på. Kundene lyver ikke på samme måte: de kom eller de kom
+// ikke, og påsken, fellesferien og utfartshelgene ligger allerede inne i
+// tallene uten at noen har måttet liste dem opp.
+//
+// kunderPerMaaned er tolv tall, januar først, fra stasjonens historikk.
+// Måneder uten data får vekt fra reserve (BP-bruttoen) — ellers ville en
+// måned vi ikke har lastet opp ennå fått null timer. Er ingen av delene
+// tilgjengelig, faller det tilbake på flatt.
+export function maanedsvekter(
+  kunderPerMaaned: (number | null)[],
+  reserve: number[],
+): number[] {
+  if (kunderPerMaaned.length !== 12 || reserve.length !== 12) {
+    throw new Error('maanedsvekter: forventet 12 tall i begge')
+  }
+  const maalte = kunderPerMaaned.filter((k): k is number => k !== null && k > 0)
+  if (maalte.length === 0) {
+    const sum = reserve.reduce((a, b) => a + b, 0)
+    return sum > 0 ? reserve.map((r) => r / sum) : new Array(12).fill(1 / 12)
+  }
+
+  // Reserven skaleres til samme nivå som de målte månedene, ellers ville en
+  // BP i kroner og en kundetelling i personer blandes som om de var samme
+  // enhet — og den ene ville drukne den andre.
+  const iBegge = kunderPerMaaned
+    .map((k, i) => ({ k, r: reserve[i] }))
+    .filter((p): p is { k: number; r: number } => p.k !== null && p.k > 0 && p.r > 0)
+  const skala = iBegge.length > 0
+    ? iBegge.reduce((a, p) => a + p.k, 0) / iBegge.reduce((a, p) => a + p.r, 0)
+    : 0
+  const snitt = maalte.reduce((a, b) => a + b, 0) / maalte.length
+
+  const raa = kunderPerMaaned.map((k, i) => {
+    if (k !== null && k > 0) return k
+    if (skala > 0 && reserve[i] > 0) return reserve[i] * skala
+    return snitt
+  })
+  const sum = raa.reduce((a, b) => a + b, 0)
+  return raa.map((r) => r / sum)
+}
+
 // --- Trinn 2: måned → ukedag × klokketime ----------------------------
 
 export type Vindu = {

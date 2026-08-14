@@ -2,7 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import {
-  fordelAaret, planleggMaaned, dagerPerUkedag,
+  fordelAaret, planleggMaaned, dagerPerUkedag, maanedsvekter,
   type Krav, type Vindu, type FastVakt,
 } from '@/lib/bemanning'
 import { FastVaktSkjema, KravSkjema, TakSkjema, VinduSkjema } from './skjemaer'
@@ -39,6 +39,39 @@ const tilKrav = (k: KravRad): Krav => ({
 const tilVakt = (v: VaktRad): FastVakt => ({
   ukedag: v.ukedag, fraTime: v.fra_time, tilTime: v.til_time, timelonnet: v.timelonnet,
 })
+
+// Kunder per måned i fjor. Dette er vektene årsrammen fordeles etter — ikke
+// BP-kurven. BP-bruttoen er formet av hva stasjonen gjorde i fjor, inkludert
+// timene butikksjefen brukte fordi hun hadde dem; kundene er formet av hvem
+// som faktisk kom. Påske, fellesferie og utfartshelger ligger allerede i
+// tallene uten at noen har måttet liste dem opp.
+async function hentMaanedskunder(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  stasjonId: string,
+  ar: number,
+): Promise<(number | null)[]> {
+  const { data } = await supabase
+    .from('timesalg')
+    .select('dato, inne_kunder')
+    .eq('stasjon_id', stasjonId)
+    .is('slettet_tid', null)
+    .not('inne_kunder', 'is', null)
+    .gte('dato', `${ar - 1}-01-01`)
+    .lte('dato', `${ar - 1}-12-31`)
+  const rader = (data ?? []) as { dato: string; inne_kunder: number }[]
+
+  const sum = new Array(12).fill(0)
+  const dager: Set<string>[] = Array.from({ length: 12 }, () => new Set<string>())
+  for (const r of rader) {
+    const m = Number(r.dato.slice(5, 7)) - 1
+    sum[m] += r.inne_kunder
+    dager[m].add(r.dato)
+  }
+  // En måned med tre opplastede dager er ikke en måned. Under 20 dager
+  // regnes som ingen data, så vekten hentes fra BP i stedet for å bli
+  // et tilfeldig lavt tall.
+  return sum.map((s, m) => (dager[m].size >= 20 ? s : null))
+}
 
 // Kundeformen. Samme måned i fjor er riktigst — januar planlegges ikke etter
 // septembertall. Finnes den ikke, faller vi tilbake på siste 90 dager og sier
@@ -111,7 +144,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const iDag = naa.toISOString().slice(0, 10)
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
-    { data: grenser }, profilen] =
+    { data: grenser }, profilen, maanedskunder] =
     await Promise.all([
       // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
       // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
@@ -127,6 +160,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       supabase.from('bemanning_stasjon').select('maks_bemanning')
         .eq('stasjon_id', valgt.id).maybeSingle<{ maks_bemanning: number | null }>(),
       hentProfil(supabase, valgt.id, ar, maned),
+      hentMaanedskunder(supabase, valgt.id, ar),
     ])
   const maksBemanning = grenser?.maks_bemanning ?? undefined
 
@@ -141,8 +175,19 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
   const kravListe = (krav ?? []) as KravRad[]
   const vaktListe = (vakter ?? []) as VaktRad[]
-  const aarsrammer = ((rammer ?? []) as { maned: number; disponible_timer: number }[])
-    .map((r) => ({ maned: r.maned, timer: r.disponible_timer }))
+  // Kjeden bestemmer hvor mange timer året har. Hvordan de ligger utover
+  // månedene er vår analyse, ikke BP-ens: samme årsramme, fordelt etter
+  // stasjonens egne kunder. Radene fra bemanning_maned brukes derfor som
+  // årssum og som reservevekt, ikke som fasit per måned.
+  const lagret = ((rammer ?? []) as { maned: number; disponible_timer: number }[])
+  const aarssum = lagret.reduce((a, r) => a + r.disponible_timer, 0)
+  const bpVekt = new Array(12).fill(0)
+  for (const r of lagret) bpVekt[r.maned - 1] = r.disponible_timer
+  const vekter = maanedsvekter(maanedskunder, bpVekt)
+  const malteMaaneder = maanedskunder.filter((k) => k !== null).length
+  const aarsrammer = lagret.length > 0
+    ? vekter.map((v, i) => ({ maned: i + 1, timer: v * aarssum }))
+    : []
 
   const oppsett = {
     vinduer: [...gjeldende.values()].map(tilVindu),
@@ -218,6 +263,13 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 {Math.round(plan.bundneTimer)} timer går til minimumsbemanning, timer som krever flere, og faste vakter.
                 {' '}{Math.round(plan.brukteTimer)} er fordelt etter kundetrykk.
                 {' '}Kundeformen er hentet fra {profilen.kilde} ({profilen.dager} dager).
+              </p>
+            )}
+            {aarsrammer.length > 0 && (
+              <p className="undertittel">
+                {malteMaaneder > 0
+                  ? `Årets timer er fordelt utover månedene etter hvor mange kunder stasjonen faktisk hadde i ${ar - 1} (${malteMaaneder} av 12 måneder målt), ikke etter BP-kurven.`
+                  : `Ingen kundehistorikk for ${ar - 1} ennå — fordelingen følger BP-kurven inntil videre.`}
               </p>
             )}
             {plan !== null && plan.frieTimer - plan.brukteTimer >= 1 && (
