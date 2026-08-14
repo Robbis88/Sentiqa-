@@ -623,3 +623,80 @@ export function planleggKalender(opts: {
     rodtPaaslag, gjennomforbar: true, underskudd: 0,
   }
 }
+
+// =====================================================================
+// Fra rutenett til vaktliste.
+//
+// «3 personer klokka 12» er ikke noe en butikksjef kan sette opp. Tre
+// tall i en kolonne skjuler at det er to vakter som overlapper: 10–15
+// og 11–16 gir tre i overlappet, og det er et vaktbytte, ikke en umulig
+// time. Robert leste rutenettet og spurte hvordan man skulle klare det.
+// Han hadde rett i at det ikke gikk an å lese.
+//
+// Dekomponeringen er den samme som når man skriver en timeplan: legg
+// første person gjennom hele det bemannede vinduet, andre person der det
+// trengs to, og så videre. Hvert sammenhengende strekk på hvert nivå er
+// én vakt.
+// =====================================================================
+
+export type Vakt = {
+  dato: string
+  fraTime: number
+  tilTime: number
+  timer: number
+  kilde: 'gulv' | 'ekstra'
+}
+
+const strekk = (
+  dato: string,
+  timer: { time: number; niva: number }[],
+  kilde: 'gulv' | 'ekstra',
+): Vakt[] => {
+  const ut: Vakt[] = []
+  const maks = Math.max(0, ...timer.map((t) => t.niva))
+  for (let n = 1; n <= maks; n++) {
+    let start: number | null = null
+    let forrige: number | null = null
+    for (const t of timer) {
+      const med = t.niva >= n
+      if (med && start === null) start = t.time
+      // Hull i vinduet bryter vakten — man går ikke hjem og kommer tilbake.
+      if (med && forrige !== null && t.time !== forrige + 1 && start !== null) {
+        ut.push({ dato, fraTime: start, tilTime: forrige + 1, timer: forrige + 1 - start, kilde })
+        start = t.time
+      }
+      if (!med && start !== null && forrige !== null) {
+        ut.push({ dato, fraTime: start, tilTime: forrige + 1, timer: forrige + 1 - start, kilde })
+        start = null
+      }
+      forrige = med ? t.time : forrige
+      if (!med) forrige = null
+    }
+    if (start !== null && forrige !== null) {
+      ut.push({ dato, fraTime: start, tilTime: forrige + 1, timer: forrige + 1 - start, kilde })
+    }
+  }
+  return ut
+}
+
+/**
+ * Vaktene planen egentlig foreslår.
+ *
+ * Gulvet (fast + minimumsbemanning) og det frie laget dekomponeres hver
+ * for seg, så en ekstravakt ikke smelter sammen med grunnbemanningen.
+ */
+export function vaktliste(timer: Dagsbemanning[]): Vakt[] {
+  const perDag = new Map<string, Dagsbemanning[]>()
+  for (const t of timer) {
+    const liste = perDag.get(t.dato) ?? []
+    liste.push(t)
+    perDag.set(t.dato, liste)
+  }
+  const ut: Vakt[] = []
+  for (const [dato, rader] of perDag) {
+    const sortert = [...rader].sort((a, b) => a.time - b.time)
+    ut.push(...strekk(dato, sortert.map((r) => ({ time: r.time, niva: r.fast + r.gulv })), 'gulv'))
+    ut.push(...strekk(dato, sortert.map((r) => ({ time: r.time, niva: r.ekstra })), 'ekstra'))
+  }
+  return ut.sort((a, b) => a.dato.localeCompare(b.dato) || a.fraTime - b.fraTime)
+}

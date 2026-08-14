@@ -3,6 +3,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import {
   fordelAaret, planleggKalender, maanedsvekter,
+  vaktliste,
   type Krav, type Vindu, type FastVakt, type Dagsvekt,
 } from '@/lib/bemanning'
 import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
@@ -279,6 +280,14 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   }
   const dagsum = new Map<string, number>()
   for (const t of plan?.timer ?? []) dagsum.set(t.dato, (dagsum.get(t.dato) ?? 0) + t.sum)
+  // Vaktene, ikke tallene. «3 personer klokka 12» kan ingen sette opp;
+  // «10–15 og 11–16» er en timeplan.
+  const vakterPerDag = new Map<string, ReturnType<typeof vaktliste>>()
+  for (const v of plan ? vaktliste(plan.timer) : []) {
+    const liste = vakterPerDag.get(v.dato) ?? []
+    liste.push(v)
+    vakterPerDag.set(v.dato, liste)
+  }
 
   return (
     <>
@@ -408,6 +417,33 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               </table>
             </div>
           ))}
+          <h3 className="bem-vakt-tittel">Vaktene dette blir</h3>
+          <p className="undertittel">
+            Samme plan, lest som en timeplan. Overlapper to vakter, står det tre personer
+            i rutenettet over den timen — det er et vaktbytte, ikke tre som må skaffes.
+          </p>
+          <table className="tabell">
+            <thead><tr><th>Dag</th><th>Grunnbemanning</th><th>I tillegg</th><th>Timer</th></tr></thead>
+            <tbody>
+              {profiler.map((p) => {
+                const v = vakterPerDag.get(p.dato) ?? []
+                if (v.length === 0) return null
+                const tid = (x: { fraTime: number; tilTime: number }) =>
+                  `${kl(x.fraTime)}–${x.tilTime === 24 ? '24:00' : kl(x.tilTime)}`
+                return (
+                  <tr key={p.dato} className={p.type === 'rod' ? 'rod-dag' : undefined}>
+                    <td>
+                      {UKEDAG[p.ukedag]} {Number(p.dato.slice(8))}.
+                      {p.navn ? <><br /><span className="undertittel">{p.navn}</span></> : null}
+                    </td>
+                    <td>{v.filter((x) => x.kilde === 'gulv').map(tid).join(' · ') || '—'}</td>
+                    <td>{v.filter((x) => x.kilde === 'ekstra').map(tid).join(' · ') || '—'}</td>
+                    <td>{Math.round(dagsum.get(p.dato) ?? 0)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
           {plan.rodtPaaslag >= 1 && (
             <p className="undertittel">
               De røde timene denne måneden koster <strong>{Math.round(plan.rodtPaaslag)} timer
