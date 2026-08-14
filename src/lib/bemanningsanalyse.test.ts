@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { historiskTak, planMotFaktisk, sammenlignStasjoner, type StasjonsForbruk } from './bemanningsanalyse'
+import {
+  historiskTak, planMotFaktisk, sammenlignStasjoner, takFraUkeprofil,
+  type StasjonsForbruk,
+} from './bemanningsanalyse'
 
 // Tallene er hentet fra de ekte eksportene: Bønes 687 t/mnd, Laguneparken
 // 1201 t/mnd. Kundetall og matandel er satt for å prøve ut logikken.
@@ -166,5 +169,40 @@ describe('historiskTak', () => {
     const t = historiskTak(man.map((d) => vakt(d, '18:00', '00:00')))
     expect(t.get('1:23')).toBe(1)
     expect(t.get('2:0')).toBeUndefined()
+  })
+})
+
+describe('takFraUkeprofil', () => {
+  const r = (ukedag: number, time: number, antall: number, ganger: number) =>
+    ({ ukedag, time, antall, ganger })
+
+  test('gir samme svar som historiskTak på samme data', () => {
+    // Fire mandager 09–15 med én person, og to av dem med to.
+    const stempl = ['2026-01-05', '2026-01-12', '2026-01-19', '2026-01-26']
+      .flatMap((d) => [{ dato: d, fraTid: '09:00', tilTid: '15:00' }])
+      .concat(['2026-01-05', '2026-01-12'].map((d) => ({ dato: d, fraTid: '12:00', tilTid: '15:00' })))
+    const fasit = historiskTak(stempl)
+    const profil = takFraUkeprofil([
+      r(1, 9, 1, 4), r(1, 12, 1, 2), r(1, 12, 2, 2),
+    ])
+    expect(profil.get('1:12')).toBe(fasit.get('1:12'))
+    expect(profil.get('1:9')).toBe(fasit.get('1:9'))
+  })
+
+  test('ett personalmøte setter ikke taket', () => {
+    // Tolv personer én gang, én person 40 ganger.
+    expect(takFraUkeprofil([r(1, 12, 1, 40), r(1, 12, 12, 1)]).get('1:12')).toBe(1)
+  })
+
+  test('to ganger av tjue er nok når det er over ti prosent', () => {
+    expect(takFraUkeprofil([r(1, 12, 1, 16), r(1, 12, 2, 2)]).get('1:12')).toBe(2)
+  })
+
+  test('to av femti er under terskelen', () => {
+    expect(takFraUkeprofil([r(1, 12, 1, 48), r(1, 12, 2, 2)]).get('1:12')).toBe(1)
+  })
+
+  test('en time uten rader står åpen', () => {
+    expect(takFraUkeprofil([r(1, 12, 1, 4)]).get('1:5')).toBeUndefined()
   })
 })

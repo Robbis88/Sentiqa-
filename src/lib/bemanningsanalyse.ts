@@ -557,3 +557,42 @@ export function kapasitet(
     dekning: planlagteTimer > 0 ? tilgjengelig / planlagteTimer : 0,
   }
 }
+
+/**
+ * Samme tak, men fra en ferdig aggregert ukeprofil.
+ *
+ * `rader` er (ukedag, time, antall, ganger) — hvor mange ganger stasjonen
+ * har hatt nøyaktig `antall` personer på jobb den ukedagen og timen.
+ * Regnet i basen, fordi datoene bak er titusenvis av rader og PostgREST
+ * kutter på tusen: et tak bygget på et tilfeldig utvalg feiler ikke, det
+ * svarer bare litt galt, stille.
+ */
+export function takFraUkeprofil(
+  rader: { ukedag: number; time: number; antall: number; ganger: number }[],
+  opts: { andel?: number } = {},
+): Map<string, number> {
+  const andel = opts.andel ?? 0.1
+  const perCelle = new Map<string, { antall: number; ganger: number }[]>()
+  for (const r of rader) {
+    const k = `${r.ukedag}:${r.time}`
+    const liste = perCelle.get(k) ?? []
+    liste.push({ antall: r.antall, ganger: r.ganger })
+    perCelle.set(k, liste)
+  }
+
+  const tak = new Map<string, number>()
+  for (const [k, liste] of perCelle) {
+    const total = liste.reduce((a, x) => a + x.ganger, 0)
+    if (total === 0) continue
+    const hoyeste = Math.max(...liste.map((x) => x.antall))
+    let niva = 1
+    for (let n = hoyeste; n >= 1; n--) {
+      // Hvor mange ganger var det MINST n personer der?
+      const ganger = liste.filter((x) => x.antall >= n).reduce((a, x) => a + x.ganger, 0)
+      // Samme regel som historiskTak: minst to ganger OG minst andelen.
+      if (ganger >= 2 && ganger / total >= andel) { niva = n; break }
+    }
+    tak.set(k, niva)
+  }
+  return tak
+}

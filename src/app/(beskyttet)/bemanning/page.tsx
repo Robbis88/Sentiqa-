@@ -8,8 +8,8 @@ import {
 } from '@/lib/bemanning'
 import { dagsprofiler, datoerIMaaned, ukerIMaaned } from '@/lib/dagtyper'
 import {
-  formendring, formendringTekst, historiskTak, justerProfil, kapasitet,
-  planMotFaktisk, sammenlignStasjoner, stillingsanslag,
+  formendring, formendringTekst, justerProfil, kapasitet, planMotFaktisk,
+  sammenlignStasjoner, stillingsanslag, takFraUkeprofil,
 } from '@/lib/bemanningsanalyse'
 import {
   FastVaktSkjema, FravaerSkjema, KravSkjema, StillingSkjema, TakSkjema, VinduSkjema,
@@ -48,24 +48,57 @@ const tilVakt = (v: VaktRad): FastVakt => ({
   ukedag: v.ukedag, fraTime: v.fra_time, tilTime: v.til_time, timelonnet: v.timelonnet,
 })
 
-// Stemplingene: hva stasjonen FAKTISK har hatt på jobb. To ting hentes ut —
-// taket per ukedag × time (planen skal ikke foreslå to der de aldri har vært
-// to), og dagstrykket, som gir helligdagsfaktorene.
-async function hentStemplinger(
+// Stemplingene: hva stasjonen FAKTISK har hatt på jobb.
+//
+// Aggregert i basen, ikke her. Første versjon hentet rå stemplingsrader —
+// PostgREST kutter på 1000, og Dale har flere tusen. Taket,
+// helligdagsfaktorene, stillingsanslaget og plan-mot-virkelighet ble da
+// alle bygget på et tilfeldig utvalg. Ingen av dem feilet; de svarte bare
+// litt galt, stille, helt til stillingslisten ble tom.
+async function hentUkeprofil(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  stasjonId: string,
+) {
+  const { data } = await supabase
+    .from('v_stempling_ukeprofil')
+    .select('ukedag, time, antall, ganger')
+    .eq('stasjon_id', stasjonId)
+  return (data ?? []) as { ukedag: number; time: number; antall: number; ganger: number }[]
+}
+
+// Faktisk bemanning per dato og time — bare for måneden vi ser på.
+async function hentFaktisk(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  stasjonId: string,
+  fra: string,
+  til: string,
+) {
+  const { data } = await supabase
+    .from('v_stempling_time')
+    .select('dato, time, antall')
+    .eq('stasjon_id', stasjonId)
+    .gte('dato', fra)
+    .lte('dato', til)
+  const ut = new Map<string, number>()
+  for (const r of (data ?? []) as { dato: string; time: number; antall: number }[]) {
+    ut.set(`${r.dato}:${r.time}`, r.antall)
+  }
+  return ut
+}
+
+// Timer per ansatt per måned. Grunnlaget for stillingsanslaget.
+async function hentAnsattmaaneder(
   supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
   stasjonId: string,
   fra: string,
 ) {
   const { data } = await supabase
-    .from('stempling')
-    .select('dato, fra_tid, til_tid, minutter, ansatt_nr, ansatt_navn')
+    .from('v_stempling_ansatt_mnd')
+    .select('ansatt_nr, ansatt_navn, maaned, timer')
     .eq('stasjon_id', stasjonId)
-    .eq('betalt', true)
-    .gte('dato', fra)
-  return (data ?? []) as {
-    dato: string; fra_tid: string; til_tid: string; minutter: number
-    ansatt_nr: string; ansatt_navn: string
-  }[]
+    .gte('maaned', fra)
+  return (data ?? []) as
+    { ansatt_nr: string; ansatt_navn: string; maaned: string; timer: number }[]
 }
 
 // Døgnkurven for en periode. Brukes to ganger med samme kalenderperiode i
@@ -223,7 +256,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const iDag = naa.toISOString().slice(0, 10)
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
-    { data: grenser }, profilen, maanedskunder, dagskunder, stemplinger,
+    { data: grenser }, profilen, maanedskunder, dagskunder, ukeprofil, faktisk, ansattMnd,
     kurveIFjor, kurveIAar, { data: avtaler }, { data: fravaerRader },
     { data: forbrukRader }] =
     await Promise.all([
@@ -244,7 +277,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       hentMaanedskunder(supabase, valgt.id, ar),
       // To år tilbake: da har vi hver røde dag minst én gang, ofte to.
       hentDagskunder(supabase, valgt.id, `${ar - 2}-01-01`),
-      hentStemplinger(supabase, valgt.id, `${ar - 2}-01-01`),
+      hentUkeprofil(supabase, valgt.id),
+      hentFaktisk(supabase, valgt.id, `${ar}-${String(maned).padStart(2, '0')}-01`,
+        `${ar}-${String(maned).padStart(2, '0')}-31`),
+      hentAnsattmaaneder(supabase, valgt.id, `${ar - 2}-01-01`),
       // Samme kalenderperiode to år på rad. Stasjonene endrer seg hele
       // tiden, og en plan som arver fjorårets form uten å se etter om den
       // fortsatt stemmer, blir gradvis feil uten at noen merker det.
@@ -315,11 +351,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     dato: p.dato, ukedag: p.ukedag, faktor: p.faktor, rodFraTime: p.rodFraTime,
   }))
   // Taket: har de aldri vært to tirsdag 09, skal planen ikke foreslå det.
-  const tak = stemplinger.length > 0
-    ? historiskTak(stemplinger.map((s) => ({
-      dato: s.dato, fraTid: s.fra_tid.slice(0, 5), tilTid: s.til_tid.slice(0, 5),
-    })))
-    : undefined
+  const tak = ukeprofil.length > 0 ? takFraUkeprofil(ukeprofil) : undefined
 
   // Har formen flyttet seg siden i fjor, skal septemberplanen vite det —
   // ikke bare arve september i fjor. Er driften liten, står profilen som den er.
@@ -362,25 +394,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   for (const t of plan?.timer ?? []) dagsum.set(t.dato, (dagsum.get(t.dato) ?? 0) + t.sum)
   // Vaktene, ikke tallene. «3 personer klokka 12» kan ingen sette opp;
   // «10–15 og 11–16» er en timeplan.
-  // Plan mot virkelighet. Bare for dager som har vaert — en plan for
+  // Plan mot virkelighet. Bare for dager som har vært — en plan for
   // september kan ikke måles mot stemplinger som ikke finnes ennå.
-  const faktisk = new Map<string, number>()
-  for (const st of stemplinger) {
-    const fra = Number(st.fra_tid.slice(0, 2))
-    let til = st.til_tid.startsWith('00:') ? 24 : Number(st.til_tid.slice(0, 2))
-    if (til <= fra) til += 24
-    for (let t = fra; t < til; t++) {
-      const dato = t < 24
-        ? st.dato
-        : new Date(Date.parse(`${st.dato}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
-      const n = `${dato}:${t % 24}`
-      faktisk.set(n, (faktisk.get(n) ?? 0) + 1)
-    }
-  }
   const gaatt = plan?.timer.filter((t) => t.dato < iDag) ?? []
-  const avvik = gaatt.length > 0 && stemplinger.length > 0
-    ? planMotFaktisk(gaatt, faktisk)
-    : null
+  const avvik = gaatt.length > 0 && faktisk.size > 0 ? planMotFaktisk(gaatt, faktisk) : null
 
   // Stillingsprosent: anslått fra stemplingene, overstyrt av det
   // butikksjefen har bekreftet. Et lagret tall er et menneskes ord og
@@ -389,8 +406,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     ((avtaler ?? []) as { ansatt_nr: string; navn: string; stillingsprosent: number | null }[])
       .map((a) => [a.ansatt_nr, a]))
   const anslag = stillingsanslag(
-    stemplinger.map((st) => ({
-      ansattNr: st.ansatt_nr, navn: st.ansatt_navn, dato: st.dato, timer: st.minutter / 60,
+    ansattMnd.map((a) => ({
+      ansattNr: a.ansatt_nr, navn: a.ansatt_navn, dato: a.maaned, timer: Number(a.timer),
     })),
     iDag,
   )
