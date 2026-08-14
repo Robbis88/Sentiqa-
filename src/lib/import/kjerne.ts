@@ -31,7 +31,30 @@ type Lagring = { antallRader: number; umatchet: string[] }
 // under grensene, så store/mange filer ikke timer ut. Feiler en batch, sies
 // hvilken (resten av importen kan kjøres på nytt idempotent).
 const BATCH = 500
+
+// Postgres nekter to rader med samme konfliktnoekkel i EN upsert:
+// «ON CONFLICT DO UPDATE command cannot affect row a second time». Den
+// feilmeldingen sier ingenting om hvilken rad, og en importor som skal
+// vite dette om hver eneste tabell kommer til aa glemme det.
+//
+// Invarianten hoerer hjemme her, paa noeyaktig de kolonnene konflikten
+// gjelder. Siste rad vinner - kallerne sorterer selv slik at den de vil
+// beholde kommer sist (se utenDubletter i stempling.ts).
+function utenKonfliktdubletter(
+  rader: Record<string, unknown>[],
+  onConflict: string,
+): Record<string, unknown>[] {
+  const kolonner = onConflict.split(',').map((k) => k.trim()).filter(Boolean)
+  if (kolonner.length === 0) return rader
+  const sett = new Map<string, Record<string, unknown>>()
+  // JSON, ikke en skilletegn-streng: en verdi som selv inneholder skilletegnet
+  // ville ellers kunne kollidere med en annen kombinasjon.
+  for (const rad of rader) sett.set(JSON.stringify(kolonner.map((k) => rad[k])), rad)
+  return sett.size === rader.length ? rader : [...sett.values()]
+}
+
 async function skrivBatch(supabase: Klient, tabell: string, rader: Record<string, unknown>[], onConflict?: string): Promise<void> {
+  if (onConflict) rader = utenKonfliktdubletter(rader, onConflict)
   for (let i = 0; i < rader.length; i += BATCH) {
     const bit = rader.slice(i, i + BATCH)
     const { error } = onConflict
