@@ -11,7 +11,7 @@ import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
-import { parseStempling, gjenkjennStempling } from '@/lib/parsere/stempling'
+import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
 import { fordelPaaMaaneder } from '@/lib/bemanning'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
@@ -255,7 +255,9 @@ async function lagreStempling(
 
   const perStasjon = new Map<string, typeof r.stemplinger>()
   const umatchet = new Set<string>()
-  for (const s of r.stemplinger) {
+  // Dubletter maa vekk FOER upserten: to like noekler i samme setning gir
+  // «ON CONFLICT DO UPDATE command cannot affect row a second time».
+  for (const s of utenDubletter(r.stemplinger)) {
     const id = finnStasjon(s.lokasjon)
     if (!id) { umatchet.add(s.lokasjon || 'ukjent lokasjon'); continue }
     const liste = perStasjon.get(id) ?? []

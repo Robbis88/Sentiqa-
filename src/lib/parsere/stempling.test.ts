@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { erStemplingFil, parseStempling, vakter } from './stempling'
+import { erStemplingFil, parseStempling, utenDubletter, vakter } from './stempling'
 
 // Slik teksten faktisk ser ut etter PDF-utpakking: linjeskift midt i felter,
 // og navn med ø. Begge deler har brutt en parser her før.
@@ -127,5 +127,43 @@ describe('flere stasjoner i én fil', () => {
     const t = `${HODE} ${post(1, '1', 'A B', '12:00', '18:00', 6, 0)} `
       + '2 juli 2026 2 C D Betalt tid 12:00 18:00 6t 0m 6t 0m St1 - Laguneparken'
     expect(() => parseStempling(t)).toThrow(/flere stasjoner/)
+  })
+})
+
+describe('utenDubletter', () => {
+  const st = (nr: string, dato: string, fra: string, til: string, min: number) =>
+    ({ ansattNr: nr, ansattNavn: 'A B', dato, fraTid: fra, tilTid: til, minutter: min,
+      betalt: true, lokasjon: 'St1 - Bønes' })
+
+  test('feilstempling på null minutter viker for den ekte vakten', () => {
+    // Ekte rad fra april 2025: Lars stemplet inn og ut 05:00, så inn igjen.
+    const r = utenDubletter([
+      st('1009', '2025-04-03', '05:00', '05:00', 0),
+      st('1009', '2025-04-03', '05:00', '13:00', 480),
+    ])
+    expect(r).toHaveLength(1)
+    expect(r[0].minutter).toBe(480)
+  })
+
+  test('rekkefølgen spiller ingen rolle', () => {
+    const r = utenDubletter([
+      st('1009', '2025-04-03', '05:00', '13:00', 480),
+      st('1009', '2025-04-03', '05:00', '05:00', 0),
+    ])
+    expect(r[0].minutter).toBe(480)
+  })
+
+  test('to vakter samme dag med ulik start er ikke dubletter', () => {
+    expect(utenDubletter([
+      st('1', '2025-04-03', '06:00', '12:00', 360),
+      st('1', '2025-04-03', '18:00', '00:00', 360),
+    ])).toHaveLength(2)
+  })
+
+  test('to personer med samme starttid er ikke dubletter', () => {
+    expect(utenDubletter([
+      st('1', '2025-04-03', '06:00', '12:00', 360),
+      st('2', '2025-04-03', '06:00', '12:00', 360),
+    ])).toHaveLength(2)
   })
 })

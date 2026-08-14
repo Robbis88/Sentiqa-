@@ -218,6 +218,32 @@ export function parseStempling(tekst: string): StemplingResultat {
 }
 
 /**
+ * Fjerner dubletter paa (ansatt, dato, starttid).
+ *
+ * De finnes i ekte data, men sjelden: tre noekler i 5675 rader fra to
+ * stasjoner. Monsteret er alltid det samme - en stempling paa null
+ * minutter (05:00 -> 05:00) rett foran den ekte vakten (05:00 -> 13:00).
+ * Noen stemplet inn og ut paa samme minutt, og saa inn igjen.
+ *
+ * Den lengste beholdes. En feilstempling paa null minutter er stoy; den
+ * andre er en aatte timers arbeidsdag.
+ *
+ * Maa gjores foer lagring: basen har unik indeks paa de fire feltene, og
+ * to like noekler i samme upsert gir «ON CONFLICT DO UPDATE command cannot
+ * affect row a second time» - en feilmelding som ikke sier noe om at det
+ * er en feilstempling i april 2025 som er problemet.
+ */
+export function utenDubletter(stemplinger: Stempling[]): Stempling[] {
+  const beste = new Map<string, Stempling>()
+  for (const s of stemplinger) {
+    const noekkel = `${s.lokasjon}|${s.ansattNr}|${s.dato}|${s.fraTid}`
+    const forrige = beste.get(noekkel)
+    if (!forrige || s.minutter > forrige.minutter) beste.set(noekkel, s)
+  }
+  return [...beste.values()]
+}
+
+/**
  * Vakter, ikke stemplinger.
  *
  * Folk stempler ut og inn igjen på samme vakt — 13 av 132 postene i juli var
