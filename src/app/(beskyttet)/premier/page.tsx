@@ -55,13 +55,21 @@ export default async function PremierSide() {
           <h2>Tildel pengepremie</h2>
           <p className="undertittel">Gi en stasjon premiepenger utenom konkurranser (f.eks. ekstra innsats). Kun eier kan tildele.</p>
           <form action={tildelPremie} className="rutine-form">
-            <select name="stasjon_id" required defaultValue="">
-              <option value="" disabled>Stasjon …</option>
-              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-            </select>
-            <input name="beskrivelse" placeholder="f.eks. Toppinnsats i juli" required />
-            <input name="belop_kr" type="number" min="1" step="1" placeholder="kr" required style={{ maxWidth: '7rem' }} />
-            <input name="dato" type="date" />
+            <label className="felt"><span>Stasjon</span>
+              <select name="stasjon_id" required defaultValue="">
+                <option value="" disabled>Velg …</option>
+                {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+              </select>
+            </label>
+            <label className="felt"><span>Hva gjelder det?</span>
+              <input name="beskrivelse" placeholder="Toppinnsats i juli" required />
+            </label>
+            <label className="felt sq-smalt"><span>Beløp i kroner</span>
+              <input name="belop_kr" type="number" min="1" step="1" required />
+            </label>
+            <label className="felt sq-smalt"><span>Dato</span>
+              <input name="dato" type="date" />
+            </label>
             <button type="submit" className="liten">Tildel</button>
           </form>
         </section>
@@ -101,13 +109,21 @@ export default async function PremierSide() {
       <section className="kort">
         <h2>Registrer bruk</h2>
         <form action={registrerBruk} className="rutine-form">
-          <select name="stasjon_id" required defaultValue="">
-            <option value="" disabled>Stasjon …</option>
-            {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-          </select>
-          <input name="beskrivelse" placeholder="f.eks. Julebord" required />
-          <input name="belop_kr" type="number" min="1" step="1" placeholder="kr" required style={{ maxWidth: '7rem' }} />
-          <input name="dato" type="date" />
+          <label className="felt"><span>Stasjon</span>
+            <select name="stasjon_id" required defaultValue="">
+              <option value="" disabled>Velg …</option>
+              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+            </select>
+          </label>
+          <label className="felt"><span>Hva ble pengene brukt til?</span>
+            <input name="beskrivelse" placeholder="Julebord" required />
+          </label>
+          <label className="felt sq-smalt"><span>Beløp i kroner</span>
+            <input name="belop_kr" type="number" min="1" step="1" required />
+          </label>
+          <label className="felt sq-smalt"><span>Dato</span>
+            <input name="dato" type="date" />
+          </label>
           <button type="submit" className="liten">Lagre</button>
         </form>
       </section>

@@ -24,12 +24,18 @@ export default async function SkillsSide() {
       <section className="kort">
         <h2>Ny score</h2>
         <form action={registrerSkills} className="rutine-form">
+          <label className="felt"><span>Stasjon</span>
           <select name="stasjon_id" required defaultValue="">
             <option value="" disabled>Stasjon …</option>
             {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
           </select>
-          <input name="prosent" type="number" min="0" max="100" step="0.1" placeholder="%" required style={{ maxWidth: '6rem' }} />
-          <input name="kommentar" placeholder="Kommentar (valgfri)" />
+          </label>
+          <label className="felt sq-smalt"><span>Skills-score i prosent</span>
+            <input name="prosent" type="number" min="0" max="100" step="0.1" required />
+          </label>
+          <label className="felt"><span>Kommentar (valgfri)</span>
+            <input name="kommentar" />
+          </label>
           <button type="submit" className="liten">Lagre</button>
         </form>
       </section>
