@@ -185,6 +185,74 @@ export async function lagreTak(_t: Tilstand, fd: FormData): Promise<Tilstand> {
   }
 }
 
+// Tomt felt = «ikke bestemt», og da skal anslaget fra historikken gjelde.
+// Et lagret tall betyr at et menneske har sagt at dette er riktig, og det
+// skal aldri overskrives av en ny beregning.
+const Stilling = z.object({
+  stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
+  ansatt_nr: z.string().min(1),
+  navn: z.string().min(1),
+  stillingsprosent: z.union([
+    z.literal('').transform(() => null),
+    z.coerce.number().int().min(1).max(150),
+  ]),
+})
+
+export async function lagreStilling(_t: Tilstand, fd: FormData): Promise<Tilstand> {
+  const supabase = await klient()
+  if (!supabase) return { feil: 'Ikke tilgang.' }
+  const felt = Stilling.safeParse({
+    stasjon_id: fd.get('stasjon_id'),
+    ansatt_nr: fd.get('ansatt_nr'),
+    navn: fd.get('navn'),
+    stillingsprosent: fd.get('stillingsprosent') ?? '',
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  const { error } = await supabase.from('ansatt_avtale').upsert(
+    { ...felt.data, oppdatert_tid: new Date().toISOString() },
+    { onConflict: 'stasjon_id,ansatt_nr' },
+  )
+  if (error) return { feil: error.message }
+  revalidatePath('/bemanning')
+  return {
+    ok: felt.data.stillingsprosent === null
+      ? 'Tilbake til anslaget'
+      : `${felt.data.navn}: ${felt.data.stillingsprosent} %`,
+  }
+}
+
+const Fravaer = z.object({
+  stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
+  navn: z.string().min(1, { error: 'Velg hvem det gjelder.' }),
+  fra_dato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'Ugyldig fra-dato.' }),
+  til_dato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'Ugyldig til-dato.' }),
+  arsak: z.string().optional(),
+}).refine((v) => v.til_dato >= v.fra_dato, { error: 'Til-dato kan ikke være før fra-dato.' })
+
+export async function leggTilFravaer(_t: Tilstand, fd: FormData): Promise<Tilstand> {
+  const supabase = await klient()
+  if (!supabase) return { feil: 'Ikke tilgang.' }
+  const felt = Fravaer.safeParse({
+    stasjon_id: fd.get('stasjon_id'),
+    navn: fd.get('navn'),
+    fra_dato: fd.get('fra_dato'),
+    til_dato: fd.get('til_dato'),
+    arsak: fd.get('arsak'),
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  const { error } = await supabase.from('bemanning_fravaer').insert({
+    ...felt.data, arsak: felt.data.arsak || null,
+  })
+  if (error) return { feil: error.message }
+  revalidatePath('/bemanning')
+  // Antall dager sier hvor mye det faktisk flytter — «Lagret» sier ingenting.
+  const dager = Math.round(
+    (Date.parse(felt.data.til_dato) - Date.parse(felt.data.fra_dato)) / 86400000) + 1
+  return { ok: `${felt.data.navn} borte i ${dager} ${dager === 1 ? 'dag' : 'dager'}` }
+}
+
 async function slett(tabell: string, fd: FormData) {
   const supabase = await klient()
   if (!supabase) return
@@ -197,3 +265,4 @@ async function slett(tabell: string, fd: FormData) {
 export async function slettFastVakt(fd: FormData) { await slett('bemanning_fast_vakt', fd) }
 export async function slettKrav(fd: FormData) { await slett('bemanning_krav', fd) }
 export async function slettVindu(fd: FormData) { await slett('bemanning_vindu', fd) }
+export async function slettFravaer(fd: FormData) { await slett('bemanning_fravaer', fd) }

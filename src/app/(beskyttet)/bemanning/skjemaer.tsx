@@ -1,6 +1,9 @@
 'use client'
 import { useActionState } from 'react'
-import { lagreTak, lagreVindu, leggTilFastVakt, leggTilKrav, type Tilstand } from './handlinger'
+import {
+  lagreStilling, lagreTak, lagreVindu, leggTilFastVakt, leggTilFravaer, leggTilKrav,
+  type Tilstand,
+} from './handlinger'
 
 const UKEDAGER = [
   { nr: 1, kort: 'man' }, { nr: 2, kort: 'tir' }, { nr: 3, kort: 'ons' },
@@ -182,6 +185,81 @@ export function TakSkjema({ stasjonId, naa }: { stasjonId: string; naa: number |
       <div className="sq-skjema-bunn">
         <button type="submit" className="sq-knapp primar" disabled={venter}>
           {venter ? 'Lagrer …' : 'Lagre'}
+        </button>
+        <Svar tilstand={tilstand} />
+      </div>
+    </form>
+  )
+}
+
+// Stillingsprosent: systemet anslår, butikksjefen retter. Feltet står med
+// anslaget som placeholder og tomt som verdi — tomt betyr «ikke bestemt»,
+// og da gjelder anslaget. Skriver hun et tall, er det hennes.
+export function StillingSkjema({
+  stasjonId, ansattNr, navn, lagret, anslag,
+}: {
+  stasjonId: string; ansattNr: string; navn: string
+  lagret: number | null; anslag: number
+}) {
+  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreStilling, undefined)
+  return (
+    <form action={handling} className="stilling-rad">
+      <input type="hidden" name="stasjon_id" value={stasjonId} />
+      <input type="hidden" name="ansatt_nr" value={ansattNr} />
+      <input type="hidden" name="navn" value={navn} />
+      <input
+        name="stillingsprosent"
+        type="number"
+        min={1}
+        max={150}
+        step={5}
+        defaultValue={lagret ?? ''}
+        placeholder={String(anslag)}
+        aria-label={`Stillingsprosent for ${navn}`}
+      />
+      <span aria-hidden>%</span>
+      <button type="submit" className="liten" disabled={venter}>
+        {venter ? '…' : 'Lagre'}
+      </button>
+      <Svar tilstand={tilstand} />
+    </form>
+  )
+}
+
+// Fravær. Butikksjefens fem uker er den enkeltposten som flytter mest —
+// er han borte, dekker ikke den faste vakten gulvet, og timene må kjøpes.
+export function FravaerSkjema({ stasjonId, navn }: { stasjonId: string; navn: string[] }) {
+  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilFravaer, undefined)
+  return (
+    <form action={handling} className="sq-skjema">
+      <input type="hidden" name="stasjon_id" value={stasjonId} />
+      <div className="sq-skjema-rad">
+        <label className="felt">
+          <span>Hvem er borte?</span>
+          {navn.length > 0 ? (
+            <select name="navn" required defaultValue={navn[0]}>
+              {navn.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
+            <input name="navn" required placeholder="Butikksjef" />
+          )}
+        </label>
+        <label className="felt sq-smalt">
+          <span>Fra og med</span>
+          <input name="fra_dato" type="date" required />
+        </label>
+        <label className="felt sq-smalt">
+          <span>Til og med</span>
+          <input name="til_dato" type="date" required />
+        </label>
+        <label className="felt">
+          <span>Hvorfor?</span>
+          <input name="arsak" placeholder="Ferie" />
+        </label>
+      </div>
+      <div className="sq-skjema-bunn">
+        <button type="submit" className="sq-knapp primar" disabled={venter}>
+          {venter ? 'Legger til …' : 'Legg til'}
         </button>
         <Svar tilstand={tilstand} />
       </div>

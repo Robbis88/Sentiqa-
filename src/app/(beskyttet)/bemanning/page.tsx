@@ -8,10 +8,13 @@ import {
 } from '@/lib/bemanning'
 import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
 import {
-  formendring, formendringTekst, historiskTak, justerProfil, planMotFaktisk,
+  formendring, formendringTekst, historiskTak, justerProfil, kapasitet,
+  planMotFaktisk, stillingsanslag,
 } from '@/lib/bemanningsanalyse'
-import { FastVaktSkjema, KravSkjema, TakSkjema, VinduSkjema } from './skjemaer'
-import { slettFastVakt, slettKrav, slettVindu } from './handlinger'
+import {
+  FastVaktSkjema, FravaerSkjema, KravSkjema, StillingSkjema, TakSkjema, VinduSkjema,
+} from './skjemaer'
+import { slettFastVakt, slettFravaer, slettKrav, slettVindu } from './handlinger'
 
 const UKEDAG = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn']
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
@@ -55,11 +58,14 @@ async function hentStemplinger(
 ) {
   const { data } = await supabase
     .from('stempling')
-    .select('dato, fra_tid, til_tid, minutter')
+    .select('dato, fra_tid, til_tid, minutter, ansatt_nr, ansatt_navn')
     .eq('stasjon_id', stasjonId)
     .eq('betalt', true)
     .gte('dato', fra)
-  return (data ?? []) as { dato: string; fra_tid: string; til_tid: string; minutter: number }[]
+  return (data ?? []) as {
+    dato: string; fra_tid: string; til_tid: string; minutter: number
+    ansatt_nr: string; ansatt_navn: string
+  }[]
 }
 
 // Døgnkurven for en periode. Brukes to ganger med samme kalenderperiode i
@@ -218,7 +224,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
     { data: grenser }, profilen, maanedskunder, dagskunder, stemplinger,
-    kurveIFjor, kurveIAar] =
+    kurveIFjor, kurveIAar, { data: avtaler }, { data: fravaerRader }] =
     await Promise.all([
       // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
       // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
@@ -243,6 +249,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       // fortsatt stemmer, blir gradvis feil uten at noen merker det.
       hentDognkurve(supabase, valgt.id, `${ar - 1}-01-01`, `${ar - 1}-${forrigeMnd}-28`),
       hentDognkurve(supabase, valgt.id, `${ar}-01-01`, `${ar}-${forrigeMnd}-28`),
+      supabase.from('ansatt_avtale').select('ansatt_nr, navn, stillingsprosent')
+        .eq('stasjon_id', valgt.id),
+      supabase.from('bemanning_fravaer').select('id, navn, fra_dato, til_dato, arsak')
+        .eq('stasjon_id', valgt.id).order('fra_dato', { ascending: false }),
     ])
   const maksBemanning = grenser?.maks_bemanning ?? undefined
 
@@ -271,10 +281,16 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     ? vekter.map((v, i) => ({ maned: i + 1, timer: v * aarssum }))
     : []
 
+  // Fraværet er det som gjør at butikksjefens fem uker HENTER timer i
+  // stedet for å spare dem: står han ikke der, dekker ikke den faste
+  // vakten gulvet, og timene må kjøpes.
+  const fravaerListe = (fravaerRader ?? []) as
+    { id: string; navn: string; fra_dato: string; til_dato: string; arsak: string | null }[]
   const oppsett = {
     vinduer: [...gjeldende.values()].map(tilVindu),
     krav: kravListe.map(tilKrav),
-    fasteVakter: vaktListe.map(tilVakt),
+    fasteVakter: vaktListe.map((v) => ({ ...tilVakt(v), navn: v.navn })),
+    fravaer: fravaerListe.map((f) => ({ navn: f.navn, fraDato: f.fra_dato, tilDato: f.til_dato })),
   }
   // Årsfordelingen først — gulvet i alle tolv månedene, så resten etter
   // bruttokurven. Det er den som avgjør hva denne måneden faktisk har.
@@ -344,6 +360,29 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const gaatt = plan?.timer.filter((t) => t.dato < iDag) ?? []
   const avvik = gaatt.length > 0 && stemplinger.length > 0
     ? planMotFaktisk(gaatt, faktisk)
+    : null
+
+  // Stillingsprosent: anslått fra stemplingene, overstyrt av det
+  // butikksjefen har bekreftet. Et lagret tall er et menneskes ord og
+  // skal aldri overskrives av en ny beregning.
+  const lagredeAvtaler = new Map(
+    ((avtaler ?? []) as { ansatt_nr: string; navn: string; stillingsprosent: number | null }[])
+      .map((a) => [a.ansatt_nr, a]))
+  const anslag = stillingsanslag(
+    stemplinger.map((st) => ({
+      ansattNr: st.ansatt_nr, navn: st.ansatt_navn, dato: st.dato, timer: st.minutter / 60,
+    })),
+    iDag,
+  )
+  const stillinger = anslag.map((a) => ({
+    ...a,
+    lagret: lagredeAvtaler.get(a.ansattNr)?.stillingsprosent ?? null,
+  }))
+  const kap = plan
+    ? kapasitet(
+      stillinger.map((s) => ({ anslagProsent: s.lagret ?? s.anslagProsent, aktiv: s.aktiv })),
+      plan.bundneTimer + plan.brukteTimer,
+    )
     : null
 
   const vakterPerDag = new Map<string, ReturnType<typeof vaktliste>>()
@@ -600,6 +639,85 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </p>
         <TakSkjema stasjonId={valgt.id} naa={grenser?.maks_bemanning ?? null} />
       </section>
+
+      <section className="kort">
+        <h2>Ferie og fravær</h2>
+        <p className="undertittel">
+          Er en fast vakt borte, dekker den ikke minimumsbemanningen lenger, og timene må
+          kjøpes av rammen. Fem ukers ferie <strong>henter</strong> timer — den sparer dem ikke.
+        </p>
+        <FravaerSkjema stasjonId={valgt.id} navn={[...new Set(vaktListe.map((v) => v.navn))]} />
+        {fravaerListe.length > 0 && (
+          <table className="tabell">
+            <thead><tr><th>Hvem</th><th>Fra</th><th>Til</th><th>Hvorfor</th><th></th></tr></thead>
+            <tbody>
+              {fravaerListe.map((f) => (
+                <tr key={f.id}>
+                  <td>{f.navn}</td>
+                  <td>{f.fra_dato}</td>
+                  <td>{f.til_dato}</td>
+                  <td>{f.arsak ?? '—'}</td>
+                  <td>
+                    <form action={slettFravaer}>
+                      <input type="hidden" name="id" value={f.id} />
+                      <button type="submit" className="liten slett">Slett</button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {stillinger.length > 0 && (
+        <section className="kort">
+          <h2>Hvor mye går folk i?</h2>
+          <p className="undertittel">
+            Anslått fra stemplingene — medianmåneden, så ferie og sykdom ikke drar tallet ned.
+            Står feltet tomt, gjelder anslaget. Skriver du et tall, er det ditt, og systemet
+            regner aldri over det.
+          </p>
+          {kap && (
+            <p>
+              <strong>{Math.round(kap.tilgjengelig)} timer</strong> i stillinger mot{' '}
+              <strong>{Math.round(kap.planlagt)}</strong> planlagt.
+              {kap.dekning < 0.95
+                ? ' Stillingene rekker ikke — noen må ta ekstravakter uansett hvor god planen er.'
+                : kap.dekning > 1.15
+                  ? ' Det er mer stilling enn plan — noen får ikke timene sine denne måneden.'
+                  : ' Det går opp.'}
+            </p>
+          )}
+          <table className="tabell">
+            <thead>
+              <tr><th>Navn</th><th>Median/mnd</th><th>Anslag</th><th>Bekreftet</th><th>Grunnlag</th></tr>
+            </thead>
+            <tbody>
+              {stillinger.map((s) => (
+                <tr key={s.ansattNr} className={s.aktiv ? undefined : 'undertittel'}>
+                  <td>{s.navn}{s.aktiv ? '' : ' (sluttet?)'}</td>
+                  <td>{Math.round(s.medianMnd)} t</td>
+                  <td>{s.anslagProsent} %</td>
+                  <td>
+                    <StillingSkjema
+                      stasjonId={valgt.id}
+                      ansattNr={s.ansattNr}
+                      navn={s.navn}
+                      lagret={s.lagret}
+                      anslag={s.anslagProsent}
+                    />
+                  </td>
+                  <td className="undertittel">
+                    {s.maaneder} {s.maaneder === 1 ? 'måned' : 'måneder'}
+                    {s.maaneder < 3 ? ' — tynt' : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="kort">
         <h2>Faste vakter</h2>

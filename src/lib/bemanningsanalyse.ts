@@ -418,3 +418,111 @@ export function formendringTekst(e: Formendring, ukedager: string[]): string | n
   return `Kundeformen har flyttet seg siden i fjor — ${deler.join(', ')}. `
     + 'Planen er justert etter det, ikke bare arvet fra fjoråret.'
 }
+
+// =====================================================================
+// Hvor mye går folk i?
+//
+// «Alle skal få timene sine» krever at systemet vet hva folk har krav
+// på. Det tallet finnes ikke i noen fil vi får. Men å be butikksjefen
+// taste inn stillingsprosent for femten personer er å be om noe hun
+// ikke kommer til å gjøre — hun planlegger på hukommelse nettopp fordi
+// det å hente tall er arbeid.
+//
+// Så vi gjetter først, og lar henne rette. 19 måneder med stemplinger
+// sier omtrent hva folk går i.
+//
+// MEDIANMÅNEDEN, ikke snittet. Snittet drukner i ferie, sykdom og den
+// ene måneden noen tok ekstravakter for hele huset. Medianen er «en
+// vanlig måned for denne personen», og det er det stillingsprosenten
+// skal beskrive.
+// =====================================================================
+
+/** 100 % = 37,5 t/uke ≈ 162,5 t/mnd. Norsk standard. */
+export const TIMER_PER_MND_100 = 162.5
+
+export type AnsattForbruk = { ansattNr: string; navn: string; dato: string; timer: number }
+
+export type Stillingsanslag = {
+  ansattNr: string
+  navn: string
+  /** Median av de hele månedene personen har jobbet. */
+  medianMnd: number
+  anslagProsent: number
+  /** Hele måneder anslaget bygger på. Under 3 er det en gjetning. */
+  maaneder: number
+  sisteMnd: string | null
+  /** Har personen sluttet? Ingen timer på tre måneder. */
+  aktiv: boolean
+}
+
+/**
+ * Anslår stillingsprosent per ansatt fra faktiske timer.
+ *
+ * `tilDato` er dagen anslaget regnes fra — inneværende måned utelates,
+ * for den er ikke ferdig og ville dratt alle ned.
+ */
+export function stillingsanslag(
+  forbruk: AnsattForbruk[],
+  tilDato: string,
+): Stillingsanslag[] {
+  const inneVaerende = tilDato.slice(0, 7)
+  const perPerson = new Map<string, { navn: string; mnd: Map<string, number> }>()
+
+  for (const f of forbruk) {
+    const mnd = f.dato.slice(0, 7)
+    if (mnd >= inneVaerende) continue
+    const p = perPerson.get(f.ansattNr) ?? { navn: f.navn, mnd: new Map() }
+    p.navn = f.navn // nyeste navn vinner — folk gifter seg
+    p.mnd.set(mnd, (p.mnd.get(mnd) ?? 0) + f.timer)
+    perPerson.set(f.ansattNr, p)
+  }
+
+  // Tre måneder tilbake fra siste hele måned: har man ikke stemplet på
+  // så lenge, er man sluttet eller i permisjon, og skal ikke telle med
+  // når timene skal fordeles.
+  const grense = (() => {
+    const d = new Date(`${inneVaerende}-01T12:00:00Z`)
+    d.setUTCMonth(d.getUTCMonth() - 3)
+    return d.toISOString().slice(0, 7)
+  })()
+
+  return [...perPerson]
+    .map(([ansattNr, p]) => {
+      const maaneder = [...p.mnd.values()]
+      const m = median(maaneder)
+      const siste = [...p.mnd.keys()].sort().pop() ?? null
+      return {
+        ansattNr,
+        navn: p.navn,
+        medianMnd: m,
+        // Rundes til nærmeste 5 %. Et anslag på 37,4 % later som om det
+        // er målt; 35 % ser ut som det det er.
+        anslagProsent: Math.round((m / TIMER_PER_MND_100) * 100 / 5) * 5,
+        maaneder: maaneder.length,
+        sisteMnd: siste,
+        aktiv: siste !== null && siste >= grense,
+      }
+    })
+    .sort((a, b) => b.medianMnd - a.medianMnd)
+}
+
+/**
+ * Har stasjonen folk nok til å fylle planen?
+ *
+ * Summen av stillingene mot timene planen krever. Ligger stillingene
+ * under, må noen ta ekstravakter uansett hvor god planen er — og det er
+ * en bemanningssak, ikke en planleggingssak.
+ */
+export function kapasitet(
+  stillinger: { anslagProsent: number; aktiv: boolean }[],
+  planlagteTimer: number,
+): { tilgjengelig: number; planlagt: number; dekning: number } {
+  const tilgjengelig = stillinger
+    .filter((s) => s.aktiv)
+    .reduce((a, s) => a + (s.anslagProsent / 100) * TIMER_PER_MND_100, 0)
+  return {
+    tilgjengelig,
+    planlagt: planlagteTimer,
+    dekning: planlagteTimer > 0 ? tilgjengelig / planlagteTimer : 0,
+  }
+}

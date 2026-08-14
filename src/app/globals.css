@@ -1467,3 +1467,5 @@ button.liten { min-height: 40px; }
 .bem-kalender td.rod-time { background: rgba(180, 35, 42, 0.07); }
 .bem-vakt-tittel { margin: 1.5rem 0 0.25rem; font-size: 1rem; }
 .tabell tr.rod-dag td:first-child { color: var(--rod, #b4232a); }
+.stilling-rad { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.stilling-rad input { width: 4.5rem; }

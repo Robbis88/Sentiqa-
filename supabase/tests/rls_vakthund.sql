@@ -40,6 +40,8 @@ declare
     -- Stemplinger (0088). Vokser med drift: ~130 rader per stasjon per
     -- maaned, og leses per time mot timesalg naar plan males mot faktisk.
     'stempling',
+    -- Ansatte og fravaer (0089). Faa rader, men leses i hver planberegning.
+    'ansatt_avtale', 'bemanning_fravaer',
     -- Leses paa hver forside for aa filtrere feeden (0083).
     'signal_lukket'
   ];
