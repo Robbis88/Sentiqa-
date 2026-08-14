@@ -114,9 +114,10 @@ describe('fordelAaret', () => {
   })
 })
 
-// Én stasjon, én ukedag, åpent 06-10, for å kunne regne i hodet.
-const vindu = (minBemanning = 1): Vindu[] => [
-  { ukedag: 1, fraTime: 6, tilTime: 10, minBemanning },
+// Én stasjon, én ukedag, åpent 06-18 (tolv timer) — langt nok til at en
+// femtimersvakt faktisk får plass.
+const vindu = (minBemanning = 1, fra = 6, til = 18): Vindu[] => [
+  { ukedag: 1, fraTime: fra, tilTime: til, minBemanning },
 ]
 const profil = (verdier: Record<number, number>) =>
   new Map(Object.entries(verdier).map(([t, v]) => [`1:${t}`, v]))
@@ -126,7 +127,7 @@ describe('planleggMaaned', () => {
     const p = planleggMaaned({
       disponibleTimer: 100,
       ar: 2026, maned: 1,
-      vinduer: vindu(1),
+      vinduer: vindu(1, 6, 10), // kort vindu, saa regnestykket gaar i hodet
       krav: [],
       fasteVakter: [{ ukedag: 1, fraTime: 6, tilTime: 8 }], // dekker 06 og 07
       profil: profil({ 6: 0, 7: 0, 8: 0, 9: 0 }),
@@ -143,7 +144,7 @@ describe('planleggMaaned', () => {
     const p = planleggMaaned({
       disponibleTimer: 200,
       ar: 2026, maned: 1,
-      vinduer: vindu(1),
+      vinduer: vindu(1, 6, 10),
       krav: [{ ukedag: 1, fraTime: 6, tilTime: 8, antall: 2 }],
       fasteVakter: [],
       profil: profil({ 6: 0, 7: 0, 8: 0, 9: 0 }),
@@ -152,43 +153,63 @@ describe('planleggMaaned', () => {
     expect(p.timer.find((r) => r.time === 8)?.gulv).toBe(1)
   })
 
-  test('en rolig time får aldri to før hver travlere time har fått sin', () => {
-    // Kunder: 06=2, 07=40, 08=30, 09=20. Budsjett til noen få ekstra.
+  test('ekstrabemanning kommer som sammenhengende vakter, aldri lose timer', () => {
     const mandager = dagerPerUkedag(2026, 1)[1]
     const p = planleggMaaned({
-      disponibleTimer: 4 * mandager + 3 * mandager, // gulv + tre ekstra personer
+      disponibleTimer: 12 * mandager + 6 * mandager, // gulv + rom for en vakt
       ar: 2026, maned: 1,
       vinduer: vindu(1),
-      krav: [],
-      fasteVakter: [],
-      profil: profil({ 6: 2, 7: 40, 8: 30, 9: 20 }),
+      krav: [], fasteVakter: [],
+      // Rush midt paa dagen, dodt i kantene.
+      profil: profil({ 6: 1, 7: 2, 8: 3, 9: 30, 10: 40, 11: 45, 12: 50, 13: 40, 14: 20, 15: 5, 16: 2, 17: 1 }),
     })
-    const f = (t: number) => p.timer.find((r) => r.time === t)!
-    // Den rolige timen står med én. Det er hele poenget.
-    expect(f(6).ekstra).toBe(0)
-    expect(f(6).sum).toBe(1)
-    // Og bemanningen er monoton i kundetrykk: ingen roligere time har flere
-    // folk enn en travlere. (07 får sin tredje før 09 får sin andre, fordi
-    // 40/3 fortsatt er dårligere dekning enn 20/2 — det er meningen.)
-    const sortert = [...p.timer].sort((a, b) => b.kunder - a.kunder)
-    for (let i = 1; i < sortert.length; i++) {
-      expect(sortert[i].sum).toBeLessThanOrEqual(sortert[i - 1].sum)
+    const medEkstra = p.timer.filter((r) => r.ekstra > 0).map((r) => r.time).sort((a, b) => a - b)
+    expect(medEkstra.length).toBeGreaterThanOrEqual(5)
+    // Sammenhengende: ingen hull i blokken.
+    for (let i = 1; i < medEkstra.length; i++) {
+      expect(medEkstra[i] - medEkstra[i - 1]).toBe(1)
     }
-    expect(f(7).sum).toBeGreaterThan(f(9).sum)
   })
 
-  test('en time med kraftig trykk får tre, fire og fem når budsjettet rekker', () => {
+  test('en vakt legges der kundene er, ikke i de dode timene', () => {
     const mandager = dagerPerUkedag(2026, 1)[1]
     const p = planleggMaaned({
-      disponibleTimer: 4 * mandager + 8 * mandager,
+      disponibleTimer: 12 * mandager + 5 * mandager,
       ar: 2026, maned: 1,
       vinduer: vindu(1),
-      krav: [],
-      fasteVakter: [],
-      profil: profil({ 6: 1, 7: 5, 8: 200, 9: 10 }),
+      krav: [], fasteVakter: [],
+      profil: profil({ 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 60, 13: 60, 14: 60, 15: 60, 16: 60, 17: 1 }),
     })
-    expect(p.timer.find((r) => r.time === 8)!.sum).toBeGreaterThanOrEqual(5)
-    expect(p.timer.find((r) => r.time === 6)!.sum).toBe(1)
+    const f = (t: number) => p.timer.find((r) => r.time === t)!
+    expect(f(12).ekstra).toBe(1)
+    expect(f(16).ekstra).toBe(1)
+    expect(f(6).ekstra).toBe(0)
+  })
+
+  test('for kort vindu gir ingen ekstravakt i det hele tatt', () => {
+    const mandager = dagerPerUkedag(2026, 1)[1]
+    const p = planleggMaaned({
+      disponibleTimer: 4 * mandager + 20 * mandager,
+      ar: 2026, maned: 1,
+      vinduer: vindu(1, 6, 10), // fire timer - ingen femtimersvakt faar plass
+      krav: [], fasteVakter: [],
+      profil: profil({ 6: 50, 7: 50, 8: 50, 9: 50 }),
+    })
+    expect(p.timer.every((r) => r.ekstra === 0)).toBe(true)
+    expect(p.brukteTimer).toBe(0)
+  })
+
+  test('kortere minstevakt slipper til der vinduet er smalt', () => {
+    const mandager = dagerPerUkedag(2026, 1)[1]
+    const p = planleggMaaned({
+      disponibleTimer: 4 * mandager + 20 * mandager,
+      ar: 2026, maned: 1,
+      vinduer: vindu(1, 6, 10),
+      krav: [], fasteVakter: [],
+      profil: profil({ 6: 50, 7: 50, 8: 50, 9: 50 }),
+      minVaktTimer: 4,
+    })
+    expect(p.timer.every((r) => r.ekstra > 0)).toBe(true)
   })
 
   test('timer uten kunder får aldri ekstra bemanning', () => {
@@ -198,7 +219,7 @@ describe('planleggMaaned', () => {
       vinduer: vindu(1),
       krav: [],
       fasteVakter: [],
-      profil: profil({ 6: 0, 7: 0, 8: 0, 9: 0 }),
+      profil: profil({ 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0 }),
     })
     expect(p.timer.every((r) => r.ekstra === 0)).toBe(true)
     expect(p.brukteTimer).toBe(0)
@@ -207,12 +228,12 @@ describe('planleggMaaned', () => {
   test('maksBemanning respekteres', () => {
     const mandager = dagerPerUkedag(2026, 1)[1]
     const p = planleggMaaned({
-      disponibleTimer: 4 * mandager + 20 * mandager,
+      disponibleTimer: 12 * mandager + 100 * mandager,
       ar: 2026, maned: 1,
       vinduer: vindu(1),
       krav: [],
       fasteVakter: [],
-      profil: profil({ 6: 10, 7: 10, 8: 10, 9: 10 }),
+      profil: new Map([...Array(12).keys()].map((i) => [`1:${i + 6}`, 10] as [string, number])),
       maksBemanning: 3,
     })
     expect(Math.max(...p.timer.map((r) => r.sum))).toBe(3)
@@ -221,9 +242,9 @@ describe('planleggMaaned', () => {
   test('flagger at planen ikke er gjennomførbar når gulvet er dyrere enn rammen', () => {
     const mandager = dagerPerUkedag(2026, 1)[1]
     const p = planleggMaaned({
-      disponibleTimer: 2 * mandager, // gulvet koster 4 personer x mandager
+      disponibleTimer: 2 * mandager, // gulvet koster 4 timer x mandager
       ar: 2026, maned: 1,
-      vinduer: vindu(1),
+      vinduer: vindu(1, 6, 10),
       krav: [],
       fasteVakter: [],
       profil: profil({ 6: 5, 7: 5, 8: 5, 9: 5 }),

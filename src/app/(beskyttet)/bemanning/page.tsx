@@ -286,7 +286,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         <h2>Faste vakter</h2>
         <p className="undertittel">
           Deg selv, NK, eller andre som alltid står. De går på fastlønn og bruker ikke av timerammen,
-          men dekker minimumsbemanningen i timene de står.
+          men dekker minimumsbemanningen i timene de står. Gjelder bare de som faktisk har fastlønn —
+          føres en timelønnet inn her, tror planen at de timene er gratis.
         </p>
         <FastVaktSkjema stasjonId={valgt.id} />
         {vaktListe.length > 0 && (

@@ -75,6 +75,11 @@ export type Plan = {
   underskudd: number // timer som mangler når gjennomforbar er false
 }
 
+// Korteste vakt som lar seg sette opp i praksis. Robert oppga 5 timer, med
+// forbehold — derfor en navngitt konstant og en parameter, ikke et tall spredt
+// i logikken. Endres den, endres den ett sted.
+export const MIN_VAKT_TIMER = 5
+
 const iVindu = (t: number, fra: number, til: number) => t >= fra && t < til
 
 // Antall av hver ukedag i måneden, isodow-indeksert (1–7).
@@ -202,9 +207,13 @@ export function planleggMaaned(opts: {
   fasteVakter: FastVakt[]
   profil: Map<string, number> // `${ukedag}:${time}` → snitt innekunder
   maksBemanning?: number // fysisk tak, f.eks. antall kasser
+  /** Korteste vakt som lar seg sette opp. Under dette blir forslaget
+      teoretisk — ingen kalles inn for to timer. */
+  minVaktTimer?: number
 }): Plan {
   const { disponibleTimer, ar, maned, vinduer, krav, fasteVakter, profil } = opts
   const maks = opts.maksBemanning ?? Number.POSITIVE_INFINITY
+  const minVaktTimer = Math.max(1, opts.minVaktTimer ?? MIN_VAKT_TIMER)
   const antall = dagerPerUkedag(ar, maned)
 
   // 1) Bundet lag. Faste vakter går på fastlønn og belaster ikke rammen,
@@ -245,31 +254,79 @@ export function planleggMaaned(opts: {
     }
   }
 
-  // 2) Fritt lag — hele personer, D'Hondt, til budsjettet er brukt opp.
+  // 2) Fritt lag — hele VAKTER, ikke løse timer.
+  //
+  // Den forrige versjonen delte ut én person til én time om gangen. Det ga
+  // riktig form på kurven, men foreslo vakter på én og to timer — som ingen
+  // kan settes opp. En plan som ikke lar seg bemanne er ikke en plan.
+  //
+  // Nå deles det ut sammenhengende blokker på minst minVaktTimer. Vi prøver
+  // hver mulige start og lengde, og tar den blokken som gir mest kundedekning
+  // per krone. D'Hondt-tanken er den samme — kunder delt på bemanning etter
+  // at personen er lagt til — bare regnet over blokken i stedet for timen.
+  const indeks = new Map<string, number>()
+  rader.forEach((r, i) => indeks.set(`${r.ukedag}:${r.time}`, i))
+
+  // Sammenhengende timer per ukedag, så en blokk aldri spenner over et hull
+  // i det bemannede vinduet.
+  const kjeder = new Map<number, number[]>()
+  for (const r of rader) {
+    const liste = kjeder.get(r.ukedag) ?? []
+    liste.push(r.time)
+    kjeder.set(r.ukedag, liste)
+  }
+  for (const liste of kjeder.values()) liste.sort((a, b) => a - b)
+
   let igjen = frieTimer
   let brukteTimer = 0
+
   for (;;) {
-    let beste = -1
+    let beste: { rader: number[]; kost: number } | null = null
     let besteVerdi = 0
-    for (let i = 0; i < rader.length; i++) {
-      const r = rader[i]
-      if (r.kunder <= 0) continue // ingen kunder: aldri ekstra bemanning
-      if (r.sum >= maks) continue
-      const kost = antall[r.ukedag]
-      if (kost <= 0 || kost > igjen) continue // har ikke råd til denne ukedagen
-      const verdi = r.kunder / (r.sum + 1)
-      if (verdi > besteVerdi) {
-        besteVerdi = verdi
-        beste = i
+
+    for (const [ukedag, timer] of kjeder) {
+      const dager = antall[ukedag]
+      if (dager <= 0) continue
+
+      for (let start = 0; start < timer.length; start++) {
+        for (let lengde = minVaktTimer; start + lengde <= timer.length; lengde++) {
+          // Sammenhengende? Ellers hopper blokken over en stengt time.
+          if (timer[start + lengde - 1] - timer[start] !== lengde - 1) break
+
+          const idxer: number[] = []
+          let kunder = 0
+          let bemanningEtter = 0
+          let plass = true
+          for (let k = 0; k < lengde; k++) {
+            const i = indeks.get(`${ukedag}:${timer[start + k]}`)
+            if (i === undefined) { plass = false; break }
+            const r = rader[i]
+            if (r.sum >= maks) { plass = false; break }
+            idxer.push(i)
+            kunder += r.kunder
+            bemanningEtter += r.sum + 1
+          }
+          if (!plass || kunder <= 0) continue
+
+          const kost = lengde * dager
+          if (kost > igjen) continue
+
+          // Kunder per bemanning over blokken. Timer uten kunder trekker ned,
+          // så en blokk som strekker seg inn i den døde kvelden taper mot en
+          // kortere som ligger midt i rushet.
+          const verdi = kunder / bemanningEtter
+          if (verdi > besteVerdi) {
+            besteVerdi = verdi
+            beste = { rader: idxer, kost }
+          }
+        }
       }
     }
-    if (beste < 0) break
-    const r = rader[beste]
-    r.ekstra++
-    r.sum++
-    const kost = antall[r.ukedag]
-    igjen -= kost
-    brukteTimer += kost
+
+    if (!beste) break
+    for (const i of beste.rader) { rader[i].ekstra++; rader[i].sum++ }
+    igjen -= beste.kost
+    brukteTimer += beste.kost
   }
 
   return { timer: rader, bundneTimer, frieTimer, brukteTimer, gjennomforbar: true, underskudd: 0 }
