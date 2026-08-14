@@ -771,6 +771,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           <h2>Hvor mye går folk i?</h2>
           <p className="undertittel">
             Anslått fra stemplingene — medianmåneden, så ferie og sykdom ikke drar tallet ned.
+            Merk at dette er <strong>arbeidede</strong> timer, ikke kontrakt: ekstravakter og
+            vikartimer teller med, så en som dekker for en sykemeldt ser større ut enn hun er.
             Står feltet tomt, gjelder anslaget. Skriver du et tall, er det ditt, og systemet
             regner aldri over det.
           </p>
@@ -806,7 +808,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   </td>
                   <td className="undertittel">
                     {s.maaneder} {s.maaneder === 1 ? 'måned' : 'måneder'}
-                    {s.maaneder < 3 ? ' — tynt' : ''}
+                    {s.merknad ? <><br />{s.merknad}</> : null}
                   </td>
                 </tr>
               ))}

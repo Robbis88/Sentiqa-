@@ -88,3 +88,29 @@ describe('kapasitet', () => {
     expect(k.dekning).toBeLessThan(0.2)
   })
 })
+
+describe('merknad', () => {
+  test('over full stilling forklares — det finnes ingen 130 %-kontrakt', () => {
+    // Sissel på Dale: median 211 t/mnd = 130 %.
+    const r = stillingsanslag(mnd('1', 'Sissel', '2026-01', '2026-06', 211), '2026-08-14')
+    expect(r[0].anslagProsent).toBe(130)
+    expect(r[0].merknad).toMatch(/arbeidede timer/)
+    expect(r[0].merknad).toMatch(/ekstravakter/)
+  })
+
+  test('en vanlig stilling får ingen merknad', () => {
+    const r = stillingsanslag(mnd('1', 'A', '2026-01', '2026-06', 81.25), '2026-08-14')
+    expect(r[0].merknad).toBeNull()
+  })
+
+  test('for få måneder sier fra', () => {
+    const r = stillingsanslag(mnd('1', 'Ny', '2026-05', '2026-06', 81.25), '2026-08-14')
+    expect(r[0].merknad).toMatch(/For få måneder/)
+  })
+
+  test('nøyaktig 100 % er ikke over', () => {
+    const r = stillingsanslag(mnd('1', 'A', '2026-01', '2026-06', 162.5), '2026-08-14')
+    expect(r[0].anslagProsent).toBe(100)
+    expect(r[0].merknad).toBeNull()
+  })
+})

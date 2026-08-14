@@ -453,6 +453,8 @@ export type Stillingsanslag = {
   sisteMnd: string | null
   /** Har personen sluttet? Ingen timer på tre måneder. */
   aktiv: boolean
+  /** Én setning når tallet ikke skal leses som en stillingsprosent. */
+  merknad: string | null
 }
 
 /**
@@ -491,13 +493,29 @@ export function stillingsanslag(
       const maaneder = [...p.mnd.values()]
       const m = median(maaneder)
       const siste = [...p.mnd.keys()].sort().pop() ?? null
+      const prosent = Math.round((m / TIMER_PER_MND_100) * 100 / 5) * 5
+      // Over full stilling finnes ikke som kontrakt. Anslaget maaler
+      // ARBEIDEDE timer, og de inkluderer ekstravakter og vikartimer -
+      // en 80 %-stilling som daekker for en sykemeldt ser ut som 130 %.
+      // Tallet er riktig, tolkningen er det ikke, og da skal det staa.
+      //
+      // Motsatt vei: en 100 %-stilling jobber MINDRE enn 162,5 t i en
+      // maaned med rode dager, for de betales uten aa jobbes. Anslaget
+      // ligger derfor systematisk litt lavt for de fast ansatte.
+      const merknad = prosent > 100
+        ? 'Over full stilling — dette er arbeidede timer, så det inkluderer '
+          + 'ekstravakter og vikartimer. Skriv inn den faktiske kontrakten.'
+        : maaneder.length < 3
+          ? 'For få måneder til å si noe sikkert.'
+          : null
       return {
         ansattNr,
         navn: p.navn,
         medianMnd: m,
+        merknad,
         // Rundes til nærmeste 5 %. Et anslag på 37,4 % later som om det
         // er målt; 35 % ser ut som det det er.
-        anslagProsent: Math.round((m / TIMER_PER_MND_100) * 100 / 5) * 5,
+        anslagProsent: prosent,
         maaneder: maaneder.length,
         sisteMnd: siste,
         aktiv: siste !== null && siste >= grense,
