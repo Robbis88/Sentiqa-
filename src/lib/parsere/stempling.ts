@@ -24,11 +24,15 @@ export type Stempling = {
   tilTid: string // HH:MM — «00:00» betyr midnatt, altså slutten av dagen
   minutter: number
   betalt: boolean
+  lokasjon: string // «St1 - Bønes» — per rad, ikke per fil
 }
 
 export type StemplingResultat = {
   rapporttype: 'easyatwork_stempling'
-  lokasjon: string // «St1 - Bønes» — matches mot stasjonsnavn av importlaget
+  // Flertall med vilje. En eksport KAN inneholde flere stasjoner, og en
+  // parser som returnerte «lokasjonen» ville lagt alle radene paa den
+  // forste. Importlaget grupperer paa denne og matcher hver for seg.
+  lokasjoner: string[]
   fraDato: string
   tilDato: string
   stemplinger: Stempling[]
@@ -99,6 +103,7 @@ function parseCsv(tekst: string): Stempling[] {
   const iFra = kol('fra')
   const iTil = kol('til')
   const iLengde = kol('lengde')
+  const iLok = kol('lokasjon')
   if ([iDato, iNr, iNavn, iType, iFra, iTil].some((i) => i < 0)) {
     throw new Error('CSV-en mangler en av kolonnene Forretningsdato/Stemplingsnummer/Ansatt/Type/Fra/Til.')
   }
@@ -123,6 +128,7 @@ function parseCsv(tekst: string): Stempling[] {
       // Lengden staar i desimaltimer (5.88), ikke «5t 53m».
       minutter: Math.round(Number((r[iLengde] ?? '0').trim().replace(',', '.')) * 60),
       betalt: (r[iType] ?? '').trim().toLowerCase() === 'betalt tid',
+      lokasjon: (iLok >= 0 ? (r[iLok] ?? '') : '').replace(/\s+/g, ' ').trim(),
     }
   })
 }
@@ -169,6 +175,7 @@ export function parseStempling(tekst: string): StemplingResultat {
       tilTid: til,
       minutter: Number(timer ?? 0) * 60 + Number(min ?? 0),
       betalt: type.toLowerCase() === 'betalt tid',
+      lokasjon: '', // settes under - PDF-en har den bare som lopende tekst
     })
   }
 
@@ -182,15 +189,28 @@ export function parseStempling(tekst: string): StemplingResultat {
     throw new Error('Fant ingen stemplinger i fila.')
   }
 
-  const datoer = stemplinger.map((s) => s.dato).sort()
-  // Lokasjonen står bak hver post («… St1 - Bønes 2 juli 2026 …») og i
-  // bunnteksten («St1 - Bønes - 977037859»). Bokstavklassen stopper på
-  // første siffer, så orgnummeret i bunnteksten ikke blir med.
-  const lok = t.match(/St1\s*-\s*([A-Za-zÆØÅæøåÉéÜü .'-]+)/)
+  // PDF-en har lokasjonen som lopende tekst bak hver post, ikke i en kolonne.
+  // Finner vi nøyaktig én, gjelder den hele fila. Finner vi flere, nekter vi -
+  // en gjetning her ville lagt en hel stasjons timer på en annen, og det
+  // ville ingen oppdaget.
+  if (!csv) {
+    const funnet = [...new Set(
+      [...t.matchAll(/St1\s*-\s*[A-Za-zÆØÅæøåÉéÜü .'-]+/g)]
+        .map((m) => m[0].replace(/\s+/g, ' ').replace(/[\s-]+$/, '').trim()),
+    )]
+    if (funnet.length > 1) {
+      throw new Error(
+        `Fila inneholder flere stasjoner (${funnet.join(', ')}). `
+        + 'Eksporter én stasjon om gangen, eller bruk CSV-formatet, som har lokasjon per rad.',
+      )
+    }
+    for (const s of stemplinger) s.lokasjon = funnet[0] ?? ''
+  }
 
+  const datoer = stemplinger.map((s) => s.dato).sort()
   return {
     rapporttype: 'easyatwork_stempling',
-    lokasjon: (lok?.[0] ?? '').replace(/\s+/g, ' ').replace(/[\s-]+$/, '').trim(),
+    lokasjoner: [...new Set(stemplinger.map((s) => s.lokasjon))].filter(Boolean),
     fraDato: datoer[0],
     tilDato: datoer[datoer.length - 1],
     stemplinger,

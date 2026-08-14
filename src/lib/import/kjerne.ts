@@ -219,36 +219,53 @@ export async function behandleJobbKjerne(
 // skjer i lesingen (vakter() i stempling.ts), ikke her - da kan tolkningen
 // endres uten at noen ma laste opp tolv maaneder pa nytt.
 //
-// Stasjonen kommer som «St1 - Bones», og det er det eneste vi far; fila
-// har ikke butikknummer. Matcher navnet ingen stasjon, sier vi det rett ut
-// i stedet for a kaste 130 rader i stillhet.
+// Stasjonen staar i Lokasjon-kolonnen, «St1 - Bones». Fila har ikke
+// butikknummer, saa matchingen gaar pa navn. Det grupperes PER RAD, ikke
+// per fil: kommer det en gang en samleeksport, skal ikke Laguneparkens
+// timer havne pa Bones fordi den stasjonen sto oeverst.
 async function lagreStempling(
   supabase: Klient,
   jobbId: string,
   medNavn: Map<string, string>,
-  r: { lokasjon: string; stemplinger: import('@/lib/parsere/stempling').Stempling[] },
+  r: { stemplinger: import('@/lib/parsere/stempling').Stempling[] },
 ): Promise<Lagring> {
-  const reint = r.lokasjon.replace(/^st1\s*-\s*/i, '').trim().toLowerCase()
-  const stasjonId = medNavn.get(reint) ?? medNavn.get(r.lokasjon.trim().toLowerCase())
-  if (!stasjonId) return { antallRader: 0, umatchet: [r.lokasjon || 'ukjent lokasjon'] }
+  const finnStasjon = (lokasjon: string) => {
+    const hel = lokasjon.trim().toLowerCase()
+    const reint = hel.replace(/^st1\s*-\s*/, '').trim()
+    return medNavn.get(reint) ?? medNavn.get(hel)
+  }
 
-  await skrivBatch(
-    supabase,
-    'stempling',
-    r.stemplinger.map((s) => ({
-      stasjon_id: stasjonId,
-      ansatt_nr: s.ansattNr,
-      ansatt_navn: s.ansattNavn,
-      dato: s.dato,
-      fra_tid: s.fraTid,
-      til_tid: s.tilTid,
-      minutter: s.minutter,
-      betalt: s.betalt,
-      kilde_jobb_id: jobbId,
-    })),
-    'stasjon_id,ansatt_nr,dato,fra_tid',
-  )
-  return { antallRader: r.stemplinger.length, umatchet: [] }
+  const perStasjon = new Map<string, typeof r.stemplinger>()
+  const umatchet = new Set<string>()
+  for (const s of r.stemplinger) {
+    const id = finnStasjon(s.lokasjon)
+    if (!id) { umatchet.add(s.lokasjon || 'ukjent lokasjon'); continue }
+    const liste = perStasjon.get(id) ?? []
+    liste.push(s)
+    perStasjon.set(id, liste)
+  }
+
+  let lagret = 0
+  for (const [stasjonId, liste] of perStasjon) {
+    await skrivBatch(
+      supabase,
+      'stempling',
+      liste.map((s) => ({
+        stasjon_id: stasjonId,
+        ansatt_nr: s.ansattNr,
+        ansatt_navn: s.ansattNavn,
+        dato: s.dato,
+        fra_tid: s.fraTid,
+        til_tid: s.tilTid,
+        minutter: s.minutter,
+        betalt: s.betalt,
+        kilde_jobb_id: jobbId,
+      })),
+      'stasjon_id,ansatt_nr,dato,fra_tid',
+    )
+    lagret += liste.length
+  }
+  return { antallRader: lagret, umatchet: [...umatchet] }
 }
 
 // Browser-parsing: klienten parser fila lokalt (ingen server-parse-timeout) og

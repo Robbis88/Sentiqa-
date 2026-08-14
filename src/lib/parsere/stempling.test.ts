@@ -37,7 +37,7 @@ describe('stempling', () => {
       minutter: 480, betalt: true,
     })
     expect(r.fraDato).toBe('2026-07-09')
-    expect(r.lokasjon).toContain('Bønes')
+    expect(r.lokasjoner).toEqual(['St1 - Bønes'])
   })
 
   test('slår sammen ut/inn-stempling på samme vakt', () => {
@@ -84,7 +84,7 @@ describe('stempling som CSV', () => {
     // Lengden er desimaltimer i CSV-en, ikke «5t 53m».
     expect(r.stemplinger[1].minutter).toBe(353)
     expect(r.stemplinger[1].ansattNavn).toBe('Helene Løvfall')
-    expect(r.lokasjon).toBe('St1 - Bønes')
+    expect(r.lokasjoner).toEqual(['St1 - Bønes'])
   })
 
   test('spenner over flere måneder og finner ytterpunktene', () => {
@@ -109,5 +109,23 @@ describe('stempling som CSV', () => {
       '" 7 juni 2025 ",1,"Toro, Carmen","Betalt tid"," 12:00"," 18:00",6,6,0,"St1 - Bønes"',
     ].join('\n'))
     expect(r.stemplinger[0].ansattNavn).toBe('Toro, Carmen')
+  })
+})
+
+describe('flere stasjoner i én fil', () => {
+  test('CSV bærer lokasjon per rad', () => {
+    const r = parseStempling([CSV_HODE,
+      '" 7 juni 2025 ",1,"A B","Betalt tid"," 12:00"," 18:00",6,6,0,"St1 - Bønes"',
+      '" 7 juni 2025 ",2,"C D","Betalt tid"," 12:00"," 18:00",6,6,0,"St1 - Laguneparken"',
+    ].join('\n'))
+    expect(r.lokasjoner).toEqual(['St1 - Bønes', 'St1 - Laguneparken'])
+    expect(r.stemplinger.map((s) => s.lokasjon))
+      .toEqual(['St1 - Bønes', 'St1 - Laguneparken'])
+  })
+
+  test('PDF med to stasjoner avvises framfor å gjette', () => {
+    const t = `${HODE} ${post(1, '1', 'A B', '12:00', '18:00', 6, 0)} `
+      + '2 juli 2026 2 C D Betalt tid 12:00 18:00 6t 0m 6t 0m St1 - Laguneparken'
+    expect(() => parseStempling(t)).toThrow(/flere stasjoner/)
   })
 })
