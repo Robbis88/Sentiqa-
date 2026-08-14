@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
 import type { ForhandsPayload } from './typer'
+import type { Rapporttype } from '@/lib/parsere/typer'
 import { gjenkjennRapporttype } from '@/lib/parsere/gjenkjenn'
 import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
 import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
@@ -8,7 +9,7 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
-import { erPdf, pdfTilTekst } from '@/lib/parsere/pdf'
+import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { parseStempling, gjenkjennStempling } from '@/lib/parsere/stempling'
 import { fordelPaaMaaneder } from '@/lib/bemanning'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
@@ -102,21 +103,40 @@ export async function behandleJobbKjerne(
   const buffer = Buffer.from(await nedlasting.data.arrayBuffer())
   const filnavn = jobb.raa_filer.filnavn
 
-  // BP-fila kjennes igjen først, av arknavnene alene. Den er ~27 MB, og en
-  // full lastArbeidsbok på den koster 2,3 GB heap — mer enn funksjonen har.
-  //
-  // Feiler den, er fila bare ikke en xlsx (CSV, PDF …). Da skal gjenkjenneren
-  // få si det med sin egen feilmelding, ikke zip-leseren med sin.
-  // PDF sjekkes forst. En xlsx-leser pa en PDF gir «zip-fila er korrupt»,
-  // som ikke hjelper noen. easy@works stemplingsrapport er den eneste
-  // PDF-en vi tar imot i dag.
-  const pdfTekst = erPdf(buffer) ? await pdfTilTekst(buffer) : null
-  const erBp = pdfTekst ? false : await erBpFil(buffer).catch(() => false)
-  const rapporttype = pdfTekst
-    ? gjenkjennStempling(pdfTekst)
-    : erBp ? 'st1_bp' : await gjenkjennRapporttype(buffer)
-  if (pdfTekst && rapporttype === 'ukjent') {
-    await settFeil('PDF-en er ikke en Basis Export fra easy@work. Andre PDF-er kan ikke leses ennå.')
+  // Gjenkjenningen kjorer i sin EGEN try. Ligger den utenfor, og xlsx-leseren
+  // kveles av en CSV, kastes det for statusen rekker aa bli satt - og jobben
+  // blir staaende i «Leser fila ...» til nattjobben gjenoppretter den 20
+  // minutter senere. Det skjedde med den forste stemplings-CSV-en.
+  let rapporttype: Rapporttype
+  let tekst: string | null = null
+  try {
+    // Rekkefolgen foelger hvor billig sjekken er, og hvor daarlig feilen
+    // blir hvis vi tar den i feil orden. En xlsx-leser paa en PDF sier
+    // «zip-fila er korrupt», som ikke hjelper noen.
+    if (erPdf(buffer)) {
+      tekst = await pdfTilTekst(buffer)
+      rapporttype = gjenkjennStempling(tekst)
+      if (rapporttype === 'ukjent') {
+        await settFeil('PDF-en er ikke en Basis Export fra easy@work. Andre PDF-er kan ikke leses ennå.')
+        return
+      }
+    } else if (erTekstfil(buffer)) {
+      // CSV/tekst. easy@work eksporterer stemplingene slik, og det formatet
+      // er bedre enn PDF-en: kolonner med navn, lengde i desimaltimer.
+      tekst = buffer.toString('utf8')
+      rapporttype = gjenkjennStempling(tekst)
+      if (rapporttype === 'ukjent') {
+        await settFeil('Tekst-/CSV-fila kjennes ikke igjen. Stemplinger fra easy@work leses; andre CSV-er ikke ennå.')
+        return
+      }
+    } else {
+      // BP-fila kjennes igjen av arknavnene alene. Den er ~27 MB, og en full
+      // lastArbeidsbok paa den koster 2,3 GB heap - mer enn funksjonen har.
+      const erBp = await erBpFil(buffer).catch(() => false)
+      rapporttype = erBp ? 'st1_bp' : await gjenkjennRapporttype(buffer)
+    }
+  } catch (e) {
+    await settFeil(`Kunne ikke lese fila: ${e instanceof Error ? e.message : String(e)}`)
     return
   }
   await supabase.from('import_jobber').update({ rapporttype }).eq('id', jobbId)
@@ -170,7 +190,7 @@ export async function behandleJobbKjerne(
         break
       }
       case 'easyatwork_stempling': {
-        const r = parseStempling(pdfTekst as string)
+        const r = parseStempling(tekst as string)
         dato = r.fraDato
         res = await lagreStempling(supabase, jobbId, oppslag.medNavn, r)
         break

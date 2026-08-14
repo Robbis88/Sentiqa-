@@ -66,6 +66,7 @@ export default async function ImportSide() {
     return <p>Kun eier har tilgang til import.</p>
   }
 
+  const naa = new Date()
   const supabase = await lagSupabaseServerKlient()
   const { data: retailer } = await supabase
     .from('retailers')
@@ -81,6 +82,11 @@ export default async function ImportSide() {
     .overrideTypes<Jobb[]>()
 
   const jobber = data ?? []
+  // «Behandles nå» har en grense. Kaster gjenkjenningen før statusen rekker
+  // å bli satt, blir raden stående i «Leser fila …» for alltid — og da er en
+  // skjult knapp det siste man trenger. Samme frist som nattjobbens
+  // gjenoppretting (DOD_ETTER_MIN i ko.ts).
+  const dodFrist = new Date(naa.getTime() - 20 * 60_000).toISOString()
 
   return (
     <>
@@ -153,7 +159,7 @@ export default async function ImportSide() {
               {jobber.map((j) => {
                 const s = STATUS_ETIKETT[j.status] ?? { tekst: j.status, klasse: 'gul' }
                 // Idempotent → tillat ny kjøring på alt unntatt det som behandles nå.
-                const kanBehandle = j.status !== 'behandler'
+                const kanBehandle = j.status !== 'behandler' || j.opprettet_tid < dodFrist
                 const knappetekst = j.status === 'parset' ? 'Behandle på nytt' : 'Behandle'
                 return (
                   <tr key={j.id}>

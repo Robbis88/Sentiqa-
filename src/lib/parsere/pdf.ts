@@ -12,6 +12,20 @@ export function erPdf(data: Buffer): boolean {
   return data.length > 4 && data.subarray(0, 4).toString('latin1') === '%PDF'
 }
 
+// Er dette tekst og ikke en binaerfil? xlsx starter med PK (zip), PDF med
+// %PDF. Alt annet som ser ut som lesbar UTF-8 i de forste kilobytene
+// behandles som tekst - da faar en CSV en aerlig feilmelding i stedet for
+// «zip-fila er korrupt».
+export function erTekstfil(data: Buffer): boolean {
+  if (data.length === 0) return false
+  if (data.subarray(0, 2).toString('latin1') === 'PK') return false
+  if (erPdf(data)) return false
+  const prove = data.subarray(0, 4096)
+  // Nullbytes finnes ikke i tekst, og de finnes i praktisk talt alle
+  // binaerformater.
+  return !prove.includes(0)
+}
+
 export async function pdfTilTekst(data: Buffer): Promise<string> {
   const { extractText, getDocumentProxy } = await import('unpdf')
   const dok = await getDocumentProxy(new Uint8Array(data))

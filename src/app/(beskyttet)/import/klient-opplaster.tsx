@@ -89,9 +89,10 @@ export function KlientOpplaster() {
         // Store filer parses ikke her — de lastes rett til Storage og legges i
         // kø for serveren. Nettleseren ville brukt over 2 GB på å åpne dem.
         //
-        // PDF går samme vei: lesingen krever pdf.js, som ikke skal ligge i
-        // klientbundelen for en fil folk laster opp én gang i måneden.
-        if (valgte[i].size > FOR_STOR || /\.pdf$/i.test(valgte[i].name)) {
+        // PDF og CSV går samme vei. Nettleserparseren her kan bare xlsx —
+        // slipper man en CSV inn i den, kveles zip-leseren og fila «feiler»
+        // uten at noen skjønner hvorfor. Serveren kan begge deler.
+        if (valgte[i].size > FOR_STOR || /\.(pdf|csv|txt)$/i.test(valgte[i].name)) {
           sett(i, 'lagrer')
           const res = await tilStorage(valgte[i])
           if (res.hoppet) sett(i, 'hoppet', 'Allerede lastet opp')
