@@ -457,6 +457,12 @@ export type Stillingsanslag = {
   merknad: string | null
 }
 
+/** Hvor langt tilbake anslaget ser. Sissel på Dale gikk fra ~200 t/mnd i
+    2025 til ~170 i 2026: medianen over alt beskriver hvem hun VAR, ikke
+    hvem hun er nå. Tolv måneder fanger et helt sesongår og lar likevel
+    en endring slå gjennom innen året er omme. */
+const MAANEDER_TILBAKE = 12
+
 /**
  * Anslår stillingsprosent per ansatt fra faktiske timer.
  *
@@ -466,13 +472,20 @@ export type Stillingsanslag = {
 export function stillingsanslag(
   forbruk: AnsattForbruk[],
   tilDato: string,
+  opts: { maanederTilbake?: number } = {},
 ): Stillingsanslag[] {
+  const vindu = opts.maanederTilbake ?? MAANEDER_TILBAKE
   const inneVaerende = tilDato.slice(0, 7)
+  const fraMnd = (() => {
+    const d = new Date(`${inneVaerende}-01T12:00:00Z`)
+    d.setUTCMonth(d.getUTCMonth() - vindu)
+    return d.toISOString().slice(0, 7)
+  })()
   const perPerson = new Map<string, { navn: string; mnd: Map<string, number> }>()
 
   for (const f of forbruk) {
     const mnd = f.dato.slice(0, 7)
-    if (mnd >= inneVaerende) continue
+    if (mnd >= inneVaerende || mnd < fraMnd) continue
     const p = perPerson.get(f.ansattNr) ?? { navn: f.navn, mnd: new Map() }
     p.navn = f.navn // nyeste navn vinner — folk gifter seg
     p.mnd.set(mnd, (p.mnd.get(mnd) ?? 0) + f.timer)

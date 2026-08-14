@@ -114,3 +114,31 @@ describe('merknad', () => {
     expect(r[0].merknad).toBeNull()
   })
 })
+
+describe('vinduet bakover', () => {
+  test('gammelt forbruk teller ikke — folk endrer seg', () => {
+    // Sissel på Dale: ~200 t/mnd gjennom 2025, ~170 i 2026. Medianen over
+    // alt beskriver hvem hun var; anslaget skal si hvem hun er.
+    const r = stillingsanslag([
+      ...mnd('1', 'Sissel', '2025-01', '2025-12', 200),
+      ...mnd('1', 'Sissel', '2026-01', '2026-07', 170),
+    ], '2026-08-14')
+    // Tolv måneder tilbake fra august 2026 = fra august 2025.
+    expect(r[0].medianMnd).toBeLessThan(195)
+    expect(r[0].maaneder).toBe(12)
+  })
+
+  test('vinduet kan settes', () => {
+    const r = stillingsanslag([
+      ...mnd('1', 'A', '2025-01', '2025-12', 200),
+      ...mnd('1', 'A', '2026-01', '2026-07', 100),
+    ], '2026-08-14', { maanederTilbake: 6 })
+    expect(r[0].maaneder).toBe(6)
+    expect(r[0].medianMnd).toBe(100)
+  })
+
+  test('den som sluttet for lenge siden faller helt ut', () => {
+    const r = stillingsanslag(mnd('1', 'Gammel', '2024-01', '2024-06', 100), '2026-08-14')
+    expect(r).toHaveLength(0)
+  })
+})
