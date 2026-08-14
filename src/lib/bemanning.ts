@@ -126,6 +126,7 @@ export type Bemanning = {
 export type Plan = {
   timer: Bemanning[]
   bundneTimer: number // variable timer låst av gulvet
+  fasteTimer: number // timer de faste vaktene bærer — ikke i rammen, men arbeid
   frieTimer: number // igjen til fordeling etter gulvet
   brukteTimer: number // faktisk tildelt av de frie
   gjennomforbar: boolean // false = budsjettet dekker ikke engang gulvet
@@ -152,6 +153,13 @@ const timelonteFasteTimer = (vakter: FastVakt[], antall: number[]) =>
   vakter
     .filter((f) => f.timelonnet)
     .reduce((sum, f) => sum + (f.tilTime - f.fraTime) * antall[f.ukedag], 0)
+
+// Alle timene de faste vaktene bærer, uansett lønnsform. Belaster ikke
+// timerammen, men er ikke gratis: juli 2026 på Bønes sto butikksjefen alene
+// 140 timer, og fordi ingen tall viste det, så stasjonen ut som om den klarte
+// seg på 484. Går han i ferie, må de 140 hentes et sted.
+const alleFasteTimer = (vakter: FastVakt[], antall: number[]) =>
+  vakter.reduce((sum, f) => sum + (f.tilTime - f.fraTime) * antall[f.ukedag], 0)
 
 // Antall av hver ukedag i måneden, isodow-indeksert (1–7).
 export function dagerPerUkedag(ar: number, maned: number): number[] {
@@ -321,6 +329,7 @@ export function planleggMaaned(opts: {
     return {
       timer: rader,
       bundneTimer,
+      fasteTimer: alleFasteTimer(fasteVakter, antall),
       frieTimer: 0,
       brukteTimer: 0,
       gjennomforbar: frieTimer >= 0,
@@ -403,5 +412,8 @@ export function planleggMaaned(opts: {
     brukteTimer += beste.kost
   }
 
-  return { timer: rader, bundneTimer, frieTimer, brukteTimer, gjennomforbar: true, underskudd: 0 }
+  return {
+    timer: rader, bundneTimer, fasteTimer: alleFasteTimer(fasteVakter, antall),
+    frieTimer, brukteTimer, gjennomforbar: true, underskudd: 0,
+  }
 }

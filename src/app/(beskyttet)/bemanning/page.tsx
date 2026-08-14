@@ -272,6 +272,13 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   : `Ingen kundehistorikk for ${ar - 1} ennå — fordelingen følger BP-kurven inntil videre.`}
               </p>
             )}
+            {plan !== null && plan.fasteTimer >= 1 && (
+              <p className="undertittel">
+                Faste vakter bærer {Math.round(plan.fasteTimer)} timer i denne måneden. De
+                belaster ikke timerammen, men de er arbeid — går de bort i ferie eller sykdom,
+                må timene hentes et annet sted.
+              </p>
+            )}
             {plan !== null && plan.frieTimer - plan.brukteTimer >= 1 && (
               <p className="undertittel">
                 {Math.round(plan.frieTimer - plan.brukteTimer)} timer er ikke fordelt — taket på{' '}

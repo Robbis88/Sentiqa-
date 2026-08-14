@@ -215,6 +215,26 @@ describe('lonnsform paa faste vakter', () => {
     expect(med).toBe(7 * mandager)
   })
 
+  test('faste timer rapporteres selv om de ikke belaster rammen', () => {
+    // Bones i juli 2026: apent 06-24 alle dager = 558 timer for EN person.
+    // Timelonn dekket 484, butikksjefen sto alene 140. Fordi ingen tall viste
+    // de 140, sa stasjonen ut som om den klarte seg pa 484.
+    const dognet: Vindu[] = [1, 2, 3, 4, 5, 6, 7].map((ukedag) => ({
+      ukedag, fraTime: 6, tilTime: 24, minBemanning: 1,
+    }))
+    const sjef = [1, 2, 3, 4, 5].map((ukedag) => ({ ukedag, fraTime: 6, tilTime: 18 }))
+    const p = planleggMaaned({
+      disponibleTimer: 484,
+      ar: 2026, maned: 7, vinduer: dognet, krav: [], fasteVakter: sjef,
+      profil: new Map(),
+    })
+    const d = dagerPerUkedag(2026, 7)
+    const forventet = [1, 2, 3, 4, 5].reduce((a, u) => a + 12 * d[u], 0)
+    expect(p.fasteTimer).toBe(forventet)
+    // Gulvet uten butikksjefen ville vaert 18 t x 31 = 558.
+    expect(p.bundneTimer).toBe(558 - forventet)
+  })
+
   test('planleggMaaned og bundneTimer er enige om regningen', () => {
     const p = planleggMaaned({
       disponibleTimer: 10000,
