@@ -163,3 +163,87 @@ export function planMotFaktisk(
   }
   return { timer, overforbruk: over, underforbruk: under }
 }
+
+// =====================================================================
+// Taket fra historikken.
+//
+// Planen foreslo to på jobb i timer stasjonen aldri har hatt to. Et
+// globalt tak («maks 2») hjelper ikke: problemet er ikke at to er for
+// mange noen gang, det er at to er for mange klokka ni på en tirsdag.
+//
+// Stemplingene vet dette. Har de aldri vært to tirsdag 09, skal planen
+// ikke foreslå det — og hvis den mener det trengs, er det en samtale med
+// butikksjefen, ikke et forslag hun kan trykke ja på.
+//
+// Ikke maks: én julaften med fem på jobb, eller de to timene
+// Laguneparken hadde tolv personer inne (personalmøte, etter alt å
+// dømme), skal ikke sette taket for hele året. Nivået må ha forekommet
+// i minst `andel` av gangene den timen har vært der.
+// =====================================================================
+
+export type StemplingTid = { dato: string; fraTid: string; tilTid: string }
+
+const isodow = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00Z`).getUTCDay()
+  return d === 0 ? 7 : d
+}
+
+/**
+ * Høyeste bemanning stasjonen faktisk har hatt per ukedag × klokketime.
+ *
+ * Nøkkelen er `${ukedag}:${time}`, samme som planleggerens rutenett.
+ * Timer som aldri har vært bemannet finnes ikke i kartet — kalleren
+ * bestemmer selv hva det skal bety (planleggeren lar dem stå åpne, for
+ * en ny åpningstid er ikke en feil).
+ */
+export function historiskTak(
+  stemplinger: StemplingTid[],
+  opts: { andel?: number } = {},
+): Map<string, number> {
+  const andel = opts.andel ?? 0.1
+
+  // Per dato og klokketime: hvor mange var inne samtidig.
+  const perDagTime = new Map<string, number>()
+  for (const s of stemplinger) {
+    const fra = Number(s.fraTid.slice(0, 2))
+    let til = Number(s.tilTid.slice(0, 2))
+    if (s.tilTid === '00:00' || s.tilTid === '24:00') til = 24
+    if (til <= fra) til += 24 // vakt over midnatt
+    for (let t = fra; t < til; t++) {
+      // Timer etter midnatt hører til dagen etter — det er da de jobbes.
+      const dato = t < 24
+        ? s.dato
+        : new Date(Date.parse(`${s.dato}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+      const n = `${dato}:${t % 24}`
+      perDagTime.set(n, (perDagTime.get(n) ?? 0) + 1)
+    }
+  }
+
+  // Samle observasjonene per ukedag × time.
+  const obs = new Map<string, number[]>()
+  for (const [noekkel, antall] of perDagTime) {
+    const skille = noekkel.lastIndexOf(':')
+    const dato = noekkel.slice(0, skille)
+    const time = Number(noekkel.slice(skille + 1))
+    const k = `${isodow(dato)}:${time}`
+    const liste = obs.get(k) ?? []
+    liste.push(antall)
+    obs.set(k, liste)
+  }
+
+  const tak = new Map<string, number>()
+  for (const [k, liste] of obs) {
+    const hoyeste = Math.max(...liste)
+    let niva = 1
+    for (let n = hoyeste; n >= 1; n--) {
+      const ganger = liste.filter((x) => x >= n).length
+      // Både andel OG minst to ganger. Andelen alene er for slapp når
+      // utvalget er lite: med fire mandager i historikken ville ett
+      // personalmøte utgjort 25 % og satt taket til tolv. Et nivå som har
+      // forekommet én eneste gang er ikke et mønster, uansett utvalg.
+      if (ganger >= 2 && ganger / liste.length >= andel) { niva = n; break }
+    }
+    tak.set(k, niva)
+  }
+  return tak
+}

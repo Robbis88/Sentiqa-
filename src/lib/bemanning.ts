@@ -290,9 +290,19 @@ export function planleggMaaned(opts: {
   /** Korteste vakt som lar seg sette opp. Under dette blir forslaget
       teoretisk — ingen kalles inn for to timer. */
   minVaktTimer?: number
+  /** Tak per `${ukedag}:${time}`, målt fra stemplingene. Gjelder BARE det
+      frie laget: gulvet er butikksjefens beslutning, ikke et forslag, og
+      har hun sagt at det skal være to ved varemottak, skal historikken
+      ikke overprøve henne. */
+  tak?: Map<string, number>
 }): Plan {
   const { disponibleTimer, ar, maned, vinduer, krav, fasteVakter, profil } = opts
   const maks = opts.maksBemanning ?? Number.POSITIVE_INFINITY
+  // Har stasjonen aldri hatt to tirsdag 09, skal planen ikke foreslå det.
+  // Mangler timen i historikken (ny åpningstid), står den åpen — et hull i
+  // dataene er ikke det samme som et forbud.
+  const takFor = (ukedag: number, time: number) =>
+    Math.min(maks, opts.tak?.get(`${ukedag}:${time}`) ?? Number.POSITIVE_INFINITY)
   const minVaktTimer = Math.max(1, opts.minVaktTimer ?? MIN_VAKT_TIMER)
   const antall = dagerPerUkedag(ar, maned)
 
@@ -385,7 +395,7 @@ export function planleggMaaned(opts: {
             const i = indeks.get(`${ukedag}:${timer[start + k]}`)
             if (i === undefined) { plass = false; break }
             const r = rader[i]
-            if (r.sum >= maks) { plass = false; break }
+            if (r.sum >= takFor(ukedag, timer[start + k])) { plass = false; break }
             idxer.push(i)
             kunder += r.kunder
             bemanningEtter += r.sum + 1

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { planMotFaktisk, sammenlignStasjoner, type StasjonsForbruk } from './bemanningsanalyse'
+import { historiskTak, planMotFaktisk, sammenlignStasjoner, type StasjonsForbruk } from './bemanningsanalyse'
 
 // Tallene er hentet fra de ekte eksportene: Bønes 687 t/mnd, Laguneparken
 // 1201 t/mnd. Kundetall og matandel er satt for å prøve ut logikken.
@@ -86,5 +86,55 @@ describe('planMotFaktisk', () => {
     const r = planMotFaktisk([{ ukedag: 1, time: 5, sum: 1, kunder: 0 }], new Map())
     expect(r.timer[0].faktisk).toBe(0)
     expect(r.underforbruk).toBe(1)
+  })
+})
+
+
+describe('historiskTak', () => {
+  // 2026-01-05 er en mandag.
+  const man = ['2026-01-05', '2026-01-12', '2026-01-19', '2026-01-26']
+  const vakt = (dato: string, fra: string, til: string) => ({ dato, fraTid: fra, tilTid: til })
+
+  test('en time som alltid har hatt én, får taket én', () => {
+    const t = historiskTak(man.map((d) => vakt(d, '09:00', '15:00')))
+    expect(t.get('1:9')).toBe(1)
+    expect(t.get('1:14')).toBe(1)
+  })
+
+  test('en time som ofte har hatt to, får taket to', () => {
+    const t = historiskTak([
+      ...man.map((d) => vakt(d, '09:00', '15:00')),
+      ...man.map((d) => vakt(d, '12:00', '15:00')), // to hver mandag 12–15
+    ])
+    expect(t.get('1:12')).toBe(2)
+    expect(t.get('1:9')).toBe(1)
+  })
+
+  test('ett enkelt personalmøte setter ikke taket for året', () => {
+    // Tolv personer i én time, én gang. Laguneparken hadde nøyaktig dette.
+    const t = historiskTak([
+      ...man.map((d) => vakt(d, '09:00', '15:00')),
+      ...Array.from({ length: 11 }, () => vakt('2026-01-05', '12:00', '13:00')),
+    ])
+    expect(t.get('1:12')).toBe(1)
+  })
+
+  test('en time uten historikk står åpen framfor å bli forbudt', () => {
+    const t = historiskTak(man.map((d) => vakt(d, '09:00', '15:00')))
+    expect(t.get('1:5')).toBeUndefined()
+  })
+
+  test('nattevakt teller på dagen timene faktisk jobbes', () => {
+    // Mandag 22:00–02:00 gir to timer på mandag og to på tirsdag.
+    const t = historiskTak(man.map((d) => vakt(d, '22:00', '02:00')))
+    expect(t.get('1:22')).toBe(1)
+    expect(t.get('2:0')).toBe(1)
+    expect(t.get('2:1')).toBe(1)
+  })
+
+  test('midnatt som sluttid regnes som 24, ikke som 0', () => {
+    const t = historiskTak(man.map((d) => vakt(d, '18:00', '00:00')))
+    expect(t.get('1:23')).toBe(1)
+    expect(t.get('2:0')).toBeUndefined()
   })
 })
