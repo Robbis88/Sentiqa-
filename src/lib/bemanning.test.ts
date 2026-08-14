@@ -122,6 +122,68 @@ const vindu = (minBemanning = 1, fra = 6, til = 18): Vindu[] => [
 const profil = (verdier: Record<number, number>) =>
   new Map(Object.entries(verdier).map(([t, v]) => [`1:${t}`, v]))
 
+describe('lonnsform paa faste vakter', () => {
+  // Robert sin stasjon: butikksjef 08-16 paa fastlonn, NK 05-12 paa timelonn.
+  const butikksjef = { ukedag: 1, fraTime: 8, tilTime: 16 }
+  const nk = { ukedag: 1, fraTime: 5, tilTime: 12, timelonnet: true }
+
+  test('fastlont vakt koster ingenting, timelont koster hele vakten', () => {
+    const mandager = dagerPerUkedag(2026, 1)[1]
+    const felles = { ar: 2026, maned: 1, vinduer: vindu(1), krav: [] }
+    // Vindu 06-18 = tolv timer. Uten faste vakter: 12 x mandager.
+    expect(bundneTimer({ ...felles, fasteVakter: [] })).toBe(12 * mandager)
+    // Butikksjefen dekker 08-16 gratis -> fire timer igjen aa betale.
+    expect(bundneTimer({ ...felles, fasteVakter: [butikksjef] })).toBe(4 * mandager)
+    // NK alene dekker 05-12, men koster sine sju timer. Igjen av vinduet:
+    // 12-16 = seks timer gulv. 6 + 7 = 13.
+    expect(bundneTimer({ ...felles, fasteVakter: [nk] })).toBe(13 * mandager)
+  })
+
+  test('to vakter som overlapper teller som to, ikke som en', () => {
+    const mandager = dagerPerUkedag(2026, 1)[1]
+    // Gulv paa to hele vinduet. Mellom 08 og 12 staar begge -> gulvet er
+    // dekket der. Foer telte de som en, og planen kalte inn en tredje.
+    const b = bundneTimer({
+      ar: 2026, maned: 1, vinduer: vindu(2), krav: [], fasteVakter: [butikksjef, nk],
+    })
+    // 06-07: ingen dekning i vinduet fra butikksjef, NK dekker 1 -> gulv 1 (x2 timer)
+    // 08-11: begge -> gulv 0 (x4)   12-15: butikksjef -> gulv 1 (x4)
+    // 16-17: ingen -> gulv 2 (x2)   pluss NK sine sju timelonte
+    expect(b).toBe((2 * 1 + 4 * 0 + 4 * 1 + 2 * 2 + 7) * mandager)
+  })
+
+  test('timelont vakt utenfor det bemannede vinduet betales likevel', () => {
+    const mandager = dagerPerUkedag(2026, 1)[1]
+    // Vinduet aapner 06, NK starter 05. Den timen finnes ikke i rutenettet,
+    // men den staar paa lonnslippen.
+    const uten = bundneTimer({ ar: 2026, maned: 1, vinduer: vindu(1, 6, 12), krav: [], fasteVakter: [] })
+    const med = bundneTimer({
+      ar: 2026, maned: 1, vinduer: vindu(1, 6, 12), krav: [],
+      fasteVakter: [{ ukedag: 1, fraTime: 5, tilTime: 12, timelonnet: true }],
+    })
+    expect(uten).toBe(6 * mandager)
+    // NK dekker hele vinduet -> gulv 0, men koster sju timer inkludert 05.
+    expect(med).toBe(7 * mandager)
+  })
+
+  test('planleggMaaned og bundneTimer er enige om regningen', () => {
+    const p = planleggMaaned({
+      disponibleTimer: 10000,
+      ar: 2026, maned: 1, vinduer: vindu(1), krav: [],
+      fasteVakter: [butikksjef, nk],
+      profil: profil({ 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0 }),
+    })
+    expect(p.bundneTimer).toBe(bundneTimer({
+      ar: 2026, maned: 1, vinduer: vindu(1), krav: [], fasteVakter: [butikksjef, nk],
+    }))
+    // Raden viser begge, og skiller dem.
+    const kl9 = p.timer.find((r) => r.time === 9)!
+    expect(kl9.fast).toBe(2)
+    expect(kl9.fastTimelonnet).toBe(1)
+    expect(kl9.gulv).toBe(0)
+  })
+})
+
 describe('planleggMaaned', () => {
   test('gulvet bindes først, og faste vakter belaster ikke rammen', () => {
     const p = planleggMaaned({

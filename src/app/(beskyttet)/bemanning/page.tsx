@@ -25,7 +25,10 @@ type KravRad = {
   id: string; ukedag: number; fra_time: number; til_time: number
   antall: number; begrunnelse: string | null
 }
-type VaktRad = { id: string; navn: string; ukedag: number; fra_time: number; til_time: number }
+type VaktRad = {
+  id: string; navn: string; ukedag: number; fra_time: number; til_time: number
+  timelonnet: boolean
+}
 
 const tilVindu = (v: VinduRad): Vindu => ({
   ukedag: v.ukedag, fraTime: v.fra_time, tilTime: v.til_time, minBemanning: v.min_bemanning,
@@ -34,7 +37,7 @@ const tilKrav = (k: KravRad): Krav => ({
   ukedag: k.ukedag, fraTime: k.fra_time, tilTime: k.til_time, antall: k.antall,
 })
 const tilVakt = (v: VaktRad): FastVakt => ({
-  ukedag: v.ukedag, fraTime: v.fra_time, tilTime: v.til_time,
+  ukedag: v.ukedag, fraTime: v.fra_time, tilTime: v.til_time, timelonnet: v.timelonnet,
 })
 
 // Kundeformen. Samme måned i fjor er riktigst — januar planlegges ikke etter
@@ -118,7 +121,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         .eq('stasjon_id', valgt.id).order('ukedag').order('gjelder_fra', { ascending: false }),
       supabase.from('bemanning_krav').select('id, ukedag, fra_time, til_time, antall, begrunnelse')
         .eq('stasjon_id', valgt.id).order('ukedag'),
-      supabase.from('bemanning_fast_vakt').select('id, navn, ukedag, fra_time, til_time')
+      supabase.from('bemanning_fast_vakt').select('id, navn, ukedag, fra_time, til_time, timelonnet')
         .eq('stasjon_id', valgt.id).order('navn').order('ukedag'),
       hentProfil(supabase, valgt.id, ar, maned),
     ])
@@ -286,13 +289,13 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         <h2>Faste vakter</h2>
         <p className="undertittel">
           Deg selv, NK, eller andre som alltid står. De går på fastlønn og bruker ikke av timerammen,
-          men dekker minimumsbemanningen i timene de står. Gjelder bare de som faktisk har fastlønn —
-          føres en timelønnet inn her, tror planen at de timene er gratis.
+          men dekker minimumsbemanningen i timene de står. En timelønnet NK med fast vakt hører
+          også hjemme her — velg da timelønn, så trekkes timene fra rammen selv om vakten er fast.
         </p>
         <FastVaktSkjema stasjonId={valgt.id} />
         {vaktListe.length > 0 && (
           <table className="tabell">
-            <thead><tr><th>Hvem</th><th>Dag</th><th>Fra</th><th>Til</th><th></th></tr></thead>
+            <thead><tr><th>Hvem</th><th>Dag</th><th>Fra</th><th>Til</th><th>Lønn</th><th></th></tr></thead>
             <tbody>
               {vaktListe.map((v) => (
                 <tr key={v.id}>
@@ -300,6 +303,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   <td>{UKEDAG[v.ukedag]}</td>
                   <td>{kl(v.fra_time)}</td>
                   <td>{kl(v.til_time)}</td>
+                  <td>{v.timelonnet ? 'Timelønn' : 'Fastlønn'}</td>
                   <td>
                     <form action={slettFastVakt}>
                       <input type="hidden" name="id" value={v.id} />

@@ -54,12 +54,23 @@ export type Vindu = {
   minBemanning: number
 }
 export type Krav = { ukedag: number; fraTime: number; tilTime: number; antall: number }
-export type FastVakt = { ukedag: number; fraTime: number; tilTime: number }
+// timelonnet skiller de to slagene binding fra hverandre. Begge står alltid
+// og dekker gulvet like godt, men bare den fastlønte er gratis for rammen.
+// En NK på timelønn 05-12 er like bundet som butikksjefen, og koster like
+// mye som en innkalt — føres den som fastlønn, tror planen at sju timer i
+// uka er gratis og deler dem ut en gang til et annet sted.
+export type FastVakt = {
+  ukedag: number
+  fraTime: number
+  tilTime: number
+  timelonnet?: boolean
+}
 
 export type Bemanning = {
   ukedag: number
   time: number
-  fast: number // dekket av faste vakter (butikksjef, NK) — går på fastlønn
+  fast: number // faste vakter som dekker timen, uansett lønnsform
+  fastTimelonnet: number // av disse: de som belaster timerammen
   gulv: number // bundet variabel bemanning: min/krav minus det faste dekker
   ekstra: number // hele personer tildelt etter kundetrykk
   sum: number // fast + gulv + ekstra
@@ -81,6 +92,20 @@ export type Plan = {
 export const MIN_VAKT_TIMER = 5
 
 const iVindu = (t: number, fra: number, til: number) => t >= fra && t < til
+
+// Faste vakter som dekker én time. Telles, ikke bare sjekkes for om det
+// finnes én — butikksjef 08-16 og NK 05-12 er to personer mellom 08 og 12,
+// og et gulv på to er da allerede dekket.
+const dekning = (vakter: FastVakt[], ukedag: number, t: number) =>
+  vakter.filter((f) => f.ukedag === ukedag && iVindu(t, f.fraTime, f.tilTime))
+
+// Timelønte faste vakter koster hele sin lengde, også timene som ligger
+// utenfor det bemannede vinduet. Starter NK 05 og vinduet 06, er den timen
+// like fullt betalt.
+const timelonteFasteTimer = (vakter: FastVakt[], antall: number[]) =>
+  vakter
+    .filter((f) => f.timelonnet)
+    .reduce((sum, f) => sum + (f.tilTime - f.fraTime) * antall[f.ukedag], 0)
 
 // Antall av hver ukedag i måneden, isodow-indeksert (1–7).
 export function dagerPerUkedag(ar: number, maned: number): number[] {
@@ -107,13 +132,13 @@ export function bundneTimer(opts: {
       const kravHer = opts.krav
         .filter((k) => k.ukedag === v.ukedag && iVindu(t, k.fraTime, k.tilTime))
         .reduce((m, k) => Math.max(m, k.antall), 0)
-      const fast = opts.fasteVakter.some(
-        (f) => f.ukedag === v.ukedag && iVindu(t, f.fraTime, f.tilTime),
-      ) ? 1 : 0
+      const fast = dekning(opts.fasteVakter, v.ukedag, t).length
       sum += Math.max(0, Math.max(v.minBemanning, kravHer) - fast) * antall[v.ukedag]
     }
   }
-  return sum
+  // De timelonte faste vaktene legges paa hele: gulvet trakk dem fra som
+  // dekning, og her betales de tilbake som forbruk.
+  return sum + timelonteFasteTimer(opts.fasteVakter, antall)
 }
 
 export type Aarsfordeling = {
@@ -216,8 +241,10 @@ export function planleggMaaned(opts: {
   const minVaktTimer = Math.max(1, opts.minVaktTimer ?? MIN_VAKT_TIMER)
   const antall = dagerPerUkedag(ar, maned)
 
-  // 1) Bundet lag. Faste vakter går på fastlønn og belaster ikke rammen,
-  //    men de dekker gulvet — står butikksjefen der, trengs ikke en til.
+  // 1) Bundet lag. Faste vakter dekker gulvet — står butikksjefen der, trengs
+  //    ikke en til. Om de belaster rammen, avhenger av lønnsformen: en
+  //    fastlønt butikksjef er gratis for timerammen, en timelønt NK er det
+  //    ikke, selv om vakten er like fast.
   const rader: Bemanning[] = []
   let bundneTimer = 0
   for (const v of vinduer) {
@@ -225,15 +252,15 @@ export function planleggMaaned(opts: {
       const kravHer = krav
         .filter((k) => k.ukedag === v.ukedag && iVindu(t, k.fraTime, k.tilTime))
         .reduce((m, k) => Math.max(m, k.antall), 0)
-      const fast = fasteVakter.some((f) => f.ukedag === v.ukedag && iVindu(t, f.fraTime, f.tilTime))
-        ? 1
-        : 0
+      const dekker = dekning(fasteVakter, v.ukedag, t)
+      const fast = dekker.length
       const gulv = Math.max(0, Math.max(v.minBemanning, kravHer) - fast)
       bundneTimer += gulv * antall[v.ukedag]
       rader.push({
         ukedag: v.ukedag,
         time: t,
         fast,
+        fastTimelonnet: dekker.filter((f) => f.timelonnet).length,
         gulv,
         ekstra: 0,
         sum: fast + gulv,
@@ -241,6 +268,7 @@ export function planleggMaaned(opts: {
       })
     }
   }
+  bundneTimer += timelonteFasteTimer(fasteVakter, antall)
 
   const frieTimer = disponibleTimer - bundneTimer
   if (frieTimer <= 0) {

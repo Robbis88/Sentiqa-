@@ -46,6 +46,10 @@ const FastVakt = z.object({
   ukedager: z.array(Ukedag).min(1, { error: 'Velg minst én ukedag.' }),
   fra_time: Tid,
   til_time: Tid,
+  // Mangler feltet (eldre skjema i en aapen fane), er fastlonn det trygge
+  // svaret: da teller vakten som dekning uten aa endre en ramme noen alt
+  // har planlagt etter.
+  timelonnet: z.literal(['fast', 'time']).default('fast').transform((v) => v === 'time'),
 }).transform(midnattEr24).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
 
 const Krav = z.object({
@@ -106,14 +110,16 @@ export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilst
     ukedager: ukedagerFra(fd),
     fra_time: fd.get('fra_time'),
     til_time: fd.get('til_time'),
+    timelonnet: fd.get('lonnsform') ?? undefined,
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
 
   // Én rad per ukedag — «butikksjef 07–15 man–fre» blir fem rader.
-  const { stasjon_id, navn, fra_time, til_time } = felt.data
+  const { stasjon_id, navn, fra_time, til_time, timelonnet } = felt.data
   const { error } = await supabase.from('bemanning_fast_vakt').upsert(
     felt.data.ukedager.map((ukedag) => ({
-      stasjon_id, navn, ukedag, fra_time, til_time, oppdatert_tid: new Date().toISOString(),
+      stasjon_id, navn, ukedag, fra_time, til_time, timelonnet,
+      oppdatert_tid: new Date().toISOString(),
     })),
     { onConflict: 'stasjon_id,navn,ukedag' },
   )

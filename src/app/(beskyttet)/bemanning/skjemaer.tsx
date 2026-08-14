@@ -82,8 +82,13 @@ export function VinduSkjema({ stasjonId, iDag }: { stasjonId: string; iDag: stri
   )
 }
 
-// Faste vakter: butikksjefen selv, NK, eller andre som alltid står. De går på
-// fastlønn og belaster ikke timerammen, men dekker minimumsbemanningen.
+// Faste vakter: butikksjefen selv, NK, eller andre som alltid står. De dekker
+// alltid minimumsbemanningen. Om de belaster timerammen, avhenger av lønnsformen
+// — derfor er den et eksplisitt valg og ikke en antagelse.
+//
+// To radioknapper, ikke en avkryssingsboks: «timelønnet ☐» tvinger leseren til
+// å tenke ut hva det motsatte er, og gjetter man feil her, roter man budsjettet
+// uten å se det. Begge alternativene skal stå synlige side om side.
 export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
   const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilFastVakt, undefined)
   return (
@@ -98,6 +103,21 @@ export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
         <Tid navn="fra_time" merke="Fra klokken" standard="07:00" />
         <Tid navn="til_time" merke="Til klokken" standard="15:00" />
       </div>
+      <fieldset className="sq-ukedager">
+        <legend>Hvordan lønnes de?</legend>
+        <span className="ukedag-velger">
+          <label className="ukedag">
+            <input type="radio" name="lonnsform" value="fast" defaultChecked /> Fastlønn
+          </label>
+          <label className="ukedag">
+            <input type="radio" name="lonnsform" value="time" /> Timelønn
+          </label>
+        </span>
+        <p className="undertittel">
+          Fastlønn koster ikke timerammen. Timelønn gjør det — vakten er like fast,
+          men timene trekkes fra.
+        </p>
+      </fieldset>
       <div className="sq-skjema-bunn">
         <button type="submit" className="sq-knapp primar" disabled={venter}>
           {venter ? 'Legger til …' : 'Legg til'}
