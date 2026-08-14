@@ -8,6 +8,8 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
+import { erPdf, pdfTilTekst } from '@/lib/parsere/pdf'
+import { parseStempling, gjenkjennStempling } from '@/lib/parsere/stempling'
 import { fordelPaaMaaneder } from '@/lib/bemanning'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
@@ -105,8 +107,18 @@ export async function behandleJobbKjerne(
   //
   // Feiler den, er fila bare ikke en xlsx (CSV, PDF …). Da skal gjenkjenneren
   // få si det med sin egen feilmelding, ikke zip-leseren med sin.
-  const erBp = await erBpFil(buffer).catch(() => false)
-  const rapporttype = erBp ? 'st1_bp' : await gjenkjennRapporttype(buffer)
+  // PDF sjekkes forst. En xlsx-leser pa en PDF gir «zip-fila er korrupt»,
+  // som ikke hjelper noen. easy@works stemplingsrapport er den eneste
+  // PDF-en vi tar imot i dag.
+  const pdfTekst = erPdf(buffer) ? await pdfTilTekst(buffer) : null
+  const erBp = pdfTekst ? false : await erBpFil(buffer).catch(() => false)
+  const rapporttype = pdfTekst
+    ? gjenkjennStempling(pdfTekst)
+    : erBp ? 'st1_bp' : await gjenkjennRapporttype(buffer)
+  if (pdfTekst && rapporttype === 'ukjent') {
+    await settFeil('PDF-en er ikke en Basis Export fra easy@work. Andre PDF-er kan ikke leses ennå.')
+    return
+  }
   await supabase.from('import_jobber').update({ rapporttype }).eq('id', jobbId)
 
   try {
@@ -157,6 +169,12 @@ export async function behandleJobbKjerne(
         } catch { /* varsler skal aldri velte en import */ }
         break
       }
+      case 'easyatwork_stempling': {
+        const r = parseStempling(pdfTekst as string)
+        dato = r.fraDato
+        res = await lagreStempling(supabase, jobbId, oppslag.medNavn, r)
+        break
+      }
       case 'st1_bp': {
         const r = await parseBp(buffer)
         dato = r.ar ? `${r.ar}-01-01` : null
@@ -195,6 +213,42 @@ export async function behandleJobbKjerne(
   } catch (e) {
     await settFeil(e instanceof ParserFeil ? e.message : `Uventet feil: ${String(e)}`)
   }
+}
+
+// Stemplingene lagres raa, en rad per stempling. Sammenslaing til vakter
+// skjer i lesingen (vakter() i stempling.ts), ikke her - da kan tolkningen
+// endres uten at noen ma laste opp tolv maaneder pa nytt.
+//
+// Stasjonen kommer som «St1 - Bones», og det er det eneste vi far; fila
+// har ikke butikknummer. Matcher navnet ingen stasjon, sier vi det rett ut
+// i stedet for a kaste 130 rader i stillhet.
+async function lagreStempling(
+  supabase: Klient,
+  jobbId: string,
+  medNavn: Map<string, string>,
+  r: { lokasjon: string; stemplinger: import('@/lib/parsere/stempling').Stempling[] },
+): Promise<Lagring> {
+  const reint = r.lokasjon.replace(/^st1\s*-\s*/i, '').trim().toLowerCase()
+  const stasjonId = medNavn.get(reint) ?? medNavn.get(r.lokasjon.trim().toLowerCase())
+  if (!stasjonId) return { antallRader: 0, umatchet: [r.lokasjon || 'ukjent lokasjon'] }
+
+  await skrivBatch(
+    supabase,
+    'stempling',
+    r.stemplinger.map((s) => ({
+      stasjon_id: stasjonId,
+      ansatt_nr: s.ansattNr,
+      ansatt_navn: s.ansattNavn,
+      dato: s.dato,
+      fra_tid: s.fraTid,
+      til_tid: s.tilTid,
+      minutter: s.minutter,
+      betalt: s.betalt,
+      kilde_jobb_id: jobbId,
+    })),
+    'stasjon_id,ansatt_nr,dato,fra_tid',
+  )
+  return { antallRader: r.stemplinger.length, umatchet: [] }
 }
 
 // Browser-parsing: klienten parser fila lokalt (ingen server-parse-timeout) og

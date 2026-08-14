@@ -36,6 +36,10 @@ declare
     -- per-rad-kall inn i hver eneste planberegning.
     'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
     'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned',
+    'bemanning_stasjon',
+    -- Stemplinger (0088). Vokser med drift: ~130 rader per stasjon per
+    -- maaned, og leses per time mot timesalg naar plan males mot faktisk.
+    'stempling',
     -- Leses paa hver forside for aa filtrere feeden (0083).
     'signal_lukket'
   ];

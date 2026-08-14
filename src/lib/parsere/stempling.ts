@@ -1,0 +1,156 @@
+// easy@work «Basis Export» — faktiske stemplinger per ansatt.
+//
+// Dette er den eneste kilden til hvem som faktisk står i butikken når.
+// Salgstallene sier hvor mange kunder som kom; denne sier hvor mange hender
+// som tok imot dem. Uten den kan bemanningsplanen bare foreslå, aldri måle.
+//
+// Parseren tar TEKST, ikke PDF. PDF-en gjøres om til tekst ett annet sted
+// (pdf.ts, som er server-only fordi den drar inn unpdf). Da lar dette laget
+// seg teste uten en fil på disk, og en fremtidig CSV-eksport fra easy@work
+// treffer samme kode.
+
+import type { Rapporttype } from './typer'
+
+const MND = [
+  'januar', 'februar', 'mars', 'april', 'mai', 'juni',
+  'juli', 'august', 'september', 'oktober', 'november', 'desember',
+] as const
+
+export type Stempling = {
+  ansattNr: string
+  ansattNavn: string
+  dato: string // ISO yyyy-mm-dd
+  fraTid: string // HH:MM
+  tilTid: string // HH:MM — «00:00» betyr midnatt, altså slutten av dagen
+  minutter: number
+  betalt: boolean
+}
+
+export type StemplingResultat = {
+  rapporttype: 'easyatwork_stempling'
+  lokasjon: string // «St1 - Bønes» — matches mot stasjonsnavn av importlaget
+  fraDato: string
+  tilDato: string
+  stemplinger: Stempling[]
+}
+
+// PDF-utpakking legger linjeskift midt inne i felter: «Betalt\ntid» og
+// «Carmen\nValentina\nToro». Alt arbeid skjer derfor på én normalisert linje.
+const flat = (tekst: string) => tekst.replace(/\s+/g, ' ').trim()
+
+const TYPEFELT = /Betalt tid|Ubetalt tid|Pause/g
+
+const POST = new RegExp(
+  String.raw`(\d{1,2}) (${MND.join('|')}) (\d{4}) ` + // forretningsdato
+  String.raw`(\d+) ` + // stemplingsnummer
+  String.raw`(.+?) ` + // ansattnavn
+  String.raw`(Betalt tid|Ubetalt tid|Pause) ` +
+  String.raw`(\d{2}:\d{2}) (\d{2}:\d{2})` + // fra, til
+  String.raw`(?: (\d+)t)?(?: (\d+)m)?`, // lengde
+  'gi',
+)
+
+export function erStemplingFil(tekst: string): boolean {
+  const t = flat(tekst)
+  return /Forretningsdato/i.test(t) && /Stemplingsnummer/i.test(t)
+}
+
+export function gjenkjennStempling(tekst: string): Rapporttype {
+  return erStemplingFil(tekst) ? 'easyatwork_stempling' : 'ukjent'
+}
+
+/**
+ * Leser alle stemplinger ut av teksten.
+ *
+ * Kaster hvis antall poster ikke stemmer med antall typefelt i teksten.
+ *
+ * Det er ikke overforsiktighet. Første versjon av denne parseren mistet 25 %
+ * av postene — hvert navn med `ø`, fordi tegnklassen for navn ikke hadde den,
+ * og hver post der mellomrommet foran «Betalt tid» manglet. Feilen var helt
+ * stille: resultatet så konsistent ut over tre måneder, og analysen på det
+ * konkluderte med at stasjonen sto ubemannet halve kveldene. Den var bemannet.
+ * De tapte postene var kveldsvaktene, fordi tre av dem het Løvfall, Forstrønen
+ * og Toro.
+ *
+ * En parser som mister rader i stillhet er verre enn en som kaster.
+ */
+export function parseStempling(tekst: string): StemplingResultat {
+  const t = flat(tekst)
+  if (!erStemplingFil(t)) {
+    throw new Error('Ikke en Basis Export — mangler Forretningsdato/Stemplingsnummer.')
+  }
+
+  const forventet = (t.match(TYPEFELT) ?? []).length
+  const stemplinger: Stempling[] = []
+
+  for (const m of t.matchAll(POST)) {
+    const [, dag, maaned, ar, nr, navn, type, fra, til, timer, min] = m
+    const mnd = MND.indexOf(maaned.toLowerCase() as (typeof MND)[number]) + 1
+    stemplinger.push({
+      ansattNr: nr,
+      ansattNavn: navn.replace(/\s+/g, ' ').trim(),
+      dato: `${ar}-${String(mnd).padStart(2, '0')}-${dag.padStart(2, '0')}`,
+      fraTid: fra,
+      tilTid: til,
+      minutter: Number(timer ?? 0) * 60 + Number(min ?? 0),
+      betalt: type.toLowerCase() === 'betalt tid',
+    })
+  }
+
+  if (stemplinger.length !== forventet) {
+    throw new Error(
+      `Stemplingsfila har ${forventet} poster, men bare ${stemplinger.length} lot seg lese. ` +
+      'Formatet har trolig endret seg — importen stoppes framfor å lagre et ufullstendig bilde.',
+    )
+  }
+  if (stemplinger.length === 0) {
+    throw new Error('Fant ingen stemplinger i fila.')
+  }
+
+  const datoer = stemplinger.map((s) => s.dato).sort()
+  // Lokasjonen står bak hver post («… St1 - Bønes 2 juli 2026 …») og i
+  // bunnteksten («St1 - Bønes - 977037859»). Bokstavklassen stopper på
+  // første siffer, så orgnummeret i bunnteksten ikke blir med.
+  const lok = t.match(/St1\s*-\s*([A-Za-zÆØÅæøåÉéÜü .'-]+)/)
+
+  return {
+    rapporttype: 'easyatwork_stempling',
+    lokasjon: (lok?.[0] ?? '').replace(/\s+/g, ' ').replace(/[\s-]+$/, '').trim(),
+    fraDato: datoer[0],
+    tilDato: datoer[datoer.length - 1],
+    stemplinger,
+  }
+}
+
+/**
+ * Vakter, ikke stemplinger.
+ *
+ * Folk stempler ut og inn igjen på samme vakt — 13 av 132 postene i juli var
+ * under 45 minutter. Teller man dem som vakter, blir snittlengden meningsløs
+ * (4,9 t i stedet for 6,0). Sammenhengende poster på samme dag for samme
+ * person slås derfor sammen når det er under en time mellom dem.
+ */
+export function vakter(stemplinger: Stempling[]): Stempling[] {
+  const sortert = [...stemplinger]
+    .filter((s) => s.betalt)
+    .sort((a, b) => (a.ansattNr + a.dato + a.fraTid).localeCompare(b.ansattNr + b.dato + b.fraTid))
+
+  const ut: Stempling[] = []
+  for (const s of sortert) {
+    const forrige = ut[ut.length - 1]
+    const samme = forrige && forrige.ansattNr === s.ansattNr && forrige.dato === s.dato
+    if (samme && minutterMellom(forrige.tilTid, s.fraTid) <= 60) {
+      forrige.tilTid = s.tilTid
+      forrige.minutter += s.minutter
+      continue
+    }
+    ut.push({ ...s })
+  }
+  return ut
+}
+
+const iMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+function minutterMellom(fra: string, til: string): number {
+  const d = iMin(til) - iMin(fra)
+  return d < 0 ? d + 24 * 60 : d
+}

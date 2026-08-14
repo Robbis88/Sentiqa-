@@ -29,6 +29,7 @@ const RAPPORT_ETIKETT: Record<string, string> = {
   salgsgrid_varetrans: 'Synlig svinn',
   regnskap_resultat: 'Regnskap',
   st1_bp: 'Forretningsplan',
+  easyatwork_stempling: 'Stemplinger',
   ukjent: '—',
 }
 
@@ -85,7 +86,8 @@ export default async function ImportSide() {
     <>
       <h1>Import</h1>
       <p className="undertittel">
-        Last opp rapporter (St1, Salesgrid, Visma). E-post-inntak kommer senere.
+        Last opp rapporter (St1, Salesgrid, Visma) og stemplingslister fra easy@work.
+        E-post-inntak kommer senere.
       </p>
 
       <section className="kort">

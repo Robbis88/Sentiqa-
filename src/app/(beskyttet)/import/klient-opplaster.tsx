@@ -88,7 +88,10 @@ export function KlientOpplaster() {
       try {
         // Store filer parses ikke her — de lastes rett til Storage og legges i
         // kø for serveren. Nettleseren ville brukt over 2 GB på å åpne dem.
-        if (valgte[i].size > FOR_STOR) {
+        //
+        // PDF går samme vei: lesingen krever pdf.js, som ikke skal ligge i
+        // klientbundelen for en fil folk laster opp én gang i måneden.
+        if (valgte[i].size > FOR_STOR || /\.pdf$/i.test(valgte[i].name)) {
           sett(i, 'lagrer')
           const res = await tilStorage(valgte[i])
           if (res.hoppet) sett(i, 'hoppet', 'Allerede lastet opp')
@@ -124,7 +127,7 @@ export function KlientOpplaster() {
         <input
           type="file"
           multiple
-          accept=".csv,.txt,.xlsx,.xls"
+          accept=".csv,.txt,.xlsx,.xls,.pdf"
           disabled={kjorer}
           onChange={(e) => kjor([...(e.target.files ?? [])])}
         />

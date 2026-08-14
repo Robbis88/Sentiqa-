@@ -8,6 +8,7 @@ export type Rapporttype =
   | 'salgsgrid_varetrans'
   | 'regnskap_resultat'
   | 'st1_bp'
+  | 'easyatwork_stempling'
   | 'ukjent'
 
 // Én produktlinje fra Salgsstatistikk (St1 0714), med drilldown-kontekst.
