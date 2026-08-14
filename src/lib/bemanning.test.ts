@@ -216,9 +216,10 @@ describe('lonnsform paa faste vakter', () => {
   })
 
   test('faste timer rapporteres selv om de ikke belaster rammen', () => {
-    // Bones i juli 2026: apent 06-24 alle dager = 558 timer for EN person.
-    // Timelonn dekket 484, butikksjefen sto alene 140. Fordi ingen tall viste
-    // de 140, sa stasjonen ut som om den klarte seg pa 484.
+    // Bones: bemannet vindu 05-24 alle dager = 589 timer for EN person i juli.
+    // Butikksjefen bar 12 av dem hver ukedag da han var pa jobb. Poenget med
+    // fasteTimer er at det tallet skal staa skrevet: gar han i ferie, er det
+    // ikke 158 timer spart, det er 158 timer som ma kjopes.
     const dognet: Vindu[] = [1, 2, 3, 4, 5, 6, 7].map((ukedag) => ({
       ukedag, fraTime: 6, tilTime: 24, minBemanning: 1,
     }))

@@ -155,9 +155,10 @@ const timelonteFasteTimer = (vakter: FastVakt[], antall: number[]) =>
     .reduce((sum, f) => sum + (f.tilTime - f.fraTime) * antall[f.ukedag], 0)
 
 // Alle timene de faste vaktene bærer, uansett lønnsform. Belaster ikke
-// timerammen, men er ikke gratis: juli 2026 på Bønes sto butikksjefen alene
-// 140 timer, og fordi ingen tall viste det, så stasjonen ut som om den klarte
-// seg på 484. Går han i ferie, må de 140 hentes et sted.
+// timerammen, men er ikke gratis. Bønes mai 2026: butikksjefen gikk 158 timer
+// man–fre 08–16. I juli var han i ferie og gikk null — og stasjonen brukte
+// like mange timer likevel, fordi de 158 ble kjøpt tilbake som timelønn.
+// Ferie sparer ikke timer, den flytter dem fra fastlønn til rammen.
 const alleFasteTimer = (vakter: FastVakt[], antall: number[]) =>
   vakter.reduce((sum, f) => sum + (f.tilTime - f.fraTime) * antall[f.ukedag], 0)
 
