@@ -55,6 +55,78 @@ export function erStemplingFil(tekst: string): boolean {
   return /Forretningsdato/i.test(t) && /Stemplingsnummer/i.test(t)
 }
 
+// easy@work kan eksportere den samme rapporten som CSV. Det formatet er
+// laget for maskiner og ikke for oyet, saa det skal foretrekkes: kolonnene
+// staar navngitt i toppen, feltene er sitert, og lengden er desimaltimer
+// i stedet for «5t 58m». Én eksport dekket 19 maaneder i én fil.
+const erCsv = (tekst: string) => {
+  const forste = tekst.split(/\r?\n/, 1)[0] ?? ''
+  return forste.includes(',') && /Forretningsdato/i.test(forste)
+}
+
+// Minimal CSV-lesing: siterte felt med komma inni, og "" som escapet
+// anforselstegn. Holder for dette formatet og sparer en avhengighet.
+function csvRader(tekst: string): string[][] {
+  const rader: string[][] = []
+  let rad: string[] = []
+  let felt = ''
+  let iSitat = false
+  for (let i = 0; i < tekst.length; i++) {
+    const c = tekst[i]
+    if (iSitat) {
+      if (c === '"' && tekst[i + 1] === '"') { felt += '"'; i++ }
+      else if (c === '"') iSitat = false
+      else felt += c
+    } else if (c === '"') iSitat = true
+    else if (c === ',') { rad.push(felt); felt = '' }
+    else if (c === '\n') { rad.push(felt); rader.push(rad); rad = []; felt = '' }
+    else if (c !== '\r') felt += c
+  }
+  if (felt !== '' || rad.length > 0) { rad.push(felt); rader.push(rad) }
+  return rader.filter((r) => r.some((f) => f.trim() !== ''))
+}
+
+const DATO = new RegExp(String.raw`(\d{1,2}) (${MND.join('|')}) (\d{4})`, 'i')
+
+function parseCsv(tekst: string): Stempling[] {
+  const rader = csvRader(tekst.replace(/^\uFEFF/, ''))
+  const hode = rader[0].map((h) => h.trim().toLowerCase())
+  const kol = (navn: string) => hode.indexOf(navn)
+  const iDato = kol('forretningsdato')
+  const iNr = kol('stemplingsnummer')
+  const iNavn = kol('ansatt')
+  const iType = kol('type')
+  const iFra = kol('fra')
+  const iTil = kol('til')
+  const iLengde = kol('lengde')
+  if ([iDato, iNr, iNavn, iType, iFra, iTil].some((i) => i < 0)) {
+    throw new Error('CSV-en mangler en av kolonnene Forretningsdato/Stemplingsnummer/Ansatt/Type/Fra/Til.')
+  }
+
+  return rader.slice(1).map((r, n) => {
+    const d = (r[iDato] ?? '').trim().match(DATO)
+    if (!d) throw new Error(`Rad ${n + 2}: forsto ikke datoen «${r[iDato]}».`)
+    const mnd = MND.indexOf(d[2].toLowerCase() as (typeof MND)[number]) + 1
+    // Gaar vakten over midnatt, skriver easy@work hele datoen i Til-feltet:
+    // «15 februar 2025 00:00». Klokkeslettet er det siste i strengen uansett.
+    const tid = (v: string) => {
+      const m = [...(v ?? '').matchAll(/(\d{1,2}):(\d{2})/g)].pop()
+      if (!m) throw new Error(`Rad ${n + 2}: forsto ikke klokkeslettet «${v}».`)
+      return `${m[1].padStart(2, '0')}:${m[2]}`
+    }
+    return {
+      ansattNr: (r[iNr] ?? '').trim(),
+      ansattNavn: (r[iNavn] ?? '').replace(/\s+/g, ' ').trim(),
+      dato: `${d[3]}-${String(mnd).padStart(2, '0')}-${d[1].padStart(2, '0')}`,
+      fraTid: tid(r[iFra]),
+      tilTid: tid(r[iTil]),
+      // Lengden staar i desimaltimer (5.88), ikke «5t 53m».
+      minutter: Math.round(Number((r[iLengde] ?? '0').trim().replace(',', '.')) * 60),
+      betalt: (r[iType] ?? '').trim().toLowerCase() === 'betalt tid',
+    }
+  })
+}
+
 export function gjenkjennStempling(tekst: string): Rapporttype {
   return erStemplingFil(tekst) ? 'easyatwork_stempling' : 'ukjent'
 }
@@ -80,10 +152,13 @@ export function parseStempling(tekst: string): StemplingResultat {
     throw new Error('Ikke en Basis Export — mangler Forretningsdato/Stemplingsnummer.')
   }
 
-  const forventet = (t.match(TYPEFELT) ?? []).length
-  const stemplinger: Stempling[] = []
+  const csv = erCsv(tekst)
+  const forventet = csv
+    ? csvRader(tekst.replace(/^\uFEFF/, '')).length - 1
+    : (t.match(TYPEFELT) ?? []).length
+  const stemplinger: Stempling[] = csv ? parseCsv(tekst) : []
 
-  for (const m of t.matchAll(POST)) {
+  for (const m of csv ? [] : t.matchAll(POST)) {
     const [, dag, maaned, ar, nr, navn, type, fra, til, timer, min] = m
     const mnd = MND.indexOf(maaned.toLowerCase() as (typeof MND)[number]) + 1
     stemplinger.push({
