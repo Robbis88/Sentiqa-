@@ -6,6 +6,7 @@ import { settAllowlist } from './handlinger'
 import { BehandleKnapp } from './behandle-knapp'
 import { BehandleAlleKnapp } from './behandle-alle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
+import { nesteSteg, onboardingsteg, type Kildemaaling } from '@/lib/onboarding'
 
 // Regnskaps-import utløser tung AI (Opus + fokus), og «Behandle alle» kan kjøre
 // mange filer — gi handlingen god tid.
@@ -60,6 +61,58 @@ type Jobb = {
   raa_filer: { filnavn: string; mottakskanal: string } | null
 }
 
+// Hva ligger faktisk i basen? Måles per kilde, per stasjon — ikke som et
+// «du er 60 % ferdig», som skjuler at de siste 40 er den ene fila som gjør
+// at bemanningsplanen virker.
+//
+// Dagene telles på stasjonen med MINST. En kilde som dekker fire stasjoner
+// godt og den femte i tre dager er ikke i mål; den femte får ingen analyse.
+async function maalKilder(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+): Promise<Kildemaaling[]> {
+  const tellDager = async (
+    tabell: string,
+    datokolonne: string,
+    noekkel: string,
+  ): Promise<Kildemaaling> => {
+    const { data } = await supabase.from(tabell).select(`stasjon_id, ${datokolonne}`)
+    const rader = (data ?? []) as unknown as Record<string, string>[]
+    const perStasjon = new Map<string, Set<string>>()
+    let siste: string | null = null
+    for (const r of rader) {
+      const d = String(r[datokolonne] ?? '').slice(0, 10)
+      if (!d) continue
+      const sett = perStasjon.get(r.stasjon_id) ?? new Set<string>()
+      sett.add(d)
+      perStasjon.set(r.stasjon_id, sett)
+      if (!siste || d > siste) siste = d
+    }
+    const antall = [...perStasjon.values()].map((s) => s.size)
+    return {
+      noekkel,
+      stasjonerMedData: perStasjon.size,
+      dagerDekket: antall.length > 0 ? Math.min(...antall) : 0,
+      sisteDato: siste,
+    }
+  }
+
+  const [salg, timer, stempl, bp, regnskap] = await Promise.all([
+    tellDager('v_butikksalg', 'dato', 'st1_salgsstatistikk'),
+    tellDager('timesalg', 'dato', 'timesalg'),
+    tellDager('stempling', 'dato', 'stempling'),
+    tellDager('bemanning_maned', 'ar', 'bemanning_maned'),
+    tellDager('regnskapslinjer', 'periode', 'regnskapslinjer'),
+  ])
+  return [salg, timer, stempl, bp, regnskap]
+}
+
+const STEG_KLASSE: Record<string, string> = {
+  mangler: 'rod', ufullstendig: 'rod', tynt: 'gul', ok: 'gronn',
+}
+const STEG_TEKST: Record<string, string> = {
+  mangler: 'Mangler', ufullstendig: 'Ufullstendig', tynt: 'Tynt', ok: 'På plass',
+}
+
 export default async function ImportSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
@@ -82,6 +135,10 @@ export default async function ImportSide() {
     .overrideTypes<Jobb[]>()
 
   const jobber = data ?? []
+  const { count: antallStasjoner } = await supabase
+    .from('stasjoner').select('id', { count: 'exact', head: true }).is('slettet_tid', null)
+  const steg = onboardingsteg(await maalKilder(supabase), antallStasjoner ?? 0)
+  const neste = nesteSteg(steg)
   // «Behandles nå» har en grense. Kaster gjenkjenningen før statusen rekker
   // å bli satt, blir raden stående i «Leser fila …» for alltid — og da er en
   // skjult knapp det siste man trenger. Samme frist som nattjobbens
@@ -95,6 +152,38 @@ export default async function ImportSide() {
         Last opp rapporter (St1, Salesgrid, Visma) og stemplingslister fra easy@work.
         E-post-inntak kommer senere.
       </p>
+
+      <section className="kort">
+        <h2>Hva systemet har, og hva det mangler</h2>
+        {neste ? (
+          <p>
+            Neste steg: <strong>{neste.navn}</strong>. {neste.beskjed}
+          </p>
+        ) : (
+          <p>Alt på plass. Systemet har det det trenger for alle stasjoner.</p>
+        )}
+        <table className="tabell">
+          <thead>
+            <tr><th>Data</th><th>Status</th><th>Hvor den hentes</th><th>Hva den gir deg</th></tr>
+          </thead>
+          <tbody>
+            {steg.map((s) => (
+              <tr key={s.noekkel}>
+                <td>{s.navn}</td>
+                <td>
+                  <span className={`status-pip ${STEG_KLASSE[s.status]}`}>
+                    {STEG_TEKST[s.status]}
+                  </span>
+                  <br />
+                  <span className="undertittel">{s.beskjed}</span>
+                </td>
+                <td className="undertittel">{s.hentesFra}</td>
+                <td className="undertittel">{s.laserOpp}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <section className="kort">
         <h2>Last opp filer</h2>
