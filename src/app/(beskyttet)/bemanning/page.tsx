@@ -9,7 +9,7 @@ import {
 import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
 import {
   formendring, formendringTekst, historiskTak, justerProfil, kapasitet,
-  planMotFaktisk, stillingsanslag,
+  planMotFaktisk, sammenlignStasjoner, stillingsanslag,
 } from '@/lib/bemanningsanalyse'
 import {
   FastVaktSkjema, FravaerSkjema, KravSkjema, StillingSkjema, TakSkjema, VinduSkjema,
@@ -224,7 +224,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
     { data: grenser }, profilen, maanedskunder, dagskunder, stemplinger,
-    kurveIFjor, kurveIAar, { data: avtaler }, { data: fravaerRader }] =
+    kurveIFjor, kurveIAar, { data: avtaler }, { data: fravaerRader },
+    { data: forbrukRader }] =
     await Promise.all([
       // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
       // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
@@ -253,6 +254,11 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         .eq('stasjon_id', valgt.id),
       supabase.from('bemanning_fravaer').select('id, navn, fra_dato, til_dato, arsak')
         .eq('stasjon_id', valgt.id).order('fra_dato', { ascending: false }),
+      // ALLE stasjoner, ikke bare den valgte: en stasjon alene sier
+      // ingenting om den bruker for mange timer. Målestokken er de andre.
+      supabase.from('v_stasjonsforbruk_mnd')
+        .select('stasjon_id, maaned, timer, kunder, omsetning, mat_omsetning')
+        .gte('maaned', `${ar - 1}-01-01`),
     ])
   const maksBemanning = grenser?.maks_bemanning ?? undefined
 
@@ -384,6 +390,33 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       plan.bundneTimer + plan.brukteTimer,
     )
     : null
+
+  // Sammenligningen: siste tolv hele måneder, summert per stasjon.
+  // Enkeltmåneder svinger for mye — en ferieuke eller et varemottak flytter
+  // tallet nok til at rangeringen blir tilfeldig.
+  const forbruk = new Map<string, { timer: number; kunder: number; oms: number; mat: number }>()
+  for (const r of (forbrukRader ?? []) as {
+    stasjon_id: string; maaned: string; timer: number; kunder: number
+    omsetning: number; mat_omsetning: number
+  }[]) {
+    const f = forbruk.get(r.stasjon_id) ?? { timer: 0, kunder: 0, oms: 0, mat: 0 }
+    f.timer += Number(r.timer ?? 0)
+    f.kunder += Number(r.kunder ?? 0)
+    f.oms += Number(r.omsetning ?? 0)
+    f.mat += Number(r.mat_omsetning ?? 0)
+    forbruk.set(r.stasjon_id, f)
+  }
+  const sammenligning = sammenlignStasjoner(alle.map((st) => {
+    const f = forbruk.get(st.id) ?? { timer: 0, kunder: 0, oms: 0, mat: 0 }
+    return {
+      stasjonId: st.id,
+      navn: st.navn,
+      timer: f.timer,
+      kunder: f.kunder,
+      omsetning: f.oms,
+      matOmsetning: f.mat,
+    }
+  }))
 
   const vakterPerDag = new Map<string, ReturnType<typeof vaktliste>>()
   for (const v of plan ? vaktliste(plan.timer) : []) {
@@ -639,6 +672,42 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </p>
         <TakSkjema stasjonId={valgt.id} naa={grenser?.maks_bemanning ?? null} />
       </section>
+
+      {sammenligning.some((s) => s.vurdering !== 'for lite data') && (
+        <section className="kort">
+          <h2>Stasjonene mot hverandre</h2>
+          <p className="undertittel">
+            Siste halvannet år. En stasjon alene sier ingenting om den bruker for mange timer —
+            målestokken er de andre. Mat teller med, fordi tilberedt mat tar lengst tid: to
+            stasjoner med like mange kunder kan ha helt ulikt arbeid.
+          </p>
+          <table className="tabell">
+            <thead>
+              <tr>
+                <th>Stasjon</th><th>Timer</th><th>Timer per 100 kunder</th>
+                <th>Matandel</th><th>Vurdering</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...sammenligning]
+                .sort((a, b) => b.timerPer100Kunder - a.timerPer100Kunder)
+                .map((s) => (
+                  <tr key={s.stasjonId} className={s.stasjonId === valgt.id ? 'valgt-rad' : undefined}>
+                    <td>{s.navn}</td>
+                    <td>{Math.round(s.timer)}</td>
+                    <td>{s.timerPer100Kunder.toFixed(1)}</td>
+                    <td>{Math.round(s.matandel * 100)} %</td>
+                    <td>
+                      <strong>{s.vurdering}</strong>
+                      <br />
+                      <span className="undertittel">{s.begrunnelse}</span>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="kort">
         <h2>Ferie og fravær</h2>

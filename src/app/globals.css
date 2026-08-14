@@ -1469,3 +1469,4 @@ button.liten { min-height: 40px; }
 .tabell tr.rod-dag td:first-child { color: var(--rod, #b4232a); }
 .stilling-rad { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .stilling-rad input { width: 4.5rem; }
+.tabell tr.valgt-rad { background: var(--flate-svak, rgba(0,0,0,0.035)); font-weight: 600; }
