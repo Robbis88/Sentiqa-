@@ -128,40 +128,85 @@ export function sammenlignStasjoner(
 }
 
 /**
- * Timer per klokketime, målt mot planen.
+ * Planen mot virkeligheten.
  *
  * Stemplingene sier hva som faktisk skjedde. Planen sier hva som burde
  * skjedd. Differansen er det eneste som får en butikksjef til å endre
  * noe — «du brukte 140 timer mer enn planen, og de lå på tirsdager»
  * biter, mens «lønnsandelen din er 12,4 %» ikke gjør det.
+ *
+ * Over- og underforbruk holdes fra hverandre. To timer for mye tirsdag
+ * og to for lite mandag er ikke «riktig bemannet» — det er to feil som
+ * skjuler hverandre, og netto null er det verste svaret man kan gi.
  */
 export type Avvikstime = {
-  ukedag: number
+  dato: string
   time: number
   planlagt: number
   faktisk: number
   kunder: number
 }
 
+export type Avviksbilde = {
+  timer: Avvikstime[]
+  planlagteTimer: number
+  faktiskeTimer: number
+  overforbruk: number
+  underforbruk: number
+  /** Dagene der planen og virkeligheten er lengst fra hverandre. */
+  verstedager: { dato: string; planlagt: number; faktisk: number; avvik: number }[]
+  /** Timer på døgnet som systematisk er overbemannet mot planen. */
+  verstetimer: { time: number; avvik: number }[]
+}
+
 export function planMotFaktisk(
-  plan: { ukedag: number; time: number; sum: number; kunder: number }[],
-  faktisk: Map<string, number>, // `${ukedag}:${time}` → snitt antall personer
-): { timer: Avvikstime[]; overforbruk: number; underforbruk: number } {
-  const timer = plan.map((p) => ({
-    ukedag: p.ukedag,
+  plan: { dato: string; time: number; sum: number; kunder: number }[],
+  faktisk: Map<string, number>, // `${dato}:${time}` → antall personer
+): Avviksbilde {
+  const timer: Avvikstime[] = plan.map((p) => ({
+    dato: p.dato,
     time: p.time,
     planlagt: p.sum,
-    faktisk: faktisk.get(`${p.ukedag}:${p.time}`) ?? 0,
+    faktisk: faktisk.get(`${p.dato}:${p.time}`) ?? 0,
     kunder: p.kunder,
   }))
+
   let over = 0
   let under = 0
+  const perDag = new Map<string, { planlagt: number; faktisk: number }>()
+  const perTime = new Map<number, number>()
   for (const t of timer) {
     const d = t.faktisk - t.planlagt
     if (d > 0) over += d
     else under -= d
+    const dag = perDag.get(t.dato) ?? { planlagt: 0, faktisk: 0 }
+    dag.planlagt += t.planlagt
+    dag.faktisk += t.faktisk
+    perDag.set(t.dato, dag)
+    perTime.set(t.time, (perTime.get(t.time) ?? 0) + d)
   }
-  return { timer, overforbruk: over, underforbruk: under }
+
+  const verstedager = [...perDag]
+    .map(([dato, v]) => ({ dato, ...v, avvik: v.faktisk - v.planlagt }))
+    .sort((a, b) => Math.abs(b.avvik) - Math.abs(a.avvik))
+    .filter((d) => Math.abs(d.avvik) >= 1)
+    .slice(0, 5)
+
+  const verstetimer = [...perTime]
+    .map(([time, avvik]) => ({ time, avvik }))
+    .sort((a, b) => Math.abs(b.avvik) - Math.abs(a.avvik))
+    .filter((t) => Math.abs(t.avvik) >= 1)
+    .slice(0, 5)
+
+  return {
+    timer,
+    planlagteTimer: timer.reduce((a, t) => a + t.planlagt, 0),
+    faktiskeTimer: timer.reduce((a, t) => a + t.faktisk, 0),
+    overforbruk: over,
+    underforbruk: under,
+    verstedager,
+    verstetimer,
+  }
 }
 
 // =====================================================================

@@ -69,26 +69,56 @@ describe('sammenlignStasjoner', () => {
 })
 
 describe('planMotFaktisk', () => {
-  test('skiller over- fra underforbruk i stedet for å nette dem ut', () => {
-    // Netto null, men to timer for mye tirsdag og to for lite mandag er
-    // ikke «riktig bemannet» — det er to feil som skjuler hverandre.
-    const plan = [
-      { ukedag: 1, time: 12, sum: 2, kunder: 40 },
-      { ukedag: 2, time: 12, sum: 1, kunder: 10 },
-    ]
-    const r = planMotFaktisk(plan, new Map([['1:12', 0], ['2:12', 3]]))
+  const p = (dato: string, time: number, sum: number, kunder = 0) => ({ dato, time, sum, kunder })
+
+  test('over- og underforbruk nettes ikke ut', () => {
+    // To timer for mye tirsdag og to for lite mandag er ikke «riktig
+    // bemannet» — det er to feil som skjuler hverandre.
+    const r = planMotFaktisk(
+      [p('2026-03-02', 12, 2), p('2026-03-03', 12, 1)],
+      new Map([['2026-03-02:12', 0], ['2026-03-03:12', 3]]),
+    )
     expect(r.overforbruk).toBe(2)
     expect(r.underforbruk).toBe(2)
-    expect(r.timer[0]).toMatchObject({ planlagt: 2, faktisk: 0 })
+    expect(r.faktiskeTimer - r.planlagteTimer).toBe(0) // netto null, og det lyver
   })
 
   test('en time uten stempling teller som null, ikke som manglende', () => {
-    const r = planMotFaktisk([{ ukedag: 1, time: 5, sum: 1, kunder: 0 }], new Map())
+    const r = planMotFaktisk([p('2026-03-02', 5, 1)], new Map())
     expect(r.timer[0].faktisk).toBe(0)
     expect(r.underforbruk).toBe(1)
   })
-})
 
+  test('peker ut dagene som ligger lengst fra planen', () => {
+    const plan = [
+      ...[10, 11, 12].map((t) => p('2026-03-02', t, 1)),
+      ...[10, 11, 12].map((t) => p('2026-03-03', t, 1)),
+    ]
+    const faktisk = new Map([
+      ['2026-03-03:10', 3], ['2026-03-03:11', 3], ['2026-03-03:12', 3],
+    ])
+    const r = planMotFaktisk(plan, faktisk)
+    expect(r.verstedager[0].dato).toBe('2026-03-03')
+    expect(r.verstedager[0].avvik).toBe(6)
+  })
+
+  test('peker ut klokketimene som systematisk er overbemannet', () => {
+    // Tre mandager. Kl. 12 gaar som planlagt, kl. 20 staar det en for mye
+    // hver gang. Det er monsteret som skal fram - ikke enkeltdagen.
+    const dager = ['2026-03-02', '2026-03-09', '2026-03-16']
+    const plan = dager.flatMap((d) => [12, 20].map((t) => p(d, t, 1)))
+    const faktisk = new Map(dager.flatMap((d) =>
+      [[`${d}:12`, 1], [`${d}:20`, 2]] as [string, number][]))
+    const r = planMotFaktisk(plan, faktisk)
+    expect(r.verstetimer).toEqual([{ time: 20, avvik: 3 }])
+  })
+
+  test('smaa avvik roper ikke', () => {
+    const r = planMotFaktisk([p('2026-03-02', 12, 1)], new Map([['2026-03-02:12', 1]]))
+    expect(r.verstedager).toHaveLength(0)
+    expect(r.verstetimer).toHaveLength(0)
+  })
+})
 
 describe('historiskTak', () => {
   // 2026-01-05 er en mandag.

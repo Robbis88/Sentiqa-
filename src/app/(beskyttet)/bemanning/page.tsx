@@ -7,7 +7,9 @@ import {
   type Krav, type Vindu, type FastVakt, type Dagsvekt,
 } from '@/lib/bemanning'
 import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
-import { formendring, formendringTekst, historiskTak, justerProfil } from '@/lib/bemanningsanalyse'
+import {
+  formendring, formendringTekst, historiskTak, justerProfil, planMotFaktisk,
+} from '@/lib/bemanningsanalyse'
 import { FastVaktSkjema, KravSkjema, TakSkjema, VinduSkjema } from './skjemaer'
 import { slettFastVakt, slettKrav, slettVindu } from './handlinger'
 
@@ -324,6 +326,26 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   for (const t of plan?.timer ?? []) dagsum.set(t.dato, (dagsum.get(t.dato) ?? 0) + t.sum)
   // Vaktene, ikke tallene. «3 personer klokka 12» kan ingen sette opp;
   // «10–15 og 11–16» er en timeplan.
+  // Plan mot virkelighet. Bare for dager som har vaert — en plan for
+  // september kan ikke måles mot stemplinger som ikke finnes ennå.
+  const faktisk = new Map<string, number>()
+  for (const st of stemplinger) {
+    const fra = Number(st.fra_tid.slice(0, 2))
+    let til = st.til_tid.startsWith('00:') ? 24 : Number(st.til_tid.slice(0, 2))
+    if (til <= fra) til += 24
+    for (let t = fra; t < til; t++) {
+      const dato = t < 24
+        ? st.dato
+        : new Date(Date.parse(`${st.dato}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+      const n = `${dato}:${t % 24}`
+      faktisk.set(n, (faktisk.get(n) ?? 0) + 1)
+    }
+  }
+  const gaatt = plan?.timer.filter((t) => t.dato < iDag) ?? []
+  const avvik = gaatt.length > 0 && stemplinger.length > 0
+    ? planMotFaktisk(gaatt, faktisk)
+    : null
+
   const vakterPerDag = new Map<string, ReturnType<typeof vaktliste>>()
   for (const v of plan ? vaktliste(plan.timer) : []) {
     const liste = vakterPerDag.get(v.dato) ?? []
@@ -501,6 +523,37 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               {profiler.filter((p) => p.navn && p.grunnlag === 0).map((p) => p.navn).join(', ')}
               {' '}har vi ikke sett før i tallene deres — bemanningen der er et anslag fra de
               andre røde dagene, ikke en måling.
+            </p>
+          )}
+        </section>
+      )}
+
+      {avvik && (avvik.overforbruk >= 1 || avvik.underforbruk >= 1) && (
+        <section className="kort">
+          <h2>Planen mot det som faktisk skjedde</h2>
+          <p className="undertittel">
+            Kun dagene som har vært. Over- og underforbruk står hver for seg med vilje —
+            to timer for mye tirsdag og to for lite mandag er ikke riktig bemannet, det er
+            to feil som skjuler hverandre.
+          </p>
+          <p>
+            <strong>{Math.round(avvik.faktiskeTimer)} timer</strong> stemplet mot{' '}
+            <strong>{Math.round(avvik.planlagteTimer)}</strong> planlagt.
+            {' '}{Math.round(avvik.overforbruk)} timer over, {Math.round(avvik.underforbruk)} under.
+          </p>
+          {avvik.verstetimer.length > 0 && (
+            <p className="undertittel">
+              Går igjen på klokkeslettet:{' '}
+              {avvik.verstetimer.map((t) =>
+                `${kl(t.time)} (${t.avvik > 0 ? '+' : ''}${Math.round(t.avvik)} t)`).join(', ')}.
+              {' '}Det er et mønster i vaktoppsettet, ikke enkeltdager.
+            </p>
+          )}
+          {avvik.verstedager.length > 0 && (
+            <p className="undertittel">
+              Dagene som ligger lengst unna:{' '}
+              {avvik.verstedager.map((d) =>
+                `${Number(d.dato.slice(8))}. (${d.avvik > 0 ? '+' : ''}${Math.round(d.avvik)} t)`).join(', ')}.
             </p>
           )}
         </section>
