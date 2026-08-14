@@ -7,7 +7,7 @@ import {
   type Krav, type Vindu, type FastVakt, type Dagsvekt,
 } from '@/lib/bemanning'
 import { dagsprofiler, datoerIMaaned } from '@/lib/dagtyper'
-import { historiskTak } from '@/lib/bemanningsanalyse'
+import { formendring, formendringTekst, historiskTak, justerProfil } from '@/lib/bemanningsanalyse'
 import { FastVaktSkjema, KravSkjema, TakSkjema, VinduSkjema } from './skjemaer'
 import { slettFastVakt, slettKrav, slettVindu } from './handlinger'
 
@@ -58,6 +58,33 @@ async function hentStemplinger(
     .eq('betalt', true)
     .gte('dato', fra)
   return (data ?? []) as { dato: string; fra_tid: string; til_tid: string; minutter: number }[]
+}
+
+// Døgnkurven for en periode. Brukes to ganger med samme kalenderperiode i
+// to ulike år, så det som måles er FORMENDRING og ikke sesong.
+async function hentDognkurve(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  stasjonId: string,
+  fra: string,
+  til: string,
+): Promise<Map<string, number>> {
+  const { data } = await supabase
+    .from('timesalg')
+    .select('dato, time, inne_kunder')
+    .eq('stasjon_id', stasjonId)
+    .is('slettet_tid', null)
+    .not('inne_kunder', 'is', null)
+    .gte('dato', fra)
+    .lte('dato', til)
+  const sum = new Map<string, { n: number; sum: number }>()
+  for (const r of (data ?? []) as { dato: string; time: string; inne_kunder: number }[]) {
+    const d = new Date(`${r.dato}T00:00:00Z`).getUTCDay()
+    const noekkel = `${d === 0 ? 7 : d}:${Number.parseInt(r.time.split('-')[0], 10)}`
+    const s = sum.get(noekkel) ?? { n: 0, sum: 0 }
+    s.n++; s.sum += r.inne_kunder
+    sum.set(noekkel, s)
+  }
+  return new Map([...sum].map(([k, v]) => [k, v.sum / v.n]))
 }
 
 // Kunder per DATO — grunnlaget for helligdagsfaktorene. Ikke per måned:
@@ -177,6 +204,9 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const valgt = alle.find((s) => s.id === sok.stasjon) ?? alle[0]
   // Standard er NESTE måned — det er den man planlegger. Ruller over årsskiftet.
   const naa = new Date()
+  // Overlappet vi kan sammenligne: fra nyttår til forrige hele måned, i
+  // begge år. Inneværende måned er ikke ferdig og ville dratt skjevt.
+  const forrigeMnd = String(Math.max(1, naa.getUTCMonth())).padStart(2, '0')
   const nesteNr = naa.getUTCMonth() + 2
   const nesteManed = nesteNr > 12 ? 1 : nesteNr
   const nesteAr = nesteNr > 12 ? naa.getUTCFullYear() + 1 : naa.getUTCFullYear()
@@ -185,7 +215,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const iDag = naa.toISOString().slice(0, 10)
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
-    { data: grenser }, profilen, maanedskunder, dagskunder, stemplinger] =
+    { data: grenser }, profilen, maanedskunder, dagskunder, stemplinger,
+    kurveIFjor, kurveIAar] =
     await Promise.all([
       // Hele året, ikke bare måneden: gulvet må trekkes fra i alle tolv før
       // noe kan fordeles. En døgnåpen stasjon kan trenge mer i juni enn
@@ -205,6 +236,11 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       // To år tilbake: da har vi hver røde dag minst én gang, ofte to.
       hentDagskunder(supabase, valgt.id, `${ar - 2}-01-01`),
       hentStemplinger(supabase, valgt.id, `${ar - 2}-01-01`),
+      // Samme kalenderperiode to år på rad. Stasjonene endrer seg hele
+      // tiden, og en plan som arver fjorårets form uten å se etter om den
+      // fortsatt stemmer, blir gradvis feil uten at noen merker det.
+      hentDognkurve(supabase, valgt.id, `${ar - 1}-01-01`, `${ar - 1}-${forrigeMnd}-28`),
+      hentDognkurve(supabase, valgt.id, `${ar}-01-01`, `${ar}-${forrigeMnd}-28`),
     ])
   const maksBemanning = grenser?.maks_bemanning ?? undefined
 
@@ -261,10 +297,16 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     })))
     : undefined
 
+  // Har formen flyttet seg siden i fjor, skal septemberplanen vite det —
+  // ikke bare arve september i fjor. Er driften liten, står profilen som den er.
+  const drift = formendring(kurveIFjor, kurveIAar)
+  const driftTekst = formendringTekst(drift, UKEDAG)
+  const brukProfil = justerProfil(profilen.profil, drift)
+
   const plan = disponible !== null && gjeldende.size > 0 && aar?.gjennomforbar
     ? planleggKalender({
       disponibleTimer: disponible, dager: dagsvekter, ...oppsett,
-      profil: profilen.profil, maksBemanning, tak,
+      profil: brukProfil, maksBemanning, tak,
     })
     : null
   const rutenett = new Map(plan?.timer.map((t) => [`${t.dato}:${t.time}`, t]) ?? [])
@@ -340,6 +382,9 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 {' '}{Math.round(plan.brukteTimer)} er fordelt etter kundetrykk.
                 {' '}Kundeformen er hentet fra {profilen.kilde} ({profilen.dager} dager).
               </p>
+            )}
+            {driftTekst && (
+              <p className="undertittel">{driftTekst}</p>
             )}
             {aarsrammer.length > 0 && (
               <p className="undertittel">

@@ -247,3 +247,129 @@ export function historiskTak(
   }
   return tak
 }
+
+// =====================================================================
+// Har formen flyttet seg?
+//
+// Planen for september bygger på september i fjor. Det bærer så lenge
+// stasjonen er den samme — men stasjonene endrer seg hele tiden. Ny
+// konkurrent over gata, endret åpningstid, matkonseptet som slo an. Da
+// er fjorårets døgnkurve feil, og planen arver feilen uten at noen ser
+// det.
+//
+// Vi har januar–juli i både fjor og år. Den overlappen sier hvordan
+// formen har flyttet seg, og den justeringen gjelder alle månedene —
+// ikke bare de vi har målt.
+//
+// VIKTIG: begge periodene normaliseres først. Vi er ute etter FORMEN,
+// ikke nivået. Vokser stasjonen 8 % jevnt, har formen ikke endret seg,
+// og veksten ligger allerede i BP-rammen — legger vi den på her også,
+// telles den to ganger.
+// =====================================================================
+
+export type Formendring = {
+  /** `${ukedag}:${time}` → hvor mye den timens ANDEL har endret seg. */
+  faktorer: Map<string, number>
+  /** Største bevegelser, sortert. Til å vise butikksjefen. */
+  storsteUtslag: { ukedag: number; time: number; faktor: number }[]
+  /** Hvor mye formen har flyttet seg totalt, 0 = ikke i det hele tatt. */
+  drift: number
+  /** Har vi nok data til å tro på dette? */
+  paalitelig: boolean
+}
+
+// Under dette er endringen mindre enn støyen fra en enkelt uke med
+// dårlig vær, og en justering ville gjort planen dårligere, ikke bedre.
+const DRIFT_TERSKEL = 0.08
+const MIN_KUNDER = 200 // per periode, summert
+
+/**
+ * Sammenligner to døgnkurver og finner hvordan formen har flyttet seg.
+ *
+ * `basis` og `ny` er `${ukedag}:${time}` → snitt innekunder, fra samme
+ * kalenderperiode i to år (jan–jul i fjor mot jan–jul i år). Samme
+ * periode er poenget: ellers måler man sesong og kaller det endring.
+ */
+export function formendring(
+  basis: Map<string, number>,
+  ny: Map<string, number>,
+): Formendring {
+  const sumBasis = [...basis.values()].reduce((a, b) => a + b, 0)
+  const sumNy = [...ny.values()].reduce((a, b) => a + b, 0)
+  const tomt: Formendring = {
+    faktorer: new Map(), storsteUtslag: [], drift: 0, paalitelig: false,
+  }
+  if (sumBasis < MIN_KUNDER || sumNy < MIN_KUNDER) return tomt
+
+  const faktorer = new Map<string, number>()
+  const utslag: { ukedag: number; time: number; faktor: number }[] = []
+  let drift = 0
+  let vekt = 0
+
+  for (const [noekkel, verdi] of ny) {
+    const for_ = basis.get(noekkel)
+    if (for_ === undefined || for_ <= 0 || verdi <= 0) continue
+    // Andeler, ikke absolutte tall: nivået hører til rammen, ikke formen.
+    const andelFor = for_ / sumBasis
+    const andelNa = verdi / sumNy
+    const faktor = andelNa / andelFor
+    faktorer.set(noekkel, faktor)
+
+    const [u, t] = noekkel.split(':').map(Number)
+    utslag.push({ ukedag: u, time: t, faktor })
+    // Vektet med hvor mange kunder timen faktisk har — at en død
+    // nattetime doblet seg fra to til fire kunder er ikke en formendring.
+    drift += Math.abs(faktor - 1) * andelNa
+    vekt += andelNa
+  }
+
+  const samletDrift = vekt > 0 ? drift / vekt : 0
+  utslag.sort((a, b) => Math.abs(b.faktor - 1) - Math.abs(a.faktor - 1))
+  return {
+    faktorer,
+    storsteUtslag: utslag.slice(0, 8),
+    drift: samletDrift,
+    paalitelig: samletDrift >= DRIFT_TERSKEL,
+  }
+}
+
+// Justeringen kappes. En time som «tredoblet seg» er som regel en time
+// som gikk fra tre til ni kunder, og den skal ikke velte en månedsplan.
+const MIN_JUSTERING = 0.6
+const MAKS_JUSTERING = 1.7
+
+/**
+ * Legger den målte formendringen på fjorårets kurve.
+ *
+ * Gjøres bare når driften er stor nok til å tro på — ellers returneres
+ * profilen uendret. En justering på tre prosent er ikke en forbedring,
+ * det er å flytte støy fra ett sted til et annet.
+ */
+export function justerProfil(
+  profil: Map<string, number>,
+  endring: Formendring,
+): Map<string, number> {
+  if (!endring.paalitelig) return profil
+  const ut = new Map(profil)
+  for (const [noekkel, verdi] of profil) {
+    const f = endring.faktorer.get(noekkel)
+    if (f === undefined) continue
+    ut.set(noekkel, verdi * Math.min(MAKS_JUSTERING, Math.max(MIN_JUSTERING, f)))
+  }
+  return ut
+}
+
+/** Én setning om hva som har flyttet seg. Null hvis ingenting har det. */
+export function formendringTekst(e: Formendring, ukedager: string[]): string | null {
+  if (!e.paalitelig || e.storsteUtslag.length === 0) return null
+  const opp = e.storsteUtslag.filter((u) => u.faktor > 1).slice(0, 2)
+  const ned = e.storsteUtslag.filter((u) => u.faktor < 1).slice(0, 2)
+  const beskriv = (u: { ukedag: number; time: number; faktor: number }) =>
+    `${ukedager[u.ukedag]} kl. ${String(u.time).padStart(2, '0')}`
+  const deler: string[] = []
+  if (opp.length > 0) deler.push(`opp på ${opp.map(beskriv).join(' og ')}`)
+  if (ned.length > 0) deler.push(`ned på ${ned.map(beskriv).join(' og ')}`)
+  if (deler.length === 0) return null
+  return `Kundeformen har flyttet seg siden i fjor — ${deler.join(', ')}. `
+    + 'Planen er justert etter det, ikke bare arvet fra fjoråret.'
+}
