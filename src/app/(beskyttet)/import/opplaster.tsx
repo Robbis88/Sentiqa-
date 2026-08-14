@@ -10,13 +10,20 @@ export function Opplaster() {
 
   return (
     <form action={handling} className="opplaster">
-      <input
-        type="file"
-        name="filer"
-        multiple
-        accept=".csv,.txt,.xlsx,.xls,.pdf"
-        required
-      />
+      {/* Uten label annonserer skjermleseren bare «filvelger» — accept-
+          attributtet er usynlig for brukeren, så filtypene må stå i teksten.
+          .pdf er fjernet: ingen parser kan lese PDF, så den inviterte til en
+          filtype som garantert feiler. */}
+      <label className="felt">
+        <span>Velg fil — Excel eller CSV fra kassesystemet</span>
+        <input
+          type="file"
+          name="filer"
+          multiple
+          accept=".csv,.txt,.xlsx,.xls"
+          required
+        />
+      </label>
       <button type="submit" disabled={venter}>
         {venter ? 'Laster opp …' : 'Last opp'}
       </button>

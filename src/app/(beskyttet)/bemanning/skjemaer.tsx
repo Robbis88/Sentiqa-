@@ -15,9 +15,12 @@ function Svar({ tilstand }: { tilstand: Tilstand }) {
   return null
 }
 
-// Avkryssing er riktig mønster for flervalg av uavhengige dager — men det
-// må pakkes: uten fieldset/legend leser skjermleseren sju løsrevne «man/tir»
-// uten å si hva de er, og uten pillestil er trykkflaten 13 px.
+// Avkryssing er riktig mønster for flervalg av uavhengige dager — men det må
+// pakkes: uten fieldset/legend leser skjermleseren sju løsrevne «man/tir» uten
+// å si hva de er, og uten pillestil er trykkflaten 13 px.
+//
+// Alle tre skjemaene bruker nå den samme. Før hadde bemannet vindu enkeltvalg
+// og de to andre avkryssing — samme spørsmål, to mekanikker på samme side.
 function Ukedagsvelger({ alleAv = false }: { alleAv?: boolean }) {
   return (
     <fieldset className="sq-ukedager">
@@ -33,73 +36,103 @@ function Ukedagsvelger({ alleAv = false }: { alleAv?: boolean }) {
   )
 }
 
-const timer = (navn: string, standard: number) => (
-  <select name={navn} defaultValue={standard}>
-    {Array.from({ length: 25 }, (_, t) => (
-      <option key={t} value={t}>{String(t).padStart(2, '0')}:00</option>
-    ))}
-  </select>
-)
+// To identiske klokkeslettfelt ved siden av hverandre uten ord er en garantert
+// forveksling. Etiketten står over feltet, ikke bare som kolonnenavn i tabellen
+// under — der ser man den først etter å ha gjettet feil.
+//
+// step=3600 fordi planleggingsmotoren regner i hele timer. Skriver noen 06:30
+// likevel, sier serveren det rett ut i stedet for å runde i stillhet.
+function Tid({ navn, merke, standard }: { navn: string; merke: string; standard: string }) {
+  return (
+    <label className="felt sq-smalt">
+      <span>{merke}</span>
+      <input type="time" name={navn} defaultValue={standard} step={3600} required />
+    </label>
+  )
+}
 
-// Bemannet vindu — merk at dette er når det står folk der, ikke når døra er
-// åpen. Er noen inne en time før åpning, er det den timen som skal stå.
 export function VinduSkjema({ stasjonId, iDag }: { stasjonId: string; iDag: string }) {
   const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreVindu, undefined)
   return (
-    <form action={handling} className="rutine-form">
+    <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
-      <select name="ukedag" defaultValue={1}>
-        {UKEDAGER.map((u) => <option key={u.nr} value={u.nr}>{u.kort}</option>)}
-      </select>
-      {timer('fra_time', 6)}
-      {timer('til_time', 23)}
-      <label>
-        min.{' '}
-        <input name="min_bemanning" type="number" min={0} max={20} defaultValue={1} style={{ width: '3.5rem' }} />
-      </label>
-      <label>
-        fra dato <input name="gjelder_fra" type="date" defaultValue={iDag} />
-      </label>
-      <button type="submit" className="liten" disabled={venter}>{venter ? '…' : 'Lagre'}</button>
-      <Svar tilstand={tilstand} />
+      {/* Hele uka er huket av på forhånd — de fleste stasjoner har samme vindu
+          man–fre, og så retter man helga etterpå. Før måtte man fylle ut og
+          lagre sju ganger for å komme i gang. */}
+      <Ukedagsvelger alleAv />
+      <div className="sq-skjema-rad">
+        <Tid navn="fra_time" merke="Fra klokken" standard="06:00" />
+        <Tid navn="til_time" merke="Til klokken" standard="23:00" />
+        <label className="felt sq-smalt">
+          <span>Minst så mange på jobb</span>
+          <input name="min_bemanning" type="number" min={0} max={20} defaultValue={1} required />
+        </label>
+        <label className="felt sq-smalt">
+          <span>Gjelder fra dato</span>
+          <input name="gjelder_fra" type="date" defaultValue={iDag} required />
+        </label>
+      </div>
+      <div className="sq-skjema-bunn">
+        <button type="submit" className="sq-knapp primar" disabled={venter}>
+          {venter ? 'Lagrer …' : 'Lagre'}
+        </button>
+        <Svar tilstand={tilstand} />
+      </div>
     </form>
   )
 }
 
-// Faste vakter: butikksjefen selv, NK, eller andre som alltid står.
-// De går på fastlønn og belaster ikke timerammen, men dekker gulvet.
+// Faste vakter: butikksjefen selv, NK, eller andre som alltid står. De går på
+// fastlønn og belaster ikke timerammen, men dekker minimumsbemanningen.
 export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
   const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilFastVakt, undefined)
   return (
-    <form action={handling} className="rutine-form">
+    <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
-      <input name="navn" placeholder="Butikksjef, NK …" required />
+      <label className="felt">
+        <span>Hvem gjelder det?</span>
+        <input name="navn" placeholder="Butikksjef" required />
+      </label>
       <Ukedagsvelger />
-      {timer('fra_time', 7)}
-      {timer('til_time', 15)}
-      <button type="submit" className="liten" disabled={venter}>{venter ? '…' : 'Legg til'}</button>
-      <Svar tilstand={tilstand} />
+      <div className="sq-skjema-rad">
+        <Tid navn="fra_time" merke="Fra klokken" standard="07:00" />
+        <Tid navn="til_time" merke="Til klokken" standard="15:00" />
+      </div>
+      <div className="sq-skjema-bunn">
+        <button type="submit" className="sq-knapp primar" disabled={venter}>
+          {venter ? 'Legger til …' : 'Legg til'}
+        </button>
+        <Svar tilstand={tilstand} />
+      </div>
     </form>
   )
 }
 
-// Krav-vinduer: timene som krever flere enn minimumsbemanningen.
-// Varemottak er det vanligste, men det kan være hva som helst.
+// Timene der én ikke holder. Varemottak er det vanligste.
 export function KravSkjema({ stasjonId }: { stasjonId: string }) {
   const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilKrav, undefined)
   return (
-    <form action={handling} className="rutine-form">
+    <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
       <Ukedagsvelger />
-      {timer('fra_time', 6)}
-      {timer('til_time', 9)}
-      <label>
-        antall{' '}
-        <input name="antall" type="number" min={2} max={20} defaultValue={2} style={{ width: '3.5rem' }} />
-      </label>
-      <input name="begrunnelse" placeholder="Varemottak …" />
-      <button type="submit" className="liten" disabled={venter}>{venter ? '…' : 'Legg til'}</button>
-      <Svar tilstand={tilstand} />
+      <div className="sq-skjema-rad">
+        <Tid navn="fra_time" merke="Fra klokken" standard="06:00" />
+        <Tid navn="til_time" merke="Til klokken" standard="09:00" />
+        <label className="felt sq-smalt">
+          <span>Så mange må på jobb</span>
+          <input name="antall" type="number" min={2} max={20} defaultValue={2} required />
+        </label>
+        <label className="felt">
+          <span>Hvorfor?</span>
+          <input name="begrunnelse" placeholder="Varemottak" />
+        </label>
+      </div>
+      <div className="sq-skjema-bunn">
+        <button type="submit" className="sq-knapp primar" disabled={venter}>
+          {venter ? 'Legger til …' : 'Legg til'}
+        </button>
+        <Svar tilstand={tilstand} />
+      </div>
     </form>
   )
 }

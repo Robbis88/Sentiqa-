@@ -197,7 +197,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
             {iMnd && raaRamme !== null && Math.abs(disponible - raaRamme) >= 1 && (
               <p className="undertittel">
                 {disponible > raaRamme
-                  ? `Måneden låner ${Math.round(disponible - raaRamme)} timer fra resten av året — gulvet her koster ${Math.round(iMnd.bundne)} timer, mer enn bruttokurven alene ville gitt.`
+                  ? `Måneden låner ${Math.round(disponible - raaRamme)} timer fra resten av året — minimumsbemanningen her koster ${Math.round(iMnd.bundne)} timer, mer enn bruttokurven alene ville gitt.`
                   : `Måneden avgir ${Math.round(raaRamme - disponible)} timer til måneder med tyngre gulv.`}
               </p>
             )}
@@ -205,7 +205,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               <p className="undertittel">Legg inn bemannet vindu nedenfor, så regner jeg ut forslaget.</p>
             ) : (
               <p className="undertittel">
-                {Math.round(plan.bundneTimer)} timer er bundet av minimumsbemanning, krav og faste vakter.
+                {Math.round(plan.bundneTimer)} timer går til minimumsbemanning, timer som krever flere, og faste vakter.
                 {' '}{Math.round(plan.brukteTimer)} er fordelt etter kundetrykk.
                 {' '}Kundeformen er hentet fra {profilen.kilde} ({profilen.dager} dager).
               </p>
@@ -216,7 +216,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
       {plan && plan.gjennomforbar && (
         <section className="kort">
-          <h2>Forslag til normaluke</h2>
+          <h2>Forslag til en vanlig uke</h2>
           <table className="tabell">
             <thead>
               <tr>
@@ -251,7 +251,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       )}
 
       <section className="kort">
-        <h2>Bemannet vindu</h2>
+        <h2>Når står det folk i butikken?</h2>
         <p className="undertittel">
           Når står det folk der — ikke når døra åpner. Begynner noen en time før åpning, er det den
           timen som skal stå. Endrer dere åpningstid permanent, legg inn en ny rad med dato fra
@@ -272,7 +272,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   <td>
                     <form action={slettVindu}>
                       <input type="hidden" name="id" value={v.id} />
-                      <button type="submit" className="liten">Slett</button>
+                      <button type="submit" className="liten slett">Slett</button>
                     </form>
                   </td>
                 </tr>
@@ -302,7 +302,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   <td>
                     <form action={slettFastVakt}>
                       <input type="hidden" name="id" value={v.id} />
-                      <button type="submit" className="liten">Slett</button>
+                      <button type="submit" className="liten slett">Slett</button>
                     </form>
                   </td>
                 </tr>
@@ -313,7 +313,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       </section>
 
       <section className="kort">
-        <h2>Timer som krever flere</h2>
+        <h2>Timer der én ikke holder</h2>
         <p className="undertittel">
           Varemottak, eller andre timer der én ikke holder. Uten en rad her foreslås aldri to
           personer på en rolig time — de ekstra hendene går dit kundene faktisk er.
@@ -333,7 +333,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   <td>
                     <form action={slettKrav}>
                       <input type="hidden" name="id" value={k.id} />
-                      <button type="submit" className="liten">Slett</button>
+                      <button type="submit" className="liten slett">Slett</button>
                     </form>
                   </td>
                 </tr>

@@ -9,7 +9,26 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 // policyene fra 0081. Sjekkene her gir bare et vennligere svar enn en
 // tom skriveoperasjon.
 
-const Tid = z.coerce.number().int().min(0).max(24)
+// Feltene sender "HH:MM" fra <input type="time">. Motoren regner i hele
+// timer, saa halvtimer avvises med en setning som sier hva som gjelder -
+// ikke en avrunding i stillhet.
+const Tid = z.union([
+  z.coerce.number().int().min(0).max(24),
+  z.string().regex(/^\d{2}:\d{2}$/).transform((v, ctx) => {
+    const [t, m] = v.split(':').map(Number)
+    if (m !== 0) {
+      ctx.addIssue({ code: 'custom', message: 'Bemanningsplanen regner i hele timer — velg et helt klokkeslett.' })
+      return z.NEVER
+    }
+    return t
+  }),
+])
+
+// <input type="time"> kan ikke uttrykke 24:00 — et vindu som stenger ved
+// midnatt sender "00:00". Uten dette ville Bønes (06–24) blitt avvist med
+// «Til-tid må være etter fra-tid».
+const midnattEr24 = <T extends { fra_time: number; til_time: number }>(v: T): T =>
+  (v.til_time === 0 && v.fra_time > 0 ? { ...v, til_time: 24 } : v)
 const Ukedag = z.coerce.number().int().min(1).max(7)
 
 const Vindu = z.object({
@@ -19,7 +38,7 @@ const Vindu = z.object({
   til_time: Tid,
   min_bemanning: z.coerce.number().int().min(0).max(20),
   gjelder_fra: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: 'Ugyldig dato.' }),
-}).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
+}).transform(midnattEr24).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
 
 const FastVakt = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
@@ -27,7 +46,7 @@ const FastVakt = z.object({
   ukedager: z.array(Ukedag).min(1, { error: 'Velg minst én ukedag.' }),
   fra_time: Tid,
   til_time: Tid,
-}).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
+}).transform(midnattEr24).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
 
 const Krav = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
@@ -36,7 +55,7 @@ const Krav = z.object({
   til_time: Tid,
   antall: z.coerce.number().int().min(2).max(20),
   begrunnelse: z.string().optional(),
-}).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
+}).transform(midnattEr24).refine((v) => v.til_time > v.fra_time, { error: 'Til-tid må være etter fra-tid.' })
 
 export type Tilstand = { ok?: true; feil?: string } | undefined
 

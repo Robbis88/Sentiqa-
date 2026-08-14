@@ -1417,3 +1417,34 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 .sq-sak[data-niva='kritisk'] .sq-nivaa { background: var(--rod-svak); color: var(--rod); }
 .sq-sak[data-niva='folg'] .sq-nivaa { background: var(--gul-svak); color: var(--gul); }
+
+/* Bemanningsskjemaene: stablede felt med synlige etiketter, ikke en
+   inntastingsrad. To like klokkeslettfelt ved siden av hverandre uten ord
+   er en garantert forveksling. */
+.sq-skjema { display: flex; flex-direction: column; gap: 0.9rem; margin: 0.75rem 0 1.1rem; max-width: 780px; }
+.sq-skjema-rad { display: flex; flex-wrap: wrap; gap: 0.9rem; align-items: flex-end; }
+.sq-skjema-rad > .felt { flex: 1 1 12rem; }
+.sq-skjema-rad > .felt.sq-smalt { flex: 0 1 9.5rem; }
+.sq-skjema-bunn { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------
+   Trykkflater og skriftstørrelse (Tier 3).
+   iOS Safari zoomer inn når et fokusert felt har font-size < 16px, og
+   zoomer aldri ut igjen. Alle inputfelt lå på 13–15 px. Kompaktheten
+   hentes nå i padding, ikke i skriftstørrelsen.
+   Prosjektet har selv kravet ≥44px (se tablet-CSS-en over).
+   --------------------------------------------------------------- */
+.felt input, .felt select, .felt textarea,
+.rutine-form input, .rutine-form select, .rutine-form textarea,
+.skjema input, .skjema select, .skjema textarea,
+.rediger-form input, .rediger-form select,
+.type-form select {
+  font-size: 1rem;
+}
+.felt input, .felt select,
+.rutine-form input, .rutine-form select,
+.skjema input, .skjema select {
+  min-height: 44px;
+}
+button.liten { min-height: 40px; }
+.sq-knapp { min-height: 40px; display: inline-flex; align-items: center; }
