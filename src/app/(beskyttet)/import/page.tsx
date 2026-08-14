@@ -65,45 +65,38 @@ type Jobb = {
 // «du er 60 % ferdig», som skjuler at de siste 40 er den ene fila som gjør
 // at bemanningsplanen virker.
 //
+// Tellingen skjer i basen (v_datadekning, 0090). Første forsøk hentet hver
+// eneste rad i salgstabellen hit for å telle datoer: PostgREST kutter på
+// 1000 rader, så svaret ble løgn, og spørringen var dyr nok til å velte
+// siden på en tabell som vokser med drift.
+//
 // Dagene telles på stasjonen med MINST. En kilde som dekker fire stasjoner
 // godt og den femte i tre dager er ikke i mål; den femte får ingen analyse.
 async function maalKilder(
   supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
 ): Promise<Kildemaaling[]> {
-  const tellDager = async (
-    tabell: string,
-    datokolonne: string,
-    noekkel: string,
-  ): Promise<Kildemaaling> => {
-    const { data } = await supabase.from(tabell).select(`stasjon_id, ${datokolonne}`)
-    const rader = (data ?? []) as unknown as Record<string, string>[]
-    const perStasjon = new Map<string, Set<string>>()
-    let siste: string | null = null
-    for (const r of rader) {
-      const d = String(r[datokolonne] ?? '').slice(0, 10)
-      if (!d) continue
-      const sett = perStasjon.get(r.stasjon_id) ?? new Set<string>()
-      sett.add(d)
-      perStasjon.set(r.stasjon_id, sett)
-      if (!siste || d > siste) siste = d
-    }
-    const antall = [...perStasjon.values()].map((s) => s.size)
-    return {
-      noekkel,
-      stasjonerMedData: perStasjon.size,
-      dagerDekket: antall.length > 0 ? Math.min(...antall) : 0,
-      sisteDato: siste,
-    }
+  const { data } = await supabase
+    .from('v_datadekning')
+    .select('kilde, stasjon_id, dager, siste_dato')
+  const rader = (data ?? []) as {
+    kilde: string; stasjon_id: string; dager: number; siste_dato: string | null
+  }[]
+
+  const perKilde = new Map<string, { dager: number[]; stasjoner: Set<string>; siste: string | null }>()
+  for (const r of rader) {
+    const k = perKilde.get(r.kilde) ?? { dager: [], stasjoner: new Set<string>(), siste: null }
+    k.dager.push(r.dager)
+    k.stasjoner.add(r.stasjon_id)
+    if (r.siste_dato && (!k.siste || r.siste_dato > k.siste)) k.siste = r.siste_dato
+    perKilde.set(r.kilde, k)
   }
 
-  const [salg, timer, stempl, bp, regnskap] = await Promise.all([
-    tellDager('v_butikksalg', 'dato', 'st1_salgsstatistikk'),
-    tellDager('timesalg', 'dato', 'timesalg'),
-    tellDager('stempling', 'dato', 'stempling'),
-    tellDager('bemanning_maned', 'ar', 'bemanning_maned'),
-    tellDager('regnskapslinjer', 'periode', 'regnskapslinjer'),
-  ])
-  return [salg, timer, stempl, bp, regnskap]
+  return [...perKilde].map(([noekkel, k]) => ({
+    noekkel,
+    stasjonerMedData: k.stasjoner.size,
+    dagerDekket: k.dager.length > 0 ? Math.min(...k.dager) : 0,
+    sisteDato: k.siste,
+  }))
 }
 
 const STEG_KLASSE: Record<string, string> = {
