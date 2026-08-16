@@ -43,7 +43,10 @@ declare
     -- Ansatte og fravaer (0089). Faa rader, men leses i hver planberegning.
     'ansatt_avtale', 'bemanning_fravaer',
     -- Leses paa hver forside for aa filtrere feeden (0083).
-    'signal_lukket'
+    'signal_lukket',
+    -- Arbeidsavtaler (0098). Vokser med drift - en rad per generering,
+    -- og signerte rader slettes aldri.
+    'ansatt_kontrakt'
   ];
   r record;
   feil int := 0;

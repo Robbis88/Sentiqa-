@@ -78,6 +78,7 @@ const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
       { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
       { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
+      { sti: '/kontrakt', tekst: 'Arbeidsavtaler', roller: [A, B] },
       { sti: '/opplaring', tekst: 'Opplæring', roller: [B] },
       { sti: '/skills', tekst: 'Skills-score', roller: [A, B] },
       { sti: '/merker', tekst: 'Merker', roller: [A, B, T] },
