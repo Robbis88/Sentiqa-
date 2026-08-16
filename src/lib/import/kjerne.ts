@@ -165,7 +165,15 @@ export async function behandleJobbKjerne(
     await settFeil(`Kunne ikke lese fila: ${e instanceof Error ? e.message : String(e)}`)
     return
   }
-  await supabase.from('import_jobber').update({ rapporttype }).eq('id', jobbId)
+  // Feilen her ble ignorert i lang tid, og det er grunnen til at en
+  // manglende enum-verdi kunne leve uoppdaget: koeveien gikk videre med
+  // rapporttype 'ukjent', mens nettleserveien kastet paa samme fil.
+  const { error: typeFeil } = await supabase
+    .from('import_jobber').update({ rapporttype }).eq('id', jobbId)
+  if (typeFeil) {
+    await settFeil(`Kunne ikke sette rapporttype «${rapporttype}»: ${typeFeil.message}`)
+    return
+  }
 
   try {
     const oppslag = await hentStasjonsoppslag(supabase)
