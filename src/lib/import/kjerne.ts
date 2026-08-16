@@ -347,11 +347,20 @@ export async function lagreForhandsparset(
   if (filFeil || !raaFil) {
     return { ok: false, feil: filFeil?.message ?? 'Kunne ikke registrere fil.' }
   }
-  const { data: jobb } = await supabase
+  const { data: jobb, error: jobbFeil } = await supabase
     .from('import_jobber')
     .insert({ raa_fil_id: raaFil.id, retailer_id: retailerId, rapporttype: payload.type, status: 'behandler' })
     .select('id').single<{ id: string }>()
-  const jobbId = jobb!.id
+  // Feilet dette, ville `jobb!.id` kastet en TypeError ut av server-actionen,
+  // og brukeren fatt Next sin «An error occurred in the Server Components
+  // render» — som ikke sier noe. Fila maa ogsaa fjernes, ellers blokkerer den
+  // sitt eget nye forsok (se dublett.ts).
+  if (jobbFeil || !jobb) {
+    await supabase.from('raa_filer')
+      .update({ slettet_tid: new Date().toISOString() }).eq('id', raaFil.id)
+    return { ok: false, feil: `Kunne ikke opprette importjobb: ${jobbFeil?.message ?? 'ukjent'}` }
+  }
+  const jobbId = jobb.id
 
   const settFeil = async (m: string) => {
     await supabase.from('import_jobber').update({ status: 'feilet', feilmelding: m }).eq('id', jobbId)

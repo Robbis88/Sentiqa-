@@ -26,7 +26,7 @@ export async function importerForhandsparset(arg: {
 // bodySizeLimit hjelper ikke mot det. Nettleseren laster derfor rett til
 // Storage med sin egen sesjon (policy raa_filer_storage_admin, 0080), og
 // serveren registrerer bare fila. Samme kø, samme «Behandle»-knapp.
-export async function registrerRaaFil(arg: {
+async function registrerRaaFilKjerne(arg: {
   filnavn: string; sha256: string; storrelse: number; sti: string
 }): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
   const bruker = await hentInnloggetBruker()
@@ -68,6 +68,17 @@ export async function registrerRaaFil(arg: {
   revalidatePath('/import')
   return { ok: true }
 }
+// Samme regel som over: en server action skal returnere feil, ikke kaste.
+export async function registrerRaaFil(arg: {
+  filnavn: string; sha256: string; storrelse: number; sti: string
+}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
+  try {
+    return await registrerRaaFilKjerne(arg)
+  } catch (e) {
+    return { ok: false, feil: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 
 export type OpplastingTilstand =
   | { ok: true; antall: number; hoppet: number; feilet: string[] }
