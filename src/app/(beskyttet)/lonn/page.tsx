@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { tilLonnslinjer, LONNSART } from '@/lib/lonn/tidsband'
 import { vismaFilnavn } from '@/lib/lonn/vismafil'
 import { vurderSats } from '@/lib/lonn/tariff'
+import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
@@ -75,11 +76,12 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // Bekreftede stillinger og satser — til tariffkontrollen.
   const { data: avtaler } = await supabase
     .from('ansatt_avtale')
-    .select('ansatt_nr, stillingsprosent, timesats')
+    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale')
     .eq('stasjon_id', valgt.id)
   const avtale = new Map(
     ((avtaler ?? []) as
-      { ansatt_nr: string; stillingsprosent: number | null; timesats: number | null }[])
+      { ansatt_nr: string; stillingsprosent: number | null; timesats: number | null
+        har_rammeavtale: boolean }[])
       .map((a) => [a.ansatt_nr, a]))
 
   const perArt = new Map<string, number>()
@@ -89,6 +91,31 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     if (l.lonnsart === LONNSART.timelonn) perAnsatt.set(l.ansattNr, l.antall)
   }
   const timer = perArt.get(LONNSART.timelonn) ?? 0
+
+  // Kontraktseksponering: hvem jobber mer enn papirene dekker. Regnes paa
+  // hele historikken, ikke bare maaneden vi ser paa — en sesong er ikke
+  // synlig i en enkelt maaned.
+  const { data: hist } = await supabase
+    .from('v_stempling_ansatt_mnd')
+    .select('ansatt_nr, ansatt_navn, maaned, timer')
+    .eq('stasjon_id', valgt.id)
+  const perPerson = new Map<string, { navn: string; mnd: { maaned: string; timer: number }[] }>()
+  for (const h of (hist ?? []) as
+    { ansatt_nr: string; ansatt_navn: string; maaned: string; timer: number }[]) {
+    const p = perPerson.get(h.ansatt_nr) ?? { navn: h.ansatt_navn, mnd: [] }
+    p.navn = h.ansatt_navn
+    p.mnd.push({ maaned: h.maaned.slice(0, 7), timer: Number(h.timer) })
+    perPerson.set(h.ansatt_nr, p)
+  }
+  const eksponering = [...perPerson]
+    .map(([nr, p]) => vurderEksponering({
+      ansattNr: nr,
+      navn: p.navn,
+      kontraktProsent: avtale.get(nr)?.stillingsprosent ?? null,
+      harRammeavtale: avtale.get(nr)?.har_rammeavtale ?? false,
+    }, p.mnd))
+    .filter((e) => e.maaneder >= 6 && e.vurdering !== 'ok')
+    .sort((a, b) => ALVOR[a.vurdering] - ALVOR[b.vurdering] || b.toppProsent - a.toppProsent)
 
   return (
     <>
@@ -157,6 +184,60 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
               ned og send den videre uten å åpne den.
             </p>
           </section>
+
+          {eksponering.length > 0 && (
+            <section className="kort">
+              <h2>Kontrakter som ikke dekker arbeidet</h2>
+              <p className="undertittel">
+                Målt på hele stemplingshistorikken, ikke bare denne måneden — en sesong
+                er ikke synlig i én måned. Virke: en deltidsansatt som skal kunne ta en
+                ekstravakt ved sykdom trenger rammeavtale om tilkalling i tillegg til
+                den faste avtalen.
+              </p>
+              <div className="tabellramme">
+                <table className="tabell">
+                  <thead>
+                    <tr>
+                      <th>Ansatt</th><th className="tall">Kontrakt</th>
+                      <th className="tall">Snitt</th><th className="tall">Topp</th>
+                      <th>Hva mangler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eksponering.map((e) => {
+                      const klasse = e.vurdering === 'bor_okes' ? 'rod'
+                        : e.vurdering === 'mangler_ramme' ? 'gul'
+                          : e.vurdering === 'sesong' ? 'bla' : 'noytral'
+                      const ord = e.vurdering === 'bor_okes' ? 'Bør økes'
+                        : e.vurdering === 'mangler_ramme' ? 'Mangler rammeavtale'
+                          : e.vurdering === 'sesong' ? 'Midlertidig avtale'
+                            : 'Ikke bekreftet'
+                      return (
+                        <tr key={e.ansattNr}>
+                          <td>{e.navn}</td>
+                          <td className="tall">
+                            {e.kontraktProsent != null ? `${e.kontraktProsent} %` : '—'}
+                          </td>
+                          <td className="tall">{e.snittProsent} %</td>
+                          <td className="tall">{e.toppProsent} %</td>
+                          <td>
+                            <span className={`status-pip ${klasse}`}>{ord}</span>
+                            <br />
+                            <span className="undertittel">{e.melding}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="notis" style={{ marginBottom: 0 }}>
+                <strong>Bør økes</strong> er den alvorligste: etter aml. § 14-4 a kan en
+                deltidsansatt kreve stilling tilsvarende det hun faktisk har jobbet siste
+                tolv måneder, og en rammeavtale beskytter ikke mot det.
+              </p>
+            </section>
+          )}
 
           <section className="kort">
             <h2>Kontroll før sending</h2>
