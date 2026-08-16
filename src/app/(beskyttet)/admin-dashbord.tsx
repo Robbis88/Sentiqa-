@@ -15,6 +15,7 @@ import { UkeKort } from './uke-kort'
 import { Sammenleggbar } from './sammenleggbar'
 import { AiKort } from './ai-kort'
 import { Stasjonsrangering, type RangRad } from './stasjonsrangering'
+import { Budsjettstatus, type BudsjettRad } from './budsjettstatus'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 
@@ -251,9 +252,14 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     omsetning: r.omsetning, omsetningIfjor: r.omsetningIfjor,
   })))
   const stasjoner = d.stasjonsListe.map((x) => ({ id: x.id, navn: `${x.butikknummer} ${x.navn}` }))
-  const [utsolgt, treff] = await Promise.all([
+  const [utsolgt, treff, { data: budsjett }] = await Promise.all([
     utsolgtSignaler(supabase, stasjoner, idag).catch(() => []),
     treffSignaler(supabase, stasjoner, idag).catch(() => []),
+    // Hittil i maaneden mot BP. Aggregert i basen (0095) - klienten skal
+    // ikke hente dagsrader for aa summere dem.
+    supabase.from('v_budsjettstatus')
+      .select('stasjon_id, butikknummer, navn, til_og_med, brutto_hittil, bp_maned, andel_av_maned, grunnlag, forventet_naa')
+      .overrideTypes<BudsjettRad[]>(),
   ])
   const alle = byggSignaler(d, idag, klynge, [...utsolgt, ...treff])
   const signaler = await filtrerLukkede(supabase, alle, idag).catch(() => alle)
@@ -322,6 +328,17 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
 
       {/* 4 · Stasjonene rangert etter AVVIK, ikke etter størrelse. At Dale er
           større enn Bønes hver måned er ingen nyhet. */}
+      {/* Hvordan ligger vi an NÅ — ikke forrige uke, ikke forrige måned.
+          Systemet har hatt begge tallene hele tiden uten å sette dem sammen. */}
+      {(budsjett ?? []).length > 0 && (
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Mot budsjett denne måneden</h2>
+          </div>
+          <Budsjettstatus rader={budsjett ?? []} />
+        </section>
+      )}
+
       {klynge.rader.length > 0 && (
         <section className="sq-seksjon">
           <div className="sq-seksjon-hode">
