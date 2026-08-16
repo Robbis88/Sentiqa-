@@ -51,7 +51,9 @@ async function byggPayload(buf: ArrayBuffer): Promise<ForhandsPayload | null> {
 // Laster fila rett til Storage fra nettleseren og ber serveren registrere den.
 // Stien må ligge under {retailer_id}/ — det er både storage-policyen (0080) og
 // serverens egen sjekk. Retailer-id-en hentes fra profilen, ikke fra klienten.
-async function tilStorage(fil: File): Promise<{ ok: boolean; hoppet?: boolean; feil?: string }> {
+async function tilStorage(
+  fil: File,
+): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
   const supabase = lagSupabaseNettleserKlient()
   const { data: bruker } = await supabase.auth.getUser()
   if (!bruker.user) return { ok: false, feil: 'Ikke innlogget.' }
@@ -95,7 +97,7 @@ export function KlientOpplaster() {
         if (valgte[i].size > FOR_STOR || /\.(pdf|csv|txt)$/i.test(valgte[i].name)) {
           sett(i, 'lagrer')
           const res = await tilStorage(valgte[i])
-          if (res.hoppet) sett(i, 'hoppet', 'Allerede lastet opp')
+          if (res.hoppet) sett(i, 'hoppet', res.melding ?? 'Allerede lastet opp')
           else if (res.ok) sett(i, 'iko', 'Ligger i kø — behandles i natt, eller trykk «Behandle» under')
           else sett(i, 'feilet', res.feil)
           continue
@@ -107,7 +109,7 @@ export function KlientOpplaster() {
         const sha = await sha256Hex(buf)
         sett(i, 'lagrer')
         const res = await importerForhandsparset({ filnavn: valgte[i].name, sha256: sha, storrelse: valgte[i].size, payload })
-        if (res.hoppet) sett(i, 'hoppet', 'Allerede importert')
+        if (res.hoppet) sett(i, 'hoppet', res.melding ?? 'Allerede importert')
         else if (res.ok) sett(i, 'ferdig', `${res.antallRader ?? 0} linjer`)
         else sett(i, 'feilet', res.feil)
       } catch (e) {

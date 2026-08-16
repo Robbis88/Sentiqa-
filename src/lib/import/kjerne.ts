@@ -20,6 +20,7 @@ import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
+import { vurderDublett } from './dublett'
 
 // Behandlings-kjernen (§6). Tar imot en supabase-klient — UI-knappen bruker
 // brukersesjonen, e-post-webhooken bruker service-role. Ingen session/revalidate
@@ -328,13 +329,22 @@ export async function lagreForhandsparset(
   retailerId: string,
   meta: { filnavn: string; sha256: string; storrelse: number },
   payload: ForhandsPayload,
-): Promise<{ ok: boolean; hoppet?: boolean; antallRader?: number; feil?: string }> {
-  const { data: raaFil, error: filFeil } = await supabase
+): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; antallRader?: number; feil?: string }> {
+  const nyRaaFil = () => supabase
     .from('raa_filer')
     .insert({ retailer_id: retailerId, filnavn: meta.filnavn, storage_sti: `klient/${randomUUID()}-${meta.filnavn}`, mottakskanal: 'drop_zone', storrelse_bytes: meta.storrelse, sha256: meta.sha256 })
     .select('id').single<{ id: string }>()
+
+  let { data: raaFil, error: filFeil } = await nyRaaFil()
+  // Et duplikat er bare et duplikat hvis den forrige importen lyktes.
+  // Feilet den, sto fila registrert uten data — og blokkerte sitt eget
+  // nye forsøk. Se dublett.ts.
+  if (filFeil?.code === '23505') {
+    const svar = await vurderDublett(supabase, retailerId, meta.sha256)
+    if (!svar.slippGjennom) return { ok: true, hoppet: true, melding: svar.melding }
+    ;({ data: raaFil, error: filFeil } = await nyRaaFil())
+  }
   if (filFeil || !raaFil) {
-    if (filFeil?.code === '23505') return { ok: true, hoppet: true } // allerede importert
     return { ok: false, feil: filFeil?.message ?? 'Kunne ikke registrere fil.' }
   }
   const { data: jobb } = await supabase

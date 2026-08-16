@@ -12,7 +12,7 @@ const BUCKET = 'raa-filer'
 // Serveren gjør kun (batchet) lagring — ingen parse/nedlasting → ingen timeout.
 export async function importerForhandsparset(arg: {
   filnavn: string; sha256: string; storrelse: number; payload: ForhandsPayload
-}): Promise<{ ok: boolean; hoppet?: boolean; antallRader?: number; feil?: string }> {
+}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; antallRader?: number; feil?: string }> {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return { ok: false, feil: 'Bare eier kan importere.' }
   const supabase = await lagSupabaseServerKlient()
@@ -28,7 +28,7 @@ export async function importerForhandsparset(arg: {
 // serveren registrerer bare fila. Samme kø, samme «Behandle»-knapp.
 export async function registrerRaaFil(arg: {
   filnavn: string; sha256: string; storrelse: number; sti: string
-}): Promise<{ ok: boolean; hoppet?: boolean; feil?: string }> {
+}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
     return { ok: false, feil: 'Bare eier kan laste opp filer.' }
