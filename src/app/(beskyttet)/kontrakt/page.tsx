@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -269,7 +270,7 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
               <thead>
                 <tr>
                   <th>Ansatt</th><th>Gjelder fra</th><th className="tall">Mal</th>
-                  <th>Status</th><th>Skrevet</th>
+                  <th>Status</th><th>Skrevet</th><th>Dokument</th>
                 </tr>
               </thead>
               <tbody>
@@ -284,6 +285,11 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
                       </span>
                     </td>
                     <td>{dato(k.opprettet_tid.slice(0, 10))}</td>
+                    <td>
+                      <Link href={`/kontrakt/${k.id}`}>Vis</Link>
+                      {' · '}
+                      <a href={`/api/kontrakt/fil?id=${k.id}`}>Last ned</a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
