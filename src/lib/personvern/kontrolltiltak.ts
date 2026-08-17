@@ -18,7 +18,7 @@
 // =====================================================================
 
 /** Bumpes ved hver VESENTLIG endring. Da må alle bekrefte på nytt. */
-export const KONTROLLTILTAK_VERSJON = '2026-08-17'
+export const KONTROLLTILTAK_VERSJON = '2026-08-18'
 
 export type Tiltak = {
   hva: string
@@ -69,14 +69,14 @@ export const TILTAK: Tiltak[] = [
   {
     hva: 'Puls-svar',
     hvorfor: 'For å se hvordan folk har det over tid.',
-    hvemSer: 'Butikksjefen din og eier ser tallene og kommentarene — men '
-      + 'ikke hvem som skrev hva i skjermbildet.',
+    hvemSer: 'Butikksjefen din og eier ser tallene og kommentarene, men ikke '
+      + 'hvem som skrev hva. Koblingen finnes i basen, men er sperret for '
+      + 'lesing — heller ikke via omveier.',
     hvorLenge: 'Så lenge runden er lagret.',
-    merk: 'Svaret lagres knyttet til deg, slik at du ikke kan svare to '
-      + 'ganger i samme runde. Det er altså ikke helt anonymt. På en '
-      + 'stasjon med ti ansatte kan en kommentar dessuten være lett å '
-      + 'kjenne igjen — tenk på det før du skriver noe du ikke vil bli '
-      + 'gjenkjent på.',
+    merk: 'Vi kaller det ikke anonymt, for det ville vært et løfte vi ikke '
+      + 'kan holde: er dere få på jobb, kan en kommentar være lett å kjenne '
+      + 'igjen på innholdet uansett hva systemet gjør. Det systemet KAN '
+      + 'love, er at ingen får slå opp hvem som skrev hva.',
   },
   {
     hva: 'Merker, skills-score og konkurranser',

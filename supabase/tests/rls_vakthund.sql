@@ -46,7 +46,10 @@ declare
     'signal_lukket',
     -- Arbeidsavtaler (0098). Vokser med drift - en rad per generering,
     -- og signerte rader slettes aldri.
-    'ansatt_kontrakt'
+    'ansatt_kontrakt',
+    -- Tilgangsloggen (0103). Vokser raskest av alle: en rad per oppslag
+    -- paa persondata, og den kan aldri slettes.
+    'persondata_logg'
   ];
   r record;
   feil int := 0;

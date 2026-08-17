@@ -8,7 +8,13 @@ const FJES = [
 ]
 
 // Sporadisk puls-popup: dukker opp av og til (throttlet pr runde via
-// localStorage), ikke ved hver lasting. Svar er anonymt.
+// localStorage), ikke ved hver lasting.
+//
+// IKKE anonymt, og det staar det naa. Svaret lagres knyttet til deg saa du
+// ikke kan svare to ganger — men ingen med lederinnlogging kan lese den
+// koblingen (0104). Paa en stasjon med ti ansatte er en fritekstkommentar
+// dessuten ofte gjenkjennelig paa innholdet alene, uansett hva basen gjor.
+// Et lofte som ikke kan holdes teknisk, gir vi ikke.
 export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | null }) {
   const t = useT()
   const [vis, setVis] = useState(false)
@@ -71,7 +77,11 @@ export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | nul
                   </button>
                 ))}
               </div>
-              <textarea name="kommentar" rows={2} placeholder={t('Kommentar (valgfri, anonym)')} />
+              <textarea name="kommentar" rows={2} placeholder={t('Kommentar (valgfri)')} />
+              <p className="puls-popp-fotnote">
+                {t('Lederen ser svaret og kommentaren, men ikke hvem som skrev den. '
+                  + 'Er dere fa paa jobb, kan en kommentar likevel vaere lett aa kjenne igjen.')}
+              </p>
               <div className="puls-popp-knapper">
                 <button type="button" className="liten" onClick={snooze}>{t('Ikke nå')}</button>
                 <button type="submit" disabled={!valgt || venter}>{venter ? t('Sender …') : t('Send')}</button>

@@ -158,7 +158,7 @@ export async function GET(req: NextRequest) {
   const tb = tabletBruker
   const tabletRader: (string | number | null)[][] = []
   if (tb) {
-    const [{ count: nRutiner }, { count: nSjekk }, { count: nIk }, { count: nMerker }, { count: nPuls }] =
+    const [{ count: nRutiner }, { count: nSjekk }, { count: nIk }, { count: nMerker }] =
       await Promise.all([
         supabase.from('rutine_utforinger').select('id', { count: 'exact', head: true })
           .eq('ansatt_id', tb.id),
@@ -168,8 +168,6 @@ export async function GET(req: NextRequest) {
           .eq('ansatt_id', tb.id),
         supabase.from('tildelte_merker').select('id', { count: 'exact', head: true })
           .eq('ansatt_id', tb.id),
-        supabase.from('puls_svar').select('id', { count: 'exact', head: true })
-          .eq('ansatt_id', tb.id),
       ])
     tabletRader.push(
       ['Registrert på nettbrettet', tb.opprettet_tid.slice(0, 10)],
@@ -178,7 +176,10 @@ export async function GET(req: NextRequest) {
       ['Besvarte sjekkpunkt', nSjekk ?? 0],
       ['IK-mat-avlesninger', nIk ?? 0],
       ['Tildelte merker', nMerker ?? 0],
-      ['Puls-svar', nPuls ?? 0],
+      // Puls telles IKKE. Koblingen mellom svar og person er sperret for
+      // lesing (0104) nettopp for at ingen skal kunne slaa opp hvem som
+      // svarte hva — og en innsynsutskrift ville vaert et smutthull.
+      ['Puls-svar', 'Lagret knyttet til deg, men ikke lesbart for noen i selskapet'],
     )
   }
   seksjoner.push({

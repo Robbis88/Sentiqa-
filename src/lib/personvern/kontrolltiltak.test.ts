@@ -20,12 +20,14 @@ describe('kontrolltiltak', () => {
     }
   })
 
-  test('puls sier at svaret IKKE er anonymt', () => {
-    // Nettbrettet lovet «anonym» mens ansatt_id ble lagret. Den
-    // motsetningen er hele grunnen til at denne siden finnes.
+  test('puls lover ikke anonymitet — og sier hvorfor', () => {
+    // Nettbrettet lovet «anonym» mens ansatt_id ble lagret. Loftet er
+    // trukket (0104): med ti pa jobb er en kommentar gjenkjennelig
+    // uansett hva basen gjor.
     const puls = TILTAK.find((t) => t.hva.toLowerCase().includes('puls'))!
     expect(puls.merk).toBeDefined()
-    expect(puls.merk).toContain('ikke helt anonymt')
+    expect(puls.merk).toContain('ikke anonymt')
+    expect(puls.hvemSer).toContain('ikke')
   })
 
   test('sykefravær omtales som helseopplysning', () => {

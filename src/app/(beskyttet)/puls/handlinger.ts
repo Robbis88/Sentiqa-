@@ -123,9 +123,17 @@ export async function svarRunde(_t: SvarResultat | undefined, formData: FormData
   const stasjonId = await hentStasjonId(supabase, ansatt)
   if (!stasjonId) return { feil: 'Fant ingen stasjon.' }
 
-  await supabase.from('puls_svar').upsert(
-    { runde_id: rundeId, retailer_id: bruker.retailerId, stasjon_id: stasjonId, ansatt_id: ansatt?.id ?? null, skala, kommentar },
-    { onConflict: 'runde_id,ansatt_id', ignoreDuplicates: false },
-  )
+  // Gaar gjennom funksjonen, ikke rett paa tabellen: ansatt_id er ikke
+  // lesbar for noen (0104), saa appen kan ikke avduplisere selv. Koblingen
+  // finnes bare for aa hindre at samme person svarer to ganger — ingen med
+  // lederinnlogging kan hente den ut.
+  const { error } = await supabase.rpc('lagre_puls_svar', {
+    p_runde: rundeId,
+    p_stasjon: stasjonId,
+    p_ansatt: ansatt?.id ?? null,
+    p_skala: skala,
+    p_kommentar: kommentar,
+  })
+  if (error) return { feil: 'Fikk ikke lagret svaret.' }
   return { ok: true }
 }
