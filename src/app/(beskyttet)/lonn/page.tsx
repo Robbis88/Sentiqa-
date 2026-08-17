@@ -7,6 +7,7 @@ import { vurderSats } from '@/lib/lonn/tariff'
 import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
 import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { LonnsformVelger } from './lonnsform-velger'
+import { TimesatsFelt } from './timesats-felt'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
@@ -294,8 +295,11 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
           <section className="kort">
             <h2>Kontroll før sending</h2>
             <p className="undertittel">
-              Timene er regnet fra stemplingene. Satsene er ikke — de registreres
-              her, og måles mot Energiavtalens satser fra 01.07.2025.
+              Timene er regnet fra stemplingene. Satsene er ikke — skriv dem inn i
+              tabellen, så måles de mot Energiavtalen fra 01.07.2025. Satsen brukes
+              ikke til å regne ut lønn: fila bærer timer, og Azets holder satsene.
+              Den står her for å <strong>oppdage</strong> avvik, og kan derfor rettes
+              når som helst — etter et oppgjør, eller når noen har skrevet feil.
             </p>
             <div className="tabellramme">
               <table className="tabell">
@@ -335,7 +339,12 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                           {a?.stillingsprosent != null ? `${a.stillingsprosent} %` : '—'}
                         </td>
                         <td className="tall">
-                          {a?.timesats != null ? tall.format(Number(a.timesats)) : '—'}
+                          <TimesatsFelt
+                            stasjonId={valgt.id}
+                            ansattNr={nr}
+                            navn={navnFor.get(nr) ?? nr}
+                            verdi={a?.timesats != null ? Number(a.timesats) : null}
+                          />
                         </td>
                         <td>
                           {v ? (
