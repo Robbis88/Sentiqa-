@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { tilLonnslinjer } from '@/lib/lonn/tidsband'
+import { LONNSART, tilLonnslinjer } from '@/lib/lonn/tidsband'
+import { delEtterLonnsform, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { byggVismafil, medBom, vismaFilnavn } from '@/lib/lonn/vismafil'
 
 // Fila lastes NED, aldri vises. Åpnes den i norsk Excel og lagres, blir
@@ -54,10 +55,34 @@ export async function GET(req: NextRequest) {
     tilTid: r.til_tid.slice(0, 5),
   })))
 
+  // Fastlønnede og tilkallingsvikarer stempler, men skal ikke i fila.
+  // Sperren ligger her, ikke bare i knappen på siden: en URL kan kalles
+  // direkte, og en fil med feil innhold er verre enn ingen fil.
+  const { data: avtaler } = await supabase
+    .from('ansatt_avtale')
+    .select('ansatt_nr, lonnsform')
+    .eq('stasjon_id', stasjonId)
+  const lonnsform = new Map<string, Lonnsform | null>(
+    ((avtaler ?? []) as { ansatt_nr: string; lonnsform: Lonnsform | null }[])
+      .map((a) => [a.ansatt_nr, a.lonnsform]))
+
+  const fordeling = delEtterLonnsform(linjer, lonnsform, LONNSART.timelonn)
+  if (fordeling.uavklart.length > 0) {
+    return NextResponse.json({
+      feil: `${fordeling.uavklart.length} ansatte mangler lønnsform. `
+        + 'Sett den på /lonn før fila lages.',
+      ansatte: fordeling.uavklart.map((u) => u.ansattNr),
+    }, { status: 409 })
+  }
+  if (fordeling.med.length === 0) {
+    return NextResponse.json(
+      { feil: 'Ingen timelønnede med timer i perioden.' }, { status: 404 })
+  }
+
   // Kostnadsstedet ER butikknummeret — bekreftet mot Timefordeling for
   // alle fem stasjonene (4177 Lone, 4185 Dale, 9038 Laguneparken,
   // 9145 Varden, 9467 Bønes).
-  const kropp = medBom(byggVismafil(linjer, stasjon.butikknummer))
+  const kropp = medBom(byggVismafil(fordeling.med, stasjon.butikknummer))
   return new NextResponse(kropp as unknown as BodyInit, {
     headers: {
       'Content-Type': 'application/octet-stream',

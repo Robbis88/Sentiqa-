@@ -5,6 +5,8 @@ import { tilLonnslinjer, LONNSART } from '@/lib/lonn/tidsband'
 import { vismaFilnavn } from '@/lib/lonn/vismafil'
 import { vurderSats } from '@/lib/lonn/tariff'
 import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
+import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lonnsform'
+import { LonnsformVelger } from './lonnsform-velger'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
@@ -76,16 +78,26 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // Bekreftede stillinger og satser — til tariffkontrollen.
   const { data: avtaler } = await supabase
     .from('ansatt_avtale')
-    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale')
+    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale, lonnsform')
     .eq('stasjon_id', valgt.id)
   const avtale = new Map(
     ((avtaler ?? []) as
       { ansatt_nr: string; stillingsprosent: number | null; timesats: number | null
-        har_rammeavtale: boolean }[])
+        har_rammeavtale: boolean; lonnsform: Lonnsform | null }[])
       .map((a) => [a.ansatt_nr, a]))
 
+  // Fastlønnede og tilkallingsvikarer skal ikke i fila. Det var hele
+  // avviket på Bønes i mai: 191,68 timer, butikksjefen og Carmen.
+  const fordeling = delEtterLonnsform(
+    linjer,
+    new Map([...avtale].map(([nr, a]) => [nr, a.lonnsform ?? null])),
+    LONNSART.timelonn,
+  )
+  const klar = fordeling.uavklart.length === 0
+
+  // Tallene over fila beskriver fila — altså bare de som faktisk er med.
   const perArt = new Map<string, number>()
-  for (const l of linjer) perArt.set(l.lonnsart, (perArt.get(l.lonnsart) ?? 0) + l.antall)
+  for (const l of fordeling.med) perArt.set(l.lonnsart, (perArt.get(l.lonnsart) ?? 0) + l.antall)
   const perAnsatt = new Map<string, number>()
   for (const l of linjer) {
     if (l.lonnsart === LONNSART.timelonn) perAnsatt.set(l.ansattNr, l.antall)
@@ -150,9 +162,23 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
           <section className="kort">
             <h2>{MND[maned - 1]} {ar} · {valgt.navn}</h2>
             <p>
-              <strong>{tall.format(timer)} timer</strong> fordelt på {perAnsatt.size} ansatte
-              og {linjer.length} lønnslinjer.
+              <strong>{tall.format(timer)} timer</strong> fordelt på{' '}
+              {new Set(fordeling.med.map((l) => l.ansattNr)).size} ansatte
+              og {fordeling.med.length} lønnslinjer.
             </p>
+
+            {fordeling.utelatt.length > 0 && (
+              <p className="undertittel">
+                Holdt utenfor:{' '}
+                {fordeling.utelatt.map((u, i) => (
+                  <span key={u.ansattNr}>
+                    {i > 0 && ', '}
+                    {navnFor.get(u.ansattNr) ?? u.ansattNr} ({tall.format(u.timer)} t,{' '}
+                    {u.lonnsform === 'fastlonn' ? 'fastlønn' : 'tilkalling'})
+                  </span>
+                ))}.
+              </p>
+            )}
             <div className="tabellramme">
               <table className="tabell">
                 <thead>
@@ -169,20 +195,46 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                 </tbody>
               </table>
             </div>
-            <div className="knapperad" style={{ marginTop: '1rem' }}>
-              <a
-                className="sq-knapp primar"
-                href={`/api/lonn/visma?stasjon=${valgt.id}&ar=${ar}&maned=${maned}`}
-                download={vismaFilnavn(valgt.butikknummer, ar, maned)}
-              >
-                Last ned Visma-fil
-              </a>
-            </div>
-            <p className="notis">
-              <strong>Ikke åpne fila i Excel.</strong> Norsk Excel gjør 9.00 til 9,00 og
-              stripper anførselstegnene, og da må Azets legge inn alt manuelt. Last den
-              ned og send den videre uten å åpne den.
-            </p>
+            {klar ? (
+              <>
+                <div className="knapperad" style={{ marginTop: '1rem' }}>
+                  <a
+                    className="sq-knapp primar"
+                    href={`/api/lonn/visma?stasjon=${valgt.id}&ar=${ar}&maned=${maned}`}
+                    download={vismaFilnavn(valgt.butikknummer, ar, maned)}
+                  >
+                    Last ned Visma-fil
+                  </a>
+                </div>
+                <p className="notis">
+                  <strong>Ikke åpne fila i Excel.</strong> Norsk Excel gjør 9.00 til 9,00 og
+                  stripper anførselstegnene, og da må Azets legge inn alt manuelt. Last den
+                  ned og send den videre uten å åpne den.
+                </p>
+              </>
+            ) : (
+              <div className="varsel rod" style={{ marginTop: '1rem' }}>
+                <span className="varsel-dott" aria-hidden />
+                <div className="varsel-tekst">
+                  <div className="varsel-topp">
+                    <strong>
+                      {fordeling.uavklart.length}{' '}
+                      {fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'}
+                      {' '}lønnsform
+                    </strong>
+                    <span className="varsel-omfang">
+                      {tall.format(fordeling.uavklart.reduce((s, u) => s + u.timer, 0))} timer
+                    </span>
+                  </div>
+                  <p className="varsel-detalj">
+                    Fila lages ikke før det er avklart. En fil som mangler noens timer
+                    betyr at hun ikke får lønn den måneden, og det oppdages først på
+                    kontoutskriften. Sett lønnsformen i tabellen under — én gang per
+                    ansatt, ikke én gang per måned.
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           {eksponering.length > 0 && (
@@ -250,6 +302,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                 <thead>
                   <tr>
                     <th>Ansatt</th><th className="tall">Timer</th>
+                    <th>Lønnsform</th>
                     <th className="tall">Stilling</th><th className="tall">Timesats</th>
                     <th>Mot Energiavtalen</th>
                   </tr>
@@ -265,6 +318,19 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                       <tr key={nr}>
                         <td>{navnFor.get(nr) ?? nr}</td>
                         <td className="tall">{tall.format(t)}</td>
+                        <td>
+                          <LonnsformVelger
+                            stasjonId={valgt.id}
+                            ansattNr={nr}
+                            navn={navnFor.get(nr) ?? nr}
+                            verdi={a?.lonnsform ?? null}
+                          />
+                          {a?.lonnsform && a.lonnsform !== 'timelonn' && (
+                            <span className="undertittel">
+                              {UTELATT_FORDI[a.lonnsform]}
+                            </span>
+                          )}
+                        </td>
                         <td className="tall">
                           {a?.stillingsprosent != null ? `${a.stillingsprosent} %` : '—'}
                         </td>
@@ -293,9 +359,15 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
               </table>
             </div>
             <p className="notis" style={{ marginBottom: 0 }}>
-              Fastlønnede og tilkallingsvikarer skal <strong>ikke</strong> være med i denne
-              fila. I dag skiller ikke systemet dem ut — det kommer når ansattkortene er
-              på plass. Sjekk lista før du sender.
+              Lønnsformen settes én gang per ansatt og huskes. Den er målt mot
+              virkeligheten: avstemmingen av mai viste at Laguneparken stemte på
+              hundredelen mot easy@works egen fil, mens Bønes manglet 191,68 timer —
+              butikksjefen fordi han er fastlønn, Carmen fordi hun er tilkallingsvikar.
+              <br />
+              <strong>Åpen post:</strong> vi utelater fastlønnede helt, også
+              tilleggene deres, fordi det er slik easy@work gjør det i dag. Om en
+              fastlønnet som jobber julaften skal ha 1410 er et spørsmål til Azets,
+              ikke noe vi bør avgjøre på egen hånd.
             </p>
           </section>
         </>
