@@ -4,6 +4,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { gjenskapKontrakt } from '@/lib/kontrakt/gjenskap'
 import { docxTilTekst } from '@/lib/kontrakt/docx'
+import { SigneringSkjema } from '../signering'
 
 // Kontrakten som tekst, slik den faktisk ble fylt ut.
 //
@@ -22,14 +23,17 @@ export default async function KontraktVisning({ params }: { params: Params }) {
 
   const { data: rad } = await supabase
     .from('ansatt_kontrakt')
-    .select('ansatt_navn, ansatt_nr, mal_versjon, gjelder_fra, status, opprettet_tid, verdier')
+    .select('ansatt_navn, ansatt_nr, mal_versjon, gjelder_fra, status, opprettet_tid, verdier, storage_sti, signert_tid, signert_metode')
     .eq('id', id)
     .maybeSingle<{
       ansatt_navn: string; ansatt_nr: string; mal_versjon: number | null
       gjelder_fra: string | null; status: string; opprettet_tid: string
-      verdier: Record<string, string>
+      verdier: Record<string, string>; storage_sti: string | null
+      signert_tid: string | null; signert_metode: string | null
     }>()
   if (!rad) return <p>Fant ikke kontrakten.</p>
+
+  const iDag = new Date().toISOString().slice(0, 10)
 
   const svar = await gjenskapKontrakt(supabase, id)
   const tekst = svar.ok ? docxTilTekst(svar.docx) : null
@@ -61,6 +65,44 @@ export default async function KontraktVisning({ params }: { params: Params }) {
           malversjonen hver gang — samme mal og samme verdier gir samme dokument.
           En kopi i tillegg ville vært en andre sannhet å holde i synk, og den dagen
           de to spriker vet ingen hvilken hun faktisk signerte.
+        </p>
+      </section>
+
+      <section className="kort">
+        <h2>Signering</h2>
+        {rad.signert_tid ? (
+          <>
+            <p>
+              <span className="status-pip gronn">Signert</span>{' '}
+              {new Date(rad.signert_tid).toLocaleDateString('nb-NO')}
+              {rad.signert_metode === 'bekreftelse' && ' · signert utenfor systemet'}
+            </p>
+            {rad.storage_sti && (
+              <div className="knapperad">
+                <a className="sq-knapp" href={`/api/kontrakt/fil?id=${id}&signert=1`}>
+                  Last ned signert eksemplar
+                </a>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="undertittel">
+            Ikke signert ennå. Last ned dokumentet over, få det signert, og last
+            det signerte eksemplaret opp her.
+          </p>
+        )}
+
+        <SigneringSkjema
+          kontraktId={id}
+          iDag={iDag}
+          alleredeSignert={rad.signert_tid !== null}
+        />
+
+        <p className="notis" style={{ marginBottom: 0 }}>
+          Dette er broen til BankID, ikke en erstatning for den: her er det et
+          menneske som bekrefter at papiret finnes. Laster du opp på nytt, erstattes
+          ikke det gamle — hver opplasting får sin egen fil, så et signert eksemplar
+          aldri kan byttes ut i stillhet. En signert kontrakt kan heller ikke slettes.
         </p>
       </section>
 

@@ -106,6 +106,64 @@ export async function lagreStandardfelt(_t: Tilstand, fd: FormData): Promise<Til
   return { ok: `${Object.keys(felt).length} felt lagret` }
 }
 
+/**
+ * Laster opp det signerte eksemplaret.
+ *
+ * BankID skal kjøpes, ikke bygges. Til det er på plass er dette veien:
+ * last ned, få den signert på papir eller i Word, last den tilbake.
+ *
+ * Poenget er at systemet da har BEGGE deler — det som ble generert
+ * (verdier + malversjon, som gjenskaper dokumentet nøyaktig) og det hun
+ * faktisk skrev under på. Uten det siste er «signert» bare en hake
+ * noen har satt.
+ */
+export async function lastOppSignert(_t: Tilstand, fd: FormData): Promise<Tilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) return { feil: 'Ikke tilgang.' }
+
+  const id = fd.get('kontrakt_id')
+  if (typeof id !== 'string' || !id) return { feil: 'Mangler kontrakt.' }
+
+  const dato = fd.get('signert_dato')
+  const signertDato = typeof dato === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dato)
+    ? dato : null
+  if (!signertDato) return { feil: 'Fyll inn datoen den ble signert.' }
+
+  const fil = fd.get('fil')
+  if (!(fil instanceof File) || fil.size === 0) return { feil: 'Velg det signerte dokumentet.' }
+  const endelse = fil.name.toLowerCase().match(/\.(docx|pdf)$/)?.[1]
+  if (!endelse) return { feil: 'Signert eksemplar må være .pdf eller .docx.' }
+
+  const supabase = await lagSupabaseServerKlient()
+  // RLS avgjør om kontrakten er synlig. Treffer den ingenting, har
+  // brukeren ikke tilgang — og da er det ingenting å laste opp til.
+  const { data: kontrakt } = await supabase
+    .from('ansatt_kontrakt').select('id, signert_tid').eq('id', id)
+    .maybeSingle<{ id: string; signert_tid: string | null }>()
+  if (!kontrakt) return { feil: 'Fant ikke kontrakten.' }
+
+  // Egen uuid per opplasting: et signert eksemplar skal aldri kunne
+  // byttes ut i stillhet. Laster du opp på nytt, står begge.
+  const sti = `${bruker.retailerId}/kontrakt-signert/${randomUUID()}.${endelse}`
+  const opp = await supabase.storage.from(BUCKET)
+    .upload(sti, fil, { contentType: fil.type || 'application/octet-stream' })
+  if (opp.error) return { feil: `Opplasting feilet: ${opp.error.message}` }
+
+  const { error } = await supabase.from('ansatt_kontrakt').update({
+    storage_sti: sti,
+    status: 'signert',
+    signert_tid: `${signertDato}T12:00:00Z`,
+    signert_metode: 'bekreftelse',
+  }).eq('id', id)
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([sti])
+    return { feil: error.message }
+  }
+  revalidatePath('/kontrakt')
+  revalidatePath(`/kontrakt/${id}`)
+  return { ok: kontrakt.signert_tid ? 'Nytt signert eksemplar lagret' : 'Signert' }
+}
+
 // Ansattkortets felt som kontrakten trenger, og som ikke fantes før.
 const Ansatt = z.object({
   stasjon_id: z.string().uuid(),

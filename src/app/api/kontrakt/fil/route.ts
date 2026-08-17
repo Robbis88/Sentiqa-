@@ -18,6 +18,33 @@ export async function GET(req: NextRequest) {
   if (!id) return NextResponse.json({ feil: 'Mangler id.' }, { status: 400 })
 
   const supabase = await lagSupabaseServerKlient()
+
+  // Det SIGNERTE eksemplaret er en fil, ikke noe som gjenskapes — det er
+  // jo nettopp signaturen som ikke lar seg regne ut.
+  if (req.nextUrl.searchParams.get('signert') === '1') {
+    const { data: rad } = await supabase
+      .from('ansatt_kontrakt').select('storage_sti, ansatt_navn').eq('id', id)
+      .maybeSingle<{ storage_sti: string | null; ansatt_navn: string }>()
+    if (!rad?.storage_sti) {
+      return NextResponse.json({ feil: 'Ingen signert kopi lagret.' }, { status: 404 })
+    }
+    const ned = await supabase.storage.from('raa-filer').download(rad.storage_sti)
+    if (ned.error || !ned.data) {
+      return NextResponse.json({ feil: 'Fant ikke fila i Storage.' }, { status: 404 })
+    }
+    const endelse = rad.storage_sti.endsWith('.pdf') ? 'pdf' : 'docx'
+    const filnavn = `${rad.ansatt_navn.replace(/[^\wÆØÅæøå -]/g, '')} - signert.${endelse}`
+    return new NextResponse(ned.data as unknown as BodyInit, {
+      headers: {
+        'Content-Type': endelse === 'pdf'
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filnavn)}`,
+        'Cache-Control': 'no-store',
+      },
+    })
+  }
+
   const svar = await gjenskapKontrakt(supabase, id)
   if (!svar.ok) return NextResponse.json({ feil: svar.feil }, { status: svar.status })
 
