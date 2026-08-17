@@ -1,0 +1,163 @@
+import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { erLeder } from '@/lib/auth/roller'
+import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maanederSiden } from '@/lib/personvern/innsyn'
+import { FristSkjema, SlettSkjema } from './skjemaer'
+
+type Sok = Promise<{ stasjon?: string }>
+
+type Person = { stasjon_id: string; ansatt_nr: string; navn: string; sist_aktivitet: string }
+
+export default async function PersonvernSide({ searchParams }: { searchParams: Sok }) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return <p>Personvern er for butikksjef og eier.</p>
+  const eier = bruker.rolle === 'retailer_admin'
+
+  const sok = await searchParams
+  const iDag = new Date().toISOString().slice(0, 10)
+  const supabase = await lagSupabaseServerKlient()
+
+  const { data: stasjoner } = await supabase
+    .from('stasjoner').select('id, navn, butikknummer')
+    .is('slettet_tid', null).order('butikknummer')
+  const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
+  if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
+  const valgt = alle.find((s) => s.id === sok.stasjon) ?? alle[0]
+
+  const [{ data: retailer }, { data: folk }] = await Promise.all([
+    supabase.from('retailers').select('oppbevaring_maaneder')
+      .maybeSingle<{ oppbevaring_maaneder: number }>(),
+    supabase.from('v_persondata_alder')
+      .select('stasjon_id, ansatt_nr, navn, sist_aktivitet')
+      .eq('stasjon_id', valgt.id)
+      .order('sist_aktivitet'),
+  ])
+  const frist = retailer?.oppbevaring_maaneder ?? 60
+  const personer = (folk ?? []) as Person[]
+  const utlopt = personer.filter((p) => maanederSiden(p.sist_aktivitet, iDag) >= frist)
+
+  return (
+    <>
+      <h1>Personvern</h1>
+      <p className="undertittel">
+        Hva systemet har om hver enkelt, hvor lenge det beholdes, og hvordan
+        en ansatt får en kopi av sine egne opplysninger.
+      </p>
+
+      <section className="kort">
+        <form className="rutine-form">
+          <select name="stasjon" defaultValue={valgt.id}>
+            {alle.map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+          </select>
+          <button type="submit" className="liten">Vis</button>
+        </form>
+      </section>
+
+      <section className="kort">
+        <h2>Oppbevaringstid</h2>
+        <p className="undertittel">
+          Personopplysninger skal ikke lagres lenger enn nødvendig. Fristen regnes
+          fra <strong>siste aktivitet</strong>, ikke fra da raden ble skrevet — en
+          kontrakt fra 2019 for en som fortsatt jobber her skal ikke slettes, men
+          alt om en som sluttet i 2019 skal.
+        </p>
+        {eier
+          ? <FristSkjema naa={frist} />
+          : <p><strong>{frist} måneder</strong> etter siste aktivitet.</p>}
+        <p className="notis" style={{ marginBottom: 0 }}>
+          60 måneder er standard fordi lønnsgrunnlag er primærdokumentasjon etter
+          bokføringsloven og skal oppbevares i fem år. Kortere setter regnskapsplikten
+          i konflikt med sletteplikten. Lengre må kunne begrunnes.
+        </p>
+      </section>
+
+      <section className="kort">
+        <h2>Klar for sletting</h2>
+        {utlopt.length === 0 ? (
+          <p className="undertittel">
+            Ingen har passert {frist} måneder uten aktivitet på {valgt.navn}.
+          </p>
+        ) : (
+          <>
+            <p className="undertittel">
+              {utlopt.length} {utlopt.length === 1 ? 'person har' : 'personer har'} ikke
+              vært aktive på {frist} måneder. Slettingen fjerner stemplinger,
+              ansattkort, arbeidsavtaler og signerte dokumenter — og den kan ikke angres.
+            </p>
+            <div className="tabellramme">
+              <table className="tabell">
+                <thead>
+                  <tr>
+                    <th>Navn</th><th>Ansattnr</th><th>Siste aktivitet</th>
+                    <th className="tall">Måneder</th>
+                    {eier && <th>Slett</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {utlopt.map((p) => (
+                    <tr key={p.ansatt_nr}>
+                      <td>{p.navn}</td>
+                      <td>{p.ansatt_nr}</td>
+                      <td>{new Date(p.sist_aktivitet).toLocaleDateString('nb-NO')}</td>
+                      <td className="tall">{maanederSiden(p.sist_aktivitet, iDag)}</td>
+                      {eier && (
+                        <td>
+                          <SlettSkjema
+                            stasjonId={valgt.id}
+                            ansattNr={p.ansatt_nr}
+                            navn={p.navn}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        <p className="notis" style={{ marginBottom: 0 }}>
+          <strong>Dette rydder ikke alt.</strong> Ferie, faste vakter og aktivitet på
+          nettbrettet henger på navn og PIN, ikke på ansattnummer, og må ryddes for seg.
+          Innsynsutskriften under viser hva som finnes av hver del.
+        </p>
+      </section>
+
+      <section className="kort">
+        <h2>Innsyn for en ansatt</h2>
+        <p className="undertittel">
+          En ansatt kan kreve kopi av alt dere har om henne — personvernforordningen
+          artikkel 15. Utskriften samler alle tre stedene opplysningene ligger, og
+          merker hver del med om koblingen er sikker (ansattnummer) eller usikker (navn).
+        </p>
+        <div className="tabellramme">
+          <table className="tabell">
+            <thead>
+              <tr><th>Navn</th><th>Ansattnr</th><th>Siste aktivitet</th><th>Utskrift</th></tr>
+            </thead>
+            <tbody>
+              {personer.map((p) => (
+                <tr key={p.ansatt_nr}>
+                  <td>{p.navn}</td>
+                  <td>{p.ansatt_nr}</td>
+                  <td>{new Date(p.sist_aktivitet).toLocaleDateString('nb-NO')}</td>
+                  <td>
+                    <a href={`/api/personvern/innsyn?stasjon=${valgt.id}&ansatt=${p.ansatt_nr}`}>
+                      Last ned
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="notis" style={{ marginBottom: 0 }}>
+          Samme person kan ligge under tre identiteter som ikke er koblet:
+          ansattnummeret fra easy@work, PIN-en på nettbrettet, og navnet i
+          bemanningsplanen. Utskriften kobler de to siste på navn, og sier fra om det
+          i dokumentet — heter to personer det samme, må noen se over.
+        </p>
+      </section>
+    </>
+  )
+}
