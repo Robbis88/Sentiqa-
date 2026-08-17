@@ -97,8 +97,12 @@ forretningsdatoen følge starten, og det er testet.
 
 **Nettet faller.** Stemplingen skal feile **høyt** — stor rød skjerm, «dette
 ble ikke registrert, si fra til butikksjefen» — og rettes manuelt. Ingen lokal
-kø i første omgang: en stille kø som synkroniserer feil er verre enn en synlig
-feil, og vi vet ennå ikke om nettet faktisk svikter. Bygg køen hvis det svir.
+kø: en stille kø som synkroniserer feil er verre enn en synlig feil.
+
+Robert bekreftet 2026-08-17 at nettet på stasjonene er stabilt. Det gjør valget
+enkelt nå, men premisset er verdt å huske: viser det seg at nettet svikter
+oftere enn antatt — eller at en senere kunde har dårligere linje — er det denne
+avgjørelsen som må tas opp igjen, ikke resten av designet.
 
 **Korreksjoner** logges alltid, med gammel verdi.
 
@@ -125,6 +129,9 @@ Alle tre er i dag konstanter. De må bli data per kjede før produktet selges
 til noen som ikke er på Energiavtalen med Azets.
 
 ## Åpne spørsmål
+
+Avklart 2026-08-17: PIN kreves og er ikke en innstilling; ingen lokal kø, fordi
+nettet er stabilt.
 
 - Kelsars egne verdier for pauseregel og synlighet — settes i grensesnittet.
 - Hvilken stasjon går først i parallellkjøringen.
