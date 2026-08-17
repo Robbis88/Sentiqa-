@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { loggOppslag } from '@/lib/personvern/logg'
 
 export type Tilstand = { ok?: string; feil?: string } | undefined
 
@@ -84,6 +85,20 @@ export async function slettPerson(_t: Tilstand, fd: FormData): Promise<Tilstand>
   if (error) return { feil: error.message }
 
   const r = data as { stemplinger: number; kontrakter: number; ansattkort: number } | null
+
+  // Loggen overlever slettingen med vilje: den skal kunne vise HVEM som
+  // slettet, ogsaa etter at dataene er borte. Den beholder navn og
+  // ansattnummer, ikke opplysningene.
+  await loggOppslag(supabase, {
+    retailerId: bruker.retailerId ?? '',
+    stasjonId: felt.data.stasjon_id,
+    ansattNr: felt.data.ansatt_nr,
+    ansattNavn: person.navn,
+    handling: 'persondata_slettet',
+    brukerId: bruker.id,
+    brukerNavn: bruker.fulltNavn,
+    detaljer: { ...(r ?? {}), dokumenter: stier.length },
+  })
   revalidatePath('/persondata')
   return {
     ok: `${person.navn} slettet — ${r?.stemplinger ?? 0} stemplinger, `

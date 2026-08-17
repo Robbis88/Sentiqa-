@@ -5,6 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import {
   innsynFilnavn, innsynTilMarkdown, type Seksjon,
 } from '@/lib/personvern/innsyn'
+import { loggOppslag } from '@/lib/personvern/logg'
 
 // Innsyn etter GDPR art. 15 for én ansatt.
 //
@@ -197,6 +198,17 @@ export async function GET(req: NextRequest) {
     laget: iDag,
     oppbevaringMaaneder: retailer?.oppbevaring_maaneder ?? 60,
     seksjoner,
+  })
+
+  await loggOppslag(supabase, {
+    retailerId: bruker.retailerId ?? '',
+    stasjonId,
+    ansattNr,
+    ansattNavn: navn,
+    handling: 'innsyn',
+    brukerId: bruker.id,
+    brukerNavn: bruker.fulltNavn,
+    detaljer: { seksjoner: seksjoner.filter((s) => s.rader.length > 0).length },
   })
 
   return new NextResponse(md, {

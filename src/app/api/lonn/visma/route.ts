@@ -5,6 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { LONNSART, tilLonnslinjer } from '@/lib/lonn/tidsband'
 import { delEtterLonnsform, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { byggVismafil, medBom, vismaFilnavn } from '@/lib/lonn/vismafil'
+import { loggOppslag } from '@/lib/personvern/logg'
 
 // Fila lastes NED, aldri vises. Åpnes den i norsk Excel og lagres, blir
 // 9.00 til 9,00 og anførselstegnene forsvinner — og da må Azets legge inn
@@ -82,6 +83,15 @@ export async function GET(req: NextRequest) {
   // Kostnadsstedet ER butikknummeret — bekreftet mot Timefordeling for
   // alle fem stasjonene (4177 Lone, 4185 Dale, 9038 Laguneparken,
   // 9145 Varden, 9467 Bønes).
+  await loggOppslag(supabase, {
+    retailerId: bruker.retailerId ?? '',
+    stasjonId,
+    handling: 'lonnsfil_lastet_ned',
+    brukerId: bruker.id,
+    brukerNavn: bruker.fulltNavn,
+    detaljer: { ar, maned, ansatte: new Set(fordeling.med.map((l) => l.ansattNr)).size },
+  })
+
   const kropp = medBom(byggVismafil(fordeling.med, stasjon.butikknummer))
   return new NextResponse(kropp as unknown as BodyInit, {
     headers: {

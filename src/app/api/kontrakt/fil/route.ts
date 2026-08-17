@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { gjenskapKontrakt } from '@/lib/kontrakt/gjenskap'
+import { loggOppslag } from '@/lib/personvern/logg'
 
 // Laster ned igjen en kontrakt som allerede er skrevet.
 //
@@ -32,6 +33,15 @@ export async function GET(req: NextRequest) {
     if (ned.error || !ned.data) {
       return NextResponse.json({ feil: 'Fant ikke fila i Storage.' }, { status: 404 })
     }
+    await loggOppslag(supabase, {
+      retailerId: bruker.retailerId ?? '',
+      stasjonId: null,
+      ansattNavn: rad.ansatt_navn,
+      handling: 'signert_lastet_ned',
+      brukerId: bruker.id,
+      brukerNavn: bruker.fulltNavn,
+      detaljer: { kontraktId: id },
+    })
     const endelse = rad.storage_sti.endsWith('.pdf') ? 'pdf' : 'docx'
     const filnavn = `${rad.ansatt_navn.replace(/[^\wÆØÅæøå -]/g, '')} - signert.${endelse}`
     return new NextResponse(ned.data as unknown as BodyInit, {
@@ -47,6 +57,16 @@ export async function GET(req: NextRequest) {
 
   const svar = await gjenskapKontrakt(supabase, id)
   if (!svar.ok) return NextResponse.json({ feil: svar.feil }, { status: svar.status })
+
+  await loggOppslag(supabase, {
+    retailerId: bruker.retailerId ?? '',
+    stasjonId: null,
+    ansattNavn: svar.ansattNavn,
+    handling: 'kontrakt_lastet_ned',
+    brukerId: bruker.id,
+    brukerNavn: bruker.fulltNavn,
+    detaljer: { kontraktId: id },
+  })
 
   return new NextResponse(svar.docx as unknown as BodyInit, {
     headers: {

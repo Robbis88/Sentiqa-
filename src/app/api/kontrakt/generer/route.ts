@@ -6,6 +6,7 @@ import { fyllUt } from '@/lib/kontrakt/docx'
 import {
   byggVerdier, erMindreaarig, type Ansettelsesform, type Rolle,
 } from '@/lib/kontrakt/felter'
+import { loggOppslag } from '@/lib/personvern/logg'
 
 // Genererer én kontrakt og laster den ned. Malen hentes fra Storage og
 // fylles ut — den skrives aldri om. Ordlyden er juridisk gjennomgått, og
@@ -141,6 +142,17 @@ export async function POST(req: NextRequest) {
     opprettet_av: bruker.id,
   })
   if (error) return NextResponse.json({ feil: error.message }, { status: 500 })
+
+  await loggOppslag(supabase, {
+    retailerId: bruker.retailerId ?? '',
+    stasjonId,
+    ansattNr,
+    ansattNavn: avtale.navn,
+    handling: 'kontrakt_generert',
+    brukerId: bruker.id,
+    brukerNavn: bruker.fulltNavn,
+    detaljer: { form, rolle, malVersjon: mal.versjon },
+  })
 
   const navn = `${avtale.navn.replace(/[^\wÆØÅæøå -]/g, '')} - ${form}.docx`
   return new NextResponse(ut as unknown as BodyInit, {

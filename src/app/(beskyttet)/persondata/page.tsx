@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maanederSiden } from '@/lib/personvern/innsyn'
+import { HANDLING_TEKST, type Handling } from '@/lib/personvern/logg'
 import { FristSkjema, SlettSkjema } from './skjemaer'
 
 type Sok = Promise<{ stasjon?: string }>
@@ -24,17 +25,25 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
   if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
   const valgt = alle.find((s) => s.id === sok.stasjon) ?? alle[0]
 
-  const [{ data: retailer }, { data: folk }] = await Promise.all([
+  const [{ data: retailer }, { data: folk }, { data: loggRader }] = await Promise.all([
     supabase.from('retailers').select('oppbevaring_maaneder')
       .maybeSingle<{ oppbevaring_maaneder: number }>(),
     supabase.from('v_persondata_alder')
       .select('stasjon_id, ansatt_nr, navn, sist_aktivitet')
       .eq('stasjon_id', valgt.id)
       .order('sist_aktivitet'),
+    supabase.from('persondata_logg')
+      .select('id, tid, bruker_navn, handling, ansatt_navn')
+      .order('tid', { ascending: false })
+      .limit(100),
   ])
   const frist = retailer?.oppbevaring_maaneder ?? 60
   const personer = (folk ?? []) as Person[]
   const utlopt = personer.filter((p) => maanederSiden(p.sist_aktivitet, iDag) >= frist)
+  const logg = (loggRader ?? []) as {
+    id: string; tid: string; bruker_navn: string | null
+    handling: string; ansatt_navn: string | null
+  }[]
 
   return (
     <>
@@ -151,11 +160,47 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
             </tbody>
           </table>
         </div>
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis">
           Samme person kan ligge under tre identiteter som ikke er koblet:
           ansattnummeret fra easy@work, PIN-en på nettbrettet, og navnet i
           bemanningsplanen. Utskriften kobler de to siste på navn, og sier fra om det
           i dokumentet — heter to personer det samme, må noen se over.
+        </p>
+      </section>
+
+      <section className="kort">
+        <h2>Hvem har sett hva</h2>
+        <p className="undertittel">
+          Målrettede oppslag på personopplysninger — innsyn, arbeidsavtaler,
+          lønnsfiler og slettinger. Ikke hver sidevisning: en logg full av
+          «åpnet /lonn» skjuler den ene raden som betyr noe.
+        </p>
+        {logg.length === 0 ? (
+          <p className="undertittel">Ingen oppslag registrert ennå.</p>
+        ) : (
+          <div className="tabellramme">
+            <table className="tabell">
+              <thead>
+                <tr><th>Tid</th><th>Hvem</th><th>Gjorde</th><th>Gjaldt</th></tr>
+              </thead>
+              <tbody>
+                {logg.map((l) => (
+                  <tr key={l.id}>
+                    <td>{new Date(l.tid).toLocaleString('nb-NO')}</td>
+                    <td>{l.bruker_navn ?? '—'}</td>
+                    <td>{HANDLING_TEKST[l.handling as Handling] ?? l.handling}</td>
+                    <td>{l.ansatt_navn ?? 'Hele stasjonen'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="notis" style={{ marginBottom: 0 }}>
+          Loggen kan verken endres eller slettes — det finnes ingen policy for det.
+          En logg som lar seg redigere av den som er logget, dokumenterer ingenting.
+          Slettes en ansatt, blir loggen stående: den viser hvem som slettet, ikke
+          hva som sto der.
         </p>
       </section>
     </>
