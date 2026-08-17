@@ -42,6 +42,11 @@ export const ROLLER: { verdi: Rolle; navn: string }[] = [
 
 /** Et felt er kort og uten setningstegn. En setning er et alternativ. */
 export function erUtfyllingsfelt(navn: string): boolean {
+  // `[  ]` er en avkryssingsboks, ikke et felt. Rammeavtalen for
+  // tilkalling har to av dem i punkt 2 — grunnlaget for midlertidigheten
+  // etter aml. § 14-9 (2) a eller b. De krysses av i Word, og å be noen
+  // «fylle ut» dem er å spørre om noe som ikke kan besvares.
+  if (navn.trim() === '') return false
   if (navn.length > 40) return false
   if (/[.!?]/.test(navn.trim().slice(0, -1))) return false
   // «37,5/35,5» og «6» er valg, men korte — de regnes som felt.
@@ -160,7 +165,12 @@ export function manglerVerdi(
     .map((f) => kildeFor.get(f) ?? { navn: f, kilde: 'spor' as const, forklaring: 'Ukjent felt i malen' })
 }
 
-/** Alternativsetningene — de skal leses, ikke fylles. */
+/**
+ * Alternativsetningene — de skal leses, ikke fylles.
+ *
+ * Avkryssingsbokser holdes utenfor: en tom klamme er ingenting å lese,
+ * og en blank kule i lista ser ut som en feil.
+ */
 export function alternativer(feltIMal: string[]): string[] {
-  return feltIMal.filter((f) => !erUtfyllingsfelt(f))
+  return feltIMal.filter((f) => f.trim() !== '' && !erUtfyllingsfelt(f))
 }

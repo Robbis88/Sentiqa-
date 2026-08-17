@@ -21,6 +21,18 @@ describe('erUtfyllingsfelt', () => {
     }
   })
 
+  test('en tom klamme er en avkryssingsboks, ikke et felt', () => {
+    // Rammeavtalen for tilkalling har «[  ]» to steder i punkt 2 —
+    // grunnlaget for midlertidigheten etter aml. § 14-9 (2) a eller b.
+    // De krysses av i Word.
+    expect(erUtfyllingsfelt('  ')).toBe(false)
+    expect(erUtfyllingsfelt('')).toBe(false)
+    expect(manglerVerdi(['  ', 'stillingstittel'], {}).map((m) => m.navn))
+      .toEqual(['stillingstittel'])
+    expect(alternativer(['  ', 'Det gjelder ingen prøvetid i stillingen.']))
+      .toEqual(['Det gjelder ingen prøvetid i stillingen.'])
+  })
+
   test('hele setninger er alternativer, ikke felt', () => {
     expect(erUtfyllingsfelt(
       'Arbeidstaker er ansatt i stilling som [stillingstittel]. Denne Avtalen erstatter tidligere arbeidsavtaler'))
