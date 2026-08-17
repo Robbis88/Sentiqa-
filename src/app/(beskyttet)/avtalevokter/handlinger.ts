@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { parseFaktura, lagForhandlingsutkast } from '@/lib/ai/faktura'
+import { trygtFilnavn } from '@/lib/storage-noekkel'
 
 const BUCKET = 'fakturaer'
 const GYLDIG = ['application/pdf', 'image/png', 'image/jpeg']
@@ -24,7 +25,7 @@ export async function lastOppFaktura(
   const stasjonId = String(formData.get('stasjon_id') ?? '') || null
 
   const buffer = Buffer.from(await fil.arrayBuffer())
-  const sti = `${bruker.retailerId}/${randomUUID()}-${fil.name}`
+  const sti = `${bruker.retailerId}/${randomUUID()}-${trygtFilnavn(fil.name)}`
   const supabase = await lagSupabaseServerKlient()
 
   const opp = await supabase.storage.from(BUCKET).upload(sti, buffer, { contentType: fil.type })

@@ -5,6 +5,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lagreForhandsparset } from '@/lib/import/kjerne'
 import type { ForhandsPayload } from '@/lib/import/typer'
+import { trygtFilnavn } from '@/lib/storage-noekkel'
 
 const BUCKET = 'raa-filer'
 
@@ -110,7 +111,7 @@ export async function lastOppFiler(
     try {
       const bytes = Buffer.from(await fil.arrayBuffer())
       const sha256 = createHash('sha256').update(bytes).digest('hex')
-      const sti = `${bruker.retailerId}/${randomUUID()}-${fil.name}`
+      const sti = `${bruker.retailerId}/${randomUUID()}-${trygtFilnavn(fil.name)}`
 
       const opplasting = await supabase.storage
         .from(BUCKET)

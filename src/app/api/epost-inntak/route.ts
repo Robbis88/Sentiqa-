@@ -4,6 +4,7 @@ import PostalMime from 'postal-mime'
 import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { behandleJobbKjerne } from '@/lib/import/kjerne'
+import { trygtFilnavn } from '@/lib/storage-noekkel'
 
 // E-post-inntak (§6). Tar imot videresendte e-poster fra en innboks-tjeneste
 // (Postmark/Cloudflare Email Worker/SendGrid Inbound Parse el.l.). Matcher
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (!v.Content || !v.Name) continue
     const buffer = Buffer.from(v.Content, 'base64')
     const sha256 = createHash('sha256').update(buffer).digest('hex')
-    const sti = `${retailer.id}/${randomUUID()}-${v.Name}`
+    const sti = `${retailer.id}/${randomUUID()}-${trygtFilnavn(v.Name)}`
 
     const opp = await supabase.storage
       .from('raa-filer')

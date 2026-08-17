@@ -5,6 +5,7 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { trygtFilnavn } from '@/lib/storage-noekkel'
 
 const BUCKET = 'raa-filer'
 
@@ -57,7 +58,7 @@ export async function lastOppMal(_t: Tilstand, fd: FormData): Promise<Tilstand> 
     .maybeSingle<{ versjon: number }>()
   const versjon = (forrige?.versjon ?? 0) + 1
 
-  const sti = `${bruker.retailerId}/kontraktmal/${randomUUID()}-${fil.name}`
+  const sti = `${bruker.retailerId}/kontraktmal/${randomUUID()}-${trygtFilnavn(fil.name)}`
   const opp = await supabase.storage.from(BUCKET)
     .upload(sti, fil, { contentType: fil.type || 'application/octet-stream' })
   if (opp.error) return { feil: `Opplasting feilet: ${opp.error.message}` }

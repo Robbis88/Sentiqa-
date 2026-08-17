@@ -10,6 +10,7 @@ import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import type { ForhandsPayload } from '@/lib/import/typer'
 import { importerForhandsparset, registrerRaaFil } from './handlinger'
 import { lagSupabaseNettleserKlient } from '@/lib/supabase/client'
+import { trygtFilnavn } from '@/lib/storage-noekkel'
 
 // Nettleseren laster hele arbeidsboka i minnet for å parse den. St1s
 // forretningsplan er ~27 MB med et ark på 289 000 rader og koster over 2 GB —
@@ -65,7 +66,7 @@ async function tilStorage(
 
   const buf = await fil.arrayBuffer()
   const sha = await sha256Hex(buf)
-  const sti = `${retailerId}/${crypto.randomUUID()}-${fil.name}`
+  const sti = `${retailerId}/${crypto.randomUUID()}-${trygtFilnavn(fil.name)}`
 
   const { error } = await supabase.storage
     .from('raa-filer')
