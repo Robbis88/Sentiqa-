@@ -3,24 +3,13 @@ import { useActionState } from 'react'
 import {
   lagreAnsattkort, lagreStandardfelt, lastOppMal, type Tilstand,
 } from './handlinger'
+import { FORMER, ROLLER } from '@/lib/kontrakt/felter'
 
 function Svar({ tilstand }: { tilstand: Tilstand }) {
   if (tilstand?.ok) return <span className="ok" role="status">{tilstand.ok}.</span>
   if (tilstand?.feil) return <span className="feil" role="alert">{tilstand.feil}</span>
   return null
 }
-
-export const FORMER = [
-  { verdi: 'fast', navn: 'Fast ansettelse' },
-  { verdi: 'midlertidig', navn: 'Midlertidig' },
-  { verdi: 'tilkalling', navn: 'Tilkalling / rammeavtale' },
-] as const
-
-export const ROLLER = [
-  { verdi: 'ansatt', navn: 'Ansatt' },
-  { verdi: 'ass_butikksjef', navn: 'Ass. butikksjef' },
-  { verdi: 'butikksjef', navn: 'Butikksjef' },
-] as const
 
 export type Ansattkort = {
   ansattNr: string

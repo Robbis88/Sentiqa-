@@ -20,6 +20,26 @@
 export type Ansettelsesform = 'fast' | 'midlertidig' | 'tilkalling'
 export type Rolle = 'ansatt' | 'ass_butikksjef' | 'butikksjef'
 
+// Valgene ligger her, ikke i skjemafila, fordi BÅDE serveren og
+// nettleseren trenger dem: siden slår opp i dem for å finne riktig mal,
+// skjemaene bruker dem til å tegne nedtrekkslistene.
+//
+// Legger man dem i en 'use client'-fil og leser dem fra en
+// serverkomponent, blir de klientreferanser og ikke arrays — og et
+// `.some()` på en klientreferanse kaster under render. Siden ble hvit av
+// nettopp det.
+export const FORMER: { verdi: Ansettelsesform; navn: string }[] = [
+  { verdi: 'fast', navn: 'Fast ansettelse' },
+  { verdi: 'midlertidig', navn: 'Midlertidig' },
+  { verdi: 'tilkalling', navn: 'Tilkalling / rammeavtale' },
+]
+
+export const ROLLER: { verdi: Rolle; navn: string }[] = [
+  { verdi: 'ansatt', navn: 'Ansatt' },
+  { verdi: 'ass_butikksjef', navn: 'Ass. butikksjef' },
+  { verdi: 'butikksjef', navn: 'Butikksjef' },
+]
+
 /** Et felt er kort og uten setningstegn. En setning er et alternativ. */
 export function erUtfyllingsfelt(navn: string): boolean {
   if (navn.length > 40) return false

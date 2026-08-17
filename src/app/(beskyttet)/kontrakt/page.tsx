@@ -3,12 +3,10 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { finnFelter } from '@/lib/kontrakt/docx'
 import {
-  alternativer, byggVerdier, erMindreaarig, manglerVerdi, FELTKILDER,
+  alternativer, byggVerdier, erMindreaarig, manglerVerdi, FELTKILDER, FORMER, ROLLER,
   type Ansettelsesform, type Rolle,
 } from '@/lib/kontrakt/felter'
-import {
-  AnsattkortSkjema, MalSkjema, StandardfeltSkjema, FORMER, ROLLER,
-} from './skjemaer'
+import { AnsattkortSkjema, MalSkjema, StandardfeltSkjema } from './skjemaer'
 
 type Sok = Promise<{ stasjon?: string; ansatt?: string; form?: string; rolle?: string }>
 
