@@ -71,20 +71,25 @@ const SESONG_FAKTOR = 1.6
 const MONN = 8
 
 /**
- * Finner sammenhengende måneder som ligger vesentlig over personens egen
- * normal. Året behandles som en sirkel, så desember–januar henger sammen.
+ * Utgjør månedene én sammenhengende periode?
  *
- * Returnerer null hvis toppene er spredt — da er det ikke sesong, det er
- * en stilling som er for liten.
+ * Året er en sirkel: desember og januar henger sammen. En sesong som
+ * strekker seg over nyttår ville ellers sett ut som to spredte topper.
+ *
+ * Returnerer kjeden i rekkefølge, eller null hvis månedene er spredt —
+ * spredte topper er ikke sesong, det er en stilling som er for liten.
+ * Krever minst to måneder: én enkelt måned er en ekstravakt, og da er
+ * rammeavtale riktig svar, ikke en midlertidig ansettelse for én måned.
+ *
+ * Delt med plandekningen, som stiller samme spørsmål forlengs: skal
+ * sommertoppen i planen løses med midlertidige avtaler eller større
+ * faste stillinger?
  */
-function finnSesong(perMaaned: Map<number, number[]>, normal: number): number[] | null {
-  const hoy = new Set<number>()
-  for (const [m, verdier] of perMaaned) {
-    if (median(verdier) > normal * SESONG_FAKTOR) hoy.add(m)
-  }
-  if (hoy.size === 0 || hoy.size > 5) return null
+export function sammenhengendeKjede(maaneder: Iterable<number>): number[] | null {
+  const hoy = new Set(maaneder)
+  if (hoy.size < 2 || hoy.size > 5) return null
 
-  // Sammenhengende på sirkelen? Start der forrige måned ikke er med.
+  // Start der forrige måned ikke er med.
   const start = [...hoy].find((m) => !hoy.has(m === 1 ? 12 : m - 1))
   if (start === undefined) return null
   const kjede: number[] = []
@@ -93,11 +98,16 @@ function finnSesong(perMaaned: Map<number, number[]>, normal: number): number[] 
     kjede.push(m)
     m = m === 12 ? 1 : m + 1
   }
-  // Minst to sammenhengende måneder. Én enkelt måned er ikke en sesong —
-  // det er en ekstravakt, og da er rammeavtale riktig svar, ikke en
-  // midlertidig ansettelse for én måned.
-  if (kjede.length < 2) return null
   return kjede.length === hoy.size ? kjede : null
+}
+
+/** Månedene som ligger vesentlig over personens egen normal. */
+function finnSesong(perMaaned: Map<number, number[]>, normal: number): number[] | null {
+  const hoy = new Set<number>()
+  for (const [m, verdier] of perMaaned) {
+    if (median(verdier) > normal * SESONG_FAKTOR) hoy.add(m)
+  }
+  return sammenhengendeKjede(hoy)
 }
 
 export function vurderEksponering(

@@ -11,6 +11,7 @@ import {
   formendring, formendringTekst, justerProfil, kapasitet, planMotFaktisk,
   sammenlignStasjoner, stillingsanslag, takFraUkeprofil,
 } from '@/lib/bemanningsanalyse'
+import { borteTimerPerMaaned, plandekning } from '@/lib/ansatt/plandekning'
 import {
   FastVaktSkjema, FravaerSkjema, KravSkjema, StillingSkjema, TakSkjema, VinduSkjema,
 } from './skjemaer'
@@ -286,7 +287,8 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       // fortsatt stemmer, blir gradvis feil uten at noen merker det.
       hentDognkurve(supabase, valgt.id, `${ar - 1}-01-01`, `${ar - 1}-${forrigeMnd}-28`),
       hentDognkurve(supabase, valgt.id, `${ar}-01-01`, `${ar}-${forrigeMnd}-28`),
-      supabase.from('ansatt_avtale').select('ansatt_nr, navn, stillingsprosent')
+      supabase.from('ansatt_avtale')
+        .select('ansatt_nr, navn, stillingsprosent, har_rammeavtale, lonnsform')
         .eq('stasjon_id', valgt.id),
       supabase.from('bemanning_fravaer').select('id, navn, fra_dato, til_dato, arsak')
         .eq('stasjon_id', valgt.id).order('fra_dato', { ascending: false }),
@@ -402,9 +404,11 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   // Stillingsprosent: anslått fra stemplingene, overstyrt av det
   // butikksjefen har bekreftet. Et lagret tall er et menneskes ord og
   // skal aldri overskrives av en ny beregning.
-  const lagredeAvtaler = new Map(
-    ((avtaler ?? []) as { ansatt_nr: string; navn: string; stillingsprosent: number | null }[])
-      .map((a) => [a.ansatt_nr, a]))
+  const avtaleRader = (avtaler ?? []) as {
+    ansatt_nr: string; navn: string; stillingsprosent: number | null
+    har_rammeavtale: boolean; lonnsform: string | null
+  }[]
+  const lagredeAvtaler = new Map(avtaleRader.map((a) => [a.ansatt_nr, a]))
   const anslag = stillingsanslag(
     ansattMnd.map((a) => ({
       ansattNr: a.ansatt_nr, navn: a.ansatt_navn, dato: a.maaned, timer: Number(a.timer),
@@ -420,6 +424,37 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       stillinger.map((s) => ({ anslagProsent: s.lagret ?? s.anslagProsent, aktiv: s.aktiv })),
       plan.bundneTimer + plan.brukteTimer,
     )
+    : null
+
+  // Kontraktdekningen: bærer PAPIRENE planen, ikke bare menneskene?
+  //
+  // Planen kan godt være gjennomførbar — stasjonen ringer noen inn, alle
+  // stiller opp, gulvet blir dekket. Regningen kommer et annet sted: de
+  // timene ble jobbet uten at kontrakten dekket dem, og etter § 14-4 a
+  // kan de senere kreves som fast stilling.
+  //
+  // Bare bekreftede stillingsprosenter teller. Anslaget fra stemplingene
+  // duger til å planlegge med, men ikke til å svare på om papirene
+  // holder — anslaget ER jo nettopp timene som kanskje manglet dekning.
+  const timelonnede = avtaleRader
+    .filter((a) => a.lonnsform !== 'fastlonn' && a.lonnsform !== 'tilkalling')
+    .map((a) => ({
+      ansattNr: a.ansatt_nr,
+      navn: a.navn,
+      kontraktProsent: a.stillingsprosent,
+      harRammeavtale: a.har_rammeavtale,
+    }))
+  const borte = borteTimerPerMaaned(
+    fravaerListe.map((f) => ({ navn: f.navn, fraDato: f.fra_dato, tilDato: f.til_dato })),
+    timelonnede,
+    ar,
+  )
+  const dekning = aar && timelonnede.length > 0
+    ? plandekning(timelonnede, aar.maaneder.map((m) => ({
+      maned: m.maned,
+      timer: m.disponible,
+      borteTimer: borte.get(m.maned) ?? 0,
+    })))
     : null
 
   // Sammenligningen: siste tolv hele måneder, summert per stasjon.
@@ -831,6 +866,77 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {dekning && (
+        <section className="kort">
+          <h2>Bærer kontraktene planen?</h2>
+          <p className="undertittel">
+            Det forrige spørsmålet var om det finnes folk nok. Dette er om det finnes{' '}
+            <strong>papir</strong> nok. Planen kan gå opp likevel — noen ringes inn, alle
+            stiller opp, gulvet blir dekket — og regningen kommer et helt annet sted:
+            timene ble jobbet uten at kontrakten dekket dem. Målt på hele året, fordi
+            forskjellen på en travel måned og en sesong er nettopp hvor mange måneder
+            det er.
+          </p>
+
+          <div
+            className={`varsel ${dekning.tiltak === 'ny_stilling' ? 'rod'
+              : dekning.tiltak === 'dekket' ? '' : 'gul'}`}
+          >
+            <span className="varsel-dott" aria-hidden />
+            <div className="varsel-tekst">
+              <div className="varsel-topp">
+                <strong>
+                  {dekning.tiltak === 'dekket' ? 'Kontraktene dekker planen'
+                    : dekning.tiltak === 'ramme' ? 'Rammeavtale om tilkalling'
+                      : dekning.tiltak === 'midlertidig' ? 'Midlertidige avtaler for sesongen'
+                        : dekning.tiltak === 'ny_stilling' ? 'Stillingene er for små'
+                          : 'Ikke nok bekreftede stillinger til å svare'}
+                </strong>
+                {dekning.sumUdekket > 0 && (
+                  <span className="varsel-omfang">
+                    {Math.round(dekning.sumUdekket)} timer i året
+                  </span>
+                )}
+              </div>
+              <p className="varsel-detalj">{dekning.melding}</p>
+            </div>
+          </div>
+
+          {dekning.korte.length > 0 && (
+            <div className="tabellramme" style={{ marginTop: '1rem' }}>
+              <table className="tabell">
+                <thead>
+                  <tr>
+                    <th>Måned</th>
+                    <th className="tall">Planen trenger</th>
+                    <th className="tall">Kontrakter dekker</th>
+                    <th className="tall">Udekket</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dekning.maaneder.filter((m) => m.udekket > 0).map((m) => (
+                    <tr key={m.maned} className={m.maned === dekning.verstMaaned ? 'valgt-rad' : undefined}>
+                      <td>{MND[m.maned - 1]}</td>
+                      <td className="tall">{Math.round(m.behov)} t</td>
+                      <td className="tall">{Math.round(m.kapasitet)} t</td>
+                      <td className="tall">{Math.round(m.udekket)} t</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {dekning.utenKontrakt.length > 0 && (
+            <p className="notis" style={{ marginBottom: 0 }}>
+              Uten bekreftet stillingsprosent: {dekning.utenKontrakt.join(', ')}. Bekreft
+              dem i tabellen over — så lenge de står tomme, er kapasiteten et anslag bygget
+              på nettopp de timene som kanskje manglet dekning.
+            </p>
+          )}
         </section>
       )}
 
