@@ -5,6 +5,8 @@ import { beregnMalekort, type Malekort } from '@/lib/malekort'
 import { MalekortSkjema } from './skjema'
 import { Leaderboard } from './leaderboard'
 import { slettMalekort } from './handlinger'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +38,7 @@ export default async function MalingSide() {
   if (!erAdmin && !erButikksjef) {
     return (
       <>
-        <h1>Måling</h1>
+        <Sidehode tittel="Måling" />
         <p className="undertittel">Måling er for eier og butikksjef.</p>
       </>
     )
@@ -74,21 +76,66 @@ export default async function MalingSide() {
     erAdmin ? hentVarehierarki(supabase) : Promise.resolve([]),
   ])
 
+  // NIVÅ 1 — svaret. Siden viste rangeringene, men lot leseren telle selv
+  // hvor hun stod på tvers av dem. Butikksjefen vil vite plasseringen sin,
+  // eieren vil vite hvem som leder.
+  const klare = resultater.flatMap((r, i) => (r.klar ? [{ kort: malekort[i], res: r }] : []))
+
+  let svar: string | null = null
+  if (erButikksjef) {
+    const egne = klare.flatMap(({ kort, res }) => {
+      const plass = res.rader.findIndex((rad) => egenIds?.has(rad.stasjonId))
+      return plass < 0 ? [] : [{ navn: kort.navn, plass: plass + 1, av: res.rader.length }]
+    })
+    if (egne.length > 0) {
+      const snitt = Math.round(egne.reduce((s, e) => s + e.plass, 0) / egne.length)
+      const best = egne.reduce((a, e) => (e.plass < a.plass ? e : a))
+      const svakest = egne.reduce((a, e) => (e.plass > a.plass ? e : a))
+      svar = `Din butikk ligger i snitt på ${snitt}. plass av ${egne[0].av}`
+      // Med bare ett målekort er «best» og «svakest» det samme kortet.
+      if (egne.length > 1 && best.navn !== svakest.navn) {
+        svar += `. Best på «${best.navn}», svakest på «${svakest.navn}»`
+      }
+    }
+  } else {
+    const forsteplasser = new Map<string, number>()
+    for (const { res } of klare) {
+      const forste = res.rader[0]
+      if (forste) forsteplasser.set(forste.navn, (forsteplasser.get(forste.navn) ?? 0) + 1)
+    }
+    const leder = [...forsteplasser.entries()].sort((a, b) => b[1] - a[1])[0]
+    if (leder) {
+      svar = `${leder[0]} leder på ${leder[1]} av ${klare.length} ${klare.length === 1 ? 'måling' : 'målinger'}`
+    }
+  }
+
+  const undertittel = erAdmin
+    ? 'Rangering av butikkene mot hverandre og mot i fjor. Butikksjef og nettbrett ser kun de du deler.'
+    : 'Slik ligger butikken din an mot de andre, og mot samme periode i fjor.'
+
   return (
     <>
-      <h1>Måling</h1>
-      <p className="undertittel">
-        {erAdmin
-          ? 'Rangering av butikkene mot hverandre og mot i fjor. Du velger hva som måles og på hvilke varer. Butikksjef og tablet ser kun de du deler.'
-          : 'Slik ligger butikken din an mot de andre, og mot samme periode i fjor.'}
-      </p>
+      <Sidehode
+        tittel="Måling"
+        undertittel={svar ? `${svar}. ${undertittel}` : undertittel}
+        handlinger={erAdmin ? (
+          <Sidepanel
+            knapp="Nytt målekort"
+            tittel="Nytt målekort"
+            beskrivelse="Velg hva som måles, på hvilke varer, og hvem som får se det."
+          >
+            <MalekortSkjema tre={tre} />
+          </Sidepanel>
+        ) : undefined}
+      />
 
       {malekort.length === 0 ? (
-        <section className="kort">
-          <p className="undertittel">
-            {erAdmin ? 'Ingen målekort ennå — lag ditt første nedenfor.' : 'Ingen målekort er delt med deg ennå.'}
-          </p>
-        </section>
+        <Tomtilstand
+          tittel={erAdmin ? 'Ingen målekort ennå' : 'Ingen målekort er delt med deg ennå'}
+          forklaring={erAdmin
+            ? 'Et målekort er én ting butikkene måles på — omsetning, snittbong, antall — for en periode, mot hverandre og mot i fjor. Lag det første, så begynner rangeringen.'
+            : 'Eieren bestemmer hvilke målinger som deles. Så snart én er delt, ser du hvordan butikken din ligger an her.'}
+        />
       ) : (
         malekort.map((m, i) => (
           <section className="kort malekort-kort" key={m.id}>
@@ -100,7 +147,12 @@ export default async function MalingSide() {
                   {m.malekort_scope.length > 0
                     ? ` · ${m.malekort_scope.map((s) => s.navn ?? s.kode).join(', ')}`
                     : ' · alt salg'}
-                  {erAdmin ? ` · ${m.vis_butikksjef ? '👤 ' : ''}${m.vis_tablet ? '📱' : ''}` : ''}
+                  {/* Sto som 👤 og 📱. Hvem som ser kortet er en opplysning,
+                      ikke et ikon — og to emoji ved siden av hverandre sa
+                      ingenting om hvilken som var hvilken. */}
+                  {erAdmin && (m.vis_butikksjef || m.vis_tablet)
+                    ? ` · delt med ${[m.vis_butikksjef ? 'butikksjef' : null, m.vis_tablet ? 'nettbrett' : null].filter(Boolean).join(' og ')}`
+                    : erAdmin ? ' · kun deg' : ''}
                 </span>
               </div>
               {erAdmin && (
@@ -115,12 +167,19 @@ export default async function MalingSide() {
         ))
       )}
 
-      {erAdmin && (
-        <section className="kort">
-          <h2>+ Nytt målekort</h2>
-          <MalekortSkjema tre={tre} />
-        </section>
-      )}
+      <Forklaring sporsmaal="Hvordan rangeres butikkene?">
+        <p>
+          Hvert målekort måler én ting for én periode. Butikkene sorteres på verdien,
+          og «mot i fjor» sammenligner med samme periode året før — så en butikk som
+          er liten, men vokser, ikke automatisk taper mot en stor som står stille.
+        </p>
+        <p>
+          Krever kortet en fullstendig periode, vises ingen rangering før perioden er
+          ferdig. Halve uker gir halve tall, og en butikk som mangler én dag ville
+          sett ut som den taper.
+          {erAdmin ? ' Du velger selv om butikksjefene får se navnene på de andre butikkene eller bare sin egen plassering.' : ''}
+        </p>
+      </Forklaring>
     </>
   )
 }

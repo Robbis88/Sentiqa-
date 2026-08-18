@@ -1,7 +1,9 @@
 import { kr, tall } from '@/lib/format'
 import type { MalekortResultat } from '@/lib/malekort'
 
-const MEDALJE = ['🥇', '🥈', '🥉']
+// Sto med medaljeemoji på de tre første. Plasseringen er allerede et tall,
+// og emoji som ikonografi er ute (bestemt 2026-08-13) — .rang-badge bærer
+// forskjellen på topp og bunn selv.
 
 function formater(verdi: number, enhet: string): string {
   if (enhet === 'pst') return `${verdi >= 0 ? '+' : '−'}${Math.abs(verdi).toFixed(1)} %`
@@ -21,7 +23,7 @@ export function Leaderboard({
   egenIds?: Set<string>
   anonymiser?: boolean
 }) {
-  if (!resultat.klar) return <p className="undertittel">⏳ {resultat.grunn}</p>
+  if (!resultat.klar) return <p className="undertittel">{resultat.grunn}</p>
   if (resultat.rader.length === 0) return <p className="undertittel">Ingen tall i perioden.</p>
 
   return (
@@ -33,7 +35,7 @@ export function Leaderboard({
           const navn = anonymiser ? (egen ? 'Din butikk' : `Butikk #${i + 1}`) : r.navn
           return (
             <li key={r.stasjonId} className={egen ? 'rang-egen' : ''}>
-              <span className="rang-badge">{MEDALJE[i] ?? i + 1}</span>
+              <span className="rang-badge">{i + 1}</span>
               <span className="rang-navn">
                 {navn}
                 {egen && !anonymiser ? <span className="rang-du"> ◀ DU</span> : null}
