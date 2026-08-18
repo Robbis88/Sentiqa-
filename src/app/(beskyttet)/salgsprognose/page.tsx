@@ -101,7 +101,6 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
       })()
     : null
 
-  const ikonFor = new Map(AVDELINGER.map((a) => [a.kode, a.ikon]))
   const navnFor = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
 
   // NIVÅ 1 — svaret. Tallet alene sier ingenting om i morgen er en god
@@ -174,7 +173,7 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
               <tbody>
                 {prognose.forslag.map((f) => (
                   <tr key={f.kode}>
-                    <td>{ikonFor.get(f.kode) ?? '📦'} {navnFor.get(f.kode) ?? f.navn}</td>
+                    <td>{navnFor.get(f.kode) ?? f.navn}</td>
                     <td>{kr.format(f.forventet)}</td>
                     <td>
                       {f.endringPst === 0 ? '—' : (

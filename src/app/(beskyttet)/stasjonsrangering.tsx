@@ -15,28 +15,26 @@ export type RangRad = {
 
 // Butikksjef-påvirkbare kostnadskonti (for kostnad-fanens kilde-velger).
 const KOSTNADER: Avd[] = [
-  { kode: '633', navn: 'Forbruksmateriell', ikon: '🧴' },
-  { kode: '627', navn: 'Renhold', ikon: '🧽' },
-  { kode: '628', navn: 'Renovasjon', ikon: '🗑️' },
-  { kode: '629', navn: 'Brøyting', ikon: '❄️' },
-  { kode: '634', navn: 'Rep & vedlikehold', ikon: '🔧' },
-  { kode: '632', navn: 'Utstyr & verktøy', ikon: '🛠️' },
-  { kode: '639', navn: 'Telefon', ikon: '📞' },
-  { kode: '741', navn: 'Reise, møter, kurs', ikon: '🚗' },
-  { kode: '743', navn: 'Diverse', ikon: '📦' },
-  { kode: '746', navn: 'Kassedifferanse', ikon: '💵' },
+  { kode: '633', navn: 'Forbruksmateriell' },
+  { kode: '627', navn: 'Renhold' },
+  { kode: '628', navn: 'Renovasjon' },
+  { kode: '629', navn: 'Brøyting' },
+  { kode: '634', navn: 'Rep & vedlikehold' },
+  { kode: '632', navn: 'Utstyr & verktøy' },
+  { kode: '639', navn: 'Telefon' },
+  { kode: '741', navn: 'Reise, møter, kurs' },
+  { kode: '743', navn: 'Diverse' },
+  { kode: '746', navn: 'Kassedifferanse' },
 ]
 
 const FANER = [
-  { id: 'oms', navn: 'Omsetning', ikon: '💰', velger: true },
-  { id: 'brf', navn: 'Bruttofortjeneste', ikon: '📈', velger: true },
-  { id: 'lonn', navn: 'Lønn %', ikon: '👥', velger: false },
-  { id: 'synlig', navn: 'Synlig svinn', ikon: '🗑️', velger: false },
-  { id: 'usynlig', navn: 'Usynlig svinn', ikon: '👻', velger: false },
-  { id: 'kostnad', navn: 'Kostnader', ikon: '💸', velger: true },
+  { id: 'oms', navn: 'Omsetning', velger: true },
+  { id: 'brf', navn: 'Bruttofortjeneste', velger: true },
+  { id: 'lonn', navn: 'Lønn %', velger: false },
+  { id: 'synlig', navn: 'Synlig svinn', velger: false },
+  { id: 'usynlig', navn: 'Usynlig svinn', velger: false },
+  { id: 'kostnad', navn: 'Kostnader', velger: true },
 ]
-const MEDALJE = ['🥇', '🥈', '🥉']
-const SVINN_IKON = ['🚨', '⚠️', '⚠️']
 // Personalkostnad-konti (St1) — for lønn%-fanen.
 const LONN_KONTI = ['501', '502', '503', '505', '508', '509', '540', '541', '590']
 
@@ -82,7 +80,7 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
       <div className="rang-faner">
         {faner.map((t) => (
           <button key={t.id} type="button" className={`rang-fane ${fane === t.id ? 'aktiv' : ''}`} onClick={() => { setFane(t.id); setVisAlle(false); setAvd(t.id === 'kostnad' ? '633' : 'total') }}>
-            {t.ikon} {t.navn}
+            {t.navn}
           </button>
         ))}
       </div>
@@ -92,7 +90,7 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
           Vis:
           <select className="rang-velger" value={avd} onChange={(e) => setAvd(e.target.value)}>
             {!erKost && <option value="total">Total</option>}
-            {velgerListe.map((a) => <option key={a.kode} value={a.kode}>{a.ikon} {a.navn}</option>)}
+            {velgerListe.map((a) => <option key={a.kode} value={a.kode}>{a.navn}</option>)}
           </select>
         </label>
       )}
@@ -101,7 +99,10 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
         {vist.map((l, i) => {
           const avvik = l.budsjett != null ? l.verdi - l.budsjett : null
           const avvikPst = l.budsjett ? (avvik! / l.budsjett) * 100 : null
-          const badge = fane === 'synlig' ? (SVINN_IKON[i] ?? `${i + 1}`) : (MEDALJE[i] ?? `${i + 1}`)
+          // Sto med 🥇🥈🥉 på topp tre, og 🚨⚠️⚠️ på svinnfanen. Plasseringen
+          // er allerede et tall, og alvorligheten sitter i fargen under —
+          // sirenen la på et lag som ikke sa noe nytt.
+          const badge = `${i + 1}`
           let klasse = ''
           if (fane === 'oms' || fane === 'brf') klasse = avvik != null ? (avvik >= 0 ? 'gronn' : 'rod') : ''
           else if (fane === 'kostnad') klasse = avvik != null ? (avvik <= 0 ? 'gronn' : 'rod') : '' // under budsjett = bra

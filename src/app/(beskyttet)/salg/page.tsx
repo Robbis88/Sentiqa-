@@ -120,7 +120,6 @@ export default async function SalgSide({
 
   // Avdeling-rader er per (avdeling, stasjon) → summer per avdeling. Pen navn/ikon
   // fra AVDELINGER (St1-kontoplan), fallback til viewets avdeling_navn.
-  const ikonFor = new Map(AVDELINGER.map((a) => [a.kode, a.ikon]))
   const pentNavn = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
   const avdMap = new Map<string, { navn: string; omsetning: number; antall: number }>()
   for (const r of avdData ?? []) {
@@ -131,7 +130,7 @@ export default async function SalgSide({
     avdMap.set(kode, a)
   }
   const avdelinger = [...avdMap.entries()]
-    .map(([kode, a]) => ({ kode, ikon: ikonFor.get(kode) ?? '📦', ...a }))
+    .map(([kode, a]) => ({ kode, ...a }))
     .sort((x, y) => y.omsetning - x.omsetning)
   const avdSum = avdelinger.reduce((s, a) => s + a.omsetning, 0)
 
@@ -194,7 +193,7 @@ export default async function SalgSide({
               <tr><td colSpan={4} className="undertittel">Ingen kategori-salg denne dagen.</td></tr>
             ) : avdelinger.map((a) => (
               <tr key={a.kode}>
-                <td>{a.ikon} {a.navn}</td>
+                <td>{a.navn}</td>
                 <td>{kr.format(a.omsetning)}</td>
                 <td>{tall.format(a.antall)}</td>
                 <td>{avdSum > 0 ? `${Math.round((a.omsetning / avdSum) * 100)} %` : '—'}</td>
