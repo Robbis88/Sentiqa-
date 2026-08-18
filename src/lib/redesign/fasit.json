@@ -551,9 +551,6 @@
       "{tittel}",
       "{tittel}"
     ],
-    "/puls/sporsmal": [
-      "Nytt spørsmål"
-    ],
     "/puls/[id]": [
       "Kommentarer ({kommentarer.length})",
       "Per stasjon"
@@ -590,10 +587,6 @@
     "/sjekkpunkt": [
       "Nytt sjekkpunkt",
       "{navnFor.get(sid) ?? '—'}"
-    ],
-    "/stasjoner": [
-      "Ny stasjon",
-      "{stasjoner.length} stasjon(er)"
     ],
     "/svinn": [
       "Mest svinn (varer){erStasjon ? ` · ${valgtNavn}` : ''}",
@@ -685,9 +678,6 @@
     "/puls": [
       "/puls/${r.id}",
       "/puls/ny"
-    ],
-    "/puls/sporsmal": [
-      "/puls"
     ],
     "/puls/[id]": [
       "/puls"

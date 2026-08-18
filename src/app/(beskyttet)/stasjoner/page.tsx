@@ -3,6 +3,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { StasjonSkjema } from './skjema'
 import { VaerKnapp } from './vaer-knapp'
 import { settTerskel, settStasjonstype, settPosisjon, settVaerfolsomhet } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 const TYPER: [string, string][] = [
   ['utfart', 'Utfart'],
@@ -45,25 +47,38 @@ export default async function StasjonerSide() {
 
   return (
     <>
-      <h1>Stasjoner</h1>
+      <Sidehode
+        tittel="Stasjoner"
+        undertittel={stasjoner.length === 0
+          ? 'Butikknummeret er nøkkelen — det er slik importen finner riktig stasjon.'
+          : `${stasjoner.length} ${stasjoner.length === 1 ? 'stasjon' : 'stasjoner'}. `
+            + 'Butikknummeret kobler importen til riktig sted.'}
+        handlinger={(
+          <>
+            <VaerKnapp />
+            <Sidepanel
+              knapp="Ny stasjon"
+              tittel="Ny stasjon"
+              beskrivelse="Butikknummeret må stemme med det som står i rapportene fra St1."
+            >
+              <StasjonSkjema />
+            </Sidepanel>
+          </>
+        )}
+      />
+
       <p className="undertittel">
-        Registrer butikknummer + navn så importen kobles til riktig stasjon (§6).
+        Breddegrad og lengdegrad hentes fra Google Maps. Er de satt, henter
+        systemet været automatisk til produksjonsplanen.
       </p>
 
-      <section className="kort">
-        <h2>Ny stasjon</h2>
-        <StasjonSkjema />
-      </section>
-
-      <section className="kort">
-        <div className="seksjon-topp">
-          <h2>{stasjoner.length} stasjon(er)</h2>
-          <VaerKnapp />
-        </div>
-        <p className="undertittel" style={{ marginBottom: '0.5rem' }}>Sett breddegrad/lengdegrad (fra Google Maps) → været hentes automatisk til produksjonsplanen.</p>
-        {stasjoner.length === 0 ? (
-          <p className="undertittel">Ingen stasjoner ennå.</p>
-        ) : (
+      {stasjoner.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen stasjoner ennå"
+          forklaring="Uten en stasjon har importen ingen steder å legge tallene."
+        />
+      ) : (
+        <div className="tabellramme">
           <table className="tabell">
             <thead>
               <tr><th>Butikknr</th><th>Navn</th><th>Type</th><th>Svinnterskel</th><th>Værfølsomhet</th><th>Posisjon (vær)</th></tr>
@@ -108,7 +123,7 @@ export default async function StasjonerSide() {
                     </form>
                     {s.vaerfolsomhet_laert != null ? (
                       <div className="undertittel" style={{ marginTop: '0.3rem', fontSize: '0.78rem' }}>
-                        🤖 Lært: <b>{s.vaerfolsomhet_laert.toFixed(2)}</b> · temp {s.vaer_temp_korr != null ? `${s.vaer_temp_korr >= 0 ? '+' : ''}${s.vaer_temp_korr.toFixed(2)}` : '–'} · nedbør {s.vaer_nedbor_korr != null ? `${s.vaer_nedbor_korr >= 0 ? '+' : ''}${s.vaer_nedbor_korr.toFixed(2)}` : '–'} <span title="Motoren bruker den lærte verdien; tallet over er kun fallback">(i bruk)</span>
+                        Lært: <b>{s.vaerfolsomhet_laert.toFixed(2)}</b> · temp {s.vaer_temp_korr != null ? `${s.vaer_temp_korr >= 0 ? '+' : ''}${s.vaer_temp_korr.toFixed(2)}` : '–'} · nedbør {s.vaer_nedbor_korr != null ? `${s.vaer_nedbor_korr >= 0 ? '+' : ''}${s.vaer_nedbor_korr.toFixed(2)}` : '–'} <span title="Motoren bruker den lærte verdien; tallet over er kun fallback">(i bruk)</span>
                       </div>
                     ) : null}
                   </td>
@@ -124,8 +139,8 @@ export default async function StasjonerSide() {
               ))}
             </tbody>
           </table>
-        )}
-      </section>
+        </div>
+      )}
     </>
   )
 }
