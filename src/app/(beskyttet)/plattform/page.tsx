@@ -5,6 +5,8 @@ import { kr, datoLang } from '@/lib/format'
 import { NyKunde } from './ny-kunde'
 import { BekreftKnapp } from './kunde-handlinger'
 import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePermanent } from './handlinger'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 // Plattform-eierens tverr-tenant-oversikt: hvem bruker systemet, omfang og hva
 // du skal fakturere — pluss onboarding og avslutning. Service-role (leser på
@@ -17,7 +19,15 @@ export default async function PlattformSide() {
   try {
     admin = lagSupabaseAdminKlient()
   } catch {
-    return <><h1>Plattform</h1><p className="undertittel">Mangler service-nøkkel (SUPABASE_SERVICE_ROLE_KEY) — kan ikke lese på tvers av kjeder.</p></>
+    return (
+      <>
+        <Sidehode tittel="Plattform" />
+        <Tomtilstand
+          tittel="Mangler service-nøkkel"
+          forklaring="Plattform-oversikten leser på tvers av kjeder og trenger SUPABASE_SERVICE_ROLE_KEY i miljøet. Uten den kan ingen kjeder vises."
+        />
+      </>
+    )
   }
 
   const [{ data: retailers }, { data: stasjoner }, { data: profiler }, { data: jobber }, brukere] = await Promise.all([
@@ -58,10 +68,37 @@ export default async function PlattformSide() {
   const sum = aktive.reduce((a, r) => ({ stasjoner: a.stasjoner + r.stasjoner, maaned: a.maaned + r.maaned, aarlig: a.aarlig + r.aarlig }), { stasjoner: 0, maaned: 0, aarlig: 0 })
   const kortDato = (iso: string) => datoLang.format(new Date(iso))
 
+  // NIVÅ 1 på et dashbord: hva krever oppmerksomhet. To ting stopper opp
+  // her, og begge er onboarding som har stanset uten å si fra: admin som
+  // har fått invitasjon men aldri logget inn, og kjeder som aldri har
+  // lastet opp noe. Begge sto som gule pip nede i en tabellcelle.
+  const venterPaalogging = aktive.filter((r) => r.adminInfo && !r.adminInfo.aktivert).length
+  const utenOpplasting = aktive.filter((r) => !r.siste).length
+  const krever = [
+    venterPaalogging > 0 ? `${venterPaalogging} venter pålogging` : null,
+    utenOpplasting > 0 ? `${utenOpplasting} uten opplasting` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>Plattform</h1>
-      <p className="undertittel">Alle kjeder på plattformen — omfang, aktivitet og faktureringsgrunnlag (listepris). Avtalte rabatter avtales utenfor systemet.</p>
+      <Sidehode
+        tittel="Plattform"
+        undertittel={[
+          krever || 'Ingenting stopper opp',
+          `${aktive.length} ${aktive.length === 1 ? 'kjede' : 'kjeder'}`,
+          `${sum.stasjoner} stasjoner`,
+          `${kr.format(sum.maaned)}/mnd`,
+        ].join(' · ')}
+        handlinger={
+          <Sidepanel
+            knapp="Ny kunde"
+            tittel="Ny kunde"
+            beskrivelse="Oppretter kjeden og sender e-postinvitasjon til admin-kontakten, som velger eget passord via lenken."
+          >
+            <NyKunde />
+          </Sidepanel>
+        }
+      />
 
       <section className="nokkeltall">
         <div className="kpi"><span className="kpi-tall">{aktive.length}</span><span className="kpi-merke">Aktive kjeder</span></div>
@@ -73,7 +110,10 @@ export default async function PlattformSide() {
       <section className="kort">
         <h2>Aktive kjeder</h2>
         {aktive.length === 0 ? (
-          <p className="undertittel">Ingen aktive kjeder ennå.</p>
+          <Tomtilstand
+            tittel="Ingen aktive kjeder ennå"
+            forklaring="Opprett den første kunden, så sendes det en invitasjon til admin-kontakten. Deretter legger du inn stasjonene på vegne av kunden under Stasjoner."
+          />
         ) : (
           <table className="tabell">
             <thead><tr><th>Kjede</th><th>Admin</th><th>Stasj.</th><th>Tabl.</th><th>Brukere</th><th>Siste oppl.</th><th>Pr mnd</th><th>Handlinger</th></tr></thead>
@@ -105,9 +145,6 @@ export default async function PlattformSide() {
             <tfoot><tr><th>Sum</th><th></th><th>{sum.stasjoner}</th><th></th><th></th><th></th><th>{kr.format(sum.maaned)}</th><th></th></tr></tfoot>
           </table>
         )}
-        <p className="undertittel" style={{ marginTop: '0.6rem' }}>
-          Listepris: {kr.format(beregnAbonnement(0, false).maaned)}/mnd per kjede + 249/mnd per stasjon. Årlig = 10 mnd (2 gratis ved forskudd). «venter pålogging» = admin har fått invitasjon, men ikke logget inn ennå.
-        </p>
       </section>
 
       {deaktiverte.length > 0 && (
@@ -127,14 +164,25 @@ export default async function PlattformSide() {
         </section>
       )}
 
-      <section className="kort">
-        <h2>Ny kunde</h2>
-        <p className="undertittel">
-          Oppretter kjeden og sender en e-postinvitasjon til admin-kontakten, som velger eget passord via lenken.
-          Krever at du har koblet en e-postleverandør (SMTP) i Supabase → Authentication → SMTP. Deretter legger du inn stasjonene på vegne av kunden under Stasjoner.
+      <Forklaring sporsmaal="Hva betyr tallene og statusene?">
+        <p>
+          Listepris er {kr.format(beregnAbonnement(0, false).maaned)}/mnd per kjede pluss
+          249/mnd per stasjon. Årlig tilsvarer ti måneder — to gratis ved forskudd.
+          Avtalte rabatter avtales utenfor systemet, så summene her er grunnlaget, ikke
+          fasit for hva som faktureres.
         </p>
-        <NyKunde />
-      </section>
+        <p>
+          «Venter pålogging» betyr at admin-kontakten har fått invitasjonen, men aldri
+          logget inn. «Ingen» under siste opplasting betyr at kjeden er opprettet uten
+          at det er kommet data. Begge er onboarding som har stanset uten å si fra —
+          derfor telles de i toppen.
+        </p>
+        <p>
+          Ny kunde krever at en e-postleverandør (SMTP) er koblet i Supabase under
+          Authentication → SMTP, ellers kommer invitasjonen aldri fram. Stasjonene
+          legges inn på vegne av kunden under Stasjoner etterpå.
+        </p>
+      </Forklaring>
     </>
   )
 }

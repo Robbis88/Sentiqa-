@@ -141,6 +141,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/databehandleravtale': 'utenfor',
 
   // --- Dashbord ---
+  // /oversikt er ren ruting: den velger TabletHjem, AdminDashbord eller
+  // ButikksjefDashbord etter rolle. Mønsteret er oppfylt i de tre, som har
+  // sitt eget `sq-hode` med hilsen, tall og ferskhet fra forsiderunden —
+  // Sidehode hører til vanlige sider og ville vært et steg tilbake her.
   '/oversikt': 'dashbord',
   '/plattform': 'dashbord',
 
