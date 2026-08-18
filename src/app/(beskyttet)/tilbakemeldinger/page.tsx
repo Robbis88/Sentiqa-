@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { markerLest } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 type Tilbake = { id: string; stasjon_id: string; alvorlighet: string; tekst: string; involvert_beskrivelse: string | null; opprettet_tid: string; lest_tid: string | null }
 
@@ -24,34 +25,44 @@ export default async function TilbakemeldingerSide() {
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   const uleste = (meldinger ?? []).filter((m) => !m.lest_tid).length
 
+  const liste = meldinger ?? []
+
   return (
     <>
-      <h1>Tilbakemeldinger fra ansatte</h1>
-      <p className="undertittel">{uleste} ulest</p>
+      <Sidehode
+        tittel="Tilbakemeldinger fra ansatte"
+        undertittel={uleste === 0
+          ? (liste.length === 0
+            ? 'Ansatte kan si fra om ting uten å måtte ta det ansikt til ansikt.'
+            : `Alle ${liste.length} er lest.`)
+          : `${uleste} ${uleste === 1 ? 'ulest' : 'uleste'} av ${liste.length}.`}
+      />
 
-      {(meldinger ?? []).length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen tilbakemeldinger ennå.</p></section>
+      {liste.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen tilbakemeldinger ennå"
+          forklaring={'De ansatte kan sende inn fra nettbrettet. Det er ofte her '
+            + 'ting kommer fram som ikke sies på et personalmøte.'}
+        />
       ) : (
-        <section className="kort">
-          <ul className="melding-liste">
-            {(meldinger ?? []).map((m) => {
-              const merke = MERKE[m.alvorlighet] ?? MERKE.generelt
-              return (
-                <li key={m.id} className={!m.lest_tid ? 'viktig' : ''}>
-                  <div>
-                    <span className={`status-pip ${merke.k}`}>{merke.e}</span>{' '}
-                    <span className="undertittel">{navnFor.get(m.stasjon_id) ?? '—'} · {tid.format(new Date(m.opprettet_tid))}</span>
-                    <p className="melding-tekst">{m.tekst}</p>
-                    {m.involvert_beskrivelse ? <p className="undertittel">Involvert: {m.involvert_beskrivelse}</p> : null}
-                  </div>
-                  {!m.lest_tid && (
-                    <form action={markerLest}><input type="hidden" name="id" value={m.id} /><button type="submit" className="liten">Lest</button></form>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </section>
+        <ul className="melding-liste">
+          {liste.map((m) => {
+            const merke = MERKE[m.alvorlighet] ?? MERKE.generelt
+            return (
+              <li key={m.id} className={!m.lest_tid ? 'viktig' : ''}>
+                <div>
+                  <span className={`status-pip ${merke.k}`}>{merke.e}</span>{' '}
+                  <span className="undertittel">{navnFor.get(m.stasjon_id) ?? '—'} · {tid.format(new Date(m.opprettet_tid))}</span>
+                  <p className="melding-tekst">{m.tekst}</p>
+                  {m.involvert_beskrivelse ? <p className="undertittel">Involvert: {m.involvert_beskrivelse}</p> : null}
+                </div>
+                {!m.lest_tid && (
+                  <form action={markerLest}><input type="hidden" name="id" value={m.id} /><button type="submit" className="liten">Lest</button></form>
+                )}
+              </li>
+            )
+          })}
+        </ul>
       )}
     </>
   )

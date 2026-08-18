@@ -522,9 +522,6 @@
       "Les gjennom",
       "{t.hva}"
     ],
-    "/nyheter": [
-      "{i.tittel}"
-    ],
     "/oppgaver": [
       "Fullført ({fullfort.length})",
       "Ny oppgave",

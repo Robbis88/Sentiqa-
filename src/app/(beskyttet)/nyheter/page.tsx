@@ -1,5 +1,6 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 type Innlegg = { id: string; tittel: string; innhold: string; publisert_tid: string | null }
 
@@ -17,21 +18,34 @@ export default async function NyheterSide() {
     .limit(50)
     .overrideTypes<Innlegg[]>()
 
+  const innlegg = data ?? []
+
   return (
     <>
-      <h1>Nyheter fra Sentiqa</h1>
-      <p className="undertittel">Oppdateringer, kampanjer og tips.</p>
+      <Sidehode
+        tittel="Nyheter fra Sentiqa"
+        undertittel="Oppdateringer, kampanjer og tips."
+      />
 
-      {(data ?? []).length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen nyheter ennå.</p></section>
+      {innlegg.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen nyheter ennå"
+          forklaring="Her kommer oppdateringer om systemet og tips fra andre stasjoner."
+        />
       ) : (
-        (data ?? []).map((i) => (
-          <section className="kort" key={i.id}>
-            <h2>{i.tittel}</h2>
-            {i.publisert_tid ? <p className="undertittel">{tid.format(new Date(i.publisert_tid))}</p> : null}
-            <p style={{ whiteSpace: 'pre-wrap' }}>{i.innhold}</p>
-          </section>
-        ))
+        // Var et kort per nyhet. En liste med tre saker skal ikke se ut
+        // som tre atskilte moduler.
+        <ul className="sq-innleggsliste">
+          {innlegg.map((i) => (
+            <li key={i.id} className="sq-innlegg">
+              <div className="sq-innlegg-topp"><strong>{i.tittel}</strong></div>
+              {i.publisert_tid ? (
+                <span className="undertittel">{tid.format(new Date(i.publisert_tid))}</span>
+              ) : null}
+              <p className="sq-innlegg-tekst">{i.innhold}</p>
+            </li>
+          ))}
+        </ul>
       )}
     </>
   )

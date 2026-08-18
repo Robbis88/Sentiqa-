@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { markerLest, markerAlle } from './handlinger'
 import { PushTilmelding } from './push-tilmelding'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 type Varsel = {
   id: string
@@ -32,22 +33,27 @@ export default async function VarslerSide() {
 
   return (
     <>
-      <h1>Varsler</h1>
-      <p className="undertittel">{uleste} uleste</p>
+      <Sidehode
+        tittel="Varsler"
+        undertittel={uleste === 0
+          ? 'Alt er lest.'
+          : `${uleste} ${uleste === 1 ? 'ulest' : 'uleste'}.`}
+        handlinger={uleste > 0 ? (
+          <form action={markerAlle}>
+            <button type="submit" className="liten">Marker alle som lest</button>
+          </form>
+        ) : undefined}
+      />
 
       <PushTilmelding />
 
-      {uleste > 0 && (
-        <form action={markerAlle} className="generer">
-          <button type="submit" className="liten">Marker alle som lest</button>
-        </form>
-      )}
-
       {varsler.length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen varsler.</p></section>
+        <Tomtilstand
+          tittel="Ingen varsler"
+          forklaring="Systemet sier fra her når noe krever at du ser på det."
+        />
       ) : (
-        <section className="kort">
-          <ul className="varsel-liste">
+        <ul className="varsel-liste">
             {varsler.map((v) => (
               <li key={v.id} className={v.lest ? 'lest' : ''}>
                 <div className="varsel-tekst">
@@ -66,8 +72,7 @@ export default async function VarslerSide() {
                 )}
               </li>
             ))}
-          </ul>
-        </section>
+        </ul>
       )}
     </>
   )
