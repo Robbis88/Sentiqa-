@@ -494,9 +494,10 @@
       "{igjen.length} valg står igjen"
     ],
     "/lonn": [
+      "Dette ligger i fila",
+      "Fila er klar",
       "Kontrakter som ikke dekker arbeidet",
-      "Kontroll før sending",
-      "{MND[maned - 1]} {ar} · {valgt.navn}"
+      "Kontroll før sending"
     ],
     "/maaling": [
       "{m.navn}"
@@ -646,6 +647,7 @@
       "/api/personvern/innsyn"
     ],
     "/produksjonsplan": [
+      "/import",
       "/produksjonsplan/treffsikkerhet"
     ],
     "/produksjonsplan/treffsikkerhet": [

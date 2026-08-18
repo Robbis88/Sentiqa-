@@ -9,6 +9,8 @@ import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lon
 import { LonnsformVelger } from './lonnsform-velger'
 import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import Link from 'next/link'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
@@ -134,35 +136,88 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     .filter((e) => e.maaneder >= 6 && e.vurdering !== 'ok')
     .sort((a, b) => ALVOR[a.vurdering] - ALVOR[b.vurdering] || b.toppProsent - a.toppProsent)
 
+  // NIVÅ 1 og 2 på en arbeidsflyt: hvor langt er jeg kommet, og hva
+  // stopper meg. Sida sa metoden i sidehodet, og gjemte det ene
+  // spørsmålet som avgjør alt — er fila klar? — nede i seksjon tre,
+  // under en tabell over lønnsarter.
+  const uavklarteTimer = fordeling.uavklart.reduce((s, u) => s + u.timer, 0)
+  const svar = rader.length === 0
+    ? 'Ingen stemplinger denne måneden'
+    : klar
+      ? `Klar for sending — ${tall.format(timer)} timer på ${new Set(fordeling.med.map((l) => l.ansattNr)).size} ansatte`
+      : `${fordeling.uavklart.length} ${fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'} lønnsform — fila lages ikke før det er avklart`
+
   return (
     <>
-      <h1>Lønnsgrunnlag</h1>
-      <p className="undertittel">
-        Regnet fra stemplingene, med tilleggsbåndene i Energiavtalen. Fila har samme
-        format som easy@work leverer til Azets i dag — én fil per stasjon.
-      </p>
-
-      <section className="kort">
-        <form className="rutine-form">
-          <select name="maned" defaultValue={maned}>
-            {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-          </select>
-          <input name="ar" type="number" defaultValue={ar} style={{ width: '5rem' }} />
-          <button type="submit" className="liten">Vis</button>
-        </form>
-      </section>
+      <Sidehode
+        tittel="Lønnsgrunnlag"
+        undertittel={`${svar}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
+        handlinger={
+          <form className="rutine-form">
+            <select name="maned" defaultValue={maned} aria-label="Måned">
+              {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <input name="ar" type="number" defaultValue={ar} style={{ width: '5rem' }} aria-label="År" />
+            <button type="submit" className="sq-knapp">Vis</button>
+          </form>
+        }
+      />
 
       {rader.length === 0 ? (
-        <section className="kort">
-          <p className="undertittel">
-            Ingen stemplinger for {MND[maned - 1]} {ar} på denne stasjonen. Last opp
-            Basis Export fra easy@work på <a href="/import">/import</a> først.
-          </p>
-        </section>
+        <Tomtilstand
+          tittel={`Ingen stemplinger for ${MND[maned - 1]} ${ar}`}
+          forklaring="Lønnsgrunnlaget regnes fra stemplingene, så det må finnes stemplinger å regne på. Last opp Basis Export fra easy@work under Import."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       ) : (
         <>
+          {/* NIVÅ 2 — det ene neste steget. Enten er fila klar, eller så
+              er det én ting som stopper den. Begge deler sto tidligere
+              under lønnsarttabellen, altså etter begrunnelsen. */}
+          {klar ? (
+            <section className="kort">
+              <h2>Fila er klar</h2>
+              <div className="knapperad">
+                <a
+                  className="sq-knapp primar"
+                  href={`/api/lonn/visma?stasjon=${valgt.id}&ar=${ar}&maned=${maned}`}
+                  download={vismaFilnavn(valgt.butikknummer, ar, maned)}
+                >
+                  Last ned Visma-fil
+                </a>
+              </div>
+              <p className="notis">
+                <strong>Ikke åpne fila i Excel.</strong> Norsk Excel gjør 9.00 til 9,00 og
+                stripper anførselstegnene, og da må Azets legge inn alt manuelt. Last den
+                ned og send den videre uten å åpne den.
+              </p>
+            </section>
+          ) : (
+            <section className="kort oppmerksomhet">
+              <div className="varsel rod">
+                <span className="varsel-dott" aria-hidden />
+                <div className="varsel-tekst">
+                  <div className="varsel-topp">
+                    <strong>
+                      {fordeling.uavklart.length}{' '}
+                      {fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'}
+                      {' '}lønnsform
+                    </strong>
+                    <span className="varsel-omfang">{tall.format(uavklarteTimer)} timer</span>
+                  </div>
+                  <p className="varsel-detalj">
+                    Fila lages ikke før det er avklart. En fil som mangler noens timer
+                    betyr at hun ikke får lønn den måneden, og det oppdages først på
+                    kontoutskriften. Sett lønnsformen i «Kontroll før sending» under — én
+                    gang per ansatt, ikke én gang per måned.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="kort">
-            <h2>{MND[maned - 1]} {ar} · {valgt.navn}</h2>
+            <h2>Dette ligger i fila</h2>
             <p>
               <strong>{tall.format(timer)} timer</strong> fordelt på{' '}
               {new Set(fordeling.med.map((l) => l.ansattNr)).size} ansatte
@@ -197,46 +252,21 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                 </tbody>
               </table>
             </div>
-            {klar ? (
-              <>
-                <div className="knapperad" style={{ marginTop: '1rem' }}>
-                  <a
-                    className="sq-knapp primar"
-                    href={`/api/lonn/visma?stasjon=${valgt.id}&ar=${ar}&maned=${maned}`}
-                    download={vismaFilnavn(valgt.butikknummer, ar, maned)}
-                  >
-                    Last ned Visma-fil
-                  </a>
-                </div>
-                <p className="notis">
-                  <strong>Ikke åpne fila i Excel.</strong> Norsk Excel gjør 9.00 til 9,00 og
-                  stripper anførselstegnene, og da må Azets legge inn alt manuelt. Last den
-                  ned og send den videre uten å åpne den.
-                </p>
-              </>
-            ) : (
-              <div className="varsel rod" style={{ marginTop: '1rem' }}>
-                <span className="varsel-dott" aria-hidden />
-                <div className="varsel-tekst">
-                  <div className="varsel-topp">
-                    <strong>
-                      {fordeling.uavklart.length}{' '}
-                      {fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'}
-                      {' '}lønnsform
-                    </strong>
-                    <span className="varsel-omfang">
-                      {tall.format(fordeling.uavklart.reduce((s, u) => s + u.timer, 0))} timer
-                    </span>
-                  </div>
-                  <p className="varsel-detalj">
-                    Fila lages ikke før det er avklart. En fil som mangler noens timer
-                    betyr at hun ikke får lønn den måneden, og det oppdages først på
-                    kontoutskriften. Sett lønnsformen i tabellen under — én gang per
-                    ansatt, ikke én gang per måned.
-                  </p>
-                </div>
-              </div>
-            )}
+
+            <Forklaring sporsmaal="Hvordan er timene regnet?">
+              <p>
+                Timene kommer fra stemplingene, delt opp etter tilleggsbåndene i
+                Energiavtalen — hverdag 18–21, lørdag fra 18, søndag i tre bånd, og så
+                videre. Fila har samme format som easy@work leverer til Azets i dag, én
+                fil per stasjon.
+              </p>
+              <p>
+                Fastlønnede og tilkallingsvikarer holdes utenfor. Det var hele avviket på
+                Bønes i mai: 191,68 timer, butikksjefen fordi han er fastlønn og Carmen
+                fordi hun er tilkallingsvikar. Laguneparken stemte samtidig på hundredelen
+                mot easy@works egen fil.
+              </p>
+            </Forklaring>
           </section>
 
           {eksponering.length > 0 && (
@@ -369,10 +399,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
               </table>
             </div>
             <p className="notis" style={{ marginBottom: 0 }}>
-              Lønnsformen settes én gang per ansatt og huskes. Den er målt mot
-              virkeligheten: avstemmingen av mai viste at Laguneparken stemte på
-              hundredelen mot easy@works egen fil, mens Bønes manglet 191,68 timer —
-              butikksjefen fordi han er fastlønn, Carmen fordi hun er tilkallingsvikar.
+              Lønnsformen settes én gang per ansatt og huskes — ikke én gang per måned.
               <br />
               <strong>Åpen post:</strong> vi utelater fastlønnede helt, også
               tilleggene deres, fordi det er slik easy@work gjør det i dag. Om en
