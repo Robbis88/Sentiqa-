@@ -5,6 +5,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { avsluttRunde, slettRunde } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
+import { NyRundeSkjema, type PulsSporsmal } from './ny-skjema'
 
 type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: string; status: string; puls_sporsmal: { tekst: string; kategori: string } | null }
 
@@ -36,6 +38,30 @@ export default async function PulsSide() {
   const liste = runder ?? []
   const aktive = liste.filter((r) => r.status === 'aktiv').length
 
+  // Spørsmålsbiblioteket til gjenbruksvelgeren i skjemaet.
+  const { data: sporsmal } = await supabase
+    .from('puls_sporsmal').select('id, tekst, kategori')
+    .eq('aktiv', true).is('slettet_tid', null).order('sortering')
+    .overrideTypes<PulsSporsmal[]>()
+
+  const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+  const om7 = new Date(idag)
+  om7.setDate(om7.getDate() + 7)
+
+  const startPanel = (
+    <Sidepanel
+      knapp="Start måling"
+      tittel="Start pulsmåling"
+      beskrivelse="Ett spørsmål og en periode — så er den publisert på nettbrettene."
+    >
+      <NyRundeSkjema
+        sporsmal={sporsmal ?? []}
+        idag={idag}
+        om7={om7.toISOString().slice(0, 10)}
+      />
+    </Sidepanel>
+  )
+
   return (
     <>
       <Sidehode
@@ -43,7 +69,7 @@ export default async function PulsSide() {
         undertittel={liste.length === 0
           ? 'Korte målinger — ett spørsmål om gangen.'
           : `${aktive} ${aktive === 1 ? 'aktiv måling' : 'aktive målinger'} av ${liste.length}.`}
-        handlinger={<Link href="/puls/ny" className="sq-knapp primar">Start måling</Link>}
+        handlinger={startPanel}
       />
 
       {liste.length === 0 ? (
@@ -51,7 +77,7 @@ export default async function PulsSide() {
           tittel="Ingen målinger ennå"
           forklaring={'Ett spørsmål, ett trykk på nettbrettet. Godt egnet til å følge '
             + 'stemningen over tid framfor å spørre på et personalmøte.'}
-          handling={<Link href="/puls/ny" className="sq-knapp primar">Start måling</Link>}
+          handling={startPanel}
         />
       ) : (
         <ul className="sq-innleggsliste">

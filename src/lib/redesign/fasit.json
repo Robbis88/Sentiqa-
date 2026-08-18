@@ -45,7 +45,6 @@
     "/produksjonsplan/treffsikkerhet",
     "/puls",
     "/puls/[id]",
-    "/puls/ny",
     "/puls/sporsmal",
     "/redaktor",
     "/registrer",
@@ -662,13 +661,8 @@
     "/produksjonsplan/treffsikkerhet": [
       "/produksjonsplan"
     ],
-    "/puls/ny": [
-      "/puls",
-      "/puls/sporsmal"
-    ],
     "/puls": [
-      "/puls/${r.id}",
-      "/puls/ny"
+      "/puls/${r.id}"
     ],
     "/puls/[id]": [
       "/puls"

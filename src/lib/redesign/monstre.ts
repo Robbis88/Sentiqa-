@@ -212,8 +212,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/abonnement': 'innstillinger',
   '/sikkerhet': 'innstillinger',
 
-  // --- Opprett: skal bli sidepanel ---
-  '/puls/ny': 'opprett',
+  // --- Opprett ---
+  // Tom med vilje. '/puls/ny' lå her; den er nå sidepanelet «Start måling»
+  // på /puls, slik mønsteret foreskriver. Havner en ny opprett-rute her,
+  // er det et varsel om at et skjema har fått egen side igjen.
 
   // --- Nettbrett ---
   '/rutiner': 'tablet',
