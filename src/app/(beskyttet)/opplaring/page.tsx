@@ -6,6 +6,8 @@ import {
   settOppStandard, leggTilOppgave, redigerOppgave, slettOppgave,
   leggTilPeriode, fullforPeriode, slettPeriode, vekslUtfort, leggTilSkift, slettSkift,
 } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Oppgave = { id: string; kategori: string; tittel: string; beskrivelse: string | null; estimert_min: number | null }
 type Periode = { id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; forventet_slutt: string | null; fullfort_tid: string | null }
@@ -53,34 +55,69 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
     skift = data ?? []
   }
 
+  // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet. Med flere under
+  // opplæring samtidig er det den som har kommet kortest som trenger noe
+  // av deg — den sto som en gul pip midt i lista.
+  const paagaaende = (perioder ?? []).filter((p) => !p.fullfort_tid)
+  const bakerst = paagaaende.length > 0
+    ? paagaaende.reduce((a, p) => (teller(p.id) < teller(a.id) ? p : a))
+    : null
+  const svar = paagaaende.length === 0
+    ? 'Ingen under opplæring nå'
+    : `${paagaaende.length} under opplæring`
+      + (bakerst && paagaaende.length > 1
+        ? ` · kortest kommet: ${bakerst.ansatt_navn} (${teller(bakerst.id)}/${totalOppgaver})`
+        : bakerst ? ` · ${bakerst.ansatt_navn} ${teller(bakerst.id)}/${totalOppgaver}` : '')
+
+  const nyPeriodePanel = (
+    <Sidepanel
+      knapp="Ny under opplæring"
+      tittel="Ny under opplæring"
+      beskrivelse="Sjekklista er den samme for alle. Forventet ferdig er valgfri, men gjør det lettere å se hvem som henger etter."
+    >
+      <form action={leggTilPeriode} className="rutine-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        <input name="ansatt_navn" placeholder="Navn på nyansatt" required />
+        <select name="stasjon_id" required defaultValue={(stasjoner ?? []).length === 1 ? stasjoner![0].id : ''}>
+          {(stasjoner ?? []).length !== 1 && <option value="" disabled>Stasjon …</option>}
+          {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+        </select>
+        <input name="start_dato" type="date" aria-label="Startdato" required />
+        <input name="forventet_slutt" type="date" aria-label="Forventet ferdig" />
+        <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til</button>
+      </form>
+    </Sidepanel>
+  )
+
   return (
     <>
-      <h1>Opplæring</h1>
-      <p className="undertittel">Onboarding av nyansatte — sjekkliste, kvittering og vaktplan.</p>
+      <Sidehode
+        tittel="Opplæring"
+        undertittel={totalOppgaver === 0
+          ? 'Onboarding av nyansatte — sjekkliste, kvittering og vaktplan.'
+          : `${svar}. Sjekkliste, kvittering og vaktplan.`}
+        handlinger={totalOppgaver === 0 ? undefined : nyPeriodePanel}
+      />
 
       {totalOppgaver === 0 ? (
-        <section className="kort">
-          <h2>Sett opp oppgaver</h2>
-          <p className="undertittel">Tomt bibliotek. Start med {21} standardoppgaver (Kasse, Drivstoff, Bake, Renhold, Sikkerhet …), så kan du tilpasse.</p>
-          <form action={settOppStandard}><button type="submit">Sett opp standardoppgaver</button></form>
-        </section>
+        <Tomtilstand
+          tittel="Tomt oppgavebibliotek"
+          forklaring="Opplæringen bygger på en felles sjekkliste alle nyansatte går gjennom. Start med de 21 standardoppgavene (Kasse, Drivstoff, Bake, Renhold, Sikkerhet …) og tilpass dem etterpå."
+          handling={
+            <form action={settOppStandard}>
+              <button type="submit" className="sq-knapp primar">Sett opp standardoppgaver</button>
+            </form>
+          }
+        />
       ) : (
         <>
           <section className="kort">
             <h2>Under opplæring</h2>
-            <form action={leggTilPeriode} className="rutine-form">
-              <input name="ansatt_navn" placeholder="Navn på nyansatt" required />
-              <select name="stasjon_id" required defaultValue={(stasjoner ?? []).length === 1 ? stasjoner![0].id : ''}>
-                {(stasjoner ?? []).length !== 1 && <option value="" disabled>Stasjon …</option>}
-                {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-              </select>
-              <input name="start_dato" type="date" aria-label="Startdato" required />
-              <input name="forventet_slutt" type="date" aria-label="Forventet ferdig" />
-              <button type="submit" className="liten">Legg til</button>
-            </form>
-
             {(perioder ?? []).length === 0 ? (
-              <p className="undertittel" style={{ marginTop: '0.75rem' }}>Ingen under opplæring.</p>
+              <Tomtilstand
+                tittel="Ingen under opplæring"
+                forklaring="Når du legger inn en nyansatt, får hun sin egen kopi av sjekklista — og du ser hvor langt hun er kommet."
+                handling={nyPeriodePanel}
+              />
             ) : (
               <ul className="person-liste">
                 {(perioder ?? []).map((p) => {
@@ -90,7 +127,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                     <li key={p.id} className={valgt?.id === p.id ? 'aktiv' : ''}>
                       <Link href={`/opplaring?periode=${p.id}`}>
                         <strong>{p.ansatt_navn}</strong>
-                        <span className="undertittel"> · {navnFor.get(p.stasjon_id) ?? '—'} · fra {datoLang.format(new Date(p.start_dato))}{p.fullfort_tid ? ' · ✅ fullført' : ''}</span>
+                        <span className="undertittel"> · {navnFor.get(p.stasjon_id) ?? '—'} · fra {datoLang.format(new Date(p.start_dato))}{p.fullfort_tid ? ' · fullført' : ''}</span>
                       </Link>
                       <span className="person-hoyre">
                         <span className={`status-pip ${pst === 100 ? 'gronn' : 'gul'}`}>{antall}/{totalOppgaver}</span>

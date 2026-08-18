@@ -7,6 +7,7 @@ import { BehandleKnapp } from './behandle-knapp'
 import { BehandleAlleKnapp } from './behandle-alle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
 import { nesteSteg, onboardingsteg, type Kildemaaling } from '@/lib/onboarding'
+import { Sidehode } from '@/components/ui/side'
 
 // Regnskaps-import utløser tung AI (Opus + fokus), og «Behandle alle» kan kjøre
 // mange filer — gi handlingen god tid.
@@ -138,23 +139,25 @@ export default async function ImportSide() {
   // gjenoppretting (DOD_ETTER_MIN i ko.ts).
   const dodFrist = new Date(naa.getTime() - 20 * 60_000).toISOString()
 
+  // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet, og hva stopper meg.
+  // «Neste steg» var regnet ut, men sto inne i en seksjon under en
+  // undertittel om hvilke filformater systemet tar imot. Neste steg ER
+  // svaret på denne siden; filformatene er en opplysning man trenger
+  // etterpå, og de står i tabellen under uansett.
+  const feiler = jobber.filter((j) => j.status === 'feilet').length
+
   return (
     <>
-      <h1>Import</h1>
-      <p className="undertittel">
-        Last opp rapporter (St1, Salesgrid, Visma) og stemplingslister fra easy@work.
-        E-post-inntak kommer senere.
-      </p>
+      <Sidehode
+        tittel="Import"
+        undertittel={[
+          neste ? `Neste steg: ${neste.navn}. ${neste.beskjed}` : 'Alt på plass — systemet har det det trenger for alle stasjoner.',
+          feiler > 0 ? `${feiler} ${feiler === 1 ? 'fil feilet' : 'filer feilet'}` : null,
+        ].filter(Boolean).join(' · ')}
+      />
 
       <section className="kort">
         <h2>Hva systemet har, og hva det mangler</h2>
-        {neste ? (
-          <p>
-            Neste steg: <strong>{neste.navn}</strong>. {neste.beskjed}
-          </p>
-        ) : (
-          <p>Alt på plass. Systemet har det det trenger for alle stasjoner.</p>
-        )}
         <table className="tabell">
           <thead>
             <tr><th>Data</th><th>Status</th><th>Hvor den hentes</th><th>Hva den gir deg</th></tr>
