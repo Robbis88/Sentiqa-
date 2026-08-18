@@ -2,6 +2,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, datoLang } from '@/lib/format'
 import { leggTilArrangement, bekreftArrangement, forkastArrangement, leggTilKalenderKilde, slettKalenderKilde } from './handlinger'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Arr = { id: string; dato: string; navn: string; faktor: number; stasjon_id: string | null; status: string }
 type Kilde = { id: string; navn: string; ical_url: string; standard_faktor: number; stasjon_ider: string[] | null }
@@ -37,17 +39,61 @@ export default async function ArrangementerSide() {
     </fieldset>
   )
 
+  // NIVÅ 1 på en liste: hvor mange, og hvor mange krever noe av meg.
+  // Forslagene er det eneste på siden som venter på et svar — resten er
+  // ting som allerede er avgjort.
+  const svar = [
+    `${bekreftet.length} ${bekreftet.length === 1 ? 'bekreftet arrangement' : 'bekreftede arrangementer'} framover`,
+    forslag.length > 0
+      ? `${forslag.length} ${forslag.length === 1 ? 'forslag venter' : 'forslag venter'} på deg`
+      : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>Arrangementer</h1>
-      <p className="undertittel">
-        Hendelser som løfter salget (kamp, festival, lokale arrangement) — manuelt eller automatisk fra en iCal-kalender.
-        Bekreftede arrangementer løfter produksjonsplan og salgsprognose for de stasjonene du velger. Henter du ikke inn noe, påvirkes ingenting.
-      </p>
+      <Sidehode
+        tittel="Arrangementer"
+        undertittel={svar}
+        handlinger={
+          <>
+            <Sidepanel
+              knapp="Nytt arrangement"
+              tittel="Nytt arrangement"
+              beskrivelse="Faktoren er hvor mye salget løftes: 1,2 betyr 20 % over en normal dag."
+            >
+              <form action={leggTilArrangement} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <div className="arr-form">
+                  <input name="navn" placeholder="F.eks. Brann – Rosenborg" required />
+                  <input name="dato" type="date" required aria-label="Dato" />
+                  <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Faktor" style={{ width: '5rem' }} />
+                </div>
+                {stasjonsValg}
+                <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til arrangement</button>
+              </form>
+            </Sidepanel>
+            <Sidepanel
+              knapp="Ny kalender-kilde"
+              tittel="Ny kalender-kilde (iCal)"
+              beskrivelse="Nattjobben henter hendelser 60 dager fram som forslag du bekrefter selv."
+              knappeklasse="sq-knapp"
+            >
+              <form action={leggTilKalenderKilde} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <div className="arr-form">
+                  <input name="navn" placeholder="Navn (f.eks. Brann hjemmekamper)" required />
+                  <input name="ical_url" type="url" placeholder="https://…/kalender.ics" required style={{ flex: '1 1 18rem' }} />
+                  <input name="standard_faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Standardfaktor" style={{ width: '5rem' }} />
+                </div>
+                {stasjonsValg}
+                <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til kilde</button>
+              </form>
+            </Sidepanel>
+          </>
+        }
+      />
 
       {forslag.length > 0 && (
         <section className="kort oppmerksomhet">
-          <h2>📥 Forslag fra kalender <span className="undertittel">— teller ikke før du bekrefter</span></h2>
+          <h2>Forslag fra kalender <span className="undertittel">— teller ikke før du bekrefter</span></h2>
           <ul className="arr-liste">
             {forslag.map((f) => (
               <li key={f.id}>
@@ -75,25 +121,17 @@ export default async function ArrangementerSide() {
               </li>
             ))}
           </ul>
-        ) : <p className="undertittel">Ingen bekreftede arrangementer framover ennå.</p>}
-
-        <form action={leggTilArrangement} className="rutine-form arr-form" style={{ marginTop: '1rem', flexDirection: 'column', alignItems: 'stretch' }}>
-          <div className="arr-form">
-            <input name="navn" placeholder="F.eks. Brann – Rosenborg" required />
-            <input name="dato" type="date" required aria-label="Dato" />
-            <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Faktor" style={{ width: '5rem' }} />
-          </div>
-          {stasjonsValg}
-          <button type="submit" className="liten" style={{ alignSelf: 'flex-start' }}>Legg til arrangement</button>
-        </form>
+        ) : (
+          <Tomtilstand
+            tittel="Ingen bekreftede arrangementer framover"
+            forklaring="Legg inn en kamp eller festival selv, eller koble på en iCal-kalender så nattjobben foreslår dem. Uten arrangementer regner prognosene med helt vanlige dager."
+          />
+        )}
       </section>
 
       <section className="kort">
-        <h2>🗓️ Kalender-kilder (iCal)</h2>
-        <p className="undertittel">
-          Lim inn en .ics-lenke (kampoppsett, festivalkalender e.l.). Nattjobben henter hendelser 60 dager fram som forslag du bekrefter over.
-        </p>
-        {(kilder ?? []).length > 0 && (
+        <h2>Kalender-kilder (iCal)</h2>
+        {(kilder ?? []).length > 0 ? (
           <ul className="arr-liste">
             {(kilder ?? []).map((k) => (
               <li key={k.id}>
@@ -102,17 +140,28 @@ export default async function ArrangementerSide() {
               </li>
             ))}
           </ul>
+        ) : (
+          <p className="undertittel">Ingen kilder koblet på. Alt legges inn manuelt.</p>
         )}
-        <form action={leggTilKalenderKilde} className="rutine-form arr-form" style={{ marginTop: '1rem', flexDirection: 'column', alignItems: 'stretch' }}>
-          <div className="arr-form">
-            <input name="navn" placeholder="Navn (f.eks. Brann hjemmekamper)" required />
-            <input name="ical_url" type="url" placeholder="https://…/kalender.ics" required style={{ flex: '1 1 18rem' }} />
-            <input name="standard_faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Standardfaktor" style={{ width: '5rem' }} />
-          </div>
-          {stasjonsValg}
-          <button type="submit" className="liten" style={{ alignSelf: 'flex-start' }}>Legg til kilde</button>
-        </form>
       </section>
+
+      <Forklaring sporsmaal="Hva gjør faktoren, og når slår den inn?">
+        <p>
+          Faktoren er hvor mye salget løftes den dagen: 1,2 betyr 20 % over en normal
+          dag. Den ganges inn i produksjonsplanen og salgsprognosen for de stasjonene
+          du huker av — ingen huket betyr alle.
+        </p>
+        <p>
+          Forslag fra kalender teller <strong>ikke</strong> før du bekrefter dem. Det er
+          med vilje: en iCal-kalender vet at kampen spilles, men ikke om den faktisk
+          gir trafikk forbi din stasjon. Bortekamper og kamper i nabobyen kommer inn i
+          samme strøm som hjemmekampene.
+        </p>
+        <p>
+          Henter du ikke inn noe og legger ikke inn noe, påvirkes ingenting. Siden er
+          tom til den brukes, og det er en gyldig tilstand.
+        </p>
+      </Forklaring>
     </>
   )
 }

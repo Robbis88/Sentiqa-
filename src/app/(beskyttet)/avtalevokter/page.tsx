@@ -3,6 +3,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 import { Opplaster } from './opplaster'
 import { ForhandlingKnapp } from './forhandling-knapp'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Faktura = {
   id: string
@@ -40,20 +42,41 @@ export default async function AvtalevokterSide() {
     perLev.set(k, l)
   }
 
+  // NIVÅ 1 på en liste: hvor mange, og hva de er verdt til sammen. Siden
+  // åpnet med opplasteren — den sjeldneste handlingen her, og den eneste
+  // som ikke sier noe om hva du allerede har.
+  const antallFakturaer = (fakturaer ?? []).length
+  const totaltKr = (fakturaer ?? []).reduce((a, f) => a + (f.belop_kr ?? 0), 0)
+  const svar = antallFakturaer === 0
+    ? 'Ingen fakturaer lest ennå'
+    : `${perLev.size} ${perLev.size === 1 ? 'leverandør' : 'leverandører'} · ${antallFakturaer} ${antallFakturaer === 1 ? 'faktura' : 'fakturaer'} · ${kr.format(totaltKr)} totalt`
+
+  const opplaster = (
+    <Opplaster stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
+  )
+
   return (
     <>
-      <h1>Avtalevokter</h1>
-      <p className="undertittel">
-        Dra inn fakturaer — AI leser dem og bygger forbruksprofil per leverandør på tvers av stasjoner (§11).
-      </p>
-
-      <section className="kort">
-        <h2>Last opp faktura</h2>
-        <Opplaster stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
-      </section>
+      <Sidehode
+        tittel="Avtalevokter"
+        undertittel={svar}
+        handlinger={
+          <Sidepanel
+            knapp="Last opp faktura"
+            tittel="Last opp faktura"
+            beskrivelse="AI-en leser leverandør, beløp og dato ut av dokumentet. Du velger stasjon, eller lar den stå som felles."
+          >
+            {opplaster}
+          </Sidepanel>
+        }
+      />
 
       {perLev.size === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen fakturaer lest ennå.</p></section>
+        <Tomtilstand
+          tittel="Ingen fakturaer lest ennå"
+          forklaring="Last opp fakturaene fra en leverandør, så bygger Avtalevokteren en forbruksprofil på tvers av stasjonene — hva dere faktisk betaler, og hvor prisene spriker mellom butikkene."
+          handling={opplaster}
+        />
       ) : (
         [...perLev.entries()].map(([lev, liste]) => {
           const total = liste.reduce((a, f) => a + (f.belop_kr ?? 0), 0)
@@ -80,6 +103,23 @@ export default async function AvtalevokterSide() {
           )
         })
       )}
+
+      <Forklaring sporsmaal="Hva gjør Avtalevokteren med fakturaene?">
+        <p>
+          Hver faktura leses av AI-en, som trekker ut leverandør, kategori, dato og
+          beløp. Fakturaene grupperes så per leverandør på tvers av stasjonene — det er
+          hele poenget: én stasjon som betaler for mye ser normalt ut alene, og skiller
+          seg først ut når de fem står ved siden av hverandre.
+        </p>
+        <p>
+          «Forhandlingsgrunnlag» oppsummerer det dere kjøper fra én leverandør samlet,
+          så du går inn i samtalen med totalen og ikke med én butikks tall.
+        </p>
+        <p>
+          AI-en kan lese feil. Beløp og dato bør sjekkes mot fakturaen før tallene
+          brukes i en forhandling.
+        </p>
+      </Forklaring>
     </>
   )
 }

@@ -439,12 +439,11 @@
       "{o(kat)} <span className=\"undertittel\">· {liste.length}</span>"
     ],
     "/arrangementer": [
-      "Kommende arrangementer",
-      "📥 Forslag fra kalender <span className=\"undertittel\">— teller ikke før du bekrefter</span>",
-      "🗓️ Kalender-kilder (iCal)"
+      "Forslag fra kalender <span className=\"undertittel\">— teller ikke før du bekrefter</span>",
+      "Kalender-kilder (iCal)",
+      "Kommende arrangementer"
     ],
     "/avtalevokter": [
-      "Last opp faktura",
       "{lev} <span className=\"undertittel\">· {liste[0].kategori ?? '—'} · totalt {kr.format(total)}</span>"
     ],
     "/bemanning": [
