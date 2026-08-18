@@ -480,14 +480,10 @@
       "Status"
     ],
     "/kampanjer": [
-      "Ny kampanje",
       "{k.navn} <span className=\"undertittel\">· {kjedeNavn.get(k.retailer_id)}</span>"
     ],
     "/kasserer": [
       "{s.butikknummer} {s.navn}"
-    ],
-    "/konkurranser": [
-      "Ny konkurranse"
     ],
     "/kontrakt": [
       "Ingen mal for dette valget",
@@ -640,9 +636,6 @@
     ],
     "/ikmat": [
       "/ikmat/oppsett"
-    ],
-    "/konkurranser": [
-      "/assistent"
     ],
     "/kontrakt": [
       "/api/kontrakt/fil",

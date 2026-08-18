@@ -1,10 +1,11 @@
-import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 import { NyKonkurranse } from './ny-konkurranse'
 import { kaarVinner, markerUtbetalt, slettKonkurranse } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Konk = {
   id: string
@@ -40,22 +41,34 @@ export default async function KonkurranserSide() {
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   const konkurranser = konk ?? []
 
+  const aktive = konkurranser.filter((k) => k.status === 'aktiv').length
+  const nyPanel = (
+    <Sidepanel
+      knapp="Ny konkurranse"
+      tittel="Ny konkurranse"
+      beskrivelse="Du kan også be Assistenten om det, med egne ord."
+    >
+      <NyKonkurranse />
+    </Sidepanel>
+  )
+
   return (
     <>
-      <h1>Konkurranser</h1>
-      <p className="undertittel">
-        Opprett her, eller via <Link href="/assistent">Assistenten</Link> — «Lag en konkurranse på pølsesalg neste uke, 1000 kr til vinneren».
-      </p>
-
-      {erEier && (
-        <section className="kort">
-          <h2>Ny konkurranse</h2>
-          <NyKonkurranse />
-        </section>
-      )}
+      <Sidehode
+        tittel="Konkurranser"
+        undertittel={konkurranser.length === 0
+          ? 'Kortvarige mål med en premie — for eksempel pølsesalg neste uke.'
+          : `${aktive} ${aktive === 1 ? 'aktiv' : 'aktive'} av ${konkurranser.length}.`}
+        handlinger={erEier ? nyPanel : undefined}
+      />
 
       {konkurranser.length === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen konkurranser ennå.</p></section>
+        <Tomtilstand
+          tittel="Ingen konkurranser ennå"
+          forklaring={'Du kan også be Assistenten: «Lag en konkurranse på pølsesalg '
+            + 'neste uke, 1000 kr til vinneren».'}
+          handling={erEier ? nyPanel : undefined}
+        />
       ) : (
         konkurranser.map((k) => {
           const harPremie = Boolean(k.premie_kr || k.premie_tekst)
@@ -74,7 +87,7 @@ export default async function KonkurranserSide() {
                 {k.premie_tekst ? ` · ${k.premie_tekst}` : ''}
               </p>
               {k.vinner_stasjon_id && (
-                <p>🏆 Vinner: <strong>{navnFor.get(k.vinner_stasjon_id) ?? '—'}</strong>
+                <p>Vinner: <strong>{navnFor.get(k.vinner_stasjon_id) ?? '—'}</strong>
                   {harPremie && (k.premie_utbetalt
                     ? <span className="status-pip gronn" style={{ marginLeft: '0.5rem' }}>Premie utbetalt</span>
                     : <span className="status-pip gul" style={{ marginLeft: '0.5rem' }}>Premie ikke utbetalt</span>)}

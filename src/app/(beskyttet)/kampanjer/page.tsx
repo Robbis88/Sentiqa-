@@ -4,6 +4,8 @@ import { kr, datoLang } from '@/lib/format'
 import { maalKampanje, type KampanjeEffekt } from '@/lib/kampanjeeffekt'
 import { opprettKampanje, slettKampanje } from './handlinger'
 import { BekreftKnapp } from '../plattform/kunde-handlinger'
+import { Sidehode } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Kampanje = { id: string; retailer_id: string; navn: string; fra_dato: string; til_dato: string; eaner: string[] | null; stasjon_ider: string[] | null }
 type Rad = { dato: string; antall: number; antall_tilbud: number; omsetning: number; innekunder: number; biler: number }
@@ -42,9 +44,38 @@ export default async function KampanjerSide() {
   const dag = (d: string) => datoLang.format(new Date(`${d}T12:00:00Z`))
   const pip = (v: number | null, godKalvHoy = true) => v == null ? <span className="status-pip">—</span> : <span className={`status-pip ${(godKalvHoy ? v >= 0 : v <= 0) ? 'gronn' : 'gul'}`}>{v >= 0 ? '+' : ''}{v} %</span>
 
+  const nyPanel = (
+    <Sidepanel
+      knapp="Ny kampanje"
+      tittel="Ny kampanje"
+      beskrivelse={'Fangstrate beregnes kun der trafikkmåling er skrudd på. '
+        + 'Kjeder uten trafikk får salgsløft uten fangstrate.'}
+    >
+      <form action={opprettKampanje} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.6rem' }}>
+          <div className="arr-form">
+            <select name="retailer_id" required defaultValue="">
+              <option value="" disabled>Velg kjede</option>
+              {(retailers ?? []).map((r) => <option key={r.id} value={r.id}>{r.navn}</option>)}
+            </select>
+            <input name="navn" placeholder="Kampanjenavn (f.eks. Hamburger 49,-)" required style={{ flex: '1 1 14rem' }} />
+          </div>
+          <div className="arr-form">
+            <label className="felt"><span>Fra</span><input name="fra_dato" type="date" required /></label>
+            <label className="felt"><span>Til</span><input name="til_dato" type="date" required /></label>
+          </div>
+          <input name="eaner" placeholder="EAN (valgfritt, komma/mellomrom) — tomt = alle tilbudsvarer i perioden" />
+          <button type="submit" className="liten" style={{ alignSelf: 'flex-start' }}>Opprett + analyser</button>
+        </form>
+    </Sidepanel>
+  )
+
   return (
     <>
-      <h1>Kampanjer</h1>
+      <Sidehode
+        tittel="Kampanjer"
+        undertittel="Salgsløft og fangstrate per kampanje, på tvers av kjedene."
+        handlinger={nyPanel}
+      />
       <p className="undertittel">
         Mål St1-kampanjer mot ukene rett før: kampanjevarenes salg, innekunder og fangstrate (innekunder ÷ biler) der trafikk er målt.
         La EAN-feltet stå tomt for å bruke alle tilbudsvarer i perioden automatisk, eller lim inn bestemte EAN for å velge selv.
@@ -83,28 +114,6 @@ export default async function KampanjerSide() {
           )}
         </section>
       ))}
-
-      <section className="kort">
-        <h2>Ny kampanje</h2>
-        <form action={opprettKampanje} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.6rem' }}>
-          <div className="arr-form">
-            <select name="retailer_id" required defaultValue="">
-              <option value="" disabled>Velg kjede</option>
-              {(retailers ?? []).map((r) => <option key={r.id} value={r.id}>{r.navn}</option>)}
-            </select>
-            <input name="navn" placeholder="Kampanjenavn (f.eks. Hamburger 49,-)" required style={{ flex: '1 1 14rem' }} />
-          </div>
-          <div className="arr-form">
-            <label className="felt"><span>Fra</span><input name="fra_dato" type="date" required /></label>
-            <label className="felt"><span>Til</span><input name="til_dato" type="date" required /></label>
-          </div>
-          <input name="eaner" placeholder="EAN (valgfritt, komma/mellomrom) — tomt = alle tilbudsvarer i perioden" />
-          <button type="submit" className="liten" style={{ alignSelf: 'flex-start' }}>Opprett + analyser</button>
-        </form>
-        <p className="undertittel" style={{ marginTop: '0.5rem' }}>
-          Fangstrate beregnes kun for stasjoner der trafikkmåling er skrudd på (Trafikk-siden). Kjeder uten trafikk får salgsløft uten fangstrate.
-        </p>
-      </section>
     </>
   )
 }
