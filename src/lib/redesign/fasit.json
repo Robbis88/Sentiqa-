@@ -589,6 +589,7 @@
     ],
     "/utsolgt": [
       "Oversikt — hvor butikken mister salg på tom hylle",
+      "Samme vare, motsatt feil",
       "{valgt.stasjon.butikknummer} {valgt.stasjon.navn}"
     ],
     "/databehandleravtale": [

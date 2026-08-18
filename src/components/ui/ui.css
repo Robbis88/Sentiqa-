@@ -348,3 +348,9 @@
    etter den fjerde anvisningen. Men de trenger ikke hver sin ramme. */
 .sq-anvkat { margin-bottom: var(--luft-5); }
 .sq-anvkat > h2 { margin: 0 0 var(--luft-3); font-size: var(--tekst-tittel); }
+
+/* --- Samme vare, motsatt feil --------------------------------------
+   Funnet lever i skjæringspunktet mellom to sider som hver for seg gir
+   motsatt råd. Den venstre kanten markerer at dette er en observasjon,
+   ikke en tabell til. */
+.sq-tidsproblem { border-left: 3px solid var(--primaer); }

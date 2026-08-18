@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, datoLang, tall, kr } from '@/lib/format'
+import { finnTidsproblemer, samletTap, type Tidsproblem } from '@/lib/svinn/tidsproblem'
 import { finnUtsolgt, type Kandidatrad, type UtsolgtHendelse } from '@/lib/utsolgt'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
@@ -11,7 +12,12 @@ export const maxDuration = 60
 const VINDU = 35
 
 type Stasjon = { id: string; butikknummer: string; navn: string }
-type StasjonResultat = { stasjon: Stasjon; hendelser: UtsolgtHendelse[]; tapt: number }
+type StasjonResultat = {
+  stasjon: Stasjon
+  hendelser: UtsolgtHendelse[]
+  tapt: number
+  tidsproblemer: Tidsproblem[]
+}
 
 function dato(d: string): string {
   return datoLang.format(new Date(`${d}T12:00:00Z`))
@@ -36,9 +42,35 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
   const idag = iDag()
   const resultater: StasjonResultat[] = await Promise.all(
     stasjoner.map(async (stasjon) => {
-      const { data } = await supabase.rpc('utsolgt_kandidater', { p_stasjon: stasjon.id, p_dager: VINDU })
+      const fra = new Date(`${idag}T12:00:00Z`)
+      fra.setUTCDate(fra.getUTCDate() - VINDU)
+      const [{ data }, { data: svinnrader }] = await Promise.all([
+        supabase.rpc('utsolgt_kandidater', { p_stasjon: stasjon.id, p_dager: VINDU }),
+        // Samme vindu som utsolgt-deteksjonen. Uten det ville
+        // sammenligningen vaert mellom to ulike perioder.
+        supabase.from('synlig_svinn')
+          .select('ean, varenavn, dato, antall, nettopris_total')
+          .eq('stasjon_id', stasjon.id)
+          .gte('dato', fra.toISOString().slice(0, 10))
+          .is('slettet_tid', null),
+      ])
       const hendelser = finnUtsolgt((data ?? []) as Kandidatrad[], idag, VINDU)
-      return { stasjon, hendelser, tapt: hendelser.reduce((s, h) => s + h.tapt_kr, 0) }
+      const tidsproblemer = finnTidsproblemer(
+        ((svinnrader ?? []) as {
+          ean: string | null; varenavn: string | null; dato: string
+          antall: number | null; nettopris_total: number | null
+        }[]).map((r) => ({
+          ean: r.ean ?? '', varenavn: r.varenavn, dato: r.dato,
+          antall: r.antall, kr: r.nettopris_total,
+        })),
+        hendelser,
+      )
+      return {
+        stasjon,
+        hendelser,
+        tapt: hendelser.reduce((s, h) => s + h.tapt_kr, 0),
+        tidsproblemer,
+      }
     }),
   )
 
@@ -61,6 +93,49 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
           : `${totaltHendelser} ${totaltHendelser === 1 ? 'hendelse' : 'hendelser'} `
             + `siste ${VINDU} dager.`}
       />
+
+      {valgt && valgt.tidsproblemer.length > 0 && (
+        <section className="kort sq-tidsproblem">
+          <h2>Samme vare, motsatt feil</h2>
+          <p className="undertittel">
+            {valgt.tidsproblemer.length}{' '}
+            {valgt.tidsproblemer.length === 1 ? 'vare' : 'varer'} blir både kastet
+            og går tom i samme periode. Det er ikke for mye eller for lite — det er
+            feil tid. Til sammen {kr.format(samletTap(valgt.tidsproblemer))}.
+          </p>
+          <div className="tabellramme">
+            <table className="tabell">
+              <thead>
+                <tr>
+                  <th>Vare</th>
+                  <th className="tall">Kastet</th>
+                  <th className="tall">Tom</th>
+                  <th className="tall">Koster</th>
+                </tr>
+              </thead>
+              <tbody>
+                {valgt.tidsproblemer.map((t) => (
+                  <tr key={t.ean}>
+                    <td>
+                      {t.varenavn}
+                      <br />
+                      <span className="undertittel">{t.melding}</span>
+                    </td>
+                    <td className="tall">{t.svinnDager} d · {kr.format(t.svinnKr)}</td>
+                    <td className="tall">{t.utsolgtDager} d · {kr.format(t.tapteKr)}</td>
+                    <td className="tall"><strong>{kr.format(t.samletKr)}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="notis" style={{ marginBottom: 0 }}>
+            Svinnrapporten og utsolgt-deteksjonen ser hver sin halvdel. Kastet du
+            baguetter 22:00 og manglet dem 07:30, gir de to sidene motsatt råd —
+            og begge tar feil.
+          </p>
+        </section>
+      )}
 
       <Forklaring sporsmaal="Hvordan finnes disse?">
         Faste varer — de som selger jevnt, snitt minst 1,5 per dag — som
