@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { iDag, manedAar } from '@/lib/format'
+import { iDag, manedAar, ramsOpp } from '@/lib/format'
+import { Sidehode, Forklaring } from '@/components/ui/side'
 
 // Aldri cache — datadekning skal alltid speile basen med en gang.
 export const dynamic = 'force-dynamic'
@@ -64,13 +65,32 @@ export default async function DekningSide() {
     return { ...d, eldste, mangler }
   })
 
+  // NIVÅ 1 — svaret. Siden fantes for å svare på ett spørsmål: kan jeg
+  // stole på analysene? Den viste fire tellere og 14 måneder med ruter,
+  // og lot leseren finne ut av det selv.
+  //
+  // To ting kan være galt, og de krever ulik handling: HULL (last opp
+  // dagene som mangler) og FOR KORT HISTORIKK (ingenting å laste opp —
+  // år-mot-år må vente). Den andre var usynlig før nå.
+  const manederTilbake = (fra: string) => {
+    const a = new Date(`${fra}T12:00:00Z`)
+    const b = new Date(`${idag}T12:00:00Z`)
+    return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth())
+  }
+  const totalMangler = oppsummering.reduce((s, d) => s + d.mangler, 0)
+  const verst = oppsummering.reduce((a, d) => (d.mangler > a.mangler ? d : a))
+  const forKort = oppsummering.filter((d) => !d.eldste || manederTilbake(d.eldste) < 13)
+
+  const svar = totalMangler === 0
+    ? `Ingen huller de siste ${MAANEDER} månedene`
+    : `${totalMangler} ${totalMangler === 1 ? 'dag' : 'dager'} mangler, flest på ${verst.navn} (${verst.mangler})`
+  const historikk = forKort.length > 0
+    ? `${ramsOpp(forKort.map((d) => d.navn))} har under 13 måneders historikk — for kort for år-mot-år`
+    : `Alle datasett rekker 13 måneder tilbake, nok for år-mot-år`
+
   return (
     <>
-      <h1>Datadekning</h1>
-      <p className="undertittel">
-        Hvilke dager vi har tall fra, {MAANEDER} måneder bakover. År-mot-år-analysene trenger ~13–14 mnd historikk.
-        Rødt = mangler opplasting. Gjenopplasting erstatter tallene for datoen — den dupliserer aldri.
-      </p>
+      <Sidehode tittel="Datadekning" undertittel={`${svar}. ${historikk}.`} />
 
       <section className="nokkeltall">
         {oppsummering.map((d) => (
@@ -112,7 +132,7 @@ export default async function DekningSide() {
         if (dager.length === 0) return null
         return (
           <details className="kort dekning-mnd-detalj" key={ym}>
-            <summary>📅 {manedAar.format(new Date(`${ym}-01T12:00:00Z`))} — vis dager</summary>
+            <summary>{manedAar.format(new Date(`${ym}-01T12:00:00Z`))} — vis dager</summary>
             <div className="heatmap-wrap">
               <table className="heatmap dekning">
                 <thead>
@@ -141,6 +161,26 @@ export default async function DekningSide() {
           </details>
         )
       })}
+
+      <Forklaring sporsmaal="Hva betyr fargene, og hva gjør jeg med hullene?">
+        <p>
+          Grønt er full måned, gult er delvis, rødt er ingenting. I dagrutenettet er
+          en tom celle dagen i dag — den er ikke lastet opp ennå, og skal ikke telles
+          som et hull.
+        </p>
+        <p>
+          Hull fikses ved å laste opp filen for datoen på nytt under Import.
+          Gjenopplasting <strong>erstatter</strong> tallene for den datoen; den
+          dupliserer aldri, så det er trygt å laste opp en periode om igjen når du er
+          i tvil om den kom med.
+        </p>
+        <p>
+          Kort historikk er noe annet enn hull, og kan ikke lastes bort: har vi bare
+          fire måneders timesalg, finnes det ikke tall fra i fjor å sammenligne med.
+          År-mot-år-analysene trenger rundt 13–14 måneder, og siden viser derfor
+          {' '}{MAANEDER} måneder bakover.
+        </p>
+      </Forklaring>
     </>
   )
 }

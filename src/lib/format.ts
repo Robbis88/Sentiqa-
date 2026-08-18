@@ -25,6 +25,13 @@ export function iDag(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
 }
 
+// «a, b og c». Setninger som ramser opp datasett eller signaler skal lese
+// som norsk, ikke som en kommaliste med hengende «og».
+export function ramsOpp(ord: string[]): string {
+  if (ord.length <= 1) return ord[0] ?? ''
+  return `${ord.slice(0, -1).join(', ')} og ${ord[ord.length - 1]}`
+}
+
 // Grønn/gul/rød på avvik mot budsjett (§12). Høyere = bedre (omsetning/brutto).
 export function avviksKlasse(indexPct: number): 'gronn' | 'gul' | 'rod' {
   if (indexPct >= -2) return 'gronn'

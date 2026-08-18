@@ -1,7 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { kr, iDag } from '@/lib/format'
+import { kr, iDag, ramsOpp } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { leggTilDager, type Vaerdag } from '@/lib/produksjonsplan'
 import { lagSalgsprognose, type AvdSalg } from '@/lib/salgsprognose'
@@ -30,10 +30,6 @@ const SIGNALER: { navn: string; status: 'live' | 'kommer' }[] = [
   { navn: 'trafikk (Vegvesenets tellepunkt)', status: 'kommer' },
   { navn: 'drivstoffpriser', status: 'kommer' },
 ]
-
-/** «a, b og c» — norsk oppramsing, ikke kommaliste med hengende «og». */
-const ramsOpp = (ord: string[]) =>
-  ord.length <= 1 ? (ord[0] ?? '') : `${ord.slice(0, -1).join(', ')} og ${ord[ord.length - 1]}`
 
 export default async function SalgsprognoseSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
