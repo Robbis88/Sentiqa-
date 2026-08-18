@@ -2,6 +2,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { leggTilPunkt, veksle, slettPunkt } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Punkt = { id: string; tittel: string; gjentakende: boolean; fullfort_tid: string | null }
 
@@ -21,26 +23,46 @@ export default async function MinSjekkliste() {
 
   const erGjort = (p: Punkt) => (p.gjentakende ? kryssetIdag.has(p.id) : Boolean(p.fullfort_tid))
 
+  // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet. Lista viste
+  // avhukede punkter, men aldri hvor mange som gjensto — man måtte telle
+  // gjennomstrekede rader for å vite om man var ferdig.
+  const alle = punkter ?? []
+  const gjortAntall = alle.filter(erGjort).length
+  const svar = alle.length === 0
+    ? 'Din private liste — kun du ser den'
+    : gjortAntall >= alle.length
+      ? `Alt gjort · ${alle.length} ${alle.length === 1 ? 'punkt' : 'punkter'}`
+      : `${alle.length - gjortAntall} igjen av ${alle.length}`
+
   return (
     <>
-      <h1>Min sjekkliste</h1>
-      <p className="undertittel">Din private liste — kun du ser den. Daglige punkter nullstilles hver dag.</p>
+      <Sidehode
+        tittel="Min sjekkliste"
+        undertittel={`${svar}. Kun du ser den, og daglige punkter nullstilles hver dag.`}
+        handlinger={
+          <Sidepanel
+            knapp="Nytt punkt"
+            tittel="Nytt punkt"
+            beskrivelse="Daglige punkter nullstilles hver natt. Engangspunkter blir stående til du huker dem av."
+          >
+            <form action={leggTilPunkt} className="rutine-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <input name="tittel" placeholder="f.eks. Gå gjennom svinn-rapport" required />
+              <label className="avkryss"><input type="checkbox" name="gjentakende" defaultChecked /> Daglig (nullstilles)</label>
+              <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til</button>
+            </form>
+          </Sidepanel>
+        }
+      />
 
       <section className="kort">
-        <h2>Nytt punkt</h2>
-        <form action={leggTilPunkt} className="rutine-form">
-          <input name="tittel" placeholder="f.eks. Gå gjennom svinn-rapport" required />
-          <label className="avkryss"><input type="checkbox" name="gjentakende" defaultChecked /> Daglig (nullstilles)</label>
-          <button type="submit" className="liten">Legg til</button>
-        </form>
-      </section>
-
-      <section className="kort">
-        {(punkter ?? []).length === 0 ? (
-          <p className="undertittel">Ingen punkter ennå.</p>
+        {alle.length === 0 ? (
+          <Tomtilstand
+            tittel="Ingen punkter ennå"
+            forklaring="Dette er stedet for de tingene du selv vil huske — gå gjennom svinnrapporten, ringe leverandøren, sjekke vaktplanen. Ingen andre ser lista."
+          />
         ) : (
           <ul className="rutine-liste">
-            {(punkter ?? []).map((p) => {
+            {alle.map((p) => {
               const gjort = erGjort(p)
               return (
                 <li key={p.id} className={gjort ? 'gjort' : ''}>

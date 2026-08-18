@@ -3,6 +3,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { NyttSjekkpunkt } from './nytt-sjekkpunkt'
 import { svar, slettSjekkpunkt } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Sjekk = {
   id: string
@@ -41,20 +43,42 @@ export default async function SjekkpunktSide() {
     perStasjon.set(p.stasjon_id, l)
   }
 
+  // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet, og hva stopper meg.
+  // Et ubesvart KRITISK punkt er det som stopper deg — det sto med rød pip
+  // langt nede i lista, uten at noe i toppen røpet at det fantes.
+  const alle = punkter ?? []
+  const besvart = alle.filter((p) => svarFor.has(p.id)).length
+  const kritiskUbesvart = alle.filter((p) => p.kritisk && !svarFor.has(p.id)).length
+  const kritiskNei = alle.filter((p) => p.kritisk && svarFor.get(p.id) === false).length
+  const svarTekst = alle.length === 0
+    ? 'Ingen sjekkpunkter satt opp'
+    : [
+        besvart >= alle.length ? `Alle ${alle.length} besvart` : `${besvart} av ${alle.length} besvart`,
+        kritiskNei > 0 ? `${kritiskNei} kritisk besvart nei` : null,
+        kritiskUbesvart > 0 ? `${kritiskUbesvart} kritisk ubesvart` : null,
+      ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>Sjekkpunkt</h1>
-      <p className="undertittel">{datoLang.format(new Date(idag))} · ja/nei</p>
-
-      {kanLage && (
-        <section className="kort">
-          <h2>Nytt sjekkpunkt</h2>
-          <NyttSjekkpunkt stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
-        </section>
-      )}
+      <Sidehode
+        tittel="Sjekkpunkt"
+        undertittel={`${svarTekst} · ${datoLang.format(new Date(idag))}`}
+        handlinger={kanLage ? (
+          <Sidepanel
+            knapp="Nytt sjekkpunkt"
+            tittel="Nytt sjekkpunkt"
+            beskrivelse="Ett spørsmål med ja/nei-svar. Merk det kritisk hvis et nei skal følges opp samme dag."
+          >
+            <NyttSjekkpunkt stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
+          </Sidepanel>
+        ) : undefined}
+      />
 
       {perStasjon.size === 0 ? (
-        <section className="kort"><p className="undertittel">Ingen sjekkpunkter ennå.</p></section>
+        <Tomtilstand
+          tittel="Ingen sjekkpunkter ennå"
+          forklaring="Sjekkpunkter er de spørsmålene som skal besvares hver dag — «er kjølen låst?», «er kassen talt opp?». Ett spørsmål, ja eller nei, ingen fritekst."
+        />
       ) : (
         [...perStasjon.entries()].map(([sid, liste]) => (
           <section className="kort" key={sid}>

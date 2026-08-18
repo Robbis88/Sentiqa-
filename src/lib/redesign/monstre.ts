@@ -153,7 +153,8 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/opplaring': 'arbeidsflyt',
   '/sjekkpunkt': 'arbeidsflyt',
   '/rutiner/min': 'arbeidsflyt',
-  '/lederstotte': 'arbeidsflyt',
+  // Ren redirect til /ikmat (avvik ble flettet inn der). Ingen nivåer å
+  // ordne — står her bare fordi kartet skal dekke alle ruter.
   '/avvik': 'arbeidsflyt',
   '/ikmat': 'arbeidsflyt',
 
@@ -169,6 +170,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/produksjonsplan/treffsikkerhet': 'analyse',
   '/dekning': 'analyse',
   '/rutiner/oversikt': 'analyse',
+  // Sto som 'arbeidsflyt'. Det er ingen rekkefølge med en slutt her — det
+  // er en rapport per stasjon. Nivå 1 er svaret: hvor mange stasjoner som
+  // står sterkt, og hvor mange som har utviklingspotensial.
+  '/lederstotte': 'analyse',
 
   // --- Liste ---
   '/ansatte': 'liste',

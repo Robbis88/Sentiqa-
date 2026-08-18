@@ -550,9 +550,6 @@
       "Per stasjon",
       "{SEKSJON_TITTEL[navn]}"
     ],
-    "/rutiner/min": [
-      "Nytt punkt"
-    ],
     "/rutiner/oppsett": [
       "{st.butikknummer} {st.navn}"
     ],
@@ -573,7 +570,6 @@
       "Per kategori"
     ],
     "/sjekkpunkt": [
-      "Nytt sjekkpunkt",
       "{navnFor.get(sid) ?? '—'}"
     ],
     "/svinn": [
