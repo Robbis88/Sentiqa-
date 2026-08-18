@@ -9,6 +9,7 @@ import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 
 // Paginert henting av et helt års salg kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -135,8 +136,8 @@ export default async function ProduksjonsplanSide({
     // Selvlæring: gang inn korreksjon pr varegruppe fra egen treffhistorikk (§7).
     const kalibrering = await hentKalibrering(supabase, stasjon.id, 'produksjonsplan')
     advarsler = plan.advarsler
-    if (kalibrering.size > 0) advarsler.push('🤖 Selvlært kalibrering aktiv — forslaget er justert mot stasjonens egen treffhistorikk.')
-    if (helligdagNavn(dato)) advarsler.push(`🔴 ${helligdagNavn(dato)} — forslaget bygger på fjorårets samme helligdag, ikke vanlige ukedager.`)
+    if (kalibrering.size > 0) advarsler.push('Selvlært kalibrering aktiv — forslaget er justert mot stasjonens egen treffhistorikk.')
+    if (helligdagNavn(dato)) advarsler.push(`${helligdagNavn(dato)} — forslaget bygger på fjorårets samme helligdag, ikke vanlige ukedager.`)
     if (arrangementer.length > 0) advarsler.push(`Arrangement-dag: ${arrangementer.map((a) => `${a.navn} (×${a.faktor})`).join(', ')} — forslaget er løftet.`)
 
     const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l]))
@@ -159,13 +160,40 @@ export default async function ProduksjonsplanSide({
     grupper = [...grupperMap.values()].sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? ''))
   }
 
+  // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet.
+  //
+  // Siden åpnet med «Forslag bygd på fjorårets samme ukedag (median) +
+  // nylig trend + værvarsel, med kampanje-deteksjon» — metoden, som
+  // svar på et spørsmål ingen stiller. Rett under sto «baseline fra 391
+  // salgsdager». Mønsterkartet bruker nettopp denne siden som eksempel
+  // på fella: brukeren møter beregningen før anbefalingen.
+  //
+  // Det som faktisk er tilstanden her: er planen publisert, så de på
+  // vakt ser den på nettbrettet — eller ligger den som utkast?
+  const synlige = grupper.flatMap((g) => g.produkter.filter((p) => !p.ekskludert))
+  const sumPlanlagt = synlige.reduce((n, p) => n + p.planlagt, 0)
+  const publisert = hodeData?.publisert_tid != null
+  const svar = grupper.length === 0
+    ? null
+    : publisert
+      ? `Publisert — ${synlige.length} varer, ${sumPlanlagt} enheter`
+      : `Utkast — ${synlige.length} varer, ${sumPlanlagt} enheter. Ikke synlig på nettbrettet ennå`
+
+  const dagTekst = stasjon
+    ? [
+        `${UKEDAG[ukedag]} ${datoLang.format(new Date(dato))}`,
+        `${stasjon.butikknummer} ${stasjon.navn}`,
+        vaer?.temp_maks != null ? `varsel ${vaer.temp_maks.toFixed(0)}°` : 'ingen værvarsel',
+      ].join(' · ')
+    : ''
+
   return (
     <>
-      <h1>Produksjonsplan</h1>
-      <p className="undertittel">
-        Forslag bygd på fjorårets samme ukedag (median) + nylig trend + værvarsel, med kampanje-deteksjon.{' '}
-        <Link href="/produksjonsplan/treffsikkerhet">📊 Se treffsikkerhet →</Link>
-      </p>
+      <Sidehode
+        tittel="Produksjonsplan"
+        undertittel={svar ? `${svar}. ${dagTekst}` : dagTekst || 'Velg stasjon og dag.'}
+        handlinger={<Link href="/produksjonsplan/treffsikkerhet" className="sq-knapp">Treffsikkerhet</Link>}
+      />
 
       <section className="kort">
         <form method="get" className="plan-velg">
@@ -179,15 +207,8 @@ export default async function ProduksjonsplanSide({
             <span>Dag</span>
             <input type="date" name="dato" defaultValue={dato} />
           </label>
-          <button type="submit">Vis plan</button>
+          <button type="submit" className="sq-knapp">Vis plan</button>
         </form>
-        {stasjon && (
-          <p className="undertittel" style={{ marginTop: '0.75rem' }}>
-            {UKEDAG[ukedag]} {datoLang.format(new Date(dato))} · type {stasjon.stasjonstype}
-            {vaer?.temp_maks != null ? ` · varsel ${vaer.temp_maks.toFixed(0)}°` : ' · ingen værvarsel'}
-            {' · baseline fra '}{datadybde} salgsdag{datadybde === 1 ? '' : 'er'}
-          </p>
-        )}
       </section>
 
       {advarsler.length > 0 && (
@@ -197,19 +218,35 @@ export default async function ProduksjonsplanSide({
       )}
 
       {grupper.length === 0 ? (
-        <section className="kort">
-          <p className="undertittel">
-            Ingen produksjonssalg (varegruppe 1201–1221) for denne stasjonen ennå. Behandle en Salgsstatistikk-fil først.
-          </p>
-        </section>
+        <Tomtilstand
+          tittel="Ingen produksjonssalg registrert"
+          forklaring="Planen bygger på hva stasjonen faktisk har solgt av bakevarer og varmmat (varegruppe 1201–1221). Behandle en Salgsstatistikk-fil under Import, så regnes forslaget ut."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       ) : (
         <>
           <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} notat={hodeData?.notat ?? null} publisertTid={hodeData?.publisert_tid ?? null} />
-          {datadybde < 14 && (
-            <p className="undertittel">
-              ⚠ Tynt datagrunnlag ({datadybde} dag{datadybde === 1 ? '' : 'er'}). Forslaget blir mer presist med mer historikk (§7).
+
+          {/* NIVÅ 4 — grunnlaget. Sto som undertittel over hele siden. */}
+          <Forklaring sporsmaal="Hvor kommer forslaget fra?">
+            <p>
+              Grunnlaget er fjorårets samme ukedag (median), justert med nylig trend og
+              værvarselet for dagen. Kampanjer oppdages og trekkes fra, så en uke med
+              halv pris på boller ikke blir til en permanent forventning.
             </p>
-          )}
+            <p>
+              Baseline er regnet på <strong>{datadybde} salgsdag{datadybde === 1 ? '' : 'er'}</strong>.
+              {datadybde < 14
+                ? ' Det er tynt — forslaget blir merkbart mer presist med mer historikk, og bør leses som en pekepinn inntil videre.'
+                : ' Det er nok til at medianen står imot enkeltdager som skiller seg ut.'}
+              {' '}Stasjonen er av type {stasjon?.stasjonstype}, som avgjør hvor hardt været slår inn.
+            </p>
+            <p>
+              Treffsikkerheten måles i etterkant ved å kjøre motoren bakover på stasjonens
+              egen historikk, og der forslaget bommer systematisk læres en korreksjon per
+              varegruppe. Den er i så fall nevnt blant meldingene over.
+            </p>
+          </Forklaring>
         </>
       )}
     </>
