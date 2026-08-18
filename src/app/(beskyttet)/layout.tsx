@@ -4,7 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { mfaHandling } from '@/lib/auth/mfa'
 import { loggUt } from '@/lib/auth/handlinger'
-import { ROLLE_ETIKETT, type Brukerrolle } from '@/lib/auth/typer'
+import { ROLLE_ETIKETT } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { erLeder } from '@/lib/auth/roller'
 import { Sidemeny } from './sidemeny'
@@ -12,106 +12,8 @@ import { TabletSkall } from './tablet-skall'
 import { AiBoble } from './ai-boble'
 import { Kommandopalett } from './kommandopalett'
 import { OversettProvider } from './oversett-kontekst'
-
-// Venstremeny gruppert i seksjoner (§12 Fluent-stil; §3 rollestyrt UI).
-type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
-const A: Brukerrolle = 'retailer_admin'
-const B: Brukerrolle = 'butikksjef'
-const T: Brukerrolle = 'butikkbruker_tablet'
-
-// Gruppert etter hva brukeren HOLDER PÅ MED, ikke etter hvilken modul noe
-// hører til. Tidligere lå 32 punkter flatt fordelt på «Analyse», «AI &
-// engasjement», «Drift» og «Innstillinger» — inndelinger som beskriver
-// systemet, ikke arbeidet. En butikksjef som lurer på om produksjonsplanen
-// traff, tenker ikke «det er analyse».
-//
-// Ingen ruter er fjernet og ingen roller er endret; punktene er flyttet.
-// Tableten ser aldri denne menyen (den returnerer tidlig med TabletSkall).
-const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
-  {
-    tittel: '',
-    punkter: [
-      { sti: '/oversikt', tekst: 'I dag', roller: [A, B] },
-    ],
-  },
-  {
-    // Det som skjer på stasjonen nå og de nærmeste dagene.
-    tittel: 'Drift',
-    punkter: [
-      { sti: '/produksjonsplan', tekst: 'Produksjonsplan', roller: [A, B] },
-      { sti: '/utsolgt', tekst: 'Mulig utsolgt', roller: [A, B] },
-      { sti: '/bemanning', tekst: 'Bemanning', roller: [A, B] },
-      // En prognose er det motsatte av "det som har skjedd" - den hoerer hjemme
-      // her sammen med produksjonsplan og bemanning.
-      { sti: '/salgsprognose', tekst: 'Salgsprognose', roller: [A, B] },
-      { sti: '/oppgaver', tekst: 'Oppgaver', roller: [A, B] },
-      { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
-      { sti: '/rutiner/oversikt', tekst: 'Rutineoversikt', roller: [A, B] },
-      { sti: '/rutiner/min', tekst: 'Min sjekkliste', roller: [A, B] },
-      { sti: '/rutiner/oppsett', tekst: 'Rutineoppsett', roller: [B] },
-      { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B] },
-      { sti: '/ikmat', tekst: 'IK-mat & avvik', roller: [A, B, T] },
-      { sti: '/ikmat/oppsett', tekst: 'IK-mat oppsett', roller: [A, B] },
-      { sti: '/svinn', tekst: 'Svinn', roller: [A, B] },
-      { sti: '/arrangementer', tekst: 'Arrangementer', roller: [A] },
-    ],
-  },
-  {
-    // Det som allerede har skjedd, til og med siste salgsdag.
-    tittel: 'Resultater',
-    punkter: [
-      { sti: '/salg', tekst: 'Salg', roller: [A, B] },
-      { sti: '/timesalg', tekst: 'Timesalg', roller: [A, B] },
-      { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
-      { sti: '/lonn', tekst: 'Lønnsgrunnlag', roller: [A, B] },
-      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
-      { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
-      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
-      { sti: '/produksjonsplan/treffsikkerhet', tekst: 'Treffsikkerhet', roller: [A, B] },
-    ],
-  },
-  {
-    // Menneskene: hva de skal fokusere på, hva de sier, hva de kan.
-    tittel: 'Team',
-    punkter: [
-      { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
-      { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
-      { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
-      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
-      { sti: '/kontrakt', tekst: 'Arbeidsavtaler', roller: [A, B] },
-      { sti: '/opplaring', tekst: 'Opplæring', roller: [B] },
-      { sti: '/skills', tekst: 'Skills-score', roller: [A, B] },
-      { sti: '/merker', tekst: 'Merker', roller: [A, B, T] },
-      { sti: '/mine-opplysninger', tekst: 'Slik måler vi', roller: [A, B, T] },
-      { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
-      { sti: '/premier', tekst: 'Premiesaldo', roller: [A, B] },
-      { sti: '/puls', tekst: 'Puls', roller: [A, B] },
-      { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
-    ],
-  },
-  {
-    tittel: 'Mer',
-    punkter: [
-      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
-      { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
-      { sti: '/import', tekst: 'Import', roller: [A] },
-      { sti: '/dekning', tekst: 'Datadekning', roller: [A] },
-      { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },
-      { sti: '/brukere', tekst: 'Brukere', roller: [A] },
-      { sti: '/persondata', tekst: 'Persondata', roller: [A, B] },
-    ],
-  },
-  {
-    tittel: 'Plattform',
-    punkter: [
-      { sti: '/plattform', tekst: 'Plattform-oversikt', roller: ['plattform_redaktor'] },
-      { sti: '/trafikk', tekst: 'Trafikk', roller: ['plattform_redaktor'] },
-      { sti: '/kampanjer', tekst: 'Kampanjer', roller: ['plattform_redaktor'] },
-      { sti: '/redaktor', tekst: 'Publisering', roller: ['plattform_redaktor'] },
-      { sti: '/kunnskap', tekst: 'Kunnskapsbase', roller: ['plattform_redaktor'] },
-    ],
-  },
-]
+import { SEKSJONER } from './navigasjon'
+import { Fanerad } from './fanerad'
 
 export default async function BeskyttetLayout({
   children,
@@ -190,7 +92,10 @@ export default async function BeskyttetLayout({
             </form>
           </div>
         </header>
-        <main className="innhold">{children}</main>
+        <main className="innhold">
+          <Fanerad rolle={bruker.rolle} />
+          {children}
+        </main>
       </div>
       {erLeder(bruker.rolle) && <AiBoble navn={bruker.fulltNavn?.split(' ')[0]} />}
     </div>

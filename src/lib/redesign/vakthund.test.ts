@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
-  borte, borteI, lenker, menypunkter, rutenavn, seksjoner, serverhandlinger,
+  borte, borteI, lenker, naabarhet, rutenavn, seksjoner, serverhandlinger,
   type Fasit,
 } from './fasit'
 import { MONSTRE, RUTEMONSTER, TABLETRUTER } from './monstre'
@@ -64,7 +64,7 @@ function byggFasit(): Fasit {
 
   return {
     ruter,
-    meny: menypunkter(readFileSync(join(APP, '(beskyttet)', 'layout.tsx'), 'utf8')),
+    naabart: naabarhet(readFileSync(join(APP, '(beskyttet)', 'navigasjon.ts'), 'utf8')),
     handlinger: handlingKart,
     seksjoner: seksjonKart,
     lenker: lenkeKart,
@@ -95,11 +95,13 @@ describe('funksjonsbevaring', () => {
     expect(borte(fasit!.ruter, naa.ruter), `Ruter borte. ${hjelp}`).toEqual([])
   })
 
-  test('ingen ansatt har mistet tilgang til en side', () => {
-    // Bade stien og rollelista sammenlignes. Blir /lonn liggende, men
-    // uten butikksjef, har butikksjefen mistet lonnsgrunnlaget sitt.
-    expect(borte(fasit!.meny, naa.meny), `Menypunkt eller roller endret. ${hjelp}`)
-      .toEqual([])
+  test('ingen rolle har mistet tilgang til en side', () => {
+    // Maalt paa NAABARHET, ikke paa menylinjer: aa flytte en side fra
+    // menyen til en fane er en omorganisering, aa ta den ut av begge er
+    // et tap. En fasit som teller menylinjer ville ropt paa det forste
+    // og vaert blind for forskjellen.
+    expect(borteI(fasit!.naabart, naa.naabart), `Noen mistet tilgang. ${hjelp}`)
+      .toEqual({})
   })
 
   test('ingen serverhandling er borte', () => {
@@ -155,7 +157,8 @@ describe('funksjonsbevaring', () => {
 
   test('den ser hele systemet — ellers er den grønn av feil grunn', () => {
     expect(naa.ruter.length).toBeGreaterThan(60)
-    expect(naa.meny.length).toBeGreaterThan(40)
+    expect(Object.keys(naa.naabart).length).toBeGreaterThan(3)
+    expect(naa.naabart['butikksjef'].length).toBeGreaterThan(25)
     expect(Object.keys(naa.handlinger).length).toBeGreaterThan(20)
   })
 })

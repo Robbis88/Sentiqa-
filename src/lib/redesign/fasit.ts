@@ -21,7 +21,8 @@
 
 export type Fasit = {
   ruter: string[]
-  meny: string[]
+  /** Rolle → alt rollen kan nå, meny og faner sett under ett. */
+  naabart: Record<string, string[]>
   handlinger: Record<string, string[]>
   seksjoner: Record<string, string[]>
   lenker: Record<string, string[]>
@@ -43,24 +44,44 @@ export function rutenavn(filsti: string): string {
 }
 
 /**
- * Menypunktene, som «/sti roller:A,B».
+ * Hva hver rolle kan nå — meny og faner sett under ett.
  *
- * Leses fra kilden framfor å importeres, fordi layout.tsx drar med seg
- * halve appen ved import — og en fasit som krever at appen bygger, er
- * ubrukelig akkurat når man har brekt noe.
+ * Dette er det spørsmålet som betyr noe. Å flytte en side fra menyen til
+ * en fane er en omorganisering; å ta den ut av begge er et tap. En fasit
+ * som teller menylinjer ville ropt på det første og vært blind for
+ * forskjellen.
+ *
+ * Leses fra kilden framfor å importeres: navigasjon.ts drar med seg
+ * typer fra appen, og en fasit som krever at appen bygger er ubrukelig
+ * akkurat når man har brekt noe.
+ *
+ * Kortnavnene (`A`, `B`, `T`) løses opp fra deklarasjonene i samme fil,
+ * så fasiten inneholder ekte rollenavn og ikke bokstaver som kan bety
+ * noe annet i morgen.
  */
-export function menypunkter(layoutKilde: string): string[] {
-  const ut: string[] = []
-  const re = /\{\s*sti:\s*'([^']+)'\s*,\s*tekst:\s*'([^']*)'\s*,\s*roller:\s*\[([^\]]*)\]/g
-  for (const m of layoutKilde.matchAll(re)) {
-    const roller = m[3]
-      .split(',')
-      .map((r) => r.trim().replace(/^'|'$/g, ''))
-      .filter(Boolean)
-      .sort()
-    ut.push(`${m[1]} roller:${roller.join(',')}`)
+export function naabarhet(navigasjonKilde: string): Record<string, string[]> {
+  const alias = new Map<string, string>()
+  for (const m of navigasjonKilde.matchAll(
+    /const\s+(\w+)\s*:\s*Brukerrolle\s*=\s*'([^']+)'/g,
+  )) {
+    alias.set(m[1], m[2])
   }
-  return ut.sort()
+
+  const ut: Record<string, Set<string>> = {}
+  // Samme form i SEKSJONER og FANEGRUPPER — ett uttrykk dekker begge.
+  const re = /\{\s*sti:\s*'([^']+)'\s*,\s*tekst:\s*'[^']*'\s*,\s*roller:\s*\[([^\]]*)\]/g
+  for (const m of navigasjonKilde.matchAll(re)) {
+    for (const raa of m[2].split(',')) {
+      const t = raa.trim()
+      if (!t) continue
+      const rolle = alias.get(t) ?? t.replace(/^'|'$/g, '')
+      ;(ut[rolle] ??= new Set()).add(m[1])
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(ut).map(([rolle, stier]) => [rolle, [...stier].sort()]),
+  )
 }
 
 /**

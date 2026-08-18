@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
-  borte, borteI, lenker, menypunkter, rutenavn, seksjoner, serverhandlinger,
+  borte, borteI, lenker, naabarhet, rutenavn, seksjoner, serverhandlinger,
 } from './fasit'
 
 describe('rutenavn', () => {
@@ -24,23 +24,33 @@ describe('rutenavn', () => {
   })
 })
 
-describe('menypunkter', () => {
-  test('leser sti og roller, sortert', () => {
-    const kilde = `
-      { sti: '/salg', tekst: 'Salg', roller: [A, B] },
-      { sti: '/import', tekst: 'Import', roller: [A] },
-    `
-    expect(menypunkter(kilde)).toEqual(['/import roller:A', '/salg roller:A,B'])
+describe('naabarhet', () => {
+  const kilde = `
+    const A: Brukerrolle = 'retailer_admin'
+    const B: Brukerrolle = 'butikksjef'
+    const T: Brukerrolle = 'butikkbruker_tablet'
+    { sti: '/salg', tekst: 'Salg', roller: [A, B] },
+    { sti: '/rutiner', tekst: 'På vakt', roller: [T] },
+    { sti: '/rutiner/min', tekst: 'Min sjekkliste', roller: [A, B] },
+  `
+
+  test('kortnavn løses opp til ekte rollenavn', () => {
+    // «A» kan bety noe annet i morgen. Fasiten skal bære rollen.
+    expect(Object.keys(naabarhet(kilde)).sort())
+      .toEqual(['butikkbruker_tablet', 'butikksjef', 'retailer_admin'])
   })
 
-  test('rollene sorteres, så rekkefølge i kilden ikke gir falskt avvik', () => {
-    expect(menypunkter("{ sti: '/x', tekst: 'X', roller: [B, A, T] },"))
-      .toEqual(['/x roller:A,B,T'])
+  test('meny og faner slås sammen — samme form, samme svar', () => {
+    expect(naabarhet(kilde)['butikksjef']).toEqual(['/rutiner/min', '/salg'])
   })
 
-  test('rollenavn i apostrof leses også', () => {
-    expect(menypunkter("{ sti: '/y', tekst: 'Y', roller: ['plattform_redaktor'] },"))
-      .toEqual(['/y roller:plattform_redaktor'])
+  test('en rolle ser bare sitt eget', () => {
+    expect(naabarhet(kilde)['butikkbruker_tablet']).toEqual(['/rutiner'])
+  })
+
+  test('samme sti to steder telles én gang', () => {
+    const dobbel = kilde + "{ sti: '/salg', tekst: 'Salg', roller: [A] },"
+    expect(naabarhet(dobbel)['retailer_admin'].filter((s) => s === '/salg')).toHaveLength(1)
   })
 })
 

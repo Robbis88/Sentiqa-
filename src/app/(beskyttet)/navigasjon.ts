@@ -1,0 +1,216 @@
+import type { Brukerrolle } from '@/lib/auth/typer'
+
+// =====================================================================
+// Navigasjonen som data.
+//
+// Lå tidligere i layout.tsx. Flyttet hit av én grunn: vakthunden må
+// kunne lese den uten å bygge appen, og den må kunne se BÅDE menyen og
+// fanene for å svare på det egentlige spørsmålet —
+//
+//   «kommer alle fortsatt fram til alt de kom fram til før?»
+//
+// Uten fanegruppene som data ville en side som forsvinner fra menyen se
+// ut som tapt tilgang. Med dem kan vakthunden regne ut det som faktisk
+// betyr noe: nåbarhet = meny ∪ faner.
+// =====================================================================
+
+export type Punkt = { sti: string; tekst: string; roller: Brukerrolle[] }
+
+const A: Brukerrolle = 'retailer_admin'
+const B: Brukerrolle = 'butikksjef'
+const T: Brukerrolle = 'butikkbruker_tablet'
+const P: Brukerrolle = 'plattform_redaktor'
+
+/**
+ * Sider som hører sammen, vist som faner inne på siden.
+ *
+ * Regelen for hva som får bli en gruppe: fanene må svare på SAMME
+ * spørsmål fra ulike vinkler. «Rutiner» sett som min liste, som
+ * oversikt, som oppsett — samme sak, tre vinkler. Salg og bemanning er
+ * derimot to spørsmål, og hører ikke sammen selv om begge er tall.
+ *
+ * Høyst fem faner. Over det er en gruppe bare en meny med en annen form,
+ * og da har man flyttet problemet uten å løse det.
+ *
+ * Rekkefølgen er den man leser dem i: det man gjør oftest først,
+ * oppsett sist.
+ */
+export type Fanegruppe = { tittel: string; faner: Punkt[] }
+
+export const FANEGRUPPER: Fanegruppe[] = [
+  {
+    tittel: 'Rutiner',
+    faner: [
+      { sti: '/rutiner', tekst: 'På vakt', roller: [T] },
+      { sti: '/rutiner/min', tekst: 'Min sjekkliste', roller: [A, B] },
+      { sti: '/rutiner/oversikt', tekst: 'Oversikt', roller: [A, B] },
+      { sti: '/rutiner/oppsett', tekst: 'Oppsett', roller: [B] },
+    ],
+  },
+  {
+    tittel: 'Produksjon',
+    faner: [
+      { sti: '/produksjonsplan', tekst: 'Planen', roller: [A, B] },
+      { sti: '/produksjonsplan/treffsikkerhet', tekst: 'Traff vi?', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'IK-mat',
+    faner: [
+      { sti: '/ikmat', tekst: 'Kontroll og avvik', roller: [A, B, T] },
+      { sti: '/ikmat/oppsett', tekst: 'Oppsett', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Salg',
+    faner: [
+      { sti: '/salg', tekst: 'Dag for dag', roller: [A, B] },
+      { sti: '/timesalg', tekst: 'Time for time', roller: [A, B] },
+      { sti: '/salgsprognose', tekst: 'Prognose', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Puls',
+    faner: [
+      { sti: '/puls', tekst: 'Målinger', roller: [A, B] },
+      { sti: '/puls/sporsmal', tekst: 'Spørsmål', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Anerkjennelse',
+    faner: [
+      { sti: '/skills', tekst: 'Skills-score', roller: [A, B] },
+      { sti: '/merker', tekst: 'Merker', roller: [A, B, T] },
+      { sti: '/konkurranser', tekst: 'Konkurranser', roller: [A, B] },
+      { sti: '/premier', tekst: 'Premiesaldo', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Ansatte',
+    faner: [
+      { sti: '/ansatte', tekst: 'Folkene', roller: [A, B] },
+      { sti: '/kontrakt', tekst: 'Arbeidsavtaler', roller: [A, B] },
+    ],
+  },
+]
+
+/** Alle stier som ligger i en fanegruppe. */
+export const FANESTIER = new Set(FANEGRUPPER.flatMap((g) => g.faner.map((f) => f.sti)))
+
+/** Gruppen en sti hører til — også for dypere sider som `/rutiner/oppsett/[id]`. */
+export function gruppeFor(sti: string): Fanegruppe | null {
+  let beste: Fanegruppe | null = null
+  let lengde = -1
+  for (const g of FANEGRUPPER) {
+    for (const f of g.faner) {
+      if ((sti === f.sti || sti.startsWith(`${f.sti}/`)) && f.sti.length > lengde) {
+        beste = g
+        lengde = f.sti.length
+      }
+    }
+  }
+  return beste
+}
+
+// =====================================================================
+// Menyen
+// =====================================================================
+// Gruppert etter hva brukeren HOLDER PÅ MED, ikke etter hvilken modul
+// noe hører til. En butikksjef som lurer på om produksjonsplanen traff,
+// tenker ikke «det er analyse».
+//
+// Sider som ligger i en fanegruppe står med gruppens FØRSTE fane som
+// menypunkt. De andre nås som faner — ikke som egne linjer i menyen.
+// Menyen faller fra 48 punkter til 36 uten at én rute forsvinner.
+
+export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
+  {
+    tittel: '',
+    punkter: [
+      { sti: '/oversikt', tekst: 'I dag', roller: [A, B] },
+    ],
+  },
+  {
+    // Det som skjer på stasjonen nå og de nærmeste dagene.
+    tittel: 'Drift',
+    punkter: [
+      { sti: '/produksjonsplan', tekst: 'Produksjon', roller: [A, B] },
+      { sti: '/utsolgt', tekst: 'Mulig utsolgt', roller: [A, B] },
+      { sti: '/bemanning', tekst: 'Bemanning', roller: [A, B] },
+      { sti: '/oppgaver', tekst: 'Oppgaver', roller: [A, B] },
+      { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
+      { sti: '/rutiner/min', tekst: 'Rutiner', roller: [A, B] },
+      { sti: '/sjekkpunkt', tekst: 'Sjekkpunkt', roller: [A, B] },
+      { sti: '/ikmat', tekst: 'IK-mat & avvik', roller: [A, B, T] },
+      { sti: '/svinn', tekst: 'Svinn', roller: [A, B] },
+      { sti: '/arrangementer', tekst: 'Arrangementer', roller: [A] },
+    ],
+  },
+  {
+    // Det som allerede har skjedd, til og med siste salgsdag.
+    tittel: 'Resultater',
+    punkter: [
+      { sti: '/salg', tekst: 'Salg', roller: [A, B] },
+      { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
+      { sti: '/lonn', tekst: 'Lønnsgrunnlag', roller: [A, B] },
+      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
+      { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
+      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
+    ],
+  },
+  {
+    // Menneskene: hva de skal fokusere på, hva de sier, hva de kan.
+    tittel: 'Team',
+    punkter: [
+      { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
+      { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
+      { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
+      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
+      { sti: '/mine-opplysninger', tekst: 'Slik måler vi', roller: [A, B, T] },
+      { sti: '/opplaring', tekst: 'Opplæring', roller: [B] },
+      { sti: '/skills', tekst: 'Anerkjennelse', roller: [A, B] },
+      { sti: '/merker', tekst: 'Merker', roller: [T] },
+      { sti: '/puls', tekst: 'Puls', roller: [A, B] },
+      { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Mer',
+    punkter: [
+      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
+      { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
+      { sti: '/import', tekst: 'Import', roller: [A] },
+      { sti: '/dekning', tekst: 'Datadekning', roller: [A] },
+      { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },
+      { sti: '/brukere', tekst: 'Brukere', roller: [A] },
+      { sti: '/persondata', tekst: 'Persondata', roller: [A, B] },
+    ],
+  },
+  {
+    tittel: 'Plattform',
+    punkter: [
+      { sti: '/plattform', tekst: 'Plattform-oversikt', roller: [P] },
+      { sti: '/trafikk', tekst: 'Trafikk', roller: [P] },
+      { sti: '/kampanjer', tekst: 'Kampanjer', roller: [P] },
+      { sti: '/redaktor', tekst: 'Publisering', roller: [P] },
+      { sti: '/kunnskap', tekst: 'Kunnskapsbase', roller: [P] },
+    ],
+  },
+]
+
+/**
+ * Alt en rolle kan nå — meny og faner sammen.
+ *
+ * Dette er det vakthunden måler mot. Å flytte en side fra menyen til en
+ * fane er en omorganisering; å ta den ut av begge er et tap.
+ */
+export function naabart(rolle: Brukerrolle): string[] {
+  const ut = new Set<string>()
+  for (const s of SEKSJONER) {
+    for (const p of s.punkter) if (p.roller.includes(rolle)) ut.add(p.sti)
+  }
+  for (const g of FANEGRUPPER) {
+    for (const f of g.faner) if (f.roller.includes(rolle)) ut.add(f.sti)
+  }
+  return [...ut].sort()
+}
