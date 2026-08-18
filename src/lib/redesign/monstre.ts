@@ -167,7 +167,6 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/maaling': 'analyse',
   '/kasserer': 'analyse',
   '/produksjonsplan/treffsikkerhet': 'analyse',
-  '/trafikk': 'analyse',
   '/dekning': 'analyse',
   '/rutiner/oversikt': 'analyse',
 
@@ -194,6 +193,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/avtalevokter': 'liste',
   '/utsolgt': 'liste',
   '/fokus': 'liste',
+  // Sto som 'analyse'. Siden analyserer ingenting — den kobler hver
+  // stasjon til nærmeste bilteller og skrur måling på. Nivå 1 er «hvor
+  // mange, og hvor mange mangler noe», altså listemønsteret.
+  '/trafikk': 'liste',
 
   // --- Detalj ---
   '/kontrakt/[id]': 'detalj',

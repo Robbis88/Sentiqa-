@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { finnTeller, settTrafikkAktiv } from './handlinger'
+import { Sidehode, Tomtilstand, Datatabell, Forklaring } from '@/components/ui/side'
 
 // Plattform-eierens trafikk-oppsett: koble hver stasjon til nærmeste bilteller
 // (Vegvesen) og skru måling på/av. Kun der telleren faktisk står på veien forbi
@@ -13,7 +14,15 @@ export default async function TrafikkSide() {
   try {
     admin = lagSupabaseAdminKlient()
   } catch {
-    return <><h1>Trafikk</h1><p className="undertittel">Mangler service-nøkkel.</p></>
+    return (
+      <>
+        <Sidehode tittel="Trafikk" />
+        <Tomtilstand
+          tittel="Mangler service-nøkkel"
+          forklaring="Trafikk-oppsettet leser på tvers av kjeder og trenger service-nøkkelen i miljøet. Uten den kan siden ikke vise stasjonene."
+        />
+      </>
+    )
   }
 
   const [{ data: stasjoner }, { data: retailers }] = await Promise.all([
@@ -24,16 +33,38 @@ export default async function TrafikkSide() {
   const liste = stasjoner ?? []
   const aktive = liste.filter((s) => s.trafikk_aktiv).length
 
+  // NIVÅ 1 på en liste: hvor mange, og hvor mange av dem krever noe.
+  // «5 stasjon(er) måles nå» sto midt i et avsnitt om metode, og sa
+  // ingenting om de som IKKE måles — som er de eneste det er noe å gjøre
+  // med. To slag: mangler koordinat (kan ikke kobles), og koblet men av.
+  const utenKoordinat = liste.filter((s) => s.breddegrad == null).length
+  const koblingKlar = liste.filter((s) => s.trafikk_punkt_id && !s.trafikk_aktiv).length
+  const ukoblet = liste.filter((s) => s.breddegrad != null && !s.trafikk_punkt_id).length
+  const svar = [
+    `${liste.length} ${liste.length === 1 ? 'stasjon' : 'stasjoner'}`,
+    `${aktive} måles`,
+    ukoblet > 0 ? `${ukoblet} mangler tellepunkt` : null,
+    koblingKlar > 0 ? `${koblingKlar} koblet, men av` : null,
+    utenKoordinat > 0 ? `${utenKoordinat} mangler koordinat` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>Trafikk</h1>
-      <p className="undertittel">
-        Koble hver stasjon til nærmeste Vegvesen-bilteller og skru måling på — kun der telleren faktisk står på veien forbi stasjonen.
-        «Finn teller» henter forslaget; bekreft selv mot kart før du skrur på. {aktive} stasjon(er) måles nå.
-      </p>
+      <Sidehode
+        tittel="Trafikk"
+        undertittel={svar}
+      />
 
       <section className="kort">
-        <table className="tabell">
+        <Datatabell
+          antall={liste.length}
+          tom={
+            <Tomtilstand
+              tittel="Ingen stasjoner å koble"
+              forklaring="Trafikkmåling kobles per stasjon. Så snart det finnes stasjoner i basen, står de her."
+            />
+          }
+        >
           <thead><tr><th>Kjede</th><th>Stasjon</th><th>Koordinat</th><th>Tellepunkt</th><th>Måling</th><th>Handlinger</th></tr></thead>
           <tbody>
             {liste.map((s) => (
@@ -62,11 +93,23 @@ export default async function TrafikkSide() {
               </tr>
             ))}
           </tbody>
-        </table>
-        <p className="undertittel" style={{ marginTop: '0.6rem' }}>
-          Tips: «Finn teller» velger nærmeste VEHICLE-teller med ekte volum (ikke sykkel/gangsti). Klikk koordinaten for å se stasjonen i kart, og sammenlign med tellerens vei før du skrur på.
-        </p>
+        </Datatabell>
       </section>
+
+      <Forklaring sporsmaal="Hvordan kobler jeg riktig teller?">
+        <p>
+          «Finn teller» velger nærmeste VEHICLE-teller med ekte volum — ikke sykkel-
+          eller gangstitellere, som ligger tett i byene og ellers ville vunnet på
+          avstand alene. Forslaget er et forslag: klikk koordinaten for å se stasjonen
+          i kart, og sammenlign med tellerens vei før du skrur på.
+        </p>
+        <p>
+          Nærmest i luftlinje er ikke det samme som «på veien forbi». En teller på
+          motorveien to hundre meter unna måler trafikk som aldri passerer stasjonen,
+          og gjør tallet verre enn ingen tall. Derfor er «Skru på» et eget steg, og
+          ikke noe «Finn teller» gjør for deg.
+        </p>
+      </Forklaring>
     </>
   )
 }
