@@ -1,5 +1,6 @@
 {
   "ruter": [
+    "/",
     "/abonnement",
     "/analyse",
     "/ansatte",
@@ -36,7 +37,6 @@
     "/oppgaver",
     "/opplaring",
     "/oversikt",
-    "/page.tsx",
     "/persondata",
     "/personvern",
     "/plattform",

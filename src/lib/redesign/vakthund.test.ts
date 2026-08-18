@@ -5,6 +5,7 @@ import {
   borte, borteI, lenker, menypunkter, rutenavn, seksjoner, serverhandlinger,
   type Fasit,
 } from './fasit'
+import { MONSTRE, RUTEMONSTER, TABLETRUTER } from './monstre'
 
 // =====================================================================
 // Vakthund for redesignet.
@@ -118,6 +119,36 @@ describe('funksjonsbevaring', () => {
   test('ingen navigasjonsvei er borte uten at det er erklært', () => {
     // Den lumske varianten: alt finnes, men ingen kommer seg dit.
     expect(borteI(fasit!.lenker, naa.lenker), `Lenker borte. ${hjelp}`).toEqual({})
+  })
+
+  // --- Klassifiseringen ---
+
+  test('hver rute har et mønster', () => {
+    // Uten dette blir hver side lost for seg, og systemet ender som 68
+    // sider bygget paa 68 tidspunkt - det vi proever aa komme oss vekk
+    // fra. Legger noen til en side uten aa ta stilling til hva slags
+    // side det er, stopper det her.
+    const uten = naa.ruter.filter((r) => !(r in RUTEMONSTER))
+    expect(uten, 'Ruter uten mønster. Velg ett i src/lib/redesign/monstre.ts.')
+      .toEqual([])
+  })
+
+  test('ingen mønster peker på en rute som ikke finnes', () => {
+    const finnes = new Set(naa.ruter)
+    expect(Object.keys(RUTEMONSTER).filter((r) => !finnes.has(r))).toEqual([])
+  })
+
+  test('hvert mønster har en spesifikasjon', () => {
+    for (const m of new Set(Object.values(RUTEMONSTER))) {
+      expect(MONSTRE[m], m).toBeDefined()
+      expect(MONSTRE[m].nivaa1.length, `nivaa1 for ${m}`).toBeGreaterThan(10)
+      expect(MONSTRE[m].fella.length, `fella for ${m}`).toBeGreaterThan(20)
+    }
+  })
+
+  test('nettbrettrutene finnes og deler rute med desktop', () => {
+    const finnes = new Set(naa.ruter)
+    for (const r of TABLETRUTER) expect(finnes.has(r), r).toBe(true)
   })
 
   // --- At vakthunden faktisk maaler noe ---

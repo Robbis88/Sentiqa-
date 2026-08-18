@@ -32,7 +32,10 @@ export function rutenavn(filsti: string): string {
   const etter = filsti.replace(/\\/g, '/').split('/src/app/')[1]
   if (etter === undefined) return ''
   const deler = etter
-    .replace(/\/page\.tsx$/, '')
+    // Rot-siden er `page.tsx` UTEN skråstrek foran. Krevde mønsteret en,
+    // ble forsiden hetende «/page.tsx» — og en rute som heter noe annet
+    // enn den er, forsvinner stille neste gang noen sammenligner.
+    .replace(/\/?page\.tsx$/, '')
     .split('/')
     // Rutegrupper — (beskyttet), (auth) — er organisering, ikke URL.
     .filter((d) => d !== '' && !/^\(.*\)$/.test(d))
