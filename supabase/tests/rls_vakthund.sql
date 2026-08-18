@@ -55,7 +55,40 @@ declare
     -- leses paa HVER visning av /mine-opplysninger, og den ruta naas fra
     -- nettbrettet. En upakket policy her ville truffet hver ansatt som
     -- apnet sida, ikke bare en leder som saa paa en rapport.
-    'kontrolltiltak_bekreftelse'
+    'kontrolltiltak_bekreftelse',
+
+    -- --- Lagt inn av dekningssjekken (punkt 4) 2026-08-18. -----------
+    -- Disse hadde policyer uten aa bli sjekket av noen. Alle vokser med
+    -- drift; flere av dem leses i sider paa tusen rader.
+    'produksjonsplan_hode', 'produksjonsplan_linjer',
+    'prognose_treff', 'prognose_kalibrering',
+    'vaer', 'trafikk', 'uke_rapport',
+    'personlig_kryss', 'puls_svar', 'varsler',
+    'import_jobber', 'raa_filer', 'fakturaer', 'ai_tool_log',
+    'opplaering_periode', 'opplaring_fullfort', 'pengepremie_bruk',
+    'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter'
+  ];
+
+  -- Tabeller som med vilje IKKE sjekkes: oppsett og oppslagsdata.
+  -- Faa rader, endres sjelden, og joines ikke mot noe som vokser. Et
+  -- per-rad-kall her koster ikke noe maalbart.
+  --
+  -- Lista finnes for at punkt 4 skal kunne kreve at HVER tabell med
+  -- policy staar et sted. Da kan ingen ny tabell falle mellom stolene -
+  -- den tvinger fram en beslutning, slik monstre.ts gjor for ruter.
+  kalde text[] := array[
+    -- Tenant og tilgang. profiler har sin egen sjekk i punkt 3.
+    'retailers', 'stasjoner', 'profiler', 'butikksjef_stasjoner',
+    -- Innhold kunden redigerer. En rad per element, lest som en liste.
+    'anvisninger', 'kunnskap', 'merker', 'lenker', 'kampanjer',
+    'konkurranser', 'plattform_innlegg', 'fokuspunkter', 'pengepremie',
+    -- Oppsett bak funksjonene. Endres naar noe settes opp, ikke i drift.
+    'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
+    'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
+    'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
+    'push_abonnementer',
+    -- Eldre opplaeringstabeller (annen skrivemaate enn opplaering_*).
+    'opplaring_personer', 'opplaring_punkter'
   ];
   r record;
   feil int := 0;
@@ -118,9 +151,48 @@ begin
     feil := feil + 1;
   end if;
 
+  -- --- 4) Dekning: har noen tabell falt utenfor vakthunden? ---
+  --
+  -- Lagt til 2026-08-18, etter at kontrolltiltak_bekreftelse hadde ligget
+  -- med policyer og uten tilsyn siden 0103. Sostertabellen fra samme
+  -- migrasjon kom inn i varme; denne ble glemt, og ingen ting sa fra.
+  --
+  -- De tre sjekkene over kan bare finne feil paa tabeller noen har husket
+  -- aa fore opp. Denne sjekker listene selv: hver tabell med policy skal
+  -- staa i varme eller i kalde. Da er utelatelse ikke lenger mulig - en
+  -- ny tabell TVINGER en beslutning om den vokser med drift eller ikke.
+  for r in
+    select distinct tablename
+    from pg_policies
+    where schemaname = 'public'
+      and tablename <> all(varme)
+      and tablename <> all(kalde)
+    order by tablename
+  loop
+    raise warning 'UTEN TILSYN  %  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
+      r.tablename;
+    feil := feil + 1;
+  end loop;
+
+  -- Motsatt vei: en tabell som er fjernet fra basen, men staar igjen i
+  -- listene, gir falsk trygghet om dekning. Billig aa fange her.
+  for r in
+    select t as tablename
+    from unnest(varme || kalde) as t
+    where not exists (
+      select 1 from pg_policies p
+      where p.schemaname = 'public' and p.tablename = t)
+    order by t
+  loop
+    raise warning 'STAAR I LISTA, FINNES IKKE  %  - ingen policy i public; fjern den fra rls_vakthund.sql',
+      r.tablename;
+    feil := feil + 1;
+  end loop;
+
   if feil > 0 then
     raise exception 'RLS-vakthund: % funn. Se advarslene over.', feil;
   end if;
 
-  raise notice '--- RLS-vakthund: ingen funn paa % varme tabeller ---', array_length(varme, 1);
+  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, alle tabeller med policy er dekket ---',
+    array_length(varme, 1), array_length(kalde, 1);
 end $$;
