@@ -512,12 +512,6 @@
       "+ Nytt målekort",
       "{m.navn}"
     ],
-    "/merker": [
-      "Kom i gang",
-      "Merker",
-      "Merkeveggen",
-      "Tildel et merke"
-    ],
     "/mine-opplysninger": [
       "Det vi ikke gjør",
       "Dine rettigheter",

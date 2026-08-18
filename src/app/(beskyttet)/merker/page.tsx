@@ -1,6 +1,8 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { settOppStandard, leggTilMerke, slettMerke, tildelMerke, fjernTildeling } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Merke = { id: string; navn: string; emoji: string; beskrivelse: string | null }
 type Ansatt = { id: string; navn: string; stasjon_id: string }
@@ -27,75 +29,92 @@ export default async function MerkerSide() {
     perAnsatt.set(t.ansatt_id, l)
   }
 
+  const merkeliste = merker ?? []
+  const folk = ansatte ?? []
+  const tildelt = [...perAnsatt.values()].reduce((n, l) => n + l.length, 0)
+
+  // Emojien paa et merke er INNHOLD - brukeren velger den selv - og ikke
+  // ikonografi. Derfor staar de, mens 🏅 i undertittelen maatte gaa.
+  const tildelPanel = erLeder && merkeliste.length > 0 ? (
+    <Sidepanel knapp="Tildel merke" tittel="Tildel et merke">
+      <form action={tildelMerke} className="skjema">
+        <label className="felt"><span>Til hvem</span>
+          <select name="ansatt_id" required defaultValue="">
+            <option value="" disabled>Velg ansatt …</option>
+            {folk.map((a) => <option key={a.id} value={a.id}>{a.navn}</option>)}
+          </select>
+        </label>
+        <label className="felt"><span>Hvilket merke</span>
+          <select name="merke_id" required defaultValue="">
+            <option value="" disabled>Velg merke …</option>
+            {merkeliste.map((m) => <option key={m.id} value={m.id}>{m.emoji} {m.navn}</option>)}
+          </select>
+        </label>
+        <button type="submit" className="sq-knapp primar">Tildel merket</button>
+      </form>
+    </Sidepanel>
+  ) : undefined
+
   return (
     <>
-      <h1>Merker</h1>
-      <p className="undertittel">Anerkjennelse til de ansatte — vis fram det teamet får til. 🏅</p>
+      <Sidehode
+        tittel="Merker"
+        undertittel={tildelt === 0
+          ? 'Anerkjennelse til de ansatte — vis fram det teamet får til.'
+          : `${tildelt} tildelt til ${folk.length} ansatte.`}
+        handlinger={tildelPanel}
+      />
 
-      {erLeder && (merker ?? []).length === 0 && (
-        <section className="kort">
-          <h2>Kom i gang</h2>
-          <p className="undertittel">Start med et sett standardmerker, så kan du tilpasse.</p>
-          <form action={settOppStandard}><button type="submit">Sett opp standardmerker</button></form>
-        </section>
+      {erLeder && merkeliste.length === 0 && (
+        <Tomtilstand
+          tittel="Ingen merker satt opp"
+          forklaring="Start med et sett standardmerker, så kan du tilpasse dem etterpå."
+          handling={<form action={settOppStandard}><button type="submit" className="sq-knapp primar">Sett opp standardmerker</button></form>}
+        />
       )}
 
-      {/* Merkevegg */}
-      <section className="kort">
-        <h2>Merkeveggen</h2>
-        {(ansatte ?? []).length === 0 ? (
-          <p className="undertittel">Ingen ansatte ennå (legg dem til under Ansatte).</p>
-        ) : (
-          <ul className="merkevegg">
-            {(ansatte ?? []).map((a) => {
-              const sine = perAnsatt.get(a.id) ?? []
-              return (
-                <li key={a.id}>
-                  <div className="merkevegg-navn">
-                    <strong>{a.navn}</strong>
-                    <span className="undertittel"> · {navnFor.get(a.stasjon_id) ?? '—'}</span>
-                  </div>
-                  <div className="merkevegg-merker">
-                    {sine.length === 0 ? <span className="undertittel">Ingen merker ennå</span> : sine.map((t) => (
-                      <span className="merke-pill" key={t.id} title={t.merker?.navn}>
-                        <span className="merke-emoji">{t.merker?.emoji}</span> {t.merker?.navn}
-                        {erLeder && (
-                          <form action={fjernTildeling} style={{ display: 'inline' }}>
-                            <input type="hidden" name="id" value={t.id} />
-                            <button type="submit" className="merke-fjern" aria-label="Fjern">×</button>
-                          </form>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
+      {folk.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen ansatte ennå"
+          forklaring="Legg dem inn under Ansatte, så kan de få merker her."
+        />
+      ) : (
+        <ul className="merkevegg">
+          {folk.map((a) => {
+            const sine = perAnsatt.get(a.id) ?? []
+            return (
+              <li key={a.id}>
+                <div className="merkevegg-navn">
+                  <strong>{a.navn}</strong>
+                  <span className="undertittel"> · {navnFor.get(a.stasjon_id) ?? '—'}</span>
+                </div>
+                <div className="merkevegg-merker">
+                  {sine.length === 0 ? <span className="undertittel">Ingen merker ennå</span> : sine.map((t) => (
+                    <span className="merke-pill" key={t.id} title={t.merker?.navn}>
+                      <span className="merke-emoji">{t.merker?.emoji}</span> {t.merker?.navn}
+                      {erLeder && (
+                        <form action={fjernTildeling} style={{ display: 'inline' }}>
+                          <input type="hidden" name="id" value={t.id} />
+                          <button type="submit" className="merke-fjern" aria-label="Fjern">×</button>
+                        </form>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
-      {erLeder && (merker ?? []).length > 0 && (
-        <>
-          <section className="kort">
-            <h2>Tildel et merke</h2>
-            <form action={tildelMerke} className="rutine-form">
-              <select name="ansatt_id" required defaultValue="">
-                <option value="" disabled>Velg ansatt …</option>
-                {(ansatte ?? []).map((a) => <option key={a.id} value={a.id}>{a.navn}</option>)}
-              </select>
-              <select name="merke_id" required defaultValue="">
-                <option value="" disabled>Velg merke …</option>
-                {(merker ?? []).map((m) => <option key={m.id} value={m.id}>{m.emoji} {m.navn}</option>)}
-              </select>
-              <button type="submit" className="liten">Tildel</button>
-            </form>
-          </section>
-
-          <section className="kort">
-            <h2>Merker</h2>
+      {erLeder && merkeliste.length > 0 && (
+        // Hvilke merker som FINNES er oppsett, ikke dagens arbeid. Det er
+        // merkeveggen folk kommer for.
+        <details className="sq-forklaring" style={{ marginTop: '2rem' }}>
+          <summary>Merkene som finnes ({merkeliste.length})</summary>
+          <div className="sq-forklaring-innhold">
             <ul className="laereplan-liste">
-              {(merker ?? []).map((m) => (
+              {merkeliste.map((m) => (
                 <li key={m.id}>
                   <span><span className="merke-emoji">{m.emoji}</span> <strong>{m.navn}</strong>{m.beskrivelse ? <span className="undertittel"> — {m.beskrivelse}</span> : null}</span>
                   <form action={slettMerke}>
@@ -111,8 +130,8 @@ export default async function MerkerSide() {
               <input name="beskrivelse" placeholder="Beskrivelse (valgfri)" />
               <button type="submit" className="liten">Legg til</button>
             </form>
-          </section>
-        </>
+          </div>
+        </details>
       )}
     </>
   )
