@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { kr } from '@/lib/format'
 import type { HjemData } from '@/lib/tablethjem'
 import { TabletHero } from './tablet-hero'
+import { TabletSkiftet } from './tablet-skiftet'
 import { PulsPopp } from './puls-popp'
 import { SjekkpunktPopp } from './sjekkpunkt-popp'
 import { SendTilSjef } from './send-til-sjef'
@@ -32,6 +33,7 @@ export function TabletHjem({
   sjekkpunkter = [],
   hjem,
   maling = [],
+  rutinerIgjen = 0,
   ord = {},
 }: {
   navn?: string
@@ -43,6 +45,7 @@ export function TabletHjem({
   sjekkpunkter?: Sjekk[]
   hjem: HjemData
   maling?: TabletKort[]
+  rutinerIgjen?: number
   ord?: Record<string, string>
 }) {
   const t = (s: string) => ord[s] ?? s
@@ -61,6 +64,21 @@ export function TabletHjem({
           ))}
         </div>
       )}
+
+      {/* Skiftlista staar FORAN hero og fliser: det man kom for, forst. */}
+      <TabletSkiftet
+        kilder={{
+          sjekkpunkter,
+          rutinerIgjen,
+          oppgaver: sjefMeldinger.map((m) => ({
+            id: m.id, tittel: m.tittel, fullfort: m.fullfort, frist: m.frist,
+          })),
+          produksjon: hjem.produksjon
+            ? { plan: hjem.produksjon.plan, lagd: hjem.produksjon.lagd }
+            : null,
+        }}
+        ord={ord}
+      />
 
       <TabletHero navn={navn} streak={streak} />
 

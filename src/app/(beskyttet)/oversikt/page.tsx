@@ -37,7 +37,10 @@ export default async function OversiktSide() {
     const sjekkpunkter = (sjekkAlle ?? [])
       .filter((p) => !besvart.has(p.id) && (!p.klokkeslett || p.klokkeslett <= naaTid))
       .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
-    const streak = st ? (await beregnRutinestat(supabase, st.id, idag)).streak : 0
+    const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag) : null
+    const streak = rutinestat?.streak ?? 0
+    // Det som faktisk gjenstaar i dag - grunnlaget for skiftlista.
+    const rutinerIgjen = Math.max(0, (rutinestat?.forventet ?? 0) - (rutinestat?.utfort ?? 0))
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
 
     // Målekort delt med tablet → egen butikks stilling (motiverende kort).
@@ -92,7 +95,7 @@ export default async function OversiktSide() {
     const sjefMeldingerO = sjefMeldinger.map((m) => ({ ...m, tittel: o(m.tittel), beskrivelse: m.beskrivelse ? o(m.beskrivelse) : null }))
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} maling={maling} ord={ord} />
+    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} maling={maling} rutinerIgjen={rutinerIgjen} ord={ord} />
   }
 
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.
