@@ -3,8 +3,9 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { AVDELINGER } from '@/lib/avdelinger'
-import { StasjonsVelger } from '../stasjonsvelger'
 import { AiKontekst } from '../ai-kontekst'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
 
 const kr = new Intl.NumberFormat('nb-NO', {
   style: 'currency',
@@ -53,10 +54,12 @@ export default async function SalgSide({
   if (!dato) {
     return (
       <>
-        <h1>Salg</h1>
-        <p className="undertittel">
-          Ingen salgsdata ennå. Last opp en Salgsstatistikk-fil under Import og trykk Behandle.
-        </p>
+        <Sidehode tittel="Salg" undertittel="Omsetning, kategorier og varegrupper." />
+        <Tomtilstand
+          tittel="Ingen salgsdata ennå"
+          forklaring="Last opp en Salgsstatistikk-fil under Import og trykk Behandle, så fylles siden."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       </>
     )
   }
@@ -69,6 +72,17 @@ export default async function SalgSide({
       .overrideTypes<StasjonRad[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
   ])
+
+  // Aatte uker tilbake — nok til at fire like ukedager finnes selv om
+  // noen dager mangler. 56 dager x 5 stasjoner er godt under
+  // PostgREST-taket paa tusen rader.
+  const fraDato = new Date(`${dato}T12:00:00Z`)
+  fraDato.setUTCDate(fraDato.getUTCDate() - 56)
+  const { data: historikk } = await supabase
+    .from('v_salg_per_stasjon_dag')
+    .select('stasjon_id, dato, omsetning')
+    .gte('dato', fraDato.toISOString().slice(0, 10))
+    .lte('dato', dato)
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   const rader = (stasjonRader ?? []).sort((a, b) => b.omsetning - a.omsetning)
@@ -121,28 +135,43 @@ export default async function SalgSide({
     .sort((x, y) => y.omsetning - x.omsetning)
   const avdSum = avdelinger.reduce((s, a) => s + a.omsetning, 0)
 
+  // Sammenligningen mot en vanlig ukedag. Per stasjon naar en er valgt,
+  // ellers for kjeden samlet - historikken filtreres likt som tallet.
+  const histRader = ((historikk ?? []) as { stasjon_id: string; dato: string; omsetning: number }[])
+  const perDag = new Map<string, number>()
+  for (const h of histRader) {
+    if (erStasjon && h.stasjon_id !== valgtStasjon) continue
+    perDag.set(h.dato, (perDag.get(h.dato) ?? 0) + Number(h.omsetning ?? 0))
+  }
+
   const totalOms = rader.reduce((a, r) => a + r.omsetning, 0)
   const totalAntall = rader.reduce((a, r) => a + r.antall, 0)
+  const mot = motNormalen(
+    dato,
+    erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms,
+    [...perDag].map(([d, o]) => ({ dato: d, omsetning: o })),
+  )
 
   return (
     <>
-      <h1>Salg</h1>
-      <AiKontekst tekst="Forklar utviklingen" sporsmal="Forklar utviklingen i salget for denne stasjonen den siste tiden. Hva driver den?" />
-      <p className="undertittel">{datoFmt.format(new Date(dato))} · {erStasjon ? valgtNavn : 'alle stasjoner samlet'}</p>
-
-      {(stasjoner ?? []).length > 0 && (
-        <StasjonsVelger
-          stasjoner={[...(stasjoner ?? [])].sort((a, b) => a.butikknummer.localeCompare(b.butikknummer)).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-          valgtId={erStasjon ? valgtStasjon : null}
-          basePath="/salg"
-          bevar={{ dato }}
-        />
-      )}
+      <Sidehode
+        tittel="Salg"
+        undertittel={mot.tekst
+          ? `${mot.tekst}. ${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`
+          : `${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`}
+        handlinger={<AiKontekst tekst="Forklar utviklingen" sporsmal="Forklar utviklingen i salget for denne stasjonen den siste tiden. Hva driver den?" />}
+      />
 
       <section className="nokkeltall">
         <div className="kpi">
           <span className="kpi-tall">{kr.format(erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms)}</span>
           <span className="kpi-merke">Omsetning eks. mva</span>
+          {/* Uten dette er tallet bare et tall. */}
+          {mot.tekst && (
+            <span className={`kpi-mot${verdtEtBlikk(mot) ? (mot.avvikProsent > 0 ? ' god' : ' darlig') : ''}`}>
+              {mot.tekst}
+            </span>
+          )}
         </div>
         <div className="kpi">
           <span className="kpi-tall">{tall.format(erStasjon ? (valgtRad?.antall ?? 0) : totalAntall)}</span>

@@ -364,3 +364,8 @@
   gap: var(--luft-6);
   margin-bottom: var(--luft-5);
 }
+
+/* Sammenligningen under et nøkkeltall. Uten den er tallet bare et tall. */
+.kpi-mot { font-size: var(--tekst-liten); color: var(--tekst-svak); }
+.kpi-mot.god { color: var(--gronn); }
+.kpi-mot.darlig { color: var(--rod); }
