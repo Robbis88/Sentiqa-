@@ -5,6 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { TYPE_ETIKETT, FREKVENS_ETIKETT } from '@/lib/ikmat/standard'
 import { leggTilPunkt, settOppStandard } from '../handlinger'
 import { IkPunktListe, type Punkt } from './ik-punkt-liste'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 const TYPER = ['kjol', 'frys', 'oppvarming', 'varmholding', 'skyllevann', 'annet']
 const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
@@ -27,19 +28,54 @@ export default async function IkOppsettSide() {
     perStasjon.set(p.stasjon_id, l)
   }
 
+  // NIVÅ 1 på innstillinger: hva som gjelder nå. En stasjon uten
+  // kontrollpunkter logger ingenting — den tilstanden måtte man tidligere
+  // finne ved å bla forbi de andre stasjonene.
+  const liste = stasjoner ?? []
+  const totalt = (punkter ?? []).length
+  const utenOppsett = liste.filter((s) => (perStasjon.get(s.id) ?? []).length === 0).length
+  const svar = [
+    `${totalt} ${totalt === 1 ? 'kontrollpunkt' : 'kontrollpunkter'} på ${liste.length} ${liste.length === 1 ? 'stasjon' : 'stasjoner'}`,
+    utenOppsett > 0 ? `${utenOppsett} uten oppsett` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>IK-mat · oppsett</h1>
-      <p className="undertittel">Legg inn alle enhetene som skal måles, sett krav, og dra dem i rekkefølgen du faktisk går runden. <Link href="/ikmat">Til daglig logging →</Link></p>
+      <Sidehode
+        tittel="IK-mat · oppsett"
+        undertittel={svar}
+        handlinger={<Link href="/ikmat" className="sq-knapp">Til daglig logging</Link>}
+      />
 
-      {(stasjoner ?? []).map((s) => {
+      {liste.map((s) => {
         const sineP = perStasjon.get(s.id) ?? []
         return (
           <section className="kort" key={s.id}>
             <h2>{s.butikknummer} {s.navn} <span className="undertittel">· {sineP.length} punkter</span></h2>
 
-            <details className="rediger-detalj nytt-skjema">
-              <summary>➕ Legg til kontrollpunkt</summary>
+            {/* Punktene først. Skjemaet lå over lista, og på en stasjon med
+                tjuesju punkter møtte man et tomt skjema før man fikk se
+                hva som allerede var satt opp. */}
+            {sineP.length > 0 ? (
+              <>
+                <p className="undertittel">Dra i ⠿-håndtaket for å endre rekkefølgen — sett dem i den rekkefølgen du faktisk går runden.</p>
+                <IkPunktListe stasjonId={s.id} punkter={sineP} />
+              </>
+            ) : (
+              <Tomtilstand
+                tittel="Ingen kontrollpunkter"
+                forklaring="Denne stasjonen logger ingenting før det finnes noe å måle. St1-standarden dekker de vanlige enhetene og kan endres etterpå."
+                handling={
+                  <form action={settOppStandard}>
+                    <input type="hidden" name="stasjon_id" value={s.id} />
+                    <button type="submit" className="sq-knapp primar">Sett opp St1-standard (27 punkter)</button>
+                  </form>
+                }
+              />
+            )}
+
+            <details className="rediger-detalj nytt-skjema" style={{ marginTop: '0.8rem' }}>
+              <summary>Legg til kontrollpunkt</summary>
               <form action={leggTilPunkt} className="skjema-rediger" style={{ marginTop: '0.6rem' }}>
                 <input type="hidden" name="stasjon_id" value={s.id} />
                 <label className="felt"><span>Navn på enhet</span><input name="navn" placeholder="f.eks. Kjøleskap baguette" required /></label>
@@ -49,22 +85,9 @@ export default async function IkOppsettSide() {
                   <label className="felt"><span>Min °C</span><input name="min_temp" inputMode="decimal" placeholder="(valgfri)" /></label>
                   <label className="felt"><span>Maks °C</span><input name="max_temp" inputMode="decimal" placeholder="(valgfri)" /></label>
                 </div>
-                <button type="submit" className="primaer-knapp">+ Legg til kontrollpunkt</button>
+                <button type="submit" className="sq-knapp primar">Legg til kontrollpunkt</button>
               </form>
             </details>
-
-            {sineP.length === 0 && (
-              <form action={settOppStandard} style={{ marginTop: '0.6rem' }}>
-                <input type="hidden" name="stasjon_id" value={s.id} />
-                <p className="undertittel">Eller start fra St1-standarden:</p>
-                <button type="submit" className="liten">Sett opp St1-standard (27 punkter)</button>
-              </form>
-            )}
-
-            <div style={{ marginTop: '0.8rem' }}>
-              {sineP.length > 0 && <p className="undertittel">Dra i ⠿-håndtaket for å endre rekkefølgen.</p>}
-              <IkPunktListe stasjonId={s.id} punkter={sineP} />
-            </div>
           </section>
         )
       })}

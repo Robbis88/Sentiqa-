@@ -5,6 +5,7 @@ import { maanederSiden } from '@/lib/personvern/innsyn'
 import { HANDLING_TEKST, type Handling } from '@/lib/personvern/logg'
 import { FristSkjema, SlettSkjema } from './skjemaer'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 type Sok = Promise<{ stasjon?: string }>
 
@@ -49,13 +50,20 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
     handling: string; ansatt_navn: string | null
   }[]
 
+  // NIVÅ 1 på innstillinger: hva som gjelder nå. Sletteplikten er det ene
+  // her som kan være misligholdt akkurat nå, og den sto som en seksjon
+  // blant fire — man måtte bla for å finne ut om man lå etter.
+  const svar = [
+    `${personer.length} ${personer.length === 1 ? 'person' : 'personer'} på ${valgt.butikknummer} ${valgt.navn}`,
+    utlopt.length > 0
+      ? `${utlopt.length} klar for sletting`
+      : 'ingen over fristen',
+    `oppbevaring ${frist} måneder`,
+  ].join(' · ')
+
   return (
     <>
-      <h1>Personvern</h1>
-      <p className="undertittel">
-        Hva systemet har om hver enkelt, hvor lenge det beholdes, og hvordan
-        en ansatt får en kopi av sine egne opplysninger.
-      </p>
+      <Sidehode tittel="Personvern" undertittel={svar} />
 
       <section className="kort">
         <h2>Oppbevaringstid</h2>
@@ -78,9 +86,10 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
       <section className="kort">
         <h2>Klar for sletting</h2>
         {utlopt.length === 0 ? (
-          <p className="undertittel">
-            Ingen har passert {frist} måneder uten aktivitet på {valgt.navn}.
-          </p>
+          <Tomtilstand
+            tittel="Ingenting å slette"
+            forklaring={`Ingen på ${valgt.navn} har passert ${frist} måneder uten aktivitet. Sletteplikten er oppfylt for denne stasjonen.`}
+          />
         ) : (
           <>
             <p className="undertittel">

@@ -3,6 +3,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr } from '@/lib/format'
 import { beregnAbonnement } from '@/lib/pris'
 import { settAbonnement } from './handlinger'
+import { Sidehode, Forklaring } from '@/components/ui/side'
 
 type Retailer = {
   navn: string
@@ -30,10 +31,19 @@ export default async function AbonnementSide() {
   const aarlig = retailer?.aarlig_forskudd ?? false
   const { linjer, maaned, aarlig: aarsBelop } = beregnAbonnement(antallStasjoner, premium)
 
+  // NIVÅ 1 på innstillinger: hva som gjelder NÅ. Sidehodet sa firmanavn og
+  // antall stasjoner — to opplysninger man allerede har. Det man kommer hit
+  // for er hva man betaler, og etter hvilken ordning.
+  const svar = [
+    `${kr.format(maaned)} per måned`,
+    aarlig ? 'betales årlig i forskudd' : 'betales månedlig',
+    premium ? 'Avtalevokter inkludert' : null,
+    `${antallStasjoner} ${antallStasjoner === 1 ? 'stasjon' : 'stasjoner'}`,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>Abonnement</h1>
-      <p className="undertittel">{retailer?.navn} · {antallStasjoner} stasjon(er)</p>
+      <Sidehode tittel="Abonnement" undertittel={`${retailer?.navn ?? 'Kjeden'} · ${svar}`} />
 
       <section className="nokkeltall">
         <div className="kpi">
@@ -88,9 +98,25 @@ export default async function AbonnementSide() {
             <input type="checkbox" name="premium_avtalevokter" defaultChecked={premium} />
             <span>Avtalevokter (premium · {kr.format(199)}/mnd)</span>
           </label>
-          <button type="submit" className="liten">Lagre</button>
+          <button type="submit" className="sq-knapp primar">Lagre</button>
         </form>
       </section>
+
+      <Forklaring sporsmaal="Hva skjer når jeg legger til eller fjerner en stasjon?">
+        <p>
+          Prisen følger antall stasjoner automatisk. Legger du til en stasjon under
+          Stasjoner, endres grunnlaget her uten at du må gjøre noe — og motsatt når en
+          fjernes. Du blir ikke bedt om å velge en pakke som må oppgraderes.
+        </p>
+        <p>
+          Årlig forskudd gir to måneder gratis. Endrer du den innstillingen midt i en
+          periode, slår den inn ved neste fakturering — ikke med tilbakevirkende kraft.
+        </p>
+        <p>
+          Faktura går på EHF via PEPPOL til organisasjonsnummeret. E-postadressen over
+          er en kopi og en kontakt, ikke der fakturaen sendes.
+        </p>
+      </Forklaring>
     </>
   )
 }

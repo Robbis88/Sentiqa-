@@ -210,6 +210,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/rutiner/oppsett': 'innstillinger',
   '/persondata': 'innstillinger',
   '/abonnement': 'innstillinger',
+  // Ligger utenfor (beskyttet) og tegner seg i innloggingsskallet, fordi
+  // den også møter deg midt i pålogging når rollen krever to-faktor.
+  // Derfor ingen Sidehode her — den hører til appskallet, som siden ikke
+  // har. Sjekket 2026-08-18; la den stå.
   '/sikkerhet': 'innstillinger',
 
   // --- Opprett ---

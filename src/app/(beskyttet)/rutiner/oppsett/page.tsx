@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER, VAKTTYPE_ETIKETT, UKEDAG_NAVN } from '@/lib/rutineskjema'
 import { leggTilSkjema, slettSkjema } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
@@ -46,20 +47,46 @@ export default async function OppsettSide() {
     skjemaerForStasjon.set(s.stasjon_id, l)
   }
 
+  // NIVÅ 1 på innstillinger: hva som gjelder nå. Et skjema uten rutiner
+  // viser en tom vakt på nettbrettet — like ille som ingen skjema, og
+  // vanskeligere å få øye på, for skjemaet finnes jo.
+  const stasjonsliste = stasjoner ?? []
+  const alleSkjemaer = (skjemaer ?? []) as unknown as Skjema[]
+  const tomme = alleSkjemaer.filter((sk) => (rutinerForSkjema.get(sk.id) ?? []).length === 0).length
+  const svar = [
+    `${alleSkjemaer.length} ${alleSkjemaer.length === 1 ? 'skjema' : 'skjemaer'} på ${stasjonsliste.length} ${stasjonsliste.length === 1 ? 'stasjon' : 'stasjoner'}`,
+    tomme > 0 ? `${tomme} uten rutiner` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>Rutineoppsett</h1>
-      <p className="undertittel">Lag et skjema per vakttype, sett tider og ukedager — og legg rutinene inn. <Link href="/rutiner">Til avkryssing →</Link></p>
+      <Sidehode
+        tittel="Rutineoppsett"
+        undertittel={svar}
+        handlinger={<Link href="/rutiner" className="sq-knapp">Til avkryssing</Link>}
+      />
 
-      {(stasjoner ?? []).map((st) => (
+      {stasjonsliste.map((st) => (
         <section className="kort" key={st.id}>
           <h2>{st.butikknummer} {st.navn}</h2>
+
+          {(skjemaerForStasjon.get(st.id) ?? []).length === 0 && (
+            <Tomtilstand
+              tittel="Ingen vaktskjemaer"
+              forklaring="Uten et skjema vet ikke nettbrettet hva som skal gjøres på vakta. Lag ett per vakttype — åpning, kveld, helg — og legg rutinene inn i hvert."
+            />
+          )}
 
           {(skjemaerForStasjon.get(st.id) ?? []).map((sk) => (
             <div className="skjema-kort" key={sk.id}>
               <div className="skjema-topp">
                 <strong>{VAKTTYPE_ETIKETT[sk.vakttype]}{sk.navn ? ` · ${sk.navn}` : ''}</strong>
                 <span className="undertittel"> {sk.tid_start}–{sk.tid_slutt} · {dagerTekst(sk.ukedager)} · {(rutinerForSkjema.get(sk.id) ?? []).length} rutiner</span>
+                {/* Et tomt skjema ser ferdig ut i lista. På vakta er det en
+                    blank skjerm, og da lurer man på om nettbrettet er i stykker. */}
+                {(rutinerForSkjema.get(sk.id) ?? []).length === 0 && (
+                  <span className="status-pip gul">Tomt</span>
+                )}
                 <span className="skjema-handlinger">
                   <Link href={`/rutiner/oppsett/${sk.id}`} className="liten lenke-knapp">Rediger</Link>
                   <form action={slettSkjema}>
