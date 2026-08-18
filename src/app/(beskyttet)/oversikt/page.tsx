@@ -10,6 +10,7 @@ import { iDag } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
 import { AdminDashbord } from '../admin-dashbord'
 import { ButikksjefDashbord } from '../butikksjef-dashbord'
+import { husketStasjon } from '@/lib/stasjonskontekst'
 
 // Dashbordet kan gjøre litt tyngre oppslag (regnskap/ukerapport) — gi rom.
 export const maxDuration = 60
@@ -97,8 +98,19 @@ export default async function OversiktSide() {
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.
   if (bruker.rolle === 'plattform_redaktor') redirect('/plattform')
 
-  // Eier får sitt eget rike dashbord (hele kjeden).
+  // Eier: porteføljen som standard, én stasjon når han har valgt en i
+  // toppstripen. Det er drill-downen — «Varden faller» skal kunne følges
+  // helt inn i Vardens eget bilde, uten å bytte rolle eller side.
   if (bruker.rolle === 'retailer_admin') {
+    const { data: mine } = await supabase
+      .from('stasjoner').select('id, navn, butikknummer')
+      .is('slettet_tid', null).order('butikknummer')
+    const valgt = await husketStasjon(
+      (mine ?? []) as { id: string; navn: string; butikknummer: string }[],
+      null,
+      true,
+    )
+    if (valgt) return <ButikksjefDashbord bruker={bruker} bareStasjon={valgt} />
     return <AdminDashbord bruker={bruker} idag={iDag()} />
   }
 

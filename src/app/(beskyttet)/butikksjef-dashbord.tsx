@@ -61,8 +61,21 @@ const TOM: Data = {
 const dagerSiden = (iso: string, idag: string) =>
   Math.round((Date.parse(`${idag}T12:00:00Z`) - Date.parse(`${iso}T12:00:00Z`)) / 86400000)
 
-async function samle(supabase: SupabaseClient, bruker: InnloggetBruker, idag: string): Promise<Data> {
+// `bareStasjon` er valgfri med vilje. Butikksjefens vei gaar uendret
+// gjennom RLS; bare eierens drill-down sender inn en id. Da kan denne
+// endringen ikke endre oppforselen paa systemets mest brukte side.
+async function samle(
+  supabase: SupabaseClient,
+  bruker: InnloggetBruker,
+  idag: string,
+  bareStasjon?: string,
+): Promise<Data> {
   try {
+    // Tabeller uten stasjon_id (premier, varsler, fokus) avgrenses av RLS
+    // som for. Filteret legges bare der kolonnen finnes.
+    const paaStasjon = <T,>(q: T): T =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (bareStasjon ? (q as any).eq('stasjon_id', bareStasjon) : q)
     const om30 = (() => {
       const d = new Date(`${idag}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 30)
       return d.toISOString().slice(0, 10)
@@ -70,7 +83,7 @@ async function samle(supabase: SupabaseClient, bruker: InnloggetBruker, idag: st
 
     const [oppgRes, tilb, prem, bruk, salgDag, rutT, rutG, sjT, sjS, fokusSiste, konk, arr, stasjoner, avvikRes, varslerRes] =
       await Promise.all([
-        supabase.from('oppgaver').select('id, tittel, frist, status').eq('status', 'apen').is('slettet_tid', null)
+        paaStasjon(supabase.from('oppgaver').select('id, tittel, frist, status').eq('status', 'apen').is('slettet_tid', null))
           .overrideTypes<{ id: string; tittel: string; frist: string | null; status: string }[]>(),
         supabase.from('tilbakemelding').select('alvorlighet, lest_tid').is('lest_tid', null).limit(200)
           .overrideTypes<{ alvorlighet: string; lest_tid: string | null }[]>(),
@@ -78,18 +91,20 @@ async function samle(supabase: SupabaseClient, bruker: InnloggetBruker, idag: st
         supabase.from('pengepremie_bruk').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
         supabase.from('v_salg_per_stasjon_dag').select('dato').order('dato', { ascending: false }).limit(1)
           .overrideTypes<{ dato: string }[]>(),
-        supabase.from('rutiner').select('*', { count: 'exact', head: true }).is('slettet_tid', null),
-        supabase.from('rutine_utforinger').select('*', { count: 'exact', head: true }).eq('dato', idag),
-        supabase.from('sjekkpunkter').select('*', { count: 'exact', head: true }).is('slettet_tid', null),
-        supabase.from('sjekkpunkt_svar').select('*', { count: 'exact', head: true }).eq('dato', idag),
+        paaStasjon(supabase.from('rutiner').select('*', { count: 'exact', head: true }).is('slettet_tid', null)),
+        paaStasjon(supabase.from('rutine_utforinger').select('*', { count: 'exact', head: true }).eq('dato', idag)),
+        paaStasjon(supabase.from('sjekkpunkter').select('*', { count: 'exact', head: true }).is('slettet_tid', null)),
+        paaStasjon(supabase.from('sjekkpunkt_svar').select('*', { count: 'exact', head: true }).eq('dato', idag)),
         supabase.from('fokuspunkter').select('periode').order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>(),
-        supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv')
-          .gte('periode_slutt', idag).is('slettet_tid', null).limit(5).overrideTypes<Konk[]>(),
-        supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
-          .is('slettet_tid', null).order('dato').limit(8).overrideTypes<Arr[]>(),
-        supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
-        supabase.from('avvik').select('id, beskrivelse, frist').eq('gjennomfort', false).is('slettet_tid', null)
-          .order('frist', { nullsFirst: false }).limit(10).overrideTypes<Avvik[]>(),
+        paaStasjon(supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv')
+          .gte('periode_slutt', idag).is('slettet_tid', null).limit(5)).overrideTypes<Konk[]>(),
+        paaStasjon(supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
+          .is('slettet_tid', null).order('dato').limit(8)).overrideTypes<Arr[]>(),
+        (bareStasjon
+          ? supabase.from('stasjoner').select('id, navn, butikknummer').eq('id', bareStasjon)
+          : supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null)),
+        paaStasjon(supabase.from('avvik').select('id, beskrivelse, frist').eq('gjennomfort', false).is('slettet_tid', null)
+          .order('frist', { nullsFirst: false }).limit(10)).overrideTypes<Avvik[]>(),
         supabase.from('varsler').select('id, tittel, tekst, type, lenke').eq('lest', false).is('slettet_tid', null)
           .order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<Varsel[]>(),
       ])
@@ -209,10 +224,12 @@ function byggSignaler(d: Data, idag: string, ekstra: RaaSignal[] = []): Signal[]
   return rangerSignaler(raa)
 }
 
-export async function ButikksjefDashbord({ bruker }: { bruker: InnloggetBruker }) {
+export async function ButikksjefDashbord(
+  { bruker, bareStasjon }: { bruker: InnloggetBruker; bareStasjon?: string },
+) {
   const supabase = await lagSupabaseServerKlient()
   const idag = iDag()
-  const d = await samle(supabase, bruker, idag)
+  const d = await samle(supabase, bruker, idag, bareStasjon)
 
   // Utsolgt og treffsikkerhet krever egne spørringer, og skal aldri kunne
   // velte forsiden — derfor best effort, hver for seg.
