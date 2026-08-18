@@ -49,7 +49,13 @@ declare
     'ansatt_kontrakt',
     -- Tilgangsloggen (0103). Vokser raskest av alle: en rad per oppslag
     -- paa persondata, og den kan aldri slettes.
-    'persondata_logg'
+    'persondata_logg',
+    -- Soskentabellen fra samme migrasjon (0103), som ble glemt her.
+    -- Den vokser saktere - en rad per ansatt per tekstversjon - men den
+    -- leses paa HVER visning av /mine-opplysninger, og den ruta naas fra
+    -- nettbrettet. En upakket policy her ville truffet hver ansatt som
+    -- apnet sida, ikke bare en leder som saa paa en rapport.
+    'kontrolltiltak_bekreftelse'
   ];
   r record;
   feil int := 0;
