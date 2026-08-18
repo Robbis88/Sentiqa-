@@ -17,6 +17,10 @@ import {
 } from './skjemaer'
 import { slettFastVakt, slettFravaer, slettKrav, slettVindu } from './handlinger'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { nesteSteg } from '@/lib/bemanningssteg'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
+import Link from 'next/link'
 
 const UKEDAG = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn']
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
@@ -495,82 +499,49 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     vakterPerDag.set(v.dato, liste)
   }
 
+  // NIVÅ 1 og 2 på en arbeidsflyt: hvor langt er jeg kommet, og hva
+  // stopper meg. Siden hadde fem tilstander som hver gjør planen
+  // ubrukelig, spredt over tretten seksjoner — manglende vindu som en
+  // setning i seksjon tre mens skjemaet lå i seksjon seks, og
+  // kontraktunderdekningen i seksjon elleve. Rekkefølgen mellom dem er
+  // testet i bemanningssteg.test.ts.
+  const steg = nesteSteg({
+    harRamme: disponible !== null,
+    gjennomforbar: aar?.gjennomforbar ?? true,
+    underskudd: aar?.underskudd ?? 0,
+    harVindu: gjeldende.size > 0,
+    disponible,
+    kontraktTiltak: dekning?.tiltak ?? null,
+    kontraktUdekket: dekning?.sumUdekket ?? 0,
+    stillingsdekning: kap?.dekning ?? null,
+  })
+
   return (
     <>
-      <h1>Bemanning</h1>
-      <p className="undertittel">
-        Timerammen fordeles der kundene faktisk er. Du legger inn hvordan dere jobber fast —
-        systemet fyller resten.
-      </p>
+      <Sidehode
+        tittel="Bemanning"
+        undertittel={`${steg.tittel}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
+        handlinger={
+          <form className="rutine-form">
+            <select name="maned" defaultValue={maned} aria-label="Måned">
+              {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <input name="ar" type="number" defaultValue={ar} style={{ width: '5rem' }} aria-label="År" />
+            <button type="submit" className="sq-knapp">Vis</button>
+          </form>
+        }
+      />
 
-      <section className="kort">
-        <form className="rutine-form">
-          <select name="maned" defaultValue={maned}>
-            {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-          </select>
-          <input name="ar" type="number" defaultValue={ar} style={{ width: '5rem' }} />
-          <button type="submit" className="liten">Vis</button>
-        </form>
-      </section>
-
-      <section className="kort">
-        <h2>{MND[maned - 1]} {ar}</h2>
-        {disponible === null ? (
-          <p className="undertittel">
-            Ingen ramme for denne måneden ennå. Eier må laste opp forretningsplanen på <a href="/import">/import</a>.
-          </p>
-        ) : aar && !aar.gjennomforbar ? (
-          <p className="feil">
-            Minimumsbemanningen koster {Math.round(aar.sumBundne)} timer i året — {Math.round(aar.underskudd)} mer
-            enn hele årsrammen på {Math.round(aar.pool)}. Dette løses ikke ved å flytte timer mellom
-            måneder. Enten må åpningstiden kortes ned, eller så er rammen for stram. Si ifra til eier.
-          </p>
-        ) : (
-          <>
-            <p><strong>{Math.round(disponible)} timer</strong> til disposisjon.</p>
-            {iMnd && raaRamme !== null && Math.abs(disponible - raaRamme) >= 1 && (
-              <p className="undertittel">
-                {disponible > raaRamme
-                  ? `Måneden låner ${Math.round(disponible - raaRamme)} timer fra resten av året — minimumsbemanningen her koster ${Math.round(iMnd.bundne)} timer, mer enn bruttokurven alene ville gitt.`
-                  : `Måneden avgir ${Math.round(raaRamme - disponible)} timer til måneder med tyngre gulv.`}
-              </p>
-            )}
-            {plan === null ? (
-              <p className="undertittel">Legg inn bemannet vindu nedenfor, så regner jeg ut forslaget.</p>
-            ) : (
-              <p className="undertittel">
-                {Math.round(plan.bundneTimer)} timer går til minimumsbemanning, timer som krever flere, og faste vakter.
-                {' '}{Math.round(plan.brukteTimer)} er fordelt etter kundetrykk.
-                {' '}Kundeformen er hentet fra {profilen.kilde} ({profilen.dager} dager).
-              </p>
-            )}
-            {driftTekst && (
-              <p className="undertittel">{driftTekst}</p>
-            )}
-            {aarsrammer.length > 0 && (
-              <p className="undertittel">
-                {malteMaaneder > 0
-                  ? `Årets timer er fordelt utover månedene etter hvor mange kunder stasjonen faktisk hadde i ${ar - 1} (${malteMaaneder} av 12 måneder målt), ikke etter BP-kurven.`
-                  : `Ingen kundehistorikk for ${ar - 1} ennå — fordelingen følger BP-kurven inntil videre.`}
-              </p>
-            )}
-            {plan !== null && plan.fasteTimer >= 1 && (
-              <p className="undertittel">
-                Faste vakter bærer {Math.round(plan.fasteTimer)} timer i denne måneden. De
-                belaster ikke timerammen, men de er arbeid — går de bort i ferie eller sykdom,
-                må timene hentes et annet sted.
-              </p>
-            )}
-            {plan !== null && plan.frieTimer - plan.brukteTimer >= 1 && (
-              <p className="undertittel">
-                {Math.round(plan.frieTimer - plan.brukteTimer)} timer er ikke fordelt — taket på{' '}
-                {maksBemanning} er nådd i de timene kundene er der. Bruk dem på opplæring,
-                vareflytting eller vask, eller gi dem tilbake.
-              </p>
-            )}
-          </>
-        )}
-      </section>
+      {/* NIVÅ 2 — det ene neste steget. Ikke fem likeverdige knapper. */}
+      {steg.blokkering !== 'klar' && (
+        <section className={`kort ${steg.stopper ? 'oppmerksomhet' : ''}`}>
+          <h2>{steg.tittel}</h2>
+          <p>{steg.forklaring}</p>
+          {steg.handling === 'import' && (
+            <p><Link href="/import" className="sq-knapp primar">Gå til Import</Link></p>
+          )}
+        </section>
+      )}
 
       {plan && plan.gjennomforbar && (
         <section className="kort">
@@ -680,6 +651,56 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </section>
       )}
 
+      {/* NIVÅ 3 — hva systemet foreslår, og hvorfor. Dette sto ØVER planen
+          før: man møtte regnestykket bak forslaget før forslaget. */}
+      {disponible !== null && plan !== null && (
+        <section className="kort">
+          <h2>Slik er timene fordelt</h2>
+          <p>
+            <strong>{Math.round(disponible)} timer</strong> til disposisjon i {MND[maned - 1]}.
+            {' '}{Math.round(plan.bundneTimer)} går til minimumsbemanning, timer som krever
+            flere, og faste vakter. {Math.round(plan.brukteTimer)} er fordelt etter kundetrykk.
+          </p>
+          {iMnd && raaRamme !== null && Math.abs(disponible - raaRamme) >= 1 && (
+            <p className="undertittel">
+              {disponible > raaRamme
+                ? `Måneden låner ${Math.round(disponible - raaRamme)} timer fra resten av året — minimumsbemanningen her koster ${Math.round(iMnd.bundne)} timer, mer enn bruttokurven alene ville gitt.`
+                : `Måneden avgir ${Math.round(raaRamme - disponible)} timer til måneder med tyngre gulv.`}
+            </p>
+          )}
+          {plan.fasteTimer >= 1 && (
+            <p className="undertittel">
+              Faste vakter bærer {Math.round(plan.fasteTimer)} timer i denne måneden. De
+              belaster ikke timerammen, men de er arbeid — går de bort i ferie eller sykdom,
+              må timene hentes et annet sted.
+            </p>
+          )}
+          {plan.frieTimer - plan.brukteTimer >= 1 && (
+            <p className="undertittel">
+              {Math.round(plan.frieTimer - plan.brukteTimer)} timer er ikke fordelt — taket på{' '}
+              {maksBemanning} er nådd i de timene kundene er der. Bruk dem på opplæring,
+              vareflytting eller vask, eller gi dem tilbake.
+            </p>
+          )}
+
+          <Forklaring sporsmaal="Hvor kommer formen fra?">
+            <p>
+              Kundeformen er hentet fra {profilen.kilde} ({profilen.dager} dager). Samme måned
+              i fjor er riktigst — januar planlegges ikke etter septembertall. Finnes den ikke,
+              brukes siste 90 dager, og da er formen sesongforskjøvet.
+            </p>
+            {aarsrammer.length > 0 && (
+              <p>
+                {malteMaaneder > 0
+                  ? `Årets timer er fordelt utover månedene etter hvor mange kunder stasjonen faktisk hadde i ${ar - 1} (${malteMaaneder} av 12 måneder målt), ikke etter BP-kurven. BP-bruttoen er formet av hva stasjonen gjorde i fjor, inkludert timene butikksjefen brukte fordi hun hadde dem; kundene er formet av hvem som faktisk kom.`
+                  : `Ingen kundehistorikk for ${ar - 1} ennå — fordelingen følger BP-kurven inntil videre.`}
+              </p>
+            )}
+            {driftTekst && <p>{driftTekst}</p>}
+          </Forklaring>
+        </section>
+      )}
+
       {avvik && (avvik.overforbruk >= 1 || avvik.underforbruk >= 1) && (
         <section className="kort">
           <h2>Planen mot det som faktisk skjedde</h2>
@@ -710,48 +731,6 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           )}
         </section>
       )}
-
-      <section className="kort">
-        <h2>Når står det folk i butikken?</h2>
-        <p className="undertittel">
-          Når står det folk der — ikke når døra åpner. Begynner noen en time før åpning, er det den
-          timen som skal stå. Endrer dere åpningstid permanent, legg inn en ny rad med dato fra
-          endringen; den gamle blir stående som historikk.
-        </p>
-        <VinduSkjema stasjonId={valgt.id} iDag={iDag} />
-        {alleVinduer.length > 0 && (
-          <table className="tabell">
-            <thead><tr><th>Dag</th><th>Fra</th><th>Til</th><th>Min.</th><th>Gjelder fra</th><th></th></tr></thead>
-            <tbody>
-              {alleVinduer.map((v) => (
-                <tr key={v.id} style={{ opacity: v.gjelder_fra > iDag ? 0.5 : 1 }}>
-                  <td>{UKEDAG[v.ukedag]}</td>
-                  <td>{kl(v.fra_time)}</td>
-                  <td>{kl(v.til_time)}</td>
-                  <td>{v.min_bemanning}</td>
-                  <td>{v.gjelder_fra}</td>
-                  <td>
-                    <form action={slettVindu}>
-                      <input type="hidden" name="id" value={v.id} />
-                      <button type="submit" className="liten slett">Slett</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section className="kort">
-        <h2>Hvor mange får plass?</h2>
-        <p className="undertittel">
-          Flest personer planen har lov å foreslå i én time. Har dere to kasser, er det ingen
-          vits i sju. Uten tak fordeles hele rammen etter kundetrykk, og da havner slakken på
-          den travleste dagen. Står feltet tomt, er det intet tak.
-        </p>
-        <TakSkjema stasjonId={valgt.id} naa={grenser?.maks_bemanning ?? null} />
-      </section>
 
       {sammenligning.some((s) => s.vurdering !== 'for lite data') && (
         <section className="kort">
@@ -788,36 +767,6 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           </table>
         </section>
       )}
-
-      <section className="kort">
-        <h2>Ferie og fravær</h2>
-        <p className="undertittel">
-          Er en fast vakt borte, dekker den ikke minimumsbemanningen lenger, og timene må
-          kjøpes av rammen. Fem ukers ferie <strong>henter</strong> timer — den sparer dem ikke.
-        </p>
-        <FravaerSkjema stasjonId={valgt.id} navn={[...new Set(vaktListe.map((v) => v.navn))]} />
-        {fravaerListe.length > 0 && (
-          <table className="tabell">
-            <thead><tr><th>Hvem</th><th>Fra</th><th>Til</th><th>Hvorfor</th><th></th></tr></thead>
-            <tbody>
-              {fravaerListe.map((f) => (
-                <tr key={f.id}>
-                  <td>{f.navn}</td>
-                  <td>{f.fra_dato}</td>
-                  <td>{f.til_dato}</td>
-                  <td>{f.arsak ?? '—'}</td>
-                  <td>
-                    <form action={slettFravaer}>
-                      <input type="hidden" name="id" value={f.id} />
-                      <button type="submit" className="liten slett">Slett</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
 
       {stillinger.length > 0 && (
         <section className="kort">
@@ -941,15 +890,81 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </section>
       )}
 
+      {/* NIVÅ 4 — grunnlaget bak forslaget.
+          De fem skjemaene sto spredt mellom analysene, hvert med et tomt
+          skjema over sin egen tabell. Nå leder hver seksjon med det som
+          FAKTISK er satt opp, og skjemaet ligger bak en knapp. Forklaringene
+          er beholdt ordrett — de er sidens beste tekst. */}
+      <h2 className="bem-oppsett-tittel">Oppsett</h2>
+      <p className="undertittel">
+        Slik jobber dere fast. Planen fyller resten. Endrer noe seg her, regnes forslaget
+        over på nytt med en gang.
+      </p>
+
       <section className="kort">
-        <h2>Faste vakter</h2>
+        <h3>Når står det folk i butikken?</h3>
+        <p className="undertittel">
+          Når står det folk der — ikke når døra åpner. Begynner noen en time før åpning, er det den
+          timen som skal stå. Endrer dere åpningstid permanent, legg inn en ny rad med dato fra
+          endringen; den gamle blir stående som historikk.
+        </p>
+        {alleVinduer.length > 0 ? (
+          <table className="tabell">
+            <thead><tr><th>Dag</th><th>Fra</th><th>Til</th><th>Min.</th><th>Gjelder fra</th><th></th></tr></thead>
+            <tbody>
+              {alleVinduer.map((v) => (
+                <tr key={v.id} style={{ opacity: v.gjelder_fra > iDag ? 0.5 : 1 }}>
+                  <td>{UKEDAG[v.ukedag]}</td>
+                  <td>{kl(v.fra_time)}</td>
+                  <td>{kl(v.til_time)}</td>
+                  <td>{v.min_bemanning}</td>
+                  <td>{v.gjelder_fra}</td>
+                  <td>
+                    <form action={slettVindu}>
+                      <input type="hidden" name="id" value={v.id} />
+                      <button type="submit" className="liten slett">Slett</button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <Tomtilstand
+            tittel="Ingen bemannede vinduer"
+            forklaring="Dette er det eneste planen ikke kan gjettes fram til. Uten minst én rad regnes det ikke ut noe forslag i det hele tatt."
+          />
+        )}
+        <div className="knapperad">
+          <Sidepanel knapp="Nytt vindu" tittel="Nytt bemannet vindu" beskrivelse="Én rad per ukedag. Minimumsbemanning er hvor mange som må stå der uansett hvor stille det er.">
+            <VinduSkjema stasjonId={valgt.id} iDag={iDag} />
+          </Sidepanel>
+        </div>
+      </section>
+
+      <section className="kort">
+        <h3>Hvor mange får plass?</h3>
+        <p className="undertittel">
+          Flest personer planen har lov å foreslå i én time. Har dere to kasser, er det ingen
+          vits i sju. Uten tak fordeles hele rammen etter kundetrykk, og da havner slakken på
+          den travleste dagen. Står feltet tomt, er det intet tak.
+        </p>
+        <p>
+          {maksBemanning != null
+            ? <>Taket er <strong>{maksBemanning}</strong> personer i timen.</>
+            : <span className="undertittel">Intet tak satt — hele rammen fordeles etter kundetrykk.</span>}
+        </p>
+        <TakSkjema stasjonId={valgt.id} naa={grenser?.maks_bemanning ?? null} />
+      </section>
+
+      <section className="kort">
+        <h3>Faste vakter</h3>
         <p className="undertittel">
           Deg selv, NK, eller andre som alltid står. De går på fastlønn og bruker ikke av timerammen,
           men dekker minimumsbemanningen i timene de står. En timelønnet NK med fast vakt hører
           også hjemme her — velg da timelønn, så trekkes timene fra rammen selv om vakten er fast.
         </p>
-        <FastVaktSkjema stasjonId={valgt.id} />
-        {vaktListe.length > 0 && (
+        {vaktListe.length > 0 ? (
           <table className="tabell">
             <thead><tr><th>Hvem</th><th>Dag</th><th>Fra</th><th>Til</th><th>Lønn</th><th></th></tr></thead>
             <tbody>
@@ -970,17 +985,23 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               ))}
             </tbody>
           </table>
+        ) : (
+          <p className="undertittel">Ingen faste vakter lagt inn. Da må hele gulvet dekkes av timerammen.</p>
         )}
+        <div className="knapperad">
+          <Sidepanel knapp="Ny fast vakt" tittel="Ny fast vakt" beskrivelse="Velg timelønn hvis vakten skal trekkes fra rammen selv om den er fast.">
+            <FastVaktSkjema stasjonId={valgt.id} />
+          </Sidepanel>
+        </div>
       </section>
 
       <section className="kort">
-        <h2>Timer der én ikke holder</h2>
+        <h3>Timer der én ikke holder</h3>
         <p className="undertittel">
           Varemottak, eller andre timer der én ikke holder. Uten en rad her foreslås aldri to
           personer på en rolig time — de ekstra hendene går dit kundene faktisk er.
         </p>
-        <KravSkjema stasjonId={valgt.id} />
-        {kravListe.length > 0 && (
+        {kravListe.length > 0 ? (
           <table className="tabell">
             <thead><tr><th>Dag</th><th>Fra</th><th>Til</th><th>Antall</th><th>Hvorfor</th><th></th></tr></thead>
             <tbody>
@@ -1001,7 +1022,50 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               ))}
             </tbody>
           </table>
+        ) : (
+          <p className="undertittel">Ingen slike timer lagt inn.</p>
         )}
+        <div className="knapperad">
+          <Sidepanel knapp="Nytt krav" tittel="Timer der én ikke holder" beskrivelse="Varemottak, vask etter stengetid, eller andre timer der én person ikke er nok.">
+            <KravSkjema stasjonId={valgt.id} />
+          </Sidepanel>
+        </div>
+      </section>
+
+      <section className="kort">
+        <h3>Ferie og fravær</h3>
+        <p className="undertittel">
+          Er en fast vakt borte, dekker den ikke minimumsbemanningen lenger, og timene må
+          kjøpes av rammen. Fem ukers ferie <strong>henter</strong> timer — den sparer dem ikke.
+        </p>
+        {fravaerListe.length > 0 ? (
+          <table className="tabell">
+            <thead><tr><th>Hvem</th><th>Fra</th><th>Til</th><th>Hvorfor</th><th></th></tr></thead>
+            <tbody>
+              {fravaerListe.map((f) => (
+                <tr key={f.id}>
+                  <td>{f.navn}</td>
+                  <td>{f.fra_dato}</td>
+                  <td>{f.til_dato}</td>
+                  <td>{f.arsak ?? '—'}</td>
+                  <td>
+                    <form action={slettFravaer}>
+                      <input type="hidden" name="id" value={f.id} />
+                      <button type="submit" className="liten slett">Slett</button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="undertittel">Ingen fravær registrert.</p>
+        )}
+        <div className="knapperad">
+          <Sidepanel knapp="Nytt fravær" tittel="Ferie eller fravær" beskrivelse="Gjelder de faste vaktene. Er de borte, må timene deres kjøpes av rammen.">
+            <FravaerSkjema stasjonId={valgt.id} navn={[...new Set(vaktListe.map((v) => v.navn))]} />
+          </Sidepanel>
+        </div>
       </section>
     </>
   )

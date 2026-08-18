@@ -382,3 +382,24 @@
   line-height: 1.55;
   color: var(--tekst);
 }
+
+/* --- Knapperad ------------------------------------------------------
+   Brukt av Tomtilstand og av oppsett-seksjonene paa /bemanning. Har
+   aldri hatt stil: knappene la seg inntil hverandre uten mellomrom, og
+   paa liten skjerm rant de utover. */
+.knapperad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--luft-2);
+  margin-top: var(--luft-3);
+}
+
+/* Skillet mellom det systemet foreslaar og det du selv har satt opp.
+   Uten en overskrift her ser de fem oppsett-seksjonene ut som fem funn
+   til, og det er nettopp forskjellen niva 4 skal gjore. */
+.bem-oppsett-tittel {
+  margin: var(--luft-7) 0 var(--luft-1);
+  padding-top: var(--luft-5);
+  border-top: 1px solid var(--kant, #e5e7eb);
+}

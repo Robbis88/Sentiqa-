@@ -447,16 +447,13 @@
     ],
     "/bemanning": [
       "Bærer kontraktene planen?",
-      "Faste vakter",
-      "Ferie og fravær",
       "Forslag for uke {valgtUkeNr}",
-      "Hvor mange får plass?",
       "Hvor mye går folk i?",
-      "Når står det folk i butikken?",
+      "Oppsett",
       "Planen mot det som faktisk skjedde",
+      "Slik er timene fordelt",
       "Stasjonene mot hverandre",
-      "Timer der én ikke holder",
-      "{MND[maned - 1]} {ar}"
+      "{steg.tittel}"
     ],
     "/dekning": [
       "Måned for måned"
