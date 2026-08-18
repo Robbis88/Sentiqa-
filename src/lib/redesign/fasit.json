@@ -694,6 +694,9 @@
       "/import",
       "/salg"
     ],
+    "/svinn": [
+      "/import"
+    ],
     "/timesalg": [
       "/import"
     ],

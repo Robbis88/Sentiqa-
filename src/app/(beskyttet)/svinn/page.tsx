@@ -3,8 +3,10 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
 import { hentAlt } from '@/lib/paginer'
-import { StasjonsVelger } from '../stasjonsvelger'
 import { AiKontekst } from '../ai-kontekst'
+import Link from 'next/link'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
 
 type Svinn = {
   stasjon_id: string
@@ -36,10 +38,12 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   if (!siste?.dato) {
     return (
       <>
-        <h1>Synlig svinn</h1>
-        <p className="undertittel">
-          Ingen svinndata ennå. Last opp en Varetransaksjonsliste under Import.
-        </p>
+        <Sidehode tittel="Synlig svinn" undertittel="Det som kastes, målt mot matsalget." />
+        <Tomtilstand
+          tittel="Ingen svinndata ennå"
+          forklaring="Last opp en Varetransaksjonsliste under Import, så ser du hva som kastes og hvordan det ligger mot terskelen."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       </>
     )
   }
@@ -73,6 +77,17 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     supabase.rpc('svinn_vindu_sum', { p_fra: start, p_til: slutt }),
     supabase.rpc('matsalg_vindu_sum', { p_fra: start, p_til: slutt }),
   ])
+
+  // Aatte uker tilbake: nok til fire like ukedager selv om noen dager
+  // mangler. Summeres per dag, saa radantallet holder seg lavt.
+  const histFra = new Date(`${siste.dato}T12:00:00Z`)
+  histFra.setUTCDate(histFra.getUTCDate() - 56)
+  const { data: svinnHist } = await supabase
+    .from('synlig_svinn')
+    .select('stasjon_id, dato, nettopris_total')
+    .gte('dato', histFra.toISOString().slice(0, 10))
+    .lte('dato', siste.dato)
+    .is('slettet_tid', null)
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 
@@ -121,24 +136,42 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   }
   const toppVarer = [...perVare.values()].sort((a, b) => b.sum - a.sum).slice(0, 10)
 
+  // Svinn mot en vanlig ukedag. Samme maskineri som paa /salg, men
+  // dommen er snudd: her er mer verre.
+  const perDagSvinn = new Map<string, number>()
+  for (const h of ((svinnHist ?? []) as {
+    stasjon_id: string; dato: string; nettopris_total: number | null
+  }[])) {
+    if (erStasjon && h.stasjon_id !== valgtStasjon) continue
+    perDagSvinn.set(h.dato, (perDagSvinn.get(h.dato) ?? 0) + Math.abs(Number(h.nettopris_total ?? 0)))
+  }
+  const mot = motNormalen(
+    siste.dato,
+    total,
+    [...perDagSvinn].map(([d, o]) => ({ dato: d, omsetning: o })),
+  )
+
   return (
     <>
-      <h1>Synlig svinn</h1>
-      <AiKontekst tekst="Finn arsaken" sporsmal="Hva er de viktigste arsakene til svinnet vart den siste tiden?" />
-      <p className="undertittel">{datoLang.format(new Date(siste.dato))} · {erStasjon ? valgtNavn : 'alle stasjoner'}</p>
-
-      {(stasjoner ?? []).length > 0 && (
-        <StasjonsVelger
-          stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-          valgtId={erStasjon ? valgtStasjon : null}
-          basePath="/svinn"
-        />
-      )}
+      <Sidehode
+        tittel="Synlig svinn"
+        undertittel={mot.tekst
+          ? `${mot.tekst}. ${datoLang.format(new Date(siste.dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`
+          : `${datoLang.format(new Date(siste.dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`}
+        handlinger={<AiKontekst tekst="Finn arsaken" sporsmal="Hva er de viktigste arsakene til svinnet vart den siste tiden?" />}
+      />
 
       <section className="nokkeltall">
         <div className="kpi">
           <span className="kpi-tall">{kr.format(total)}</span>
           <span className="kpi-merke">Synlig svinn totalt</span>
+          {/* Paa svinn er OVER normalen daarlig — motsatt av salg. Derfor
+              snus dommen her, mens pilen peker samme vei. */}
+          {mot.tekst && (
+            <span className={`kpi-mot${verdtEtBlikk(mot) ? (mot.avvikProsent > 0 ? ' darlig' : ' god') : ''}`}>
+              {mot.tekst}
+            </span>
+          )}
         </div>
         <div className="kpi">
           <span className="kpi-tall">{tall.format(alle.reduce((a, r) => a + (r.antall ?? 0), 0))}</span>
