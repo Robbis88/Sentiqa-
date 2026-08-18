@@ -5,6 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, tall, kr } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { OppdaterKnapp } from './oppdater-knapp'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 
 // Backtesten kan ta litt når den kjøres fra knappen (motorene × ~60 dager × stasjoner).
 export const maxDuration = 120
@@ -16,11 +17,11 @@ function klasse(t: number): string {
   return t >= 80 ? 'gronn' : t >= 60 ? 'gul' : 'rod'
 }
 
-const AVD_NAVN = new Map(AVDELINGER.map((a) => [a.kode, `${a.ikon} ${a.navn}`]))
+const AVD_NAVN = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
 const PROD_NAVN = new Map<string, string>([
-  ['1201', '🥐 Boller'], ['1202', '🥖 Brød/bakst'], ['1203', '🥪 Smørbrød'],
-  ['1216', '🍕 Varmmat'], ['1217', '🌭 Pølser'], ['1218', '🍗 Kylling'],
-  ['1219', '🍩 Søtt'], ['1221', '🥗 Salat'],
+  ['1201', 'Boller'], ['1202', 'Brød/bakst'], ['1203', 'Smørbrød'],
+  ['1216', 'Varmmat'], ['1217', 'Pølser'], ['1218', 'Kylling'],
+  ['1219', 'Søtt'], ['1221', 'Salat'],
 ])
 function katNavn(type: Type, kode: string): string {
   return (type === 'salgsprognose' ? AVD_NAVN.get(kode) : PROD_NAVN.get(kode)) ?? `Kode ${kode}`
@@ -124,7 +125,7 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
                 <td>
                   {k.kal ? (
                     <span className="undertittel" title={`Basert på ${k.kal.n} dager`}>
-                      🤖 ×{k.kal.korreksjon.toFixed(2)} {k.kal.korreksjon > 1.02 ? '(løfter)' : k.kal.korreksjon < 0.98 ? '(demper)' : '(nøytral)'}
+                      ×{k.kal.korreksjon.toFixed(2)} {k.kal.korreksjon > 1.02 ? '(løfter)' : k.kal.korreksjon < 0.98 ? '(demper)' : '(nøytral)'}
                     </span>
                   ) : <span className="undertittel">—</span>}
                 </td>
@@ -136,13 +137,33 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
     )
   }
 
+  // NIVÅ 1 — svaret. To prosenttall og den kategorien det er mest å hente
+  // på. Uten den siste må leseren skanne to tabeller sortert stigende for
+  // å finne det samme.
+  const svakest = [
+    ...prod.kategorier.map((k) => ({ ...k, type: 'produksjonsplan' as Type })),
+    ...salg.kategorier.map((k) => ({ ...k, type: 'salgsprognose' as Type })),
+  ].reduce<{ kode: string; treff: number; type: Type } | null>(
+    (a, k) => (a == null || k.treff < a.treff ? k : a), null)
+
+  const snittDeler: string[] = []
+  if (prod.snitt != null) snittDeler.push(`produksjonsplanen ${prod.snitt} %`)
+  if (salg.snitt != null) snittDeler.push(`salgsprognosen ${salg.snitt} %`)
+  const maalteDager = Math.max(prod.dager, salg.dager)
+  const svar = snittDeler.length === 0
+    ? null
+    : `Treffer ${snittDeler.join(' og ')}${maalteDager ? ` over ${maalteDager} målte dager` : ''}`
+      + (svakest ? `. Svakest på ${katNavn(svakest.type, svakest.kode)} (${svakest.treff} %)` : '')
+
   return (
     <>
-      <h1>Treffsikkerhet</h1>
-      <p className="undertittel">
-        Hvor godt traff prognosene faktisk salg? Målt ved å kjøre motorene bakover på din egen historikk («backtest»).{' '}
-        <Link href="/produksjonsplan">← Tilbake til planen</Link>
-      </p>
+      <Sidehode
+        tittel="Treffsikkerhet"
+        undertittel={svar
+          ? `${svar}. Målt ved å kjøre motorene bakover på din egen historikk.`
+          : 'Hvor godt traff prognosene faktisk salg? Målt ved å kjøre motorene bakover på din egen historikk («backtest»).'}
+        handlinger={<Link href="/produksjonsplan" className="sq-knapp">Tilbake til planen</Link>}
+      />
 
       <section className="kort">
         <form method="get" className="plan-velg">
@@ -165,11 +186,12 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
       </section>
 
       {!harData ? (
-        <section className="kort">
-          <p className="undertittel">
-            Ingen treffdata ennå for denne stasjonen.{bruker.rolle === 'retailer_admin' ? ' Trykk «Oppdater treffsikkerhet» over for å kjøre backtesten første gang.' : ' Kommer etter nattens kjøring.'}
-          </p>
-        </section>
+        <Tomtilstand
+          tittel="Ingen treffdata ennå for denne stasjonen"
+          forklaring={bruker.rolle === 'retailer_admin'
+            ? 'Backtesten kjører motorene bakover på stasjonens egen historikk og sammenligner med det som faktisk ble solgt. Trykk «Oppdater treffsikkerhet» over for å kjøre den første gang.'
+            : 'Backtesten kjøres hver natt og sammenligner prognosene med det som faktisk ble solgt. Tallene kommer etter nattens kjøring.'}
+        />
       ) : (
         <>
           <section className="nokkeltall">
@@ -204,11 +226,23 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
             </section>
           )}
 
-          <section className="kort">
-            <p className="undertittel">
-              🤖 <b>Selvlæring:</b> der prognosen bommer systematisk lærer systemet en korreksjonsfaktor per kategori (klemt 0,6–1,6, minst 8 dager bak) som ganges inn i framtidige forslag. Den oppdateres hver natt — så treffsikkerheten skal stige over tid.
+          <Forklaring sporsmaal="Hva betyr selvlæring-kolonnen?">
+            <p>
+              Bommer prognosen systematisk på en kategori, lærer systemet en
+              korreksjonsfaktor for den. Den ganges inn i framtidige forslag, og står
+              i tabellen som «×1,12 (løfter)» eller «×0,91 (demper)».
             </p>
-          </section>
+            <p>
+              Faktoren er klemt mellom 0,6 og 1,6 og krever minst 8 målte dager bak
+              seg. Begge deler for å hindre at noen få rare dager får lov til å dra
+              prognosen langt av gårde. Den oppdateres hver natt, så treffsikkerheten
+              skal stige over tid.
+            </p>
+            <p>
+              Kategoriene står med svakeste treff øverst — det er der det er mest å
+              hente, ikke der tallene er størst.
+            </p>
+          </Forklaring>
         </>
       )}
     </>
