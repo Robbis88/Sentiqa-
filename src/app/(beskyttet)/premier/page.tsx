@@ -3,6 +3,8 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 import { registrerBruk, slettBruk, tildelPremie, vekslUtbetalt, slettTildeling } from './handlinger'
+import { Sidehode } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Bruk = { id: string; stasjon_id: string; beskrivelse: string; belop_kr: number; dato: string }
 type Tildeling = { id: string; stasjon_id: string; beskrivelse: string; belop_kr: number; dato: string; utbetalt: boolean }
@@ -25,36 +27,16 @@ export default async function PremierSide() {
   const bruktFor = new Map<string, number>()
   for (const b of bruk ?? []) bruktFor.set(b.stasjon_id, (bruktFor.get(b.stasjon_id) ?? 0) + Number(b.belop_kr))
 
-  return (
-    <>
-      <h1>Premiesaldo</h1>
-      <p className="undertittel">Vunnet (konkurranser + tildelinger) − brukt = igjen, per stasjon.</p>
+  const samletIgjen = (stasjoner ?? []).reduce(
+    (n, s2) => n + (vunnetFor.get(s2.id) ?? 0) - (bruktFor.get(s2.id) ?? 0), 0)
 
-      <section className="kort">
-        <table className="tabell">
-          <thead><tr><th>Stasjon</th><th>Vunnet</th><th>Brukt</th><th>Igjen</th></tr></thead>
-          <tbody>
-            {(stasjoner ?? []).map((s) => {
-              const vunnet = vunnetFor.get(s.id) ?? 0
-              const brukt = bruktFor.get(s.id) ?? 0
-              return (
-                <tr key={s.id}>
-                  <td>{s.butikknummer} {s.navn}</td>
-                  <td>{kr.format(vunnet)}</td>
-                  <td>{kr.format(brukt)}</td>
-                  <td><strong>{kr.format(vunnet - brukt)}</strong></td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </section>
-
-      {erAdmin && (
-        <section className="kort">
-          <h2>Tildel pengepremie</h2>
-          <p className="undertittel">Gi en stasjon premiepenger utenom konkurranser (f.eks. ekstra innsats). Kun eier kan tildele.</p>
-          <form action={tildelPremie} className="rutine-form">
+  const tildelPanel = (
+    <Sidepanel
+      knapp="Tildel premie"
+      tittel="Tildel pengepremie"
+      beskrivelse="Utenom konkurranser — for eksempel ekstra innsats. Kun eier kan tildele."
+    >
+      <form action={tildelPremie} className="rutine-form">
             <label className="felt"><span>Stasjon</span>
               <select name="stasjon_id" required defaultValue="">
                 <option value="" disabled>Velg …</option>
@@ -72,8 +54,69 @@ export default async function PremierSide() {
             </label>
             <button type="submit" className="liten">Tildel</button>
           </form>
-        </section>
-      )}
+    </Sidepanel>
+  )
+
+  const brukPanel = (
+    <Sidepanel
+      knapp="Registrer bruk"
+      tittel="Registrer bruk"
+      beskrivelse="Hva pengene gikk til, så saldoen stemmer."
+      knappeklasse="sq-knapp"
+    >
+      <form action={registrerBruk} className="rutine-form">
+          <label className="felt"><span>Stasjon</span>
+            <select name="stasjon_id" required defaultValue="">
+              <option value="" disabled>Velg …</option>
+              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+            </select>
+          </label>
+          <label className="felt"><span>Hva ble pengene brukt til?</span>
+            <input name="beskrivelse" placeholder="Julebord" required />
+          </label>
+          <label className="felt sq-smalt"><span>Beløp i kroner</span>
+            <input name="belop_kr" type="number" min="1" step="1" required />
+          </label>
+          <label className="felt sq-smalt"><span>Dato</span>
+            <input name="dato" type="date" />
+          </label>
+          <button type="submit" className="liten">Lagre</button>
+        </form>
+    </Sidepanel>
+  )
+
+  return (
+    <>
+      <Sidehode
+        tittel="Premiesaldo"
+        undertittel={`${kr.format(samletIgjen)} igjen å bruke. Vunnet fra konkurranser og tildelinger, minus det som er brukt.`}
+        handlinger={(
+          <>
+            {erAdmin && tildelPanel}
+            {brukPanel}
+          </>
+        )}
+      />
+
+      <div className="tabellramme">
+        <table className="tabell">
+          <thead><tr><th>Stasjon</th><th>Vunnet</th><th>Brukt</th><th>Igjen</th></tr></thead>
+          <tbody>
+            {(stasjoner ?? []).map((s) => {
+              const vunnet = vunnetFor.get(s.id) ?? 0
+              const brukt = bruktFor.get(s.id) ?? 0
+              return (
+                <tr key={s.id}>
+                  <td>{s.butikknummer} {s.navn}</td>
+                  <td>{kr.format(vunnet)}</td>
+                  <td>{kr.format(brukt)}</td>
+                  <td><strong>{kr.format(vunnet - brukt)}</strong></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {(tildelinger ?? []).length > 0 && (
         <section className="kort">
@@ -98,35 +141,13 @@ export default async function PremierSide() {
                       <span className={`status-pip ${t.utbetalt ? 'gronn' : 'gul'}`}>{t.utbetalt ? 'Ja' : 'Nei'}</span>
                     )}
                   </td>
-                  {erAdmin && <td><form action={slettTildeling}><input type="hidden" name="id" value={t.id} /><button type="submit" className="liten slett">✕</button></form></td>}
+                  {erAdmin && <td><form action={slettTildeling}><input type="hidden" name="id" value={t.id} /><button type="submit" className="liten slett">Slett</button></form></td>}
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
       )}
-
-      <section className="kort">
-        <h2>Registrer bruk</h2>
-        <form action={registrerBruk} className="rutine-form">
-          <label className="felt"><span>Stasjon</span>
-            <select name="stasjon_id" required defaultValue="">
-              <option value="" disabled>Velg …</option>
-              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-            </select>
-          </label>
-          <label className="felt"><span>Hva ble pengene brukt til?</span>
-            <input name="beskrivelse" placeholder="Julebord" required />
-          </label>
-          <label className="felt sq-smalt"><span>Beløp i kroner</span>
-            <input name="belop_kr" type="number" min="1" step="1" required />
-          </label>
-          <label className="felt sq-smalt"><span>Dato</span>
-            <input name="dato" type="date" />
-          </label>
-          <button type="submit" className="liten">Lagre</button>
-        </form>
-      </section>
 
       {(bruk ?? []).length > 0 && (
         <section className="kort">
@@ -140,7 +161,7 @@ export default async function PremierSide() {
                   <td>{b.beskrivelse}</td>
                   <td>{kr.format(Number(b.belop_kr))}</td>
                   <td>{datoLang.format(new Date(b.dato))}</td>
-                  <td><form action={slettBruk}><input type="hidden" name="id" value={b.id} /><button type="submit" className="liten slett">✕</button></form></td>
+                  <td><form action={slettBruk}><input type="hidden" name="id" value={b.id} /><button type="submit" className="liten slett">Slett</button></form></td>
                 </tr>
               ))}
             </tbody>
