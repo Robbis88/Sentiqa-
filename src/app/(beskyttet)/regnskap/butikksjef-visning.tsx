@@ -5,6 +5,8 @@ import { byggPeriodeGrupper } from '@/lib/perioder'
 import { BUTIKKSJEF_PERSONAL_KODER, BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
 import { SKJUL_OMS_KODER as SKJUL_OMS } from '@/lib/avdelinger'
 import { PeriodeVelger } from '../periode-velger'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { motBudsjett, storsteAvvik, svaret } from '@/lib/regnskap/mot-budsjett'
 
 type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }
 type Kost = { navn: string; regnskap: number; budsjett: number }
@@ -28,8 +30,11 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   if (perioder.length === 0) {
     return (
       <>
-        <h1>Regnskap · {stasjon.butikknummer} {stasjon.navn}</h1>
-        <p className="undertittel">Ingen regnskapsdata for din stasjon ennå.</p>
+        <Sidehode tittel={`Regnskap · ${stasjon.butikknummer} ${stasjon.navn}`} />
+        <Tomtilstand
+          tittel="Ingen regnskapsdata for din stasjon ennå"
+          forklaring="Regnskapet legges inn sentralt. Så snart perioden er lastet opp, ser du omsetning, bruttofortjeneste og kostnadene du selv styrer her."
+        />
       </>
     )
   }
@@ -75,10 +80,22 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
     if (l && ((l.regnskap ?? 0) !== 0 || (l.budsjett ?? 0) !== 0)) kostnader.push({ navn: l.post, regnskap: l.regnskap ?? 0, budsjett: l.budsjett ?? 0 })
   }
 
+  // NIVÅ 1 — svaret. Butikksjefen har ingen resultatlinje å måles på;
+  // bruttofortjenesten er det nærmeste hun kommer, og driveren hentes fra
+  // kostnadene hun faktisk styrer. Å peke på husleie ville vært å be henne
+  // fikse noe hun ikke rår over.
+  const brfBudsjett = seksjon('bruttofortjeneste').reduce((a, l) => a + (l.budsjett ?? 0), 0)
+  const motBrf = motBudsjett(brfTot, brfBudsjett)
+  const driver = storsteAvvik(kostnader.map((k) => ({ post: k.navn, regnskap: k.regnskap, budsjett: k.budsjett })), true)
+  const svar = svaret('Bruttofortjeneste', motBrf, driver)
+  const periodeTekst = hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))
+
   return (
     <>
-      <h1>Regnskap · {stasjon.butikknummer} {stasjon.navn}</h1>
-      <p className="undertittel">{hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))} · din stasjon. Du ser omsetning, BRF og kostnadene du selv kan påvirke.</p>
+      <Sidehode
+        tittel={`Regnskap · ${stasjon.butikknummer} ${stasjon.navn}`}
+        undertittel={svar ? `${svar}. ${periodeTekst}` : `${periodeTekst} · din stasjon`}
+      />
 
       {(stasjoner ?? []).length > 1 && (
         <section className="kort">
@@ -105,9 +122,40 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
       )}
 
       <section className="nokkeltall">
-        <div className="kpi"><span className="kpi-tall">{kr.format(omsTot)}</span><span className="kpi-merke">Omsetning</span></div>
-        <div className="kpi"><span className="kpi-tall">{kr.format(brfTot)}</span><span className="kpi-merke">Bruttofortjeneste</span></div>
+        {([
+          { merke: 'Omsetning', verdi: omsTot, budsjett: seksjon('omsetning').reduce((a, l) => a + (l.budsjett ?? 0), 0) },
+          { merke: 'Bruttofortjeneste', verdi: brfTot, budsjett: brfBudsjett },
+        ] as const).map(({ merke, verdi, budsjett }) => {
+          const mot = motBudsjett(verdi, budsjett)
+          return (
+            <div className="kpi" key={merke}>
+              <span className="kpi-tall">{kr.format(verdi)}</span>
+              <span className="kpi-merke">{merke}</span>
+              {mot.tekst && (
+                <span className={`kpi-mot${mot.bra === null ? '' : mot.bra ? ' god' : ' darlig'}`}>
+                  {mot.tekst}
+                </span>
+              )}
+            </div>
+          )
+        })}
       </section>
+
+      <Forklaring sporsmaal="Hvorfor ser jeg ikke hele regnskapet?">
+        <p>
+          Du ser omsetning, bruttofortjeneste og kostnadene du selv styrer. Royalty,
+          husleie, finans og varekost-detaljer ligger på selskapsnivå — de er ikke
+          skjult for å holde noe tilbake, men fordi de ikke er noe du kan gjøre noe med
+          på skiftet ditt.
+        </p>
+        <p>
+          {hittil
+            ? `Hittil i år summerer månedene januar til og med ${manedAar.format(new Date(aktivPeriode))}.`
+            : `Tallene gjelder ${manedAar.format(new Date(aktivPeriode))} alene.`}{' '}
+          «Drar mest» er det største avviket målt i kroner blant de påvirkbare
+          kostnadene. Avvik under 2 % regnes som truffet budsjett.
+        </p>
+      </Forklaring>
 
       {(['omsetning', 'bruttofortjeneste'] as const).map((navn) => (
         <section className="kort" key={navn}>

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
@@ -8,6 +9,8 @@ import { RegnskapVarsler } from './varsler-liste'
 import { StasjonsVelger } from '../stasjonsvelger'
 import { PeriodeVelger } from '../periode-velger'
 import { AiKontekst } from '../ai-kontekst'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { motBudsjett, storsteAvvik, svaret, type Driver } from '@/lib/regnskap/mot-budsjett'
 
 type Linje = {
   seksjon: string
@@ -52,10 +55,12 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   if (liste.length === 0) {
     return (
       <>
-        <h1>Regnskap</h1>
-        <p className="undertittel">
-          Ingen regnskapsdata ennå. Last opp regnskapsrapporten under Import og trykk Behandle.
-        </p>
+        <Sidehode tittel="Regnskap" undertittel="Resultatet målt mot budsjettet." />
+        <Tomtilstand
+          tittel="Ingen regnskapsdata ennå"
+          forklaring="Last opp regnskapsrapporten under Import og trykk Behandle, så fylles siden."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       </>
     )
   }
@@ -168,11 +173,34 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   // Varsler: stasjonsvisning viser kun valgt stasjons varsler; ellers alle.
   const visVarsler = erStasjon ? varsler.filter((v) => v.omfang === valgtNavn) : varsler
 
+  // NIVÅ 1 — svaret. Bunnlinja er hovedtallet når den finnes. Per stasjon
+  // gjør den ikke det (resultatlinjene er kun på cluster-nivå), og da er
+  // bruttofortjenesten det nærmeste stasjonen har til et resultat.
+  const hoved = erStasjon
+    ? { merke: 'Bruttofortjeneste', l: brutto }
+    : resultatEks
+      ? { merke: 'Resultat eks. 9900', l: resultatEks }
+      : { merke: 'Resultat inkl. 9900', l: resultatInkl }
+  const motHoved = motBudsjett(hoved.l?.regnskap ?? null, hoved.l?.budsjett ?? null)
+
+  // Hva drar mest: en kostnad over budsjett, eller en inntekt under det.
+  // Begge er kroner, så den største av de to vinner uansett hvilken side
+  // av regnskapet den står på.
+  const drivere = [storsteAvvik(seksjon('driftskostnader'), true), storsteAvvik(seksjon('omsetning'))]
+    .filter((d): d is Driver => d != null)
+    .sort((a, b) => Math.abs(b.avvik) - Math.abs(a.avvik))
+  const svar = svaret(hoved.merke, motHoved, drivere[0] ?? null)
+
+  const periodeTekst = hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))
+  const omfang = erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'
+
   return (
     <>
-      <h1>Regnskap</h1>
-      <AiKontekst tekst="Hva skiller seg ut?" sporsmal="Hva skiller seg mest ut i regnskapet for siste periode, og hvorfor?" />
-      <p className="undertittel">{hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))} · {erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'}</p>
+      <Sidehode
+        tittel="Regnskap"
+        undertittel={svar ? `${svar}. ${periodeTekst} · ${omfang}` : `${periodeTekst} · ${omfang}`}
+        handlinger={<AiKontekst tekst="Hva skiller seg ut?" sporsmal="Hva skiller seg mest ut i regnskapet for siste periode, og hvorfor?" />}
+      />
 
       <div className="regnskap-velgere">
         {(stasjoner ?? []).length > 0 && (
@@ -192,18 +220,47 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
       </div>
 
       <section className="nokkeltall">
-        {kpi.map(({ merke, l }) => (
-          <div className="kpi" key={merke}>
-            <span className="kpi-tall">{kr.format(l?.regnskap ?? 0)}</span>
-            <span className="kpi-merke">
-              {merke}
-              {l?.budsjett ? ` · budsjett ${kr.format(l.budsjett)}` : ''}
-            </span>
-          </div>
-        ))}
+        {kpi.map(({ merke, l }) => {
+          // Budsjettet sto her fra før, men bare som et tall ved siden av.
+          // Det er differansen brukeren er ute etter.
+          const mot = motBudsjett(l?.regnskap ?? null, l?.budsjett ?? null)
+          return (
+            <div className="kpi" key={merke}>
+              <span className="kpi-tall">{kr.format(l?.regnskap ?? 0)}</span>
+              <span className="kpi-merke">{merke}</span>
+              {mot.tekst && (
+                <span className={`kpi-mot${mot.bra === null ? '' : mot.bra ? ' god' : ' darlig'}`}>
+                  {mot.tekst}
+                </span>
+              )}
+            </div>
+          )
+        })}
       </section>
 
       <RegnskapVarsler varsler={visVarsler} />
+
+      <Forklaring sporsmaal="Hvordan er tallene regnet ut?">
+        <p>
+          {hittil
+            ? `Hittil i år summerer månedene januar til og med ${manedAar.format(new Date(aktivPeriode))}.`
+            : `Tallene gjelder ${manedAar.format(new Date(aktivPeriode))} alene.`}{' '}
+          Månedene summeres her, ikke i regnskapsrapporten — Azets fyller hittil-kolonnen
+          kun på cluster-nivå, så per stasjon ville den ellers stått tom.
+        </p>
+        <p>
+          «{hoved.merke}» er hovedtallet siden på: det er linja svaret over måles på.
+          {erStasjon
+            ? ' Per stasjon finnes ingen resultatlinje i rapporten, så bruttofortjenesten brukes i stedet.'
+            : ' «Resultat eks. 9900» er før eierlønn — det bedriften faktisk tjener. «Resultat inkl. 9900» er bunnlinjen etter at eierlønnen er trukket fra.'}
+        </p>
+        <p>
+          Det som «drar mest» er det største avviket målt i kroner, ikke i prosent:
+          40 % over på en konto til 5 000 kr er 2 000 kr, mens 3 % over på personal er
+          hele forklaringen. Linjer uten budsjett holdes utenfor — de kan ikke avvike
+          fra noe. Avvik under 2 % regnes som truffet budsjett.
+        </p>
+      </Forklaring>
 
       {!erStasjon && stasjonsrader.length > 0 && (
         <section className="kort">
