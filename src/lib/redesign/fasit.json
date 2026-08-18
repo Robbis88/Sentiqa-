@@ -459,10 +459,6 @@
       "Timer der én ikke holder",
       "{MND[maned - 1]} {ar}"
     ],
-    "/brukere": [
-      "Eksisterende ({(profiler ?? []).length})",
-      "Ny bruker"
-    ],
     "/dekning": [
       "Måned for måned"
     ],
@@ -517,10 +513,6 @@
     "/maaling": [
       "+ Nytt målekort",
       "{m.navn}"
-    ],
-    "/meldinger": [
-      "Aktive ({(meldinger ?? []).length})",
-      "Ny melding"
     ],
     "/merker": [
       "Kom i gang",

@@ -1,6 +1,8 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { ROLLE_ETIKETT } from '@/lib/auth/typer'
+import { Sidehode, Datatabell, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyBruker } from './ny-bruker'
 import { fjernBruker } from './handlinger'
 
@@ -31,44 +33,56 @@ export default async function BrukereSide() {
     stasjonerForProfil.set(k.profil_id, l)
   }
 
+  const liste = profiler ?? []
+  const nyBrukerPanel = (
+    <Sidepanel
+      knapp="Ny bruker"
+      tittel="Ny bruker"
+      beskrivelse={'Tablet-kontoen er delt på nettbrettet — de ansatte skiller seg '
+        + 'med PIN (se Ansatte).'}
+    >
+      <NyBruker stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
+    </Sidepanel>
+  )
+
   return (
     <>
-      <h1>Brukere</h1>
-      <p className="undertittel">Opprett butikksjefer og tablet-kontoer, og styr hvilke stasjoner de når.</p>
+      <Sidehode
+        tittel="Brukere"
+        undertittel={liste.length === 0
+          ? 'Opprett butikksjefer og tablet-kontoer, og styr hvilke stasjoner de når.'
+          : `${liste.length} med tilgang. Styr hvilke stasjoner hver av dem når.`}
+        handlinger={nyBrukerPanel}
+      />
 
-      <section className="kort">
-        <h2>Ny bruker</h2>
-        <NyBruker stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
-        <p className="undertittel" style={{ marginTop: '0.5rem' }}>
-          Tablet-kontoen er delt på nettbrettet — de ansatte skiller seg med PIN (se Ansatte).
-        </p>
-      </section>
-
-      <section className="kort">
-        <h2>Eksisterende ({(profiler ?? []).length})</h2>
-        {(profiler ?? []).length === 0 ? (
-          <p className="undertittel">Ingen butikksjefer eller tablet-kontoer ennå.</p>
-        ) : (
-          <table className="tabell">
-            <thead><tr><th>Navn</th><th>Rolle</th><th>Stasjoner</th><th></th></tr></thead>
-            <tbody>
-              {(profiler ?? []).map((p) => (
-                <tr key={p.id}>
-                  <td>{p.fullt_navn ?? '—'}</td>
-                  <td>{ROLLE_ETIKETT[p.rolle as keyof typeof ROLLE_ETIKETT] ?? p.rolle}</td>
-                  <td>{(stasjonerForProfil.get(p.id) ?? []).join(', ') || '—'}</td>
-                  <td>
-                    <form action={fjernBruker}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <button type="submit" className="liten slett">Fjern</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Datatabell
+        antall={liste.length}
+        tom={(
+          <Tomtilstand
+            tittel="Ingen brukere ennå"
+            forklaring={'Butikksjefer logger inn som seg selv. Nettbrettet har en '
+              + 'delt konto, der de ansatte skiller seg med PIN.'}
+            handling={nyBrukerPanel}
+          />
         )}
-      </section>
+      >
+        <thead><tr><th>Navn</th><th>Rolle</th><th>Stasjoner</th><th></th></tr></thead>
+        <tbody>
+          {liste.map((p) => (
+            <tr key={p.id}>
+              <td>{p.fullt_navn ?? '—'}</td>
+              <td>{ROLLE_ETIKETT[p.rolle as keyof typeof ROLLE_ETIKETT] ?? p.rolle}</td>
+              <td>{(stasjonerForProfil.get(p.id) ?? []).join(', ') || '—'}</td>
+              <td className="tall">
+                <form action={fjernBruker}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <button type="submit" className="liten slett">Fjern</button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Datatabell>
     </>
   )
 }
