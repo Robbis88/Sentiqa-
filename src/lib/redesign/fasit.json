@@ -501,10 +501,6 @@
       "Verdiene som ble satt inn",
       "{igjen.length} valg står igjen"
     ],
-    "/kunnskap": [
-      "Artikler <span className=\"undertittel\">· {artikler.length}</span>",
-      "Ny artikkel"
-    ],
     "/lonn": [
       "Kontrakter som ikke dekker arbeidet",
       "Kontroll før sending",
@@ -573,9 +569,6 @@
     "/puls/[id]": [
       "Kommentarer ({kommentarer.length})",
       "Per stasjon"
-    ],
-    "/redaktor": [
-      "Nytt innlegg"
     ],
     "/regnskap": [
       "Kostnader per konto · hele kjeden",

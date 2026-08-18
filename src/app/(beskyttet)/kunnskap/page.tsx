@@ -1,6 +1,8 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { leggTilKunnskap, slettKunnskap } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Artikkel = { id: string; kategori: string; tittel: string; innhold: string; kilde: string | null }
 
@@ -19,42 +21,55 @@ export default async function KunnskapSide() {
   const { data } = await supabase.from('kunnskap').select('id, kategori, tittel, innhold, kilde').is('slettet_tid', null).order('kategori').order('tittel').overrideTypes<Artikkel[]>()
   const artikler = data ?? []
 
+  const nyPanel = (
+    <Sidepanel
+      knapp="Ny artikkel"
+      tittel="Ny artikkel"
+      beskrivelse="Skriv innholdet slik du vil at chatboten skal svare."
+    >
+      <form action={leggTilKunnskap} className="skjema">
+        <input name="tittel" placeholder="Tittel (f.eks. «Kasseoppgjør ved dagsslutt»)" required />
+        <select name="kategori" defaultValue="rutine" aria-label="Kategori">
+          {KATEGORIER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+        </select>
+        <input name="kilde" placeholder="Kilde (valgfri)" />
+        <textarea name="innhold" rows={8} placeholder="Innhold — beskriv slik du vil at chatboten skal svare." required />
+        <button type="submit" className="sq-knapp primar">Legg til artikkel</button>
+      </form>
+    </Sidepanel>
+  )
+
   return (
     <>
-      <h1>Kunnskapsbase</h1>
-      <p className="undertittel">Felles for alle kjeder. AI-assistenten svarer ut fra dette — tariff, lønn, rutiner, HMS og beste praksis. Jo mer du legger inn, jo mer kan den hjelpe alle.</p>
+      <Sidehode
+        tittel="Kunnskapsbase"
+        undertittel={artikler.length === 0
+          ? 'Felles for alle kjeder. AI-assistenten svarer ut fra dette.'
+          : `${artikler.length} artikler. AI-assistenten svarer ut fra dette — tariff, `
+            + 'lønn, rutiner, HMS og beste praksis.'}
+        handlinger={nyPanel}
+      />
 
-      <section className="kort">
-        <h2>Ny artikkel</h2>
-        <form action={leggTilKunnskap} className="rutine-form">
-          <input name="tittel" placeholder="Tittel (f.eks. «Kasseoppgjør ved dagsslutt»)" required />
-          <select name="kategori" defaultValue="rutine" aria-label="Kategori">
-            {KATEGORIER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-          </select>
-          <input name="kilde" placeholder="Kilde (valgfri)" />
-          <textarea name="innhold" rows={5} placeholder="Innhold — beskriv slik du vil at chatboten skal svare." required />
-          <button type="submit" className="liten">Legg til</button>
-        </form>
-      </section>
-
-      <section className="kort">
-        <h2>Artikler <span className="undertittel">· {artikler.length}</span></h2>
-        {artikler.length === 0 ? (
-          <p className="undertittel">Ingen artikler ennå.</p>
-        ) : (
-          <ul className="kunnskap-liste">
-            {artikler.map((a) => (
-              <li key={a.id}>
-                <details>
-                  <summary><span className="kunnskap-kat">{KAT_MERKE[a.kategori] ?? a.kategori}</span> {a.tittel}{a.kilde ? <span className="undertittel"> · {a.kilde}</span> : null}</summary>
-                  <p style={{ whiteSpace: 'pre-wrap' }}>{a.innhold}</p>
-                  <form action={slettKunnskap}><input type="hidden" name="id" value={a.id} /><button type="submit" className="liten slett">Slett</button></form>
-                </details>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {artikler.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen artikler ennå"
+          forklaring={'Jo mer som ligger her, jo mer kan assistenten hjelpe — den '
+            + 'svarer ut fra dette og ikke fra gjetning.'}
+          handling={nyPanel}
+        />
+      ) : (
+        <ul className="kunnskap-liste">
+          {artikler.map((a) => (
+            <li key={a.id}>
+              <details>
+                <summary><span className="kunnskap-kat">{KAT_MERKE[a.kategori] ?? a.kategori}</span> {a.tittel}{a.kilde ? <span className="undertittel"> · {a.kilde}</span> : null}</summary>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{a.innhold}</p>
+                <form action={slettKunnskap}><input type="hidden" name="id" value={a.id} /><button type="submit" className="liten slett">Slett</button></form>
+              </details>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   )
 }

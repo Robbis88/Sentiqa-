@@ -225,6 +225,40 @@
 }
 .sq-datatabell-topp h3 { margin: 0; font-size: var(--tekst-tittel); }
 
+/* --- Innleggsliste -------------------------------------------------
+   Hvert innlegg var et eget kort. Da betyr kortet ingenting — en liste
+   skal se ut som en liste, og skillet mellom radene holder i seg selv. */
+.sq-innleggsliste { list-style: none; margin: 0; padding: 0; }
+.sq-innlegg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-2);
+  padding: var(--luft-4) 0;
+  border-bottom: 1px solid var(--kant);
+}
+.sq-innlegg:last-child { border-bottom: none; }
+.sq-innlegg-topp {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-3);
+  flex-wrap: wrap;
+}
+.sq-innlegg-tekst {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--tekst-svak);
+  font-size: var(--tekst-brod);
+  line-height: var(--linje-luftig);
+  max-width: 70ch;
+}
+.sq-innlegg-bunn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--luft-3);
+  flex-wrap: wrap;
+}
+
 /* --- Forklaring ---------------------------------------------------- */
 .sq-forklaring { margin-top: var(--luft-3); }
 .sq-forklaring > summary {
