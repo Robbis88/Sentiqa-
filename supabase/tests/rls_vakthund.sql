@@ -66,12 +66,12 @@ declare
     'personlig_kryss', 'personlig_punkt', 'puls_svar', 'varsler',
     'import_jobber', 'raa_filer', 'ai_tool_log',
     'opplaering_periode', 'pengepremie_bruk',
-    'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter',
-    -- Ukjent opphav: ingen migrasjon i repoet lager den, men den har
-    -- policy. Lagt i VARME med vilje - en tabell vi ikke kjenner skal
-    -- sjekkes, ikke ignoreres. Er den bare oppslagsdata, flytt den til
-    -- kalde naar vi vet hva den er.
-    'exchange_rates'
+    'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter'
+    -- Her stod exchange_rates en kort stund. Ukjent opphav, ingen
+    -- migrasjon lagde den, og den ble lagt i VARME med vilje - en tabell
+    -- vi ikke kjenner skal sjekkes, ikke ignoreres. Den viste seg aa
+    -- vaere tom og ubrukt, klikket inn i Supabase-dashbordet (policynavn
+    -- med mellomrom), og er droppet i 0109.
   ];
 
   -- Tabeller som med vilje IKKE sjekkes: oppsett og oppslagsdata.
