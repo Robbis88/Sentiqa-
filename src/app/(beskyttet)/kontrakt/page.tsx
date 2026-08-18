@@ -9,6 +9,7 @@ import {
 } from '@/lib/kontrakt/felter'
 import { AnsattkortSkjema, MalSkjema, StandardfeltSkjema } from './skjemaer'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 
 type Sok = Promise<{ stasjon?: string; ansatt?: string; form?: string; rolle?: string }>
 
@@ -132,38 +133,55 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
     gjelder_fra: string | null; status: string; opprettet_tid: string
   }[]
 
+  // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet, og hva stopper
+  // meg. Sidehodet sa hvorfor malene er Virkes — sant og viktig, men
+  // ikke et svar på om du kan skrive kontrakten du kom for.
+  //
+  // Merk at vi IKKE kobler person mot historikken for å si «har allerede
+  // kontrakt». Historikken bærer navn, ikke ansattnummer, og å koble på
+  // navn i stillhet er nettopp feilen som gjør at to som heter det samme
+  // blir én person.
+  const svar = !person
+    ? 'Ingen ansatte på stasjonen'
+    : !mal
+      ? 'Ingen mal for dette valget'
+      : fraKjeden.length > 0
+        ? `${fraKjeden.length} felt mangler i kjedens innstillinger`
+        : maaSvares.length > 0
+          ? `Klar å skrive — ${maaSvares.length} felt fylles ut under`
+          : 'Klar å skrive — alle felt er fylt fra data vi har'
+
   return (
     <>
-      <h1>Arbeidsavtaler</h1>
-      <p className="undertittel">
-        Malene er Virkes, juridisk gjennomgått. Vi fyller ut originalen og lar
-        ordlyden stå — den er hele grunnen til å bruke dem.
-      </p>
-
-      <section className="kort">
-        <form className="rutine-form">
-          <select name="ansatt" defaultValue={person?.ansatt_nr ?? ''}>
-            {ansatte.map((a) => (
-              <option key={a.ansatt_nr} value={a.ansatt_nr}>{a.navn}</option>
-            ))}
-          </select>
-          <select name="form" defaultValue={form}>
-            {FORMER.map((f) => <option key={f.verdi} value={f.verdi}>{f.navn}</option>)}
-          </select>
-          <select name="rolle" defaultValue={rolle}>
-            {ROLLER.map((r) => <option key={r.verdi} value={r.verdi}>{r.navn}</option>)}
-          </select>
-          <button type="submit" className="liten">Vis</button>
-        </form>
-      </section>
+      <Sidehode
+        tittel="Arbeidsavtaler"
+        undertittel={person
+          ? `${svar}. ${person.navn} · ${valgt.butikknummer} ${valgt.navn}`
+          : `${svar}. ${valgt.butikknummer} ${valgt.navn}`}
+        handlinger={
+          <form className="rutine-form">
+            <select name="ansatt" defaultValue={person?.ansatt_nr ?? ''} aria-label="Ansatt">
+              {ansatte.map((a) => (
+                <option key={a.ansatt_nr} value={a.ansatt_nr}>{a.navn}</option>
+              ))}
+            </select>
+            <select name="form" defaultValue={form} aria-label="Ansettelsesform">
+              {FORMER.map((f) => <option key={f.verdi} value={f.verdi}>{f.navn}</option>)}
+            </select>
+            <select name="rolle" defaultValue={rolle} aria-label="Rolle">
+              {ROLLER.map((r) => <option key={r.verdi} value={r.verdi}>{r.navn}</option>)}
+            </select>
+            <button type="submit" className="sq-knapp">Vis</button>
+          </form>
+        }
+      />
 
       {!person ? (
-        <section className="kort">
-          <p className="undertittel">
-            Ingen ansatte på {valgt.navn}. Last opp Basis Export fra easy@work
-            på <a href="/import">/import</a>, så kommer de med.
-          </p>
-        </section>
+        <Tomtilstand
+          tittel={`Ingen ansatte på ${valgt.navn}`}
+          forklaring="Listen bygger på ansattkortene og på hvem som finnes i stemplingene — det er nettopp de siste man skal skrive kontrakt for. Last opp Basis Export fra easy@work, så kommer de med."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       ) : (
         <>
           <section className="kort">
@@ -258,6 +276,21 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
                 Signering skjer utenfor systemet i dag. Kontrakten lagres med malversjon
                 og verdier, så dokumentet kan gjenskapes nøyaktig slik det ble skrevet.
               </p>
+
+              <Forklaring sporsmaal="Hvorfor fylles ikke alt ut automatisk?">
+                <p>
+                  Malene er Virkes, juridisk gjennomgått. Vi fyller ut originalen og lar
+                  ordlyden stå — den er hele grunnen til å bruke dem. Feltene leses ut av
+                  malfila, ikke hardkodes: endrer Virke en setning, følger skjemaet etter
+                  av seg selv.
+                </p>
+                <p>
+                  Valgene med klammer rundt lar vi stå. De er hele setninger som skal
+                  beholdes eller slettes, ikke felt som skal fylles, og å slette dem
+                  automatisk er å endre en juridisk gjennomgått avtale uten at noen leste
+                  den.
+                </p>
+              </Forklaring>
             </section>
           )}
         </>

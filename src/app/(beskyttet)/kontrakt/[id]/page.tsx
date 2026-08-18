@@ -5,6 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { gjenskapKontrakt } from '@/lib/kontrakt/gjenskap'
 import { docxTilTekst } from '@/lib/kontrakt/docx'
 import { SigneringSkjema } from '../signering'
+import { Sidehode } from '@/components/ui/side'
 
 // Kontrakten som tekst, slik den faktisk ble fylt ut.
 //
@@ -44,22 +45,33 @@ export default async function KontraktVisning({ params }: { params: Params }) {
     [...tekst.matchAll(/\[([^\]\[\n]{1,80}?)\]/g)].map((m) => m[1]),
   )] : []
 
+  // NIVÅ 1 på en detaljside: hva er dette, og hvilken tilstand er det i.
+  // Tilstanden er om den er signert, og om det står valg igjen som ingen
+  // har tatt stilling til. Begge lå som egne seksjoner lenger nede — den
+  // andre først etter signeringsfeltet man skulle bruke.
+  const tilstand = [
+    rad.signert_tid
+      ? `Signert ${new Date(rad.signert_tid).toLocaleDateString('nb-NO')}`
+      : 'Ikke signert',
+    igjen.length > 0
+      ? `${igjen.length} ${igjen.length === 1 ? 'valg står' : 'valg står'} igjen i dokumentet`
+      : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <>
-      <h1>{rad.ansatt_navn}</h1>
-      <p className="undertittel">
-        Ansattnummer {rad.ansatt_nr} · malversjon v{rad.mal_versjon ?? '—'} ·{' '}
-        skrevet {new Date(rad.opprettet_tid).toLocaleDateString('nb-NO')}
-        {rad.gjelder_fra && ` · gjelder fra ${new Date(rad.gjelder_fra).toLocaleDateString('nb-NO')}`}
-      </p>
+      <Sidehode
+        tittel={rad.ansatt_navn}
+        undertittel={`${tilstand}. Ansattnummer ${rad.ansatt_nr} · malversjon v${rad.mal_versjon ?? '—'} · skrevet ${new Date(rad.opprettet_tid).toLocaleDateString('nb-NO')}${rad.gjelder_fra ? ` · gjelder fra ${new Date(rad.gjelder_fra).toLocaleDateString('nb-NO')}` : ''}`}
+        handlinger={
+          <>
+            <a className="sq-knapp primar" href={`/api/kontrakt/fil?id=${id}`}>Last ned .docx</a>
+            <Link className="sq-knapp" href="/kontrakt">Alle avtaler</Link>
+          </>
+        }
+      />
 
       <section className="kort">
-        <div className="knapperad">
-          <a className="sq-knapp primar" href={`/api/kontrakt/fil?id=${id}`}>
-            Last ned .docx
-          </a>
-          <Link className="sq-knapp" href="/kontrakt">Tilbake</Link>
-        </div>
         <p className="notis" style={{ marginBottom: 0 }}>
           Dokumentet lagres ikke som fil. Det bygges på nytt fra verdiene og
           malversjonen hver gang — samme mal og samme verdier gir samme dokument.
