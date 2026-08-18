@@ -71,10 +71,13 @@
   ],
   "naabart": {
     "butikkbruker_tablet": [
+      "/anvisninger",
       "/ikmat",
+      "/lenker",
       "/merker",
       "/mine-opplysninger",
       "/nyheter",
+      "/oversikt",
       "/rutiner"
     ],
     "retailer_admin": [
@@ -434,8 +437,7 @@
       "🔎 Usynlig svinn per stasjon"
     ],
     "/anvisninger": [
-      "Ny anvisning",
-      "{o(kat)}"
+      "{o(kat)} <span className=\"undertittel\">· {liste.length}</span>"
     ],
     "/arrangementer": [
       "Kommende arrangementer",
@@ -521,11 +523,6 @@
       "Dine rettigheter",
       "Les gjennom",
       "{t.hva}"
-    ],
-    "/oppgaver": [
-      "Fullført ({fullfort.length})",
-      "Ny oppgave",
-      "Åpne ({apne.length})"
     ],
     "/opplaring": [
       "Oppgavebibliotek",

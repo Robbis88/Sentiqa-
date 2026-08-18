@@ -2,6 +2,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { oversettMange } from '@/lib/oversett'
 import { leggTilAnvisning, slettAnvisning } from './handlinger'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Anvisning = { id: string; kategori: string; tittel: string; innhold: string }
 
@@ -34,29 +36,39 @@ export default async function AnvisningerSide() {
   const oversatt = await oversettMange([...fast, ...(data ?? []).flatMap((a) => [a.kategori, a.tittel, a.innhold])], sprak)
   const o = (s: string) => oversatt.get(s) ?? s
 
+  const antall = [...grupper.values()].reduce((n, l) => n + l.length, 0)
+  const nyPanel = erLeder ? (
+    <Sidepanel knapp="Ny anvisning" tittel="Ny anvisning">
+      <form action={leggTilAnvisning} className="skjema">
+        <label className="felt"><span>Kategori</span><input name="kategori" placeholder="f.eks. Hurtigmat" /></label>
+        <label className="felt"><span>Tittel</span><input name="tittel" placeholder="Slik lager du kaffe" required /></label>
+        <label className="felt"><span>Innhold</span><textarea name="innhold" rows={8} required /></label>
+        <button type="submit" className="sq-knapp primar">Legg til anvisning</button>
+      </form>
+    </Sidepanel>
+  ) : undefined
+
   return (
     <>
-      <h1>{o('Anvisninger')}</h1>
-      <p className="undertittel">{o('Prosedyrer og oppskrifter — slå opp når du trenger det.')}</p>
-
-      {erLeder && (
-        <section className="kort">
-          <h2>Ny anvisning</h2>
-          <form action={leggTilAnvisning} className="skjema" style={{ maxWidth: 520 }}>
-            <label className="felt"><span>Kategori</span><input name="kategori" placeholder="f.eks. Hurtigmat" /></label>
-            <label className="felt"><span>Tittel</span><input name="tittel" placeholder="Slik lager du kaffe" required /></label>
-            <label className="felt"><span>Innhold</span><textarea name="innhold" rows={5} required /></label>
-            <button type="submit" className="liten">Legg til</button>
-          </form>
-        </section>
-      )}
+      <Sidehode
+        tittel={o('Anvisninger')}
+        undertittel={o('Prosedyrer og oppskrifter — slå opp når du trenger det.')}
+        handlinger={nyPanel}
+      />
 
       {grupper.size === 0 ? (
-        <section className="kort"><p className="undertittel">{o('Ingen anvisninger ennå.')}</p></section>
+        <Tomtilstand
+          tittel={o('Ingen anvisninger ennå')}
+          forklaring={o('Her legger dere prosedyrene folk må slå opp — hvordan '
+            + 'kaffemaskinen rengjøres, hvordan pølsegrillen settes opp.')}
+          handling={nyPanel}
+        />
       ) : (
+        // Kategoriene er en EKTE gruppering — folk leter etter «Hurtigmat»,
+        // ikke etter den fjerde anvisningen. Derfor beholdes de.
         [...grupper.entries()].map(([kat, liste]) => (
-          <section className="kort" key={kat}>
-            <h2>{o(kat)}</h2>
+          <section className="sq-anvkat" key={kat}>
+            <h2>{o(kat)} <span className="undertittel">· {liste.length}</span></h2>
             {liste.map((a) => (
               <details className="anvisning" key={a.id}>
                 <summary>{o(a.tittel)}</summary>
@@ -72,6 +84,7 @@ export default async function AnvisningerSide() {
           </section>
         ))
       )}
+      <p className="undertittel">{antall} {antall === 1 ? o('anvisning') : o('anvisninger')}</p>
     </>
   )
 }

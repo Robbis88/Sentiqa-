@@ -112,6 +112,21 @@ export function gruppeFor(sti: string): Fanegruppe | null {
   return beste
 }
 
+/**
+ * Nettbrettets egen bunnavigasjon.
+ *
+ * Laa hardkodet i tablet-nav.tsx og var derfor USYNLIG for vakthunden:
+ * den paastod aa maale naabarhet, men saa bare sidemenyen. /anvisninger
+ * og /lenker naas av nettbrettet HERFRA, ikke fra menyen — og et tap der
+ * ville gaatt upaaaktet hen.
+ */
+export const TABLETMENY: Punkt[] = [
+  { sti: '/oversikt', tekst: 'Hjem', roller: [T] },
+  { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
+  { sti: '/anvisninger', tekst: 'Anvisninger', roller: [T] },
+  { sti: '/lenker', tekst: 'Lenker', roller: [T] },
+]
+
 // =====================================================================
 // Menyen
 // =====================================================================
@@ -212,5 +227,6 @@ export function naabart(rolle: Brukerrolle): string[] {
   for (const g of FANEGRUPPER) {
     for (const f of g.faner) if (f.roller.includes(rolle)) ut.add(f.sti)
   }
+  for (const p of TABLETMENY) if (p.roller.includes(rolle)) ut.add(p.sti)
   return [...ut].sort()
 }

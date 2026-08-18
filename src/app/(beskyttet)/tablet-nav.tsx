@@ -2,13 +2,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useT } from './oversett-kontekst'
+import { TABLETMENY } from './navigasjon'
 
-const FANER = [
-  { sti: '/oversikt', tekst: 'Hjem', ikon: '🏠' },
-  { sti: '/rutiner', tekst: 'Rutineskjema', ikon: '✅' },
-  { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },
-  { sti: '/lenker', tekst: 'Lenker', ikon: '🔗' },
-]
+// Listen bor i navigasjon.ts, sammen med resten av navigasjonen. Da ser
+// vakthunden den, og et tap her kan ikke gaa upaaaktet hen.
+const FANER = TABLETMENY
 
 export function TabletNav() {
   const sti = usePathname()
@@ -19,7 +17,6 @@ export function TabletNav() {
         const aktiv = sti === f.sti || (f.sti !== '/oversikt' && sti.startsWith(f.sti))
         return (
           <Link key={f.sti} href={f.sti} className={`tablet-fane ${aktiv ? 'aktiv' : ''}`}>
-            <span className="tablet-fane-ikon">{f.ikon}</span>
             <span className="tablet-fane-tekst">{t(f.tekst)}</span>
           </Link>
         )

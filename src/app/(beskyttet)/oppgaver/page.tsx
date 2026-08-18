@@ -2,6 +2,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyOppgave } from './ny-oppgave'
 import { veksleOppgave, slettOppgave } from './handlinger'
 
@@ -60,26 +62,45 @@ export default async function OppgaverSide() {
     </li>
   )
 
+  const nyPanel = (
+    <Sidepanel
+      knapp="Ny oppgave"
+      tittel="Ny oppgave"
+      beskrivelse="Du kan også si det til Assistenten: «lag en oppgave på Bønes om å bestille kaffe»."
+    >
+      <NyOppgave stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
+    </Sidepanel>
+  )
+
   return (
     <>
-      <h1>Oppgaver</h1>
-      <p className="undertittel">Opprett her eller via Assistenten — «lag en oppgave på Bønes om å bestille kaffe».</p>
+      <Sidehode
+        tittel="Oppgaver"
+        undertittel={apne.length === 0
+          ? 'Ingenting åpent akkurat nå.'
+          : `${apne.length} ${apne.length === 1 ? 'åpen' : 'åpne'}.`}
+        handlinger={nyPanel}
+      />
 
-      <section className="kort">
-        <h2>Ny oppgave</h2>
-        <NyOppgave stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))} />
-      </section>
-
-      <section className="kort">
-        <h2>Åpne ({apne.length})</h2>
-        {apne.length === 0 ? <p className="undertittel">Ingen åpne oppgaver.</p> : <ul className="rutine-liste">{apne.map(rad)}</ul>}
-      </section>
+      {apne.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen åpne oppgaver"
+          forklaring={'Oppgaver kan merkes for nettbrettet, så de ansatte ser dem '
+            + 'på vakt og kan kvittere ut.'}
+          handling={nyPanel}
+        />
+      ) : (
+        <ul className="rutine-liste">{apne.map(rad)}</ul>
+      )}
 
       {fullfort.length > 0 && (
-        <section className="kort">
-          <h2>Fullført ({fullfort.length})</h2>
-          <ul className="rutine-liste">{fullfort.map(rad)}</ul>
-        </section>
+        // Fullforte er dokumentasjon, ikke arbeid. De ligger sammenlagt.
+        <details className="sq-forklaring" style={{ marginTop: '1.5rem' }}>
+          <summary>Fullført ({fullfort.length})</summary>
+          <div className="sq-forklaring-innhold">
+            <ul className="rutine-liste">{fullfort.map(rad)}</ul>
+          </div>
+        </details>
       )}
     </>
   )

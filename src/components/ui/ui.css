@@ -342,3 +342,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sq-forklaring > summary::before { transition: none; }
 }
+
+/* --- Anvisninger: kategori som gruppe, ikke som kort -----------------
+   Kategoriene er en ekte gruppering — folk leter etter «Hurtigmat», ikke
+   etter den fjerde anvisningen. Men de trenger ikke hver sin ramme. */
+.sq-anvkat { margin-bottom: var(--luft-5); }
+.sq-anvkat > h2 { margin: 0 0 var(--luft-3); font-size: var(--tekst-tittel); }
