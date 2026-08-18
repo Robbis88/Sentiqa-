@@ -16,6 +16,7 @@ import {
   FastVaktSkjema, FravaerSkjema, KravSkjema, StillingSkjema, TakSkjema, VinduSkjema,
 } from './skjemaer'
 import { slettFastVakt, slettFravaer, slettKrav, slettVindu } from './handlinger'
+import { husketStasjon } from '@/lib/stasjonskontekst'
 
 const UKEDAG = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn']
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
@@ -243,7 +244,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
   if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
 
-  const valgt = alle.find((s) => s.id === sok.stasjon) ?? alle[0]
+  // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
+  // saa en delt lenke viser det den lovet.
+  const valgtId = await husketStasjon(alle, sok.stasjon)
+  const valgt = alle.find((s) => s.id === valgtId) ?? alle[0]
   // Standard er NESTE måned — det er den man planlegger. Ruller over årsskiftet.
   const naa = new Date()
   // Overlappet vi kan sammenligne: fra nyttår til forrige hele måned, i
@@ -501,9 +505,6 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
       <section className="kort">
         <form className="rutine-form">
-          <select name="stasjon" defaultValue={valgt.id}>
-            {alle.map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-          </select>
           <select name="maned" defaultValue={maned}>
             {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
           </select>

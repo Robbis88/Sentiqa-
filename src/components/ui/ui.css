@@ -6,6 +6,33 @@
    som skal utvides.
    ===================================================================== */
 
+/* --- Skjult for øyet, ikke for skjermlesere ------------------------ */
+.sq-skjult {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Stasjonskonteksten i toppstripen ------------------------------
+   Diskret: den forteller HVOR du er, den er ikke en handling. Derfor
+   ingen ramme før man nærmer seg den. */
+.sq-stasjonskontekst select {
+  font: inherit;
+  font-weight: 600;
+  color: var(--tekst);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: var(--luft-1) var(--luft-2);
+  cursor: pointer;
+  max-width: 14rem;
+}
+.sq-stasjonskontekst select:hover { border-color: var(--kant-sterk); background: var(--kort); }
+.sq-stasjonskontekst select:focus-visible { border-color: var(--primaer); }
+
 /* --- Sidehode ------------------------------------------------------ */
 .sq-sidehode {
   display: flex;

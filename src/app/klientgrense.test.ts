@@ -36,8 +36,9 @@ function alleFiler(mappe: string): string[] {
   return ut
 }
 
-const erKlientfil = (kilde: string) =>
-  /^\s*(['"])use client\1/.test(kilde.split('\n').find((l) => l.trim() !== '') ?? '')
+const forsteLinje = (kilde: string) => kilde.split('\n').find((l) => l.trim() !== '') ?? ''
+const erKlientfil = (kilde: string) => /^\s*(['"])use client\1/.test(forsteLinje(kilde))
+const erServerfil = (kilde: string) => /^\s*(['"])use server\1/.test(forsteLinje(kilde))
 
 /**
  * Eksporterte DATAVERDIER — det er bare de som er farlige.
@@ -81,6 +82,31 @@ describe('klientgrensen', () => {
       'Data som eksporteres fra en «use client»-fil blir en klientreferanse når '
       + 'en serverkomponent leser den, og kaster under render. Flytt verdien til '
       + 'en vanlig modul (f.eks. under src/lib) som begge sider kan importere.',
+    ).toEqual([])
+  })
+
+  test('serverfiler eksporterer bare async funksjoner', () => {
+    // Speilbildet av regelen over, og like usynlig i editoren. En
+    // «use server»-fil gjor HVER eksport til et handlingsendepunkt —
+    // eksporterer du en konstant, brekker bygget med «Ecmascript file had
+    // an error» og en importsporing som peker et helt annet sted.
+    //
+    // Det skjedde: STASJONSKAPSEL laa i stasjon-handlinger.ts.
+    const syndere: string[] = []
+    for (const fil of alleFiler(ROT)) {
+      const kilde = readFileSync(fil, 'utf8')
+      if (!erServerfil(kilde)) continue
+      for (const m of kilde.matchAll(/^export\s+(?!async\s+function)(\w+)/gm)) {
+        // `export type` og `export interface` forsvinner ved kompilering
+        // og krysser ingen grense.
+        if (m[1] === 'type' || m[1] === 'interface') continue
+        syndere.push(`${fil.replace(process.cwd(), '.')} eksporterer «${m[1]} …»`)
+      }
+    }
+    expect(
+      syndere,
+      'En «use server»-fil kan bare eksportere async funksjoner. Flytt '
+      + 'konstanter og typer til en vanlig modul.',
     ).toEqual([])
   })
 

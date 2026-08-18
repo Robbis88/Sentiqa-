@@ -14,6 +14,9 @@ import { Kommandopalett } from './kommandopalett'
 import { OversettProvider } from './oversett-kontekst'
 import { SEKSJONER } from './navigasjon'
 import { Fanerad } from './fanerad'
+import { Stasjonskontekst } from './stasjonskontekst'
+import { visVelger } from '@/lib/stasjonsvalg'
+import { husketStasjon } from '@/lib/stasjonskontekst'
 
 export default async function BeskyttetLayout({
   children,
@@ -37,6 +40,17 @@ export default async function BeskyttetLayout({
     .from('varsler')
     .select('*', { count: 'exact', head: true })
     .eq('lest', false)
+
+  // Stasjonskonteksten. Eieren kan se porteføljen samlet; butikksjefen
+  // har som regel én stasjon og skal da ikke se noen velger i det hele
+  // tatt.
+  const { data: mineStasjoner } = await supabase
+    .from('stasjoner').select('id, navn, butikknummer')
+    .is('slettet_tid', null).order('butikknummer')
+  const stasjoner = (mineStasjoner ?? []) as
+    { id: string; navn: string; butikknummer: string }[]
+  const tillatAlle = bruker.rolle === 'retailer_admin'
+  const valgtStasjon = await husketStasjon(stasjoner, null, tillatAlle)
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
@@ -75,6 +89,13 @@ export default async function BeskyttetLayout({
               punkter={menyData.flatMap((s) =>
                 s.punkter.map((p) => ({ ...p, gruppe: s.tittel })),
               )}
+            />
+          )}
+          {visVelger(stasjoner, tillatAlle) && (
+            <Stasjonskontekst
+              stasjoner={stasjoner}
+              valgt={valgtStasjon}
+              tillatAlle={tillatAlle}
             />
           )}
           <span className="bruker">

@@ -8,6 +8,7 @@ import {
   type Ansettelsesform, type Rolle,
 } from '@/lib/kontrakt/felter'
 import { AnsattkortSkjema, MalSkjema, StandardfeltSkjema } from './skjemaer'
+import { husketStasjon } from '@/lib/stasjonskontekst'
 
 type Sok = Promise<{ stasjon?: string; ansatt?: string; form?: string; rolle?: string }>
 
@@ -36,7 +37,10 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
   const alle = (stasjoner ?? []) as
     { id: string; navn: string; butikknummer: string; adresse: string | null }[]
   if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
-  const valgt = alle.find((s) => s.id === sok.stasjon) ?? alle[0]
+  // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
+  // saa en delt lenke viser det den lovet.
+  const valgtId = await husketStasjon(alle, sok.stasjon)
+  const valgt = alle.find((s) => s.id === valgtId) ?? alle[0]
 
   const [{ data: avtaler }, { data: stemplet }, { data: retailer }] = await Promise.all([
     supabase.from('ansatt_avtale')
@@ -138,9 +142,6 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
 
       <section className="kort">
         <form className="rutine-form">
-          <select name="stasjon" defaultValue={valgt.id}>
-            {alle.map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-          </select>
           <select name="ansatt" defaultValue={person?.ansatt_nr ?? ''}>
             {ansatte.map((a) => (
               <option key={a.ansatt_nr} value={a.ansatt_nr}>{a.navn}</option>

@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maanederSiden } from '@/lib/personvern/innsyn'
 import { HANDLING_TEKST, type Handling } from '@/lib/personvern/logg'
 import { FristSkjema, SlettSkjema } from './skjemaer'
+import { husketStasjon } from '@/lib/stasjonskontekst'
 
 type Sok = Promise<{ stasjon?: string }>
 
@@ -23,7 +24,10 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
     .is('slettet_tid', null).order('butikknummer')
   const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
   if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
-  const valgt = alle.find((s) => s.id === sok.stasjon) ?? alle[0]
+  // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
+  // saa en delt lenke viser det den lovet.
+  const valgtId = await husketStasjon(alle, sok.stasjon)
+  const valgt = alle.find((s) => s.id === valgtId) ?? alle[0]
 
   const [{ data: retailer }, { data: folk }, { data: loggRader }] = await Promise.all([
     supabase.from('retailers').select('oppbevaring_maaneder')
@@ -52,15 +56,6 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
         Hva systemet har om hver enkelt, hvor lenge det beholdes, og hvordan
         en ansatt får en kopi av sine egne opplysninger.
       </p>
-
-      <section className="kort">
-        <form className="rutine-form">
-          <select name="stasjon" defaultValue={valgt.id}>
-            {alle.map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-          </select>
-          <button type="submit" className="liten">Vis</button>
-        </form>
-      </section>
 
       <section className="kort">
         <h2>Oppbevaringstid</h2>
