@@ -1,0 +1,33 @@
+-- =====================================================================
+-- 0109 - exchange_rates ut
+--
+-- KJOR DENNE KUN OM DU IKKE HAR BRUK FOR TABELLEN. Se begrunnelsen under,
+-- og si fra hvis den var ment som grunnarbeid for noe - da flyttes den
+-- til `kalde` i vakthunden i stedet.
+--
+-- Funnet av dekningssjekken 2026-08-18: tabellen har policy, men ingen
+-- migrasjon i repoet lager den.
+--
+-- Det vi vet:
+--   - 0 rader, 16 kB
+--   - kolonner: year, base_currency, quote_currency, rate, source, fetched_at
+--   - policy «authenticated read exchange_rates» (SELECT, using true)
+--   - ingen retailer_id og ingen stasjon_id - ikke tenantdata
+--   - ingenting i src/ refererer den; hele systemet er hardkodet NOK
+--
+-- Policynavnet har MELLOMROM. Denne kodebasen navngir policyer
+-- `daglig_salg_les`, `varsler_insert`. Mellomromsformen er den
+-- Supabase-dashbordets policy-maler lager - tabellen er klikket inn i
+-- UI-et, ikke skrevet i en migrasjon.
+--
+-- Den er ufarlig: ingen data, ingen tenantkolonner, kun lesetilgang. Men
+-- en uforklart tabell med haandlaget policy undergraver tilliten til
+-- katalogen, og da er vaktene mindre verdt. Enten skal den forklares
+-- eller fjernes.
+-- =====================================================================
+
+drop table if exists public.exchange_rates;
+
+-- Etterpaa: fjern 'exchange_rates' fra varme-arrayet i
+-- supabase/tests/rls_vakthund.sql, ellers melder sjekk 4b den som
+-- «staar i lista, finnes ikke».

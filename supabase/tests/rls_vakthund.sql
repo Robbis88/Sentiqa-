@@ -63,10 +63,15 @@ declare
     'produksjonsplan_hode', 'produksjonsplan_linjer',
     'prognose_treff', 'prognose_kalibrering',
     'vaer', 'trafikk', 'uke_rapport',
-    'personlig_kryss', 'puls_svar', 'varsler',
+    'personlig_kryss', 'personlig_punkt', 'puls_svar', 'varsler',
     'import_jobber', 'raa_filer', 'ai_tool_log',
-    'opplaering_periode', 'opplaring_fullfort', 'pengepremie_bruk',
-    'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter'
+    'opplaering_periode', 'pengepremie_bruk',
+    'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter',
+    -- Ukjent opphav: ingen migrasjon i repoet lager den, men den har
+    -- policy. Lagt i VARME med vilje - en tabell vi ikke kjenner skal
+    -- sjekkes, ikke ignoreres. Er den bare oppslagsdata, flytt den til
+    -- kalde naar vi vet hva den er.
+    'exchange_rates'
   ];
 
   -- Tabeller som med vilje IKKE sjekkes: oppsett og oppslagsdata.
@@ -86,9 +91,11 @@ declare
     'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
     'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
     'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
-    'push_abonnementer',
-    -- Eldre opplaeringstabeller (annen skrivemaate enn opplaering_*).
-    'opplaring_personer', 'opplaring_punkter'
+    'push_abonnementer'
+    -- Her stod opplaring_personer, opplaring_punkter og opplaring_fullfort
+    -- (varme). Ingen av dem finnes i basen - de er erstattet av
+    -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:
+    -- en tabell i lista uten policy gir falsk trygghet om dekning.
   ];
   r record;
   feil int := 0;
