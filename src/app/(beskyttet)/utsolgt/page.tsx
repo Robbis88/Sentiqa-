@@ -3,6 +3,8 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, datoLang, tall, kr } from '@/lib/format'
 import { finnUtsolgt, type Kandidatrad, type UtsolgtHendelse } from '@/lib/utsolgt'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { husketStasjon } from '@/lib/stasjonskontekst'
 
 // Kjører deteksjon for alle tilgjengelige stasjoner (én RPC hver).
 export const maxDuration = 60
@@ -40,16 +42,32 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
     }),
   )
 
-  const valgtNr = sp.butikknummer || stasjoner[0]?.butikknummer || ''
+  // Denne siden noekler paa BUTIKKNUMMER, ikke id — derfor oversettes
+  // valget fra toppstripen. URL-en vinner fortsatt, som ellers.
+  const fraKontekst = await husketStasjon(stasjoner)
+  const valgtNr = sp.butikknummer
+    || stasjoner.find((s2) => s2.id === fraKontekst)?.butikknummer
+    || stasjoner[0]?.butikknummer
+    || ''
   const valgt = resultater.find((r) => r.stasjon.butikknummer === valgtNr) ?? resultater[0]
   const totaltHendelser = resultater.reduce((s, r) => s + r.hendelser.length, 0)
 
   return (
     <>
-      <h1>Mulig utsolgt</h1>
-      <p className="undertittel">
-        Faste varer (selger jevnt, snitt ≥ 1,5/dag) som plutselig falt til <b>0 i minst 2 dager</b> og så var tilbake på normalen — typisk tegn på <b>utsolgt eller glemt bestilling</b>. Siste {VINDU} dager.
-      </p>
+      <Sidehode
+        tittel="Mulig utsolgt"
+        undertittel={totaltHendelser === 0
+          ? `Ingen tegn til tom hylle de siste ${VINDU} dagene.`
+          : `${totaltHendelser} ${totaltHendelser === 1 ? 'hendelse' : 'hendelser'} `
+            + `siste ${VINDU} dager.`}
+      />
+
+      <Forklaring sporsmaal="Hvordan finnes disse?">
+        Faste varer — de som selger jevnt, snitt minst 1,5 per dag — som
+        plutselig falt til null i minst to dager og så var tilbake på
+        normalen. Det er signaturen på utsolgt eller en glemt bestilling.
+        Estimert tap er normalsalg × dager × snittpris.
+      </Forklaring>
 
       {stasjoner.length > 1 && (
         <section className="kort">
@@ -70,26 +88,13 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      <section className="kort">
-        <form method="get" className="plan-velg">
-          <label className="felt">
-            <span>Stasjon</span>
-            <select name="butikknummer" defaultValue={valgtNr}>
-              {stasjoner.map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
-            </select>
-          </label>
-          <button type="submit">Vis</button>
-        </form>
-      </section>
-
       {!valgt || valgt.hendelser.length === 0 ? (
-        <section className="kort">
-          <p className="undertittel">
-            {totaltHendelser === 0 && stasjoner.length <= 1
-              ? '✅ Ingen tegn til utsolgt på faste varer de siste ukene — bra rutiner!'
-              : '✅ Ingen flagg for denne stasjonen i perioden.'}
-          </p>
-        </section>
+        <Tomtilstand
+          tittel="Ingen tegn til tom hylle"
+          forklaring={totaltHendelser === 0 && stasjoner.length <= 1
+            ? 'Ingen faste varer falt til null og kom tilbake. Det tyder på god kontroll på bestilling og produksjon.'
+            : 'Ingen flagg for denne stasjonen i perioden.'}
+        />
       ) : (
         <section className="kort">
           <div className="seksjon-topp">
