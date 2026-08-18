@@ -597,9 +597,6 @@
       "Nytt sjekkpunkt",
       "{navnFor.get(sid) ?? '—'}"
     ],
-    "/skills": [
-      "Ny score"
-    ],
     "/stasjoner": [
       "Ny stasjon",
       "{stasjoner.length} stasjon(er)"
@@ -693,8 +690,7 @@
     ],
     "/puls": [
       "/puls/${r.id}",
-      "/puls/ny",
-      "/puls/sporsmal"
+      "/puls/ny"
     ],
     "/puls/sporsmal": [
       "/puls"

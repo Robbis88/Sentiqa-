@@ -3,6 +3,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar } from '@/lib/format'
 import { GenererKnapp } from './generer-knapp'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 // «Generer fokuspunkter» (AI per stasjon) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -52,21 +53,21 @@ export default async function FokusSide() {
 
   return (
     <>
-      <h1>Fokus</h1>
-      <p className="undertittel">
-        {siste ? manedAar.format(new Date(siste.periode)) : 'Ingen fokuspunkter ennå'} · etter regnskapet
-      </p>
-
-      {bruker.rolle === 'retailer_admin' && <GenererKnapp />}
+      <Sidehode
+        tittel="Fokus"
+        undertittel={siste
+          ? `${manedAar.format(new Date(siste.periode))} · regnet ut fra regnskapet`
+          : 'Hva hver stasjon bør se på, regnet ut fra regnskapet.'}
+        handlinger={bruker.rolle === 'retailer_admin' ? <GenererKnapp /> : undefined}
+      />
 
       {[...perStasjon.entries()].length === 0 ? (
-        <section className="kort">
-          <p className="undertittel">
-            {bruker.rolle === 'retailer_admin'
-              ? 'Ingen fokuspunkter ennå. Behandle et regnskap og trykk «Generer fokuspunkter».'
-              : 'Ingen fokuspunkter publisert ennå.'}
-          </p>
-        </section>
+        <Tomtilstand
+          tittel="Ingen fokuspunkter ennå"
+          forklaring={bruker.rolle === 'retailer_admin'
+            ? 'Behandle et regnskap og trykk «Generer fokuspunkter» — da får hver stasjon to til tre ting å se på.'
+            : 'Eier lager dem etter at regnskapet er behandlet.'}
+        />
       ) : (
         [...perStasjon.entries()].map(([id, b]) => (
           <section className="kort" key={id}>
