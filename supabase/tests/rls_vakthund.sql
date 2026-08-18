@@ -189,6 +189,40 @@ begin
     feil := feil + 1;
   end loop;
 
+  -- --- 5) Partisjoner uten eget vern ---
+  --
+  -- Lagt til 2026-08-18, etter at alle 49 partisjonene av daglig_salg
+  -- viste seg lesbare for anon. Forelderen hadde RLS og riktige
+  -- policyer; partisjonene arvet aldri vernet, og rettighetene kom av
+  -- seg selv fra Supabase' default privileges.
+  --
+  -- De fire sjekkene over var blinde for det: en tabell UTEN RLS har
+  -- ingen rader i pg_policies, og saa derfor ut som en tabell uten
+  -- problemer. Sjekkene lette etter trege policyer og forutsatte at det
+  -- fantes policyer aa vurdere.
+  --
+  -- Treg RLS feiler LUKKET - null rader. Manglende RLS feiler AAPENT.
+  -- Vakthunden var bygget for den mildeste av de to feilene.
+  for r in
+    select c.relname, par.relname as forelder,
+           has_table_privilege('anon', c.oid, 'SELECT') as anon_leser
+    from pg_class c
+    join pg_inherits i on i.inhrelid = c.oid
+    join pg_class par on par.oid = i.inhparent
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'r'
+      and c.relispartition
+      and (has_table_privilege('anon', c.oid, 'SELECT')
+           or has_table_privilege('authenticated', c.oid, 'SELECT'))
+    order by c.relname
+  loop
+    raise warning 'PARTISJON AAPEN  % (av %) - % kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
+      r.relname, r.forelder,
+      case when r.anon_leser then 'anon' else 'authenticated' end;
+    feil := feil + 1;
+  end loop;
+
   if feil > 0 then
     raise exception 'RLS-vakthund: % funn. Se advarslene over.', feil;
   end if;

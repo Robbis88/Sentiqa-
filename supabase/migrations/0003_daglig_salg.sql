@@ -37,24 +37,47 @@ create index if not exists daglig_salg_varegruppe_idx
   on public.daglig_salg (retailer_id, varegruppe_kode);
 
 -- Månedspartisjoner 2024–2027 + default for alt utenfor (utvides ved behov).
+--
+-- HVER partisjon må stenges eksplisitt. Supabase har som standard
+-- `alter default privileges in schema public grant all on tables to
+-- anon, authenticated`, så en nyopprettet partisjon får rettigheter av
+-- seg selv — og partisjonens EGEN RLS (ikke forelderens) gjelder ved
+-- direkte oppslag. Uten linjene under kan anon lese
+-- `/rest/v1/daglig_salg_202601` og få alle kjeders tall.
+--
+-- Det var tilstanden i produksjon fram til 0105 (2026-08-18).
 do $$
-declare d date := date '2024-01-01';
+declare
+  d date := date '2024-01-01';
+  navn text;
 begin
   while d < date '2028-01-01' loop
+    navn := 'daglig_salg_' || to_char(d, 'YYYYMM');
     execute format(
-      'create table if not exists public.daglig_salg_%s partition of public.daglig_salg for values from (%L) to (%L)',
-      to_char(d, 'YYYYMM'), d, (d + interval '1 month')::date);
+      'create table if not exists public.%I partition of public.daglig_salg for values from (%L) to (%L)',
+      navn, d, (d + interval '1 month')::date);
+    execute format('revoke all on public.%I from anon, authenticated', navn);
+    execute format('alter table public.%I enable row level security', navn);
     d := (d + interval '1 month')::date;
   end loop;
 end $$;
 create table if not exists public.daglig_salg_default partition of public.daglig_salg default;
+revoke all on public.daglig_salg_default from anon, authenticated;
+alter table public.daglig_salg_default enable row level security;
 
 -- Sporing av hvor mange rader en jobb produserte (synlig i import-status).
 alter table public.import_jobber add column if not exists antall_rader integer;
 
 -- ---------------------------------------------------------------------
 -- RLS — admin ser/skriver alt eget; butikksjef leser tildelte stasjoner.
--- Tilgang via foreldretabellen håndhever policyene også for partisjonene.
+--
+-- Policyene under gjelder oppslag GJENNOM foreldretabellen. Det er den
+-- veien appen går (v_butikksalg og importen), så de er nok for driften.
+--
+-- De gjelder IKKE et direkte oppslag på en partisjon — der er det
+-- partisjonens egen RLS som avgjør. Derfor stenges hver partisjon i
+-- løkken over. En tidligere versjon av denne kommentaren sa bare det
+-- første, og da leste den som en garanti den ikke ga.
 -- ---------------------------------------------------------------------
 alter table public.daglig_salg enable row level security;
 
