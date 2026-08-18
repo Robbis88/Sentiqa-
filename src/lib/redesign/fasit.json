@@ -1,0 +1,716 @@
+{
+  "ruter": [
+    "/abonnement",
+    "/analyse",
+    "/ansatte",
+    "/anvisninger",
+    "/arrangementer",
+    "/avtalevokter",
+    "/avvik",
+    "/bemanning",
+    "/brukere",
+    "/databehandleravtale",
+    "/dekning",
+    "/fokus",
+    "/ikmat",
+    "/ikmat/maaling",
+    "/ikmat/oppsett",
+    "/import",
+    "/ingen-tilgang",
+    "/kampanjer",
+    "/kasserer",
+    "/konkurranser",
+    "/kontrakt",
+    "/kontrakt/[id]",
+    "/kunnskap",
+    "/lederstotte",
+    "/lenker",
+    "/logg-inn",
+    "/logg-inn/totp",
+    "/lonn",
+    "/maaling",
+    "/meldinger",
+    "/merker",
+    "/mine-opplysninger",
+    "/nyheter",
+    "/oppgaver",
+    "/opplaring",
+    "/oversikt",
+    "/page.tsx",
+    "/persondata",
+    "/personvern",
+    "/plattform",
+    "/premier",
+    "/produksjonsplan",
+    "/produksjonsplan/treffsikkerhet",
+    "/puls",
+    "/puls/[id]",
+    "/puls/ny",
+    "/puls/sporsmal",
+    "/redaktor",
+    "/registrer",
+    "/regnskap",
+    "/rutiner",
+    "/rutiner/min",
+    "/rutiner/oppsett",
+    "/rutiner/oppsett/[id]",
+    "/rutiner/oversikt",
+    "/salg",
+    "/salgsprognose",
+    "/sett-passord",
+    "/sikkerhet",
+    "/sjekkpunkt",
+    "/skills",
+    "/stasjoner",
+    "/svinn",
+    "/tilbakemeldinger",
+    "/timesalg",
+    "/trafikk",
+    "/utsolgt",
+    "/varsler"
+  ],
+  "meny": [
+    "/analyse roller:A",
+    "/ansatte roller:A,B",
+    "/anvisninger roller:A,B",
+    "/arrangementer roller:A",
+    "/bemanning roller:A,B",
+    "/brukere roller:A",
+    "/dekning roller:A",
+    "/fokus roller:A,B",
+    "/ikmat roller:A,B,T",
+    "/ikmat/oppsett roller:A,B",
+    "/import roller:A",
+    "/kampanjer roller:plattform_redaktor",
+    "/kasserer roller:A,B",
+    "/konkurranser roller:A,B",
+    "/kontrakt roller:A,B",
+    "/kunnskap roller:plattform_redaktor",
+    "/lederstotte roller:A,B",
+    "/lonn roller:A,B",
+    "/maaling roller:A,B",
+    "/meldinger roller:A,B",
+    "/merker roller:A,B,T",
+    "/mine-opplysninger roller:A,B,T",
+    "/nyheter roller:A,B,T",
+    "/oppgaver roller:A,B",
+    "/opplaring roller:B",
+    "/oversikt roller:A,B",
+    "/persondata roller:A,B",
+    "/plattform roller:plattform_redaktor",
+    "/premier roller:A,B",
+    "/produksjonsplan roller:A,B",
+    "/produksjonsplan/treffsikkerhet roller:A,B",
+    "/puls roller:A,B",
+    "/redaktor roller:plattform_redaktor",
+    "/regnskap roller:A,B",
+    "/rutiner roller:T",
+    "/rutiner/min roller:A,B",
+    "/rutiner/oppsett roller:B",
+    "/rutiner/oversikt roller:A,B",
+    "/salg roller:A,B",
+    "/salgsprognose roller:A,B",
+    "/sjekkpunkt roller:A,B",
+    "/skills roller:A,B",
+    "/stasjoner roller:A",
+    "/svinn roller:A,B",
+    "/tilbakemeldinger roller:A,B",
+    "/timesalg roller:A,B",
+    "/trafikk roller:plattform_redaktor",
+    "/utsolgt roller:A,B"
+  ],
+  "handlinger": {
+    "/abonnement": [
+      "settAbonnement"
+    ],
+    "/analyse": [
+      "generer",
+      "genererHeleAaret"
+    ],
+    "/ansatte": [
+      "deaktiverAnsatt",
+      "leggTilAnsatt"
+    ],
+    "/anvisninger": [
+      "leggTilAnvisning",
+      "slettAnvisning"
+    ],
+    "/arrangementer": [
+      "bekreftArrangement",
+      "forkastArrangement",
+      "leggTilArrangement",
+      "leggTilKalenderKilde",
+      "slettKalenderKilde"
+    ],
+    "/assistent": [
+      "sp"
+    ],
+    "/avtalevokter": [
+      "forhandling",
+      "lastOppFaktura"
+    ],
+    "/avvik": [
+      "opprettAvvik",
+      "settGjennomfort"
+    ],
+    "/bemanning": [
+      "lagreStilling",
+      "lagreTak",
+      "lagreVindu",
+      "leggTilFastVakt",
+      "leggTilFravaer",
+      "leggTilKrav",
+      "slettFastVakt",
+      "slettFravaer",
+      "slettKrav",
+      "slettVindu"
+    ],
+    "/brukere": [
+      "fjernBruker",
+      "opprettBruker"
+    ],
+    "/fokus": [
+      "generer"
+    ],
+    "/ikmat": [
+      "lagrePunktRekkefolge",
+      "leggTilPunkt",
+      "loggMaaling",
+      "oppdaterPunkt",
+      "registrerAvlesning",
+      "settOppStandard",
+      "slettKontrollpunkt"
+    ],
+    "/import": [
+      "importerForhandsparset",
+      "lastOppFiler",
+      "registrerRaaFil",
+      "settAllowlist"
+    ],
+    "/kampanjer": [
+      "opprettKampanje",
+      "slettKampanje"
+    ],
+    "/konkurranser": [
+      "kaarVinner",
+      "markerUtbetalt",
+      "opprettKonkurranse",
+      "slettKonkurranse"
+    ],
+    "/kontrakt": [
+      "lagreAnsattkort",
+      "lagreStandardfelt",
+      "lastOppMal",
+      "lastOppSignert"
+    ],
+    "/kunnskap": [
+      "leggTilKunnskap",
+      "slettKunnskap"
+    ],
+    "/lederstotte": [
+      "generer"
+    ],
+    "/lenker": [
+      "leggTilLenke",
+      "slettLenke"
+    ],
+    "/lonn": [
+      "settLonnsform",
+      "settTimesats"
+    ],
+    "/maaling": [
+      "opprettMalekort",
+      "slettMalekort",
+      "sokVarerAksjon"
+    ],
+    "/meldinger": [
+      "sendMelding",
+      "slettMelding"
+    ],
+    "/merker": [
+      "fjernTildeling",
+      "leggTilMerke",
+      "settOppStandard",
+      "slettMerke",
+      "tildelMerke"
+    ],
+    "/mine-opplysninger": [
+      "bekreftLest"
+    ],
+    "/oppgaver": [
+      "kvitterTablet",
+      "leggTilOppgave",
+      "slettOppgave",
+      "veksleOppgave"
+    ],
+    "/opplaring": [
+      "fullforPeriode",
+      "leggTilOppgave",
+      "leggTilPeriode",
+      "leggTilSkift",
+      "redigerOppgave",
+      "settOppStandard",
+      "slettOppgave",
+      "slettPeriode",
+      "slettSkift",
+      "vekslUtfort"
+    ],
+    "/persondata": [
+      "lagreFrist",
+      "slettPerson"
+    ],
+    "/plattform": [
+      "deaktiverKunde",
+      "opprettKunde",
+      "reaktiverKunde",
+      "sendInvitasjonPaaNytt",
+      "slettKundePermanent"
+    ],
+    "/premier": [
+      "registrerBruk",
+      "slettBruk",
+      "slettTildeling",
+      "tildelPremie",
+      "vekslUtbetalt"
+    ],
+    "/produksjonsplan": [
+      "loggLagd",
+      "publiser",
+      "setLinje",
+      "setNotat"
+    ],
+    "/produksjonsplan/treffsikkerhet": [
+      "oppdaterTreffsikkerhet"
+    ],
+    "/puls": [
+      "avsluttRunde",
+      "leggTilSporsmal",
+      "settOppStandard",
+      "slettRunde",
+      "slettSporsmal",
+      "startRunde",
+      "svarRunde",
+      "vekslAktivSporsmal"
+    ],
+    "/redaktor": [
+      "formulerNyhet",
+      "opprettInnlegg",
+      "settPublisert",
+      "slettInnlegg"
+    ],
+    "/rutiner": [
+      "fjernKryss",
+      "kryssAv",
+      "kryssAvMedBilde"
+    ],
+    "/rutiner/min": [
+      "leggTilPunkt",
+      "slettPunkt",
+      "veksle"
+    ],
+    "/rutiner/oppsett": [
+      "lagreRekkefolge",
+      "leggTilIkmatRutine",
+      "leggTilRutine",
+      "leggTilSkjema",
+      "oppdaterRutine",
+      "oppdaterSkjema",
+      "slettRutine",
+      "slettSkjema"
+    ],
+    "/": [
+      "checkInn",
+      "checkUt",
+      "opprettOppgave",
+      "sendTilTablet",
+      "setSprak",
+      "settSomFokus",
+      "skjulSignal"
+    ],
+    "/sjekkpunkt": [
+      "leggTilSjekkpunkt",
+      "slettSjekkpunkt",
+      "svar",
+      "svarSjekkpunktTablet"
+    ],
+    "/skills": [
+      "registrerSkills",
+      "slettSkills"
+    ],
+    "/stasjoner": [
+      "leggTilStasjon",
+      "oppdaterVaer",
+      "settPosisjon",
+      "settStasjonstype",
+      "settTerskel",
+      "settVaerfolsomhet"
+    ],
+    "/tilbakemeldinger": [
+      "markerLest",
+      "sendTilbakemelding"
+    ],
+    "/trafikk": [
+      "finnTeller",
+      "settTrafikkAktiv"
+    ],
+    "/varsler": [
+      "fjernPushAbonnement",
+      "lagrePushAbonnement",
+      "markerAlle",
+      "markerLest"
+    ],
+    "/logg-inn": [
+      "loggInn"
+    ],
+    "/registrer": [
+      "registrer"
+    ],
+    "/sett-passord": [
+      "settPassord"
+    ]
+  },
+  "seksjoner": {
+    "/abonnement": [
+      "Fakturering (EHF)",
+      "Prisgrunnlag"
+    ],
+    "/analyse": [
+      "Endringer mot forrige periode",
+      "Muligheter",
+      "Per stasjon",
+      "Prioriterte tiltak",
+      "Røde flagg",
+      "Sammendrag",
+      "⚙️ Systemfeil (registrering)",
+      "🔎 Usynlig svinn per stasjon"
+    ],
+    "/ansatte": [
+      "Aktive ({(ansatte ?? []).length})",
+      "Ny ansatt"
+    ],
+    "/anvisninger": [
+      "Ny anvisning",
+      "{o(kat)}"
+    ],
+    "/arrangementer": [
+      "Kommende arrangementer",
+      "📥 Forslag fra kalender <span className=\"undertittel\">— teller ikke før du bekrefter</span>",
+      "🗓️ Kalender-kilder (iCal)"
+    ],
+    "/avtalevokter": [
+      "Last opp faktura",
+      "{lev} <span className=\"undertittel\">· {liste[0].kategori ?? '—'} · totalt {kr.format(total)}</span>"
+    ],
+    "/bemanning": [
+      "Bærer kontraktene planen?",
+      "Faste vakter",
+      "Ferie og fravær",
+      "Forslag for uke {valgtUkeNr}",
+      "Hvor mange får plass?",
+      "Hvor mye går folk i?",
+      "Når står det folk i butikken?",
+      "Planen mot det som faktisk skjedde",
+      "Stasjonene mot hverandre",
+      "Timer der én ikke holder",
+      "{MND[maned - 1]} {ar}"
+    ],
+    "/brukere": [
+      "Eksisterende ({(profiler ?? []).length})",
+      "Ny bruker"
+    ],
+    "/dekning": [
+      "Måned for måned"
+    ],
+    "/fokus": [
+      "{navnFor.get(id) ?? '—'}"
+    ],
+    "/ikmat/oppsett": [
+      "{s.butikknummer} {s.navn} <span className=\"undertittel\">· {sineP.length} punkter</span>"
+    ],
+    "/ikmat": [
+      "{s.butikknummer} {s.navn}"
+    ],
+    "/import": [
+      "E-post-inntak",
+      "Hva systemet har, og hva det mangler",
+      "Last opp filer",
+      "Status"
+    ],
+    "/kampanjer": [
+      "Ny kampanje",
+      "{k.navn} <span className=\"undertittel\">· {kjedeNavn.get(k.retailer_id)}</span>"
+    ],
+    "/kasserer": [
+      "{s.butikknummer} {s.navn}"
+    ],
+    "/konkurranser": [
+      "Ny konkurranse"
+    ],
+    "/kontrakt": [
+      "Ingen mal for dette valget",
+      "Kjedens faste felt",
+      "Maler",
+      "Skrevet på {valgt.navn}",
+      "Skriv kontrakt",
+      "{person.navn}"
+    ],
+    "/kontrakt/[id]": [
+      "Signering",
+      "Slik ble den fylt ut",
+      "Verdiene som ble satt inn",
+      "{igjen.length} valg står igjen"
+    ],
+    "/kunnskap": [
+      "Artikler <span className=\"undertittel\">· {artikler.length}</span>",
+      "Ny artikkel"
+    ],
+    "/lonn": [
+      "Kontrakter som ikke dekker arbeidet",
+      "Kontroll før sending",
+      "{MND[maned - 1]} {ar} · {valgt.navn}"
+    ],
+    "/maaling": [
+      "+ Nytt målekort",
+      "{m.navn}"
+    ],
+    "/meldinger": [
+      "Aktive ({(meldinger ?? []).length})",
+      "Ny melding"
+    ],
+    "/merker": [
+      "Kom i gang",
+      "Merker",
+      "Merkeveggen",
+      "Tildel et merke"
+    ],
+    "/mine-opplysninger": [
+      "Det vi ikke gjør",
+      "Dine rettigheter",
+      "Les gjennom",
+      "{t.hva}"
+    ],
+    "/nyheter": [
+      "{i.tittel}"
+    ],
+    "/oppgaver": [
+      "Fullført ({fullfort.length})",
+      "Ny oppgave",
+      "Åpne ({apne.length})"
+    ],
+    "/opplaring": [
+      "Oppgavebibliotek",
+      "Sett opp oppgaver",
+      "Under opplæring",
+      "Vaktplan",
+      "{valgt.ansatt_navn} — sjekkliste"
+    ],
+    "/persondata": [
+      "Hvem har sett hva",
+      "Innsyn for en ansatt",
+      "Klar for sletting",
+      "Oppbevaringstid"
+    ],
+    "/plattform": [
+      "Aktive kjeder",
+      "Deaktiverte kjeder",
+      "Ny kunde"
+    ],
+    "/premier": [
+      "Registrer bruk",
+      "Siste bruk",
+      "Tildel pengepremie",
+      "Tildelinger"
+    ],
+    "/produksjonsplan": [
+      "🥐 Produksjon",
+      "🥐 Produksjon"
+    ],
+    "/produksjonsplan/treffsikkerhet": [
+      "Dag for dag (siste {trendDager.length})",
+      "{tittel}",
+      "{tittel}"
+    ],
+    "/puls/sporsmal": [
+      "Nytt spørsmål"
+    ],
+    "/puls/[id]": [
+      "Kommentarer ({kommentarer.length})",
+      "Per stasjon"
+    ],
+    "/redaktor": [
+      "Nytt innlegg"
+    ],
+    "/regnskap": [
+      "Kostnader per konto · hele kjeden",
+      "Per stasjon",
+      "{SEKSJON_TITTEL[navn]}"
+    ],
+    "/rutiner/min": [
+      "Nytt punkt"
+    ],
+    "/rutiner/oppsett": [
+      "{st.butikknummer} {st.navn}"
+    ],
+    "/rutiner/oppsett/[id]": [
+      "Når er skjemaet aktivt",
+      "Rutiner i dette skjemaet <span className=\"undertittel\">· {rutiner.length}</span>",
+      "➕ Legg til ny rutine",
+      "🌡️ IK-mat-kontroll"
+    ],
+    "/rutiner": [
+      "{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className=\"streak\"> 🔥 {streaks.get(sid)}</span>}"
+    ],
+    "/salg": [
+      "Per kategori{erStasjon ? ` · ${valgtNavn}` : ''}",
+      "Per stasjon",
+      "Topp varegrupper{erStasjon ? ` · ${valgtNavn}` : ''}"
+    ],
+    "/salgsprognose": [
+      "Per kategori",
+      "Signaler bak prognosen"
+    ],
+    "/sjekkpunkt": [
+      "Nytt sjekkpunkt",
+      "{navnFor.get(sid) ?? '—'}"
+    ],
+    "/skills": [
+      "Ny score"
+    ],
+    "/stasjoner": [
+      "Ny stasjon",
+      "{stasjoner.length} stasjon(er)"
+    ],
+    "/svinn": [
+      "Mest svinn (varer){erStasjon ? ` · ${valgtNavn}` : ''}",
+      "Per stasjon · {datoLang.format(new Date(siste.dato))}",
+      "Svinn mot terskel · siste 30 dager"
+    ],
+    "/utsolgt": [
+      "Oversikt — hvor butikken mister salg på tom hylle",
+      "{valgt.stasjon.butikknummer} {valgt.stasjon.navn}"
+    ],
+    "/databehandleravtale": [
+      "1. Parter og bakgrunn",
+      "10. Brudd på personopplysningssikkerheten",
+      "11. Revisjon og dokumentasjon",
+      "12. Varighet, opphør og sletting",
+      "13. Overføring til tredjeland",
+      "14. Ansvar",
+      "15. Lovvalg og verneting",
+      "16. Kontakt",
+      "2. Formål og omfang",
+      "3. Behandlingsansvarliges instrukser",
+      "4. Databehandlerens plikter",
+      "5. Kategorier av registrerte og personopplysninger (Vedlegg A)",
+      "6. Underdatabehandlere (Vedlegg B)",
+      "7. Sikkerhet (art. 32)",
+      "8. Konfidensialitet",
+      "9. Bistand til Behandlingsansvarlig"
+    ],
+    "/personvern": [
+      "1. Hvem er ansvarlig",
+      "10. Informasjonskapsler",
+      "11. Endringer",
+      "12. Kontakt",
+      "2. Hvilke opplysninger vi behandler",
+      "3. Formål og behandlingsgrunnlag",
+      "4. Underdatabehandlere",
+      "5. AI-behandling",
+      "6. Lagringstid",
+      "7. Sikkerhet",
+      "8. Dine rettigheter",
+      "9. Eksport og sletting"
+    ]
+  },
+  "lenker": {
+    "/bemanning": [
+      "/import"
+    ],
+    "/ikmat/maaling": [
+      "/rutiner"
+    ],
+    "/ikmat/oppsett": [
+      "/ikmat"
+    ],
+    "/ikmat": [
+      "/ikmat/oppsett"
+    ],
+    "/konkurranser": [
+      "/assistent"
+    ],
+    "/kontrakt": [
+      "/api/kontrakt/fil",
+      "/import",
+      "/kontrakt/${k.id}"
+    ],
+    "/kontrakt/[id]": [
+      "/api/kontrakt/fil",
+      "/kontrakt"
+    ],
+    "/lonn": [
+      "/api/lonn/visma",
+      "/import"
+    ],
+    "/opplaring": [
+      "/opplaring"
+    ],
+    "/persondata": [
+      "/api/personvern/innsyn"
+    ],
+    "/produksjonsplan": [
+      "/produksjonsplan/treffsikkerhet"
+    ],
+    "/produksjonsplan/treffsikkerhet": [
+      "/produksjonsplan"
+    ],
+    "/puls/ny": [
+      "/puls",
+      "/puls/sporsmal"
+    ],
+    "/puls": [
+      "/puls/${r.id}",
+      "/puls/ny",
+      "/puls/sporsmal"
+    ],
+    "/puls/sporsmal": [
+      "/puls"
+    ],
+    "/puls/[id]": [
+      "/puls"
+    ],
+    "/rutiner/oppsett": [
+      "/rutiner",
+      "/rutiner/oppsett/${sk.id}",
+      "/rutiner/oversikt"
+    ],
+    "/rutiner/oppsett/[id]": [
+      "/rutiner/oppsett",
+      "/rutiner/oversikt"
+    ],
+    "/rutiner": [
+      "/ikmat/maaling",
+      "/rutiner/oppsett"
+    ],
+    "/salg": [
+      "/salg"
+    ],
+    "/databehandleravtale": [
+      "/",
+      "/personvern"
+    ],
+    "/logg-inn": [
+      "/personvern"
+    ],
+    "/personvern": [
+      "/",
+      "/databehandleravtale"
+    ],
+    "/registrer": [
+      "/logg-inn",
+      "/personvern"
+    ],
+    "/sikkerhet": [
+      "/oversikt"
+    ]
+  }
+}
