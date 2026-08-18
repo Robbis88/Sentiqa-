@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
 
 type Runde = { id: string; start_dato: string; slutt_dato: string; status: string; notat: string | null; puls_sporsmal: { tekst: string; kategori: string } | null }
 type Svar = { skala: number | null; kommentar: string | null; stasjon_id: string }
@@ -37,12 +38,22 @@ export default async function RundeResultat({ params }: { params: Promise<{ id: 
   }
   const totSnitt = totAntall > 0 ? (totSum / totAntall).toFixed(1) : '—'
 
+  // NIVÅ 1 på en detaljside: hva er dette, og hvilken tilstand er det i.
+  // Tilstanden manglet helt — lista viste «Aktiv»/«Avsluttet», men åpnet
+  // man målingen sto det ingen steder om den fortsatt tar imot svar.
+  const erAktiv = runde.status === 'aktiv'
+  const periode = `${datoLang.format(new Date(runde.start_dato))}–${datoLang.format(new Date(runde.slutt_dato))}`
+  const svarTekst = totAntall === 0
+    ? 'ingen svar ennå'
+    : `snitt ${totSnitt} av 5 på ${totAntall} ${totAntall === 1 ? 'svar' : 'svar'}`
+
   return (
     <>
-      <h1>{runde.puls_sporsmal?.tekst ?? 'Måling'}</h1>
-      <p className="undertittel">
-        {runde.puls_sporsmal?.kategori} · {datoLang.format(new Date(runde.start_dato))}–{datoLang.format(new Date(runde.slutt_dato))} · <Link href="/puls">Tilbake</Link>
-      </p>
+      <Sidehode
+        tittel={runde.puls_sporsmal?.tekst ?? 'Måling'}
+        undertittel={`${erAktiv ? 'Tar imot svar' : 'Avsluttet'} · ${svarTekst} · ${runde.puls_sporsmal?.kategori} · ${periode}`}
+        handlinger={<Link href="/puls" className="sq-knapp">Alle målinger</Link>}
+      />
 
       <section className="nokkeltall">
         <div className="kpi"><span className="kpi-tall">{totSnitt}</span><span className="kpi-merke">Snitt hele kjeden</span></div>
@@ -51,7 +62,14 @@ export default async function RundeResultat({ params }: { params: Promise<{ id: 
 
       <section className="kort">
         <h2>Per stasjon</h2>
-        {perStasjon.size === 0 ? <p className="undertittel">Ingen svar ennå.</p> : (
+        {perStasjon.size === 0 ? (
+          <Tomtilstand
+            tittel="Ingen svar ennå"
+            forklaring={erAktiv
+              ? 'Målingen ligger ute på nettbrettene. Svarene dukker opp her etter hvert som folk trykker.'
+              : 'Målingen ble avsluttet uten at noen svarte.'}
+          />
+        ) : (
           <table className="tabell">
             <thead><tr><th>Stasjon</th><th>Svar</th><th>Snitt</th><th>Fordeling 1–5</th></tr></thead>
             <tbody>

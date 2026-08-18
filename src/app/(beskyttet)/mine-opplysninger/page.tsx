@@ -5,6 +5,7 @@ import {
   KONTROLLTILTAK_VERSJON, maaBekrefte, RETTIGHETER, TILTAK,
 } from '@/lib/personvern/kontrolltiltak'
 import { BekreftSkjema } from './bekreft'
+import { Sidehode } from '@/components/ui/side'
 
 // Informasjonsplikten etter aml. § 9-2 andre ledd, gjort til en side.
 //
@@ -32,11 +33,16 @@ export default async function MineOpplysninger() {
 
   return (
     <>
-      <h1>Slik måler vi</h1>
-      <p className="undertittel">
-        Dette er hva Sentiqa registrerer om deg som jobber her, hvorfor, hvem som
-        ser det, og hvor lenge det lagres. Du skal ikke måtte gjette.
-      </p>
+      {/* Sidehodet sier tilstanden — lest eller ikke — i stedet for at den
+          bare finnes som et kort lenger ned. På en detaljside er «hvilken
+          tilstand er dette i» nivå 1, og her er tilstanden hele poenget:
+          har du fått informasjonen, eller venter den på deg. */}
+      <Sidehode
+        tittel="Slik måler vi"
+        undertittel={trengerBekreftelse
+          ? 'Ny tekst — les gjennom og kvitter under. Dette er hva Sentiqa registrerer om deg som jobber her, hvorfor, hvem som ser det, og hvor lenge det lagres.'
+          : 'Du har lest denne. Dette er hva Sentiqa registrerer om deg som jobber her, hvorfor, hvem som ser det, og hvor lenge det lagres. Du skal ikke måtte gjette.'}
+      />
 
       {trengerBekreftelse ? (
         <section className="kort">

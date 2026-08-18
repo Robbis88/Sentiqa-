@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { FREKVENS_ETIKETT } from '@/lib/ikmat/standard'
 import { MaalingListe, type Punkt, type Logget } from './maaling-liste'
+import { Sidehode } from '@/components/ui/side'
 
 const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
 
@@ -27,12 +28,29 @@ export default async function MaalingSide({ searchParams }: { searchParams: Prom
   const logget: Record<string, Logget> = {}
   for (const a of avles ?? []) logget[a.kontrollpunkt_id] = { temp: a.temperatur, innenfor: a.innenfor }
 
+  // Hvor langt er jeg kommet — spørsmålet man har når man står med
+  // termometeret. Sto ingen steder; man måtte telle avhukede rader selv.
+  const antallPunkter = (punkter ?? []).length
+  const antallMaalt = Object.keys(logget).length
+  const utenfor = Object.values(logget).filter((l) => !l.innenfor).length
+  const status = antallPunkter === 0
+    ? 'Ingen kontrollpunkter satt opp'
+    : antallMaalt >= antallPunkter
+      ? `Alle ${antallPunkter} målt`
+      : `${antallMaalt} av ${antallPunkter} målt`
+
   return (
     <>
-      <h1>🌡️ IK-mat · {FREKVENS_ETIKETT[frekvens]}</h1>
-      <p className="undertittel">
-        {st ? `${st.butikknummer} ${st.navn} · ` : ''}{datoLang.format(new Date(idag))} · <Link href="/rutiner">← Tilbake til vakta</Link>
-      </p>
+      <Sidehode
+        tittel={`IK-mat · ${FREKVENS_ETIKETT[frekvens]}`}
+        undertittel={[
+          status,
+          utenfor > 0 ? `${utenfor} utenfor kravet` : null,
+          st ? `${st.butikknummer} ${st.navn}` : null,
+          datoLang.format(new Date(idag)),
+        ].filter(Boolean).join(' · ')}
+        handlinger={<Link href="/rutiner" className="sq-knapp">Tilbake til vakta</Link>}
+      />
       <section className="kort">
         <p className="undertittel">Mål hver enhet og lagre. Er noe utenfor kravet, fyll inn strakstiltak — da opprettes et avvik automatisk.</p>
         <MaalingListe punkter={(punkter ?? []).map((p) => ({ id: p.id, navn: p.navn, min_temp: p.min_temp, max_temp: p.max_temp }))} logget={logget} />

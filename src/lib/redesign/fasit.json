@@ -557,10 +557,9 @@
       "{st.butikknummer} {st.navn}"
     ],
     "/rutiner/oppsett/[id]": [
+      "IK-mat-kontroll <span className=\"undertittel\">· {ikmatRutiner.length}</span>",
       "Når er skjemaet aktivt",
-      "Rutiner i dette skjemaet <span className=\"undertittel\">· {rutiner.length}</span>",
-      "➕ Legg til ny rutine",
-      "🌡️ IK-mat-kontroll"
+      "Rutiner i dette skjemaet <span className=\"undertittel\">· {rutiner.length}</span>"
     ],
     "/rutiner": [
       "{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className=\"streak\"> 🔥 {streaks.get(sid)}</span>}"
