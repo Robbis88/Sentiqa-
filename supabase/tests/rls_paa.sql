@@ -26,9 +26,14 @@ select
   'TABELLEN FINNES IKKE - migrasjonen som lager den er ikke kjort'
                                                    as dom
 from unnest(array[
-  'fakturaer', 'opplaring_fullfort', 'opplaring_personer', 'opplaring_punkter'
+  -- Legg inn tabeller migrasjonene lager og som SKAL finnes. Er lista tom,
+  -- gjor denne delen ingenting. fakturaer og opplaring_* stod her; begge
+  -- viste seg aa vaere doede - Avtalevokteren er fjernet (0106), og
+  -- opplaring_* er erstattet av opplaering_*.
+  ''
 ]) as t
-where not exists (
+where t <> ''
+and not exists (
   select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relname = t and c.relkind = 'r')
 

@@ -199,7 +199,6 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/redaktor': 'liste',
   '/puls': 'liste',
   '/puls/sporsmal': 'liste',
-  '/avtalevokter': 'liste',
   '/utsolgt': 'liste',
   '/fokus': 'liste',
   // Sto som 'analyse'. Siden analyserer ingenting — den kobler hver

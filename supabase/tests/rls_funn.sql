@@ -30,7 +30,7 @@ with lister as (
       'prognose_treff', 'prognose_kalibrering',
       'vaer', 'trafikk', 'uke_rapport',
       'personlig_kryss', 'puls_svar', 'varsler',
-      'import_jobber', 'raa_filer', 'fakturaer', 'ai_tool_log',
+      'import_jobber', 'raa_filer', 'ai_tool_log',
       'opplaering_periode', 'opplaring_fullfort', 'pengepremie_bruk',
       'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter'
     ]::text[] as varme,
