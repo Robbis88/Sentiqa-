@@ -3,7 +3,9 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { TimesalgKart } from './timesalg-kart'
-import { StasjonsVelger } from '../stasjonsvelger'
+import Link from 'next/link'
+import { Sidehode, Tomtilstand, Nokkeltall } from '@/components/ui/side'
+import { kr } from '@/lib/format'
 
 type Rad = { stasjon_id: string; time: string; salg: number | null; inne_kunder: number | null; ute_kunder: number | null }
 
@@ -28,8 +30,12 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   if (!siste) {
     return (
       <>
-        <h1>Timesalg</h1>
-        <p className="undertittel">Ingen timesalgsdata ennå. Last opp en timesalgsrapport under Import.</p>
+        <Sidehode tittel="Timesalg" undertittel="Når på døgnet pengene kommer inn." />
+        <Tomtilstand
+          tittel="Ingen timesalgsdata ennå"
+          forklaring="Last opp en timesalgsrapport under Import, så ser du døgnet time for time — og hvilke timer som faktisk bærer dagen."
+          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+        />
       </>
     )
   }
@@ -54,17 +60,32 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   const kartRader = erStasjon ? kartRaderAlle.filter((r) => r.stasjon_id === valgtStasjon) : kartRaderAlle
   const harInneUte = (rader ?? []).some((r) => r.inne_kunder != null || r.ute_kunder != null)
 
+  // Nivaa 1 paa en analyseside er SVARET, ikke perioden. Her er svaret
+  // naar pengene kommer inn - det er derfor man aapner siden.
+  // `time` er en STRENG i basen, ikke et tall. Den vises som den er
+  // framfor aa regne «time + 1» paa et format vi ikke kjenner.
+  const perTime = new Map<string, number>()
+  for (const r of kartRader) perTime.set(r.time, (perTime.get(r.time) ?? 0) + r.salg)
+  const sortert = [...perTime].sort((a, b) => b[1] - a[1])
+  const topp = sortert[0] ? { time: sortert[0][0], salg: sortert[0][1] } : null
+  const dagsomsetning = [...perTime.values()].reduce((n, v) => n + v, 0)
+  const aktiveTimer = [...perTime.values()].filter((v) => v > 0).length
+
   return (
     <>
-      <h1>Timesalg</h1>
-      <p className="undertittel">{datoLang.format(new Date(siste.dato))} · pr time{harInneUte ? ' · inne/utekunder' : ''} · {erStasjon ? valgtNavn : 'alle stasjoner'}</p>
+      <Sidehode
+        tittel="Timesalg"
+        undertittel={topp
+          ? `Travlest kl. ${topp.time} med ${kr.format(topp.salg)}. `
+            + `${datoLang.format(new Date(siste.dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`
+          : `${datoLang.format(new Date(siste.dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`}
+      />
 
-      {medData.length > 0 && (
-        <StasjonsVelger
-          stasjoner={medData.map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-          valgtId={erStasjon ? valgtStasjon : null}
-          basePath="/timesalg"
-        />
+      {topp && (
+        <div className="sq-nokkelrad">
+          <Nokkeltall merkelapp="Travleste time" verdi={`kl. ${topp.time}`} sammenlignet={kr.format(topp.salg)} />
+          <Nokkeltall merkelapp="Hele dagen" verdi={kr.format(dagsomsetning)} sammenlignet={`${aktiveTimer} timer med salg`} />
+        </div>
       )}
 
       <section className="kort">

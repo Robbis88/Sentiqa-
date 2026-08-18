@@ -690,6 +690,9 @@
     "/salg": [
       "/salg"
     ],
+    "/timesalg": [
+      "/import"
+    ],
     "/databehandleravtale": [
       "/",
       "/personvern"

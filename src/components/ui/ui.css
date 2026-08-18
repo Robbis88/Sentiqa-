@@ -354,3 +354,13 @@
    motsatt råd. Den venstre kanten markerer at dette er en observasjon,
    ikke en tabell til. */
 .sq-tidsproblem { border-left: 3px solid var(--primaer); }
+
+/* --- Nøkkeltall på rad --------------------------------------------
+   To til fire tall side om side, uten kortramme. Rammen ville gjort dem
+   til fire moduler; de er ett svar sett fra flere kanter. */
+.sq-nokkelrad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--luft-6);
+  margin-bottom: var(--luft-5);
+}
