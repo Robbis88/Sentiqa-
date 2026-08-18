@@ -638,6 +638,9 @@
     "/ikmat": [
       "/ikmat/oppsett"
     ],
+    "/kasserer": [
+      "/import"
+    ],
     "/kontrakt": [
       "/api/kontrakt/fil",
       "/import",
