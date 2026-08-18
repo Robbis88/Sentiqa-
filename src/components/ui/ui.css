@@ -369,3 +369,16 @@
 .kpi-mot { font-size: var(--tekst-liten); color: var(--tekst-svak); }
 .kpi-mot.god { color: var(--gronn); }
 .kpi-mot.darlig { color: var(--rod); }
+
+/* --- Ingress -------------------------------------------------------
+   Analysens svar, som prosa. Den staar uten kortramme og uten
+   overskrift: rammen ville gjort svaret til en seksjon blant aatte, og
+   overskriften «Sammendrag» ville bare skjovet det en linje ned. */
+.sq-ingress {
+  max-width: 68ch;
+  margin: 0 0 var(--luft-5);
+  font-size: var(--tekst-tittel);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--tekst);
+}

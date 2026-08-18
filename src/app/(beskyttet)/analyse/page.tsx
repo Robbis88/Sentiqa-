@@ -5,6 +5,7 @@ import { manedNavn } from '@/lib/perioder'
 import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
 import { PeriodeVelger } from '../periode-velger'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 
 // «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -102,12 +103,28 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
     }).sort((x, y) => y.manko - x.manko)
   }
 
+  // NIVÅ 1 — svaret. Sammendraget er AI-ens prosa; dette er den ene
+  // setningen som sier om perioden krever noe av eieren i det hele tatt.
+  const rodeFlagg = a?.rodeFlagg.length ?? 0
+  const stasjonerRod = (a?.perStasjon ?? []).filter((s) => s.status === 'rod').length
+  const svar = !a
+    ? null
+    : rodeFlagg === 0 && stasjonerRod === 0
+      ? 'Ingen røde flagg denne perioden'
+      : [
+          rodeFlagg > 0 ? `${rodeFlagg} ${rodeFlagg === 1 ? 'rødt flagg' : 'røde flagg'}` : null,
+          stasjonerRod > 0 ? `${stasjonerRod} av ${a.perStasjon.length} stasjoner krever tiltak` : null,
+        ].filter(Boolean).join(' · ')
+  const periodeTekst = data
+    ? (erHittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(data.periode)))
+    : null
+
   return (
     <>
-      <h1>Regnskapsanalyse</h1>
-      <p className="undertittel">
-        {data ? `${erHittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(data.periode))} · eier-analyse` : 'Ingen analyse ennå'}
-      </p>
+      <Sidehode
+        tittel="Regnskapsanalyse"
+        undertittel={[svar, periodeTekst].filter(Boolean).join('. ') || 'Ingen analyse ennå'}
+      />
 
       {grupper.length > 0 && (
         <div className="regnskap-velgere">
@@ -118,21 +135,41 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
       <AnalyseKnapp aar={aktivtAar} maaneder={regnskapMnd} />
 
       {!a ? (
-        <section className="kort">
-          <p className="undertittel">
-            Ingen analyse ennå. Behandle et regnskap og trykk «Kjør analyse».
-          </p>
-        </section>
+        <Tomtilstand
+          tittel="Ingen analyse ennå"
+          forklaring="Behandle et regnskap under Import, velg måneden over og trykk «Kjør analyse». Da leser regnskapsføreren tallene og skriver rapporten du ser her."
+        />
       ) : (
         <>
+          {/* Sammendraget ER siden. Det trenger ingen overskrift som
+              gjentar det — den ville bare skjøvet svaret én linje ned. */}
+          <p className="sq-ingress">{a.sammendrag}</p>
+
+          {a.rodeFlagg.length > 0 && (
+            <section className="kort oppmerksomhet">
+              <h2>Røde flagg</h2>
+              <ul>{a.rodeFlagg.map((f, i) => <li key={i}>{f}</li>)}</ul>
+            </section>
+          )}
+
+          {/* Tiltakene er det brukeren skal gjøre noe med. De lå under to
+              tabeller og et rutenett — altså etter begrunnelsen. */}
           <section className="kort">
-            <h2>Sammendrag</h2>
-            <p>{a.sammendrag}</p>
+            <h2>Prioriterte tiltak</h2>
+            <ol className="tiltak-liste">{a.tiltak.map((t, i) => {
+              const prio = typeof t === 'string' ? 'medium' : t.prioritet
+              return (
+                <li key={i}>
+                  <span className={`prio prio-${prio}`}>{PRIO_TEKST[prio]}</span>
+                  {typeof t === 'string' ? t : t.tekst}
+                </li>
+              )
+            })}</ol>
           </section>
 
           {(a.systemfeil ?? []).length > 0 && (
             <section className="kort oppmerksomhet">
-              <h2>⚙️ Systemfeil (registrering)</h2>
+              <h2>Systemfeil (registrering)</h2>
               <p className="undertittel">Mønstre på tvers av stasjoner — ikke ekte tap, men feilregistrering som forvrenger tallene.</p>
               <ul>{(a.systemfeil ?? []).map((f, i) => <li key={i}>{f}</li>)}</ul>
             </section>
@@ -158,7 +195,7 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
 
           {svinnPerStasjon.length > 0 && (
             <section className="kort">
-              <h2>🔎 Usynlig svinn per stasjon</h2>
+              <h2>Usynlig svinn per stasjon</h2>
               <p className="undertittel"><span className="svinn-manko">+ = manko (penger borte etter telling)</span> · <span className="svinn-overskudd">− = overskudd (positiv svinn)</span></p>
               <div className="svinn-grid">
                 {svinnPerStasjon.map((s, i) => (
@@ -177,29 +214,9 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
             </section>
           )}
 
-          {a.rodeFlagg.length > 0 && (
-            <section className="kort oppmerksomhet">
-              <h2>Røde flagg</h2>
-              <ul>{a.rodeFlagg.map((f, i) => <li key={i}>{f}</li>)}</ul>
-            </section>
-          )}
-
           <section className="kort">
             <h2>Muligheter</h2>
             <ul className="fokus-liste">{a.muligheter.map((m, i) => <li key={i}>{m}</li>)}</ul>
-          </section>
-
-          <section className="kort">
-            <h2>Prioriterte tiltak</h2>
-            <ol className="tiltak-liste">{a.tiltak.map((t, i) => {
-              const prio = typeof t === 'string' ? 'medium' : t.prioritet
-              return (
-                <li key={i}>
-                  <span className={`prio prio-${prio}`}>{PRIO_TEKST[prio]}</span>
-                  {typeof t === 'string' ? t : t.tekst}
-                </li>
-              )
-            })}</ol>
           </section>
 
           {(a.endringer ?? []).length > 0 && (
@@ -208,6 +225,20 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
               <ul className="fokus-liste">{(a.endringer ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
             </section>
           )}
+
+          <Forklaring sporsmaal="Hvor kommer analysen fra?">
+            <p>
+              Rapporten er skrevet av en språkmodell som leser regnskapslinjene mot
+              budsjettet og den usynlige svinnen for perioden — ikke av en beregning
+              med et fasitsvar. Den kan ta feil, og tallene den viser til bør sjekkes
+              mot tabellene på <strong>Regnskap</strong> før noe settes i verk.
+            </p>
+            <p>
+              Analysen lagres når den kjøres, og endres ikke av seg selv. Vil du ha den
+              oppdatert etter at nye tall er lastet opp, må du kjøre den på nytt med
+              knappen over. Drivstoff og pant er holdt utenfor alle tall.
+            </p>
+          </Forklaring>
         </>
       )}
     </>

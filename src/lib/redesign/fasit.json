@@ -432,9 +432,8 @@
       "Per stasjon",
       "Prioriterte tiltak",
       "Røde flagg",
-      "Sammendrag",
-      "⚙️ Systemfeil (registrering)",
-      "🔎 Usynlig svinn per stasjon"
+      "Systemfeil (registrering)",
+      "Usynlig svinn per stasjon"
     ],
     "/anvisninger": [
       "{o(kat)} <span className=\"undertittel\">· {liste.length}</span>"
@@ -676,6 +675,9 @@
     ],
     "/puls/[id]": [
       "/puls"
+    ],
+    "/regnskap": [
+      "/import"
     ],
     "/rutiner/oppsett": [
       "/rutiner",
