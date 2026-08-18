@@ -19,6 +19,33 @@
   --gronn: #15803d; --gronn-svak: #e7f6ec;
   --gul: #92600a;  --gul-svak: #fbf1d3;
   --rod: #b42318;  --rod-svak: #fdecea;
+
+  /* ---------------------------------------------------------------
+     Avstand og typografi
+     ---------------------------------------------------------------
+     Fargene har vaert tokens fra starten. Avstand og skriftstorrelse
+     har ikke, og det er derfor 478 klasser inneholder tall som
+     0.6rem, 0.75rem og 0.8rem om hverandre — ingen av dem valgt, alle
+     skrevet i forbifarten.
+
+     Skalaen er multiplikativ, ikke lineaer: naboverdier skal vaere
+     tydelig forskjellige, ellers velger man tilfeldig mellom dem. */
+  --luft-1: 0.25rem;
+  --luft-2: 0.5rem;
+  --luft-3: 0.75rem;
+  --luft-4: 1rem;
+  --luft-5: 1.5rem;
+  --luft-6: 2rem;
+  --luft-7: 3rem;
+
+  /* Fire storrelser holder. Trenger man en femte, er hierarkiet uklart. */
+  --tekst-liten: 0.8rem;    /* bildetekst, metadata */
+  --tekst-brod: 0.95rem;    /* lopende tekst */
+  --tekst-tittel: 1.25rem;  /* seksjon */
+  --tekst-svar: 2rem;       /* nivaa 1: ETT tall, ikke fem */
+
+  --linje-tett: 1.25;
+  --linje-luftig: 1.55;
 }
 
 * { box-sizing: border-box; }
