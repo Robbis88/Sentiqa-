@@ -574,8 +574,7 @@
       "Topp varegrupper{erStasjon ? ` · ${valgtNavn}` : ''}"
     ],
     "/salgsprognose": [
-      "Per kategori",
-      "Signaler bak prognosen"
+      "Per kategori"
     ],
     "/sjekkpunkt": [
       "Nytt sjekkpunkt",
@@ -695,6 +694,9 @@
     "/salg": [
       "/import",
       "/salg"
+    ],
+    "/salgsprognose": [
+      "/import"
     ],
     "/svinn": [
       "/import"
