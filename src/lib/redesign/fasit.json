@@ -373,6 +373,7 @@
       "sendTilTablet",
       "setSprak",
       "settSomFokus",
+      "settStasjon",
       "skjulSignal"
     ],
     "/sjekkpunkt": [
@@ -431,10 +432,6 @@
       "Sammendrag",
       "⚙️ Systemfeil (registrering)",
       "🔎 Usynlig svinn per stasjon"
-    ],
-    "/ansatte": [
-      "Aktive ({(ansatte ?? []).length})",
-      "Ny ansatt"
     ],
     "/anvisninger": [
       "Ny anvisning",
