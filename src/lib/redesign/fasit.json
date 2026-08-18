@@ -555,7 +555,7 @@
       "Rutiner i dette skjemaet <span className=\"undertittel\">· {rutiner.length}</span>"
     ],
     "/rutiner": [
-      "{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className=\"streak\"> 🔥 {streaks.get(sid)}</span>}"
+      "{navnFor.get(sid) ?? '—'}"
     ],
     "/salg": [
       "Per kategori{erStasjon ? ` · ${valgtNavn}` : ''}",

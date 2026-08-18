@@ -96,7 +96,12 @@ export default async function RutinerSide() {
   // Oversettelse kun for tableten; admin/butikksjef ser alltid norsk.
   const { cookies } = await import('next/headers')
   const sprak = bruker.rolle === 'butikkbruker_tablet' ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
-  const tekster: string[] = ['Alt klart! 🎉', '1 igjen — nesten i mål!', 'igjen', 'Ferdige', ...Object.values(VAKTTYPE_ETIKETT)]
+  const tekster: string[] = [
+    'Alt klart!', '1 igjen — nesten i mål!', 'igjen', 'Ferdige',
+    'Alt er gjort', 'Ingen rutiner på vakta nå', 'dager på rad',
+    'Lagre bilde', 'krever bilde', 'målt', 'trykk for å måle',
+    ...Object.values(VAKTTYPE_ETIKETT),
+  ]
   for (const { skjema, vindu } of aktive) {
     for (const r of (rutinerForSkjema.get(skjema.id) ?? []).filter((rr) => rutineGjelder(rr, vindu))) {
       tekster.push(r.tittel)
@@ -106,13 +111,47 @@ export default async function RutinerSide() {
   const oversatt = await oversettMange(tekster, sprak)
   const o = (t: string | null) => (t ? oversatt.get(t) ?? t : t)
 
+  // NIVÅ 1 på nettbrettet: hva gjenstår på skiftet mitt.
+  //
+  // Sida åpnet med «Rutiner» og «Aktiv vakt nå · 18. august» — modulnavnet
+  // og datoen. Den som står der med hansker på vil vite ett tall: hvor
+  // mange igjen. Regnestykket lå inne i JSX-en, per skjema, og fantes
+  // aldri som en sum.
+  const perSkjema = new Map<string, { rs0: Rutine[]; aapne: Rutine[]; ferdige: Rutine[] }>()
+  for (const { skjema, vindu } of aktive) {
+    const rs0 = (rutinerForSkjema.get(skjema.id) ?? [])
+      .filter((r) => rutineGjelder(r, vindu))
+      // Skjul IK-mat-kort uten enheter å måle for gruppen.
+      .filter((r) => !r.ikmat_frekvens || ikmatStatus(r).antall > 0)
+    perSkjema.set(skjema.id, {
+      rs0,
+      aapne: rs0.filter((r) => !erGjort(r, vindu.vaktdato)),
+      ferdige: rs0.filter((r) => erGjort(r, vindu.vaktdato)),
+    })
+  }
+  const igjenTotalt = [...perSkjema.values()].reduce((n, v) => n + v.aapne.length, 0)
+  const totaltPaaVakt = [...perSkjema.values()].reduce((n, v) => n + v.rs0.length, 0)
+  // Nettbrettet står i én butikk, og hun som holder det vet hvilken.
+  // Styrt av ROLLE, ikke av antall stasjoner: en leder som ser på klokka
+  // 07 når bare Bønes har aktiv vakt, skal fortsatt se hvilken butikk
+  // tallene gjelder.
+  const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
+
   return (
     <>
-      <h1>Rutiner</h1>
-      <p className="undertittel">
-        Aktiv vakt nå · {datoLang.format(new Date(naa.dato))}
-        {erLeder ? <> · <Link href="/rutiner/oppsett">Rutineoppsett →</Link></> : null}
-      </p>
+      <header className="tablet-hode">
+        <h1>
+          {totaltPaaVakt === 0
+            ? o('Ingen rutiner på vakta nå')
+            : igjenTotalt === 0
+              ? o('Alt er gjort')
+              : `${igjenTotalt} ${o('igjen')}`}
+        </h1>
+        <p className="undertittel">
+          {datoLang.format(new Date(naa.dato))}
+          {erLeder ? <> · <Link href="/rutiner/oppsett">Rutineoppsett</Link></> : null}
+        </p>
+      </header>
 
       {perStasjon.size === 0 ? (
         <section className="kort">
@@ -123,18 +162,20 @@ export default async function RutinerSide() {
       ) : (
         [...perStasjon.entries()].map(([sid, liste]) => (
           <section className="kort" key={sid}>
-            <h2>{navnFor.get(sid) ?? '—'}{(streaks.get(sid) ?? 0) > 0 && <span className="streak"> 🔥 {streaks.get(sid)}</span>}</h2>
+            {/* Stasjonsnavnet er for lederen. Står nettbrettet på én
+                stasjon, vet den som holder det hvilken butikk hun er i. */}
+            {!paaNettbrett && <h2>{navnFor.get(sid) ?? '—'}</h2>}
+            {(streaks.get(sid) ?? 0) > 0 && (
+              <p className="streak">{streaks.get(sid)} {o('dager på rad')}</p>
+            )}
             {liste.map(({ skjema, vindu }) => {
-              const rs0 = (rutinerForSkjema.get(skjema.id) ?? [])
-                .filter((r) => rutineGjelder(r, vindu))
-                // Skjul IK-mat-kort uten enheter å måle for gruppen.
-                .filter((r) => !r.ikmat_frekvens || ikmatStatus(r).antall > 0)
-              const ferdigN = rs0.filter((r) => erGjort(r, vindu.vaktdato)).length
+              const { rs0, aapne, ferdige } = perSkjema.get(skjema.id)!
+              const ferdigN = ferdige.length
               const totalt = rs0.length
               const alleFerdig = totalt > 0 && ferdigN === totalt
               const pst = totalt > 0 ? Math.round((ferdigN / totalt) * 100) : 0
               const igjen = totalt - ferdigN
-              const mikro = alleFerdig ? o('Alt klart! 🎉') : igjen === 1 ? o('1 igjen — nesten i mål!') : `${igjen} ${o('igjen')}`
+              const mikro = alleFerdig ? o('Alt klart!') : igjen === 1 ? o('1 igjen — nesten i mål!') : `${igjen} ${o('igjen')}`
               // Én rutine-rad (gjenbrukes for åpne + ferdige).
               const rad = (r: Rutine) => {
                 const key = `${r.id}|${vindu.vaktdato}`
@@ -142,10 +183,13 @@ export default async function RutinerSide() {
                   const st = ikmatStatus(r)
                   return (
                     <li key={r.id} className={`ikmat-rutine ${st.ferdig ? 'gjort' : ''}`}>
-                      <span className={`kryss ${st.ferdig ? 'av' : ''}`} aria-hidden>{st.ferdig ? '✓' : '🌡️'}</span>
+                      {/* Sto med termometer-emoji naar den ikke var gjort.
+                          Ruta er tom til den er haket av, akkurat som de
+                          andre - det er formen som sier hva som gjenstaar. */}
+                      <span className={`kryss ${st.ferdig ? 'av' : ''}`} aria-hidden>{st.ferdig ? '✓' : ''}</span>
                       <Link href={`/ikmat/maaling?stasjon=${r.stasjon_id}&frekvens=${r.ikmat_frekvens}`} className="rutine-tekst ikmat-lenke">
                         <strong>{o(r.tittel)}</strong>
-                        <span className="undertittel"> — {st.malt}/{st.antall} målt{st.ferdig ? ' ✓' : ' · trykk for å måle'}</span>
+                        <span className="undertittel"> — {st.malt}/{st.antall} {o('målt')}{st.ferdig ? '' : ` · ${o('trykk for å måle')}`}</span>
                       </Link>
                     </li>
                   )
@@ -161,7 +205,7 @@ export default async function RutinerSide() {
                         <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
                         <input type="hidden" name="dato" value={vindu.vaktdato} />
                         <input type="file" name="bilde" accept="image/*" capture="environment" required aria-label="Ta bilde" />
-                        <button type="submit" className="liten" aria-label="Kryss av med bilde">📷</button>
+                        <button type="submit" className="sq-knapp" aria-label="Kryss av med bilde">{o('Lagre bilde')}</button>
                       </form>
                     ) : (
                       <form action={gjort ? fjernKryss : kryssAv}>
@@ -174,7 +218,7 @@ export default async function RutinerSide() {
                     <div className="rutine-tekst">
                       <strong>{o(r.tittel)}</strong>
                       {r.beskrivelse ? <span className="undertittel"> — {o(r.beskrivelse)}</span> : null}
-                      {r.paakrevd_bilde ? <span className="bilde-merke">📷</span> : null}
+                      {r.paakrevd_bilde ? <span className="bilde-merke">{o('krever bilde')}</span> : null}
                     </div>
                     {bildeUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -183,8 +227,6 @@ export default async function RutinerSide() {
                   </li>
                 )
               }
-              const aapne = rs0.filter((r) => !erGjort(r, vindu.vaktdato))
-              const ferdige = rs0.filter((r) => erGjort(r, vindu.vaktdato))
               return (
                 <div className="ik-gruppe" key={skjema.id}>
                   <Konfetti aktiv={alleFerdig} nokkel={`${skjema.id}-${vindu.vaktdato}`} />

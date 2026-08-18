@@ -52,19 +52,38 @@ export default async function IkMatSide() {
     punkterPerStasjon.set(p.stasjon_id, l)
   }
 
+  // NIVÅ 1: hva gjenstår i dag. Sida åpnet med modulnavnet og en setning
+  // om at avvik varsler automatisk — sant, men ikke svaret på om noen har
+  // målt ennå. Den som står med termometeret vil vite hvor mange igjen.
+  const alleP = punkter ?? []
+  const maalt = alleP.filter((p) => idagPer.has(p.id)).length
+  const utenfor = alleP.filter((p) => idagPer.get(p.id)?.innenfor === false).length
+  const svar = alleP.length === 0
+    ? 'Ingen kontrollpunkter satt opp'
+    : [
+        maalt >= alleP.length ? `Alle ${alleP.length} målt i dag` : `${alleP.length - maalt} igjen å måle`,
+        utenfor > 0 ? `${utenfor} utenfor kravet` : null,
+      ].filter(Boolean).join(' · ')
+  // Nettbrettet står i én butikk, og hun som holder det vet hvilken.
+  // Styrt av rolle, ikke av antall stasjoner — en kjede med bare én
+  // stasjon har fortsatt en leder som skal se hvilken det er.
+  const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
+
   return (
     <>
-      <h1>IK-mat &amp; avvik</h1>
-      <p className="undertittel">
-        Logg temperaturer. Utenfor kravet flagges som avvik og varsler automatisk.
-        {kanRedigere ? <> · <Link href="/ikmat/oppsett">⚙️ Rediger oppsett</Link></> : null}
-      </p>
+      <header className="tablet-hode">
+        <h1>{svar}</h1>
+        <p className="undertittel">
+          IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk.
+          {kanRedigere ? <> · <Link href="/ikmat/oppsett">Rediger oppsett</Link></> : null}
+        </p>
+      </header>
 
       {(stasjoner ?? []).map((s) => {
         const sineP = punkterPerStasjon.get(s.id) ?? []
         return (
           <section className="kort" key={s.id}>
-            <h2>{s.butikknummer} {s.navn}</h2>
+            {!paaNettbrett && <h2>{s.butikknummer} {s.navn}</h2>}
 
             {sineP.length === 0 ? (
               kanRedigere ? (
@@ -100,7 +119,7 @@ export default async function IkMatSide() {
                               <form action={registrerAvlesning} className="ik-form">
                                 <input type="hidden" name="kontrollpunkt_id" value={p.id} />
                                 <input name="temperatur" inputMode="decimal" placeholder="°C" aria-label={`Temperatur ${p.navn}`} required />
-                                <button type="submit" className="liten">Lagre</button>
+                                <button type="submit" className="sq-knapp">Lagre</button>
                               </form>
                             </td>
                           </tr>

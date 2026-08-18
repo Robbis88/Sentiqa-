@@ -1515,3 +1515,33 @@ button.liten { min-height: 40px; }
 }
 .bem-ukevelger .rod-prikk { color: var(--rod, #b4232a); }
 .bem-ukevelger a.valgt .rod-prikk { color: #ffd9db; }
+
+/* --- Nettbrettets sidehode -----------------------------------------
+   Ett tall, stort nok til aa leses paa en meters avstand mens man gaar
+   forbi. Modulnavnet stod her for; det sa hvor du var, ikke hva som
+   gjenstaar. */
+.tablet-hode { margin: 0 0 1.2rem; }
+.tablet-hode h1 { margin: 0; font-size: 2.4rem; line-height: 1.1; }
+.tablet-hode .undertittel { margin: 0.35rem 0 0; }
+
+/* Hansker. 44px er iOS-minimum for bar finger; med arbeidshansker paa
+   en kald morgen bommer man. Gjelder kun nettbrettet - lederens
+   avkryssing paa desktop har mus. */
+.tablet .kryss { width: 56px; height: 56px; min-width: 56px; font-size: 1.6rem; }
+.tablet .rutine-liste li { gap: 1rem; padding: 0.35rem 0; }
+.tablet .rutine-tekst { font-size: 1.15rem; }
+
+/* «krever bilde» og streaken staar som ord na, ikke som emoji. */
+.tablet .bilde-merke,
+.bilde-merke {
+  margin-left: 0.5rem;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+
+/* Temperaturfeltet naas ogsaa fra nettbrettet. 5rem bredt med 0.5rem
+   luft treffer man ikke med hansker - og skriver man feil temperatur er
+   det et mattilsynsavvik, ikke en skrivefeil. */
+.tablet .ik-form input { width: 6.5rem; padding: 0.85rem; font-size: 1.2rem; }
+.tablet .ik-tabell td, .tablet .ik-tabell th { padding: 0.7rem 0.6rem; }
+.tablet .lenke-rad { min-height: 64px; }

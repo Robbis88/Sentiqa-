@@ -33,10 +33,12 @@ export function TabletHero({ navn, streak }: { navn?: string; streak: number }) 
   return (
     <div className="tablet-hero">
       <div className="tablet-hero-tekst">
-        <div className="tablet-hilsen">{t(hei)}{navn ? `, ${navn}` : ''} 👋</div>
+        <div className="tablet-hilsen">{t(hei)}{navn ? `, ${navn}` : ''}</div>
         <div className="tablet-klokke">{tid}</div>
       </div>
-      {streak > 0 && <div className="tablet-streak">🔥 {streak}<span>{t('dager på rad')}</span></div>}
+      {/* Sto med flamme-emoji. Tallet er allerede stort og streaken har
+          sin egen farge — flammen la ikke til noe man ikke så. */}
+      {streak > 0 && <div className="tablet-streak">{streak}<span>{t('dager på rad')}</span></div>}
     </div>
   )
 }
