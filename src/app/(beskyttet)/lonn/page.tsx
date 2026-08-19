@@ -8,10 +8,11 @@ import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
 import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { hentAapneVakter } from '@/lib/stempling/aapne'
 import { kanLageLonnsfil } from '@/lib/stempling/avled'
+import { avstem, kanSnuStasjon, TERSKEL_TIMER } from '@/lib/stempling/avstem'
 import { LonnsformVelger } from './lonnsform-velger'
 import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
 import Link from 'next/link'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
@@ -72,8 +73,11 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   const fra = `${ar}-${String(maned).padStart(2, '0')}-01`
   const til = `${ar}-${String(maned).padStart(2, '0')}-${new Date(Date.UTC(ar, maned, 0)).getUTCDate()}`
 
+  // v_stempling_aktiv: kilden som teller for stasjonen (0111). Se
+  // kommentaren i /api/lonn/visma — tabellen direkte ville doblet timene
+  // under parallellkjoring.
   const { data: stempl } = await supabase
-    .from('stempling')
+    .from('v_stempling_aktiv')
     .select('ansatt_nr, ansatt_navn, dato, fra_tid, til_tid')
     .eq('stasjon_id', valgt.id)
     .eq('betalt', true)
@@ -110,6 +114,28 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     new Map([...avtale].map(([nr, a]) => [nr, a.lonnsform ?? null])),
     LONNSART.timelonn,
   )
+  // AVSTEMMING under parallellkjøring. Leser `stempling` DIREKTE og med
+  // vilje — her er poenget nettopp å se begge kilder ved siden av
+  // hverandre, mens alt annet på siden leser v_stempling_aktiv og ser
+  // bare den som teller. Unntaket er registrert i kilde.test.ts.
+  const { data: begge } = await supabase
+    .from('stempling')
+    .select('ansatt_nr, ansatt_navn, minutter, kilde')
+    .eq('stasjon_id', valgt.id)
+    .eq('betalt', true)
+    .gte('dato', fra)
+    .lte('dato', til)
+  const kilderader = (begge ?? []) as
+    { ansatt_nr: string; ansatt_navn: string; minutter: number; kilde: string }[]
+  const somKilde = (k: string) => kilderader
+    .filter((r) => r.kilde === k)
+    .map((r) => ({ ansattNr: r.ansatt_nr, navn: r.ansatt_navn, minutter: r.minutter }))
+  const avstemming = avstem(somKilde('import'), somKilde('tablet'))
+  // Vises bare når det faktisk ER to kilder. Ellers ville hver stasjon
+  // som ikke har begynt overgangen fått et kort som sa «0 mot 1 240
+  // timer», som ser ut som datatap.
+  const parallelt = avstemming.importTimer > 0 && avstemming.tabletTimer > 0
+
   // Åpne vakter blokkerer før lønnsform gjør det. En vakt uten
   // utstempling betyr at TIMENE er ukjente; manglende lønnsform betyr at
   // kjente timer ikke er plassert. Det første må rettes av et menneske
@@ -289,6 +315,84 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                   </p>
                 </div>
               </div>
+            </section>
+          )}
+
+          {parallelt && (
+            <section className="kort">
+              <h2>
+                Avstemming mot easy@work
+                <span className="undertittel">
+                  {' '}· {MND[maned - 1]} {ar}
+                </span>
+              </h2>
+              <p>
+                {kanSnuStasjon(avstemming) ? (
+                  <>
+                    <strong>Kildene er enige.</strong> {tall.format(avstemming.importTimer)}{' '}
+                    timer fra easy@work, {tall.format(avstemming.tabletTimer)} fra
+                    stemplingen, ingen ansatt over {tall.format(TERSKEL_TIMER)} timers
+                    avvik. Stasjonen kan settes over til stempling.
+                  </>
+                ) : (
+                  <>
+                    <strong>
+                      {avstemming.antallOverTerskel === 0
+                        ? 'Ikke nok å avstemme ennå'
+                        : `${avstemming.antallOverTerskel} ${avstemming.antallOverTerskel === 1 ? 'ansatt avviker' : 'ansatte avviker'}`}
+                      .
+                    </strong>{' '}
+                    {tall.format(avstemming.importTimer)} timer fra easy@work,{' '}
+                    {tall.format(avstemming.tabletTimer)} fra stemplingen.
+                  </>
+                )}
+              </p>
+              <Forklaring sporsmaal="Hvorfor per ansatt og ikke bare totalen?">
+                <p>
+                  To feil som opphever hverandre gir null i sum og feil lønn til to
+                  personer. Derfor må hver enkelt stemme, ikke bare bunnlinja.
+                </p>
+                <p>
+                  Radene vil aldri være helt like: nettbrettet har det faktiske
+                  minuttet, easy@work et avrundet, og en vakt kan være delt i to i den
+                  ene og hel i den andre. Det som må stemme er timene hun får betalt
+                  for — derfor tåles avvik opptil {tall.format(TERSKEL_TIMER)} timer i
+                  måneden.
+                </p>
+              </Forklaring>
+              <Datatabell antall={avstemming.linjer.length}>
+                <thead>
+                  <tr>
+                    <th>Ansatt</th><th className="tall">easy@work</th>
+                    <th className="tall">Stempling</th><th className="tall">Avvik</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {avstemming.linjer.map((l) => (
+                    <tr key={l.ansattNr}>
+                      <td>
+                        {l.navn}
+                        {l.bareI && (
+                          <span className="undertittel">
+                            {' '}· bare i {l.bareI === 'import' ? 'easy@work' : 'stemplingen'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="tall">{tall.format(l.importTimer)}</td>
+                      <td className="tall">{tall.format(l.tabletTimer)}</td>
+                      <td className="tall">
+                        {Math.abs(l.avvikTimer) > TERSKEL_TIMER ? (
+                          <strong>{l.avvikTimer > 0 ? '+' : ''}{tall.format(l.avvikTimer)}</strong>
+                        ) : (
+                          <span className="undertittel">
+                            {l.avvikTimer > 0 ? '+' : ''}{tall.format(l.avvikTimer)}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Datatabell>
             </section>
           )}
 
