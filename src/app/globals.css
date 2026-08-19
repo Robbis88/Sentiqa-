@@ -308,7 +308,7 @@ button {
   cursor: pointer;
   transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
 }
-button:hover:not(:disabled) { background: var(--primaer-mork); box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
+button:hover:not(:disabled) { background: var(--primaer-mork); box-shadow: 0 2px 8px rgba(46, 125, 107, 0.25); }
 button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 button:disabled { opacity: 0.55; cursor: default; }
 button.logg-ut { background: transparent; color: var(--tekst-svak); font-weight: 500; }
@@ -1160,11 +1160,11 @@ button.liten.slett:hover { background: #fdecea; }
   width: 58px; height: 58px; border-radius: 999px; border: 0;
   background: var(--primaer); color: #fff;
   font-size: 1.5rem; line-height: 1; cursor: pointer;
-  box-shadow: 0 10px 28px rgba(37,99,235,0.4);
+  box-shadow: 0 10px 28px rgba(46, 125, 107, 0.4);
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.ai-fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 14px 34px rgba(37,99,235,0.5); }
+.ai-fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 14px 34px rgba(46, 125, 107, 0.5); }
 .ai-fab.apen { background: var(--kort); color: var(--tekst-svak); box-shadow: var(--skygge-lov); }
 
 .ai-panel {
@@ -1763,3 +1763,180 @@ button.liten { min-height: 40px; }
 }
 .rettelse-valg input { margin-top: 0.2em; }
 
+
+/* =====================================================================
+   Primitivene (trinn 03)
+   =====================================================================
+   Alt her tegner med tokens. Ingen hex, ingen tilfeldige marginer,
+   ingen lokale skygger. Trengs en verdi som ikke finnes, hører den
+   hjemme i :root — ikke her.
+   ===================================================================== */
+
+/* --- Knapp ---------------------------------------------------------
+   `.sq-knapp` og `.sq-knapp.primar` fantes fra før og er urørt. Her
+   kommer bare de to variantene som manglet. */
+
+/* Handling som ikke skal konkurrere: «Avbryt», «Rediger». Ingen kant —
+   den ville gjort den like tung som en sekundærknapp. */
+.sq-knapp.sq-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tekst-svak);
+}
+.sq-knapp.sq-ghost:hover { background: var(--bg); color: var(--tekst); border-color: transparent; }
+
+/* Rød KANT, ikke rød flate. En fylt rød knapp roper like høyt som en
+   kritisk feil, og da betyr rødt to ting på samme skjerm. */
+.sq-knapp.sq-destruktiv { color: var(--rod); border-color: var(--rod-svak); }
+.sq-knapp.sq-destruktiv:hover { background: var(--rod-svak); border-color: var(--rod); }
+
+/* --- Felt ----------------------------------------------------------
+   Høyden arves fra `.felt`-reglene lenger oppe. Her er bare hjelpe-
+   teksten, som ikke fantes. */
+.sq-felthjelp { margin: 0; font-size: var(--tekst-liten); }
+
+/* --- Status --------------------------------------------------------
+   Fargelegger ALDRI raden. Prikken og teksten bærer det.
+   `normal` har ingen farge i det hele tatt — det er hele poenget. */
+.sq-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--luft-2);
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  white-space: nowrap;
+}
+.sq-status-prikk {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--kant-sterk);
+  flex: none;
+}
+.sq-status-endring .sq-status-prikk { background: var(--primaer); }
+.sq-status-handling { color: var(--gul); }
+.sq-status-handling .sq-status-prikk { background: var(--gul); }
+.sq-status-kritisk { color: var(--rod); font-weight: 600; }
+.sq-status-kritisk .sq-status-prikk { background: var(--rod); }
+
+/* --- Signal --------------------------------------------------------
+   Rendres bare når det finnes noe å si. Se kommentaren i status.tsx. */
+.sq-signal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--luft-3);
+  padding: var(--luft-3) var(--luft-4);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius);
+  background: var(--kort);
+}
+.sq-signal-prikk {
+  width: 7px; height: 7px;
+  border-radius: 999px;
+  margin-top: 0.45rem;
+  background: var(--tekst-svak);
+  flex: none;
+}
+.sq-signal-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--luft-1); }
+.sq-signal-tekst strong { font-size: var(--tekst-brod); font-weight: 600; }
+.sq-signal-tekst p { margin: 0; font-size: var(--tekst-liten); color: var(--tekst-svak); line-height: var(--linje-luftig); }
+.sq-signal-handling { flex: none; }
+
+/* Informasjon er nøytral. Ingen farge — den forteller noe, den ber
+   ikke om noe. */
+.sq-signal-mulighet { background: var(--gronn-svak); border-color: var(--gronn-svak); }
+.sq-signal-mulighet .sq-signal-prikk { background: var(--gronn); }
+.sq-signal-oppmerksomhet { background: var(--gul-svak); border-color: var(--gul-svak); }
+.sq-signal-oppmerksomhet .sq-signal-prikk { background: var(--gul); }
+.sq-signal-kritisk { background: var(--rod-svak); border-color: var(--rod); }
+.sq-signal-kritisk .sq-signal-prikk { background: var(--rod); }
+
+/* --- Liste og rad --------------------------------------------------
+   Ingen kort per rad. Én hårlinje mellom, og det holder. */
+.sq-liste { list-style: none; margin: 0; padding: 0; }
+.sq-rad {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-2);
+  border-bottom: 1px solid var(--kant);
+}
+.sq-rad:last-child { border-bottom: 0; }
+
+/* Hele raden er treffområdet der den er en lenke. Padding ligger på
+   lenka, ikke på li-en, så den fyller raden. */
+.sq-rad-lenke {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-4);
+  flex: 1;
+  min-width: 0;
+  padding: var(--luft-3) var(--luft-2);
+  border-radius: var(--radius);
+  color: inherit;
+  min-height: 44px;
+}
+a.sq-rad-lenke:hover { background: var(--bg); }
+.sq-rad-flat { cursor: default; }
+
+.sq-rad-merke { flex: none; display: flex; align-items: center; }
+.sq-rad-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.sq-rad-primaer { font-weight: 600; font-size: var(--tekst-brod); overflow-wrap: anywhere; }
+.sq-rad-sekundaer { font-size: var(--tekst-liten); color: var(--tekst-svak); }
+.sq-rad-status { flex: none; }
+.sq-rad-metadata {
+  flex: none;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sq-rad-handlinger { flex: none; display: flex; gap: var(--luft-2); padding-right: var(--luft-2); }
+
+/* --- Søk og filter -------------------------------------------------- */
+.sq-sok { display: flex; align-items: center; gap: var(--luft-2); flex: 1; min-width: 12rem; }
+.sq-sok-felt {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-2);
+  flex: 1;
+  padding: 0 var(--luft-3);
+  border: 1px solid var(--kant-sterk);
+  border-radius: 8px;
+  background: var(--kort);
+  color: var(--tekst-svak);
+  min-height: 40px;
+}
+.sq-sok-felt:focus-within { border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
+.sq-sok-felt input {
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--tekst);
+  min-width: 0;
+}
+.sq-sok-felt input:focus { outline: none; }
+
+.sq-filter { display: flex; align-items: center; gap: var(--luft-3); flex-wrap: wrap; }
+.sq-filter-merkelapp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--luft-2);
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+/* Telleren finnes fordi et glemt filter er den vanligste grunnen til
+   at «raden min er borte». */
+.sq-filter-teller {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--primaer-svak);
+  color: var(--primaer-mork);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
