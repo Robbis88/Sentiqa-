@@ -102,8 +102,23 @@ jobs:
       - name: RLS-vakthund mot fersk base
         run: npx supabase db query --local --file supabase/tests/rls_vakthund.sql
 
+      # Nettleseren mellomlagres paa versjonen i lockfila. Uten dette
+      # lastes den ned paa nytt hver kjoring.
+      - name: Mellomlager for nettleser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # UTEN --with-deps. Det flagget kjorer apt-get, og en kjoring hang
+      # sytten minutter paa Ubuntu-arkivet for den traff timeouten -
+      # testene kom aldri i gang. GitHubs runner-image har allerede
+      # bibliotekene Chromium trenger; --with-deps er for bare images.
+      #
+      # Feiler nettleseren aa starte, sier den fra med en gang, og da
+      # legger vi inn de faa pakkene som mangler i stedet for hele apt.
       - name: Hent nettleser
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install chromium
 
       - name: Bygg
         run: npx next build
