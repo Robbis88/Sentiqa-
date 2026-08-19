@@ -265,6 +265,7 @@
       "annullerHendelse",
       "lukkVakt",
       "settLonnsform",
+      "settStemplingskilde",
       "settTimesats"
     ],
     "/maaling": [

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { avledVakter, type Hendelse, type Vakt } from './avled'
+import { tellbareMinutter, type Pauseregel } from './pause'
 
 // =====================================================================
 // Hendelser inn, vakter ut, skrevet tilbake til `stempling`.
@@ -56,8 +57,16 @@ export function vindu(rundt: Date): { fra: string; til: string } {
   }
 }
 
-/** `Vakt` → rad i `stempling`. */
-export function tilStemplingsrad(v: Vakt) {
+/**
+ * `Vakt` → rad i `stempling`.
+ *
+ * `fra_tid` og `til_tid` står som de ble stemplet — de er hva som
+ * faktisk skjedde. Det er `minutter` som er lønnstallet, og det er der
+ * pausen trekkes. Å barbere sluttiden i stedet ville skrevet et
+ * klokkeslett som aldri fant sted, i noe som er
+ * regnskapsdokumentasjon.
+ */
+export function tilStemplingsrad(v: Vakt, pause: Pauseregel) {
   return {
     stasjon_id: v.stasjonId,
     ansatt_nr: v.ansattNr,
@@ -65,11 +74,8 @@ export function tilStemplingsrad(v: Vakt) {
     dato: v.dato,
     fra_tid: v.fraTid,
     til_tid: v.tilTid,
-    minutter: v.minutter,
+    minutter: tellbareMinutter(v.minutter, pause),
     kilde: 'tablet',
-    // Pausetrekk hører hjemme her når reglene er avklart (se
-    // retailers.stempling_pause_betalt fra 0110). Inntil da er alt
-    // betalt, som det er for importerte rader.
     betalt: true,
   }
 }
@@ -89,6 +95,19 @@ export async function skrivAvledteVakter(
 ): Promise<Skriveresultat> {
   const { fra, til } = vindu(rundt)
   const feil: string[] = []
+
+  // Pauseregelen ligger på kjeden (0110). Standard er at pausen er
+  // betalt: med én til to på jobb kan folk sjelden forlate stasjonen, og
+  // da er den arbeidstid etter aml. § 10-9.
+  //
+  // Feiler oppslaget, regner vi pausen som BETALT. Det er den trygge
+  // veien å ta feil på — den gir henne timene, og et for høyt tall
+  // oppdages i avstemmingen mot easy@work. Et for lavt tall oppdages på
+  // lønnsslippen hennes, av henne, en måned senere.
+  const { data: kjede } = await supabase
+    .from('retailers').select('stempling_pause_betalt')
+    .maybeSingle<{ stempling_pause_betalt: boolean }>()
+  const pause: Pauseregel = { betalt: kjede?.stempling_pause_betalt ?? true }
 
   const { data, error } = await supabase
     .from('stempling_hendelse')
@@ -144,7 +163,7 @@ export async function skrivAvledteVakter(
 
   const { error: skrivfeil } = await supabase
     .from('stempling')
-    .insert(vakter.map(tilStemplingsrad))
+    .insert(vakter.map((v) => tilStemplingsrad(v, pause)))
   if (skrivfeil) feil.push(skrivfeil.message)
 
   return {
