@@ -1554,3 +1554,23 @@ button.liten { min-height: 40px; }
 .tablet .ik-form input { width: 6.5rem; padding: 0.85rem; font-size: 1.2rem; }
 .tablet .ik-tabell td, .tablet .ik-tabell th { padding: 0.7rem 0.6rem; }
 .tablet .lenke-rad { min-height: 64px; }
+
+/* --- Nettbrettets ramme: treffomraader ------------------------------
+   Funnet av e2e/innlogget.spec.ts 2026-08-19. Arbeidsflaten var satt
+   til 56x56 dagen for (.tablet .kryss), men rammen RUNDT den ble aldri
+   maalt: spraakflaggene var 33x25, varselbjella 24x19 og hele
+   navigasjonsrada 37 hoy.
+   Det er den som skal treffes med hansker, av en som staar med noe i
+   den andre haanda. 44 er iOS-minimum for bar finger; 48 er valgt her
+   fordi rammen brukes i bevegelse. */
+.tablet .sprak-flagg { min-width: 48px; min-height: 48px; font-size: 1.4rem; }
+.tablet .sprak-velger { gap: 0.35rem; }
+.tablet .tablet-fane { min-height: 48px; justify-content: center; }
+.tablet .tablet-topp-hoyre a,
+.tablet .tablet-topp-hoyre button {
+  min-height: 48px;
+  min-width: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

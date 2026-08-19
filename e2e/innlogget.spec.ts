@@ -91,7 +91,13 @@ test.describe('nettbrettet', () => {
     await page.goto('/rutiner')
     const res = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
-    const funn = res.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)
+
+    // Med selektor OG axe sin egen begrunnelse. Foerste utgave rapporterte
+    // bare «color-contrast (1)», og da vet man at noe er galt uten aa vite
+    // hva - og hver runde med gjetting koster en CI-kjoring.
+    const funn = res.violations.flatMap((v) => v.nodes.map(
+      (n) => `${v.id}: ${n.target.join(' ')}\n      ${(n.failureSummary ?? '').replace(/\n/g, '\n      ')}`,
+    ))
     expect(funn, `\n${funn.join('\n')}\n`).toEqual([])
   })
 })
