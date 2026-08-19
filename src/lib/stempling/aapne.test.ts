@@ -37,6 +37,16 @@ const h = (
 })
 
 describe('hentAapneVakter', () => {
+  // Rettelsen peker paa denne id-en. Uten den kan butikksjefen se at en
+  // vakt staar aapen, men ikke gjore noe med den.
+  it('gir id-en til innstemplingen som mangler ut', async () => {
+    const { klient } = fakeKlient({ data: [
+      h('h-1', '1009', '2026-08-10T05:00:00Z', 'inn'),
+    ] })
+    const aapne = await hentAapneVakter(klient, 's1', 2026, 8)
+    expect(aapne?.[0].innId).toBe('h-1')
+  })
+
   it('gir tom liste når alle vakter er lukket', async () => {
     const { klient } = fakeKlient({ data: [
       h('1', '1009', '2026-08-10T05:00:00Z', 'inn'),

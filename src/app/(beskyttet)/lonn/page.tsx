@@ -9,7 +9,9 @@ import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lon
 import { hentAapneVakter } from '@/lib/stempling/aapne'
 import { kanLageLonnsfil } from '@/lib/stempling/avled'
 import { avstem, kanSnuStasjon, TERSKEL_TIMER } from '@/lib/stempling/avstem'
+import { Sidepanel } from '@/components/ui/sidepanel'
 import { LonnsformVelger } from './lonnsform-velger'
+import { LukkVakt } from './lukk-vakt'
 import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
@@ -24,6 +26,13 @@ const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
 const klokkeslett = new Intl.DateTimeFormat('nb-NO', {
   timeZone: 'Europe/Oslo', day: 'numeric', month: 'short',
   hour: '2-digit', minute: '2-digit', hour12: false,
+})
+
+// Datoen innstemplingen hoerer til, i norsk tid. Forhaandsvelges i
+// rettelsesskjemaet: den som glemte aa stemple ut gikk som regel samme
+// dag, og et tomt datofelt er en invitasjon til aa taste feil dag.
+const osloDag = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit',
 })
 
 // Navn på lønnsartene. Kodene er fasit — navnet varierer mellom stasjoner
@@ -260,7 +269,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                   </p>
                   <ul className="rutine-liste">
                     {aapne.map((v) => (
-                      <li key={v.ansattNr + v.siden}>
+                      <li key={v.innId}>
                         <div className="rutine-tekst">
                           <strong>{v.ansattNavn}</strong>
                           <span className="undertittel">
@@ -268,6 +277,18 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                             aldri ut
                           </span>
                         </div>
+                        {/* Rettelsen står HER, ikke på en egen side.
+                            Problemet oppdages i denne lista, og den som
+                            må bytte side for å fikse det, mister både
+                            konteksten og lysten. */}
+                        <Sidepanel knapp="Rett" tittel={`Åpen vakt · ${v.ansattNavn}`}>
+                          <LukkVakt
+                            innId={v.innId}
+                            navn={v.ansattNavn}
+                            siden={v.siden}
+                            dato={osloDag.format(new Date(v.siden))}
+                          />
+                        </Sidepanel>
                       </li>
                     ))}
                   </ul>
