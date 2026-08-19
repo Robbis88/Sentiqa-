@@ -47,3 +47,8 @@ next-env.d.ts
 
 # Stray Next build output (kun rot-/.next skal finnes)
 **/.next/
+
+# Playwright: sporingsfiler og rapporter fra nettlesertestene
+/test-results/
+/playwright-report/
+/blob-report/

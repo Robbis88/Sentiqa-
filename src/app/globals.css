@@ -156,6 +156,15 @@ h3 { letter-spacing: -0.01em; }
 }
 .logg-inn .kort { width: 100%; max-width: 360px; }
 .logg-inn .merke { display: block; margin-bottom: 1rem; }
+
+/* Innloggingsknappen var 40px hoy - under iOS-minimum paa 44 for bar
+   finger. Funnet av nettlesertesten (e2e/tilgjengelighet.spec.ts), som
+   maaler faktisk geometri. Ingen av de raske vaktene kunne se det:
+   jsdom har ingen layout aa maale paa.
+
+   Dette er forste side alle moter, og den eneste en uinnlogget naar. */
+.logg-inn button[type='submit'],
+.logg-inn .sq-knapp { min-height: 44px; }
 .auth-bunn { margin-top: 1.25rem; text-align: center; font-size: 0.72rem; color: var(--tekst-svak); }
 
 /* Juridiske dokumentsider (personvern o.l.) */
