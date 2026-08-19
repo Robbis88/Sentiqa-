@@ -5,6 +5,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { LONNSART, tilLonnslinjer } from '@/lib/lonn/tidsband'
 import { delEtterLonnsform, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { byggVismafil, medBom, vismaFilnavn } from '@/lib/lonn/vismafil'
+import { hentAapneVakter } from '@/lib/stempling/aapne'
+import { kanLageLonnsfil } from '@/lib/stempling/avled'
 import { loggOppslag } from '@/lib/personvern/logg'
 
 // Fila lastes NED, aldri vises. Åpnes den i norsk Excel og lagres, blir
@@ -47,6 +49,28 @@ export async function GET(req: NextRequest) {
     { ansatt_nr: string; dato: string; fra_tid: string; til_tid: string }[]
   if (rader.length === 0) {
     return NextResponse.json({ feil: 'Ingen stemplinger i perioden.' }, { status: 404 })
+  }
+
+  // ÅPEN VAKT SPERRER FILA. En vakt uten utstempling har ingen sluttid,
+  // og å gjette den ville betydd å gjette hva noen skal ha betalt.
+  // Sperren står her og ikke bare i knappen, av samme grunn som
+  // lønnsformsperren under: URL-en kan kalles direkte.
+  //
+  // `null` er ikke tom liste. Klarer vi ikke svare på om det finnes åpne
+  // vakter, lager vi ikke fila — «jeg vet ikke» skal aldri passere som
+  // «alt er i orden» på vei inn i lønn.
+  const aapne = await hentAapneVakter(supabase, stasjonId, ar, maned)
+  if (aapne === null) {
+    return NextResponse.json(
+      { feil: 'Fikk ikke sjekket om noen står innstemplet. Fila lages ikke.' },
+      { status: 503 })
+  }
+  if (!kanLageLonnsfil(aapne)) {
+    return NextResponse.json({
+      feil: `${aapne.length} ${aapne.length === 1 ? 'vakt står' : 'vakter står'} `
+        + 'uten utstempling. Lukk dem på /lonn før fila lages.',
+      ansatte: [...new Set(aapne.map((v) => v.ansattNr))],
+    }, { status: 409 })
   }
 
   const linjer = tilLonnslinjer(rader.map((r) => ({

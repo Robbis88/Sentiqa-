@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Sidehode, Datatabell, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyAnsatt } from './ny-ansatt'
+import { AnsattnummerFelt } from './ansattnummer-felt'
 import { deaktiverAnsatt } from './handlinger'
 
 // =====================================================================
@@ -19,7 +20,9 @@ import { deaktiverAnsatt } from './handlinger'
 // Mønsteret er beskrevet i src/lib/redesign/monstre.ts under 'liste'.
 // =====================================================================
 
-type Ansatt = { id: string; navn: string; stasjon_id: string }
+type Ansatt = {
+  id: string; navn: string; stasjon_id: string; ansatt_nr: string | null
+}
 
 export default async function AnsatteSide() {
   const bruker = await hentInnloggetBruker()
@@ -28,7 +31,7 @@ export default async function AnsatteSide() {
   }
   const supabase = await lagSupabaseServerKlient()
   const [{ data: ansatte }, { data: stasjoner }] = await Promise.all([
-    supabase.from('ansatte').select('id, navn, stasjon_id').eq('aktiv', true).is('slettet_tid', null).order('navn').overrideTypes<Ansatt[]>(),
+    supabase.from('ansatte').select('id, navn, stasjon_id, ansatt_nr').eq('aktiv', true).is('slettet_tid', null).order('navn').overrideTypes<Ansatt[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
   ])
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
@@ -36,6 +39,11 @@ export default async function AnsatteSide() {
   const stasjonsvalg = (stasjoner ?? []).map((s) => ({
     id: s.id, navn: `${s.butikknummer} ${s.navn}`,
   }))
+  // Nivå 1 på en liste er «hvor mange, og hvor mange krever noe av meg».
+  // Her er det siste antallet uten ansattnummer: de kan ikke stemple, og
+  // de kommer ikke med i lønnsfila. Tallet står i toppen slik at det ikke
+  // må oppdages ved å lese seg gjennom kolonnen.
+  const utenNummer = liste.filter((a) => !a.ansatt_nr).length
 
   const nyAnsattPanel = (
     <Sidepanel
@@ -54,8 +62,10 @@ export default async function AnsatteSide() {
         undertittel={
           liste.length === 0
             ? 'Ansatte sjekker inn med PIN på nettbrettet.'
-            : `${liste.length} aktive. De sjekker inn med PIN på nettbrettet, så ser du `
-              + 'hvem som logger rutiner, sjekkpunkt og temperaturer.'
+            : utenNummer === 0
+              ? `${liste.length} aktive, alle med ansattnummer.`
+              : `${liste.length} aktive. ${utenNummer} mangler ansattnummer og `
+                + 'kan verken stemple eller komme med i lønnsfila.'
         }
         handlinger={nyAnsattPanel}
       />
@@ -74,13 +84,14 @@ export default async function AnsatteSide() {
         )}
       >
         <thead>
-          <tr><th>Navn</th><th>Stasjon</th><th></th></tr>
+          <tr><th>Navn</th><th>Stasjon</th><th>Ansattnummer</th><th></th></tr>
         </thead>
         <tbody>
           {liste.map((a) => (
             <tr key={a.id}>
               <td>{a.navn}</td>
               <td>{navnFor.get(a.stasjon_id) ?? '—'}</td>
+              <td><AnsattnummerFelt id={a.id} nummer={a.ansatt_nr} /></td>
               <td className="tall">
                 <form action={deaktiverAnsatt}>
                   <input type="hidden" name="id" value={a.id} />

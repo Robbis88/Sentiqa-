@@ -1649,3 +1649,21 @@ button.liten { min-height: 40px; }
   font-weight: 700;
   color: #ffe3e3;
 }
+
+/* --- Ansattnummer i lista ------------------------------------------
+   Nummeret kommer fra Azets etter at den ansatte er opprettet, saa aa
+   fylle det inn i ettertid er den vanlige veien. Derfor staar feltet i
+   raden og ikke bak en redigeringsside. */
+.ansattnr-form { display: flex; align-items: center; gap: var(--luft-2); }
+.ansattnr-form input {
+  width: 7rem;
+  font-variant-numeric: tabular-nums;
+}
+/* Tomt felt skal se ut som noe som mangler, ikke som et felt man kan la
+   staa. Rammen baerer signalet - fargen alene ville vaert usynlig for
+   den som ikke skiller rodt fra graatt. */
+.ansattnr-form input.mangler {
+  border-color: var(--rod);
+  background: var(--rod-svak);
+}
+.ansattnr-form .feil { font-size: var(--tekst-liten); }
