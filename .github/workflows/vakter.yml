@@ -1,0 +1,57 @@
+name: Vakter
+
+# Kjorer paa PR og paa push til main. Push-kjoringen er der fordi ikke alt
+# gaar via PR i praksis - da vil vi i det minste vite at main er groenn.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# En ny push til samme gren avbryter forrige kjoring. Uten dette staar det
+# i ko, og en vakt man venter paa er en vakt man begynner aa hoppe over.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vakter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # Bygget validerer miljovariabler med zod og stopper uten dem.
+      # Dummyverdier holder: hver eneste side er dynamisk (verifisert
+      # 2026-08-19 - `next build` gir ingen statisk prerendering), saa
+      # ingenting spor Supabase paa byggtid. Ekte nokler hoerer ikke
+      # hjemme i CI naar de ikke trengs.
+      NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy_anon_key_for_build_only
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Rekkefolgen er med vilje: raskeste og mest presise feil forst.
+      # En typefeil skal ikke oppdages etter fire minutter med bygging.
+      - name: Typer
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src
+
+      # Her ligger de fire vaktene: fasit (ingenting forsvinner), tilgang
+      # (menyen lover ikke det sida avviser), design (tallene vokser ikke)
+      # og monsterkartet (hver rute har et monster).
+      - name: Tester og vakter
+        run: npx vitest run
+
+      # Sist fordi den er treg. Fanger det de andre ikke ser:
+      # klient/server-grensen, manglende imports, ugyldig JSX.
+      - name: Bygg
+        run: npx next build
