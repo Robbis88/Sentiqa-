@@ -64,8 +64,12 @@ jobs:
     timeout-minutes: 20
 
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy_anon_key_for_build_only
+      # Standardnoklene til en LOKAL Supabase. De er de samme for alle
+      # lokale instanser, offentlig dokumentert, og gir tilgang til en
+      # base som slettes naar jobben er ferdig. Ingen hemmelighet, og
+      # derfor ingenting aa rotere eller lekke.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GQ
 
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +80,15 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Fersk base hver kjoring: migrasjonene 0001-> kjores fra repoet og
+      # supabase/seed.sql legger inn testdata.
+      #
+      # Dette er ogsaa den eneste kontrollen paa at HELE settet fortsatt
+      # kjorer fra bunn. AGENTS.md sier det skjer av og til; ingen har
+      # verifisert det siden 0001 ble skrevet.
+      - name: Start Supabase lokalt
+        run: npx supabase start
 
       - name: Hent nettleser
         run: npx playwright install chromium --with-deps
@@ -96,3 +109,14 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+      # Vakthundene mot katalogen, paa en base bygget fra migrasjonene
+      # alene. Feiler de her, er det migrasjonssettet som er galt - ikke
+      # noe noen har gjort manuelt i produksjon.
+      - name: RLS-vakthund
+        if: always()
+        run: npx supabase db query --local --file supabase/tests/rls_vakthund.sql
+
+      - name: Stopp Supabase
+        if: always()
+        run: npx supabase stop --no-backup
