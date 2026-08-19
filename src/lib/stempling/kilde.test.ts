@@ -30,6 +30,9 @@ const UNNTAK: Record<string, string> = {
   // Avstemmingen skal se BEGGE kilder ved siden av hverandre — det er
   // hele poenget med den. Resten av samme side leser v_stempling_aktiv.
   'app/(beskyttet)/lonn/page.tsx': 'avstemmer import mot tablet',
+  // Overgangen sjekker avstemmingen på nytt før den snur en stasjon, og
+  // må derfor se begge kilder — akkurat som visningen den speiler.
+  'app/(beskyttet)/lonn/overgang.ts': 'avstemmer på nytt før stasjonen snus',
 }
 
 function alleKildefiler(katalog: string): string[] {

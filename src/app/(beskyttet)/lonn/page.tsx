@@ -12,6 +12,7 @@ import { avstem, kanSnuStasjon, TERSKEL_TIMER } from '@/lib/stempling/avstem'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { LonnsformVelger } from './lonnsform-velger'
 import { LukkVakt } from './lukk-vakt'
+import { ByttKilde } from './bytt-kilde'
 import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
@@ -62,7 +63,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   const supabase = await lagSupabaseServerKlient()
 
   const { data: stasjoner } = await supabase
-    .from('stasjoner').select('id, navn, butikknummer')
+    .from('stasjoner').select('id, navn, butikknummer, stempling_kilde')
     .is('slettet_tid', null).order('butikknummer')
   const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
   if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
@@ -143,7 +144,12 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // Vises bare når det faktisk ER to kilder. Ellers ville hver stasjon
   // som ikke har begynt overgangen fått et kort som sa «0 mot 1 240
   // timer», som ser ut som datatap.
-  const parallelt = avstemming.importTimer > 0 && avstemming.tabletTimer > 0
+  // Vises naar det er to kilder — ELLER naar stasjonen alt er snudd, saa
+  // veien tilbake ikke forsvinner i det oyeblikket easy@work-importen
+  // slutter aa komme. En nodbrems som blir usynlig naar man trenger den
+  // er ingen nodbrems.
+  const snudd = (valgt as { stempling_kilde?: string }).stempling_kilde === 'tablet'
+  const parallelt = (avstemming.importTimer > 0 && avstemming.tabletTimer > 0) || snudd
 
   // Åpne vakter blokkerer før lønnsform gjør det. En vakt uten
   // utstempling betyr at TIMENE er ukjente; manglende lønnsform betyr at
@@ -414,6 +420,19 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                   ))}
                 </tbody>
               </Datatabell>
+
+              {/* Knappen står HER, i kortet med tallene som avgjør. Én
+                  som flytter lønnsgrunnlaget for en hel stasjon skal
+                  ikke kunne trykkes uten dem foran seg. */}
+              {bruker.rolle === 'retailer_admin' && (
+                <ByttKilde
+                  stasjonId={valgt.id}
+                  naavaerende={snudd ? 'tablet' : 'import'}
+                  ar={ar}
+                  maned={maned}
+                  klar={kanSnuStasjon(avstemming)}
+                />
+              )}
             </section>
           )}
 
