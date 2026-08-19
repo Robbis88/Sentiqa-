@@ -1590,3 +1590,62 @@ button.liten { min-height: 40px; }
   align-items: center;
   justify-content: center;
 }
+
+/* --- Stemple-skjermen ----------------------------------------------
+   Skjermens eneste oppgave, og den treffes ofte av folk med hansker og
+   noe i den andre haanda. Storre enn de 48 som gjelder ellers paa
+   nettbrettet. */
+.stempling-skjema { max-width: 460px; margin: 0 auto; }
+.stempling-skjema .felt input {
+  min-height: 64px;
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+}
+.stempling-knapp {
+  width: 100%;
+  min-height: 72px;
+  margin-top: var(--luft-4);
+  font-size: 1.3rem;
+  font-weight: 700;
+  border-radius: 14px;
+  background: var(--primaer);
+  color: #fff;
+  border: 0;
+}
+.stempling-knapp[disabled] { opacity: 0.7; }
+
+/* Kvitteringen sier NAVN og KLOKKESLETT, ikke «lagret». Hun skal se at
+   det ble riktig person og riktig tid uten aa lete - og oppdage med en
+   gang om hun tastet naboens nummer. */
+.stempling-kvittering {
+  max-width: 460px;
+  margin: var(--luft-5) auto 0;
+  padding: var(--luft-5);
+  border-radius: 16px;
+  background: #0f2a17;
+  border: 1px solid #2f9e44;
+  text-align: center;
+}
+.stempling-retning { margin: 0; font-size: 1.4rem; font-weight: 700; color: #d3f9d8; }
+.stempling-klokke {
+  margin: var(--luft-2) 0 0;
+  font-size: 3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+/* Feiler HOYT. Ingen stille ko - hun skal vite at det ikke ble
+   registrert, mens hun fortsatt staar der. */
+.stempling-feil {
+  max-width: 460px;
+  margin: var(--luft-5) auto 0;
+  padding: var(--luft-5);
+  border-radius: 16px;
+  background: #3b1114;
+  border: 2px solid #e03131;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffe3e3;
+}

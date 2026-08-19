@@ -60,6 +60,7 @@
     "/sjekkpunkt",
     "/skills",
     "/stasjoner",
+    "/stempling",
     "/svinn",
     "/tilbakemeldinger",
     "/timesalg",
@@ -391,6 +392,9 @@
       "settTerskel",
       "settVaerfolsomhet"
     ],
+    "/stempling": [
+      "stemple"
+    ],
     "/tilbakemeldinger": [
       "markerLest",
       "sendTilbakemelding"
@@ -559,6 +563,9 @@
     ],
     "/sjekkpunkt": [
       "{navnFor.get(sid) ?? '—'}"
+    ],
+    "/stempling": [
+      "Inne nå <span className=\"undertittel\">· {inne.length}</span>"
     ],
     "/svinn": [
       "Mest svinn (varer){erStasjon ? ` · ${valgtNavn}` : ''}",
