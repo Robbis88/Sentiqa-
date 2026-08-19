@@ -7,6 +7,7 @@ import { visVelger } from '@/lib/stasjonsvalg'
 import type { Stasjonskontekst as Kontekst } from '@/lib/stasjonskontekst'
 import { Kommandopalett } from './kommandopalett'
 import { Stasjonskontekst } from './stasjonskontekst'
+import { Bjelle, Laas } from './ikoner'
 
 // =====================================================================
 // Toppstripen.
@@ -52,8 +53,15 @@ export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props
       </span>
 
       <div className="topp-hoyre">
-        <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
-          🔔
+        {/* Tallet står i aria-label, ikke bare som et badge: en
+            skjermleser som bare sier «Varsler» utelater akkurat det som
+            gjør at man går dit. */}
+        <Link
+          href="/varsler"
+          className="klokke-lenke"
+          aria-label={uleste > 0 ? `Varsler — ${uleste} uleste` : 'Varsler'}
+        >
+          <Bjelle />
           {uleste > 0 && <span className="varsel-teller">{uleste}</span>}
         </Link>
         <Link
@@ -62,7 +70,7 @@ export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props
           aria-label="Sikkerhet"
           title="To-faktor / sikkerhet"
         >
-          🔒
+          <Laas />
         </Link>
         <form action={loggUt}>
           <button type="submit" className="logg-ut">Logg ut</button>

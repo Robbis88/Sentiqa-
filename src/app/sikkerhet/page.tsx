@@ -1,3 +1,4 @@
+import { Merke } from '@/components/ui/merke'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
@@ -19,7 +20,7 @@ export default async function SikkerhetSide({
   return (
     <main className="logg-inn">
       <div className="kort" style={{ maxWidth: 460 }}>
-        <div className="merke">Sentiqa</div>
+        <Merke />
         <h1>To-faktor-autentisering</h1>
         {tvunget ? (
           <p className="undertittel" style={{ color: '#7c2d12' }}>

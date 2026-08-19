@@ -1,3 +1,4 @@
+import { Merke } from '@/components/ui/merke'
 import type { Metadata } from 'next'
 import { TotpSkjema } from './totp-skjema'
 
@@ -13,7 +14,7 @@ export default async function TotpSide({
   return (
     <main className="logg-inn">
       <div className="kort">
-        <div className="merke">Sentiqa</div>
+        <Merke />
         <h1>Bekreft innlogging</h1>
         <p className="undertittel">Skriv inn engangskoden fra autentiseringsappen din.</p>
         <TotpSkjema retur={retur} />

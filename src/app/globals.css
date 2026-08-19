@@ -372,9 +372,25 @@ button.logg-ut:hover { color: var(--tekst); }
 .vakt-navn { font-size: 0.85rem; font-weight: 600; color: var(--primaer); }
 .vakt-pin { width: 5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
 .vakt-feil { font-size: 0.75rem; color: #b10e1c; }
-.klokke-lenke { position: relative; font-size: 1.2rem; text-decoration: none; line-height: 1; }
+/* Bar emoji før, som var tekst og fikk størrelsen sin av font-size. Nå
+   SVG med currentColor, så fargen arves av flaten — det er derfor det
+   samme ikonet virker både her og på nettbrettets mørke topp uten en
+   eneste ekstra regel. Trykkflaten er satt eksplisitt; emojien fikk sin
+   av tilfeldig linjehøyde. */
+.klokke-lenke {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--tekst-svak);
+}
+.klokke-lenke:hover { background: var(--bg); color: var(--tekst); }
 .varsel-teller {
-  position: absolute; top: -6px; right: -8px; background: #b10e1c; color: #fff;
+  position: absolute; top: 0; right: 0; background: var(--rod); color: #fff;
   font-size: 0.65rem; font-weight: 700; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 999px; display: flex; align-items: center; justify-content: center;
 }
@@ -411,7 +427,7 @@ button.logg-ut:hover { color: var(--tekst); }
     display: inline-flex; align-items: center; justify-content: center;
     position: fixed; top: 0.55rem; left: 0.6rem; z-index: 50;
     width: 2.5rem; height: 2.5rem; border: 1px solid var(--kant); border-radius: 8px;
-    background: #fff; font-size: 1.3rem; cursor: pointer; color: var(--tekst);
+    background: var(--kort); cursor: pointer; color: var(--tekst);
   }
   .toppstripe { padding-left: 3.5rem; flex-wrap: wrap; gap: 0.4rem 0.75rem; }
   .bruker { font-size: 0.8rem; }
