@@ -1667,3 +1667,28 @@ button.liten { min-height: 40px; }
   background: var(--rod-svak);
 }
 .ansattnr-form .feil { font-size: var(--tekst-liten); }
+
+/* --- Rette en glemt utstempling ------------------------------------
+   Staar i sidepanelet fra aapne-vakter-lista. To utveier som ikke er
+   like: hun jobbet og glemte aa stemple ut, eller hun stemplet inn ved
+   en feil. Aa tvinge det andre gjennom det forste ville lagt inn timer
+   hun ikke jobbet. */
+.rettelse-valg {
+  border: 1px solid var(--kant);
+  border-radius: var(--radius);
+  padding: var(--luft-3);
+  margin: var(--luft-4) 0;
+}
+.rettelse-valg legend {
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  padding: 0 var(--luft-2);
+}
+.rettelse-valg label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--luft-2);
+  padding: var(--luft-2) 0;
+  cursor: pointer;
+}
+.rettelse-valg input { margin-top: 0.2em; }

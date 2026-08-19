@@ -20,6 +20,8 @@ export type AapenVakt = {
   ansattNavn: string
   /** ISO-tidspunkt for innstemplingen som aldri fikk noen ut. */
   siden: string
+  /** Id-en til den innstemplingen. Rettelsen peker på den. */
+  innId: string
 }
 
 type Rad = {
@@ -120,6 +122,7 @@ export async function hentAapneVakter(
       ansattNr: a.hendelse.ansattNr,
       ansattNavn: a.hendelse.ansattNavn,
       siden: a.hendelse.tidspunkt,
+      innId: a.hendelse.id,
     }))
     // Strekket henter inn nabodognene; her kastes de som faktisk hoerer
     // til nabomaaneden.

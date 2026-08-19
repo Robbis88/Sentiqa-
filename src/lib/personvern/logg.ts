@@ -23,6 +23,12 @@ export type Handling =
   | 'signert_lastet_ned'
   | 'lonnsfil_lastet_ned' // hele stasjonen, ikke én person
   | 'persondata_slettet'
+  // Butikksjefen har endret noens stemplinger. Stemplingen er
+  // regnskapsdokumentasjon når den er kilden til lønn, og da skal det
+  // stå hvem som rettet hva — også i HENNES logg, ikke bare i
+  // hendelsestabellen. Hun skal kunne se at noen rørte timene hennes
+  // uten å måtte be om innsyn i en tabell hun ikke vet finnes.
+  | 'stempling_rettet'
 
 export const HANDLING_TEKST: Record<Handling, string> = {
   innsyn: 'Tok ut innsynsutskrift',
@@ -32,6 +38,7 @@ export const HANDLING_TEKST: Record<Handling, string> = {
   signert_lastet_ned: 'Lastet ned signert avtale',
   lonnsfil_lastet_ned: 'Lastet ned lønnsfil for stasjonen',
   persondata_slettet: 'Slettet persondata',
+  stempling_rettet: 'Rettet en stempling',
 }
 
 export type Oppslag = {

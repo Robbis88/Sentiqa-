@@ -179,7 +179,8 @@
     ],
     "/ansatte": [
       "deaktiverAnsatt",
-      "leggTilAnsatt"
+      "leggTilAnsatt",
+      "settAnsattnummer"
     ],
     "/anvisninger": [
       "leggTilAnvisning",
@@ -261,6 +262,8 @@
       "slettLenke"
     ],
     "/lonn": [
+      "annullerHendelse",
+      "lukkVakt",
       "settLonnsform",
       "settTimesats"
     ],
