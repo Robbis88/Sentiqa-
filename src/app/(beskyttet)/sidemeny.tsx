@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { Merke } from './merke'
 
 type Seksjon = { tittel: string; punkter: { sti: string; tekst: string }[] }
 
@@ -25,8 +26,11 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
       {apen && <div className="meny-overlay" onClick={() => setApen(false)} aria-hidden />}
 
       <aside className={`sidemeny ${apen ? 'apen' : ''}`}>
-        <div className="merke">Sentiqa</div>
-        <nav>
+        <Merke />
+        {/* Menyen heter noe: siden har to nav-landemerker — dette og
+            fanene — og «navigasjon» to ganger er ubrukelig i en
+            skjermleserliste. */}
+        <nav aria-label="Hovedmeny">
           {seksjoner.map((s) => {
             const lenker = s.punkter.map((p) => (
               <Link

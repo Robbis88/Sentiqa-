@@ -138,15 +138,30 @@ export const TABLETMENY: Punkt[] = [
 // menypunkt. De andre nås som faner — ikke som egne linjer i menyen.
 // Menyen faller fra 48 punkter til 36 uten at én rute forsvinner.
 
+// Omgruppert 2026-08-19 (trinn 02). INGEN rute flyttet inn eller ut av
+// systemet — `naabart()` gir nøyaktig samme mengde per rolle som før, og
+// vakthunden feller hvis det ikke stemmer. Det som endret seg er hvilken
+// bås hver rute står i.
+//
+// «Resultater» var den gamle sekkeposten. Den blandet tre spørsmål:
+// hvor mye solgte vi, hva tjente vi, og hva skal folk ha betalt. Nå er
+// pengene inn (SALG) skilt fra forståelsen av dem (INNSIKT), og lønn
+// ligger der den hører hjemme — hos folkene.
+//
+// «Mer» het ingenting og betydde ingenting. Alt som lå der var oppsett.
+
 export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   {
+    // Uten tittel med vilje: startpunktet skal alltid være synlig, ikke
+    // ligge sammenleggbart bak en gruppe man må åpne.
     tittel: '',
     punkter: [
-      { sti: '/oversikt', tekst: 'I dag', roller: [A, B] },
+      { sti: '/oversikt', tekst: 'Hjem', roller: [A, B] },
     ],
   },
   {
-    // Det som skjer på stasjonen nå og de nærmeste dagene.
+    // Det som skjer på stasjonen nå og de nærmeste dagene. Alt her har
+    // en handling knyttet til seg i dag eller i morgen.
     tittel: 'Drift',
     punkter: [
       { sti: '/produksjonsplan', tekst: 'Produksjon', roller: [A, B] },
@@ -162,43 +177,55 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     ],
   },
   {
-    // Det som allerede har skjedd, til og med siste salgsdag.
-    tittel: 'Resultater',
+    // Pengene inn. Tre vinkler på samme tall: dag, time, framover.
+    tittel: 'Salg',
     punkter: [
       { sti: '/salg', tekst: 'Salg', roller: [A, B] },
-      { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
-      { sti: '/lonn', tekst: 'Lønnsgrunnlag', roller: [A, B] },
-      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
-      { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
-      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
+      { sti: '/timesalg', tekst: 'Timesalg', roller: [A, B] },
+      { sti: '/salgsprognose', tekst: 'Prognose', roller: [A, B] },
     ],
   },
   {
-    // Menneskene: hva de skal fokusere på, hva de sier, hva de kan.
+    // Menneskene: hva de skal fokusere på, hva de sier, hva de kan — og
+    // hva de skal ha betalt. Lønnsgrunnlaget lå under «Resultater», men
+    // den som åpner det gjør en oppgave om folk, ikke en analyse.
     tittel: 'Team',
     punkter: [
+      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
+      { sti: '/lonn', tekst: 'Lønnsgrunnlag', roller: [A, B] },
       { sti: '/fokus', tekst: 'Fokus', roller: [A, B] },
       { sti: '/tilbakemeldinger', tekst: 'Tilbakemeldinger', roller: [A, B] },
       { sti: '/meldinger', tekst: 'Tablet-meldinger', roller: [A, B] },
-      { sti: '/ansatte', tekst: 'Ansatte', roller: [A, B] },
-      { sti: '/mine-opplysninger', tekst: 'Slik måler vi', roller: [A, B, T] },
       { sti: '/opplaring', tekst: 'Opplæring', roller: [B] },
       { sti: '/skills', tekst: 'Anerkjennelse', roller: [A, B] },
       { sti: '/merker', tekst: 'Merker', roller: [T] },
       { sti: '/puls', tekst: 'Puls', roller: [A, B] },
       { sti: '/lederstotte', tekst: 'Lederstøtte', roller: [A, B] },
+      { sti: '/mine-opplysninger', tekst: 'Slik måler vi', roller: [A, B, T] },
     ],
   },
   {
-    tittel: 'Mer',
+    // Å forstå tallene, ikke å samle dem inn. Alt her svarer på
+    // «hvorfor ble det slik», og ingenting krever en handling i dag.
+    tittel: 'Innsikt',
     punkter: [
-      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
-      { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
-      { sti: '/import', tekst: 'Import', roller: [A] },
+      { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
+      { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
+      { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
+      { sti: '/kasserer', tekst: 'Kasserer', roller: [A, B] },
       { sti: '/dekning', tekst: 'Datadekning', roller: [A] },
+    ],
+  },
+  {
+    // Oppsett og innhold som endres sjelden. Het «Mer», som ikke sa noe.
+    tittel: 'Innstillinger',
+    punkter: [
       { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },
       { sti: '/brukere', tekst: 'Brukere', roller: [A] },
+      { sti: '/import', tekst: 'Import', roller: [A] },
       { sti: '/persondata', tekst: 'Persondata', roller: [A, B] },
+      { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
+      { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },
     ],
   },
   {

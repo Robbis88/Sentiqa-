@@ -1,22 +1,13 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { mfaHandling } from '@/lib/auth/mfa'
-import { loggUt } from '@/lib/auth/handlinger'
-import { ROLLE_ETIKETT } from '@/lib/auth/typer'
 import { lesAktivAnsatt } from '@/lib/ansatt'
-import { erLeder } from '@/lib/auth/roller'
-import { Sidemeny } from './sidemeny'
 import { TabletSkall } from './tablet-skall'
-import { AiBoble } from './ai-boble'
-import { Kommandopalett } from './kommandopalett'
+import { Appskall } from './appskall'
 import { OversettProvider } from './oversett-kontekst'
 import { SEKSJONER } from './navigasjon'
-import { Fanerad } from './fanerad'
-import { Stasjonskontekst } from './stasjonskontekst'
-import { visVelger } from '@/lib/stasjonsvalg'
-import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonskontekst } from '@/lib/stasjonskontekst'
 
 export default async function BeskyttetLayout({
   children,
@@ -43,14 +34,9 @@ export default async function BeskyttetLayout({
 
   // Stasjonskonteksten. Eieren kan se porteføljen samlet; butikksjefen
   // har som regel én stasjon og skal da ikke se noen velger i det hele
-  // tatt.
-  const { data: mineStasjoner } = await supabase
-    .from('stasjoner').select('id, navn, butikknummer')
-    .is('slettet_tid', null).order('butikknummer')
-  const stasjoner = (mineStasjoner ?? []) as
-    { id: string; navn: string; butikknummer: string }[]
-  const tillatAlle = bruker.rolle === 'retailer_admin'
-  const valgtStasjon = await husketStasjon(stasjoner, null, tillatAlle)
+  // tatt. Samme oppslag og samme prioritering som før — de fire linjene
+  // bor nå i primitiven, der sidene også kan hente dem.
+  const kontekst = await stasjonskontekst(supabase, bruker.rolle)
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
@@ -73,52 +59,18 @@ export default async function BeskyttetLayout({
     )
   }
 
-  const menyData = seksjoner.map((s) => ({
-    tittel: s.tittel,
-    punkter: s.punkter.map((p) => ({ sti: p.sti, tekst: p.tekst })),
-  }))
-
   return (
-    <div className="skall">
-      <Sidemeny seksjoner={menyData} />
-
-      <div className="hoved">
-        <header className="toppstripe">
-          {erLeder(bruker.rolle) && (
-            <Kommandopalett
-              punkter={menyData.flatMap((s) =>
-                s.punkter.map((p) => ({ ...p, gruppe: s.tittel })),
-              )}
-            />
-          )}
-          {visVelger(stasjoner, tillatAlle) && (
-            <Stasjonskontekst
-              stasjoner={stasjoner}
-              valgt={valgtStasjon}
-              tillatAlle={tillatAlle}
-            />
-          )}
-          <span className="bruker">
-            {bruker.fulltNavn ?? bruker.epost}
-            <span className="rolle-pip">{ROLLE_ETIKETT[bruker.rolle]}</span>
-          </span>
-          <div className="topp-hoyre">
-            <Link href="/varsler" className="klokke-lenke" aria-label="Varsler">
-              🔔
-              {(uleste ?? 0) > 0 && <span className="varsel-teller">{uleste}</span>}
-            </Link>
-            <Link href="/sikkerhet" className="klokke-lenke" aria-label="Sikkerhet" title="To-faktor / sikkerhet">🔒</Link>
-            <form action={loggUt}>
-              <button type="submit" className="logg-ut">Logg ut</button>
-            </form>
-          </div>
-        </header>
-        <main className="innhold">
-          <Fanerad rolle={bruker.rolle} />
-          {children}
-        </main>
-      </div>
-      {erLeder(bruker.rolle) && <AiBoble navn={bruker.fulltNavn?.split(' ')[0]} />}
-    </div>
+    <Appskall
+      rolle={bruker.rolle}
+      navn={bruker.fulltNavn ?? bruker.epost ?? ''}
+      uleste={uleste ?? 0}
+      kontekst={kontekst}
+      seksjoner={seksjoner.map((s) => ({
+        tittel: s.tittel,
+        punkter: s.punkter.map((p) => ({ sti: p.sti, tekst: p.tekst })),
+      }))}
+    >
+      {children}
+    </Appskall>
   )
 }
