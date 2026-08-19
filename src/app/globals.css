@@ -1,24 +1,49 @@
 @import "tailwindcss";
 
-/* Sentiqa — designsystem (§12). Lys, ryddig SaaS-flate med brand-gradient. */
+/* =====================================================================
+   Sentiqa — designsystem
+   =====================================================================
+   Fargene er MERKEVARENS, satt 2026-08-19 (trinn 01). Systemet var blått
+   (#2563eb) fram til da; merkevaren er og har alltid vært grønn.
+
+   TOKENENE ER SEMANTISKE, IKKE MERKEVAREFARGER MED NAVN. Ingen side skal
+   skrive #2E7D6B. Trenger en flate primærfargen, ber den om `--primaer`
+   — da kan verdien endres per kjede senere uten å røre en eneste side.
+
+   Nøytralene er ikke valgt fritt: `--tekst-svak` (#64748b) og
+   arbeidsflaten (#f8fafc) i merkevarepaletten er slate-familien, så
+   kantene følger samme ramp. En grå med tilfeldig temperatur ved siden
+   av en valgt grå ser ut som en feil.
+
+   FARGE SKAL HA BETYDNING. Normal drift er nesten fargeløs. Grønt betyr
+   «dette er Sentiqa» eller «dette er i orden» — ikke «her er en flate
+   som trengte litt liv».
+   ===================================================================== */
 :root {
-  --bg: #f5f6f8;           /* svakt kjølig arbeidsflate */
+  --bg: #f8fafc;           /* arbeidsflate */
   --kort: #ffffff;
-  --tekst: #15171c;
-  --tekst-svak: #5b606b;
-  --kant: #e7e9ee;
-  --kant-sterk: #d8dbe2;
-  --skygge: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.05);
-  --skygge-lov: 0 8px 24px rgba(16, 24, 40, 0.12);
-  --primaer: #2563eb;      /* moderne blå */
-  --primaer-mork: #1d4ed8;
-  --primaer-svak: #eef4ff; /* lys tint for aktiv/markering */
-  --gradient: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6); /* brand-aksent */
+  --tekst: #0f1720;
+  --tekst-svak: #64748b;
+  --kant: #e2e8f0;
+  --kant-sterk: #cbd5e1;
+  /* Skyggen er tonet av teksten, ikke av en tilfeldig blåsvart. */
+  --skygge: 0 1px 2px rgba(15, 23, 32, 0.04), 0 2px 8px rgba(15, 23, 32, 0.05);
+  --skygge-lov: 0 8px 24px rgba(15, 23, 32, 0.12);
+  --primaer: #2e7d6b;      /* merkevaregrønn — fylte flater, hvit tekst */
+  --primaer-mork: #245f52; /* hover og trykk */
+  --primaer-svak: #e6f2ef; /* lys tint for aktiv/markering */
+  /* Grønn som er lesbar PÅ mørkt. Nettbrettskallet er mørkt, og
+     --primaer forsvinner i det. */
+  --primaer-lys: #7dc3ae;
   --radius: 10px;
   --radius-stor: 14px;
-  --gronn: #15803d; --gronn-svak: #e7f6ec;
-  --gul: #92600a;  --gul-svak: #fbf1d3;
-  --rod: #b42318;  --rod-svak: #fdecea;
+  /* Positiv status deler familie med merkevaren — «i orden» og «Sentiqa»
+     skal ikke se ut som to ulike grønnfarger. Verdien er mørkere enn
+     --primaer fordi den brukes som TEKST på lys flate, der --primaer så
+     vidt klarer kontrastkravet. */
+  --gronn: #1f6152; --gronn-svak: #e6f2ef;
+  --gul: #7a5321;  --gul-svak: #f5e8d3;
+  --rod: #9b2c2c;  --rod-svak: #fbe7e7;
 
   /* ---------------------------------------------------------------
      Avstand og typografi
@@ -65,8 +90,18 @@ h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0
 h3 { letter-spacing: -0.01em; }
 .undertittel { color: var(--tekst-svak); margin: 0 0 1.25rem; line-height: 1.5; }
 
-/* =========================== Landingsside =========================== */
-.lp { color: var(--tekst); }
+/* =========================== Landingsside ===========================
+   Egen visuell verden, utenfor produktets designsystem (mønsteret
+   'utenfor' i monstre.ts). Den beholder sin cyan/blå/lilla gradient som
+   en LOKAL variabel — det er en markedsside, ikke en arbeidsflate.
+
+   Dette er en bevisst inkonsistens, ikke en forglemmelse: produktet er
+   grønt fra og med trinn 01, markedssida er fortsatt blå. Skal de møtes,
+   er det en egen beslutning om markedsføringen, ikke om designsystemet. */
+.lp {
+  color: var(--tekst);
+  --lp-gradient: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6);
+}
 .lp-hero {
   background: radial-gradient(1200px 600px at 50% -10%, rgba(59,130,246,0.25), transparent 60%), #0a0f1f;
   color: #fff; text-align: center; padding: 3rem 1.5rem 0; overflow: hidden;
@@ -86,7 +121,7 @@ h3 { letter-spacing: -0.01em; }
   border: 1px solid rgba(255,255,255,0.25); transition: transform 0.15s, box-shadow 0.15s;
 }
 .lp-knapp:hover { transform: translateY(-2px); }
-.lp-knapp.primar { background: var(--gradient); border: 0; color: #07101f; box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
+.lp-knapp.primar { background: var(--lp-gradient); border: 0; color: #07101f; box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
 .lp-knapp.stor { padding: 0.85rem 2rem; font-size: 1.05rem; }
 
 /* Rullende funksjons-marquee */
@@ -109,7 +144,7 @@ h3 { letter-spacing: -0.01em; }
 
 .lp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
 .lp-funk { background: var(--kort); border: 1px solid var(--kant); border-radius: 12px; padding: 1.5rem; box-shadow: var(--skygge); }
-.lp-funk h3 { margin: 0 0 0.5rem; font-size: 1.1rem; background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block; }
+.lp-funk h3 { margin: 0 0 0.5rem; font-size: 1.1rem; background: var(--lp-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block; }
 .lp-funk p { margin: 0; color: var(--tekst-svak); line-height: 1.5; font-size: 0.95rem; }
 
 .lp-priser { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; align-items: stretch; }
@@ -130,10 +165,9 @@ h3 { letter-spacing: -0.01em; }
 .merke {
   font-weight: 700;
   font-size: 1.1rem;
-  background: var(--gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  /* Ordmerket var gradienttekst. Nå ren merkevaregrønn — logoen er
+     visuell fasit, og den har ingen gradient. */
+  color: var(--primaer);
   letter-spacing: -0.02em;
 }
 
@@ -174,7 +208,7 @@ h3 { letter-spacing: -0.01em; }
 .dok p, .dok li { line-height: 1.6; color: var(--tekst); }
 .dok ul { padding-left: 1.2rem; margin: 0.4rem 0 0; }
 .dok li { margin: 0.35rem 0; }
-.dok a { color: #2563eb; text-decoration: underline; }
+.dok a { color: var(--primaer); text-decoration: underline; }
 .dok-tilbake { margin-bottom: 1.5rem; font-size: 0.9rem; }
 .dok-tilbake a { color: var(--tekst-svak); text-decoration: none; }
 .dok-tilbake a:hover { color: var(--tekst); }
@@ -189,7 +223,7 @@ h3 { letter-spacing: -0.01em; }
 .felt { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--tekst-svak); }
 .felt-avkrysning { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.82rem; line-height: 1.45; color: var(--tekst-svak); }
 .felt-avkrysning input { margin-top: 0.15rem; flex: none; }
-.felt-avkrysning a { color: #2563eb; text-decoration: underline; }
+.felt-avkrysning a { color: var(--primaer); text-decoration: underline; }
 
 /* Målekort (Måling) */
 .malekort-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -202,7 +236,7 @@ h3 { letter-spacing: -0.01em; }
 .malekort-topp h2 { margin-bottom: 0.15rem; }
 .malekort-periode { font-size: 0.82rem; color: var(--tekst-svak); margin: 0 0 0.5rem; }
 .rang-egen { background: rgba(80,130,255,0.10); border-radius: 8px; }
-.rang-du { color: #2563eb; font-weight: 700; font-size: 0.8rem; }
+.rang-du { color: var(--primaer); font-weight: 700; font-size: 0.8rem; }
 
 /* Målekort på tablet (mørk verden) */
 .maaling-tablet-kort { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -345,8 +379,11 @@ button.logg-ut:hover { color: var(--tekst); }
   font-size: 0.72rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: var(--gradient);
-  color: #fff;
+  /* Rollemerket sa hvilken rolle du har — det er informasjon, ikke
+     pynt, og trenger derfor ikke rope. Dempet tint i stedet for en
+     gradient som konkurrerte med sidens faktiske varsler. */
+  background: var(--primaer-svak);
+  color: var(--primaer-mork);
   font-weight: 600;
 }
 .innhold { padding: 1.75rem 2rem; }
@@ -553,7 +590,9 @@ button.liten.slett:hover { background: #fdecea; }
 /* =========================== Tablet («egen verden») =========================== */
 .tablet { background: #0a0f1f; color: #e6ebf5; min-height: 100dvh; }
 .tablet-topp { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; background: #0d1426; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.tablet-merke { font-weight: 800; font-size: 1.3rem; background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Nettbrettskallet er mørkt, så merkevaregrønnen må løftes for å bli
+   lesbar. Det er hva --primaer-lys finnes til. */
+.tablet-merke { font-weight: 800; font-size: 1.3rem; color: var(--primaer-lys); }
 .tablet-topp-hoyre { display: flex; align-items: center; gap: 0.9rem; }
 .sprak-velger { display: flex; gap: 0.1rem; }
 .sprak-flagg { background: none; border: 0; font-size: 1.25rem; cursor: pointer; opacity: 0.4; padding: 0.15rem 0.25rem; border-radius: 6px; line-height: 1; }
@@ -575,7 +614,7 @@ button.liten.slett:hover { background: #fdecea; }
 }
 .tablet-nav { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; background: #0d1426; position: sticky; top: 0; z-index: 25; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .tablet-fane { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 1.1rem; border-radius: 12px; text-decoration: none; color: #aeb8cc; font-size: 0.82rem; font-weight: 600; min-width: 84px; }
-.tablet-fane.aktiv { background: rgba(59,130,246,0.2); color: #fff; }
+.tablet-fane.aktiv { background: rgba(46,125,107,0.28); color: #fff; }
 .tablet-fane-ikon { font-size: 1.5rem; }
 .tablet-innhold { padding: 1.2rem; max-width: 920px; margin: 0 auto; }
 .tablet-innhold h1, .tablet-innhold h2, .tablet-innhold h3 { color: #f3f6fc; }
@@ -594,7 +633,8 @@ button.liten.slett:hover { background: #fdecea; }
 /* Rutine-fremdrift */
 .fremdrift { display: flex; align-items: center; gap: 0.6rem; margin: 0.3rem 0 0.7rem; }
 .fremdrift-bar { flex: 1; height: 9px; background: rgba(0,0,0,0.12); border-radius: 999px; overflow: hidden; }
-.fremdrift-fyll { height: 100%; background: var(--gradient); border-radius: 999px; transition: width 0.35s ease; }
+/* Fremdriften bæres av bredden, ikke av fargen. Én rolig grønn er nok. */
+.fremdrift-fyll { height: 100%; background: var(--primaer); border-radius: 999px; transition: width 0.35s ease; }
 .fremdrift-fyll.full { background: #2f9e44; }
 .fremdrift-tekst { font-size: 0.85rem; font-weight: 700; color: var(--tekst-svak); white-space: nowrap; }
 .tablet .fremdrift-tekst { color: #aeb8cc; }
@@ -1094,7 +1134,7 @@ button.liten.slett:hover { background: #fdecea; }
 .ai-fab {
   position: fixed; bottom: 22px; right: 22px; z-index: 70;
   width: 58px; height: 58px; border-radius: 999px; border: 0;
-  background: var(--gradient); color: #07101f;
+  background: var(--primaer); color: #fff;
   font-size: 1.5rem; line-height: 1; cursor: pointer;
   box-shadow: 0 10px 28px rgba(37,99,235,0.4);
   display: flex; align-items: center; justify-content: center;
@@ -1116,7 +1156,7 @@ button.liten.slett:hover { background: #fdecea; }
 @media (prefers-reduced-motion: reduce) { .ai-panel { animation: none; } }
 
 .ai-topp { display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--kant); }
-.ai-avatar { width: 34px; height: 34px; border-radius: 999px; background: var(--gradient); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+.ai-avatar { width: 34px; height: 34px; border-radius: 999px; background: var(--primaer); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
 .ai-tittel-blokk { display: flex; flex-direction: column; line-height: 1.2; }
 .ai-tittel { font-weight: 700; font-size: 0.95rem; }
 .ai-und { font-size: 0.72rem; color: var(--tekst-svak); }
@@ -1242,13 +1282,19 @@ html { scroll-behavior: smooth; }
 /* Topplinje: sticky glass */
 .toppstripe { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,0.82); backdrop-filter: saturate(1.4) blur(8px); }
 
-/* KPI-fliser: brand-aksent + storre tall */
+/* KPI-fliser.
+   Den 3px brede gradientstripen på toppen er FJERNET, ikke gjort grønn.
+   Den fortalte ingenting — den lå der på hver eneste flis uansett hva
+   tallet var, og gjorde en normal skjerm fargerik. «Farge skal ha
+   betydning» betyr at en flate uten avvik skal være rolig. */
 .kpi { position: relative; overflow: hidden; }
-.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gradient); }
 .kpi-tall { font-size: 1.9rem; }
 
 /* Innlogging: premium */
-.logg-inn { background: radial-gradient(900px 480px at 50% -10%, rgba(59,130,246,0.10), transparent 60%), var(--bg); }
+/* Innloggingssida hadde en blå glød på toppen. Borte: «ingen
+   gradients/glow som standard del av designsystemet», og en glød i
+   forrige merkevares farge er dessuten feil farge. */
+.logg-inn { background: var(--bg); }
 .logg-inn .kort { box-shadow: var(--skygge-lov); padding: 2rem; }
 .logg-inn .merke { font-size: 1.7rem; text-align: center; }
 
