@@ -148,7 +148,13 @@ export function avledVakter(hendelser: Hendelse[]): Avledning {
  * Én åpen vakt er nok til å blokkere. En fil som mangler noens timer
  * betyr at hun ikke får lønn den måneden, og det oppdages først på
  * kontoutskriften.
+ *
+ * Tar både `Avvik[]` herfra og `AapenVakt[]` fra aapne.ts — den bryr
+ * seg bare om at lista er tom. Grunnen til at den finnes som funksjon
+ * og ikke som `.length === 0` på stedet, er at regelen skal stå ett
+ * sted: blir «én åpen vakt blokkerer» noen gang til noe mildere, skal
+ * det endres her og ikke i tre kall som har grodd fra hverandre.
  */
-export function kanLageLonnsfil(avvik: Avvik[]): boolean {
-  return avvik.length === 0
+export function kanLageLonnsfil(blokkeringer: readonly unknown[]): boolean {
+  return blokkeringer.length === 0
 }

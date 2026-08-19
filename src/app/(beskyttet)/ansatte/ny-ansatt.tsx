@@ -19,6 +19,18 @@ export function NyAnsatt({ stasjoner }: { stasjoner: { id: string; navn: string 
       <label className="felt sq-smalt"><span>PIN (4–6 siffer)</span>
         <input name="pin" inputMode="numeric" maxLength={6} required />
       </label>
+      {/* Valgfritt: nummeret kommer fra Azets, ofte etter at hun er
+          opprettet her. Kan legges inn i lista senere. */}
+      <label className="felt sq-smalt"><span>Ansattnummer</span>
+        <input
+          name="ansatt_nr" inputMode="numeric" maxLength={10}
+          aria-describedby="ansattnr-hjelp"
+        />
+      </label>
+      <p id="ansattnr-hjelp" className="undertittel">
+        Kommer fra Azets. Har du det ikke ennå, kan du legge det inn senere —
+        men hun kan ikke stemple eller komme med i lønnsfila før det er på plass.
+      </p>
       <button type="submit" className="liten" disabled={venter}>{venter ? '…' : 'Legg til'}</button>
       {tilstand?.ok ? <span className="ok">Lagt til.</span> : null}
       {tilstand?.feil ? <span className="feil">{tilstand.feil}</span> : null}

@@ -6,6 +6,8 @@ import { vismaFilnavn } from '@/lib/lonn/vismafil'
 import { vurderSats } from '@/lib/lonn/tariff'
 import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
 import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lonnsform'
+import { hentAapneVakter } from '@/lib/stempling/aapne'
+import { kanLageLonnsfil } from '@/lib/stempling/avled'
 import { LonnsformVelger } from './lonnsform-velger'
 import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
@@ -14,6 +16,14 @@ import Link from 'next/link'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
+
+// Dato OG klokkeslett på en åpen vakt. Bare klokkeslettet ville vært
+// tvetydig: «innstemplet 07:30, aldri ut» sier ingenting om det var i
+// går eller den 3.
+const klokkeslett = new Intl.DateTimeFormat('nb-NO', {
+  timeZone: 'Europe/Oslo', day: 'numeric', month: 'short',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+})
 
 // Navn på lønnsartene. Kodene er fasit — navnet varierer mellom stasjoner
 // (9019 heter «Matpenger» på Bønes og «???» på Laguneparken), så det er
@@ -100,7 +110,13 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     new Map([...avtale].map(([nr, a]) => [nr, a.lonnsform ?? null])),
     LONNSART.timelonn,
   )
-  const klar = fordeling.uavklart.length === 0
+  // Åpne vakter blokkerer før lønnsform gjør det. En vakt uten
+  // utstempling betyr at TIMENE er ukjente; manglende lønnsform betyr at
+  // kjente timer ikke er plassert. Det første må rettes av et menneske
+  // som var der, det andre er et oppslag — og da skal det som krever mest
+  // stå først.
+  const aapne = await hentAapneVakter(supabase, valgt.id, ar, maned)
+  const klar = fordeling.uavklart.length === 0 && kanLageLonnsfil(aapne ?? ['vet ikke'])
 
   // Tallene over fila beskriver fila — altså bare de som faktisk er med.
   const perArt = new Map<string, number>()
@@ -143,9 +159,13 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   const uavklarteTimer = fordeling.uavklart.reduce((s, u) => s + u.timer, 0)
   const svar = rader.length === 0
     ? 'Ingen stemplinger denne måneden'
-    : klar
-      ? `Klar for sending — ${tall.format(timer)} timer på ${new Set(fordeling.med.map((l) => l.ansattNr)).size} ansatte`
-      : `${fordeling.uavklart.length} ${fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'} lønnsform — fila lages ikke før det er avklart`
+    : aapne === null
+      ? 'Får ikke sjekket om noen står innstemplet — fila lages ikke'
+      : aapne.length > 0
+        ? `${aapne.length} ${aapne.length === 1 ? 'vakt står' : 'vakter står'} uten utstempling — fila lages ikke før de er lukket`
+        : klar
+          ? `Klar for sending — ${tall.format(timer)} timer på ${new Set(fordeling.med.map((l) => l.ansattNr)).size} ansatte`
+          : `${fordeling.uavklart.length} ${fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'} lønnsform — fila lages ikke før det er avklart`
 
   return (
     <>
@@ -174,6 +194,62 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
           {/* NIVÅ 2 — det ene neste steget. Enten er fila klar, eller så
               er det én ting som stopper den. Begge deler sto tidligere
               under lønnsarttabellen, altså etter begrunnelsen. */}
+          {/* Åpne vakter først: de er den eneste blokkeringen der
+              timene selv er ukjente. */}
+          {aapne === null && (
+            <section className="kort oppmerksomhet">
+              <div className="varsel rod">
+                <span className="varsel-dott" aria-hidden />
+                <div className="varsel-tekst">
+                  <div className="varsel-topp">
+                    <strong>Får ikke sjekket om noen står innstemplet</strong>
+                  </div>
+                  <p className="varsel-detalj">
+                    Fila lages ikke. «Vet ikke» skal ikke passere som «alt er i
+                    orden» på vei inn i lønn — står noen fortsatt innstemplet,
+                    mangler timene hennes, og det oppdages først på
+                    kontoutskriften. Prøv igjen, og si fra hvis det står.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {aapne !== null && aapne.length > 0 && (
+            <section className="kort oppmerksomhet">
+              <div className="varsel rod">
+                <span className="varsel-dott" aria-hidden />
+                <div className="varsel-tekst">
+                  <div className="varsel-topp">
+                    <strong>
+                      {aapne.length}{' '}
+                      {aapne.length === 1 ? 'vakt står' : 'vakter står'} uten utstempling
+                    </strong>
+                  </div>
+                  <p className="varsel-detalj">
+                    Fila lages ikke før de er lukket. En vakt uten utstempling har
+                    ingen sluttid, og å gjette den er å gjette hva noen skal ha
+                    betalt. Rett tidspunktet sammen med den det gjelder — hun var
+                    der, det var ikke systemet.
+                  </p>
+                  <ul className="rutine-liste">
+                    {aapne.map((v) => (
+                      <li key={v.ansattNr + v.siden}>
+                        <div className="rutine-tekst">
+                          <strong>{v.ansattNavn}</strong>
+                          <span className="undertittel">
+                            {' '}· innstemplet {klokkeslett.format(new Date(v.siden))},
+                            aldri ut
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
           {klar ? (
             <section className="kort">
               <h2>Fila er klar</h2>
@@ -192,7 +268,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                 ned og send den videre uten å åpne den.
               </p>
             </section>
-          ) : (
+          ) : fordeling.uavklart.length === 0 ? null : (
             <section className="kort oppmerksomhet">
               <div className="varsel rod">
                 <span className="varsel-dott" aria-hidden />

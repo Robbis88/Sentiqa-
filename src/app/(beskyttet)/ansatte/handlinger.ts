@@ -6,10 +6,19 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/ansatt'
 
+// Ansattnummeret kommer fra AZETS, ikke herfra og ikke fra easy@work.
+// Derfor er det valgfritt ved opprettelse: en ny ansatt finnes hos oss
+// før hun finnes i lønnssystemet, og et felt som krever et nummer ingen
+// har ennå, blir fylt med et påfunn som senere må ryddes.
+//
+// Uten nummer kan hun ikke stemple og kommer ikke i lønnsfila. Det står
+// på lista som noe som mangler, ikke som en feil.
 const Ny = z.object({
   navn: z.string().min(1, { error: 'Skriv inn navn.' }),
   stasjon_id: z.string().uuid({ error: 'Velg stasjon.' }),
   pin: z.string().regex(/^\d{4,6}$/, { error: 'PIN må være 4–6 siffer.' }),
+  ansatt_nr: z.string().regex(/^\d{1,10}$/, { error: 'Ansattnummer må være siffer.' })
+    .optional(),
 })
 
 export type AnsattTilstand = { ok?: true; feil?: string } | undefined
@@ -19,10 +28,12 @@ export async function leggTilAnsatt(_t: AnsattTilstand, formData: FormData): Pro
   if ((!erLeder(bruker.rolle)) || !bruker.retailerId) {
     return { feil: 'Ikke tilgang.' }
   }
+  const raaNr = String(formData.get('ansatt_nr') ?? '').trim()
   const felt = Ny.safeParse({
     navn: formData.get('navn'),
     stasjon_id: formData.get('stasjon_id'),
     pin: formData.get('pin'),
+    ansatt_nr: raaNr === '' ? undefined : raaNr,
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
 
@@ -31,12 +42,69 @@ export async function leggTilAnsatt(_t: AnsattTilstand, formData: FormData): Pro
     retailer_id: bruker.retailerId,
     stasjon_id: felt.data.stasjon_id,
     navn: felt.data.navn,
+    ansatt_nr: felt.data.ansatt_nr ?? null,
     pin_hash: hashPin(bruker.retailerId, felt.data.pin),
     opprettet_av: bruker.id,
   })
-  if (error) {
-    return { feil: /duplicate|unique/i.test(error.message) ? 'PIN er allerede i bruk — velg en annen.' : error.message }
+  if (error) return { feil: forklarFeil(error.message) }
+  revalidatePath('/ansatte')
+  return { ok: true }
+}
+
+/**
+ * To unike indekser kan slå til her, og de betyr helt ulike ting.
+ *
+ * Sier vi bare «allerede i bruk», må butikksjefen gjette hvilken av dem
+ * hun skal endre — og det vanlige gjettet er PIN, fordi det er det hun
+ * nettopp valgte selv. Da endrer hun feil felt og får samme feil igjen.
+ */
+function forklarFeil(melding: string): string {
+  if (/ansatt_nr/i.test(melding)) {
+    return 'Ansattnummeret er allerede brukt på en annen ansatt. '
+      + 'Sjekk nummeret mot Azets.'
   }
+  if (/duplicate|unique/i.test(melding)) {
+    return 'PIN er allerede i bruk — velg en annen.'
+  }
+  return melding
+}
+
+const Nummer = z.object({
+  id: z.string().uuid({ error: 'Ukjent ansatt.' }),
+  ansatt_nr: z.string().regex(/^\d{1,10}$/, { error: 'Ansattnummer må være siffer.' }),
+})
+
+/**
+ * Setter ansattnummeret på en som allerede finnes.
+ *
+ * Nummeret kommer fra Azets etter at den ansatte er opprettet, så dette
+ * er den vanlige veien inn — ikke unntaket. Derfor står feltet i lista
+ * og ikke bak en redigeringsside ingen finner.
+ *
+ * Nummeret kan ENDRES, ikke bare settes. Azets har rettet numre før, og
+ * et felt som låser seg etter første lagring tvinger fram en ny ansatt
+ * med samme navn — som er nøyaktig den tredje identiteten vi allerede
+ * sliter med.
+ */
+export async function settAnsattnummer(
+  _t: AnsattTilstand, formData: FormData,
+): Promise<AnsattTilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+
+  const felt = Nummer.safeParse({
+    id: formData.get('id'),
+    ansatt_nr: String(formData.get('ansatt_nr') ?? '').trim(),
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  const supabase = await lagSupabaseServerKlient()
+  const { error } = await supabase
+    .from('ansatte')
+    .update({ ansatt_nr: felt.data.ansatt_nr })
+    .eq('id', felt.data.id)
+  if (error) return { feil: forklarFeil(error.message) }
+
   revalidatePath('/ansatte')
   return { ok: true }
 }
