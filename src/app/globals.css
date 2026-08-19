@@ -1536,12 +1536,18 @@ button.liten { min-height: 40px; }
 /* --tekst-svak (#5b606b) er valgt for LYS bakgrunn. Paa nettbrettets
    moerke (#0a0f1f) faller kontrasten under WCAG AA - funnet av axe i
    ekte nettleser 2026-08-19, paa undertittelen jeg selv la inn dagen
-   for. Nettbrettet bruker #aeb8cc til dempet tekst ellers.
+   for. Nettbrettet bruker #aeb8cc til dempet tekst paa moerkt.
 
-   Regelen staar paa .tablet, ikke bare paa .tablet-hode: enhver
-   .undertittel som havner inne i nettbrettskallet har samme problem, og
-   den neste blir ikke oppdaget av noen som husker denne. */
-.tablet .undertittel { color: #aeb8cc; }
+   FORSTE FORSOK SATTE DEN PAA `.tablet` OG GJORDE DET VERRE. `.kort` er
+   fortsatt LYS inne i nettbrettskallet, saa den regelen la lysegraa
+   tekst paa hvitt - et nytt kontrastbrudd der det ikke var noe for.
+   Axe fant det med en gang, paa `section > p`.
+
+   Laerdommen er at «nettbrettet» ikke er en bakgrunnsfarge. Det er to:
+   skallet er moerkt, kortene er lyse. Dempet tekst maa folge FLATEN den
+   ligger paa, ikke skallet den er inni. */
+.tablet-hode .undertittel,
+.tablet-seksjon .undertittel { color: #aeb8cc; }
 
 /* Hansker. 44px er iOS-minimum for bar finger; med arbeidshansker paa
    en kald morgen bommer man. Gjelder kun nettbrettet - lederens
