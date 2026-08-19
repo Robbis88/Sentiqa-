@@ -1533,6 +1533,16 @@ button.liten { min-height: 40px; }
 .tablet-hode h1 { margin: 0; font-size: 2.4rem; line-height: 1.1; }
 .tablet-hode .undertittel { margin: 0.35rem 0 0; }
 
+/* --tekst-svak (#5b606b) er valgt for LYS bakgrunn. Paa nettbrettets
+   moerke (#0a0f1f) faller kontrasten under WCAG AA - funnet av axe i
+   ekte nettleser 2026-08-19, paa undertittelen jeg selv la inn dagen
+   for. Nettbrettet bruker #aeb8cc til dempet tekst ellers.
+
+   Regelen staar paa .tablet, ikke bare paa .tablet-hode: enhver
+   .undertittel som havner inne i nettbrettskallet har samme problem, og
+   den neste blir ikke oppdaget av noen som husker denne. */
+.tablet .undertittel { color: #aeb8cc; }
+
 /* Hansker. 44px er iOS-minimum for bar finger; med arbeidshansker paa
    en kald morgen bommer man. Gjelder kun nettbrettet - lederens
    avkryssing paa desktop har mus. */
