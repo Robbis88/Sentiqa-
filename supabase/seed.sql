@@ -48,22 +48,33 @@ on conflict (id) do nothing;
 -- --- Auth-brukere ----------------------------------------------------
 -- Formen under er GoTrues egen. `identities` maa med: uten den finner
 -- ikke passordinnlogging brukeren, og feilen ser ut som feil passord.
+-- TOKEN-KOLONNENE MAA VAERE TOMME STRENGER, ikke NULL.
+--
+-- GoTrue leser dem inn i Go-strenger ved paalogging, og NULL gir
+-- «converting NULL to string is unsupported». Feilen kommer paa
+-- innlogging, ikke paa insert - saa seeden ser vellykket ut, og det er
+-- forst i testen man ser at ingen kommer inn.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
-  raw_app_meta_data, raw_user_meta_data
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change, email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
 )
 values
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-111111111111',
    'authenticated', 'authenticated',
    'butikksjef@test.sentiqa.no', crypt('test-butikksjef-2026', gen_salt('bf')),
    now(), now(), now(),
-   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb),
+   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+   '', '', '', '', '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-222222222222',
    'authenticated', 'authenticated',
    'nettbrett@test.sentiqa.no', crypt('test-nettbrett-2026', gen_salt('bf')),
    now(), now(), now(),
-   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb)
+   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+   '', '', '', '', '', '', '', '')
 on conflict (id) do nothing;
 
 insert into auth.identities (

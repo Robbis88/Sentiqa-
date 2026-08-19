@@ -24,9 +24,24 @@ async function loggInn(page: Page, bruker: { epost: string; passord: string }) {
   await page.fill('input[name="epost"]', bruker.epost)
   await page.fill('input[name="passord"]', bruker.passord)
   await page.click('button[type="submit"]')
-  // Innlogget betyr «ikke lenger paa innloggingssida». Hvilken side man
-  // havner paa avhenger av rolle, og det er nettopp det vi ikke vil laase.
-  await expect(page).not.toHaveURL(/\/logg-inn/, { timeout: 15_000 })
+
+  // Blir vi staaende, skal feilmeldingen fra sida staa i rapporten.
+  // Foerste utgave sa bare «unexpected value /logg-inn», og da vet man
+  // at innlogging feilet, men ikke hvorfor - og hver runde med gjetting
+  // koster en CI-kjoring.
+  try {
+    // Innlogget betyr «ikke lenger paa innloggingssida». Hvilken side man
+    // havner paa avhenger av rolle, og det vil vi ikke laase.
+    await expect(page).not.toHaveURL(/\/logg-inn/, { timeout: 15_000 })
+  } catch (e) {
+    const melding = await page.locator('[role="alert"], .feil').first()
+      .textContent().catch(() => null)
+    throw new Error(
+      `Innlogging som ${bruker.epost} feilet.\n`
+      + `Sida sier: ${melding?.trim() || '(ingen feilmelding vist)'}\n`
+      + `Original: ${(e as Error).message}`,
+    )
+  }
 }
 
 test.describe('nettbrettet', () => {
