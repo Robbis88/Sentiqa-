@@ -10,6 +10,19 @@
 -- exit-koden er det som betyr noe.
 --
 -- Leser kun katalogen. Trygt i produksjon.
+--
+-- LISTENE UNDER SKAL VAERE IDENTISKE med dem i rls_vakthund.sql. De to
+-- filene er frittstaaende skript som limes inn, saa de kan ikke dele en
+-- modul - listene maa staa i begge. `src/lib/rls/lister.test.ts` sammen-
+-- ligner dem og feller CI hvis de gaar fra hverandre.
+--
+-- Hvorfor det er verdt en egen test: 2026-08-19 hadde denne fila blitt
+-- staaende igjen. Vakthunden meldte ETT funn, mens denne viste seks -
+-- tre av dem oppdiktede, fordi lista manglet stempling_hendelse og
+-- personlig_punkt og hadde beholdt tre opplaring_*-navn som ikke finnes.
+-- Verktoyet man bruker for aa SE funnene loy om tabeller som var i
+-- orden. Da laerer man seg aa avfeie rapporten, og neste gang den melder
+-- noe ekte blir det avfeid ogsaa.
 -- =====================================================================
 
 with lister as (
@@ -23,15 +36,16 @@ with lister as (
       'malekort_scope', 'rutiner',
       'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
       'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned',
-      'bemanning_stasjon', 'stempling', 'ansatt_avtale', 'bemanning_fravaer',
+      'bemanning_stasjon', 'stempling', 'stempling_hendelse',
+      'ansatt_avtale', 'bemanning_fravaer',
       'signal_lukket', 'ansatt_kontrakt', 'persondata_logg',
       'kontrolltiltak_bekreftelse',
       'produksjonsplan_hode', 'produksjonsplan_linjer',
       'prognose_treff', 'prognose_kalibrering',
       'vaer', 'trafikk', 'uke_rapport',
-      'personlig_kryss', 'puls_svar', 'varsler',
+      'personlig_kryss', 'personlig_punkt', 'puls_svar', 'varsler',
       'import_jobber', 'raa_filer', 'ai_tool_log',
-      'opplaering_periode', 'opplaring_fullfort', 'pengepremie_bruk',
+      'opplaering_periode', 'pengepremie_bruk',
       'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter'
     ]::text[] as varme,
     array[
@@ -41,7 +55,7 @@ with lister as (
       'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
       'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
       'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
-      'push_abonnementer', 'opplaring_personer', 'opplaring_punkter'
+      'push_abonnementer'
     ]::text[] as kalde
 )
 
