@@ -51,7 +51,11 @@ export async function GET(req: NextRequest) {
     supabase.from('ansatt_avtale')
       .select('navn, fodselsdato, stillingstittel, stillingsprosent, timesats, skiftordning, lonnsform, har_rammeavtale, oppdatert_tid')
       .eq('stasjon_id', stasjonId).eq('ansatt_nr', ansattNr).maybeSingle(),
-    supabase.from('stempling')
+    // v_stempling_aktiv (0111): timene som TELLER for henne. Under
+    // parallellkjoring finnes samme vakt to ganger, og en utskrift med
+    // dobbelt sa mange timer som lonnsslippen ville sett ut som en feil
+    // hun maatte klage paa - eller verre, som at vi hadde trukket henne.
+    supabase.from('v_stempling_aktiv')
       .select('dato, fra_tid, til_tid, minutter, betalt')
       .eq('stasjon_id', stasjonId).eq('ansatt_nr', ansattNr)
       .order('dato', { ascending: false }).limit(2000),

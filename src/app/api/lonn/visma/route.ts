@@ -36,8 +36,13 @@ export async function GET(req: NextRequest) {
 
   const mm = String(maned).padStart(2, '0')
   const sisteDag = new Date(Date.UTC(ar, maned, 0)).getUTCDate()
+  // v_stempling_aktiv, ikke `stempling`: under parallellkjoring finnes
+  // samme vakt to ganger, en fra easy@work og en fra nettbrettet, og de
+  // kolliderer ikke fordi minuttene er ulike. Viewet holder den kilden
+  // som teller for stasjonen (0111). Leses tabellen direkte, dobles
+  // timene i lonnsfila.
   const { data } = await supabase
-    .from('stempling')
+    .from('v_stempling_aktiv')
     .select('ansatt_nr, dato, fra_tid, til_tid')
     .eq('stasjon_id', stasjonId)
     .eq('betalt', true)

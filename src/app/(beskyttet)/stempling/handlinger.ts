@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hashPin, lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 import { nesteRetning, harStaattLenge } from '@/lib/stempling/tilstand'
+import { skrivAvledteVakter } from '@/lib/stempling/skriv'
 
 export type StemplingSvar = {
   ok?: true
@@ -101,6 +102,18 @@ export async function stemple(
   if (error) {
     // Hoyt og tydelig. Hun skal vite at det IKKE ble registrert.
     return { feil: 'Dette ble ikke registrert. Si fra til butikksjefen.' }
+  }
+
+  // Vakta er ferdig — regn den om til timer i `stempling`, som lonnsfila
+  // og bemanningsplanen leser. Bare ved utstempling: en aapen vakt har
+  // ingen sluttid.
+  //
+  // FEILER STILLE, MED VILJE. Hendelsen ER lagret, og den er fasit;
+  // avledningen kan kjores om igjen. Aa si «ble ikke registrert» her
+  // ville vaert usant og faatt henne til aa stemple en gang til, som
+  // lager et dobbel_inn-avvik butikksjefen maa rydde.
+  if (retning === 'ut') {
+    await skrivAvledteVakter(supabase, stasjonId, nummer, naa)
   }
 
   revalidatePath('/stempling')
