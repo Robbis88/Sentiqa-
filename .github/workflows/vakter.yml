@@ -90,6 +90,18 @@ jobs:
       - name: Start Supabase lokalt
         run: npx supabase start
 
+      # Rett etter start, mens basen garantert lever. Foerste utgave laa
+      # nederst med `if: always()` - og da kjorte den etter at CLI-en
+      # hadde revet containerne, saa den feilet med «connection refused»
+      # paa noe som ikke var dens feil. Roedt av feil grunn er verre enn
+      # ingen sjekk: det er slik man laerer seg aa se bort fra roedt.
+      #
+      # Den hoerer hjemme her ogsaa logisk: dette er den ENESTE
+      # kontrollen paa at migrasjonene alene gir en riktig base, uten noe
+      # noen har gjort for haand i produksjon.
+      - name: RLS-vakthund mot fersk base
+        run: npx supabase db query --local --file supabase/tests/rls_vakthund.sql
+
       - name: Hent nettleser
         run: npx playwright install chromium --with-deps
 
@@ -109,13 +121,6 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
-
-      # Vakthundene mot katalogen, paa en base bygget fra migrasjonene
-      # alene. Feiler de her, er det migrasjonssettet som er galt - ikke
-      # noe noen har gjort manuelt i produksjon.
-      - name: RLS-vakthund
-        if: always()
-        run: npx supabase db query --local --file supabase/tests/rls_vakthund.sql
 
       - name: Stopp Supabase
         if: always()

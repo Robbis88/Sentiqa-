@@ -21,20 +21,28 @@
 -- =====================================================================
 
 -- Faste UUID-er saa seeden er idempotent og testene kan referere dem.
-\set kjede_id       '11111111-1111-4111-8111-111111111111'
-\set stasjon_a      '22222222-2222-4222-8222-222222222222'
-\set stasjon_b      '22222222-2222-4222-8222-333333333333'
-\set sjef_id        '33333333-3333-4333-8333-111111111111'
-\set nettbrett_id   '33333333-3333-4333-8333-222222222222'
+--
+--   kjede      11111111-1111-4111-8111-111111111111
+--   stasjon A  22222222-2222-4222-8222-222222222222   (4177 Testby)
+--   stasjon B  22222222-2222-4222-8222-333333333333   (9145 Testvik)
+--   butikksjef 33333333-3333-4333-8333-111111111111
+--   nettbrett  33333333-3333-4333-8333-222222222222
+--
+-- Skrevet ut i klartekst, ikke som psql-variabler. Foerste utgave brukte
+-- `\set` og `:'navn'`, og feilet med «syntax error at or near ":"` -
+-- Supabase-CLI-en sender fila som en BATCH til Postgres, ikke gjennom
+-- psql, saa meta-kommandoene finnes ikke der.
 
 insert into public.retailers (id, navn, slug, org_nr)
-values (:'kjede_id', 'Testkjeden', 'test', '999999999')
+values ('11111111-1111-4111-8111-111111111111', 'Testkjeden', 'test', '999999999')
 on conflict (id) do nothing;
 
 insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype, svinnterskel_prosent)
 values
-  (:'stasjon_a', :'kjede_id', '4177', 'Testby',  'pendler', 2.5),
-  (:'stasjon_b', :'kjede_id', '9145', 'Testvik', 'bydel',   2.5)
+  ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111',
+   '4177', 'Testby',  'pendler', 2.5),
+  ('22222222-2222-4222-8222-333333333333', '11111111-1111-4111-8111-111111111111',
+   '9145', 'Testvik', 'bydel',   2.5)
 on conflict (id) do nothing;
 
 -- --- Auth-brukere ----------------------------------------------------
@@ -46,11 +54,13 @@ insert into auth.users (
   raw_app_meta_data, raw_user_meta_data
 )
 values
-  ('00000000-0000-0000-0000-000000000000', :'sjef_id', 'authenticated', 'authenticated',
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-111111111111',
+   'authenticated', 'authenticated',
    'butikksjef@test.sentiqa.no', crypt('test-butikksjef-2026', gen_salt('bf')),
    now(), now(), now(),
    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb),
-  ('00000000-0000-0000-0000-000000000000', :'nettbrett_id', 'authenticated', 'authenticated',
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-222222222222',
+   'authenticated', 'authenticated',
    'nettbrett@test.sentiqa.no', crypt('test-nettbrett-2026', gen_salt('bf')),
    now(), now(), now(),
    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb)
@@ -61,26 +71,29 @@ insert into auth.identities (
   last_sign_in_at, created_at, updated_at
 )
 values
-  (gen_random_uuid(), :'sjef_id',
-   jsonb_build_object('sub', :'sjef_id', 'email', 'butikksjef@test.sentiqa.no'),
-   'email', :'sjef_id', now(), now(), now()),
-  (gen_random_uuid(), :'nettbrett_id',
-   jsonb_build_object('sub', :'nettbrett_id', 'email', 'nettbrett@test.sentiqa.no'),
-   'email', :'nettbrett_id', now(), now(), now())
+  (gen_random_uuid(), '33333333-3333-4333-8333-111111111111',
+   '{"sub":"33333333-3333-4333-8333-111111111111","email":"butikksjef@test.sentiqa.no"}'::jsonb,
+   'email', '33333333-3333-4333-8333-111111111111', now(), now(), now()),
+  (gen_random_uuid(), '33333333-3333-4333-8333-222222222222',
+   '{"sub":"33333333-3333-4333-8333-222222222222","email":"nettbrett@test.sentiqa.no"}'::jsonb,
+   'email', '33333333-3333-4333-8333-222222222222', now(), now(), now())
 on conflict (provider, provider_id) do nothing;
 
 -- --- Profiler og stasjonstilgang -------------------------------------
 insert into public.profiler (id, retailer_id, rolle, fullt_navn)
 values
-  (:'sjef_id',      :'kjede_id', 'butikksjef',          'Test Butikksjef'),
-  (:'nettbrett_id', :'kjede_id', 'butikkbruker_tablet', 'Test Nettbrett')
+  ('33333333-3333-4333-8333-111111111111', '11111111-1111-4111-8111-111111111111',
+   'butikksjef',          'Test Butikksjef'),
+  ('33333333-3333-4333-8333-222222222222', '11111111-1111-4111-8111-111111111111',
+   'butikkbruker_tablet', 'Test Nettbrett')
 on conflict (id) do nothing;
 
 -- har_stasjonstilgang() slaar opp i denne for BEGGE rollene (se 0001).
 insert into public.butikksjef_stasjoner (profil_id, stasjon_id)
 values
-  (:'sjef_id', :'stasjon_a'), (:'sjef_id', :'stasjon_b'),
-  (:'nettbrett_id', :'stasjon_a')
+  ('33333333-3333-4333-8333-111111111111', '22222222-2222-4222-8222-222222222222'),
+  ('33333333-3333-4333-8333-111111111111', '22222222-2222-4222-8222-333333333333'),
+  ('33333333-3333-4333-8333-222222222222', '22222222-2222-4222-8222-222222222222')
 on conflict do nothing;
 
 -- Ingen salgsdata med vilje. Sidene skal moete testene i TOM TILSTAND,
