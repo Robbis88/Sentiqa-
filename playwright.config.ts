@@ -7,18 +7,31 @@ import { defineConfig, devices } from '@playwright/test'
 // TREFFOMRAADER krever layout, og layout krever en ekte nettleser.
 // jsdom har ingen av delene, saa axe der slaar contrast-regelen av.
 //
-// Kjorer UTEN database. Dummy-nokler er nok fordi hver side er dynamisk
-// og ingenting spor Supabase paa byggtid. Det betyr ogsaa at alt bak
-// innlogging er utilgjengelig her - se e2e/README for hva som mangler.
+// CI starter en LOKAL Supabase og peker miljoet dit, saa de innloggede
+// testene faar en ekte base. Uten et miljo faller vi tilbake paa dummy -
+// da virker de aapne sidene, men ingenting bak innlogging.
 // =====================================================================
 
 // Ikke 3000. Den maskinen dette utvikles paa har andre dev-servere der,
 // og en testkjoring som krasjer med dagens arbeid blir skrudd av.
 const PORT = 3100
 
-const DUMMY = {
-  NEXT_PUBLIC_SUPABASE_URL: 'https://dummy.supabase.co',
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'dummy_anon_key_for_build_only',
+// Arver miljoet naar det er satt, og faller tilbake paa dummy bare naar
+// det ikke er det.
+//
+// Foerste utgave hardkodet dummyverdiene her. Da overstyrte de
+// workflowens peker mot den lokale Supabase-en, og serveren slo opp
+// `dummy.supabase.co` - et domene som ikke finnes - ved HVERT
+// auth-oppslag. De innloggede testene fikk aldri en oekt.
+//
+// Det forklarer ogsaa hvorfor kjoring #3 brukte 20 minutter og traff
+// timeout: et DNS-slag som feiler tar sekunder paa en runner, ikke
+// millisekunder, og det skjedde 53 ganger.
+const env = {
+  NEXT_PUBLIC_SUPABASE_URL:
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://dummy.supabase.co',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY:
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'dummy_anon_key_for_build_only',
   PORT: String(PORT),
 }
 
@@ -42,6 +55,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: DUMMY,
+    env,
   },
 })
