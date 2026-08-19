@@ -232,6 +232,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // --- Nettbrett ---
   '/rutiner': 'tablet',
   '/lenker': 'tablet',
+  // Stemple inn og ut (0110). Nivå 1 er «hva skjer når jeg trykker» —
+  // to felter, én knapp, og en kvittering som sier navn og klokkeslett
+  // stort nok til å ses uten å lete.
+  '/stempling': 'tablet',
 }
 
 /**
