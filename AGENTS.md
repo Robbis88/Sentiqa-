@@ -55,6 +55,21 @@ Vakthunden fant en ekte regresjon på sin første kjøring, etter tre runder med
 
 **Dekningssjekken (punkt 4) er den viktigste.** Hver tabell med policy skal stå i `varme` eller `kalde`. En tabell som faller mellom stolene blir ikke sjekket av de andre punktene, og det ser ut som en tabell uten problemer. 2026-08-18 fant den 47 slike — blant dem 49 partisjoner av `daglig_salg` der `anon` kunne lese alt, forbi forelderens RLS. **Partisjoner arver ikke RLS eller rettigheter:** oppretter du en, må du `revoke all ... from anon, authenticated` eksplisitt (se `0003` og `0105`).
 
+# Arbeidsflyt: `main` er beskyttet
+
+Siden 2026-08-19 kan ingen pushe rett til `main` — heller ikke eieren, heller ikke en agent som bruker eierens rettigheter. Bypass-lista er tom med vilje.
+
+```
+git checkout -b <kort-beskrivende-navn>
+# ... arbeid, commit ...
+git push -u origin <navn>
+gh pr create --fill
+```
+
+`Vakter`-workflowen kjører på PR-en. Begge jobbene — `vakter` (~1½ min) og `nettleser` (~4 min) — må være grønne før merge er mulig.
+
+**Hvorfor dette ble innført:** infrastrukturen under ble bygget med ni røde kjøringer rett i `main`, fordi den ikke kunne testes lokalt. Feilsøking hører hjemme i en PR. `main` skal være grønn.
+
 # Vaktene i `src/lib/redesign/`
 
 Kjører i vitest, tar 200 ms til sammen. `npx vitest run src/lib/redesign` etter hver side.
