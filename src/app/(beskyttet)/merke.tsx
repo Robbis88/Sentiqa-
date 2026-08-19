@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import logo from '../../../public/sentiqa-logo.png'
 
 // =====================================================================
 // Ordmerket.
@@ -17,14 +16,17 @@ import logo from '../../../public/sentiqa-logo.png'
 export function Merke({ href = '/oversikt' }: { href?: string }) {
   return (
     <Link href={href} className="merke" aria-label="Sentiqa — til forsiden">
+      {/* Sti, ikke statisk import: `tsc` kjører før `next build` i CI, og
+          da finnes ikke typedeklarasjonen for .png ennå. Lokalt passerte
+          det fordi .next/ lå der fra sist. */}
       <Image
-        src={logo}
+        src="/sentiqa-logo.png"
         alt="Sentiqa"
-        // Høyden styrer; bredden følger av forholdet i fila, som ikke
-        // skal røres.
+        // Målene er filas egne (2172×724), skalert. Forholdet skal ikke
+        // røres — en logo som er strukket er en logo som er feil.
+        width={78}
         height={26}
         priority
-        sizes="150px"
       />
     </Link>
   )
