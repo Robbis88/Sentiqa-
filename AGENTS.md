@@ -62,6 +62,8 @@ Kjører i vitest, tar 200 ms til sammen. `npx vitest run src/lib/redesign` etter
 - **`vakthund.test.ts`** — ingen rute, rolletilgang eller serverhandling skal forsvinne i stillhet. Seksjoner og lenker måles mykt.
 - **`tilgang.test.ts`** — menyen skal ikke love tilgang siden avviser. Leser portneren ut av kilden.
 - **`design.test.ts`** — skralle på inline-stiler, emoji, rå `<table>`, rå `<h1>` og hex-farger. Tallene får aldri gå opp.
+- **`tokens.test.ts`** — de 33 designtokenene i `globals.css` endrer seg ikke i stillhet. En token treffer hele systemet samtidig.
+- **`tilgjengelighet.test.ts`** — axe mot UI-primitivene i jsdom. **Måler ikke kontrast eller treffområder** — det krever layout, altså en ekte nettleser.
 - **`monstre.ts`** — hver rute må ha et mønster. Passer ikke mønsteret siden, endre *mønsteret* og skriv hvorfor.
 
 Skal noe faktisk endres: `OPPDATER_FASIT=1 npx vitest run src/lib/redesign`. Da viser git nøyaktig hva som ble gitt slipp på.
