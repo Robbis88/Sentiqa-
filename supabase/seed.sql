@@ -638,3 +638,65 @@ values
    'varsel-55555555-5555-4555-8555-000000000006', '2099-12-31',
    'Fixtur: beviser at skjulte funn holder seg skjult.')
 on conflict (id) do nothing;
+
+
+-- =====================================================================
+-- UKA SOM GJOR PORTEFOLJEBILDET EKTE (bolge 4B.2).
+--
+-- Uten en komplett uke returnerer `hentEllerLagUkerapport` tom liste,
+-- og da faller BAADE pulsen og «Stasjonene mot hverandre» bort. Eierens
+-- halvdel av forsiden - hele «hvor i portefoljen skal blikket» - var
+-- dermed utestet.
+--
+-- UKA VELGES AV DATAENE, IKKE AV KLOKKA. Motoren tar siste dato i
+-- `v_butikksalg` og gaar til naermeste soendag paa/for den. Derfor kan
+-- en fast fixture treffe: 2026-03-22 ER en soendag, og den er den siste
+-- datoen i basen.
+--
+--   uke naa    2026-03-16 .. 2026-03-22   (mandag .. soendag)
+--   uke ifjor  2025-03-17 .. 2025-03-23   (mandag - 364 dager)
+--
+-- 2026-03-17 ligger ALLEREDE i uka med 100 000 per stasjon (maaledagen
+-- for svinn). Radene under er derfor DIFFERANSER opp til uketotalen, og
+-- svinnvinduet 2026-02-16..2026-03-17 roeres ikke:
+--
+--              ifjor      naa               vekst
+--   Underby   200 000    160 000  (100+60)  -20,0 %
+--   Grenseby  120 000    120 000  (100+20)    0,0 %
+--   Overby    100 000    100 000  (100+ 0)    0,0 %
+--
+-- HVA MOTOREN GJOR MED DET, uten at en eneste terskel er rort:
+--
+--   Underby maalt mot DE ANDRE (0,0 %) gir -20 pp, over grensa paa 12,
+--   og en residual paa 40 000 kr - over 15 000, under 60 000. Altsaa
+--   ETT stasjonssignal paa `folg`. De to andre havner over sin egen
+--   maalestokk og staar som «Foran de andre».
+--
+--   Klyngen faller 9,5 %, men «Alle stasjonene faller» krever at ALLE
+--   har negativ vekst. To av tre ligger flatt, saa det signalet uteblir
+--   - med vilje: markedssignalet og stasjonssignalet skal kunne testes
+--   hver for seg.
+--
+--   Alt salget ligger paa EN avdeling, saa avdelingens vekst er lik
+--   butikkens. `avdelingsSignaler` krever 25 prosentpoengs avvik fra
+--   butikken, og faar 0. Butikksjefens saksliste er derfor uendret av
+--   denne blokka - beviset paa rekkefolgen hennes staar.
+-- =====================================================================
+insert into public.daglig_salg (
+  retailer_id, stasjon_id, dato, ean, varenavn,
+  avdeling_kode, avdeling_navn, antall, omsetning_eks_mva, bto_fortjeneste_kr
+)
+values
+  -- Uka i aar: differansen opp til uketotalen.
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-22', '7090000000120', 'Matsalg samlet', '120', 'MAT', 600, 60000, 21000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
+   date '2026-03-22', '7090000000120', 'Matsalg samlet', '120', 'MAT', 200, 20000, 7000),
+  -- Samme uke i fjor, hele beloepet paa en dag.
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 2000, 200000, 70000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
+   date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1200, 120000, 42000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-333333333333',
+   date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1000, 100000, 35000)
+on conflict (retailer_id, stasjon_id, dato, ean) do nothing;
