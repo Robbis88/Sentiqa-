@@ -111,6 +111,34 @@ describe('seksjoner', () => {
       .toEqual([])
   })
 
+  // ---------------------------------------------------------------
+  // At vakten SER de nye formene er bare halve jobben. Den andre halve
+  // er at den fortsatt REAGERER. En parser som er gjort tolerant nok
+  // kan ende med aa svelge et ekte tap, og da er vakten verre enn
+  // ingen: den staar groenn mens en seksjon er borte fra skjermen.
+  // ---------------------------------------------------------------
+  test('EKTE TAP: en slettet tittel-prop meldes', () => {
+    const foer = '<h2>Oversikt</h2><Datatabell tittel="Per stasjon">'
+    const etter = '<h2>Oversikt</h2>'
+    expect(borte(seksjoner(foer), seksjoner(etter))).toEqual(['Per stasjon'])
+  })
+
+  test('EKTE TAP: en slettet h2 meldes', () => {
+    const foer = '<h2>Oversikt</h2><Datatabell tittel="Per stasjon">'
+    const etter = '<Datatabell tittel="Per stasjon">'
+    expect(borte(seksjoner(foer), seksjoner(etter))).toEqual(['Oversikt'])
+  })
+
+  test('EKTE TAP: aa bytte tagg mot prop er IKKE et tap', () => {
+    // Det motsatte tilfellet, og grunnen til at unntaket finnes: samme
+    // overskrift flyttet fra <h2> til en prop skal ikke melde tap. Ellers
+    // meldte hver eneste migrerte side et tap som ikke fantes, og da
+    // slutter folk aa lese meldingen - som er hvordan et ekte tap
+    // slipper forbi.
+    expect(borte(seksjoner('<h2>Per stasjon</h2>'),
+                 seksjoner('<Datatabell tittel="Per stasjon">'))).toEqual([])
+  })
+
   test('h2 med attributter og linjeskift', () => {
     expect(seksjoner('<h2 className="x">\n  Klar for\n  sletting\n</h2>'))
       .toEqual(['Klar for sletting'])
