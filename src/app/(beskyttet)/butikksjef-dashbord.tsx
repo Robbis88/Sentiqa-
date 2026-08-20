@@ -3,11 +3,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang, iDag } from '@/lib/format'
+import { stasjonsnavn as stasjonsnavnFor } from '@/lib/stasjonsvalg'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import {
-  avdelingsSignaler, ferskhet, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
+  avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
+import { Sidehode } from '@/components/ui/side'
+import { Ferskhetsstatus } from './ferskhet-status'
 import { Oppmerksomhet } from './oppmerksomhet'
 import { Maal } from './sq-maal'
 
@@ -71,8 +74,20 @@ async function samle(
   bareStasjon?: string,
 ): Promise<Data> {
   try {
-    // Tabeller uten stasjon_id (premier, varsler, fokus) avgrenses av RLS
-    // som for. Filteret legges bare der kolonnen finnes.
+    // FILTERET LEGGES DER KOLONNEN FINNES OG BETYR NOE.
+    //
+    // `tilbakemelding` kom hit i korrekthetstrinnet etter bolge 4B.2.
+    // Den har `stasjon_id not null`, men sto ufiltrert - og den baerer
+    // det HOYEST rangerte signalet i hele systemet. Foelgen var at en
+    // krenkelse meldt paa 5101 toppet forsiden mens toppstripen sto paa
+    // 5102: skallet sa en stasjon, og det forste oyet moette gjaldt en
+    // annen.
+    //
+    // `varsler` staar med vilje UTENFOR. Kolonnen er nullbar, og null
+    // betyr «hele kjeden». Et `.eq()` ville ikke avgrenset dem - det
+    // ville skjult dem.
+    //
+    // `pengepremie` og `fokuspunkter` avgrenses av RLS som for.
     const paaStasjon = <T,>(q: T): T =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (bareStasjon ? (q as any).eq('stasjon_id', bareStasjon) : q)
@@ -85,7 +100,8 @@ async function samle(
       await Promise.all([
         paaStasjon(supabase.from('oppgaver').select('id, tittel, frist, status').eq('status', 'apen').is('slettet_tid', null))
           .overrideTypes<{ id: string; tittel: string; frist: string | null; status: string }[]>(),
-        supabase.from('tilbakemelding').select('alvorlighet, lest_tid').is('lest_tid', null).limit(200)
+        paaStasjon(supabase.from('tilbakemelding').select('alvorlighet, lest_tid')
+          .is('lest_tid', null).limit(200))
           .overrideTypes<{ alvorlighet: string; lest_tid: string | null }[]>(),
         supabase.from('pengepremie').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
         supabase.from('pengepremie_bruk').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
@@ -100,9 +116,14 @@ async function samle(
           .gte('periode_slutt', idag).is('slettet_tid', null).limit(5)).overrideTypes<Konk[]>(),
         paaStasjon(supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
           .is('slettet_tid', null).order('dato').limit(8)).overrideTypes<Arr[]>(),
+        // ORDNET. Sto uten `order by`, og `ukerapport` under plukket
+        // `r[0]`. Med tre stasjoner var det dermed UDEFINERT hvilken
+        // stasjons uketall som havnet under overskriften - basen kan
+        // returnere radene i hvilken som helst rekkefolge, og gjor det.
         (bareStasjon
           ? supabase.from('stasjoner').select('id, navn, butikknummer').eq('id', bareStasjon)
-          : supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null)),
+          : supabase.from('stasjoner').select('id, navn, butikknummer')
+            .is('slettet_tid', null).order('butikknummer')),
         paaStasjon(supabase.from('avvik').select('id, beskrivelse, frist').eq('gjennomfort', false).is('slettet_tid', null)
           .order('frist', { nullsFirst: false }).limit(10)).overrideTypes<Avvik[]>(),
         supabase.from('varsler').select('id, tittel, tekst, type, lenke').eq('lest', false).is('slettet_tid', null)
@@ -117,7 +138,12 @@ async function samle(
     }
 
     const stasjonsListe = stasjoner.data ?? []
-    const stasjonsnavn = stasjonsListe.length === 1 ? stasjonsListe[0].navn : 'Dine stasjoner'
+    // NUMMERET SKAL STAA. Sidehodet er stedet skallet og sida kan
+    // sammenlignes med oyet: staar toppstripen paa 5102, skal ordet
+    // under si 5102. «Underby» alene beviser ingenting.
+    const stasjonsnavn = stasjonsListe.length === 1
+      ? stasjonsnavnFor(stasjonsListe[0])
+      : 'Dine stasjoner'
 
     const ulesteTilb = tilb.data ?? []
     const vunnet = (prem.data ?? []).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
@@ -127,7 +153,12 @@ async function samle(
     if (bruker.retailerId) {
       try {
         const r = await hentEllerLagUkerapport(supabase, bruker.retailerId, stasjonsListe)
-        ukerapport = r[0] ?? null
+        // DEN VALGTE STASJONEN, ikke «den forste rapporten». Etter at
+        // stasjonskonteksten kom paa plass har lista uansett bare en
+        // rad - men et `[0]` som TILFELDIGVIS er riktig er ikke det
+        // samme som et oppslag som er det, og neste person som endrer
+        // spoerringen over ser ikke forskjellen.
+        ukerapport = (bareStasjon ? r.find((x) => x.stasjonId === bareStasjon) : r[0]) ?? null
       } catch { ukerapport = null }
     }
 
@@ -252,25 +283,26 @@ export async function ButikksjefDashbord(
 
   return (
     <div className="sq">
-      {/* 1 · Kontekst og ferskhet */}
-      <header className="sq-hode">
-        <p className="sq-hils">{hils}, {fornavn}</p>
-        <h1>{d.stasjonsnavn}</h1>
-        <div className="sq-ferskhet">
-          <span className="sq-merkelapp">{datoLang.format(new Date(`${idag}T12:00:00Z`))}</span>
-          {d.sisteDato && (() => {
-            const f = ferskhet(d.sisteDato, idag)
-            return (
-              <span className={`sq-merkelapp sq-pip ${f.nivaa}`}>
-                Siste salgsdag {datoLang.format(new Date(`${d.sisteDato}T12:00:00Z`))}
-                {f.tekst ? ` · ${f.tekst}` : ''}
-              </span>
-            )
-          })()}
-        </div>
-      </header>
+      {/* 1 · Kontekst og ferskhet.
+          Ferskheten er en TILSTAND ved dataene, ikke en merkelapp: er
+          importen stoppet, er alt annet paa sida gammelt, og det maa
+          kunne leses uten aa kjenne fargen paa en pille. `ferskhet()`
+          er urort - bare framvisningen har byttet sprak. */}
+      <Sidehode
+        tittel={d.stasjonsnavn}
+        undertittel={`${hils}, ${fornavn} · ${datoLang.format(new Date(`${idag}T12:00:00Z`))}`}
+        handlinger={d.sisteDato ? <Ferskhetsstatus dato={d.sisteDato} idag={idag} /> : undefined}
+      />
 
-      {/* 2 · Puls — resultater til og med siste salgsdag */}
+      {/* 2 · DET SOM KREVER NOE AV HENNE.
+          Sto tidligere UNDER pulsen, altsaa under to omsetningstall.
+          Sporsmaalet hun kommer med er «hva maa jeg gjore i dag», ikke
+          «hvordan gikk forrige uke» - og et tall hun ikke kan handle
+          paa i dag skal ikke staa foran en sak hun kan. */}
+      <Oppmerksomhet signaler={signaler} />
+
+      {/* 3 · Puls — resultater til og med siste salgsdag. Forklaringen,
+          ikke oppdraget: her ser hun HVORFOR bildet ser ut som det gjor. */}
       {r && vekst != null ? (
         <section className="sq-puls">
           <div>
@@ -309,9 +341,6 @@ export async function ButikksjefDashbord(
           </div>
         </section>
       )}
-
-      {/* 3 · Oppmerksomhet */}
-      <Oppmerksomhet signaler={signaler} />
 
       {/* 4 · I dag og fremover — holdt fra resultatene over */}
       <div className="sq-to">

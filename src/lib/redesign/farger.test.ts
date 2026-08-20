@@ -154,8 +154,15 @@ const PAR: [string, string, string][] = [
   ['--tekst', '--rod-svak', '.sq-signal-kritisk .sq-signal-tekst p'],
   ['--tekst', '--gul-svak', '.sq-signal-oppmerksomhet .sq-signal-tekst p'],
   ['--tekst', '--gronn-svak', '.sq-signal-mulighet .sq-signal-tekst p'],
+  // Status paa flata den staar paa. Forsiden bruker alle tre nivaaene:
+  // «Haster» paa en saksrad, «Litt bak» i budsjettabellen, ferskheten i
+  // sidehodet. De sto ikke under vakt for bolge 4B.2.
+  ['--rod', '--kort', '.sq-status-kritisk paa kort'],
+  ['--rod', '--bg', '.sq-status-kritisk paa sida'],
+  ['--gul', '--kort', '.sq-status-handling paa kort'],
+  ['--gul', '--bg', '.sq-status-handling paa sida'],
   // Aksentfarge paa sin egen tone: statuspiller og merkelapper.
-  ['--rod', '--rod-svak', '.status-pip.rod, .sq-status-kritisk'],
+  ['--rod', '--rod-svak', '.status-pip.rod, .sq-nokkeltall-mot.darlig'],
   ['--gul', '--gul-svak', '.status-pip.gul'],
   ['--gronn', '--gronn-svak', '.status-pip.gronn, sidemenyens aktive lenke'],
 ]
@@ -201,5 +208,7 @@ describe('kontrastvakten', () => {
     expect(CSS).toMatch(/\.sq-signal-kritisk \{[^}]*background: var\(--rod-svak\)/)
     expect(CSS).toMatch(/\.sq-signal-oppmerksomhet \{[^}]*background: var\(--gul-svak\)/)
     expect(CSS).toMatch(/\.sq-signal-mulighet \{[^}]*background: var\(--gronn-svak\)/)
+    expect(CSS).toMatch(/\.sq-status-kritisk \{[^}]*color: var\(--rod\)/)
+    expect(CSS).toMatch(/\.sq-status-handling \{[^}]*color: var\(--gul\)/)
   })
 })

@@ -1,4 +1,6 @@
 import { kr } from '@/lib/format'
+import { Datatabell } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 
 // Hvordan ligger stasjonene an mot BP akkurat nå?
 //
@@ -28,11 +30,15 @@ const pst = new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 1 })
 // roper på hver prosent blir ignorert etter tredje gang.
 const TERSKEL = 3
 
-function tone(avvikPst: number): { klasse: string; ord: string } {
-  if (avvikPst <= -10) return { klasse: 'rod', ord: 'Bak' }
-  if (avvikPst <= -TERSKEL) return { klasse: 'gul', ord: 'Litt bak' }
-  if (avvikPst >= TERSKEL) return { klasse: 'gronn', ord: 'Foran' }
-  return { klasse: 'noytral', ord: 'På plan' }
+// «Foran» er NORMAL, ikke en seier. Det var groent for; men en tabell
+// der to av fire tilstander har farge bruker opp fargebudsjettet paa
+// noe ingen skal gjore noe med. Ordene skiller dem fortsatt - grensene
+// er de samme.
+function tone(avvikPst: number): { nivaa: Statusnivaa; ord: string } {
+  if (avvikPst <= -10) return { nivaa: 'kritisk', ord: 'Bak' }
+  if (avvikPst <= -TERSKEL) return { nivaa: 'handling', ord: 'Litt bak' }
+  if (avvikPst >= TERSKEL) return { nivaa: 'normal', ord: 'Foran' }
+  return { nivaa: 'normal', ord: 'På plan' }
 }
 
 export function Budsjettstatus({ rader }: { rader: BudsjettRad[] }) {
@@ -66,39 +72,41 @@ export function Budsjettstatus({ rader }: { rader: BudsjettRad[] }) {
         Klyngen ligger <strong>{samlet >= 0 ? '+' : ''}{pst.format(samlet)} %</strong> mot
         budsjett så langt — {kr.format(sumBrutto)} mot {kr.format(sumForventet)} forventet.
       </p>
-      <div className="tabellramme">
-        <table className="tabell">
-          <thead>
-            <tr>
-              <th>Stasjon</th>
-              <th className="tall">Brutto hittil</th>
-              <th className="tall">Forventet nå</th>
-              <th className="tall">Avvik</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {beregnet.map((r) => {
-              const t = tone(r.avvikPst)
-              return (
-                <tr key={r.stasjon_id}>
-                  <td>{r.butikknummer} {r.navn}</td>
-                  <td className="tall">{kr.format(r.brutto)}</td>
-                  <td className="tall">{kr.format(r.forventet)}</td>
-                  <td className="tall">
-                    {r.avvik >= 0 ? '+' : ''}{kr.format(r.avvik)}
-                    <br />
-                    <span className="undertittel">
-                      {r.avvikPst >= 0 ? '+' : ''}{pst.format(r.avvikPst)} %
-                    </span>
-                  </td>
-                  <td><span className={`status-pip ${t.klasse}`}>{t.ord}</span></td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      {/* EKTE MATRISE: stasjon nedover, samme tre tall bortover. Det er
+          nettopp sammenligningen mellom radene som er poenget, saa dette
+          skal vaere en tabell - men gjennom Datatabell, som loeser
+          vannrett rulling paa liten skjerm. */}
+      <Datatabell>
+        <thead>
+          <tr>
+            <th>Stasjon</th>
+            <th className="tall">Brutto hittil</th>
+            <th className="tall">Forventet nå</th>
+            <th className="tall">Avvik</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {beregnet.map((r) => {
+            const t = tone(r.avvikPst)
+            return (
+              <tr key={r.stasjon_id}>
+                <td>{r.butikknummer} {r.navn}</td>
+                <td className="tall">{kr.format(r.brutto)}</td>
+                <td className="tall">{kr.format(r.forventet)}</td>
+                <td className="tall">
+                  {r.avvik >= 0 ? '+' : ''}{kr.format(r.avvik)}
+                  <br />
+                  <span className="undertittel">
+                    {r.avvikPst >= 0 ? '+' : ''}{pst.format(r.avvikPst)} %
+                  </span>
+                </td>
+                <td><Status nivaa={t.nivaa}>{t.ord}</Status></td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </Datatabell>
       <p className="undertittel">
         Målt til og med {tilOgMed} — salgstallene er alltid gårsdagens.
         {' '}Forventningen er BP-en fordelt etter hvor mye av måneden stasjonen

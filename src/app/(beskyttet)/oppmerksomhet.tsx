@@ -1,18 +1,81 @@
 import Link from 'next/link'
 import type { Signal } from '@/lib/signaler'
+import { Status } from '@/components/ui/status'
 import { SignalKnapper } from './signal-knapper'
 
-// Ett funn = én rad, ikke ett kort. Et kort sier «her er en modul»; en rad
-// med alvorlighetsstripe sier «her er en sak». Rekkefølgen er informasjon,
-// så alle radene ser like ut bortsett fra stripen og tallet.
+// =====================================================================
+// Den rangerte lista — hovedinnholdet på forsiden for begge lederroller.
 //
-// <details> er bevisst: utvidelsen virker uten JavaScript, og skjermlesere
-// får åpne/lukke gratis.
+// Ett funn = én rad, ikke ett kort. Et kort sier «her er en modul»; en
+// rad med alvorlighetsstripe sier «her er en sak». Rekkefølgen er
+// informasjon, så alle radene ser like ut bortsett fra alvoret og
+// tallet.
+//
+// TRE TING ER FLYTTET UT AV UTVIDELSEN, og alle tre av samme grunn:
+// det som forklarer rekkefølgen, og det man kom for å gjøre, kan ikke
+// ligge bak et klikk.
+//
+//   Alvoret      stod som en egen liten etikett (`.sq-nivaa`). Nå er det
+//                Status, samme som resten av systemet.
+//   Grunnlaget   kroner og dager er PRESIS det motoren rangerer etter
+//                (signaler.ts). Lå det skjult, måtte man tro på
+//                rekkefølgen i stedet for å se den.
+//   «Undersøk»   lå som første knapp i utvidelsen. Veien til saken
+//                kostet da to klikk, og pila til høyre lovet noe annet
+//                enn den gjorde — den åpnet, den gikk ikke.
+//
+// Utvidelsen har fortsatt de fire handlingene som ENDRER noe: oppgave,
+// fokus, tablet, skjul. De er sjeldnere, og de skal ikke stå og friste
+// på tvers av åtte rader.
+//
+// <details> er bevisst: utvidelsen virker uten JavaScript, og
+// skjermlesere får åpne/lukke gratis. Lenken ligger UTENFOR <summary> —
+// et fokuserbart element inni en summary er en knapp inni en knapp.
+// =====================================================================
 
 const NIVAA_ORD: Record<string, string> = {
   kritisk: 'Haster',
   folg: 'Følg med',
   info: 'Til orientering',
+}
+
+/**
+ * Alvoret i systemets eget språk.
+ *
+ * `info` blir NORMAL, ikke en farge til. En orientering er ikke en
+ * mild advarsel — den er utgangspunktet, og fargebudsjettet skal gå til
+ * de to over.
+ */
+const NIVAA_STATUS = {
+  kritisk: 'kritisk',
+  folg: 'handling',
+  info: 'normal',
+} as const
+
+/** Bare sifrene, så to skrivemåter av samme tall kan sammenlignes. */
+const sifre = (s: string) => s.replace(/\D/g, '')
+
+/**
+ * Grunnlaget for rangeringen, som ord.
+ *
+ * Noen signaler har allerede tallet sitt i `endring` — «5 dager på rad»
+ * står i overskriften på treffsignalet, og kronebeløpet i utsolgt. Å
+ * gjenta det ville lært øyet at grunnlaget er pynt. Derfor droppes en
+ * verdi som allerede står der.
+ */
+function grunnlag(s: Signal): string[] {
+  const ut: string[] = []
+  const alt = sifre(s.endring ?? '')
+  if (s.konsekvensKr != null) {
+    const kr = Math.abs(Math.round(s.konsekvensKr))
+    const tekst = `${kr.toLocaleString('nb-NO')} kr i utslag`
+    if (!alt.includes(sifre(tekst))) ut.push(tekst)
+  }
+  if (s.dager != null) {
+    const tekst = `${s.dager} ${s.dager === 1 ? 'dag' : 'dager'} på rad`
+    if (!alt.includes(sifre(tekst))) ut.push(tekst)
+  }
+  return ut
 }
 
 // «7 ting trenger oppmerksomhet» sier ikke om det er sju kritiske eller sju
@@ -44,61 +107,70 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
     <section className="sq-seksjon">
       <div className="sq-seksjon-hode">
         <h2>{overskrift(signaler)}</h2>
-        <span className="sq-merkelapp">Viktigst øverst</span>
+        {/* «VIKTIGST OEVERST» LOVTE MER ENN MOTOREN GIR.
+            Det leses som ren alvorlighetsrekkefolge, og den garanterer
+            `rangerSignaler` ikke: kritisk kan aldri tapes (1000 er over
+            baade folg-taket paa 900 og info-taket paa 650), men info og
+            folg OVERLAPPER - et info-funn med stort utslag over mange
+            dager naar 650, et nakent folg-funn ligger paa 300.
+
+            Det er ikke en feil aa rette. Det er hele grunnen til at
+            konsekvens og varighet teller: en orientering som har kostet
+            90 000 kroner i fire dager ER viktigere enn en «folg med»
+            det ikke staar noe bak. Merkelappen er derfor endret til aa
+            si hva som faktisk avgjor - de tre tingene `signaler.ts`
+            selv navngir, i den rekkefolgen den bruker dem.
+
+            Grensene er maalt i `signaler.test.ts` > «hva rekkefolgen
+            lover». Snur noen kontrakten, feiler de testene, og da skal
+            denne setningen endres tilbake i samme slengen. */}
+        <span className="sq-merkelapp">Etter alvor, konsekvens og varighet</span>
       </div>
 
-      {signaler.map((s) => (
-        <details className="sq-sak" data-niva={s.niva} key={s.id}>
-          <summary>
-            <span className="sq-stripe" aria-hidden="true" />
-            <span className="sq-sak-tekst">
-              <span className="sq-sak-tittel">
-                {/* Alvorligheten må stå i ord, ikke bare i 3 px farge — stripen
-                    er usynlig for skjermlesere, og rødt mot gult er ikke noe
-                    alle skiller. */}
-                <span className="sq-nivaa">{NIVAA_ORD[s.niva] ?? s.niva}</span>
-                <b>{s.tittel}</b>
-                {s.endring ? <span className="sq-endring">{s.endring}</span> : null}
-              </span>
-              <span className="sq-sak-under">{s.detalj}</span>
-            </span>
-            <span className="sq-sak-hoyre">
-              <span className="sq-merkelapp">{s.merke}</span>
-              <svg className="sq-pil" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                <path d="M4 2.5 8 6l-4 3.5" fill="none" stroke="currentColor" strokeWidth="1.6"
-                  strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </summary>
+      <ul className="sq-saker">
+        {signaler.map((s) => {
+          const bevis = grunnlag(s)
+          return (
+            <li className="sq-sak" data-niva={s.niva} key={s.id}>
+              {/* Stripen forsterker alvoret; den bærer det ikke. Den er
+                  usynlig for skjermlesere og for den som ikke skiller
+                  rødt fra gult — derfor står ordet ved siden av. */}
+              <span className="sq-stripe" aria-hidden="true" />
 
-          {/* Utvidelsen gjentok tidligere samme setning som sto i sammendraget
-              — man betalte et klikk for null ny informasjon. Nå står bare det
-              som ikke fikk plass over: grunnlaget og hva man kan gjøre. */}
-          <div className="sq-utdyp">
-            {(s.konsekvensKr != null || s.dager != null) && (
-              <div className="sq-utdyp-rad">
-                <span className="sq-merkelapp">Grunnlag</span>
-                <span className="sq-bevis">
-                  {s.konsekvensKr != null && (
-                    <span>{Math.abs(Math.round(s.konsekvensKr)).toLocaleString('nb-NO')} kr i utslag</span>
-                  )}
-                  {s.dager != null && (
-                    <span>{s.dager} {s.dager === 1 ? 'dag' : 'dager'} på rad</span>
-                  )}
+              <div className="sq-sak-tekst">
+                <span className="sq-sak-tittel">
+                  <Status nivaa={NIVAA_STATUS[s.niva]}>{NIVAA_ORD[s.niva] ?? s.niva}</Status>
+                  <b>{s.tittel}</b>
+                  {s.endring ? <span className="sq-endring">{s.endring}</span> : null}
                 </span>
-              </div>
-            )}
+                <span className="sq-sak-under">{s.detalj}</span>
+                {bevis.length > 0 && (
+                  <span className="sq-bevis">
+                    {bevis.map((b) => <span key={b}>{b}</span>)}
+                  </span>
+                )}
 
-            <div className="sq-utdyp-rad">
-              <span className="sq-merkelapp">Neste steg</span>
-              <span className="sq-handlinger">
-                <Link href={s.lenke} className="sq-knapp primar">Undersøk</Link>
-                <SignalKnapper signalId={s.id} tittel={s.tittel} detalj={s.detalj} stasjonId={s.stasjonId} />
-              </span>
-            </div>
-          </div>
-        </details>
-      ))}
+                <details className="sq-sak-mer">
+                  <summary>Flere handlinger</summary>
+                  <div className="sq-handlinger">
+                    <SignalKnapper
+                      signalId={s.id} tittel={s.tittel} detalj={s.detalj} stasjonId={s.stasjonId}
+                    />
+                  </div>
+                </details>
+              </div>
+
+              <div className="sq-sak-hoyre">
+                <span className="sq-merkelapp">{s.merke}</span>
+                {/* Rolig, ikke primær. Åtte grønne knapper under hverandre
+                    ville gjort rangeringen usynlig igjen — alvoret skal
+                    skille radene, ikke knappen som er lik på alle. */}
+                <Link href={s.lenke} className="sq-knapp sq-sak-gaa">Undersøk</Link>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }

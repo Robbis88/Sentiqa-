@@ -557,3 +557,146 @@ where not exists (
   where retailer_id = '11111111-1111-4111-8111-222222222222'
     and dato < date '2026-02-16'
 );
+
+
+-- =====================================================================
+-- SIGNALER PAA FORSIDEN (bolge 4B.2).
+--
+-- HVORFOR DETTE MAA SEEDES: /oversikt er den eneste sida der innholdet
+-- ER rangeringen. Uten funn moeter testene «Ingenting trenger
+-- oppmerksomhet» - en gyldig og viktig tilstand, men den beviser
+-- ingenting om rekkefolgen. Og rekkefolgen er hele produktet her.
+--
+-- ALLE RADENE GAAR GJENNOM DEN EKSISTERENDE MOTOREN. Ingen terskel er
+-- rort, ingen `niva` er skrevet inn i basen - nivaaet regnes av
+-- signaler.ts, og poengsummen av `poengFor`. Regnestykket, med tallene
+-- fra GRUNNPOENG + min(200, dager*25):
+--
+--   Melding om krenkelse    kritisk  1000 + 0   = 1000
+--   1 oppgave over frist    folg      300 + 200 =  500
+--   Bemanningen er innenfor info       50 + 0   =   50
+--
+-- Rekkefolgen er derfor gitt av motoren, ikke av innsettingsrekkefolgen
+-- her - og et bevis paa forsiden kan sammenligne mot den.
+--
+-- TESTKJEDEN ROERES IKKE. Den er tom med vilje (se over): sju ruter
+-- testes i tom tilstand, og butikksjefen der er ogsaa den eneste som
+-- kan bevise at «ingenting trenger oppmerksomhet» faktisk vises.
+-- =====================================================================
+
+-- Krenkelse: den ene tingen som alltid skal staa forst. Butikksjefen ser
+-- den som «Melding om krenkelse», eieren som stasjonens navn.
+insert into public.tilbakemelding (id, retailer_id, stasjon_id, alvorlighet, tekst, opprettet_tid)
+values
+  ('55555555-5555-4555-8555-000000000001', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'krenkelse',
+   'En ansatt melder fra om grov oppforsel fra en kunde ved nattskiftet.',
+   '2026-03-01T22:10:00Z'),
+  -- Ulest, men ikke alvorlig. Gir eieren info-nivaaet; hos butikksjefen
+  -- undertrykkes den med vilje naar det finnes en krenkelse (se
+  -- byggSignaler) - to meldinger om det samme innboksen ville dyttet
+  -- krenkelsen nedover.
+  ('55555555-5555-4555-8555-000000000002', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-222222222222', 'generelt',
+   'Kaffemaskinen paa selvbetjeningen lekker litt naar den er full.',
+   '2026-03-02T09:00:00Z')
+on conflict (id) do nothing;
+
+-- Oppgave over frist -> folg-nivaa, og `dager` gir den poeng over en
+-- naken folg. Fristen er fast og i fortiden, saa dagtallet vokser med
+-- kalenderen men treffer taket paa 200 poeng uansett.
+insert into public.oppgaver (id, retailer_id, stasjon_id, tittel, beskrivelse, status, frist)
+values
+  ('55555555-5555-4555-8555-000000000004', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111',
+   'Bytte pakning paa kaffemaskinen', 'Meldt inn fra nettbrettet.', 'apen', '2026-03-10')
+on conflict (id) do nothing;
+
+-- To varsler paa info-nivaa. Det ene er SKJULT under, og det er hele
+-- poenget med aa ha to: uten et synlig soesken kan et bevis ikke skille
+-- «skjulingen virker» fra «varsler vises ikke i det hele tatt».
+insert into public.varsler (id, retailer_id, stasjon_id, type, tittel, tekst, lenke, opprettet_tid)
+values
+  ('55555555-5555-4555-8555-000000000005', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'bemanning_ok',
+   'Bemanningen er innenfor rammen',
+   'Neste ukes plan bruker 96 % av timerammen.', '/bemanning', '2026-03-03T06:00:00Z'),
+  ('55555555-5555-4555-8555-000000000006', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'bemanning_ok',
+   'Skjult varsel som ikke skal vises',
+   'Lukket i signal_lukket under, og skal derfor ikke staa i lista.',
+   '/bemanning', '2026-03-03T06:05:00Z')
+on conflict (id) do nothing;
+
+-- Skjulingen. `filtrerLukkede` fjerner funn som er lukket og fortsatt
+-- innenfor fristen; datoen her er satt langt fram slik at beviset ikke
+-- gaar ut av seg selv en dag i framtiden.
+insert into public.signal_lukket (id, retailer_id, stasjon_id, signal_id, gjelder_til, notat)
+values
+  ('55555555-5555-4555-8555-000000000007', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111',
+   'varsel-55555555-5555-4555-8555-000000000006', '2099-12-31',
+   'Fixtur: beviser at skjulte funn holder seg skjult.')
+on conflict (id) do nothing;
+
+
+-- =====================================================================
+-- UKA SOM GJOR PORTEFOLJEBILDET EKTE (bolge 4B.2).
+--
+-- Uten en komplett uke returnerer `hentEllerLagUkerapport` tom liste,
+-- og da faller BAADE pulsen og «Stasjonene mot hverandre» bort. Eierens
+-- halvdel av forsiden - hele «hvor i portefoljen skal blikket» - var
+-- dermed utestet.
+--
+-- UKA VELGES AV DATAENE, IKKE AV KLOKKA. Motoren tar siste dato i
+-- `v_butikksalg` og gaar til naermeste soendag paa/for den. Derfor kan
+-- en fast fixture treffe: 2026-03-22 ER en soendag, og den er den siste
+-- datoen i basen.
+--
+--   uke naa    2026-03-16 .. 2026-03-22   (mandag .. soendag)
+--   uke ifjor  2025-03-17 .. 2025-03-23   (mandag - 364 dager)
+--
+-- 2026-03-17 ligger ALLEREDE i uka med 100 000 per stasjon (maaledagen
+-- for svinn). Radene under er derfor DIFFERANSER opp til uketotalen, og
+-- svinnvinduet 2026-02-16..2026-03-17 roeres ikke:
+--
+--              ifjor      naa               vekst
+--   Underby   200 000    160 000  (100+60)  -20,0 %
+--   Grenseby  120 000    120 000  (100+20)    0,0 %
+--   Overby    100 000    100 000  (100+ 0)    0,0 %
+--
+-- HVA MOTOREN GJOR MED DET, uten at en eneste terskel er rort:
+--
+--   Underby maalt mot DE ANDRE (0,0 %) gir -20 pp, over grensa paa 12,
+--   og en residual paa 40 000 kr - over 15 000, under 60 000. Altsaa
+--   ETT stasjonssignal paa `folg`. De to andre havner over sin egen
+--   maalestokk og staar som «Foran de andre».
+--
+--   Klyngen faller 9,5 %, men «Alle stasjonene faller» krever at ALLE
+--   har negativ vekst. To av tre ligger flatt, saa det signalet uteblir
+--   - med vilje: markedssignalet og stasjonssignalet skal kunne testes
+--   hver for seg.
+--
+--   Alt salget ligger paa EN avdeling, saa avdelingens vekst er lik
+--   butikkens. `avdelingsSignaler` krever 25 prosentpoengs avvik fra
+--   butikken, og faar 0. Butikksjefens saksliste er derfor uendret av
+--   denne blokka - beviset paa rekkefolgen hennes staar.
+-- =====================================================================
+insert into public.daglig_salg (
+  retailer_id, stasjon_id, dato, ean, varenavn,
+  avdeling_kode, avdeling_navn, antall, omsetning_eks_mva, bto_fortjeneste_kr
+)
+values
+  -- Uka i aar: differansen opp til uketotalen.
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-22', '7090000000120', 'Matsalg samlet', '120', 'MAT', 600, 60000, 21000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
+   date '2026-03-22', '7090000000120', 'Matsalg samlet', '120', 'MAT', 200, 20000, 7000),
+  -- Samme uke i fjor, hele beloepet paa en dag.
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 2000, 200000, 70000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
+   date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1200, 120000, 42000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-333333333333',
+   date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1000, 100000, 35000)
+on conflict (retailer_id, stasjon_id, dato, ean) do nothing;

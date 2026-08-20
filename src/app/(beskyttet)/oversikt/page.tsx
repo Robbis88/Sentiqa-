@@ -11,12 +11,14 @@ import { TabletHjem } from '../tablet-hjem'
 import { AdminDashbord } from '../admin-dashbord'
 import { ButikksjefDashbord } from '../butikksjef-dashbord'
 import { husketStasjon } from '@/lib/stasjonskontekst'
-import { tillatAlleFor } from '@/lib/stasjonsvalg'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 // Dashbordet kan gjøre litt tyngre oppslag (regnskap/ukerapport) — gi rom.
 export const maxDuration = 60
 
-export default async function OversiktSide() {
+export default async function OversiktSide(
+  { searchParams }: { searchParams: Promise<{ stasjon?: string; butikknummer?: string }> },
+) {
   const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
 
@@ -102,31 +104,59 @@ export default async function OversiktSide() {
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.
   if (bruker.rolle === 'plattform_redaktor') redirect('/plattform')
 
+  // =================================================================
+  // STASJONSKONTEKSTEN, FELLES FOR BEGGE LEDERROLLENE.
+  //
+  // Sto foer bare i eiergrenen. Butikksjefen med flere stasjoner fikk
+  // derfor et skall som sa «5102 Grenseby» over en side som regnet paa
+  // alle tre - noyaktig den doble konteksten trinn 09 lukket, paa
+  // systemets forside.
+  //
+  // URL-EN MAA LESES HER OGSAA. Proxyen skriver riktignok kapselen naar
+  // lenka baerer en gyldig stasjon, men den kapselen gjelder foerst fra
+  // NESTE forespoersel. En delt lenke ville altsaa vist skallets nye
+  // stasjon over sidas gamle - paa foerste visning, som er den eneste
+  // visningen en delt lenke faar.
+  //
+  // Rekkefolgen (URL foer hukommelse foer det fornuftige) og
+  // aggregatregelen ligger i `velgStasjon`/`TAALER_AGGREGAT`, ikke her.
+  // For /oversikt taaler bare eieren aggregat, saa butikksjefen faar
+  // alltid EN konkret stasjon - som skallet.
+  // =================================================================
+  const { data: mine } = await supabase
+    .from('stasjoner').select('id, navn, butikknummer')
+    .is('slettet_tid', null).order('butikknummer')
+  const stasjonsliste = (mine ?? []) as { id: string; navn: string; butikknummer: string }[]
+
+  const sp = await searchParams
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  if (sp.butikknummer) sok.set('butikknummer', sp.butikknummer)
+
+  const valgt = await husketStasjon(
+    stasjonsliste,
+    stasjonFraUrl(sok, stasjonsliste),
+    tillatAlleFor('/oversikt', bruker.rolle, stasjonsliste.length),
+  )
+
   // Eier: porteføljen som standard, én stasjon når han har valgt en i
   // toppstripen. Det er drill-downen — «Varden faller» skal kunne følges
   // helt inn i Vardens eget bilde, uten å bytte rolle eller side.
-  if (bruker.rolle === 'retailer_admin') {
-    const { data: mine } = await supabase
-      .from('stasjoner').select('id, navn, butikknummer')
-      .is('slettet_tid', null).order('butikknummer')
-    // KAPABILITETEN KOMMER FRA TABELLEN, ikke fra en `true` her.
-    // Sto den her, kunne den bli staaende mens tabellen sa noe annet -
-    // og appskallet leser tabellen. Da viser toppstripen en stasjon mens
-    // forsiden viser porteforljen.
-    //
-    // Merk foelgen: en eier med bare EN stasjon faar naa stasjonsbildet
-    // i stedet for portefoljen. En portefolje av en ting er stasjonen,
-    // og skallet sier det samme.
-    const stasjonsliste = (mine ?? []) as { id: string; navn: string; butikknummer: string }[]
-    const valgt = await husketStasjon(
-      stasjonsliste,
-      null,
-      tillatAlleFor('/oversikt', bruker.rolle, stasjonsliste.length),
-    )
-    if (valgt) return <ButikksjefDashbord bruker={bruker} bareStasjon={valgt} />
+  // KAPABILITETEN KOMMER FRA TABELLEN, ikke fra en `true` her. Sto den
+  // her, kunne den bli staaende mens tabellen sa noe annet - og
+  // appskallet leser tabellen. Da viser toppstripen en stasjon mens
+  // forsiden viser portefoljen.
+  //
+  // Merk foelgen: en eier med bare EN stasjon faar stasjonsbildet i
+  // stedet for portefoljen. En portefolje av en ting er stasjonen, og
+  // skallet sier det samme.
+  if (bruker.rolle === 'retailer_admin' && valgt === null) {
     return <AdminDashbord bruker={bruker} idag={iDag()} />
   }
 
-  // Butikksjef får sitt operative «min stasjon»-dashbord.
-  return <ButikksjefDashbord bruker={bruker} />
+  // Eierens drill-down og butikksjefens operative bilde er den SAMME
+  // flata med den samme stasjonen - forskjellen er bare hvordan de kom
+  // hit. `valgt` kan vaere null for en butikksjef uten stasjoner i det
+  // hele tatt; da faller vi tilbake til RLS-omfanget, som foer.
+  return <ButikksjefDashbord bruker={bruker} bareStasjon={valgt ?? undefined} />
 }

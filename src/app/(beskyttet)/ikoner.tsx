@@ -58,3 +58,19 @@ export function Meny({ className }: Props) {
     </svg>
   )
 }
+
+/**
+ * AI-assistenten.
+ *
+ * Erstatter 🤖 paa inngangskortet. Robot-emojien hadde sine egne farger
+ * - graa og bla - som ikke er vaare, og den sto igjen fra for
+ * palettbyttet. Denne arver flatens farge som de tre over.
+ */
+export function Gnist({ className }: Props) {
+  return (
+    <svg {...felles} className={className}>
+      <path d="M8 2.2 9.3 6 13 7.3 9.3 8.6 8 12.4 6.7 8.6 3 7.3 6.7 6 8 2.2Z" />
+      <path d="M12.6 11.4 13 12.6l1.2.4-1.2.4-.4 1.2-.4-1.2-1.2-.4 1.2-.4.4-1.2Z" />
+    </svg>
+  )
+}

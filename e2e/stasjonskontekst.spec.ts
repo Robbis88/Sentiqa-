@@ -172,6 +172,11 @@ test.describe('stasjonskontekst', () => {
   // EGENSKAPEN, og den er billig aa utvide: legg ruta i lista.
   // =================================================================
   const RUTER = [
+    // /oversikt kom inn her i korrekthetstrinnet etter bolge 4B.2.
+    // Butikksjefens forside leste ALLE hennes stasjoner uansett hva
+    // toppstripen sto paa, og var derfor den siste flata i systemet der
+    // skallet og sida kunne si hver sin ting.
+    '/oversikt',
     '/produksjonsplan?dato=2026-02-02',
     '/produksjonsplan/treffsikkerhet',
     '/svinn',
