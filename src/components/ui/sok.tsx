@@ -30,6 +30,7 @@ export function Sok({
   plassholder,
   merkelapp = 'Søk i lista',
   skjulte,
+  onEndre,
 }: {
   navn?: string
   verdi?: string
@@ -38,10 +39,25 @@ export function Sok({
   merkelapp?: string
   /** Andre spørreparametre som skal overleve søket — periode, stasjon. */
   skjulte?: Record<string, string | undefined>
+  /**
+   * Filtrer det som allerede er lastet, i stedet for å sende et søk.
+   *
+   * Da rører søket verken URL, server eller database — det snevrer inn
+   * en liste brukeren alt ser på. Riktig når hele lista er hentet
+   * uansett; feil den dagen den ikke er det, for da finner søket bare i
+   * det som tilfeldigvis kom med.
+   */
+  onEndre?: (verdi: string) => void
 }) {
+  const klientside = onEndre !== undefined
+
   return (
-    <form className="sq-sok" role="search">
-      {Object.entries(skjulte ?? {}).map(([k, v]) =>
+    <form
+      className="sq-sok"
+      role="search"
+      onSubmit={klientside ? (e) => e.preventDefault() : undefined}
+    >
+      {!klientside && Object.entries(skjulte ?? {}).map(([k, v]) =>
         v === undefined ? null : <input key={k} type="hidden" name={k} value={v} />)}
       <label className="sq-sok-felt">
         <span className="sq-skjult">{merkelapp}</span>
@@ -52,13 +68,19 @@ export function Sok({
         <input
           type="search"
           name={navn}
-          defaultValue={verdi}
+          value={klientside ? verdi : undefined}
+          defaultValue={klientside ? undefined : verdi}
+          onChange={onEndre ? (e) => onEndre(e.target.value) : undefined}
           placeholder={plassholder}
           autoComplete="off"
         />
       </label>
-      {/* Uten JavaScript er dette veien til å søke. Med, gjør Enter jobben. */}
-      <noscript><button type="submit" className="sq-knapp liten">Søk</button></noscript>
+      {/* Uten JavaScript er dette veien til å søke. Med, gjør Enter jobben.
+          Klientsøk trenger den ikke — uten JavaScript finnes det ingen
+          filtrering å be om. */}
+      {!klientside && (
+        <noscript><button type="submit" className="sq-knapp liten">Søk</button></noscript>
+      )}
     </form>
   )
 }

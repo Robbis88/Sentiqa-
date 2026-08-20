@@ -1940,3 +1940,23 @@ a.sq-rad-lenke:hover { background: var(--bg); }
   font-size: 0.7rem;
   font-weight: 700;
 }
+
+/* --- Ansattlista (pilot A) -----------------------------------------
+   Toppen av en liste: søk til venstre, filter til høyre. Samme
+   rekkefølge overalt, så man slutter å lete etter dem. */
+.sq-listetopp {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--luft-3);
+}
+.sq-listetall { margin: 0 0 var(--luft-2); font-size: var(--tekst-liten); }
+
+/* Bekreftelse på en destruktiv handling, i raden. Ikke en modal: den
+   ville tatt over skjermen for en handling som gjelder én rad. */
+.sq-bekreft { display: inline-flex; align-items: center; gap: var(--luft-2); }
+
+/* Skjema i sidepanel. Feltene under hverandre med samme luft — et
+   skjema skal ikke bli en trapp. */
+.sq-skjema { display: flex; flex-direction: column; gap: var(--luft-4); }
