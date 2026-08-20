@@ -55,7 +55,7 @@ function PunktRad({ p, startLogget }: { p: Punkt; startLogget: Logget | null }) 
             onChange={(e) => setTiltak(e.target.value)}
             rows={2}
             className="maaling-tiltak"
-            placeholder="⚠️ Avvik! Hva gjorde du med en gang? (strakstiltak — kreves)"
+            placeholder="Avvik! Hva gjorde du med en gang? (strakstiltak — kreves)"
           />
         )}
         {feil && <span className="feil" role="alert">{feil}</span>}

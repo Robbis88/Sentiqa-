@@ -80,7 +80,7 @@ export function PushTilmelding() {
       {pa ? (
         <button type="button" className="liten" onClick={slaaAv} disabled={jobber}>Skru av push på denne enheten</button>
       ) : (
-        <button type="button" className="liten" onClick={slaaPaa} disabled={jobber}>🔔 Slå på push-varsler her</button>
+        <button type="button" className="liten" onClick={slaaPaa} disabled={jobber}>Slå på push-varsler her</button>
       )}
     </div>
   )

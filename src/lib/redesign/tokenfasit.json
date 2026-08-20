@@ -34,6 +34,8 @@
   "--natt-rod": "#ffb3b3",
   "--natt-blaa": "#7cc4ff",
   "--natt-flamme": "#ff922b",
+  "--natt-gul": "#f5c98a",
+  "--natt-gronn": "#7fd6b8",
   "--natt-kant": "rgba(255,255,255,0.08)",
   "--natt-kant-sterk": "rgba(255,255,255,0.18)",
   "--luft-1": "0.25rem",

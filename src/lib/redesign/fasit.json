@@ -647,10 +647,10 @@
     "/produksjonsplan": [
       "Ingen produksjonssalg registrert",
       "Notat til de ansatte",
+      "Produksjon",
       "dynamisk:g.navn",
       "dynamisk:tittel",
-      "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>",
-      "🥐 Produksjon"
+      "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>"
     ],
     "/produksjonsplan/treffsikkerhet": [
       "Dag for dag (siste ${trendDager.length})",

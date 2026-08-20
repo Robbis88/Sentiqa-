@@ -158,6 +158,20 @@ test.describe('treffomraadene taaler hansker', () => {
           const r = el.getBoundingClientRect()
           if (r.width === 0 && r.height === 0) continue
           if (getComputedStyle(el).display === 'inline') continue
+          // EN AVKRYSSINGSBOKS TREFFES VIA ETIKETTEN SIN. Ruta er 24 px
+          // fordi det er en rute; fingeren moter etiketten rundt, og
+          // det er DEN som maa vaere stor nok. Aa maale boksen ville
+          // vaert aa maale feil ting - og aa blaase den opp til 44
+          // ville gitt en rute som ser ut som en knapp.
+          const t = (el as HTMLInputElement).type
+          if (t === 'checkbox' || t === 'radio') {
+            const lab = el.closest('label')
+            const lr = lab?.getBoundingClientRect()
+            if (lr && lr.height >= 44 && lr.width >= 44) continue
+            ut.push(`etiketten rundt ${t} "${(lab?.textContent ?? '').trim().slice(0, 28)}" `
+              + `${Math.round(lr?.width ?? 0)}x${Math.round(lr?.height ?? 0)}`)
+            continue
+          }
           if (r.height < 44 || r.width < 44) {
             ut.push(`${el.tagName.toLowerCase()} "${(el.textContent ?? '').trim().slice(0, 28)}" ${Math.round(r.width)}x${Math.round(r.height)}`)
           }
@@ -200,7 +214,12 @@ test.describe('den moerke flata er lesbar', () => {
     const funn: string[] = []
     for (const sti of RUTENE) {
       await paaFlata(page, sti)
-      const tekst = await page.locator('body').innerText()
+      // `textContent`, ikke `innerText`. Det siste normaliserer teksten
+      // paa vei ut av nettleseren og spiser variasjonsvelgeren U+FE0F -
+      // og da faller ✉️ og ⚠️ ut av moensteret mens 🥐 blir staaende.
+      // Foerste utgave av dette beviset var halvblind av noyaktig det:
+      // den fant flaggene, som er surrogatpar, og ingen av de andre.
+      const tekst = await page.evaluate(() => document.body.textContent ?? '')
       for (const e of tekst.match(EMOJI) ?? []) funn.push(`${sti}: ${e}`)
     }
     expect(funn, `Emoji paa nettbrettet:\n  ${funn.join('\n  ')}`).toEqual([])

@@ -720,8 +720,32 @@ button.liten.slett:hover { background: #fdecea; }
 .tablet textarea {
   min-height: 44px;
 }
+/* SKJEMAFELTENE ARVET DAGEN. Bakgrunnen kom fra nettleserens standard -
+   hvit - mens `color` naa er nattens lyse tekst. Axe fant det med en
+   gang: lys tekst paa hvitt felt i avviksskjemaet. Feltene maa faa
+   flata si eksplisitt; en arvet standard er ikke et token. */
+.tablet input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+.tablet select,
+.tablet textarea {
+  background: var(--natt-flate);
+  color: var(--natt-tekst);
+  border: 1px solid var(--natt-kant-sterk);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+.tablet input::placeholder,
+.tablet textarea::placeholder { color: var(--natt-tekst-svak); }
+.tablet option { background: var(--natt-flate); color: var(--natt-tekst); }
+
+/* En avkryssingsboks TREFFES via etiketten sin, ikke via boksen. 24 px
+   er selve ruta; de 44 ligger i etiketten rundt, og det er den fingeren
+   moter. */
 .tablet input[type='checkbox'],
-.tablet input[type='radio'] { width: 24px; height: 24px; }
+.tablet input[type='radio'] { width: 24px; min-height: 24px; height: 24px; }
+.tablet label.radio,
+.tablet label.avkryss {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 44px;
+}
 /* Lenkeraden i en koe skal treffes paa hele hoyden, ikke bare paa
    teksten. Denne var 28 px hoy da bolge 5 maalte den. */
 .tablet .rutine-tekst.ikmat-lenke { min-height: 44px; display: flex; flex-direction: column; justify-content: center; }

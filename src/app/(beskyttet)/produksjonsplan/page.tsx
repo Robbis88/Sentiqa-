@@ -60,10 +60,10 @@ export default async function ProduksjonsplanSide({
   if (bruker.rolle === 'butikkbruker_tablet') {
     const idag = iDag()
     const { data: st } = await supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).limit(1).maybeSingle<{ id: string; navn: string; butikknummer: string }>()
-    if (!st) return <section className="tablet-seksjon"><h2>🥐 Produksjon</h2><p>Ingen stasjon.</p></section>
+    if (!st) return <section className="tablet-seksjon"><h2>Produksjon</h2><p>Ingen stasjon.</p></section>
     const { data: hode } = await supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', st.id).eq('dato', idag).maybeSingle<{ notat: string | null; publisert_tid: string | null }>()
     if (!hode?.publisert_tid) {
-      return <section className="tablet-seksjon"><h2>🥐 Produksjon</h2><p>Ingen produksjonsplan publisert i dag.</p></section>
+      return <section className="tablet-seksjon"><h2>Produksjon</h2><p>Ingen produksjonsplan publisert i dag.</p></section>
     }
     const { data: linjer } = await supabase
       .from('produksjonsplan_linjer').select('varenavn, varegruppe_navn, planlagt, start_antall, lagd_hittil')
@@ -78,7 +78,7 @@ export default async function ProduksjonsplanSide({
     }
     return (
       <>
-        <h1>🥐 Produksjon i dag</h1>
+        <h1>Produksjon i dag</h1>
         <TabletPlan stasjonId={st.id} dato={idag} notat={hode.notat} grupper={[...gmap.values()]} />
       </>
     )
