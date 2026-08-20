@@ -45,7 +45,7 @@ export default async function BeskyttetLayout({
   const urlHode = (await headers()).get(URL_HODE) ?? ''
   const [sti, sokestreng = ''] = urlHode.split('?')
   const kontekst = await stasjonskontekst(
-    supabase, sti || '/', new URLSearchParams(sokestreng),
+    supabase, sti || '/', bruker.rolle, new URLSearchParams(sokestreng),
   )
 
   const seksjoner = SEKSJONER.map((s) => ({

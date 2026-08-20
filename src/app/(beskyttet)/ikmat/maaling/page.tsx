@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
@@ -9,14 +11,30 @@ import { Sidehode } from '@/components/ui/side'
 const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
 
 export default async function MaalingSide({ searchParams }: { searchParams: Promise<{ stasjon?: string; frekvens?: string }> }) {
-  await hentInnloggetBruker()
+  const bruker = await hentInnloggetBruker()
   const sp = await searchParams
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
-  const stasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
   const frekvens = FREKVENSER.includes(sp.frekvens ?? '') ? sp.frekvens! : 'daglig'
-  if (!stasjon) return <p>Mangler stasjon. <Link href="/rutiner">Tilbake til vakta</Link></p>
 
   const supabase = await lagSupabaseServerKlient()
+
+  // MAALINGEN GJELDER EN STASJON, alltid. Den naas som en dyplenke fra
+  // vakta, saa `?stasjon=` er den vanlige veien inn - men manglet den,
+  // moette man for en blindgate: «Mangler stasjon».
+  //
+  // Naa faller den tilbake paa det huskede valget, som alle andre sider.
+  // Blindgata staar igjen bare for den som faktisk ikke har noen stasjon
+  // - og da er det sant.
+  const { data: mine } = await supabase
+    .from('stasjoner').select('id, navn, butikknummer')
+    .is('slettet_tid', null).order('butikknummer')
+  const liste = (mine ?? []) as { id: string; navn: string; butikknummer: string }[]
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const stasjon = await husketStasjon(
+    liste, stasjonFraUrl(sok, liste),
+    tillatAlleFor('/ikmat/maaling', bruker.rolle, liste.length),
+  )
+  if (!stasjon) return <p>Ingen stasjon tildelt. <Link href="/rutiner">Tilbake til vakta</Link></p>
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
 
   const [{ data: punkter }, { data: avles }, { data: st }] = await Promise.all([

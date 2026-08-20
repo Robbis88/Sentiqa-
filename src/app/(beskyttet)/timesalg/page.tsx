@@ -5,6 +5,8 @@ import { datoLang } from '@/lib/format'
 import { TimesalgKart } from './timesalg-kart'
 import Link from 'next/link'
 import { Sidehode, Tomtilstand, Nokkeltall } from '@/components/ui/side'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr } from '@/lib/format'
 
 type Rad = { stasjon_id: string; time: string; salg: number | null; inne_kunder: number | null; ute_kunder: number | null }
@@ -16,8 +18,6 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   }
 
   const sp = await searchParams
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
-  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase
@@ -46,6 +46,16 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   ])
 
   const medData = (stasjoner ?? []).filter((s) => (rader ?? []).some((r) => r.stasjon_id === s.id))
+  // Felles stasjonskontrakt (trinn 09): URL foran hukommelse foran
+  // forste stasjon. `null` er «alle stasjoner samlet», og at sida taaler
+  // det staar i rutetabellen - samme tabell appskallet leser.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtStasjon = await husketStasjon(
+    medData, stasjonFraUrl(sok, medData),
+    tillatAlleFor('/timesalg', bruker.rolle, medData.length),
+  )
+
   const erStasjon = valgtStasjon != null && medData.some((s) => s.id === valgtStasjon)
   const valgtNavn = erStasjon ? medData.find((s) => s.id === valgtStasjon)?.navn ?? null : null
 

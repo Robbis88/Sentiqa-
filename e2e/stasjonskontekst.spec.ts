@@ -161,6 +161,70 @@ test.describe('stasjonskontekst', () => {
     }
   })
 
+  // =================================================================
+  // DEN GENERELLE REGRESJONSTESTEN.
+  //
+  // Selve feilen, som en maaling som kan kjores paa hvilken som helst
+  // rute: viser skallet en stasjon, skal sida regne paa DEN. Viser
+  // skallet «Alle stasjoner», skal sida si at den summerer.
+  //
+  // De enkelte testene over maaler ett scenario hver. Denne maaler
+  // EGENSKAPEN, og den er billig aa utvide: legg ruta i lista.
+  // =================================================================
+  const RUTER = [
+    '/produksjonsplan?dato=2026-02-02',
+    '/produksjonsplan/treffsikkerhet',
+    '/svinn',
+    '/salg',
+    '/timesalg',
+    '/kasserer',
+    '/regnskap',
+    '/salgsprognose',
+  ]
+
+  for (const rute of RUTER) {
+    test(`skall og side er enige paa ${rute.split('?')[0]}`, async ({ page }) => {
+      await page.goto(rute)
+
+      const velger = page.locator('.sq-stasjonskontekst select')
+      if (await velger.count() === 0) {
+        test.skip(true, 'Ingen velger - brukeren har ikke noe aa velge mellom')
+      }
+      const vist = await skallet(page)
+
+      const hode = page.locator('.sq-sidehode')
+      if (await hode.count() === 0) {
+        test.skip(true, 'Sida har ikke noe sidehode aa sammenligne med')
+      }
+      const tekst = await hode.first().innerText()
+
+      // SAMMENLIGN DET SOM FINNES AV BEVIS. Ikke hver side navngir
+      // stasjonen sin - en tom /timesalg har ingen tall aa knytte til
+      // noen. Da er det ingenting aa vaere uenige om, og testen sier det
+      // i stedet for aa kreve et bevis som ikke finnes.
+      //
+      // Butikknumrene matches eksplisitt: et loepende \d{4} ville
+      // truffet aarstallet i «17. mars 2026».
+      const NUMRE = /(5101|5102|5103)/g
+      const paaSida = [...new Set(tekst.match(NUMRE) ?? [])]
+      const sidaSummerer = /alle stasjoner|samlet|kjeden/i.test(tekst)
+
+      if (paaSida.length === 0 && !sidaSummerer) {
+        test.skip(true, 'Sida navngir ikke stasjonen sin - ingenting aa sammenligne')
+      }
+
+      if (/^Alle stasjoner/i.test(vist)) {
+        expect(sidaSummerer, `Skallet summerer, men sida sier:
+${tekst}`).toBe(true)
+        expect(paaSida, 'Skallet summerer, men sida viser EN stasjon').toEqual([])
+      } else {
+        const nr = vist.match(/\d{4}/)?.[0]
+        expect(paaSida, `Skallet viser «${vist}», sida sier:
+${tekst}`).toEqual([nr])
+      }
+    })
+  }
+
   test('G - skjemafeltene er urort payload, ikke kontekst', async ({ page }) => {
     // «Hvilken stasjon gjelder det jeg oppretter» er noe annet enn
     // «hvilken stasjon ser jeg paa». Konsolideringen skal ikke ha rort

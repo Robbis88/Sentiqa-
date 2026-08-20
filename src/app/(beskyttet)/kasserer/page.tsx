@@ -4,6 +4,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
 import Link from 'next/link'
 import { Sidehode, Tomtilstand, Nokkeltall, Forklaring } from '@/components/ui/side'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 type Kasserer = {
   stasjon_id: string
@@ -23,8 +25,6 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
   }
 
   const sp = await searchParams
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
-  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase
@@ -65,6 +65,16 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
   }
 
   const medData = (stasjoner ?? []).filter((s) => perStasjon.has(s.id))
+  // Felles stasjonskontrakt (trinn 09): URL foran hukommelse foran
+  // forste stasjon. `null` er «alle stasjoner samlet», og at sida taaler
+  // det staar i rutetabellen - samme tabell appskallet leser.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtStasjon = await husketStasjon(
+    medData, stasjonFraUrl(sok, medData),
+    tillatAlleFor('/kasserer', bruker.rolle, medData.length),
+  )
+
   const erStasjon = valgtStasjon != null && perStasjon.has(valgtStasjon)
   const valgtNavn = erStasjon ? medData.find((s) => s.id === valgtStasjon)?.navn ?? null : null
   const vis = erStasjon ? medData.filter((s) => s.id === valgtStasjon) : medData

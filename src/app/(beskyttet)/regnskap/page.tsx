@@ -6,7 +6,8 @@ import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 import { byggPeriodeGrupper } from '@/lib/perioder'
 import { RegnskapButikksjef } from './butikksjef-visning'
 import { RegnskapVarsler } from './varsler-liste'
-import { StasjonsVelger } from '../stasjonsvelger'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { PeriodeVelger } from '../periode-velger'
 import { AiKontekst } from '../ai-kontekst'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
@@ -84,10 +85,6 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const fra = hittil ? `${ytdAar}-01-01` : aktivPeriode
   const til = aktivPeriode
 
-  // Admin kan bore ned i én stasjon (?stasjon=<uuid>), ellers «alle samlet».
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
-  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
-
   // Én funksjon summerer linjene over perioden (RLS-scopet). Vi filtrerer
   // cluster vs. per-stasjon i JS. Summerer månedene selv — så måned/år henger
   // sammen og per-stasjon-hittil ikke blir null (Azets fyller hittil kun cluster).
@@ -97,6 +94,22 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     bruker.retailerId ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => []) : Promise.resolve([]),
   ])
+
+  // ADMIN-GRENEN AGGREGERER. `?stasjon=<uuid>` borer ned i én stasjon;
+  // uten den summeres kjeden. At sida TAALER det staar i rutetabellen,
+  // ikke her - og appskallet leser den samme tabellen, saa velgeren i
+  // toppstripen tilbyr «Alle stasjoner» noyaktig her.
+  //
+  // Butikksjef-grenen over er en ANNEN side bak samme URL: en skjermet
+  // visning av egen stasjon, som ikke summerer. Derfor staar /regnskap
+  // som aggregat KUN for retailer_admin.
+  const stasjonsliste = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtStasjon = await husketStasjon(
+    stasjonsliste, stasjonFraUrl(sok, stasjonsliste),
+    tillatAlleFor('/regnskap', bruker.rolle, stasjonsliste.length),
+  )
 
   const medAvvik = <T extends { regnskap: number | null; budsjett: number | null }>(r: T) => ({
     ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0),
@@ -202,15 +215,9 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         handlinger={<AiKontekst tekst="Hva skiller seg ut?" sporsmal="Hva skiller seg mest ut i regnskapet for siste periode, og hvorfor?" />}
       />
 
+      {/* Stasjonsvelgeren staar i toppstripen, ett sted for hele systemet.
+          Perioden staar igjen - den er sidas eget sporsmaal. Se trinn 09. */}
       <div className="regnskap-velgere">
-        {(stasjoner ?? []).length > 0 && (
-          <StasjonsVelger
-            stasjoner={[...(stasjoner ?? [])].sort((a, b) => a.butikknummer.localeCompare(b.butikknummer)).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-            valgtId={erStasjon ? valgtStasjon : null}
-            basePath="/regnskap"
-            bevar={{ periode: valgtVerdi }}
-          />
-        )}
         <PeriodeVelger
           valgt={valgtVerdi}
           grupper={byggPeriodeGrupper(liste, true)}
