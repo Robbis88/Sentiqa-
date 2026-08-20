@@ -10,7 +10,8 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { PeriodeVelger } from '../periode-velger'
 import { AiKontekst } from '../ai-kontekst'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 import { motBudsjett, storsteAvvik, svaret, type Driver } from '@/lib/regnskap/mot-budsjett'
 
 type Linje = {
@@ -31,6 +32,18 @@ const SEKSJON_TITTEL: Record<string, string> = {
   bruttofortjeneste: 'Bruttofortjeneste',
   driftskostnader: 'Driftskostnader',
   resultat: 'Resultat',
+}
+
+
+/**
+ * De tre gamle fargeklassene, oversatt til systemets semantiske spraak.
+ *
+ * Grensene er uendret - det er bare navnet og det at ORDET foelger med
+ * som er nytt. En prosentpip der fargen var eneste forskjell mellom
+ * «greit» og «ikke greit» kunne ikke leses av den som ikke ser farge.
+ */
+function nivaaFraKlasse(k: string): Statusnivaa {
+  return k === 'gronn' ? 'normal' : k === 'gul' ? 'endring' : k === 'rod' ? 'handling' : 'normal'
 }
 
 export default async function RegnskapSide({ searchParams }: { searchParams: Promise<{ periode?: string; butikknummer?: string; stasjon?: string }> }) {
@@ -226,24 +239,26 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         />
       </div>
 
-      <section className="nokkeltall">
+      <div className="sq-nokkelrad">
         {kpi.map(({ merke, l }) => {
           // Budsjettet sto her fra før, men bare som et tall ved siden av.
           // Det er differansen brukeren er ute etter.
           const mot = motBudsjett(l?.regnskap ?? null, l?.budsjett ?? null)
+          // Regnskapet har en ekte fasit: budsjettet. Derfor er `bra`
+          // satt her - i motsetning til paa produksjonsplanen, der
+          // «over forslaget» er butikksjefens vurdering og ikke noe
+          // systemet kan felle dom over.
           return (
-            <div className="kpi" key={merke}>
-              <span className="kpi-tall">{kr.format(l?.regnskap ?? 0)}</span>
-              <span className="kpi-merke">{merke}</span>
-              {mot.tekst && (
-                <span className={`kpi-mot${mot.bra === null ? '' : mot.bra ? ' god' : ' darlig'}`}>
-                  {mot.tekst}
-                </span>
-              )}
-            </div>
+            <Nokkeltall
+              key={merke}
+              merkelapp={merke}
+              verdi={kr.format(l?.regnskap ?? 0)}
+              sammenlignet={mot.tekst ?? undefined}
+              bra={mot.bra ?? undefined}
+            />
           )
         })}
-      </section>
+      </div>
 
       <RegnskapVarsler varsler={visVarsler} />
 
@@ -269,10 +284,10 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         </p>
       </Forklaring>
 
+      {/* Ekte sammenligningsmatrise: stasjon mot stasjon nedover,
+          omsetning mot brutto mot driftsresultat bortover. */}
       {!erStasjon && stasjonsrader.length > 0 && (
-        <section className="kort">
-          <h2>Per stasjon</h2>
-          <table className="tabell">
+        <Datatabell tittel="Per stasjon" antall={stasjonsrader.length}>
             <thead>
               <tr><th>Stasjon</th><th>Omsetning</th><th className="mob-skjul">Brutto</th><th>Driftsresultat</th></tr>
             </thead>
@@ -282,19 +297,25 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
                   <td>{s.navn}</td>
                   <td>{kr.format(s.regnskap)}</td>
                   <td className="mob-skjul">{kr.format(s.brutto)}</td>
-                  <td><span className={`status-pip ${s.resultat >= 0 ? 'gronn' : 'rod'}`}>{kr.format(s.resultat)}</span></td>
+                  {/* Belopet er tallet, og fortegnet staar i det. Nivaaet
+                      sier hva fortegnet BETYR - et negativt driftsresultat
+                      krever noe av eieren. */}
+                  <td>
+                    <Status nivaa={s.resultat >= 0 ? 'normal' : 'handling'}>
+                      {kr.format(s.resultat)}
+                    </Status>
+                  </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-          <p className="undertittel" style={{ marginTop: '0.5rem' }}>Driftsresultat = bruttofortjeneste − driftskostnader per stasjon (før felleskostnader på selskapsnivå).</p>
-        </section>
+        </Datatabell>
+      )}
+      {!erStasjon && stasjonsrader.length > 0 && (
+        <p className="undertittel sq-finstilt">Driftsresultat = bruttofortjeneste − driftskostnader per stasjon (før felleskostnader på selskapsnivå).</p>
       )}
 
       {['omsetning', 'bruttofortjeneste', 'driftskostnader'].map((navn) => (
-        <section className="kort" key={navn}>
-          <h2>{SEKSJON_TITTEL[navn]}</h2>
-          <table className="tabell">
+        <Datatabell key={navn} tittel={SEKSJON_TITTEL[navn]}>
             <thead>
               <tr>
                 <th>Post</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th className="mob-skjul">Avvik</th><th>Index</th>
@@ -311,9 +332,9 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
                     <td className="mob-skjul">{kr.format(l.avvik ?? 0)}</td>
                     <td>
                       {visPip ? (
-                        <span className={`status-pip ${avviksKlasse(l.index_pct!)}`}>
+                        <Status nivaa={nivaaFraKlasse(avviksKlasse(l.index_pct!))}>
                           {prosent.format((l.index_pct ?? 0) / 100)}
-                        </span>
+                        </Status>
                       ) : (
                         l.index_pct != null ? prosent.format((l.index_pct ?? 0) / 100) : '—'
                       )}
@@ -322,15 +343,14 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
                 )
               })}
             </tbody>
-          </table>
-        </section>
+        </Datatabell>
       ))}
 
       {!erStasjon && kostnadPerKonto.length > 0 && (
-        <section className="kort">
-          <h2>Kostnader per konto · hele kjeden</h2>
-          <p className="undertittel">Hver driftskostnad summert på tvers av alle stasjonene. Velg en stasjon over for å bryte ned per butikk.</p>
-          <table className="tabell">
+        <Datatabell
+          tittel="Kostnader per konto · hele kjeden"
+          antall={kostnadPerKonto.length}
+        >
             <thead>
               <tr>
                 <th>Konto</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th className="mob-skjul">Avvik</th><th>Mot budsjett</th>
@@ -347,14 +367,13 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
                     <td className="mob-skjul">{kr.format(k.budsjett)}</td>
                     <td className="mob-skjul">{kr.format(k.avvik)}</td>
                     <td>
-                      {k.index == null ? '—' : <span className={`status-pip ${klasse}`}>{prosent.format(k.index / 100)}</span>}
+                      {k.index == null ? '—' : <Status nivaa={nivaaFraKlasse(klasse)}>{prosent.format(k.index / 100)}</Status>}
                     </td>
                   </tr>
                 )
               })}
             </tbody>
-          </table>
-        </section>
+        </Datatabell>
       )}
     </>
   )

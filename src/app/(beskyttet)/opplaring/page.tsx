@@ -7,6 +7,7 @@ import {
   leggTilPeriode, fullforPeriode, slettPeriode, vekslUtfort, leggTilSkift, slettSkift,
 } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Oppgave = { id: string; kategori: string; tittel: string; beskrivelse: string | null; estimert_min: number | null }
@@ -75,7 +76,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
       tittel="Ny under opplæring"
       beskrivelse="Sjekklista er den samme for alle. Forventet ferdig er valgfri, men gjør det lettere å se hvem som henger etter."
     >
-      <form action={leggTilPeriode} className="rutine-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+      <form action={leggTilPeriode} className="sq-skjema">
         <input name="ansatt_navn" placeholder="Navn på nyansatt" required />
         <select name="stasjon_id" required defaultValue={(stasjoner ?? []).length === 1 ? stasjoner![0].id : ''}>
           {(stasjoner ?? []).length !== 1 && <option value="" disabled>Stasjon …</option>}
@@ -83,7 +84,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
         </select>
         <input name="start_dato" type="date" aria-label="Startdato" required />
         <input name="forventet_slutt" type="date" aria-label="Forventet ferdig" />
-        <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til</button>
+        <button type="submit" className="sq-knapp primar">Legg til</button>
       </form>
     </Sidepanel>
   )
@@ -130,7 +131,12 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                         <span className="undertittel"> · {navnFor.get(p.stasjon_id) ?? '—'} · fra {datoLang.format(new Date(p.start_dato))}{p.fullfort_tid ? ' · fullført' : ''}</span>
                       </Link>
                       <span className="person-hoyre">
-                        <span className={`status-pip ${pst === 100 ? 'gronn' : 'gul'}`}>{antall}/{totalOppgaver}</span>
+                        {/* «7/12» BAERER TALLET; nivaaet forsterker. Ferdig er
+                            `normal` - det er maalet, ikke en seier - og alt
+                            annet er `endring`, altsaa noe som paagaar. */}
+                        <Status nivaa={pst === 100 ? 'normal' : 'endring'}>
+                          {antall}/{totalOppgaver}
+                        </Status>
                         <form action={slettPeriode}><input type="hidden" name="id" value={p.id} /><button type="submit" className="liten slett" aria-label="Fjern">✕</button></form>
                       </span>
                     </li>
@@ -143,8 +149,8 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
           {valgt && (
             <>
               <section className="kort">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h2 style={{ margin: 0 }}>{valgt.ansatt_navn} — sjekkliste</h2>
+                <div className="sq-radtopp">
+                  <h2 className="sq-tett">{valgt.ansatt_navn} — sjekkliste</h2>
                   <form action={fullforPeriode}>
                     <input type="hidden" name="id" value={valgt.id} />
                     <input type="hidden" name="til" value={valgt.fullfort_tid ? 'nei' : 'ja'} />
@@ -187,7 +193,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                   <button type="submit" className="liten">Legg til vakt</button>
                 </form>
                 {skift.length === 0 ? (
-                  <p className="undertittel" style={{ marginTop: '0.5rem' }}>Ingen planlagte vakter.</p>
+                  <p className="undertittel sq-luft-over-liten">Ingen planlagte vakter.</p>
                 ) : (
                   <ul className="person-liste">
                     {skift.map((s) => (
@@ -226,10 +232,10 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                 </ul>
               </div>
             ))}
-            <form action={leggTilOppgave} className="rutine-form" style={{ marginTop: '0.75rem' }}>
-              <input name="kategori" placeholder="Kategori" style={{ maxWidth: '9rem' }} />
+            <form action={leggTilOppgave} className="rutine-form sq-luft-over-liten">
+              <input name="kategori" placeholder="Kategori" className="sq-mellomfelt" />
               <input name="tittel" placeholder="Ny oppgave" required />
-              <input name="estimert_min" type="number" min="1" placeholder="min" style={{ maxWidth: '5rem' }} />
+              <input name="estimert_min" type="number" min="1" placeholder="min" className="sq-smalt-felt" />
               <button type="submit" className="liten">Legg til</button>
             </form>
           </section>

@@ -76,7 +76,7 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
         {eier
           ? <FristSkjema naa={frist} />
           : <p><strong>{frist} måneder</strong> etter siste aktivitet.</p>}
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis sq-tett">
           60 måneder er standard fordi lønnsgrunnlag er primærdokumentasjon etter
           bokføringsloven og skal oppbevares i fem år. Kortere setter regnskapsplikten
           i konflikt med sletteplikten. Lengre må kunne begrunnes.
@@ -129,7 +129,7 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
             </div>
           </>
         )}
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis sq-tett">
           <strong>Dette rydder ikke alt.</strong> Ferie, faste vakter og aktivitet på
           nettbrettet henger på navn og PIN, ikke på ansattnummer, og må ryddes for seg.
           Innsynsutskriften under viser hva som finnes av hver del.
@@ -200,7 +200,7 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
             </table>
           </div>
         )}
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis sq-tett">
           Loggen kan verken endres eller slettes — det finnes ingen policy for det.
           En logg som lar seg redigere av den som er logget, dokumenterer ingenting.
           Slettes en ansatt, blir loggen stående: den viser hvem som slettet, ikke

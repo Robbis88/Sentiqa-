@@ -64,7 +64,10 @@ export function totp(hemmelig: string, naa = Date.now()): string {
  *
  * Fila ligger under test-results, som CI river sammen med resten.
  */
-const HEMMELIGFIL = join(process.cwd(), 'test-results', 'eier-totp.txt')
+export const HEMMELIGFIL = join(process.cwd(), 'test-results', 'eier-totp.txt')
+
+/** Den innloggede okta oppsettsteget lagrer, som alle eiertester gjenbruker. */
+export const OKTFIL = join(process.cwd(), 'test-results', 'eier-okt.json')
 
 function husk(hemmelig: string) {
   mkdirSync(dirname(HEMMELIGFIL), { recursive: true })

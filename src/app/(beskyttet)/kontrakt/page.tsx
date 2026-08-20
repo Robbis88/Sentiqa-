@@ -10,6 +10,7 @@ import {
 import { AnsattkortSkjema, MalSkjema, StandardfeltSkjema } from './skjemaer'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Status } from '@/components/ui/status'
 
 type Sok = Promise<{ stasjon?: string; ansatt?: string; form?: string; rolle?: string }>
 
@@ -314,9 +315,9 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
                     <td>{dato(k.gjelder_fra)}</td>
                     <td className="tall">v{k.mal_versjon ?? '—'}</td>
                     <td>
-                      <span className={`status-pip ${k.status === 'signert' ? 'gronn' : 'noytral'}`}>
+                      <Status nivaa={k.status === 'signert' ? 'normal' : 'endring'}>
                         {k.status}
-                      </span>
+                      </Status>
                     </td>
                     <td>{dato(k.opprettet_tid.slice(0, 10))}</td>
                     <td>

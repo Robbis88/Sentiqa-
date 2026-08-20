@@ -19,11 +19,11 @@ export default async function SikkerhetSide({
 
   return (
     <main className="logg-inn">
-      <div className="kort" style={{ maxWidth: 460 }}>
+      <div className="kort sq-smal-flate">
         <Merke />
         <h1>To-faktor-autentisering</h1>
         {tvunget ? (
-          <p className="undertittel" style={{ color: '#7c2d12' }}>
+          <p className="undertittel sq-varselstekst">
             Rollen din krever to-faktor. Fullfør oppsettet for å fortsette.
           </p>
         ) : (
@@ -36,7 +36,7 @@ export default async function SikkerhetSide({
         <MfaOppsett tvunget={tvunget} rollenKrever={rollenKrever} />
 
         {!tvunget && (
-          <p className="undertittel" style={{ marginTop: '1.25rem' }}>
+          <p className="undertittel sq-luft-over-liten">
             <Link href="/oversikt">← Tilbake</Link>
           </p>
         )}

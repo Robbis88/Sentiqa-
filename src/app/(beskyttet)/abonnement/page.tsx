@@ -3,7 +3,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr } from '@/lib/format'
 import { beregnAbonnement } from '@/lib/pris'
 import { settAbonnement } from './handlinger'
-import { Sidehode, Forklaring } from '@/components/ui/side'
+import { Sidehode, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
 
 type Retailer = {
   navn: string
@@ -45,20 +45,24 @@ export default async function AbonnementSide() {
     <>
       <Sidehode tittel="Abonnement" undertittel={`${retailer?.navn ?? 'Kjeden'} · ${svar}`} />
 
-      <section className="nokkeltall">
-        <div className="kpi">
-          <span className="kpi-tall">{kr.format(maaned)}<small> /mnd</small></span>
-          <span className="kpi-merke">Månedlig{aarlig ? ' (betales årlig)' : ''}</span>
-        </div>
-        <div className="kpi">
-          <span className="kpi-tall">{kr.format(aarsBelop)}<small> /år</small></span>
-          <span className="kpi-merke">Ved årlig forskudd (2 mnd gratis)</span>
-        </div>
-      </section>
+      <div className="sq-nokkelrad">
+        {/* De to tallene ER hverandres sammenligning: det er nettopp
+            forskjellen mellom maanedlig og aarlig man sitter og veier.
+            Ingen dom - hvilken som lonner seg avhenger av likviditet, og
+            det vet ikke systemet. */}
+        <Nokkeltall
+          merkelapp={`Månedlig${aarlig ? ' (betales årlig)' : ''}`}
+          verdi={`${kr.format(maaned)} /mnd`}
+          sammenlignet={`${kr.format(maaned * 12)} i året`}
+        />
+        <Nokkeltall
+          merkelapp="Ved årlig forskudd"
+          verdi={`${kr.format(aarsBelop)} /år`}
+          sammenlignet={`to måneder gratis · ${kr.format(Math.round(aarsBelop / 12))} /mnd`}
+        />
+      </div>
 
-      <section className="kort">
-        <h2>Prisgrunnlag</h2>
-        <table className="tabell">
+      <Datatabell tittel="Prisgrunnlag">
           <thead><tr><th>Post</th><th>Antall</th><th>Sum/mnd</th></tr></thead>
           <tbody>
             {linjer.map((l) => (
@@ -74,11 +78,10 @@ export default async function AbonnementSide() {
               <td><strong>{kr.format(maaned)}/mnd</strong></td>
             </tr>
           </tbody>
-        </table>
-        <p className="undertittel" style={{ marginTop: '0.5rem' }}>
-          Prisen følger antall stasjoner automatisk — legg til/fjern stasjoner under Stasjoner.
-        </p>
-      </section>
+      </Datatabell>
+      <p className="undertittel sq-finstilt">
+        Prisen følger antall stasjoner automatisk — legg til/fjern stasjoner under Stasjoner.
+      </p>
 
       <section className="kort">
         <h2>Fakturering (EHF)</h2>

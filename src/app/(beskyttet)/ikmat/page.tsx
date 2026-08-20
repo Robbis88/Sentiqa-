@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { Status } from '@/components/ui/status'
+import { Sidehode } from '@/components/ui/side'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
@@ -71,13 +73,31 @@ export default async function IkMatSide() {
 
   return (
     <>
-      <header className="tablet-hode">
-        <h1>{svar}</h1>
-        <p className="undertittel">
-          IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk.
-          {kanRedigere ? <> · <Link href="/ikmat/oppsett">Rediger oppsett</Link></> : null}
-        </p>
-      </header>
+      {/* NETTBRETTETS HODE LAA PAA BEGGE ROLLER, og det var ikke bare en
+          stilfeil: `.tablet-hode` bruker nettbrettets farger, som er
+          laget for morkt underlag. Paa lederens lyse side ga det 1,9:1 i
+          kontrast - godt under kravet - og axe fant det forst da bolge
+          4A begynte aa maale sida.
+
+          Nettbrettet beholder sitt hode uroert; det hoerer til bolge 5.
+          Lederen faar sidehodet resten av systemet bruker. */}
+      {paaNettbrett ? (
+        <header className="tablet-hode">
+          <h1>{svar}</h1>
+          <p className="undertittel">
+            IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk.
+            {kanRedigere ? <> · <Link href="/ikmat/oppsett">Rediger oppsett</Link></> : null}
+          </p>
+        </header>
+      ) : (
+        <Sidehode
+          tittel={svar}
+          undertittel="IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk."
+          handlinger={kanRedigere
+            ? <Link href="/ikmat/oppsett" className="sq-knapp">Rediger oppsett</Link>
+            : undefined}
+        />
+      )}
 
       {(stasjoner ?? []).map((s) => {
         const sineP = punkterPerStasjon.get(s.id) ?? []
@@ -111,8 +131,13 @@ export default async function IkMatSide() {
                             <td>{p.navn}</td>
                             <td className="krav">{kravTekst(p.min_temp, p.max_temp)}</td>
                             <td>
+                              {/* Temperaturen er tallet. Utenfor krav er
+                                  `handling`: noen maa gjore noe, og det staar
+                                  i ordet ved siden av. */}
                               {a ? (
-                                <span className={`status-pip ${a.innenfor ? 'gronn' : 'rod'}`}>{a.temperatur}°C</span>
+                                <Status nivaa={a.innenfor ? 'normal' : 'handling'}>
+                                  {a.temperatur}°C{a.innenfor ? '' : ' · utenfor krav'}
+                                </Status>
                               ) : <span className="undertittel">—</span>}
                             </td>
                             <td>

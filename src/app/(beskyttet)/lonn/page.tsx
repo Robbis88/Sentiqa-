@@ -16,6 +16,7 @@ import { ByttKilde } from './bytt-kilde'
 import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 import Link from 'next/link'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
@@ -54,6 +55,18 @@ const LONNSARTNAVN: Record<string, string> = {
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string }>
 
 const tall = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+
+/**
+ * De tre gamle fargeklassene, oversatt til systemets semantiske spraak.
+ *
+ * Grensene er uendret - det er bare navnet og det at ORDET foelger med
+ * som er nytt. En prosentpip der fargen var eneste forskjell mellom
+ * «greit» og «ikke greit» kunne ikke leses av den som ikke ser farge.
+ */
+function nivaaFraKlasse(k: string): Statusnivaa {
+  return k === 'gronn' ? 'normal' : k === 'gul' ? 'endring' : k === 'rod' ? 'handling' : 'normal'
+}
 
 export default async function LonnSide({ searchParams }: { searchParams: Sok }) {
   const bruker = await hentInnloggetBruker()
@@ -218,7 +231,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
             <select name="maned" defaultValue={maned} aria-label="Måned">
               {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
             </select>
-            <input name="ar" type="number" defaultValue={ar} style={{ width: '5rem' }} aria-label="År" />
+            <input name="ar" type="number" defaultValue={ar} className="sq-smalt-felt" aria-label="År" />
             <button type="submit" className="sq-knapp">Vis</button>
           </form>
         }
@@ -525,7 +538,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                           <td className="tall">{e.snittProsent} %</td>
                           <td className="tall">{e.toppProsent} %</td>
                           <td>
-                            <span className={`status-pip ${klasse}`}>{ord}</span>
+                            <Status nivaa={nivaaFraKlasse(klasse)}>{ord}</Status>
                             <br />
                             <span className="undertittel">{e.melding}</span>
                           </td>
@@ -535,7 +548,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                   </tbody>
                 </table>
               </div>
-              <p className="notis" style={{ marginBottom: 0 }}>
+              <p className="notis sq-tett">
                 <strong>Bør økes</strong> er den alvorligste: etter aml. § 14-4 a kan en
                 deltidsansatt kreve stilling tilsvarende det hun faktisk har jobbet siste
                 tolv måneder, og en rammeavtale beskytter ikke mot det.
@@ -600,11 +613,11 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                         <td>
                           {v ? (
                             <>
-                              <span className={`status-pip ${klasse}`}>
+                              <Status nivaa={nivaaFraKlasse(klasse)}>
                                 {v.status === 'tariff' ? 'Tariff'
                                   : v.status === 'under' ? 'Under minstelønn'
                                     : v.status === 'mellom' ? 'Mellom trinn' : 'Lokal avtale'}
-                              </span>
+                              </Status>
                               <br />
                               <span className="undertittel">{v.melding}</span>
                             </>
@@ -618,7 +631,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                 </tbody>
               </table>
             </div>
-            <p className="notis" style={{ marginBottom: 0 }}>
+            <p className="notis sq-tett">
               Lønnsformen settes én gang per ansatt og huskes — ikke én gang per måned.
               <br />
               <strong>Åpen post:</strong> vi utelater fastlønnede helt, også
