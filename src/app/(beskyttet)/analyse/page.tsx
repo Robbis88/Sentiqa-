@@ -5,7 +5,8 @@ import { manedNavn } from '@/lib/perioder'
 import type { Analyse } from '@/lib/ai/regnskapsanalyse'
 import { AnalyseKnapp } from './generer-knapp'
 import { PeriodeVelger } from '../periode-velger'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
+import { Signal, Status, type Statusnivaa } from '@/components/ui/status'
 
 // «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -13,6 +14,8 @@ export const maxDuration = 60
 type Svinn = { stasjon_id: string; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
 
 const STATUS_TEKST: Record<string, string> = { gronn: 'God', gul: 'Følg med', rod: 'Krever tiltak' }
+/** Samme tre trinn, uttrykt i systemets semantiske spraak. */
+const NIVAA: Record<string, Statusnivaa> = { gronn: 'normal', gul: 'endring', rod: 'handling' }
 const PRIO_TEKST: Record<string, string> = { hoy: 'HØY', medium: 'MEDIUM', lav: 'LAV' }
 
 export default async function AnalyseSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
@@ -145,12 +148,13 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
               gjentar det — den ville bare skjøvet svaret én linje ned. */}
           <p className="sq-ingress">{a.sammendrag}</p>
 
-          {a.rodeFlagg.length > 0 && (
-            <section className="kort oppmerksomhet">
-              <h2>Røde flagg</h2>
-              <ul>{a.rodeFlagg.map((f, i) => <li key={i}>{f}</li>)}</ul>
-            </section>
-          )}
+          {/* RODE FLAGG ER DEFINISJONEN PAA ET SIGNAL: noe systemet har
+              funnet, som brukeren boer legge merke til og handle paa. De
+              laa som kulepunkter i et kort med farget kant - fargen paa
+              RAMMEN, ikke paa saken. */}
+          {a.rodeFlagg.map((f, i) => (
+            <Signal key={`rf${i}`} nivaa="kritisk" tittel="Rødt flagg">{f}</Signal>
+          ))}
 
           {/* Tiltakene er det brukeren skal gjøre noe med. De lå under to
               tabeller og et rutenett — altså etter begrunnelsen. */}
@@ -167,17 +171,22 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
             })}</ol>
           </section>
 
+          {/* Systemfeil er noe ANNET enn rode flagg: ikke tapte penger,
+              men tall som lyver. `oppmerksomhet` og ikke `kritisk` -
+              forskjellen skal kunne leses, ikke bare foles. */}
           {(a.systemfeil ?? []).length > 0 && (
-            <section className="kort oppmerksomhet">
-              <h2>Systemfeil (registrering)</h2>
-              <p className="undertittel">Mønstre på tvers av stasjoner — ikke ekte tap, men feilregistrering som forvrenger tallene.</p>
-              <ul>{(a.systemfeil ?? []).map((f, i) => <li key={i}>{f}</li>)}</ul>
-            </section>
+            <p className="undertittel">
+              Mønstre på tvers av stasjoner — ikke ekte tap, men feilregistrering
+              som forvrenger tallene.
+            </p>
           )}
+          {(a.systemfeil ?? []).map((f, i) => (
+            <Signal key={`sf${i}`} nivaa="oppmerksomhet" tittel="Feilregistrering">
+              {f}
+            </Signal>
+          ))}
 
-          <section className="kort">
-            <h2>Per stasjon</h2>
-            <table className="tabell">
+          <Datatabell tittel="Per stasjon" antall={a.perStasjon.length}>
               <thead>
                 <tr><th>Stasjon</th><th>Status</th><th>Kommentar</th></tr>
               </thead>
@@ -185,13 +194,18 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
                 {a.perStasjon.map((s, i) => (
                   <tr key={i}>
                     <td>{s.stasjon}</td>
-                    <td><span className={`status-pip ${s.status}`}>{STATUS_TEKST[s.status] ?? s.status}</span></td>
+                    {/* Ordet sto der allerede - det var pipen rundt som
+                        var handskrevet. Nivaaet forsterker ordet. */}
+                    <td>
+                      <Status nivaa={NIVAA[s.status] ?? 'normal'}>
+                        {STATUS_TEKST[s.status] ?? s.status}
+                      </Status>
+                    </td>
                     <td>{s.kommentar}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </section>
+          </Datatabell>
 
           {svinnPerStasjon.length > 0 && (
             <section className="kort">

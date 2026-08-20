@@ -4,7 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { TimesalgKart } from './timesalg-kart'
 import Link from 'next/link'
-import { Sidehode, Tomtilstand, Nokkeltall } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Nokkeltall, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr } from '@/lib/format'
@@ -98,9 +98,22 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
         </div>
       )}
 
-      <section className="kort">
-        <TimesalgKart stasjoner={stasjonsliste} rader={kartRader} harInneUte={harInneUte} />
-      </section>
+      {/* Kortet rundt kartet var en ramme rundt hele sidas innhold -
+          en beholder som ikke skilte noe fra noe. Kartet ER seksjonen. */}
+      <TimesalgKart stasjoner={stasjonsliste} rader={kartRader} harInneUte={harInneUte} />
+
+      <Forklaring sporsmaal="Hva viser døgnkurven?">
+        <p>
+          Salget per klokketime for {datoLang.format(new Date(siste.dato))}, slik det
+          kom inn fra timesalgsrapporten. Timene staar som de er skrevet i kilden -
+          «11-12» er kildens egen merking, ikke en omregning.
+        </p>
+        <p>
+          Kunder inne og ute telles hver for seg der kilden skiller dem.
+          Bemanningsplanleggeren fordeler timer etter kunder INNE: en bil paa pumpa
+          krever ikke folk bak disken.
+        </p>
+      </Forklaring>
     </>
   )
 }

@@ -3,9 +3,18 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { beregnRutinestat, type Rutinestat } from '@/lib/rutinestat'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 
-function prosentKlasse(p: number) {
-  return p >= 90 ? 'gronn' : p >= 70 ? 'gul' : 'rod'
+/**
+ * Samme tre trinn som for - gronn/gul/rod - men uttrykt i systemets
+ * semantiske spraak, og med et ORD som staar der uansett om man ser
+ * fargen. Grensene 90 og 70 er uendret.
+ */
+function nivaaFor(p: number): Statusnivaa {
+  return p >= 90 ? 'normal' : p >= 70 ? 'endring' : 'handling'
+}
+function ordFor(p: number): string {
+  return p >= 90 ? 'i rute' : p >= 70 ? 'noe gjenstår' : 'henger etter'
 }
 
 export default async function RutineOversikt() {
@@ -56,7 +65,12 @@ export default async function RutineOversikt() {
                   et tall, og prosentpipen ved siden av bærer dommen. */}
               <span className="rangering-plass">#{i + 1}</span>
               <strong>{r.navn}</strong>
-              <span className={`status-pip ${prosentKlasse(r.stat.prosent)}`}>{r.stat.prosent}%</span>
+              {/* Prosenten er tallet; nivaaet er dommen. For laa dommen
+                  bare i fargen paa pipen - «84 %» og «97 %» saa like ut
+                  for den som ikke ser farge. Naa staar ordet der ogsaa. */}
+              <Status nivaa={nivaaFor(r.stat.prosent)}>
+                {r.stat.prosent}% · {ordFor(r.stat.prosent)}
+              </Status>
               {r.stat.streak > 0 && <span className="streak">{r.stat.streak} dager på rad</span>}
             </div>
             <p className="undertittel">

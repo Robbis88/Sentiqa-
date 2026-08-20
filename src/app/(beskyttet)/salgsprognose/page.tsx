@@ -10,7 +10,8 @@ import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
+import { Signal, Status } from '@/components/ui/status'
 import Link from 'next/link'
 
 const datoLang = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Oslo' })
@@ -148,44 +149,68 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
         />
       ) : (
         <>
-          <section className="nokkeltall">
-            <div className="kpi">
-              <span className="kpi-tall">{kr.format(prognose.totalForventet)}</span>
-              <span className="kpi-merke">Forventet omsetning (eks. drivstoff/pant)</span>
-            </div>
-            <div className="kpi">
-              <span className={`kpi-tall ${prognose.totalForventet >= prognose.totalBasis ? 'gronn' : 'rod'}`}>
-                {prognose.totalForventet >= prognose.totalBasis ? '+' : '−'}{Math.abs(Math.round(((prognose.totalForventet / Math.max(1, prognose.totalBasis)) - 1) * 100))} %
-              </span>
-              <span className="kpi-merke">mot en normal {datoLang.format(new Date(`${maalDato}T12:00:00Z`)).split(' ')[0]}</span>
-            </div>
-          </section>
+          {/* PROGNOSE ER IKKE FAKTA. Begge tallene her er noe systemet
+              FORVENTER, ikke noe som har skjedd - og det maa staa, ellers
+              leses de som gaardagens resultat.
+
+              Retningen (opp/ned mot en normal dag) og dommen holdes
+              fra hverandre: en prognose UNDER normalen er ikke daarlig,
+              den er et varsel om en roligere dag. Derfor settes `bra`
+              ikke i det hele tatt her - det er ingenting aa felle dom
+              over for dagen faktisk er kjort. */}
+          <div className="sq-nokkelrad">
+            <Nokkeltall
+              merkelapp="Forventet omsetning i morgen"
+              verdi={kr.format(prognose.totalForventet)}
+              sammenlignet="eks. drivstoff og pant"
+            />
+            <Nokkeltall
+              merkelapp={`Mot en normal ${datoLang.format(new Date(`${maalDato}T12:00:00Z`)).split(' ')[0]}`}
+              verdi={`${prognose.totalForventet >= prognose.totalBasis ? '+' : '−'}${Math.abs(Math.round(((prognose.totalForventet / Math.max(1, prognose.totalBasis)) - 1) * 100))} %`}
+              sammenlignet={`normalen er ${kr.format(prognose.totalBasis)}`}
+              retning={prognose.totalForventet > prognose.totalBasis ? 'opp'
+                : prognose.totalForventet < prognose.totalBasis ? 'ned' : 'flat'}
+            />
+          </div>
 
           {prognose.advarsler.length > 0 && (
-            <section className="kort oppmerksomhet">
-              <ul>{prognose.advarsler.map((a, i) => <li key={i}>{a}</li>)}</ul>
-            </section>
+            <>
+              {/* Motoren returnerer en flat liste og rangerer dem ikke,
+                  saa visningen skal ikke finne paa en rangering heller.
+                  Samme valg som paa /produksjonsplan. */}
+              {prognose.advarsler.map((a, i) => {
+                const [tittel, ...resten] = a.split(' \u2014 ')
+                return (
+                  <Signal key={i} nivaa="informasjon" tittel={tittel}>
+                    {resten.length > 0 ? resten.join(' \u2014 ') : undefined}
+                  </Signal>
+                )
+              })}
+            </>
           )}
 
-          <section className="kort">
-            <h2>Per kategori</h2>
-            <table className="tabell">
+          <Datatabell tittel="Per kategori" antall={prognose.forslag.length}>
               <thead><tr><th>Kategori</th><th>Forventet</th><th>Vær/dag-effekt</th></tr></thead>
               <tbody>
                 {prognose.forslag.map((f) => (
                   <tr key={f.kode}>
                     <td>{navnFor.get(f.kode) ?? f.navn}</td>
                     <td>{kr.format(f.forventet)}</td>
+                    {/* Vaer- og dageffekten er en RETNING, ikke en dom:
+                        varmere vaer som loefter iskrem er hverken bra
+                        eller daarlig for dagen er kjort. `endring` er
+                        derfor riktig nivaa for begge veier. */}
                     <td>
                       {f.endringPst === 0 ? '—' : (
-                        <span className={`status-pip ${f.endringPst > 0 ? 'gronn' : 'gul'}`}>{f.endringPst > 0 ? '+' : ''}{f.endringPst} %</span>
+                        <Status nivaa="endring">
+                          {f.endringPst > 0 ? '+' : ''}{f.endringPst} %
+                        </Status>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </section>
+          </Datatabell>
         </>
       )}
 

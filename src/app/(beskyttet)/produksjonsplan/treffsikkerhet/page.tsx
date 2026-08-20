@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
+import { Nokkeltall, Datatabell } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -15,9 +17,6 @@ export const maxDuration = 120
 type TreffRad = { type: 'produksjonsplan' | 'salgsprognose'; dato: string; kategori: string; forventet: number; faktisk: number; treff: number }
 type Type = 'produksjonsplan' | 'salgsprognose'
 
-function klasse(t: number): string {
-  return t >= 80 ? 'gronn' : t >= 60 ? 'gul' : 'rod'
-}
 
 const AVD_NAVN = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
 const PROD_NAVN = new Map<string, string>([
@@ -27,6 +26,21 @@ const PROD_NAVN = new Map<string, string>([
 ])
 function katNavn(type: Type, kode: string): string {
   return (type === 'salgsprognose' ? AVD_NAVN.get(kode) : PROD_NAVN.get(kode)) ?? `Kode ${kode}`
+}
+
+/**
+ * Treffsikkerhet i systemets semantiske spraak.
+ *
+ * Grensene er de samme som `klasse()` hadde - bare uttrykt som nivaa, og
+ * med et ORD ved siden av. Prosenten sto for med farge som eneste
+ * forskjell mellom «traff godt» og «bommet»: 91 % og 61 % ser like ut
+ * for den som ikke ser farge, og tallet alene sier ikke hva som er bra.
+ */
+function nivaaFor(p: number): Statusnivaa {
+  return p >= 85 ? 'normal' : p >= 70 ? 'endring' : 'handling'
+}
+function ordFor(p: number): string {
+  return p >= 85 ? 'treffer godt' : p >= 70 ? 'noe bom' : 'bommer'
 }
 
 export default async function TreffsikkerhetSide({ searchParams }: { searchParams: Promise<{ butikknummer?: string }> }) {
@@ -119,7 +133,10 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
       <section className="kort">
         <div className="seksjon-topp">
           <h2>{tittel}</h2>
-          <span className={`kpi-tall ${klasse(t.snitt)}`} style={{ fontSize: '1.6rem' }}>{t.snitt} %</span>
+          {/* Sto som et stort tall med farge og en inline-stil for aa
+              gjore det stort. Naa baerer Status baade tallet, ordet og
+              nivaaet - og stoerrelsen kommer fra systemet. */}
+          <Status nivaa={nivaaFor(t.snitt)}>{t.snitt} % · {ordFor(t.snitt)}</Status>
         </div>
         <p className="undertittel" style={{ marginBottom: '0.6rem' }}>Snitt treffsikkerhet over {t.dager} målte dager (forventet vs. faktisk).</p>
         <table className="tabell">
@@ -128,7 +145,7 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
             {t.kategorier.map((k) => (
               <tr key={k.kode}>
                 <td>{katNavn(type, k.kode)}</td>
-                <td><span className={`status-pip ${klasse(k.treff)}`}>{k.treff} %</span></td>
+                <td><Status nivaa={nivaaFor(k.treff)}>{k.treff} % · {ordFor(k.treff)}</Status></td>
                 <td>{fmt(Math.round(k.forventet))}</td>
                 <td>{fmt(Math.round(k.faktisk))}</td>
                 <td>
@@ -206,36 +223,51 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
         />
       ) : (
         <>
-          <section className="nokkeltall">
-            <div className="kpi">
-              <span className={`kpi-tall ${prod.snitt != null ? klasse(prod.snitt) : ''}`}>{prod.snitt != null ? `${prod.snitt} %` : '—'}</span>
-              <span className="kpi-merke">Produksjonsplan (antall)</span>
-            </div>
-            <div className="kpi">
-              <span className={`kpi-tall ${salg.snitt != null ? klasse(salg.snitt) : ''}`}>{salg.snitt != null ? `${salg.snitt} %` : '—'}</span>
-              <span className="kpi-merke">Salgsprognose (omsetning)</span>
-            </div>
-          </section>
+          {/* SAMMENLIGNINGEN ER ANTALL MAALTE DAGER. Et treffprosenttall
+              uten grunnlag er ikke til aa stole paa - 100 % over to dager
+              sier noe helt annet enn 88 % over seksti. Tallet fantes
+              allerede; det sto bare ikke ved siden av prosenten.
+
+              `bra` felles fordi det HER finnes en fasit: prognosen skal
+              treffe. Det er ikke en smakssak slik «planlagt over
+              forslaget» var paa produksjonsplanen. */}
+          <div className="sq-nokkelrad">
+            <Nokkeltall
+              merkelapp="Produksjonsplan (antall)"
+              verdi={prod.snitt != null ? `${prod.snitt} %` : '—'}
+              sammenlignet={prod.snitt != null
+                ? `${ordFor(prod.snitt)} · ${prod.dager} målte dager`
+                : 'ingen målte dager ennå'}
+              bra={prod.snitt != null ? prod.snitt >= 85 : undefined}
+            />
+            <Nokkeltall
+              merkelapp="Salgsprognose (omsetning)"
+              verdi={salg.snitt != null ? `${salg.snitt} %` : '—'}
+              sammenlignet={salg.snitt != null
+                ? `${ordFor(salg.snitt)} · ${salg.dager} målte dager`
+                : 'ingen målte dager ennå'}
+              bra={salg.snitt != null ? salg.snitt >= 85 : undefined}
+            />
+          </div>
 
           {renderSeksjon('Produksjonsplan', 'produksjonsplan', prod, (n) => tall.format(n))}
           {renderSeksjon('Salgsprognose', 'salgsprognose', salg, (n) => kr.format(n))}
 
+          {/* Ekte sammenligningsmatrise: dag mot dag nedover, og de to
+              motorene mot hverandre bortover. */}
           {trendDager.length > 0 && (
-            <section className="kort">
-              <h2>Dag for dag (siste {trendDager.length})</h2>
-              <table className="tabell">
+            <Datatabell tittel={`Dag for dag (siste ${trendDager.length})`} antall={trendDager.length}>
                 <thead><tr><th>Dag</th><th>Produksjonsplan</th><th>Salgsprognose</th></tr></thead>
                 <tbody>
                   {trendDager.map(([dato, v]) => (
                     <tr key={dato}>
                       <td>{datoLang.format(new Date(`${dato}T12:00:00Z`))}</td>
-                      <td>{v.prod != null ? <span className={`status-pip ${klasse(v.prod)}`}>{v.prod} %</span> : '—'}</td>
-                      <td>{v.salg != null ? <span className={`status-pip ${klasse(v.salg)}`}>{v.salg} %</span> : '—'}</td>
+                      <td>{v.prod != null ? <Status nivaa={nivaaFor(v.prod)}>{v.prod} %</Status> : '—'}</td>
+                      <td>{v.salg != null ? <Status nivaa={nivaaFor(v.salg)}>{v.salg} %</Status> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </section>
+            </Datatabell>
           )}
 
           <Forklaring sporsmaal="Hva betyr selvlæring-kolonnen?">

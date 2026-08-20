@@ -1,7 +1,8 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, manedAar, ramsOpp } from '@/lib/format'
-import { Sidehode, Forklaring } from '@/components/ui/side'
+import { Sidehode, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
+import { Status } from '@/components/ui/status'
 
 // Aldri cache — datadekning skal alltid speile basen med en gang.
 export const dynamic = 'force-dynamic'
@@ -92,18 +93,31 @@ export default async function DekningSide() {
     <>
       <Sidehode tittel="Datadekning" undertittel={`${svar}. ${historikk}.`} />
 
-      <section className="nokkeltall">
-        {oppsummering.map((d) => (
-          <div className="kpi" key={d.key}>
-            <span className={`kpi-tall ${d.mangler === 0 ? 'gronn' : 'rod'}`}>{d.mangler}</span>
-            <span className="kpi-merke">{d.navn} — dager mangler{d.eldste ? ` · fra ${d.eldste}` : ' · ingen data'}</span>
-          </div>
-        ))}
-      </section>
+      {/* FARGEN VAR DEN ENESTE FORSKJELLEN. Tallet sto gront naar det
+          var null og rodt ellers - men «0» og «4» ser like ut for den
+          som ikke ser farge, og et tall alene sier ikke om det er bra.
+          Naa staar dommen som ord ved siden av, og fargen forsterker.
 
-      <section className="kort">
-        <h2>Måned for måned</h2>
-        <table className="tabell dekning-mnd">
+          Ingen dom paa `bra` her: et datasett uten huller er
+          utgangspunktet, ikke en seier. */}
+      <div className="sq-nokkelrad">
+        {oppsummering.map((d) => (
+          <Nokkeltall
+            key={d.key}
+            merkelapp={`${d.navn} — dager som mangler`}
+            verdi={String(d.mangler)}
+            sammenlignet={d.mangler === 0
+              ? (d.eldste ? `komplett fra ${d.eldste}` : 'ingen data')
+              : `av ${MAANEDER} måneder${d.eldste ? ` · fra ${d.eldste}` : ''}`}
+            bra={d.mangler === 0 ? undefined : false}
+          />
+        ))}
+      </div>
+
+      {/* EKTE SAMMENLIGNINGSMATRISE. Her leses rad mot rad (maaned mot
+          maaned) OG kolonne mot kolonne (datasett mot datasett). Den
+          skal vaere en tabell, og blir det - i primitivet. */}
+      <Datatabell tittel="Måned for måned" antall={maaneder.length}>
           <thead>
             <tr><th>Måned</th>{DATASETT.map((d) => <th key={d.key}>{d.navn}</th>)}</tr>
           </thead>
@@ -118,14 +132,23 @@ export default async function DekningSide() {
                     const sett = settPer.get(d.key)!
                     const har = dager.filter((dt) => sett.has(dt)).length
                     const klasse = tot === 0 ? '' : har === 0 ? 'rod' : har >= tot ? 'gronn' : 'gul'
-                    return <td key={d.key}><span className={`status-pip ${klasse}`}>{har}/{tot}</span></td>
+                    // Tallet «22/28» BAERER informasjonen; nivaaet
+                    // forsterker den. Ingen tilstand her finnes bare
+                    // som farge.
+                    const nivaa = klasse === 'gronn' ? 'normal'
+                      : klasse === 'gul' ? 'endring'
+                        : klasse === 'rod' ? 'handling' : undefined
+                    return (
+                      <td key={d.key}>
+                        {nivaa ? <Status nivaa={nivaa}>{har}/{tot}</Status> : <>{har}/{tot}</>}
+                      </td>
+                    )
                   })}
                 </tr>
               )
             })}
           </tbody>
-        </table>
-      </section>
+      </Datatabell>
 
       {maaneder.map((ym) => {
         const dager = dagerIMaaned(ym, idag)

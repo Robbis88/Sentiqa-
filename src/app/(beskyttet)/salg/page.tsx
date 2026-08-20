@@ -4,7 +4,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { AiKontekst } from '../ai-kontekst'
-import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Nokkeltall, Datatabell, Forklaring } from '@/components/ui/side'
 import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
@@ -161,6 +161,17 @@ export default async function SalgSide({
 
   const totalOms = rader.reduce((a, r) => a + r.omsetning, 0)
   const totalAntall = rader.reduce((a, r) => a + r.antall, 0)
+
+  // SAMMENLIGNINGER SOM FINNES I DATAENE, ikke oppfunnet.
+  // Snittbong er omsetning delt paa antall - begge staar allerede i
+  // raden. Matandelen likedan. Ingen av dem er et nytt tall; de er det
+  // samme tallet sagt slik at det betyr noe.
+  const visOms = erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms
+  const visAntall = erStasjon ? (valgtRad?.antall ?? 0) : totalAntall
+  const snittbong = visAntall > 0 ? Math.round(visOms / visAntall) : null
+  const matAndel = erStasjon && (valgtRad?.omsetning ?? 0) > 0
+    ? Math.round(((valgtRad?.mat_omsetning ?? 0) / valgtRad!.omsetning) * 100)
+    : null
   const mot = motNormalen(
     dato,
     erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms,
@@ -177,30 +188,46 @@ export default async function SalgSide({
         handlinger={<AiKontekst tekst="Forklar utviklingen" sporsmal="Forklar utviklingen i salget for denne stasjonen den siste tiden. Hva driver den?" />}
       />
 
-      <section className="nokkeltall">
-        <div className="kpi">
-          <span className="kpi-tall">{kr.format(erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms)}</span>
-          <span className="kpi-merke">Omsetning eks. mva</span>
-          {/* Uten dette er tallet bare et tall. */}
-          {mot.tekst && (
-            <span className={`kpi-mot${verdtEtBlikk(mot) ? (mot.avvikProsent > 0 ? ' god' : ' darlig') : ''}`}>
-              {mot.tekst}
-            </span>
-          )}
-        </div>
-        <div className="kpi">
-          <span className="kpi-tall">{tall.format(erStasjon ? (valgtRad?.antall ?? 0) : totalAntall)}</span>
-          <span className="kpi-merke">Antall solgt</span>
-        </div>
-        <div className="kpi">
-          <span className="kpi-tall">{erStasjon ? kr.format(valgtRad?.mat_omsetning ?? 0) : tall.format(rader.length)}</span>
-          <span className="kpi-merke">{erStasjon ? 'Matsalg' : 'Stasjoner med salg'}</span>
-        </div>
-      </section>
+      {/* TRE TALL BLE TO.
+          «Antall solgt» sto som eget nokkeltall uten noe aa maales mot -
+          femten tusen varer er hverken bra eller daarlig for man vet mot
+          hva. Tallet er ikke borte: det staar naa som sammenligning paa
+          omsetningen, der det svarer paa noe («snittbong»), og i
+          kategoritabellen der det kan leses mot omsetningen per rad.
 
-      <section className="kort">
-        <h2>Per kategori{erStasjon ? ` · ${valgtNavn}` : ''}</h2>
-        <table className="tabell">
+          «Stasjoner med salg» var ikke et resultat, det var en
+          opplysning om datagrunnlaget. Den hoerer hjemme i Forklaring
+          nederst, ikke i nivaa 1.
+
+          RETNING OG DOM PEKER SAMME VEI HER - salg opp er bra - men de
+          settes fortsatt hver for seg, saa /salg og /svinn bruker samme
+          spraak selv om dommen faller motsatt. */}
+      <div className="sq-nokkelrad">
+        <Nokkeltall
+          merkelapp="Omsetning eks. mva"
+          verdi={kr.format(erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms)}
+          sammenlignet={mot.tekst ?? undefined}
+          retning={mot.avvikProsent > 0 ? 'opp' : mot.avvikProsent < 0 ? 'ned' : 'flat'}
+          bra={verdtEtBlikk(mot) ? mot.avvikProsent > 0 : undefined}
+        />
+        <Nokkeltall
+          merkelapp="Antall solgt"
+          verdi={tall.format(erStasjon ? (valgtRad?.antall ?? 0) : totalAntall)}
+          sammenlignet={snittbong != null ? `${kr.format(snittbong)} per vare` : undefined}
+        />
+        {erStasjon && (
+          <Nokkeltall
+            merkelapp="Matsalg"
+            verdi={kr.format(valgtRad?.mat_omsetning ?? 0)}
+            sammenlignet={matAndel != null ? `${matAndel} % av omsetningen` : undefined}
+          />
+        )}
+      </div>
+
+      {/* Kortet rundt tabellen var en ramme, ikke et objekt. Datatabell
+          gir overskrift, vannrett rulling og tom tilstand - de tre
+          tingene hver handskrevne tabell maatte loese selv. */}
+      <Datatabell tittel={`Per kategori${erStasjon ? ` · ${valgtNavn}` : ''}`} antall={avdelinger.length}>
           <thead>
             <tr><th>Kategori</th><th>Omsetning</th><th>Antall</th><th>Andel</th></tr>
           </thead>
@@ -216,13 +243,10 @@ export default async function SalgSide({
               </tr>
             ))}
           </tbody>
-        </table>
-      </section>
+      </Datatabell>
 
       {!erStasjon && (
-        <section className="kort">
-          <h2>Per stasjon</h2>
-          <table className="tabell">
+        <Datatabell tittel="Per stasjon" antall={rader.length}>
             <thead>
               <tr><th>Stasjon</th><th>Omsetning</th><th>Antall</th><th>Matsalg</th></tr>
             </thead>
@@ -236,13 +260,10 @@ export default async function SalgSide({
                 </tr>
               ))}
             </tbody>
-          </table>
-        </section>
+        </Datatabell>
       )}
 
-      <section className="kort">
-        <h2>Topp varegrupper{erStasjon ? ` · ${valgtNavn}` : ''}</h2>
-        <table className="tabell">
+      <Datatabell tittel={`Topp varegrupper${erStasjon ? ` · ${valgtNavn}` : ''}`} antall={varegrupper.length}>
           <thead>
             <tr><th>Varegruppe</th><th>Omsetning</th><th>Antall</th></tr>
           </thead>
@@ -257,8 +278,24 @@ export default async function SalgSide({
               </tr>
             ))}
           </tbody>
-        </table>
-      </section>
+      </Datatabell>
+      {/* NIVAA 4: grunnlaget. «Stasjoner med salg» sto som nokkeltall -
+          det er en opplysning om datagrunnlaget, ikke et resultat, og
+          hoerer hjemme her. */}
+      <Forklaring sporsmaal="Hva er tallene regnet på?">
+        <p>
+          {tall.format(rader.length)} {rader.length === 1 ? 'stasjon' : 'stasjoner'} hadde
+          salg {datoFmt.format(new Date(dato))}. Omsetningen er eks. mva, og drivstoff
+          er holdt utenfor: det betjener seg selv paa pumpa og hoerer ikke med naar
+          butikkens tall skal leses.
+        </p>
+        <p>
+          Sammenligningen er mot MEDIANEN for samme ukedag aatte uker tilbake, ikke mot
+          snittet. En 17. mai eller en dag med veiarbeid utenfor drar snittet nok til at
+          «normalen» blir noe som aldri har skjedd.
+        </p>
+      </Forklaring>
+
     </>
   )
 }
