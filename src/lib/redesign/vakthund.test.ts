@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
-  borte, borteI, lenker, naabarhet, rutenavn, seksjoner, serverhandlinger,
+  borte, borteI, lenker, naabarhet, rutenavn, rutetre, seksjoner, serverhandlinger,
   type Fasit,
 } from './fasit'
 import { MONSTRE, RUTEMONSTER, TABLETRUTER } from './monstre'
@@ -41,13 +41,36 @@ function byggFasit(): Fasit {
   const sider = filer(APP, (n) => n === 'page.tsx')
   const ruter = sider.map(rutenavn).sort()
 
+  // EN LESING PER FIL. Komponenter deles mellom ruter - `oppmerksomhet`
+  // rendres av begge dashbordene - og uten hurtigbufferen leses de om
+  // igjen for hver rute som naar dem.
+  const buffer = new Map<string, string | null>()
+  const les = (sti: string): string | null => {
+    if (!buffer.has(sti)) {
+      try { buffer.set(sti, readFileSync(sti, 'utf8')) }
+      catch { buffer.set(sti, null) }
+    }
+    return buffer.get(sti) ?? null
+  }
+
   const seksjonKart: Record<string, string[]> = {}
   const lenkeKart: Record<string, string[]> = {}
   for (const sti of sider) {
-    const kilde = readFileSync(sti, 'utf8')
     const rute = rutenavn(sti)
-    const s = seksjoner(kilde)
-    const l = lenker(kilde)
+
+    // SEKSJONENE LESES AV HELE RUTENS UI-TRE, ikke bare page.tsx.
+    // /produksjonsplan har hele plantabellen i en klientkomponent; den
+    // var usynlig for vakten fram til trinn 08.
+    const treet = rutetre(sti, les, APP)
+    const s = [...new Set(treet.flatMap((f) => seksjoner(les(f) ?? '')))].sort()
+
+    // LENKENE LESES FORTSATT BARE AV page.tsx. Det er ikke glemt: en
+    // delt komponent tar med seg lenkene sine til hver rute som rendrer
+    // den, og navigasjonsveiene ut av en side ville da blitt en liste
+    // over alt appskallet og dashbordkortene peker paa. Skal de
+    // utvides, er det en egen vurdering med egen begrunnelse.
+    const l = lenker(les(sti) ?? '')
+
     if (s.length > 0) seksjonKart[rute] = s
     if (l.length > 0) lenkeKart[rute] = l
   }

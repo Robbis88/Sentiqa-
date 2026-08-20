@@ -159,6 +159,119 @@ export function seksjoner(kilde: string): string[] {
 }
 
 /**
+ * Komponentene en fil både importerer LOKALT og faktisk RENDRER.
+ *
+ * To krav, og begge trengs:
+ *
+ * LOKALT betyr en relativ sti — `./plan-tabell`, `../ai-kontekst`. Alt
+ * annet er utenfor: `@/components/ui` er primitivene (deres overskrifter
+ * hører til komponenten, ikke til ruta, og ville dukket opp på hver
+ * eneste side som bruker dem), `@/lib` er logikk uten UI, og en pakke fra
+ * node_modules er ikke vår.
+ *
+ * RENDRER betyr at navnet står som `<Navn` et sted i fila. En fil kan
+ * importere en type, en hjelpefunksjon eller en konstant fra naboen sin
+ * uten at noe av naboens UI havner på skjermen — og da skal heller ikke
+ * naboens seksjoner havne i rutas kontrakt.
+ */
+export function lokaleBarn(kilde: string): string[] {
+  const ut: string[] = []
+  // `type` FANGES, IKKE SPISES. Foerste utgave skrev `(?:type\s+)?` og
+  // slapp dermed `import type { Gruppe } from './g'` gjennom som en
+  // vanlig import. En ren typeimport rendrer ingenting. Kanarifuglen
+  // under fant det - som er hele grunnen til at den staar der.
+  const importer = /^import\s+(type\s+)?(\{[^}]*\}|[A-Za-z_$][\w$]*)[^'\n]*from\s+'(\.[^']+)'/gm
+  for (const m of kilde.matchAll(importer)) {
+    if (m[1]) continue
+    const binding = m[2]
+    const navn = binding.startsWith('{')
+      ? binding.slice(1, -1).split(',')
+          .map((d) => d.trim())
+          .filter((d) => d.length > 0 && !d.startsWith('type '))
+          .map((d) => d.split(/\s+as\s+/).pop()!.trim())
+      : [binding]
+    // Store forbokstaver er komponenter; `<Navn` sier at den rendres.
+    if (navn.some((n) => /^[A-Z]/.test(n) && new RegExp(`<${n}[\\s/>]`).test(kilde))) {
+      ut.push(m[3])
+    }
+  }
+  return ut
+}
+
+/** Mappa til en fil, uansett hvilken skråstrek plattformen bruker. */
+function mappe(sti: string): string[] {
+  return sti.split(/[\\/]/).slice(0, -1)
+}
+
+/** `./plan-tabell` fra en fil → full sti, uten node:path. */
+function loesSti(fra: string, spesifikator: string): string {
+  const skille = fra.includes('\\') ? '\\' : '/'
+  const deler = mappe(fra)
+  for (const d of spesifikator.split('/')) {
+    if (d === '.' || d === '') continue
+    else if (d === '..') deler.pop()
+    else deler.push(d)
+  }
+  return deler.join(skille)
+}
+
+/**
+ * Alle filene som utgjør én rutes synlige flate.
+ *
+ * HVORFOR DETTE MÅTTE TIL: vakten leste bare `page.tsx`. På
+ * /produksjonsplan ligger hele plantabellen — overskrifter, tabeller,
+ * publiseringen — i `plan-tabell.tsx`, og var dermed aldri voktet. En
+ * side kan flytte alt innholdet sitt inn i en klientkomponent og se helt
+ * urørt ut for en vakt som bare ser inngangsdøra.
+ *
+ * `les` returnerer kildekoden, eller null når fila ikke finnes. Den er et
+ * argument og ikke en `readFileSync` her inne nettopp for at testene skal
+ * kunne bygge et lite filsystem i minnet og måle grensetilfellene —
+ * sykler, dobbeltimport, dybde — uten å legge filer på disk.
+ *
+ * `rot` er gjerdet: en relativ sti kan i prinsippet klatre ut av
+ * app-mappa med nok `../`, og da er vi ikke lenger i rutas UI.
+ */
+export function rutetre(
+  inngang: string,
+  les: (sti: string) => string | null,
+  rot: string,
+  maksDybde = 4,
+): string[] {
+  const sett = new Set<string>()
+  const ut: string[] = []
+  const koe: { sti: string; nivaa: number }[] = [{ sti: inngang, nivaa: 0 }]
+
+  while (koe.length > 0) {
+    const { sti, nivaa } = koe.shift()!
+    // BESOEKT-SETTET ER SYKELVERNET. A → B → A terminerer her, og en
+    // komponent som rendres to steder i treet leses bare én gang.
+    if (sett.has(sti)) continue
+    const kilde = les(sti)
+    if (kilde == null) continue
+    sett.add(sti)
+    ut.push(sti)
+    if (nivaa >= maksDybde) continue
+
+    for (const spek of lokaleBarn(kilde)) {
+      const base = loesSti(sti, spek)
+      const skille = sti.includes('\\') ? '\\' : '/'
+      // Bare .tsx. `./handlinger` er serverhandlinger og har ingen UI;
+      // de voktes for seg, per mappe.
+      for (const kandidat of [`${base}.tsx`, `${base}${skille}index.tsx`]) {
+        if (kandidat.includes('.test.')) continue
+        if (!kandidat.startsWith(rot)) continue
+        if (sett.has(kandidat)) break
+        if (les(kandidat) == null) continue
+        koe.push({ sti: kandidat, nivaa: nivaa + 1 })
+        break
+      }
+    }
+  }
+  return ut
+}
+
+/**
  * Interne lenker ut av siden — navigasjonsveiene.
  *
  * Blir en vei borte, kan en side ha blitt uoppnåelig selv om ruta
