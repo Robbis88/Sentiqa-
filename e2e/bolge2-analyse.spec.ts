@@ -17,12 +17,18 @@ import AxeBuilder from '@axe-core/playwright'
 const DATA = { epost: 'analyse@test.sentiqa.no', passord: 'test-analyse-2026' }
 const UNDERBY = '44444444-4444-4444-8444-111111111111'
 
-/** Rutene i bolgen. /analyse og /salgsprognose krever eier-data. */
+/**
+ * Rutene i bolgen som TESTBRUKEREN naar.
+ *
+ * /dekning og /analyse staar utenfor lista: de er eierens (roller [A] i
+ * navigasjonen), og seeden har ingen eier - eierrollen tvinges gjennom
+ * TOTP og trenger en seedet faktor. Det er notert i seed.sql fra
+ * stemplingsrunden, og gjelder fortsatt.
+ */
 const FAMILIEN = [
   '/salg',
   '/timesalg',
   '/kasserer',
-  '/dekning',
   '/rutiner/oversikt',
   '/salgsprognose',
   '/produksjonsplan/treffsikkerhet',
@@ -127,7 +133,7 @@ test.describe('bolge 2 - analysefamilien', () => {
   test('INGEN TILSTAND FINNES BARE SOM FARGE', async ({ page }) => {
     // Regelen fra /fokus i bolge 1, gjort til en maaling for hele
     // analysesystemet: hvert statusmerke maa ha lesbar tekst i seg.
-    for (const sti of [`/kasserer?stasjon=${UNDERBY}`, '/dekning', '/rutiner/oversikt']) {
+    for (const sti of [`/kasserer?stasjon=${UNDERBY}`, '/rutiner/oversikt']) {
       await page.goto(sti)
       const tomme = await page.locator('.sq-status').evaluateAll(
         (noder) => noder
