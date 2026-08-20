@@ -1,5 +1,7 @@
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
 import { byggPeriodeGrupper } from '@/lib/perioder'
 import { BUTIKKSJEF_PERSONAL_KODER, BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
@@ -20,8 +22,19 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   const stasjonIds = (tilgang ?? []).map((t) => t.stasjon_id as string)
   if (stasjonIds.length === 0) return <p className="undertittel">Du har ingen stasjon tildelt ennå.</p>
   const { data: stasjoner } = await supabase.from('stasjoner').select('id, butikknummer, navn').in('id', stasjonIds).order('butikknummer').overrideTypes<{ id: string; butikknummer: string; navn: string }[]>()
-  const valgtNr = butikknummer || stasjoner?.[0]?.butikknummer || ''
-  const stasjon = (stasjoner ?? []).find((s) => s.butikknummer === valgtNr) ?? stasjoner?.[0]
+  // BUTIKKSJEF-GRENEN AGGREGERER IKKE. Den er en skjermet visning av
+  // EGEN stasjon, og rutetabellen sier derfor at /regnskap bare taaler
+  // aggregat for retailer_admin. `tillatAlleFor` gir false her uansett
+  // hvor mange stasjoner hun har - og appskallet regner det samme, saa
+  // hun faar ikke tilbudt «Alle stasjoner» paa en side som ikke har det.
+  const liste = (stasjoner ?? []) as { id: string; butikknummer: string; navn: string }[]
+  const sok = new URLSearchParams()
+  if (butikknummer) sok.set('butikknummer', butikknummer)
+  const valgtId = await husketStasjon(
+    liste, stasjonFraUrl(sok, liste),
+    tillatAlleFor('/regnskap', bruker.rolle, liste.length),
+  )
+  const stasjon = liste.find((s) => s.id === valgtId) ?? liste[0]
   if (!stasjon) return <p className="undertittel">Ingen stasjon.</p>
 
   // Perioder for stasjonen (rød tråd)
@@ -97,18 +110,9 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
         undertittel={svar ? `${svar}. ${periodeTekst}` : `${periodeTekst} · din stasjon`}
       />
 
-      {(stasjoner ?? []).length > 1 && (
-        <section className="kort">
-          <form method="get" className="plan-velg">
-            <label className="felt"><span>Stasjon</span>
-              <select name="butikknummer" defaultValue={valgtNr}>
-                {(stasjoner ?? []).map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
-              </select>
-            </label>
-            <button type="submit">Vis</button>
-          </form>
-        </section>
-      )}
+      {/* Stasjonsvelgeren staar i toppstripen, ett sted for hele systemet.
+          Butikksjefen med to stasjoner byttet her for; naa bytter hun
+          samme sted som overalt ellers. Se trinn 09. */}
 
       {perioder.length > 0 && (
         <div className="regnskap-velgere">
@@ -116,7 +120,7 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
             valgt={valgtVerdi}
             grupper={byggPeriodeGrupper(perioder, true)}
             basePath="/regnskap"
-            bevar={stasjoner && stasjoner.length > 1 ? { butikknummer: valgtNr } : {}}
+            bevar={liste.length > 1 ? { butikknummer: stasjon.butikknummer } : {}}
           />
         </div>
       )}

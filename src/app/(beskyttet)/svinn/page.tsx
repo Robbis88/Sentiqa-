@@ -8,6 +8,8 @@ import Link from 'next/link'
 import { Sidehode, Tomtilstand, Nokkeltall, Datatabell, Forklaring } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
 import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 // =====================================================================
 // Pilot B: analysemonsteret paa primitivene.
@@ -40,8 +42,6 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   }
 
   const sp = await searchParams
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
-  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase
@@ -104,6 +104,22 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     .gte('dato', histFra.toISOString().slice(0, 10))
     .lte('dato', siste.dato)
     .is('slettet_tid', null)
+
+  const stasjonsliste = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
+  // Stasjonen kommer fra den felles kontrakten (trinn 09): URL foran
+  // hukommelse foran forste stasjon. Sida leste for bare `?stasjon=`, og
+  // ignorerte dermed valget i toppstripen - skallet kunne vise en stasjon
+  // mens tallene her gjaldt alle.
+  //
+  // `null` betyr fortsatt «alle stasjoner samlet», og at sida TAALER det
+  // staar i rutetabellen. Den samme tabellen appskallet leser, saa
+  // velgeren tilbyr «Alle stasjoner» noyaktig der den finnes.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtStasjon = await husketStasjon(
+    stasjonsliste, stasjonFraUrl(sok, stasjonsliste),
+    tillatAlleFor('/svinn', bruker.rolle, stasjonsliste.length),
+  )
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 

@@ -8,7 +8,8 @@ import { lagSalgsprognose, type AvdSalg } from '@/lib/salgsprognose'
 import { hentKalibrering } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
-import { StasjonsVelger } from '../stasjonsvelger'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import Link from 'next/link'
 
@@ -35,7 +36,6 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return <p>Salgsprognosen er for eier og butikksjef.</p>
   const sp = await searchParams
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
 
   const supabase = await lagSupabaseServerKlient()
   const { data: stasjoner } = await supabase
@@ -55,8 +55,18 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   }
 
   // Admin velger fritt; butikksjef er RLS-scopet til egne stasjoner.
-  const valgtId = erUuid(sp.stasjon) && liste.some((s) => s.id === sp.stasjon) ? sp.stasjon! : liste[0].id
-  const stasjon = liste.find((s) => s.id === valgtId)!
+  //
+  // Prognosen regnes PER STASJON - et snitt over kjeden ville skjult den
+  // ene som skiller seg ut - saa `tillatAlleFor` gir false her og sida
+  // faar alltid en konkret stasjon. Appskallet leser samme tabell og
+  // tilbyr derfor ikke «Alle stasjoner» paa denne ruta.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtId = await husketStasjon(
+    liste, stasjonFraUrl(sok, liste),
+    tillatAlleFor('/salgsprognose', bruker.rolle, liste.length),
+  ) ?? liste[0].id
+  const stasjon = liste.find((s) => s.id === valgtId) ?? liste[0]
 
   const idag = iDag()
   const maalDato = leggTilDager(idag, 1) // i morgen
@@ -127,13 +137,8 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
         undertittel={svar ? `${svar}. ${kontekst}` : kontekst}
       />
 
-      {liste.length > 1 && (
-        <StasjonsVelger
-          stasjoner={liste.map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
-          valgtId={valgtId}
-          basePath="/salgsprognose"
-        />
-      )}
+      {/* Stasjonsvelgeren staar i toppstripen, ett sted for hele systemet.
+          `?stasjon=` bestaar for delte lenker. Se trinn 09. */}
 
       {!prognose || prognose.forslag.length === 0 ? (
         <Tomtilstand

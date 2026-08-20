@@ -11,6 +11,7 @@ import { TabletHjem } from '../tablet-hjem'
 import { AdminDashbord } from '../admin-dashbord'
 import { ButikksjefDashbord } from '../butikksjef-dashbord'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { tillatAlleFor } from '@/lib/stasjonsvalg'
 
 // Dashbordet kan gjøre litt tyngre oppslag (regnskap/ukerapport) — gi rom.
 export const maxDuration = 60
@@ -108,10 +109,19 @@ export default async function OversiktSide() {
     const { data: mine } = await supabase
       .from('stasjoner').select('id, navn, butikknummer')
       .is('slettet_tid', null).order('butikknummer')
+    // KAPABILITETEN KOMMER FRA TABELLEN, ikke fra en `true` her.
+    // Sto den her, kunne den bli staaende mens tabellen sa noe annet -
+    // og appskallet leser tabellen. Da viser toppstripen en stasjon mens
+    // forsiden viser porteforljen.
+    //
+    // Merk foelgen: en eier med bare EN stasjon faar naa stasjonsbildet
+    // i stedet for portefoljen. En portefolje av en ting er stasjonen,
+    // og skallet sier det samme.
+    const stasjonsliste = (mine ?? []) as { id: string; navn: string; butikknummer: string }[]
     const valgt = await husketStasjon(
-      (mine ?? []) as { id: string; navn: string; butikknummer: string }[],
+      stasjonsliste,
       null,
-      true,
+      tillatAlleFor('/oversikt', bruker.rolle, stasjonsliste.length),
     )
     if (valgt) return <ButikksjefDashbord bruker={bruker} bareStasjon={valgt} />
     return <AdminDashbord bruker={bruker} idag={iDag()} />

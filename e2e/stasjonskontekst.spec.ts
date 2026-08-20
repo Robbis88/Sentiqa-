@@ -161,6 +161,60 @@ test.describe('stasjonskontekst', () => {
     }
   })
 
+  // =================================================================
+  // DEN GENERELLE REGRESJONSTESTEN.
+  //
+  // Selve feilen, som en maaling som kan kjores paa hvilken som helst
+  // rute: viser skallet en stasjon, skal sida regne paa DEN. Viser
+  // skallet «Alle stasjoner», skal sida si at den summerer.
+  //
+  // De enkelte testene over maaler ett scenario hver. Denne maaler
+  // EGENSKAPEN, og den er billig aa utvide: legg ruta i lista.
+  // =================================================================
+  const RUTER = [
+    '/produksjonsplan?dato=2026-02-02',
+    '/produksjonsplan/treffsikkerhet',
+    '/svinn',
+    '/salg',
+    '/timesalg',
+    '/kasserer',
+    '/regnskap',
+    '/salgsprognose',
+  ]
+
+  for (const rute of RUTER) {
+    test(`skall og side er enige paa ${rute.split('?')[0]}`, async ({ page }) => {
+      await page.goto(rute)
+
+      const velger = page.locator('.sq-stasjonskontekst select')
+      if (await velger.count() === 0) {
+        test.skip(true, 'Ingen velger - brukeren har ikke noe aa velge mellom')
+      }
+      const vist = await skallet(page)
+
+      const hode = page.locator('.sq-sidehode')
+      if (await hode.count() === 0) {
+        test.skip(true, 'Sida har ikke noe sidehode aa sammenligne med')
+      }
+      const tekst = await hode.first().innerText()
+
+      if (/^Alle stasjoner/i.test(vist)) {
+        // Skallet sier aggregat. Da skal ikke sida vise EN stasjon.
+        expect(tekst, `Skallet summerer, men sida viser en enkelt stasjon:
+${tekst}`)
+          .toMatch(/alle stasjoner|samlet|kjeden/i)
+      } else {
+        // Skallet viser en konkret stasjon. Butikknummeret er den
+        // entydige delen - navnet kan staa forkortet.
+        const nr = vist.match(/\d{4}/)?.[0]
+        if (!nr) test.skip(true, 'Stasjonen har ikke butikknummer aa matche paa')
+        expect(tekst, `Skallet viser «${vist}», sida sier:
+${tekst}`)
+          .toContain(nr!)
+      }
+    })
+  }
+
   test('G - skjemafeltene er urort payload, ikke kontekst', async ({ page }) => {
     // «Hvilken stasjon gjelder det jeg oppretter» er noe annet enn
     // «hvilken stasjon ser jeg paa». Konsolideringen skal ikke ha rort

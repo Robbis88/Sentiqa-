@@ -92,28 +92,50 @@ export const fraLagring = (raa: string | null | undefined): string | null =>
   raa == null || raa === '' ? null : raa
 
 /**
- * Rutene som tåler at flere stasjoner summeres.
+ * Rutene som tåler at flere stasjoner summeres. ÉN FASIT.
  *
- * STANDARDEN ER «KREVER ÉN STASJON», og det er med vilje: en ny side som
- * glemmer å ta stilling får den trygge oppførselen. Å summere noe som
- * ikke kan summeres gir et tall som ser riktig ut og er feil —
- * produksjonsplanen for «alle stasjoner» er ikke en plan noen kan bake
- * etter.
+ * Dette er stedet spørsmålet «kan disse tallene summeres?» besvares -
+ * ikke inne i sidene, og ikke i appskallet. Sto svaret to steder, ville
+ * de før eller siden vært uenige, og da er vi tilbake til to
+ * stasjonskontekster på samme skjerm.
  *
- * Lista er sidens EVNE, ikke brukerens rettighet. Rettigheten kommer fra
- * RLS og fra hvor mange stasjoner brukeren faktisk har.
+ * STANDARDEN ER «KREVER ÉN STASJON». En ny side som glemmer å ta
+ * stilling får den trygge oppførselen. Å summere noe som ikke kan
+ * summeres gir et tall som ser riktig ut og er feil.
+ *
+ * ROLLE NÅR SIDA HAR TO ANSIKTER. `/regnskap` viser eieren hele kjeden
+ * samlet, og butikksjefen en skjermet visning av sin egen stasjon - to
+ * ulike sider bak samme URL. `/oversikt` er det samme: eierens
+ * portefølje mot butikksjefens operative bilde. Rollen er ikke regelen
+ * her (det var nettopp feilen i den gamle `tillatAlle`), den er en del
+ * av hvilken SIDE man faktisk står på.
  */
-export const TAALER_AGGREGAT = new Set([
-  '/oversikt',   // eierens portefølje — hele poenget med forsiden hans
-  '/salg',
-  '/svinn',
-  '/timesalg',
-  '/kasserer',
-  '/regnskap',   // admin-grenen summerer kjeden; butikksjef-grenen har én
-])
+export const TAALER_AGGREGAT: Record<string, true | readonly string[]> = {
+  '/salg': true,
+  '/svinn': true,
+  '/timesalg': true,
+  '/kasserer': true,
+  '/oversikt': ['retailer_admin'],
+  '/regnskap': ['retailer_admin'],
+}
 
-export const sidenTaalerAggregat = (sti: string): boolean =>
-  TAALER_AGGREGAT.has(sti.replace(/\/+$/, '') || '/')
+export function sidenTaalerAggregat(sti: string, rolle?: string): boolean {
+  const regel = TAALER_AGGREGAT[sti.replace(/\/+$/, '') || '/']
+  if (regel === undefined) return false
+  if (regel === true) return true
+  return rolle !== undefined && regel.includes(rolle)
+}
+
+/**
+ * Hele regelen, på ett sted: sida må tåle det, OG det må finnes noe å
+ * summere.
+ *
+ * Den siste halvdelen er ikke en detalj. En bruker med én stasjon som
+ * får «alle stasjoner» ser et aggregat av én ting - en nedtrekksliste
+ * med ett valg, forkledd som en beslutning.
+ */
+export const tillatAlleFor = (sti: string, rolle: string, antall: number): boolean =>
+  sidenTaalerAggregat(sti, rolle) && antall > 1
 
 /**
  * Stasjonen URL-en ber om — uansett hvilket navn parameteren har.

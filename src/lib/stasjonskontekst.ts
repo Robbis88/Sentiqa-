@@ -1,7 +1,7 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import {
-  fraLagring, sidenTaalerAggregat, stasjonFraUrl, STASJONSKAPSEL, velgStasjon,
+  fraLagring, stasjonFraUrl, STASJONSKAPSEL, tillatAlleFor, velgStasjon,
   type Stasjon,
 } from './stasjonsvalg'
 
@@ -50,6 +50,7 @@ export async function husketStasjon(
 export async function stasjonskontekst(
   supabase: SupabaseKlient,
   sti: string,
+  rolle: string,
   sok?: URLSearchParams,
 ): Promise<Stasjonskontekst> {
   const { data } = await supabase
@@ -57,7 +58,7 @@ export async function stasjonskontekst(
     .is('slettet_tid', null).order('butikknummer')
   const stasjoner = (data ?? []) as Stasjon[]
 
-  const tillatAlle = sidenTaalerAggregat(sti) && stasjoner.length > 1
+  const tillatAlle = tillatAlleFor(sti, rolle, stasjoner.length)
   const fraUrl = sok ? stasjonFraUrl(sok, stasjoner) : undefined
 
   return {

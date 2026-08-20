@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, tall, kr } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
@@ -42,8 +44,15 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
     const ids = new Set((tilgang ?? []).map((t) => t.stasjon_id))
     stasjoner = stasjoner.filter((s) => ids.has(s.id))
   }
-  const valgtNr = sp.butikknummer || stasjoner[0]?.butikknummer || ''
-  const stasjon = stasjoner.find((s) => s.butikknummer === valgtNr)
+  // Samme kontrakt som /produksjonsplan. Treffsikkerheten maales per
+  // stasjon - et snitt over kjeden ville skjult den ene som bommer.
+  const sok = new URLSearchParams()
+  if (sp.butikknummer) sok.set('butikknummer', sp.butikknummer)
+  const valgtId = await husketStasjon(
+    stasjoner, stasjonFraUrl(sok, stasjoner),
+    tillatAlleFor('/produksjonsplan/treffsikkerhet', bruker.rolle, stasjoner.length),
+  )
+  const stasjon = stasjoner.find((s) => s.id === valgtId) ?? stasjoner[0]
 
   // Alle treff-rader for stasjonen (paginert — kan være >1000).
   const rader: TreffRad[] = []
@@ -165,16 +174,13 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
         handlinger={<Link href="/produksjonsplan" className="sq-knapp">Tilbake til planen</Link>}
       />
 
+      {/* SKJEMAET ER BORTE. Det inneholdt bare en stasjonsvelger og en
+          «Vis»-knapp - samme jobb som velgeren i toppstripen, med et
+          annet svar. Ruta beholder `?butikknummer=` for delte lenker.
+
+          Admin-knappen under staar igjen: den kjorer backtesten paa
+          nytt, og har ingenting med stasjonsvalget aa gjore. */}
       <section className="kort">
-        <form method="get" className="plan-velg">
-          <label className="felt">
-            <span>Stasjon</span>
-            <select name="butikknummer" defaultValue={valgtNr}>
-              {stasjoner.map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
-            </select>
-          </label>
-          <button type="submit">Vis</button>
-        </form>
         {bruker.rolle === 'retailer_admin' && (
           <div style={{ marginTop: '0.9rem' }}>
             <OppdaterKnapp />

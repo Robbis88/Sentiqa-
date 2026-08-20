@@ -6,6 +6,8 @@ import { AVDELINGER } from '@/lib/avdelinger'
 import { AiKontekst } from '../ai-kontekst'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 const kr = new Intl.NumberFormat('nb-NO', {
   style: 'currency',
@@ -36,8 +38,6 @@ export default async function SalgSide({
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
   const valgtDato = sp.dato
-  const erUuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
-  const valgtStasjon = erUuid(sp.stasjon) ? sp.stasjon! : null
 
   // Default: siste dato med data (RLS scoper til brukerens stasjoner)
   let dato = valgtDato && /^\d{4}-\d{2}-\d{2}$/.test(valgtDato) ? valgtDato : null
@@ -75,6 +75,22 @@ export default async function SalgSide({
 
   // Aatte uker tilbake — nok til at fire like ukedager finnes selv om
   // noen dager mangler. 56 dager x 5 stasjoner er godt under
+  const stasjonsliste = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
+  // Stasjonen kommer fra den felles kontrakten (trinn 09): URL foran
+  // hukommelse foran forste stasjon. Sida leste for bare `?stasjon=`, og
+  // ignorerte dermed valget i toppstripen - skallet kunne vise en stasjon
+  // mens tallene her gjaldt alle.
+  //
+  // `null` betyr fortsatt «alle stasjoner samlet», og at sida TAALER det
+  // staar i rutetabellen. Den samme tabellen appskallet leser, saa
+  // velgeren tilbyr «Alle stasjoner» noyaktig der den finnes.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtStasjon = await husketStasjon(
+    stasjonsliste, stasjonFraUrl(sok, stasjonsliste),
+    tillatAlleFor('/salg', bruker.rolle, stasjonsliste.length),
+  )
+
   // PostgREST-taket paa tusen rader.
   const fraDato = new Date(`${dato}T12:00:00Z`)
   fraDato.setUTCDate(fraDato.getUTCDate() - 56)
