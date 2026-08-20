@@ -37,8 +37,30 @@ async function loggInn(page: Page, bruker: { epost: string; passord: string }) {
 
 const sifre = (s: string | null) => (s ?? '').replace(/\D/g, '')
 
+/**
+ * Nokkeltallet med NOYAKTIG denne merkelappen.
+ *
+ * `hasText` alene tar feil kort her: «Klart til morgenskift» har
+ * sammenligningen «av 40 planlagt», og et delstrengsok paa «Planlagt»
+ * treffer da begge to.
+ */
 const nokkeltall = (page: Page, merkelapp: string) =>
-  page.locator('.sq-nokkeltall').filter({ hasText: merkelapp })
+  page.locator('.sq-nokkeltall').filter({
+    has: page.getByText(merkelapp, { exact: true }),
+  })
+
+/**
+ * Sidas EGET stasjonsvalg, ikke appskallets.
+ *
+ * FUNN, IKKE TESTSTOY: det staar to «Stasjon»-velgere paa denne sida.
+ * Appskallet har en (`.sq-stasjonskontekst`, satt i trinn 02 nettopp for
+ * at ti sider ikke skulle spore hver for seg), og sida har sin egen som
+ * gaar paa `?butikknummer=`. De gjor ulike ting og vet ikke om
+ * hverandre. Aa slaa dem sammen er en funksjonell endring i hvordan sida
+ * velger stasjon - ikke en designmigrering - saa den er notert og ikke
+ * gjort her.
+ */
+const sidensSkjema = (page: Page) => page.locator('form.sq-listetopp')
 
 test.describe('/produksjonsplan uten salgsdata', () => {
   test('tomtilstanden forklarer hva som mangler', async ({ page }) => {
@@ -56,9 +78,10 @@ test.describe('/produksjonsplan uten salgsdata', () => {
     // seg fram til en dag som HAR data.
     await loggInn(page, TOM)
     await page.goto('/produksjonsplan')
-    await expect(page.getByLabel('Stasjon')).toBeVisible()
-    await expect(page.getByLabel('Dag')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Vis plan' })).toBeVisible()
+    const skjema = sidensSkjema(page)
+    await expect(skjema.getByLabel('Stasjon')).toBeVisible()
+    await expect(skjema.getByLabel('Dag')).toBeVisible()
+    await expect(skjema.getByRole('button', { name: 'Vis plan' })).toBeVisible()
   })
 })
 
