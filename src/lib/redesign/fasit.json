@@ -439,6 +439,8 @@
       "Usynlig svinn per stasjon"
     ],
     "/ansatte": [
+      "Ingen ansatte ennå",
+      "Ingen treff",
       "Ny ansatt"
     ],
     "/anvisninger": [
@@ -471,7 +473,6 @@
       "Slik er timene fordelt",
       "Stasjonene mot hverandre",
       "Timer der én ikke holder",
-      "Timer der én ikke holder",
       "Vaktene dette blir",
       "{steg.tittel}"
     ],
@@ -493,8 +494,12 @@
       "{s.butikknummer} {s.navn} <span className=\"undertittel\">· {sineP.length} punkter</span>"
     ],
     "/ikmat": [
+      "Avvik (S01)",
+      "Lukket ({lukket.length})",
+      "Nytt avvik",
       "{FREKVENS_ETIKETT[frekvens]}",
-      "{s.butikknummer} {s.navn}"
+      "{s.butikknummer} {s.navn}",
+      "Åpne ({apne.length})"
     ],
     "/import": [
       "E-post-inntak",
@@ -582,8 +587,36 @@
       "Under opplæring",
       "Vaktplan",
       "{k.navn}",
-      "{k.navn}",
       "{valgt.ansatt_navn} — sjekkliste"
+    ],
+    "/oversikt": [
+      "Dine fokuspunkter",
+      "Fokuspunkter per stasjon",
+      "Forrige uke per stasjon",
+      "Fremover",
+      "I dag",
+      "Ingenting trenger oppmerksomhet",
+      "Mot budsjett denne måneden",
+      "Regnskap",
+      "Stasjonene mot hverandre",
+      "Stasjonsrangering",
+      "Venter på en komplett uke",
+      "{g.navn}",
+      "{ikon ? `${ikon} ` : ''}{tittel}",
+      "{overskrift(signaler)}",
+      "{pulsOverskrift('Klyngen', klynge.vekstPst)}",
+      "{pulsOverskrift(d.stasjonsnavn, vekst)}",
+      "{t(overskrift(alle.length))}",
+      "✅ Oppgaver",
+      "🎁 {t('Vår premiesaldo')}",
+      "🏆 Måling",
+      "🏆 Månedens konkurranse",
+      "📅 Forrige uke per stasjon",
+      "📅 Forrige uke · {r.navn}",
+      "📈 Sterkest vekst",
+      "📈 {t('Vekst mot i fjor')}",
+      "📉 Svakest",
+      "📨 {t('Meldinger fra butikksjef')}"
     ],
     "/persondata": [
       "Hvem har sett hva",
@@ -607,13 +640,14 @@
     ],
     "/produksjonsplan": [
       "Ingen produksjonssalg registrert",
-      "🥐 Produksjon",
+      "Notat til de ansatte",
+      "{g.navn}",
+      "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>",
       "🥐 Produksjon"
     ],
     "/produksjonsplan/treffsikkerhet": [
       "Dag for dag (siste {trendDager.length})",
       "Ingen treffdata ennå for denne stasjonen",
-      "{tittel}",
       "{tittel}"
     ],
     "/puls": [
@@ -635,9 +669,12 @@
     ],
     "/regnskap": [
       "Ingen regnskapsdata ennå",
+      "Ingen regnskapsdata for din stasjon ennå",
       "Kostnader per konto · hele kjeden",
       "Per stasjon",
-      "{SEKSJON_TITTEL[navn]}"
+      "Påvirkbare kostnader",
+      "{SEKSJON_TITTEL[navn]}",
+      "{navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'}"
     ],
     "/rutiner/min": [
       "Ingen punkter ennå",
