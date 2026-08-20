@@ -3,8 +3,9 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { StasjonSkjema } from './skjema'
 import { VaerKnapp } from './vaer-knapp'
 import { settTerskel, settStasjonstype, settPosisjon, settVaerfolsomhet } from './handlinger'
-import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Datatabell } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Knapp } from '@/components/ui/knapp'
 
 const TYPER: [string, string][] = [
   ['utfart', 'Utfart'],
@@ -78,8 +79,15 @@ export default async function StasjonerSide() {
           forklaring="Uten en stasjon har importen ingen steder å legge tallene."
         />
       ) : (
-        <div className="tabellramme">
-          <table className="tabell">
+        // REDIGERINGSRUTENETT. Formen kommer fra primitivet, lagringen
+        // blir liggende her - fire uavhengige serverhandlinger, en per
+        // felt, akkurat som for. Aa slaa dem sammen til en ville vaert
+        // en funksjonell endring forkledd som design.
+        //
+        // Raden er EN stasjon man retter opp noe i. Den er ikke en
+        // velger for aktiv stasjon; det spoersmaalet bor i toppstripen
+        // og ble avklart i trinn 09.
+        <Datatabell rutenett antall={stasjoner.length}>
             <thead>
               <tr><th>Butikknr</th><th>Navn</th><th>Type</th><th>Svinnterskel</th><th>Værfølsomhet</th><th>Posisjon (vær)</th></tr>
             </thead>
@@ -89,37 +97,47 @@ export default async function StasjonerSide() {
                   <td>{s.butikknummer}</td>
                   <td>{s.navn}</td>
                   <td>
-                    <form action={settStasjonstype} className="type-form">
+                    {/* LAGRE-KNAPPEN SIER HVA DEN LAGRER. Fire knapper
+                        med samme navn staar paa hver rad; med tjue
+                        stasjoner blir det aatti «Lagre» paa sida, og en
+                        skjermleser leste dem alle likt. */}
+                    <form action={settStasjonstype} className="sq-rutenett-gruppe">
                       <input type="hidden" name="stasjon_id" value={s.id} />
-                      <select name="stasjonstype" defaultValue={s.stasjonstype} aria-label="Primær type">
+                      <select name="stasjonstype" defaultValue={s.stasjonstype} aria-label={`Primær type for ${s.butikknummer} ${s.navn}`}>
                         {TYPER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                       </select>
-                      <select name="stasjonstype_sekundaer" defaultValue={s.stasjonstype_sekundaer ?? ''} aria-label="Sekundær type">
+                      <select name="stasjonstype_sekundaer" defaultValue={s.stasjonstype_sekundaer ?? ''} aria-label={`Sekundær type for ${s.butikknummer} ${s.navn}`}>
                         <option value="">(ingen)</option>
                         {TYPER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                       </select>
-                      <button type="submit" className="liten">Lagre</button>
+                      <Knapp type="submit" variant="ghost" liten aria-label={`Lagre type for ${s.butikknummer} ${s.navn}`}>
+                        Lagre
+                      </Knapp>
                     </form>
                   </td>
                   <td>
-                    <form action={settTerskel} className="terskel-form">
+                    <form action={settTerskel} className="sq-rutenett-gruppe">
                       <input type="hidden" name="stasjon_id" value={s.id} />
                       <input
                         name="terskel"
                         inputMode="decimal"
                         defaultValue={s.svinnterskel_prosent ?? ''}
                         placeholder="2,8"
-                        aria-label="Svinnterskel %"
+                        aria-label={`Svinnterskel i prosent for ${s.butikknummer} ${s.navn}`}
                       />
                       <span>%</span>
-                      <button type="submit" className="liten">Lagre</button>
+                      <Knapp type="submit" variant="ghost" liten aria-label={`Lagre svinnterskel for ${s.butikknummer} ${s.navn}`}>
+                        Lagre
+                      </Knapp>
                     </form>
                   </td>
                   <td>
-                    <form action={settVaerfolsomhet} className="terskel-form">
+                    <form action={settVaerfolsomhet} className="sq-rutenett-gruppe">
                       <input type="hidden" name="stasjon_id" value={s.id} />
-                      <input name="vaerfolsomhet" inputMode="decimal" defaultValue={s.vaerfolsomhet ?? 0.5} placeholder="0.5" aria-label="Værfølsomhet 0–1 (manuell fallback)" className="sq-smalt-felt" />
-                      <button type="submit" className="liten">Lagre</button>
+                      <input name="vaerfolsomhet" inputMode="decimal" defaultValue={s.vaerfolsomhet ?? 0.5} placeholder="0.5" aria-label={`Værfølsomhet 0–1 for ${s.butikknummer} ${s.navn}, manuell fallback`} className="sq-smalt-felt" />
+                      <Knapp type="submit" variant="ghost" liten aria-label={`Lagre værfølsomhet for ${s.butikknummer} ${s.navn}`}>
+                        Lagre
+                      </Knapp>
                     </form>
                     {s.vaerfolsomhet_laert != null ? (
                       <div className="undertittel sq-finstilt">
@@ -128,18 +146,19 @@ export default async function StasjonerSide() {
                     ) : null}
                   </td>
                   <td>
-                    <form action={settPosisjon} className="posisjon-form">
+                    <form action={settPosisjon} className="sq-rutenett-gruppe">
                       <input type="hidden" name="stasjon_id" value={s.id} />
                       <label>Bredde<input name="breddegrad" inputMode="decimal" defaultValue={s.breddegrad ?? ''} placeholder="60.3913" /></label>
                       <label>Lengde<input name="lengdegrad" inputMode="decimal" defaultValue={s.lengdegrad ?? ''} placeholder="5.3221" /></label>
-                      <button type="submit" className="liten">Lagre</button>
+                      <Knapp type="submit" variant="ghost" liten aria-label={`Lagre posisjon for ${s.butikknummer} ${s.navn}`}>
+                        Lagre
+                      </Knapp>
                     </form>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </Datatabell>
       )}
     </>
   )
