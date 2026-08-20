@@ -51,10 +51,26 @@ function totp(hemmelig: string, naa = Date.now()): string {
 }
 
 /**
- * Logger inn eieren og fullforer to-faktor.
+ * Hemmeligheten fra innrulleringen, delt mellom testene i fila.
  *
- * Returnerer hemmeligheten, saa senere steg i samme test kan lage nye
- * koder uten aa rulle inn paa nytt.
+ * FORSTE KJORING AVSLORTE HVORFOR DEN MAA DELES: faktoren blir liggende
+ * i basen etter forste test. De neste innloggingene moter derfor ikke
+ * innrulleringen, men STEG-OPP - appen ber om en kode til en faktor som
+ * allerede finnes. Uten hemmeligheten fra forste runde kan ingen av dem
+ * svare.
+ *
+ * Derfor kjorer fila serielt: en arbeider, en faktor, en hemmelighet.
+ */
+let hemmeligheten: string | null = null
+
+/**
+ * Logger inn eieren og fullforer to-faktor - uansett hvilken av de to
+ * lovlige veiene appen sender henne:
+ *
+ *   ingen faktor  -> /sikkerhet?paakrevd=1  (innrullering)
+ *   har faktor    -> /logg-inn/totp         (steg opp)
+ *
+ * Begge er ekte tilstander for en ekte eier, og begge maa virke.
  */
 async function loggInnEier(page: Page): Promise<string> {
   await page.goto('/logg-inn')
@@ -62,22 +78,36 @@ async function loggInnEier(page: Page): Promise<string> {
   await page.fill('input[name="passord"]', EIER.passord)
   await page.click('button[type="submit"]')
 
-  // Rollen krever MFA og har ingen faktor: appen tvinger innrullering.
-  await expect(page).toHaveURL(/\/sikkerhet\?paakrevd=1/, { timeout: 20_000 })
-
-  await page.getByRole('button', { name: 'Sett opp to-faktor' }).click()
-  const hemmelig = (await page.locator('.mfa-hemmelig').innerText()).trim()
-  expect(hemmelig.length, 'Ingen hemmelighet paa innrulleringssida').toBeGreaterThan(10)
-
-  await page.getByLabel(/engangskoden/i).fill(totp(hemmelig))
-  await page.getByRole('button', { name: 'Aktiver to-faktor' }).click()
-
-  // Verifisert faktor → sesjonen er aal2 og eieren slipper inn.
-  await expect(page.locator('.mfa-paa')).toContainText('To-faktor er aktivert', {
+  await expect(page).toHaveURL(/\/sikkerhet\?paakrevd=1|\/logg-inn\/totp/, {
     timeout: 20_000,
   })
-  return hemmelig
+
+  if (page.url().includes('/sikkerhet')) {
+    await page.getByRole('button', { name: 'Sett opp to-faktor' }).click()
+    const hemmelig = (await page.locator('.mfa-hemmelig').innerText()).trim()
+    expect(hemmelig.length, 'Ingen hemmelighet paa innrulleringssida').toBeGreaterThan(10)
+
+    await page.getByLabel(/engangskoden/i).fill(totp(hemmelig))
+    await page.getByRole('button', { name: 'Aktiver to-faktor' }).click()
+
+    // Tvunget innrullering sender henne rett til /oversikt naar sesjonen
+    // er aal2. Det er porten som slipper henne gjennom.
+    await expect(page).toHaveURL(/\/oversikt/, { timeout: 20_000 })
+    hemmeligheten = hemmelig
+    return hemmelig
+  }
+
+  expect(hemmeligheten, 'Steg-opp uten kjent hemmelighet').not.toBeNull()
+  await page.getByLabel('Engangskode').fill(totp(hemmeligheten!))
+  await page.getByRole('button', { name: 'Bekreft' }).click()
+  await expect(page).not.toHaveURL(/\/logg-inn/, { timeout: 20_000 })
+  return hemmeligheten!
 }
+
+// SERIELT MED VILJE. Faktoren er delt tilstand i basen: to arbeidere som
+// ruller inn samtidig ville laget hver sin, og den ene ville faatt en
+// kode som ikke passer til den andres faktor.
+test.describe.configure({ mode: 'serial' })
 
 test.describe('PORT 0 - eieren gjennom ekte TOTP', () => {
   test('1-3: eier logger inn, fullforer TOTP og faar riktig rolle', async ({ page }) => {
@@ -124,8 +154,11 @@ test.describe('PORT 0 - eieren gjennom ekte TOTP', () => {
 
     for (const sti of ['/dekning', '/analyse', '/stasjoner']) {
       await page.goto(sti)
+      // Hver side sier det med sine egne ord - «er en eier-oversikt»,
+      // «Kun eier», «ikke tilgang». Det som betyr noe er at ingen av dem
+      // slipper nettbrettet inn i innholdet.
       await expect(page.locator('body'), sti).toContainText(
-        /ikke tilgang|Kun eier|administreres av|logg inn/i)
+        /ikke tilgang|Kun eier|eier-oversikt|administreres av|logg inn/i)
     }
   })
 
