@@ -87,8 +87,31 @@ jobs:
       # Dette er ogsaa den eneste kontrollen paa at HELE settet fortsatt
       # kjorer fra bunn. AGENTS.md sier det skjer av og til; ingen har
       # verifisert det siden 0001 ble skrevet.
+      #
+      # `-x`: ni containere vi ikke bruker. Dette var det tyngste steget
+      # i jobben (135 s av 400 maalt 2026-08-20), og det meste av det er
+      # nedlasting og oppstart av tjenester ingen test rorer:
+      #
+      #   studio, meta      administrasjonsgrensesnittet
+      #   inbucket          e-postfangst; testene sender ingen
+      #   imgproxy          bildetransformasjon
+      #   vector, analytics logginnsamling
+      #   edge-runtime,
+      #   functions         `functions.invoke` finnes ikke i kildekoden
+      #   realtime          ingen `.channel()` i kildekoden
+      #
+      # `storage` staar IGJEN med vilje, selv om ingen test laster opp:
+      # /kontrakt og /rutiner leser fra storage under RENDER, betinget av
+      # data seeden ikke har i dag. Tok vi den ut, ville en framtidig
+      # kontraktmal i seeden felle /kontrakt i CI av en grunn som ikke
+      # hadde noe med endringen aa gjore.
+      #
+      # `db`, `kong` og `rest` er selve basen, og gotrue kan ikke tas
+      # ut - det er den innloggede testene lever av.
       - name: Start Supabase lokalt
-        run: npx supabase start
+        run: >
+          npx supabase start
+          -x studio,meta,inbucket,imgproxy,vector,analytics,edge-runtime,functions,realtime
 
       # Rett etter start, mens basen garantert lever. Foerste utgave laa
       # nederst med `if: always()` - og da kjorte den etter at CLI-en
@@ -137,6 +160,7 @@ jobs:
             test-results/
           retention-days: 7
 
-      - name: Stopp Supabase
-        if: always()
-        run: npx supabase stop --no-backup
+      # INGEN «stopp supabase». Den sto her og kostet 22 sekunder paa
+      # hver eneste kjoring, ogsaa de roede - og loperen kastes likevel
+      # i det jobben er ferdig. Det var opprydding etter seg selv i et
+      # rom som rives.
