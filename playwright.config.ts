@@ -46,7 +46,19 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // OPPSETTET FORST. Eieren rulles inn i to-faktor en gang, og lagrer
+    // en okt de andre gjenbruker. Uten dette steget logget fire
+    // spec-filer inn hver for seg, og to arbeidere kunne rulle inn hver
+    // sin faktor - da passet ikke hemmeligheten til faktoren sida
+    // utfordret, og det saa ut som «feil engangskode».
+    { name: 'oppsett', testMatch: /eier\.setup\.ts/, use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['oppsett'],
+    },
+  ],
 
   webServer: {
     // Bygget kjores som eget steg i CI, og manuelt lokalt:

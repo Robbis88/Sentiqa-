@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { loggInnEier } from './eier'
+import { OKTFIL } from './eier'
 
 // =====================================================================
 // Bolge 4A: tunge arbeidsflyter og innstillinger.
@@ -94,17 +94,19 @@ test.describe('bolge 4A - butikksjefens tunge flater', () => {
 
 test.describe('bolge 4A - eierens tunge flater, ekte TOTP', () => {
   test.describe.configure({ mode: 'serial' })
+  // Gjenbruker okta oppsettsteget lagret. Ingen ny innlogging, ingen ny
+  // faktor - og dermed ingen risiko for at to arbeidere ruller inn hver
+  // sin.
+  test.use({ storageState: OKTFIL })
 
   for (const sti of EIERENS) {
     test(`${sti} folger familieformen og er axe-ren`, async ({ page }) => {
-      await loggInnEier(page)
       await familieform(page, sti)
       await axeRent(page, sti)
     })
   }
 
   test('/import: filopplasteren staar i sida, ikke i et panel', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/import')
 
     // Ingen dialog aapen, og opplasteren skal vaere synlig med en gang.
@@ -113,7 +115,6 @@ test.describe('bolge 4A - eierens tunge flater, ekte TOTP', () => {
   })
 
   test('/persondata: sletteflyten er urort og krever bekreftelse', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/persondata')
 
     // Sletting av persondata skal aldri vaere ett klikk unna. Formen er
@@ -126,7 +127,6 @@ test.describe('bolge 4A - eierens tunge flater, ekte TOTP', () => {
   })
 
   test('/sikkerhet: to-faktor staar paa etter port 0', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/sikkerhet')
 
     // Eieren rullet inn i port 0. Sida skal si at den er paa - og ingen
@@ -136,7 +136,6 @@ test.describe('bolge 4A - eierens tunge flater, ekte TOTP', () => {
   })
 
   test('regnskapets kjedevisning er eierens, ikke butikksjefens', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/regnskap')
     const eierens = await page.locator('body').innerText()
 

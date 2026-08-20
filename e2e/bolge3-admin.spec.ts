@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { loggInnEier } from './eier'
+import { OKTFIL } from './eier'
 
 // =====================================================================
 // Bolge 3: administrasjon, opprettelse og detalj.
@@ -140,10 +140,13 @@ test.describe('bolge 3 - butikksjefens flater', () => {
 test.describe('bolge 3 - eierens flater, gjennom ekte TOTP', () => {
   // Serielt bare her: eierens faktor er delt tilstand i basen.
   test.describe.configure({ mode: 'serial' })
+  // Gjenbruker okta oppsettsteget lagret. Ingen ny innlogging, ingen ny
+  // faktor - og dermed ingen risiko for at to arbeidere ruller inn hver
+  // sin.
+  test.use({ storageState: OKTFIL })
 
   for (const sti of EIERENS) {
     test(`${sti} folger familieformen og er axe-ren`, async ({ page }) => {
-      await loggInnEier(page)
 
       const feil: string[] = []
       page.on('pageerror', (e) => feil.push(e.message))
@@ -158,7 +161,6 @@ test.describe('bolge 3 - eierens flater, gjennom ekte TOTP', () => {
   }
 
   test('eieren HAR handlingene butikksjefen ikke har', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/brukere')
 
     // Opprettelse ligger i panel, ikke over lista.

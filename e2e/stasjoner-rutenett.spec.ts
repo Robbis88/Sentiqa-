@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { loggInnEier } from './eier'
+import { OKTFIL } from './eier'
 
 // =====================================================================
 // Port 0 til bolge 4: redigeringsrutenettet, pilotert paa /stasjoner.
@@ -21,8 +21,11 @@ import { loggInnEier } from './eier'
 test.describe.configure({ mode: 'serial' })
 
 test.describe('/stasjoner som redigeringsrutenett', () => {
+  // Gjenbruker okta oppsettsteget lagret. Ingen ny innlogging, ingen ny
+  // faktor - og dermed ingen risiko for at to arbeidere ruller inn hver
+  // sin.
+  test.use({ storageState: OKTFIL })
   test('radene og alle fire feltgruppene finnes', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     const rutenett = page.locator('.sq-rutenett')
@@ -46,7 +49,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('den skjulte nyttelasten bestaar - en per skjema', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     const rad = page.locator('.sq-rutenett tbody tr').first()
@@ -59,7 +61,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('LAGRE-KNAPPENE ER SKILLBARE. Aatti like knapper var uleselige', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     // Fire per rad x tre rader. For het de alle bare «Lagre», og en
@@ -81,7 +82,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
     // En test som skriver, maa skrive paa noe ingen andre leser.
     // Koordinatene brukes bare til aa hente vaer, og det skjer ikke i
     // CI - de er derfor trygge aa roere.
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     const rad = page.locator('.sq-rutenett tbody tr').first()
@@ -116,7 +116,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
     // Aa trykke Lagre uten aa roere noe skal la verdien staa. Det hoeres
     // selvsagt ut, og er nettopp derfor verdt aa maale: en
     // serverhandling som tolker tom streng som null ville nullet feltet.
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     const rad = page.locator('.sq-rutenett tbody tr').first()
@@ -132,7 +131,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   test('rutenettet er ikke en stasjonsvelger', async ({ page }) => {
     // Raden administrerer EN stasjon. Den skal ikke bytte aktiv stasjon
     // i appskallet - det spoersmaalet bor i toppstripen (trinn 09).
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     const foer = await page.locator('.sq-stasjonskontekst select').inputValue()
@@ -144,7 +142,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('tastaturet kommer gjennom rutenettet', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     await page.locator('.sq-rutenett tbody tr').first().locator('[name="terskel"]').focus()
@@ -176,7 +173,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('ingen axe-brudd paa rutenettet', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/stasjoner')
     await expect(page.locator('.sq-rutenett')).toBeVisible()
 
@@ -189,7 +185,6 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('tettheten holder - rutenettet flyter ikke ut', async ({ page }) => {
-    await loggInnEier(page)
     await page.goto('/stasjoner')
 
     for (const bredde of [1280, 1440]) {
