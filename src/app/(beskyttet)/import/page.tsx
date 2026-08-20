@@ -7,7 +7,8 @@ import { BehandleKnapp } from './behandle-knapp'
 import { BehandleAlleKnapp } from './behandle-alle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
 import { nesteSteg, onboardingsteg, type Kildemaaling } from '@/lib/onboarding'
-import { Sidehode } from '@/components/ui/side'
+import { Sidehode, Datatabell } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 
 // Regnskaps-import utløser tung AI (Opus + fokus), og «Behandle alle» kan kjøre
 // mange filer — gi handlingen god tid.
@@ -107,6 +108,18 @@ const STEG_TEKST: Record<string, string> = {
   mangler: 'Mangler', ufullstendig: 'Ufullstendig', tynt: 'Tynt', ok: 'På plass',
 }
 
+
+/**
+ * De tre gamle fargeklassene, oversatt til systemets semantiske spraak.
+ *
+ * Grensene er uendret - det er bare navnet og det at ORDET foelger med
+ * som er nytt. En prosentpip der fargen var eneste forskjell mellom
+ * «greit» og «ikke greit» kunne ikke leses av den som ikke ser farge.
+ */
+function nivaaFraKlasse(k: string): Statusnivaa {
+  return k === 'gronn' ? 'normal' : k === 'gul' ? 'endring' : k === 'rod' ? 'handling' : 'normal'
+}
+
 export default async function ImportSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
@@ -156,9 +169,9 @@ export default async function ImportSide() {
         ].filter(Boolean).join(' · ')}
       />
 
-      <section className="kort">
-        <h2>Hva systemet har, og hva det mangler</h2>
-        <table className="tabell">
+      {/* Datasett mot datasett nedover, «har/mangler» bortover. Dette
+          ER en matrise, og blir det. */}
+      <Datatabell tittel="Hva systemet har, og hva det mangler">
           <thead>
             <tr><th>Data</th><th>Status</th><th>Hvor den hentes</th><th>Hva den gir deg</th></tr>
           </thead>
@@ -167,9 +180,9 @@ export default async function ImportSide() {
               <tr key={s.noekkel}>
                 <td>{s.navn}</td>
                 <td>
-                  <span className={`status-pip ${STEG_KLASSE[s.status]}`}>
+                  <Status nivaa={nivaaFraKlasse(STEG_KLASSE[s.status])}>
                     {STEG_TEKST[s.status]}
-                  </span>
+                  </Status>
                   <br />
                   <span className="undertittel">{s.beskjed}</span>
                 </td>
@@ -178,8 +191,7 @@ export default async function ImportSide() {
               </tr>
             ))}
           </tbody>
-        </table>
-      </section>
+      </Datatabell>
 
       <section className="kort">
         <h2>Last opp filer</h2>
@@ -187,11 +199,11 @@ export default async function ImportSide() {
         {/* Reserveveien. Fila går gjennom en server action, og plattformen
             avviser kropper over noen få MB med 413 — store filer hører derfor
             hjemme i feltet over, som laster rett til Storage. */}
-        <details style={{ marginTop: '1rem' }}>
-          <summary className="undertittel" style={{ cursor: 'pointer' }}>
+        <details className="sq-luft-over-liten">
+          <summary className="undertittel">
             Reserve: last opp uten å parse i nettleseren
           </summary>
-          <div style={{ marginTop: '0.75rem' }}>
+          <div className="sq-luft-over-liten">
             <p className="undertittel">
               For små filer som feltet over ikke klarer å tolke. Fila legges i kø og parses på
               serveren. Bruk ikke denne til forretningsplanen — den er for stor og blir avvist
@@ -208,7 +220,7 @@ export default async function ImportSide() {
           Videresend rapportene til denne adressen, så havner vedleggene rett i køen (§6):
         </p>
         <p><code className="inntak-adresse">{retailer?.inntak_epost ?? '— ikke satt —'}</code></p>
-        <form action={settAllowlist} className="skjema" style={{ maxWidth: 420 }}>
+        <form action={settAllowlist} className="skjema sq-smal-flate">
           <label className="felt">
             <span>Godkjente avsendere (én per linje – tom = alle slipper gjennom)</span>
             <textarea
@@ -252,7 +264,7 @@ export default async function ImportSide() {
                     <td>{RAPPORT_ETIKETT[j.rapporttype] ?? j.rapporttype}</td>
                     <td>{gjelder(j)}</td>
                     <td>{tid.format(new Date(j.opprettet_tid))}</td>
-                    <td><span className={`status-pip ${s.klasse}`}>{s.tekst}</span></td>
+                    <td><Status nivaa={nivaaFraKlasse(s.klasse)}>{s.tekst}</Status></td>
                     <td className="resultat">
                       {j.status === 'parset' && j.antall_rader != null
                         ? `${j.antall_rader} linjer`

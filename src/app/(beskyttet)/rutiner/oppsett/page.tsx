@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER, VAKTTYPE_ETIKETT, UKEDAG_NAVN } from '@/lib/rutineskjema'
 import { leggTilSkjema, slettSkjema } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Status } from '@/components/ui/status'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
@@ -85,7 +86,7 @@ export default async function OppsettSide() {
                 {/* Et tomt skjema ser ferdig ut i lista. På vakta er det en
                     blank skjerm, og da lurer man på om nettbrettet er i stykker. */}
                 {(rutinerForSkjema.get(sk.id) ?? []).length === 0 && (
-                  <span className="status-pip gul">Tomt</span>
+                  <Status nivaa="endring">Tomt</Status>
                 )}
                 <span className="skjema-handlinger">
                   <Link href={`/rutiner/oppsett/${sk.id}`} className="liten lenke-knapp">Rediger</Link>

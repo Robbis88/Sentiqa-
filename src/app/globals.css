@@ -2025,3 +2025,21 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 /* Lagre-knappen skal vaere der, men ikke rope. Den staar tjue ganger
    nedover sida. */
 .sq-rutenett-gruppe .sq-knapp.liten { padding: 0.25rem 0.6rem; }
+
+/* --- Bolge 4A -------------------------------------------------------
+   Inline-stiler som gikk igjen paa de tunge arbeidsflytene. */
+.sq-luft-over-liten { margin-top: var(--luft-4); }
+.sq-smal-flate { max-width: 460px; }
+.sq-mellomfelt { max-width: 9rem; }
+/* Topp av en rad: tittel til venstre, tilstand og handling til hoyre. */
+.sq-radtopp {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--luft-2);
+}
+/* Teksten i et sikkerhetsvarsel. Sto som `color: #7c2d12` - en morkerod
+   som ikke fantes i paletten, skrevet rett inn da varselet ble laget.
+   Nyansen finnes: `--rod` er nettopp tekstroden. */
+.sq-varselstekst { color: var(--rod); }

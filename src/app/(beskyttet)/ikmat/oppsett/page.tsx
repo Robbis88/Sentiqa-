@@ -74,9 +74,9 @@ export default async function IkOppsettSide() {
               />
             )}
 
-            <details className="rediger-detalj nytt-skjema" style={{ marginTop: '0.8rem' }}>
+            <details className="rediger-detalj nytt-skjema sq-luft-over-liten">
               <summary>Legg til kontrollpunkt</summary>
-              <form action={leggTilPunkt} className="skjema-rediger" style={{ marginTop: '0.6rem' }}>
+              <form action={leggTilPunkt} className="skjema-rediger sq-luft-over-liten">
                 <input type="hidden" name="stasjon_id" value={s.id} />
                 <label className="felt"><span>Navn på enhet</span><input name="navn" placeholder="f.eks. Kjøleskap baguette" required /></label>
                 <div className="ik-punkt-rad">

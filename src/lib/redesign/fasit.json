@@ -676,7 +676,6 @@
       "Kostnader per konto · hele kjeden",
       "Per stasjon",
       "Påvirkbare kostnader",
-      "{SEKSJON_TITTEL[navn]}",
       "{navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'}"
     ],
     "/rutiner/min": [

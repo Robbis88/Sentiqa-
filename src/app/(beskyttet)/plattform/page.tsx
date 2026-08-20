@@ -5,7 +5,8 @@ import { kr, datoLang } from '@/lib/format'
 import { NyKunde } from './ny-kunde'
 import { BekreftKnapp } from './kunde-handlinger'
 import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePermanent } from './handlinger'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Forklaring, Nokkeltall } from '@/components/ui/side'
+import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
 
 // Plattform-eierens tverr-tenant-oversikt: hvem bruker systemet, omfang og hva
@@ -100,12 +101,22 @@ export default async function PlattformSide() {
         }
       />
 
-      <section className="nokkeltall">
-        <div className="kpi"><span className="kpi-tall">{aktive.length}</span><span className="kpi-merke">Aktive kjeder</span></div>
-        <div className="kpi"><span className="kpi-tall">{sum.stasjoner}</span><span className="kpi-merke">Stasjoner totalt</span></div>
-        <div className="kpi"><span className="kpi-tall">{kr.format(sum.maaned)}</span><span className="kpi-merke">Samlet pr mnd (listepris)</span></div>
-        <div className="kpi"><span className="kpi-tall">{kr.format(sum.aarlig)}</span><span className="kpi-merke">Samlet pr år</span></div>
-      </section>
+      <div className="sq-nokkelrad">
+        {/* FIRE TALL BLE TO PAR. «Stasjoner totalt» og «samlet pr aar»
+            sto som egne tall uten noe aa maales mot; naa er de
+            sammenligningen til det tallet de faktisk hoerer sammen med.
+            Ingen av dem er borte. */}
+        <Nokkeltall
+          merkelapp="Aktive kjeder"
+          verdi={String(aktive.length)}
+          sammenlignet={`${sum.stasjoner} stasjoner til sammen`}
+        />
+        <Nokkeltall
+          merkelapp="Samlet pr måned"
+          verdi={kr.format(sum.maaned)}
+          sammenlignet={`${kr.format(sum.aarlig)} i året · listepris`}
+        />
+      </div>
 
       <section className="kort">
         <h2>Aktive kjeder</h2>
@@ -123,12 +134,16 @@ export default async function PlattformSide() {
                   <td>{r.navn}<br /><span className="undertittel">{r.org_nr ?? '—'}</span></td>
                   <td>
                     <span className="undertittel">{r.adminInfo?.epost ?? '—'}</span><br />
-                    {r.adminInfo ? <span className={`status-pip ${r.adminInfo.aktivert ? 'gronn' : 'gul'}`}>{r.adminInfo.aktivert ? 'aktiv' : 'venter pålogging'}</span> : null}
+                    {r.adminInfo ? (
+                      <Status nivaa={r.adminInfo.aktivert ? 'normal' : 'endring'}>
+                        {r.adminInfo.aktivert ? 'aktiv' : 'venter pålogging'}
+                      </Status>
+                    ) : null}
                   </td>
                   <td>{r.stasjoner}</td>
                   <td>{r.tableter}</td>
                   <td>{r.brukere}</td>
-                  <td className="undertittel">{r.siste ? kortDato(r.siste) : <span className="status-pip gul">ingen</span>}</td>
+                  <td className="undertittel">{r.siste ? kortDato(r.siste) : <Status nivaa="endring">ingen</Status>}</td>
                   <td>{kr.format(r.maaned)}</td>
                   <td>
                     <div className="plattform-handlinger">

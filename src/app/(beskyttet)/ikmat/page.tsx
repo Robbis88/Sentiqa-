@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Status } from '@/components/ui/status'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
@@ -111,8 +112,13 @@ export default async function IkMatSide() {
                             <td>{p.navn}</td>
                             <td className="krav">{kravTekst(p.min_temp, p.max_temp)}</td>
                             <td>
+                              {/* Temperaturen er tallet. Utenfor krav er
+                                  `handling`: noen maa gjore noe, og det staar
+                                  i ordet ved siden av. */}
                               {a ? (
-                                <span className={`status-pip ${a.innenfor ? 'gronn' : 'rod'}`}>{a.temperatur}°C</span>
+                                <Status nivaa={a.innenfor ? 'normal' : 'handling'}>
+                                  {a.temperatur}°C{a.innenfor ? '' : ' · utenfor krav'}
+                                </Status>
                               ) : <span className="undertittel">—</span>}
                             </td>
                             <td>
