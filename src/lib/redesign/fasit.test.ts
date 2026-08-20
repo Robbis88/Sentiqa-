@@ -92,6 +92,20 @@ describe('seksjoner', () => {
       .toEqual(['Per stasjon · ${dato}'])
   })
 
+  test('et rent uttrykk er ikke en overskrift', () => {
+    // `tittel={tittel}` sier ingenting om hva som staar paa skjermen.
+    // Talte vi den, ville vakten voktet et variabelnavn.
+    expect(seksjoner('<Signal tittel={tittel}>')).toEqual([])
+    expect(seksjoner('<Datatabell tittel={g.navn}>')).toEqual([])
+  })
+
+  test('men et uttrykk MED tekst i voktes fortsatt', () => {
+    // Teksten kan endres i stillhet, og da skal vakten si fra - selv om
+    // den staar inne i et kall eller en ternaer.
+    expect(seksjoner("<Tomtilstand tittel={o('Ingen anvisninger')}>"))
+      .toEqual(["o('Ingen anvisninger')"])
+  })
+
   test('nostet uttrykk i malstrengen stopper den ikke', () => {
     // Dette er formen som faktisk star i /svinn. Regexen som lette etter
     // «backtick, ikke-backtick, backtick» fant den ikke i det hele tatt,

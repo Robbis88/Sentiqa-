@@ -276,6 +276,57 @@ where not exists (
 
 
 -- ---------------------------------------------------------------------
+-- PRODUKSJONSSALGET - grunnlaget for /produksjonsplan (pilot C).
+--
+-- LIGGER I JANUAR MED VILJE, altsaa UTENFOR svinnvinduet
+-- (2026-02-16..2026-03-17). Bakevarer hoerer hjemme i avdeling 120, den
+-- samme naevneren svinn% deles paa - laa de i vinduet, ville
+-- produksjonsfixturen flyttet svinnprosentene i pilot B, og to fixturer
+-- som drar i hverandre er verre enn ingen. Datoene holder dem fra
+-- hverandre; ingen av dem trengte aa bli mindre ekte for det.
+--
+-- SLIK REGNER MOTOREN (src/lib/produksjonsplan.ts):
+--   maaldag 2026-02-02 er en MANDAG. Siste salgsdag er 2026-02-01, saa
+--   «nylig»-vinduet er 2026-01-05..2026-02-01 - 28 dager med nøyaktig
+--   fire mandager. Fire er over grensa paa to, saa basis blir snittet av
+--   MANDAGENE, ikke av alle dager.
+--
+--   Ingen fjoraarsdata finnes (fjorbasen er 2025-02-03), saa hvert
+--   produkt faar flagget «ny» og basis fra nylig salg. Uten vaervarsel er
+--   vaerfaktoren 1, uten fjoraar er trendfaktoren 1, og uten arrangement
+--   er den faktoren 1. Forslaget blir da nøyaktig snittet:
+--
+--     Grovbaguette      20/dag  ->  20
+--     Rundstykke grovt  12/dag  ->  12
+--     Polse i lompe      8/dag  ->   8
+--
+--   1201 BAKEVARER = 32 stk, 1216 VARMMAT = 8 stk, i alt 40.
+--
+-- Konstant antall per dag er ikke latskap: da er snittet det samme
+-- uansett hvilke fire mandager motoren plukker, og testen kan ikke bli
+-- flaky paa en grense i vinduet.
+-- ---------------------------------------------------------------------
+insert into public.daglig_salg (
+  retailer_id, stasjon_id, dato, ean, varenavn,
+  avdeling_kode, avdeling_navn, varegruppe_kode, varegruppe_navn,
+  antall, omsetning_eks_mva, bto_fortjeneste_kr
+)
+select
+  '11111111-1111-4111-8111-222222222222'::uuid,
+  '44444444-4444-4444-8444-111111111111'::uuid,
+  g.d::date, v.ean, v.varenavn,
+  '120', 'MAT', v.vg_kode, v.vg_navn,
+  v.antall, v.antall * 25, v.antall * 10
+from (values
+  ('7091000000011', 'Grovbaguette',     '1201', 'BAKEVARER', 20::numeric),
+  ('7091000000012', 'Rundstykke grovt', '1201', 'BAKEVARER', 12::numeric),
+  ('7091000000021', 'Polse i lompe',    '1216', 'VARMMAT',    8::numeric)
+) as v(ean, varenavn, vg_kode, vg_navn, antall)
+cross join generate_series(date '2026-01-05', date '2026-02-01', interval '1 day') as g(d)
+on conflict (retailer_id, stasjon_id, dato, ean) do nothing;
+
+
+-- ---------------------------------------------------------------------
 -- HISTORIKKEN - fire like tirsdager, og hvorfor det er akkurat fire.
 --
 -- `motNormalen` krever MIN_GRUNNLAG = 4 dager med samme ukedag for den

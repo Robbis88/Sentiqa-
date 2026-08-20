@@ -2,6 +2,9 @@
 import { useState, useTransition } from 'react'
 import { tall } from '@/lib/format'
 import { setLinje, setNotat, publiser } from './handlinger'
+import { Nokkeltall } from '@/components/ui/side'
+import { Knapp } from '@/components/ui/knapp'
+import { Status } from '@/components/ui/status'
 
 export type Produkt = {
   varenavn: string
@@ -66,7 +69,7 @@ export function PlanTabell({
   function publiserNa() {
     overgang(async () => {
       const r = await publiser(stasjonId, dato)
-      setPublisert(r.ok); setMelding(r.ok ? 'Publisert til tableten ✓' : 'Kunne ikke publisere')
+      setPublisert(r.ok); setMelding(r.ok ? 'Publisert ✓' : 'Kunne ikke publisere')
     })
   }
 
@@ -77,11 +80,28 @@ export function PlanTabell({
 
   return (
     <>
-      <section className="nokkeltall">
-        <div className="kpi"><span className="kpi-tall">{tall.format(total)} <small>stk</small></span><span className="kpi-merke">Planlagt</span></div>
-        <div className="kpi"><span className="kpi-tall">{tall.format(totalStart)} <small>stk</small></span><span className="kpi-merke">Klart til morgenskift</span></div>
-        <div className="kpi"><span className="kpi-tall">{tall.format(totalForeslatt)} <small>stk</small></span><span className="kpi-merke">AI-forslag</span></div>
-      </section>
+      {/* TO TALL, IKKE TRE. «AI-forslag» stod som et eget nokkeltall ved
+          siden av «Planlagt», og den eneste jobben det hadde var aa vaere
+          noe aa sammenligne med. Naa ER det sammenligningen - tallet er
+          fortsatt der, men det staar der det betyr noe.
+
+          INGEN DOM. `bra` er ikke satt paa noen av dem: aa planlegge over
+          eller under forslaget er ikke bra eller daarlig, det er
+          butikksjefens vurdering. Farge her ville vaert systemet som
+          mener noe det ikke har grunnlag for. */}
+      <div className="sq-nokkelrad">
+        <Nokkeltall
+          merkelapp="Planlagt"
+          verdi={`${tall.format(total)} stk`}
+          sammenlignet={`mot forslagets ${tall.format(totalForeslatt)}`}
+          retning={total > totalForeslatt ? 'opp' : total < totalForeslatt ? 'ned' : 'flat'}
+        />
+        <Nokkeltall
+          merkelapp="Klart til morgenskift"
+          verdi={`${tall.format(totalStart)} stk`}
+          sammenlignet={`av ${tall.format(total)} planlagt`}
+        />
+      </div>
 
       {grupper.map((g) => {
         const sum = g.produkter.filter(aktive).reduce((b, p) => b + (planlagt[p.varenavn] ?? 0), 0)
@@ -130,16 +150,34 @@ export function PlanTabell({
         )
       })}
 
+      {/* NIVAA 2: neste steg.
+          Knappen stod naken her - uten variant, blant fem andre knapper
+          som saa likere ut enn de var. Nettbrettet ser ingenting for den
+          er trykket, saa dette ER handlingen sida sikter mot, og den
+          eneste som skal se sann ut.
+
+          NOTATET HADDE INGEN ETIKETT. Overskriften over sa hva feltet
+          var, men den var en <h2> - ikke knyttet til feltet, og dermed
+          usynlig for en skjermleser som staar i det. Plassholderen
+          forsvinner idet man begynner aa skrive. */}
       <section className="kort">
-        <h2>📝 Notat til de ansatte</h2>
-        <textarea
-          className="pp-notat" rows={2} value={notat} placeholder="F.eks. «Ekstra fokus på baguetter til lunsj»"
-          onChange={(e) => setNotatTekst(e.target.value)}
-          onBlur={() => overgang(() => { void setNotat(stasjonId, dato, notat) })}
-        />
+        <h2>Notat til de ansatte</h2>
+        <label className="felt" htmlFor="pp-notat">
+          <span className="sq-skjult">Notat til de ansatte</span>
+          <textarea
+            id="pp-notat"
+            className="pp-notat" rows={2} value={notat} placeholder="F.eks. «Ekstra fokus på baguetter til lunsj»"
+            onChange={(e) => setNotatTekst(e.target.value)}
+            onBlur={() => overgang(() => { void setNotat(stasjonId, dato, notat) })}
+          />
+        </label>
         <div className="pp-publiser">
-          <button type="button" onClick={publiserNa}>{publisert ? 'Publiser på nytt' : 'Publiser til tableten'}</button>
-          {publisert && <span className="ok">Publisert — synlig på tableten</span>}
+          <Knapp variant="primar" onClick={publiserNa}>
+            {publisert ? 'Publiser på nytt' : 'Publiser til nettbrettet'}
+          </Knapp>
+          <Status nivaa={publisert ? 'normal' : 'handling'}>
+            {publisert ? 'Synlig på nettbrettet' : 'Ikke publisert ennå'}
+          </Status>
           {melding && <span className="generer-melding">{melding}</span>}
         </div>
       </section>

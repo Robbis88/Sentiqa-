@@ -10,6 +10,34 @@ import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Signal } from '@/components/ui/status'
+import { Felt, Velg } from '@/components/ui/felt'
+import { Knapp } from '@/components/ui/knapp'
+
+// =====================================================================
+// Pilot C: arbeidsflytmonsteret paa primitivene.
+//
+// Tredje monster, tredje pilot. Liste (A) og analyse (B) er gjort; dette
+// er sida monsterkartet selv bruker som eksempel paa fella - «viser
+// beregningen for anbefalingen».
+//
+// NIVAA 1 OG 4 VAR ALLEREDE PAA PLASS fra redesignrunden: svaret staar i
+// sidehodet (publisert eller utkast), og metoden ligger i Forklaring
+// nederst. Det som stod igjen er nivaa 2 og 3:
+//
+//   NIVAA 2 - neste steg. «Publiser til tableten» laa som en NAKEN
+//   <button> nederst paa sida, etter alle varegruppene, ved siden av et
+//   notatfelt uten etikett. Handlingen hele sida sikter mot var den
+//   eneste knappen uten variant.
+//
+//   NIVAA 3 - hva systemet foreslaar, og hvorfor. Advarslene laa som en
+//   punktliste i et kort. De er signaler, og det finnes et primitiv for
+//   signaler.
+//
+// SPORRINGENE OG MOTOREN ER URORT, som i pilot A og B. `lagProduksjonsplan`,
+// kalibreringen, vaerkoeffisientene og alle tre serverhandlingene er ikke
+// tatt i.
+// =====================================================================
 
 // Paginert henting av et helt års salg kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -195,27 +223,34 @@ export default async function ProduksjonsplanSide({
         handlinger={<Link href="/produksjonsplan/treffsikkerhet" className="sq-knapp">Treffsikkerhet</Link>}
       />
 
-      <section className="kort">
-        <form method="get" className="plan-velg">
-          <label className="felt">
-            <span>Stasjon</span>
-            <select name="butikknummer" defaultValue={valgtNr}>
-              {(stasjoner ?? []).map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
-            </select>
-          </label>
-          <label className="felt">
-            <span>Dag</span>
-            <input type="date" name="dato" defaultValue={dato} />
-          </label>
-          <button type="submit" className="sq-knapp">Vis plan</button>
-        </form>
-      </section>
+      {/* De to sporsmaalene sida maa ha svar paa for den kan si noe.
+          Samme rad, samme rekkefolge, med etiketter som staar igjen naar
+          feltet er fylt ut. */}
+      <form method="get" className="sq-listetopp">
+        <Velg etikett="Stasjon" name="butikknummer" defaultValue={valgtNr}>
+          {(stasjoner ?? []).map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
+        </Velg>
+        <Felt etikett="Dag" name="dato" type="date" defaultValue={dato} />
+        <Knapp type="submit">Vis plan</Knapp>
+      </form>
 
-      {advarsler.length > 0 && (
-        <section className="kort oppmerksomhet">
-          <ul className="fokus-liste">{advarsler.map((a, i) => <li key={i}>{a}</li>)}</ul>
-        </section>
-      )}
+      {/* NIVAA 3: hva systemet foreslaar, og hvorfor det ser slik ut.
+          Motoren returnerer en FLAT liste - den rangerer dem ikke, og
+          gjor de ikke det, skal ikke visningen finne paa en rangering
+          heller. Alle staar derfor som `informasjon`. Skulle en av dem
+          faktisk vaere viktigere enn de andre, hoerer den forskjellen
+          hjemme i motoren, der den kan begrunnes.
+
+          Delingen paa tankestreken er ren presentasjon: motoren skriver
+          «tilstand — konsekvens», og Signal har plass til begge deler. */}
+      {advarsler.map((a, i) => {
+        const [tittel, ...resten] = a.split(' \u2014 ')
+        return (
+          <Signal key={i} nivaa="informasjon" tittel={tittel}>
+            {resten.length > 0 ? resten.join(' \u2014 ') : undefined}
+          </Signal>
+        )
+      })}
 
       {grupper.length === 0 ? (
         <Tomtilstand

@@ -137,7 +137,20 @@ export function seksjoner(kilde: string): string[] {
       if (kilde[i] === '{') dybde++
       else if (kilde[i] === '}' && --dybde === 0) break
     }
-    ut.push(kilde.slice(start, i).trim().replace(/^`|`$/g, ''))
+    const raa = kilde.slice(start, i).trim()
+    // DET MAA FINNES TEKST I DET. `tittel={tittel}` er en variabel, og
+    // uten denne linja la vakten ordet «tittel» inn i seksjonslista som
+    // om det stod paa skjermen. Pilot C skrev nettopp den formen.
+    //
+    // Kravet er at det finnes en streng et sted i uttrykket - ikke at
+    // uttrykket ER en streng. `o('Ingen anvisninger ennaa')` og
+    // `erAdmin ? 'A' : 'B'` har begge tekst som kan endres i stillhet,
+    // og de skal fortsatt voktes. `g.navn` har ingen.
+    if (!/['"`]/.test(raa)) continue
+    // Bare backtickene strippes. Fnuttene inni et uttrykk er en del av
+    // uttrykket - tar man dem, endrer teksten seg, og fasiten melder et
+    // tap som ikke fant sted.
+    ut.push(raa.replace(/^`|`$/g, ''))
   }
   return ut
     .map((t) => t.replace(/\s+/g, ' ').trim())
