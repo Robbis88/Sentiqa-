@@ -5,9 +5,11 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang, iDag } from '@/lib/format'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import {
-  avdelingsSignaler, ferskhet, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
+  avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
+import { Sidehode } from '@/components/ui/side'
+import { Ferskhetsstatus } from './ferskhet-status'
 import { Oppmerksomhet } from './oppmerksomhet'
 import { Maal } from './sq-maal'
 
@@ -252,25 +254,26 @@ export async function ButikksjefDashbord(
 
   return (
     <div className="sq">
-      {/* 1 · Kontekst og ferskhet */}
-      <header className="sq-hode">
-        <p className="sq-hils">{hils}, {fornavn}</p>
-        <h1>{d.stasjonsnavn}</h1>
-        <div className="sq-ferskhet">
-          <span className="sq-merkelapp">{datoLang.format(new Date(`${idag}T12:00:00Z`))}</span>
-          {d.sisteDato && (() => {
-            const f = ferskhet(d.sisteDato, idag)
-            return (
-              <span className={`sq-merkelapp sq-pip ${f.nivaa}`}>
-                Siste salgsdag {datoLang.format(new Date(`${d.sisteDato}T12:00:00Z`))}
-                {f.tekst ? ` · ${f.tekst}` : ''}
-              </span>
-            )
-          })()}
-        </div>
-      </header>
+      {/* 1 · Kontekst og ferskhet.
+          Ferskheten er en TILSTAND ved dataene, ikke en merkelapp: er
+          importen stoppet, er alt annet paa sida gammelt, og det maa
+          kunne leses uten aa kjenne fargen paa en pille. `ferskhet()`
+          er urort - bare framvisningen har byttet sprak. */}
+      <Sidehode
+        tittel={d.stasjonsnavn}
+        undertittel={`${hils}, ${fornavn} · ${datoLang.format(new Date(`${idag}T12:00:00Z`))}`}
+        handlinger={d.sisteDato ? <Ferskhetsstatus dato={d.sisteDato} idag={idag} /> : undefined}
+      />
 
-      {/* 2 · Puls — resultater til og med siste salgsdag */}
+      {/* 2 · DET SOM KREVER NOE AV HENNE.
+          Sto tidligere UNDER pulsen, altsaa under to omsetningstall.
+          Sporsmaalet hun kommer med er «hva maa jeg gjore i dag», ikke
+          «hvordan gikk forrige uke» - og et tall hun ikke kan handle
+          paa i dag skal ikke staa foran en sak hun kan. */}
+      <Oppmerksomhet signaler={signaler} />
+
+      {/* 3 · Puls — resultater til og med siste salgsdag. Forklaringen,
+          ikke oppdraget: her ser hun HVORFOR bildet ser ut som det gjor. */}
       {r && vekst != null ? (
         <section className="sq-puls">
           <div>
@@ -309,9 +312,6 @@ export async function ButikksjefDashbord(
           </div>
         </section>
       )}
-
-      {/* 3 · Oppmerksomhet */}
-      <Oppmerksomhet signaler={signaler} />
 
       {/* 4 · I dag og fremover — holdt fra resultatene over */}
       <div className="sq-to">

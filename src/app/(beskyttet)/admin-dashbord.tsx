@@ -4,10 +4,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, manedAar, datoLang } from '@/lib/format'
 import {
-  ferskhet, klyngebilde, pulsOverskrift, rangerSignaler,
-  type RaaSignal, type Signal,
+  klyngebilde, pulsOverskrift, rangerSignaler,
+  // Aliaset fordi `Signal` ogsaa er navnet paa primitiven som tegner ETT
+  // budskap. Typen her er et RANGERT funn - to ulike ting med samme ord.
+  type RaaSignal, type Signal as RangertSignal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
+import { Nokkeltall, Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Signal, Status } from '@/components/ui/status'
+import { Ferskhetsstatus } from './ferskhet-status'
 import { Oppmerksomhet } from './oppmerksomhet'
 import { Maal } from './sq-maal'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
@@ -21,6 +27,11 @@ import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 
 const KRITISK = new Set(['uhell', 'krenkelse'])
 
+// Samme tolv prosentpoeng som `klyngebilde()` bruker for aa avgjore om en
+// stasjon i det hele tatt blir en sak (STASJON_AVVIK_PP i signaler.ts).
+// Sto tidligere som to naakne 12-tall midt i JSX-en.
+const STASJONSAVVIK = 12
+
 function minus30(iso: string): string {
   const d = new Date(`${iso}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() - 30)
@@ -29,7 +40,14 @@ function minus30(iso: string): string {
 
 type Oppgave = { id: string; stasjon_id: string; tittel: string; frist: string | null; status: string; fullfort_tid: string | null }
 type Tilbake = { id: string; stasjon: string; alvorlighet: string; tekst: string; kritisk: boolean }
-type Kpi = { merke: string; verdi: string; avvik: number | null }
+/**
+ * Ett regnskapstall mot budsjett.
+ *
+ * `overErBra` er ikke pynt. Omsetning over budsjett er bra;
+ * PERSONALKOSTNAD over budsjett er det motsatte, og sto likevel med
+ * groenn pil opp. Retningen og dommen maa kunne peke hver sin vei.
+ */
+type Kpi = { merke: string; verdi: string; avvik: number | null; overErBra: boolean }
 type Konk = { id: string; navn: string; premie_kr: number | null; periode_slutt: string }
 type FPunkt = { tittel: string | null; tekst: string }
 type FokusGruppe = { id: string; navn: string; forbedring: FPunkt[]; positivt: FPunkt[] }
@@ -160,11 +178,14 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     const resEx = finnC('resultat', /ex 9900/i)
     const persEx = finnC('driftskostnader', /personalkostnad ex 9900/i)
     const kpiStrip: Kpi[] = []
-    if (omsT) kpiStrip.push({ merke: '💰 Omsetning', verdi: kr.format(omsT.regnskap ?? 0), avvik: avvikP(omsT) })
-    if (bruttoT) kpiStrip.push({ merke: '📈 Bruttofortjeneste', verdi: kr.format(bruttoT.regnskap ?? 0), avvik: avvikP(bruttoT) })
-    if (resEx) kpiStrip.push({ merke: '💵 Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx) })
-    // Lønn mot LØNNSBUDSJETT (ikke mot omsetning).
-    if (persEx) kpiStrip.push({ merke: '👥 Lønn vs budsjett', verdi: kr.format(persEx.regnskap ?? 0), avvik: avvikP(persEx) })
+    // Emojiene som sto her ble strippet igjen ved utskrift
+    // (`merke.replace(/^[^\p{L}]+/u, '')`) - de var altsaa aldri synlige,
+    // bare baaret rundt.
+    if (omsT) kpiStrip.push({ merke: 'Omsetning', verdi: kr.format(omsT.regnskap ?? 0), avvik: avvikP(omsT), overErBra: true })
+    if (bruttoT) kpiStrip.push({ merke: 'Bruttofortjeneste', verdi: kr.format(bruttoT.regnskap ?? 0), avvik: avvikP(bruttoT), overErBra: true })
+    if (resEx) kpiStrip.push({ merke: 'Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx), overErBra: true })
+    // Lønn mot LØNNSBUDSJETT (ikke mot omsetning). Over budsjett er daarlig.
+    if (persEx) kpiStrip.push({ merke: 'Lønn vs budsjett', verdi: kr.format(persEx.regnskap ?? 0), avvik: avvikP(persEx), overErBra: false })
 
     // Driftsstatus per stasjon (grønn/gul/rød) fra varsel-motoren — samme
     // «alt som ikke er bra»-logikk som /regnskap. Mest kritiske øverst.
@@ -194,7 +215,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
 // trenger meg?». Eieren kan ikke spørre det fem ganger — da blir det fem
 // dashbord. Eieren må spørre «er dette stasjonen eller er det markedet?»,
 // og bare det første er noe en butikksjef kan gjøre noe med.
-function byggSignaler(d: DashData, idag: string, klynge: ReturnType<typeof klyngebilde>, ekstra: RaaSignal[] = []): Signal[] {
+function byggSignaler(d: DashData, idag: string, klynge: ReturnType<typeof klyngebilde>, ekstra: RaaSignal[] = []): RangertSignal[] {
   const raa: RaaSignal[] = [...klynge.signaler, ...ekstra]
 
   for (const t of d.tilbake) {
@@ -274,36 +295,92 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
     <div className="sq">
       {/* 1 · Kontekst. To ulike ferskheter: salg er dagen etter, regnskap er
           måneden etter. De skal aldri blandes. */}
-      <header className="sq-hode">
-        <p className="sq-hils">{hils}, {fornavn}</p>
-        <h1>{d.stasjonsListe.length} stasjoner</h1>
-        <div className="sq-ferskhet">
-          <span className="sq-merkelapp">{datoLang.format(new Date(`${idag}T12:00:00Z`))}</span>
-          {d.ukerapporter.length > 0 && (
-            <span className="sq-merkelapp sq-pip">Salg: forrige hele uke</span>
-          )}
-          {d.sisteSalg && (() => {
-            const f = ferskhet(d.sisteSalg.dato, idag)
-            return (
-              <span className={`sq-merkelapp sq-pip ${f.nivaa}`}>
-                Siste salgsdag {datoLang.format(new Date(`${d.sisteSalg.dato}T12:00:00Z`))}
-                {f.tekst ? ` · ${f.tekst}` : ''}
-              </span>
-            )
-          })()}
-          {d.sistePeriode && (
-            <span className="sq-merkelapp">Regnskap: {manedAar.format(new Date(d.sistePeriode))}</span>
-          )}
-        </div>
-      </header>
+      <Sidehode
+        tittel={`${d.stasjonsListe.length} stasjoner`}
+        undertittel={`${hils}, ${fornavn} · ${datoLang.format(new Date(`${idag}T12:00:00Z`))}`}
+        handlinger={(
+          <div className="sq-ferskhet">
+            {d.sisteSalg && <Ferskhetsstatus dato={d.sisteSalg.dato} idag={idag} />}
+            {d.sistePeriode && (
+              <Status>Regnskap {manedAar.format(new Date(d.sistePeriode))}</Status>
+            )}
+          </div>
+        )}
+      />
 
+      {/* EN SIDE SOM IKKE KUNNE LASTES ER IKKE ET KORT MED ROED KANT.
+          Den sto som `kort oppmerksomhet` - alvoret laa i en kantfarge,
+          og teksten begynte med «Kunne ikke». Naa er det et kritisk
+          signal, som alt annet systemet ikke klarer aa svare paa. */}
       {d.feil && (
-        <section className="kort oppmerksomhet">
-          <p className="feil">Kunne ikke laste full oversikt. Teknisk: {d.feil}</p>
+        <Signal nivaa="kritisk" tittel="Oversikten er ikke komplett">
+          Noen av tallene under kunne ikke hentes, saa bildet kan mangle stasjoner
+          eller saker. Teknisk: {d.feil}
+        </Signal>
+      )}
+
+      {/* 2 · HVOR I PORTEFOLJEN SKAL BLIKKET.
+          Sto tidligere under pulsen. Eieren kan ikke spore «hva trenger
+          meg» fem ganger - han maa vite hvilken av stasjonene som ikke
+          foelger de andre, og det svaret ligger her, ikke i to
+          omsetningstall. Markedet er allerede skilt fra stasjonene av
+          `klyngebilde()`. */}
+      <Oppmerksomhet signaler={signaler} />
+
+      {/* 4 · HVILKEN STASJON. Rangert etter AVVIK, ikke etter storrelse:
+          at Dale er storre enn Bones hver maaned er ingen nyhet.
+
+          Avviket sto som en farget pille med et tall i - «−14 pp» i
+          roedt. Tallet er presist, men det sier ikke om det er bra
+          eller daarlig uten at man kjenner fargekoden. Naa staar dommen
+          i ord ved siden av. Grensene er de samme tolv prosentpoengene
+          som for, og de samme som `klyngebilde()` bruker. */}
+      {klynge.rader.length > 0 && (
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Stasjonene mot hverandre</h2>
+            <span className="sq-merkelapp">Avvik fra de øvrige · svakest først</span>
+          </div>
+          <Liste>
+            {klynge.rader.map((r) => {
+              // Fortegn velges paa det AVRUNDEDE tallet, ellers blir
+              // -0,4 til "-0 pp".
+              const pp = Math.round(r.avvikPp)
+              const dom = r.avvikPp < -STASJONSAVVIK
+                ? { nivaa: 'kritisk' as const, ord: 'Henger etter' }
+                : r.avvikPp > STASJONSAVVIK
+                  ? { nivaa: 'normal' as const, ord: 'Foran de andre' }
+                  : { nivaa: 'endring' as const, ord: 'På linje' }
+              return (
+                <Rad
+                  key={r.stasjonId}
+                  primaer={r.navn}
+                  sekundaer={`${pp >= 0 ? '+' : '−'}${Math.abs(pp)} prosentpoeng mot de øvrige`}
+                  status={<Status nivaa={dom.nivaa}>{dom.ord}</Status>}
+                  metadata={`${r.vekstPst >= 0 ? '+' : '−'}${Math.abs(r.vekstPst).toFixed(0)} % mot i fjor`}
+                />
+              )
+            })}
+          </Liste>
         </section>
       )}
 
-      {/* 2 · Puls for klyngen */}
+      {/* 5 · Hvordan ligger vi an NÅ — ikke forrige uke, ikke forrige måned.
+          Systemet har hatt begge tallene hele tiden uten å sette dem sammen. */}
+      {(budsjett ?? []).length > 0 && (
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Mot budsjett denne måneden</h2>
+          </div>
+          <Budsjettstatus rader={budsjett ?? []} />
+        </section>
+      )}
+
+      {/* 6 · Pulsen kommer ETTER stasjonene naa.
+          To omsetningstall for klyngen samlet er forstaaelse, ikke
+          oppdrag: de forteller hvordan det gikk, ikke hvor han skal se.
+          Sto de over lista, var det forste oyet moette et tall han ikke
+          kan gjore noe med i dag. */}
       {klynge.omsetningIfjor > 0 && (
         <section className="sq-puls">
           <div>
@@ -323,47 +400,7 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         </section>
       )}
 
-      {/* 3 · Oppmerksomhet — markedet skilt fra stasjonene */}
-      <Oppmerksomhet signaler={signaler} />
-
-      {/* 4 · Stasjonene rangert etter AVVIK, ikke etter størrelse. At Dale er
-          større enn Bønes hver måned er ingen nyhet. */}
-      {/* Hvordan ligger vi an NÅ — ikke forrige uke, ikke forrige måned.
-          Systemet har hatt begge tallene hele tiden uten å sette dem sammen. */}
-      {(budsjett ?? []).length > 0 && (
-        <section className="sq-seksjon">
-          <div className="sq-seksjon-hode">
-            <h2>Mot budsjett denne måneden</h2>
-          </div>
-          <Budsjettstatus rader={budsjett ?? []} />
-        </section>
-      )}
-
-      {klynge.rader.length > 0 && (
-        <section className="sq-seksjon">
-          <div className="sq-seksjon-hode">
-            <h2>Stasjonene mot hverandre</h2>
-            <span className="sq-merkelapp">Avvik fra de øvrige · svakest først</span>
-          </div>
-          <ul className="sq-liste">
-            {klynge.rader.map((r) => (
-              <li key={r.stasjonId}>
-                {/* Fortegn velges paa det AVRUNDEDE tallet, ellers blir
-                    -0,4 til "-0 pp". */}
-                <span className={`status-pip ${r.avvikPp < -12 ? 'rod' : r.avvikPp > 12 ? 'gronn' : 'gul'}`}>
-                  {Math.round(r.avvikPp) >= 0 ? '+' : '−'}{Math.abs(Math.round(r.avvikPp))} pp
-                </span>
-                <span>{r.navn}</span>
-                <span className="sq-h">
-                  {r.vekstPst >= 0 ? '+' : '−'}{Math.abs(r.vekstPst).toFixed(0)} %
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* 5 · Regnskap — egen tidslinje, tydelig merket */}
+      {/* 7 · Regnskap — egen tidslinje, tydelig merket */}
       {d.kpiStrip.length > 0 && (
         <section className="sq-seksjon">
           <div className="sq-seksjon-hode">
@@ -372,20 +409,18 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
               {d.sistePeriode ? manedAar.format(new Date(d.sistePeriode)) : ''} · se alt →
             </Link>
           </div>
-          <div className="sq-regnskap">
+          <div className="sq-tallrad">
             {d.kpiStrip.map((k) => (
-              <div className="sq-maal" key={k.merke}>
-                <span className="sq-merkelapp">{k.merke.replace(/^[^\p{L}]+/u, '')}</span>
-                <span className="sq-verdi">{k.verdi}</span>
-                {k.avvik != null && (
-                  <span className="sq-under">
-                    <span className={`sq-delta ${k.avvik >= 0 ? 'opp' : 'ned'}`}>
-                      {k.avvik >= 0 ? '+' : '−'}{Math.abs(k.avvik).toFixed(0)} %
-                    </span>
-                    <span className="sq-merkelapp">mot budsjett</span>
-                  </span>
-                )}
-              </div>
+              <Nokkeltall
+                key={k.merke}
+                merkelapp={k.merke}
+                verdi={k.verdi}
+                sammenlignet={k.avvik == null ? undefined
+                  : `${k.avvik >= 0 ? '+' : '−'}${Math.abs(k.avvik).toFixed(0)} % mot budsjett`}
+                retning={k.avvik == null ? 'flat' : k.avvik >= 0 ? 'opp' : 'ned'}
+                bra={k.avvik == null ? undefined
+                  : k.overErBra ? k.avvik >= 0 : k.avvik <= 0}
+              />
             ))}
           </div>
         </section>
@@ -394,34 +429,35 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
       <AiKort />
 
       {d.ukerapporter.length > 0 ? (
-        <Sammenleggbar tittel="Forrige uke per stasjon" ikon="📅">
+        <Sammenleggbar tittel="Forrige uke per stasjon">
           <div className="uke-stabel">{d.ukerapporter.map((r) => <UkeKort key={r.stasjonId} rapport={r} />)}</div>
         </Sammenleggbar>
       ) : (
-        <section className="kort">
-          <h2>📅 Forrige uke per stasjon</h2>
-          <p className="undertittel">
-            Ukerapporten («forrige uke vs i fjor») dukker opp automatisk når det finnes <strong>daglige salgsdata</strong> for
-            en komplett uke (man–søn). Det krever salgsstatistikken — det månedlige regnskapet inneholder ikke dag-for-dag-tall.
-            Last den opp under <Link href="/import">Import</Link>.
-          </p>
-          <p className="undertittel" style={{ marginTop: '0.5rem' }}>
-            {d.sisteSalg
-              ? `Siste daglige salgsdag i systemet: ${d.sisteSalg.dato}. Mangler du en komplett man–søn-uke (eller fjorårsuka), kommer rapporten først når den er på plass.`
-              : '⚠️ Ingen daglige salgsdata er lastet opp ennå — derfor er rapporten tom.'}
-          </p>
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Forrige uke per stasjon</h2>
+          </div>
+          <Tomtilstand
+            tittel="Ingen komplett uke å sammenligne ennå"
+            forklaring={`Ukerapporten krever daglige salgsdata for en hel uke (man–søn), og samme uke i fjor. Det månedlige regnskapet har ikke dag-for-dag-tall. ${
+              d.sisteSalg
+                ? `Siste daglige salgsdag i systemet er ${d.sisteSalg.dato}.`
+                : 'Ingen daglige salgsdata er lastet opp ennå.'
+            }`}
+            handling={<Link href="/import" className="sq-knapp">Gå til Import</Link>}
+          />
         </section>
       )}
 
       {d.rangRader.length > 0 && (
-        <Sammenleggbar tittel="Stasjonsrangering" ikon="📊" apen={false}>
+        <Sammenleggbar tittel="Stasjonsrangering" apen={false}>
           <Stasjonsrangering rader={d.rangRader} avdelinger={d.avdListe} />
-          {d.sistePeriode && <p className="undertittel" style={{ marginTop: '0.6rem' }}>{manedAar.format(new Date(d.sistePeriode))} · fra regnskapet</p>}
+          {d.sistePeriode && <p className="undertittel sq-luft-over-liten">{manedAar.format(new Date(d.sistePeriode))} · fra regnskapet</p>}
         </Sammenleggbar>
       )}
 
       {d.fokusGrupper.length > 0 && (
-        <Sammenleggbar tittel="Fokuspunkter per stasjon" ikon="🎯" apen={false}>
+        <Sammenleggbar tittel="Fokuspunkter per stasjon" apen={false}>
           {d.fokusGrupper.map((g) => (
             <div className="fokus-stasjon" key={g.id}>
               <h3>{g.navn}</h3>
@@ -441,9 +477,15 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         </Sammenleggbar>
       )}
 
+      {/* KONKURRANSEN ER ET OBJEKT - én ting med navn, premie og frist -
+          og beholder derfor kortet sitt. Oppgavetallene er tre tall, og
+          et tall hoerer hjemme i Nokkeltall. Forsinkede sto med roedt
+          tall her; den saken staar allerede oeverst i lista naar den
+          finnes, og to roede steder for samme sak laerer folk at roedt
+          ikke betyr noe. */}
       <div className="dash-grid">
         <section className="kort">
-          <h2>🏆 Månedens konkurranse</h2>
+          <h2>Månedens konkurranse</h2>
           {d.aktivKonk ? (
             <div className="konk-boks">
               <strong>{d.aktivKonk.navn}</strong>
@@ -457,14 +499,16 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
           )}
         </section>
 
-        <section className="kort">
-          <h2>✅ Oppgaver</h2>
-          <div className="oppg-tall">
-            <div><span className="oppg-stor">{d.aapne.length}</span><span className="oppg-merke">Aktive</span></div>
-            <div><span className="oppg-stor rod">{d.forsinkede.length}</span><span className="oppg-merke">Forsinkede</span></div>
-            <div><span className="oppg-stor gronn">{d.fullfort30}</span><span className="oppg-merke">Fullført 30 d</span></div>
+        <section className="sq-seksjon">
+          <div className="sq-seksjon-hode">
+            <h2>Oppgaver</h2>
+            <Link href="/oppgaver" className="sq-merkelapp">Se alle →</Link>
           </div>
-          <p className="undertittel"><Link href="/oppgaver">Se alle →</Link></p>
+          <div className="sq-tallrad">
+            <Nokkeltall merkelapp="Aktive" verdi={String(d.aapne.length)} />
+            <Nokkeltall merkelapp="Over frist" verdi={String(d.forsinkede.length)} />
+            <Nokkeltall merkelapp="Fullført siste 30 dager" verdi={String(d.fullfort30)} />
+          </div>
         </section>
       </div>
 

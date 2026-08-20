@@ -557,3 +557,84 @@ where not exists (
   where retailer_id = '11111111-1111-4111-8111-222222222222'
     and dato < date '2026-02-16'
 );
+
+
+-- =====================================================================
+-- SIGNALER PAA FORSIDEN (bolge 4B.2).
+--
+-- HVORFOR DETTE MAA SEEDES: /oversikt er den eneste sida der innholdet
+-- ER rangeringen. Uten funn moeter testene «Ingenting trenger
+-- oppmerksomhet» - en gyldig og viktig tilstand, men den beviser
+-- ingenting om rekkefolgen. Og rekkefolgen er hele produktet her.
+--
+-- ALLE RADENE GAAR GJENNOM DEN EKSISTERENDE MOTOREN. Ingen terskel er
+-- rort, ingen `niva` er skrevet inn i basen - nivaaet regnes av
+-- signaler.ts, og poengsummen av `poengFor`. Regnestykket, med tallene
+-- fra GRUNNPOENG + min(200, dager*25):
+--
+--   Melding om krenkelse    kritisk  1000 + 0   = 1000
+--   1 oppgave over frist    folg      300 + 200 =  500
+--   Bemanningen er innenfor info       50 + 0   =   50
+--
+-- Rekkefolgen er derfor gitt av motoren, ikke av innsettingsrekkefolgen
+-- her - og et bevis paa forsiden kan sammenligne mot den.
+--
+-- TESTKJEDEN ROERES IKKE. Den er tom med vilje (se over): sju ruter
+-- testes i tom tilstand, og butikksjefen der er ogsaa den eneste som
+-- kan bevise at «ingenting trenger oppmerksomhet» faktisk vises.
+-- =====================================================================
+
+-- Krenkelse: den ene tingen som alltid skal staa forst. Butikksjefen ser
+-- den som «Melding om krenkelse», eieren som stasjonens navn.
+insert into public.tilbakemelding (id, retailer_id, stasjon_id, alvorlighet, tekst, opprettet_tid)
+values
+  ('55555555-5555-4555-8555-000000000001', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'krenkelse',
+   'En ansatt melder fra om grov oppforsel fra en kunde ved nattskiftet.',
+   '2026-03-01T22:10:00Z'),
+  -- Ulest, men ikke alvorlig. Gir eieren info-nivaaet; hos butikksjefen
+  -- undertrykkes den med vilje naar det finnes en krenkelse (se
+  -- byggSignaler) - to meldinger om det samme innboksen ville dyttet
+  -- krenkelsen nedover.
+  ('55555555-5555-4555-8555-000000000002', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-222222222222', 'generelt',
+   'Kaffemaskinen paa selvbetjeningen lekker litt naar den er full.',
+   '2026-03-02T09:00:00Z')
+on conflict (id) do nothing;
+
+-- Oppgave over frist -> folg-nivaa, og `dager` gir den poeng over en
+-- naken folg. Fristen er fast og i fortiden, saa dagtallet vokser med
+-- kalenderen men treffer taket paa 200 poeng uansett.
+insert into public.oppgaver (id, retailer_id, stasjon_id, tittel, beskrivelse, status, frist)
+values
+  ('55555555-5555-4555-8555-000000000004', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111',
+   'Bytte pakning paa kaffemaskinen', 'Meldt inn fra nettbrettet.', 'apen', '2026-03-10')
+on conflict (id) do nothing;
+
+-- To varsler paa info-nivaa. Det ene er SKJULT under, og det er hele
+-- poenget med aa ha to: uten et synlig soesken kan et bevis ikke skille
+-- «skjulingen virker» fra «varsler vises ikke i det hele tatt».
+insert into public.varsler (id, retailer_id, stasjon_id, type, tittel, tekst, lenke, opprettet_tid)
+values
+  ('55555555-5555-4555-8555-000000000005', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'bemanning_ok',
+   'Bemanningen er innenfor rammen',
+   'Neste ukes plan bruker 96 % av timerammen.', '/bemanning', '2026-03-03T06:00:00Z'),
+  ('55555555-5555-4555-8555-000000000006', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'bemanning_ok',
+   'Skjult varsel som ikke skal vises',
+   'Lukket i signal_lukket under, og skal derfor ikke staa i lista.',
+   '/bemanning', '2026-03-03T06:05:00Z')
+on conflict (id) do nothing;
+
+-- Skjulingen. `filtrerLukkede` fjerner funn som er lukket og fortsatt
+-- innenfor fristen; datoen her er satt langt fram slik at beviset ikke
+-- gaar ut av seg selv en dag i framtiden.
+insert into public.signal_lukket (id, retailer_id, stasjon_id, signal_id, gjelder_til, notat)
+values
+  ('55555555-5555-4555-8555-000000000007', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111',
+   'varsel-55555555-5555-4555-8555-000000000006', '2099-12-31',
+   'Fixtur: beviser at skjulte funn holder seg skjult.')
+on conflict (id) do nothing;

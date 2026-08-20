@@ -38,8 +38,16 @@ export function UkeKort({ rapport: r }: { rapport: UkeRapport }) {
 
   return (
     <section className="kort uke-kort">
-      <h2>📅 Forrige uke · {r.navn}</h2>
-      {r.sammendrag && <p className="uke-ai">🤖 {r.sammendrag}</p>}
+      <h2>Forrige uke · {r.navn}</h2>
+      {/* 🤖 var den eneste merkingen av at avsnittet er maskinskrevet.
+          En robot-emoji er en svak maate aa si det paa: den leses ikke
+          av en skjermleser som «AI», og den forsvinner for den som har
+          slaatt av emoji-fonten. Naa staar det i ord. */}
+      {r.sammendrag && (
+        <p className="uke-ai">
+          <span className="sq-merkelapp">Sentiqas oppsummering</span> {r.sammendrag}
+        </p>
+      )}
 
       <div className="uke-tall">
         <Metrikk merke="Omsetning" naa={r.omsetning} ifjor={r.omsetningIfjor} />
@@ -49,12 +57,12 @@ export function UkeKort({ rapport: r }: { rapport: UkeRapport }) {
       {sortert.length > 0 && (
         <div className="uke-avd">
           <div>
-            <h3 className="uke-avd-tittel gronn">📈 Sterkest vekst</h3>
+            <h3 className="uke-avd-tittel gronn">Sterkest vekst</h3>
             <ul className="uke-avd-liste">{topp.map((a) => <AvdRad key={a.kode} a={a} />)}</ul>
           </div>
           {bunn.length > 0 && (
             <div>
-              <h3 className="uke-avd-tittel rod">📉 Svakest</h3>
+              <h3 className="uke-avd-tittel rod">Svakest</h3>
               <ul className="uke-avd-liste">{bunn.map((a) => <AvdRad key={a.kode} a={a} />)}</ul>
             </div>
           )}

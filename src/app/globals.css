@@ -1000,7 +1000,9 @@ button.liten.slett:hover { background: #fdecea; }
 /* Admin-dashbord */
 .ai-kort { display: flex; align-items: center; gap: 0.9rem; width: 100%; text-align: left; padding: 1rem 1.1rem; margin: 0.6rem 0; border: 1px solid var(--kant); border-radius: var(--radius-stor); background: linear-gradient(135deg, var(--primaer-svak), var(--kort)); cursor: pointer; box-shadow: var(--skygge); transition: border-color 0.15s, box-shadow 0.15s; }
 .ai-kort:hover { border-color: var(--primaer); box-shadow: var(--skygge-lov); }
-.ai-kort-ikon { font-size: 1.8rem; }
+/* Var en emoji paa 1,8rem. Naa en strek-svg som arver flatens farge. */
+.ai-kort-ikon { display: inline-flex; color: var(--gronn); }
+.ai-kort-ikon svg { width: 26px; height: 26px; }
 .ai-kort-tekst { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
 .ai-kort-tekst strong { font-size: 1rem; }
 .ai-kort-tekst span { font-size: 0.85rem; color: var(--tekst-svak); }
@@ -1340,15 +1342,8 @@ html { scroll-behavior: smooth; }
 }
 a.sq-merkelapp:hover { color: var(--primaer); }
 
-.sq-hode { display: flex; flex-direction: column; gap: 0.15rem; }
-.sq-hils { color: var(--tekst-svak); font-size: 0.9rem; }
-.sq-hode h1 { font-size: 1.9rem; line-height: 1.15; margin: 0; }
-.sq-ferskhet { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.35rem; }
-.sq-pip { display: inline-flex; align-items: center; gap: 0.4rem; }
-.sq-pip::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--gronn); flex: none;
-}
+/* Ferskheten staar naa til hoyre i sidehodet, som statuser. */
+.sq-ferskhet { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; }
 
 /* Puls: to store tall, ikke fire like kort */
 .sq-puls {
@@ -1373,13 +1368,16 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 .sq-seksjon-hode h2 { font-size: 1rem; margin: 0; }
 
-/* Ett funn = én rad med alvorlighetsstripe */
-.sq-sak { border-top: 1px solid var(--kant); }
-.sq-sak summary {
+/* Ett funn = én rad med alvorlighetsstripe.
+   Raden er ikke lenger et <details>: alvor, grunnlag og veien videre
+   staar i raden, og bare de fire handlingene som ENDRER noe ligger bak
+   utvidelsen. Se oppmerksomhet.tsx. */
+.sq-saker { list-style: none; margin: 0; padding: 0; }
+.sq-sak {
+  border-top: 1px solid var(--kant);
   display: grid; grid-template-columns: 3px 1fr auto; gap: 0 1rem;
-  align-items: center; padding: 0.9rem 0; cursor: pointer; list-style: none;
+  align-items: start; padding: 0.9rem 0;
 }
-.sq-sak summary::-webkit-details-marker { display: none; }
 .sq-stripe { align-self: stretch; border-radius: 2px; background: var(--kant-sterk); }
 .sq-sak[data-niva='kritisk'] .sq-stripe { background: var(--rod); }
 .sq-sak[data-niva='folg'] .sq-stripe { background: var(--gul); }
@@ -1390,14 +1388,28 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-sak[data-niva='kritisk'] .sq-endring { color: var(--rod); }
 .sq-sak[data-niva='folg'] .sq-endring { color: var(--gul); }
 .sq-sak-under { color: var(--tekst-svak); font-size: 0.86rem; }
-.sq-sak-hoyre { display: flex; align-items: center; gap: 0.8rem; color: var(--tekst-svak); }
-.sq-pil { flex: none; transition: transform 0.16s ease; }
-.sq-sak[open] .sq-pil { transform: rotate(90deg); }
+.sq-sak-hoyre {
+  display: flex; align-items: center; gap: 0.8rem; color: var(--tekst-svak);
+}
+/* Handlingen skal ikke vaere hoyere enn tittelen den hoerer til. */
+.sq-sak-gaa { white-space: nowrap; }
 
-.sq-utdyp { display: grid; gap: 0.9rem; padding: 0.2rem 0 1.1rem 1.15rem; }
-.sq-utdyp-rad { display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem; }
-.sq-utdyp-rad p { color: var(--tekst-svak); font-size: 0.9rem; max-width: 58ch; margin: 0; }
-.sq-bevis { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+/* Utvidelsen: de fire handlingene som endrer noe. Ligger i tekstspalten,
+   som er den brede - fire knapper i hoyrespalten ville blitt en stabel. */
+.sq-sak-mer > summary {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  margin-top: 0.35rem; cursor: pointer; list-style: none;
+  font-size: 0.8rem; color: var(--tekst-svak); width: fit-content;
+}
+.sq-sak-mer > summary::-webkit-details-marker { display: none; }
+.sq-sak-mer > summary::after {
+  content: '▾'; font-size: 0.7rem; transition: transform 0.16s ease;
+}
+.sq-sak-mer[open] > summary::after { transform: rotate(180deg); }
+.sq-sak-mer > summary:hover { color: var(--tekst); }
+.sq-sak-mer .sq-handlinger { padding: 0.5rem 0 0.2rem; }
+
+.sq-bevis { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.15rem; }
 .sq-bevis span {
   font-size: 0.78rem; padding: 0.15rem 0.45rem; border: 1px solid var(--kant-sterk);
   border-radius: 4px; color: var(--tekst-svak); font-variant-numeric: tabular-nums;
@@ -1426,9 +1438,8 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 @media (max-width: 520px) {
   .sq-maal-par { grid-template-columns: 1fr; gap: 1rem; }
-  .sq-utdyp-rad { grid-template-columns: 1fr; gap: 0.2rem; }
 }
-@media (prefers-reduced-motion: reduce) { .sq-pil { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .sq-sak-mer > summary::after { transition: none; } }
 .sq-ai { margin-top: 0.7rem; }
 .sq-ai summary {
   cursor: pointer; font-size: 0.85rem; color: var(--primaer); font-weight: 500;
@@ -1437,7 +1448,9 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-ai summary::-webkit-details-marker { display: none; }
 .sq-ai summary::before { content: '?'; opacity: 0.7; }
 .sq-ai p { margin-top: 0.5rem; color: var(--tekst-svak); font-size: 0.9rem; max-width: 58ch; }
-.sq-regnskap { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1.5rem; }
+/* En rad med noekkeltall. Het `.sq-regnskap` da den bare fantes ett
+   sted; oppgavetallene bruker den naa ogsaa. */
+.sq-tallrad { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1.5rem; }
 
 /* Kommandopalett — én inngang til alt, ?K */
 .sq-sokknapp {
@@ -1504,11 +1517,9 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 .sq-aisvar p { margin: 0; font-size: 0.92rem; line-height: 1.6; white-space: pre-wrap; }
 .sq-knapp.sq-dempet { color: var(--tekst-svak); }
-/* Ferskhet: prikken skal aldri lyve. Grønn kun når tallene er i går. */
-.sq-pip.fersk::before  { background: var(--gronn); }
-.sq-pip.sen::before    { background: var(--gul); }
-.sq-pip.gammel::before { background: var(--rod); }
-.sq-pip.gammel { color: var(--rod); font-weight: 700; }
+/* Ferskhet er naa Status (ferskhet-status.tsx): prikken og ordet kommer
+   fra primitiven, og «3 dager gamle» staar i teksten - ikke bare i
+   fargen paa en prikk. */
 
 /* Ukedagsvelger i bemanning: gjenbruker .ukedag-velger/.ukedag, men som
    ekte piller med 44 px trykkflate — hele etiketten er klikkbar. */
@@ -1523,14 +1534,6 @@ a.sq-merkelapp:hover { color: var(--primaer); }
   background: var(--primaer-svak); border-color: var(--primaer); color: var(--gronn); font-weight: 600;
 }
 .sq-ukedager input { width: 18px; height: 18px; }
-
-/* Alvorlighet i ord ved siden av stripen */
-.sq-nivaa {
-  font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700;
-  padding: 0.1rem 0.4rem; border-radius: 4px; background: var(--bg); color: var(--tekst-svak);
-}
-.sq-sak[data-niva='kritisk'] .sq-nivaa { background: var(--rod-svak); color: var(--rod); }
-.sq-sak[data-niva='folg'] .sq-nivaa { background: var(--gul-svak); color: var(--gul); }
 
 /* Bemanningsskjemaene: stablede felt med synlige etiketter, ikke en
    inntastingsrad. To like klokkeslettfelt ved siden av hverandre uten ord
