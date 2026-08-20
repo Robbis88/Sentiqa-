@@ -1854,7 +1854,17 @@ button.liten { min-height: 40px; }
 }
 .sq-signal-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--luft-1); }
 .sq-signal-tekst strong { font-size: var(--tekst-brod); font-weight: 600; }
-.sq-signal-tekst p { margin: 0; font-size: var(--tekst-liten); color: var(--tekst-svak); line-height: var(--linje-luftig); }
+/* FORKLARINGEN I ET SIGNAL SKAL IKKE VAERE DEMPET. Den stod med
+   `--tekst-svak`, og det holdt saa vidt paa hvitt (4,76:1) - men et
+   signal er sjelden hvitt. Paa de tre tonene ble den 4,01 (rod), 3,94
+   (gul) og 4,15 (gronn), altsaa under kravet paa alle tre. Se
+   kontrastvakten i farger.test.ts.
+
+   Dempingen kjopte heller ingenting: et signal rendres bare naar
+   systemet har regnet ut at noe krever oppmerksomhet, og da er
+   forklaringen det man faktisk skal lese. Storrelse og vekt baerer
+   hierarkiet mot overskriften. */
+.sq-signal-tekst p { margin: 0; font-size: var(--tekst-liten); color: var(--tekst); line-height: var(--linje-luftig); }
 .sq-signal-handling { flex: none; }
 
 /* Informasjon er nøytral. Ingen farge — den forteller noe, den ber

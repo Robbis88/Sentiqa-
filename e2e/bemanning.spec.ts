@@ -29,6 +29,12 @@ test.describe('/bemanning', () => {
   test.beforeEach(async ({ page }) => {
     await loggInn(page)
     await page.goto('/bemanning')
+    // VENT PAA SISTE SEKSJON, ikke paa `load`. Sida stromme-rendres, saa
+    // `goto` kom tilbake mens bare skallet stod der - og en `count()`
+    // rett etterpaa leste 0 knapper paa en side som fikk dem 65 ms
+    // senere. Feilbildet var identisk med «knappen er borte».
+    await expect(page.getByRole('heading', { name: 'Ferie og fravær' }))
+      .toBeVisible({ timeout: 20_000 })
   })
 
   test('A - lederen ser HVA som krever oppmerksomhet, uten aa lete', async ({ page }) => {
@@ -85,8 +91,7 @@ test.describe('/bemanning', () => {
     // De fire opprettelsespanelene og maaneds-filteret. Slett-knappene
     // finnes bare naar det finnes rader, saa de maales ikke her.
     for (const knapp of ['Nytt vindu', 'Ny fast vakt', 'Nytt krav', 'Nytt fravær']) {
-      expect(await page.getByRole('button', { name: knapp }).count(), knapp)
-        .toBeGreaterThan(0)
+      await expect(page.getByRole('button', { name: knapp }), knapp).toBeVisible()
     }
     await expect(page.getByLabel('Måned')).toBeAttached()
     await expect(page.getByLabel('År')).toBeAttached()

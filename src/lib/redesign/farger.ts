@@ -58,3 +58,45 @@ export function tellFarger(kilde: string): number {
     .filter((l) => !TOKENLINJE.test(l))
     .reduce((sum, l) => sum + (l.match(FARGE) ?? []).length, 0)
 }
+
+// =====================================================================
+// Kontrast.
+//
+// HVORFOR DETTE MAA MAALES DETERMINISTISK: axe i jsdom regner ikke
+// kontrast - det krever layout, altsaa en ekte nettleser - og axe i
+// nettleseren ser bare de flatene testdataene faktisk framkaller. Et
+// signal paa rod tone finnes ikke paa en side der ingenting er kritisk.
+//
+// Derfor stod `.sq-signal-tekst p` med `--tekst-svak` fra primitiven ble
+// skrevet til bolge 4B.1: 4,76:1 paa hvitt (bestaatt, saa vidt), men
+// 3,94-4,15 paa de tre tonene under. Alle signaler i hele systemet, i
+// maanedsvis, uten at noen vakt saa det.
+//
+// Formelen er WCAG 2.1 sin relative luminans. Den maaler bare farge -
+// ikke storrelse, ikke vekt, ikke gjennomsiktighet. Legger noen en
+// halvgjennomsiktig flate oppa, lyver den; da hjelper bare nettleseren.
+// =====================================================================
+
+/** Relativ luminans etter WCAG 2.1, av `#rrggbb`. */
+function luminans(hex: string): number {
+  const k = hex.replace('#', '')
+  const kanal = [0, 2, 4]
+    .map((i) => parseInt(k.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * kanal[0] + 0.7152 * kanal[1] + 0.0722 * kanal[2]
+}
+
+/** Kontrastforholdet mellom to farger, 1–21. Rekkefolgen er likegyldig. */
+export function kontrast(a: string, b: string): number {
+  const [ly, mork] = [luminans(a), luminans(b)].sort((x, y) => y - x)
+  return (ly + 0.05) / (mork + 0.05)
+}
+
+/** Tokenene slik de er definert i `:root`. */
+export function tokenverdier(css: string): Record<string, string> {
+  const ut: Record<string, string> = {}
+  for (const [, navn, verdi] of css.matchAll(/(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+    ut[navn] = verdi
+  }
+  return ut
+}
