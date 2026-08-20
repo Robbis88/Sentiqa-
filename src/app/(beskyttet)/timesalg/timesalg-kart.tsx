@@ -58,7 +58,30 @@ export function TimesalgKart({ stasjoner, rader, harInneUte }: { stasjoner: Stas
                   const v = verdi.get(`${s.id}|${t}`) ?? 0
                   const alpha = maks > 0 ? v / maks : 0
                   return (
-                    <td key={s.id} style={{ background: `rgba(37, 99, 235, ${alpha.toFixed(3)})`, color: alpha > 0.5 ? '#fff' : 'inherit' }}>
+                    // TO FEIL I EN LINJE, begge funnet forst da fixturen
+                    // gjorde kartet synlig i CI:
+                    //
+                    // 1) Fargen var `rgba(37, 99, 235, ...)` - den GAMLE
+                    //    bla merkevarefargen, staaende igjen etter
+                    //    palettbyttet i trinn 01. Fargevakten TALTE den,
+                    //    men som en av 261 i grunnlinja; ingen saa hvilken.
+                    //
+                    // 2) Hvit tekst slo inn ved alpha 0.5, og hvitt paa
+                    //    den halvgjennomsiktige flata gir 2.6:1. Under
+                    //    kravet, og usynlig for enhver vakt som ikke
+                    //    kjorer med data.
+                    //
+                    // Naa: merkevarefargen via token, og tintet stopper
+                    // paa 55 % saa teksten alltid staar mork paa lyst.
+                    // Kartet mister ingen lesbarhet - forskjellen mellom
+                    // en rolig og en travel time var aldri de siste 45
+                    // prosentene metning.
+                    <td
+                      key={s.id}
+                      style={{
+                        background: `color-mix(in srgb, var(--primaer) ${Math.round(alpha * 55)}%, transparent)`,
+                      }}
+                    >
                       {v > 0 ? valg.fmt(v) : ''}
                     </td>
                   )

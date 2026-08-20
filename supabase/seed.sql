@@ -327,6 +327,88 @@ on conflict (retailer_id, stasjon_id, dato, ean) do nothing;
 
 
 -- ---------------------------------------------------------------------
+-- TIMESALGET - doegnrytmen (bolge 2).
+--
+-- ALLE TRE STASJONENE, ikke bare en. Hadde bare Underby hatt tall,
+-- ville sida vist Underby uansett hvilken stasjon toppstripen sto paa -
+-- den filtrerer til stasjoner SOM HAR DATA. Det er den samme doble
+-- konteksten trinn 09 lukket, i ny form: skallet sier 5102, sida regner
+-- paa 5101. En fixture som bare dekker en stasjon ville skjult det.
+--
+-- Formen er en ekte doegnrytme: rolig morgen, lunsjtopp, ettermiddag,
+-- stille kveld. Toppen ligger paa 11-12 hos alle tre, saa «travleste
+-- time» er entydig baade per stasjon og for kjeden samlet.
+--
+--   5101 Underby   1000 + 3000 + 12000 + 6000 + 3000 = 25000
+--   5102 Grenseby   600 + 1800 +  7200 + 3600 + 1800 = 15000
+--   5103 Overby     400 + 1200 +  4800 + 2400 + 1200 = 10000
+--                                              kjeden  50000
+--
+-- `inne_kunder`/`ute_kunder` er skilt fordi bemanningsplanleggeren
+-- fordeler timer etter kunder INNE (mig 0081). Fixturen holder det
+-- skillet ekte i stedet for aa fylle begge med samme tall.
+-- ---------------------------------------------------------------------
+insert into public.timesalg (
+  retailer_id, stasjon_id, dato, time, salg, antall_kunder, inne_kunder, ute_kunder
+)
+select
+  '11111111-1111-4111-8111-222222222222'::uuid, st.id, date '2026-03-17',
+  t.time, t.andel * st.faktor, (t.kunder * st.faktor)::numeric,
+  (t.inne * st.faktor)::numeric, (t.ute * st.faktor)::numeric
+from (values
+  ('44444444-4444-4444-8444-111111111111'::uuid, 1.0::numeric),
+  ('44444444-4444-4444-8444-222222222222'::uuid, 0.6::numeric),
+  ('44444444-4444-4444-8444-333333333333'::uuid, 0.4::numeric)
+) as st(id, faktor)
+cross join (values
+  ('06-07',  1000::numeric,  30::numeric, 20::numeric, 10::numeric),
+  ('07-08',  3000::numeric,  90::numeric, 60::numeric, 30::numeric),
+  ('11-12', 12000::numeric, 260::numeric, 200::numeric, 60::numeric),
+  ('15-16',  6000::numeric, 140::numeric, 100::numeric, 40::numeric),
+  ('20-21',  3000::numeric,  60::numeric,  40::numeric, 20::numeric)
+) as t(time, andel, kunder, inne, ute)
+on conflict (retailer_id, stasjon_id, dato, time) do nothing;
+
+
+-- ---------------------------------------------------------------------
+-- KASSEREROPPGJORET - avvik per kasserer (bolge 2).
+--
+-- Sida regner avvik som andel av omsetningen og feller dom ved 2 %.
+-- Fixturen treffer BEGGE SIDER av den grensa med vilje, saa baade
+-- «i orden» og «se paa dette» kan maales:
+--
+--   5101 Underby   100 000 oms, 2 500 i avvik = 2,5 %   OVER grensa
+--   5102 Grenseby   50 000 oms,     0 i avvik = 0,0 %   ren
+--   5103 Overby     40 000 oms,   400 i avvik = 1,0 %   under grensa
+--
+-- Avviket er delt paa alle tre kildene (retur, makulert, slettet) hos
+-- den ene som har det - en kasserer med bare returer og en med alle tre
+-- er ulike historier, og sida summerer dem.
+--
+-- MERK at retningen og dommen peker hver sin vei her, som paa svinn:
+-- mer avvik er verre. Testen sjekker det eksplisitt.
+-- ---------------------------------------------------------------------
+insert into public.kassererstatistikk (
+  retailer_id, stasjon_id, dato, kasserer_nr, kasserer_navn,
+  omsetning_ink_mva, bonger,
+  retur_antall, retur_belop, makulerte_antall, makulerte_belop,
+  slettede_antall, slettede_belop
+)
+values
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-17', '101', 'Kari Kasserer', 60000, 600, 3, 1200, 2, 800, 1, 500),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-17', '102', 'Ola Kasserer',  30000, 300, 0, 0, 0, 0, 0, 0),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-17', '103', 'Nina Kasserer', 10000, 100, 0, 0, 0, 0, 0, 0),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
+   date '2026-03-17', '201', 'Per Kasserer',  50000, 500, 0, 0, 0, 0, 0, 0),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-333333333333',
+   date '2026-03-17', '301', 'Siri Kasserer', 40000, 400, 1, 400, 0, 0, 0, 0)
+on conflict (retailer_id, stasjon_id, dato, kasserer_nr) do nothing;
+
+
+-- ---------------------------------------------------------------------
 -- HISTORIKKEN - fire like tirsdager, og hvorfor det er akkurat fire.
 --
 -- `motNormalen` krever MIN_GRUNNLAG = 4 dager med samme ukedag for den

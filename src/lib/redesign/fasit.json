@@ -430,12 +430,12 @@
     ],
     "/analyse": [
       "Endringer mot forrige periode",
+      "Feilregistrering",
       "Ingen analyse ennå",
       "Muligheter",
       "Per stasjon",
       "Prioriterte tiltak",
-      "Røde flagg",
-      "Systemfeil (registrering)",
+      "Rødt flagg",
       "Usynlig svinn per stasjon"
     ],
     "/ansatte": [
@@ -514,8 +514,8 @@
       "{k.navn} <span className=\"undertittel\">· {kjedeNavn.get(k.retailer_id)}</span>"
     ],
     "/kasserer": [
-      "Ingen kassererdata ennå",
-      "{s.butikknummer} {s.navn}"
+      "${s.butikknummer} ${s.navn}",
+      "Ingen kassererdata ennå"
     ],
     "/konkurranser": [
       "Ingen konkurranser ennå",
@@ -648,7 +648,7 @@
       "🥐 Produksjon"
     ],
     "/produksjonsplan/treffsikkerhet": [
-      "Dag for dag (siste {trendDager.length})",
+      "Dag for dag (siste ${trendDager.length})",
       "Ingen treffdata ennå for denne stasjonen",
       "{tittel}"
     ],
@@ -702,9 +702,9 @@
     ],
     "/salg": [
       "Ingen salgsdata ennå",
-      "Per kategori{erStasjon ? ` · ${valgtNavn}` : ''}",
+      "Per kategori${erStasjon ? ` · ${valgtNavn}` : ''}",
       "Per stasjon",
-      "Topp varegrupper{erStasjon ? ` · ${valgtNavn}` : ''}"
+      "Topp varegrupper${erStasjon ? ` · ${valgtNavn}` : ''}"
     ],
     "/salgsprognose": [
       "Ikke nok salgshistorikk for denne stasjonen ennå",

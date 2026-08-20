@@ -3,7 +3,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall, datoLang } from '@/lib/format'
 import Link from 'next/link'
-import { Sidehode, Tomtilstand, Nokkeltall, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Nokkeltall, Forklaring, Datatabell } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
@@ -114,11 +114,16 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
         et blikk, ikke enkelttilfellene.
       </Forklaring>
 
+      {/* Ekte sammenligningsmatrise: kasserer mot kasserer nedover, og
+          de tre avvikstypene mot hverandre bortover. Den handskrevne
+          rammen og inline-marginen er borte - Datatabell gjor begge
+          deler, og gjor det likt paa alle sidene. */}
       {vis.map((s) => (
-          <section key={s.id} style={{ marginBottom: '2rem' }}>
-            <h2>{s.butikknummer} {s.navn}</h2>
-            <div className="tabellramme">
-            <table className="tabell">
+          <Datatabell
+            key={s.id}
+            tittel={`${s.butikknummer} ${s.navn}`}
+            antall={(perStasjon.get(s.id) ?? []).length}
+          >
               <thead>
                 <tr>
                   <th>Kasserer</th><th>Omsetning</th><th>Bonger</th>
@@ -137,9 +142,7 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
                   </tr>
                 ))}
               </tbody>
-            </table>
-            </div>
-          </section>
+          </Datatabell>
         ))}
     </>
   )
