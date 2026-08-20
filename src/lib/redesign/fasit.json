@@ -602,6 +602,7 @@
       "Ingen komplett uke å sammenligne på",
       "Ingenting trenger oppmerksomhet",
       "Mot budsjett denne måneden",
+      "Måling",
       "Månedens konkurranse",
       "Oppgaver",
       "Oversikten er ikke komplett",
@@ -618,10 +619,9 @@
       "dynamisk:t(overskrift(alle.length))",
       "dynamisk:tittel",
       "pulsOverskrift('Klyngen', klynge.vekstPst)",
-      "🎁 {t('Vår premiesaldo')}",
-      "🏆 Måling",
-      "📈 {t('Vekst mot i fjor')}",
-      "📨 {t('Meldinger fra butikksjef')}"
+      "t('Meldinger fra butikksjef')",
+      "t('Vekst mot i fjor')",
+      "t('Vår premiesaldo')"
     ],
     "/persondata": [
       "Hvem har sett hva",

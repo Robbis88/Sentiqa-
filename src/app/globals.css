@@ -46,6 +46,41 @@
   --rod: #9b2c2c;  --rod-svak: #fbe7e7;
 
   /* ---------------------------------------------------------------
+     NETTBRETTETS MORKE VERDEN
+     ---------------------------------------------------------------
+     Nettbrettet har alltid vaert en egen flate - moerk, stor, laget for
+     hansker og for aa staa paa en benk i sterkt lys. Men den hadde
+     ingen tokens: femten farger sto skrevet rett inn i femtiaatte
+     regler, og foelgen var todelt.
+     KONTRASTVAKTEN SAA DEN IKKE. Den maaler par av tokens; en farge som
+     bare finnes midt i en regel finnes ikke for den. Den moerke flata
+     var altsaa den eneste i systemet som ingen deterministisk vakt
+     kunne naa. (Maalingen viste at den var i orden - laveste par var
+     4,67:1 - men «i orden i dag» og «under vakt» er ikke det samme.)
+     OG EN KJEDE KUNNE IKKE FAA SIN EGEN. Alt annet i systemet kan
+     omtemaes ved aa bytte tokens. Nettbrettet kunne bare omskrives.
+     Navnene sier flate, ikke bruk: `--natt-flate` er kortet, ikke
+     «kortet paa hjem». Bruksnavn laaser en verdi til ett sted, og da
+     ender man med fjorten av dem igjen. */
+  --natt: #0a0f1f;               /* bunnen under alt */
+  --natt-topp: #0d1426;          /* topplinje og faner */
+  --natt-flate: #13203b;         /* kort, fliser, rader */
+  --natt-flate-lys: #18264a;     /* samme flate, beroert */
+  --natt-flate-ferdig: #14301f;  /* gjort - gronn i moerket */
+  --natt-flate-viktig: #3a1518;  /* haster - rod i moerket */
+  --natt-flate-hak: #1a2540;
+  --natt-tekst: #e6ebf5;
+  --natt-tekst-klar: #f3f6fc;    /* overskrifter */
+  --natt-tekst-svak: #aeb8cc;
+  --natt-tekst-svakere: #9fb0cc;
+  --natt-tekst-dempet: #7c8aa8;
+  --natt-rod: #ffb3b3;           /* alvor som TEKST paa moerkt */
+  --natt-blaa: #7cc4ff;
+  --natt-flamme: #ff922b;
+  --natt-kant: rgba(255,255,255,0.08);
+  --natt-kant-sterk: rgba(255,255,255,0.18);
+
+  /* ---------------------------------------------------------------
      Avstand og typografi
      ---------------------------------------------------------------
      Fargene har vaert tokens fra starten. Avstand og skriftstorrelse
@@ -588,9 +623,21 @@ button.liten.slett:hover { background: #fdecea; }
 .melding-tekst { margin: 0 0 0.2rem; font-weight: 500; }
 /* Meldinger på tablet-hjem */
 .tablet-meldinger { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.2rem; }
-.tablet-melding { display: flex; align-items: center; gap: 0.7rem; padding: 1rem 1.2rem; border-radius: 14px; background: #13203b; border: 1px solid rgba(255,255,255,0.1); font-size: 1.05rem; font-weight: 600; }
-.tablet-melding.viktig { background: #3a1518; border-color: #b10e1c; }
-.tablet-melding-ikon { font-size: 1.4rem; }
+.tablet-melding { display: flex; align-items: center; gap: 0.7rem; padding: 1rem 1.2rem; border-radius: 14px; background: var(--natt-flate); border: 1px solid rgba(255,255,255,0.1); font-size: 1.05rem; font-weight: 600; }
+.tablet-melding.viktig { background: var(--natt-flate-viktig); border-color: #b10e1c; }
+/* Alvoret i ord, ikke i et utropstegn. Merkelappen skal kunne leses paa
+   avstand og staa stille i bredden, saa lange og korte beskjeder faar
+   samme venstrekant. */
+.tablet-melding-merke {
+  flex: none;
+  min-width: 5.5rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--natt-tekst-svak);
+}
+.tablet-melding.viktig .tablet-melding-merke { color: var(--natt-rod); }
 
 /* Anvisninger + Lenker */
 .anvisning { border-bottom: 1px solid var(--kant); padding: 0.4rem 0; }
@@ -604,9 +651,9 @@ button.liten.slett:hover { background: #fdecea; }
 .lenke-rad .lenke-tittel { flex: 1; }
 .lenke-rad .lenke-pil { color: var(--tekst-svak); font-size: 1.2rem; }
 /* Følger tablet-ens mørke designspråk (Lenker er tablet-only) */
-.tablet .lenke-rad { background: #13203b; border-color: rgba(255,255,255,0.08); color: #e6ebf5; box-shadow: none; padding: 1.15rem 1.2rem; }
-.tablet .lenke-rad:hover { border-color: var(--primaer); background: #18264a; box-shadow: none; }
-.tablet .lenke-rad .lenke-pil { color: #7c8aa8; }
+.tablet .lenke-rad { background: var(--natt-flate); border-color: var(--natt-kant); color: var(--natt-tekst); box-shadow: none; padding: 1.15rem 1.2rem; }
+.tablet .lenke-rad:hover { border-color: var(--primaer); background: var(--natt-flate-lys); box-shadow: none; }
+.tablet .lenke-rad .lenke-pil { color: var(--natt-tekst-dempet); }
 
 .lenke-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
 .lenke-kort { position: relative; }
@@ -617,8 +664,8 @@ button.liten.slett:hover { background: #fdecea; }
 .lenke-slett:hover { color: #b10e1c; }
 
 /* =========================== Tablet («egen verden») =========================== */
-.tablet { background: #0a0f1f; color: #e6ebf5; min-height: 100dvh; }
-.tablet-topp { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; background: #0d1426; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.tablet { background: var(--natt); color: var(--natt-tekst); min-height: 100dvh; }
+.tablet-topp { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; background: var(--natt-topp); border-bottom: 1px solid var(--natt-kant); }
 /* Nettbrettskallet er mørkt, så merkevaregrønnen må løftes for å bli
    lesbar. Det er hva --primaer-lys finnes til. */
 .tablet-merke { font-weight: 800; font-size: 1.3rem; color: var(--primaer-lys); }
@@ -627,11 +674,11 @@ button.liten.slett:hover { background: #fdecea; }
 .sprak-flagg { background: none; border: 0; font-size: 1.25rem; cursor: pointer; opacity: 0.4; padding: 0.15rem 0.25rem; border-radius: 6px; line-height: 1; }
 .sprak-flagg.aktiv { opacity: 1; background: rgba(255,255,255,0.14); }
 .sprak-flagg:hover { opacity: 0.85; }
-.tablet-utlogg { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #e6ebf5; padding: 0.45rem 0.85rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.tablet-utlogg { background: var(--natt-kant); border: 1px solid var(--natt-kant-sterk); color: var(--natt-tekst); padding: 0.45rem 0.85rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
 .tablet-utlogg:active { transform: scale(0.97); }
-.tablet-topp-hoyre .klokke-lenke { color: #e6ebf5; }
-.tablet-topp-hoyre .vakt-navn { color: #7cc4ff; }
-.tablet-topp-hoyre .vakt-pin { background: #0a0f1f; color: #e6ebf5; border-color: rgba(255,255,255,0.25); }
+.tablet-topp-hoyre .klokke-lenke { color: var(--natt-tekst); }
+.tablet-topp-hoyre .vakt-navn { color: var(--natt-blaa); }
+.tablet-topp-hoyre .vakt-pin { background: var(--natt); color: var(--natt-tekst); border-color: rgba(255,255,255,0.25); }
 /* Mobil: bryt topplinja sa vakt/bjelle/logg-ut ikke faller utenfor skjermen */
 @media (max-width: 560px) {
   .tablet-topp { flex-wrap: wrap; gap: 0.4rem 0.6rem; padding: 0.55rem 0.8rem; }
@@ -641,23 +688,27 @@ button.liten.slett:hover { background: #fdecea; }
   .sprak-flagg { font-size: 1.05rem; padding: 0.1rem 0.16rem; }
   .tablet-utlogg { padding: 0.35rem 0.65rem; font-size: 0.78rem; }
 }
-.tablet-nav { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; background: #0d1426; position: sticky; top: 0; z-index: 25; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); }
-.tablet-fane { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 1.1rem; border-radius: 12px; text-decoration: none; color: #aeb8cc; font-size: 0.82rem; font-weight: 600; min-width: 84px; }
+.tablet-nav { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; background: var(--natt-topp); position: sticky; top: 0; z-index: 25; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.tablet-fane { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 1.1rem; border-radius: 12px; text-decoration: none; color: var(--natt-tekst-svak); font-size: 0.82rem; font-weight: 600; min-width: 84px; }
 .tablet-fane.aktiv { background: rgba(46,125,107,0.28); color: #fff; }
 .tablet-fane-ikon { font-size: 1.5rem; }
 .tablet-innhold { padding: 1.2rem; max-width: 920px; margin: 0 auto; }
-.tablet-innhold h1, .tablet-innhold h2, .tablet-innhold h3 { color: #f3f6fc; }
+.tablet-innhold h1, .tablet-innhold h2, .tablet-innhold h3 { color: var(--natt-tekst-klar); }
 
-.tablet-hero { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.6rem; margin-bottom: 1.2rem; border-radius: 16px; background: linear-gradient(120deg, #13203b, #0d1426); border: 1px solid rgba(255,255,255,0.08); }
+.tablet-hero { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.6rem; margin-bottom: 1.2rem; border-radius: 16px; background: linear-gradient(120deg, var(--natt-flate), var(--natt-topp)); border: 1px solid var(--natt-kant); }
 .tablet-hilsen { font-size: 1.5rem; font-weight: 700; }
 .tablet-klokke { font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
-.tablet-streak { text-align: center; font-size: 2rem; font-weight: 800; color: #ff922b; line-height: 1; }
-.tablet-streak span { display: block; font-size: 0.72rem; color: #aeb8cc; font-weight: 600; margin-top: 0.25rem; }
+.tablet-streak { text-align: center; font-size: 2rem; font-weight: 800; color: var(--natt-flamme); line-height: 1; }
+.tablet-streak span { display: block; font-size: 0.72rem; color: var(--natt-tekst-svak); font-weight: 600; margin-top: 0.25rem; }
 
 .tablet-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.9rem; }
-.tablet-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; padding: 1.7rem 1rem; border-radius: 16px; background: #13203b; border: 1px solid rgba(255,255,255,0.08); text-decoration: none; color: #e6ebf5; font-weight: 700; transition: transform 0.1s; }
+.tablet-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; padding: 1.7rem 1rem; border-radius: 16px; background: var(--natt-flate); border: 1px solid var(--natt-kant); text-decoration: none; color: var(--natt-tekst); font-weight: 700; transition: transform 0.1s; }
 .tablet-tile:active { transform: scale(0.97); }
-.tablet-tile-ikon { font-size: 2.4rem; }
+/* Uten ikon over baerer ordet flisa alene, og da maa det ha stoerrelsen
+   ikonet hadde. Hoyden er laast saa rutenettet ikke hopper naar en
+   etikett brytes over to linjer paa et annet spraak. */
+.tablet-tile-tekst { font-size: 1.25rem; line-height: 1.25; text-align: center; }
+.tablet-tile { min-height: 118px; }
 
 /* Rutine-fremdrift */
 .fremdrift { display: flex; align-items: center; gap: 0.6rem; margin: 0.3rem 0 0.7rem; }
@@ -666,16 +717,16 @@ button.liten.slett:hover { background: #fdecea; }
 .fremdrift-fyll { height: 100%; background: var(--primaer); border-radius: 999px; transition: width 0.35s ease; }
 .fremdrift-fyll.full { background: #2f9e44; }
 .fremdrift-tekst { font-size: 0.85rem; font-weight: 700; color: var(--tekst-svak); white-space: nowrap; }
-.tablet .fremdrift-tekst { color: #aeb8cc; }
+.tablet .fremdrift-tekst { color: var(--natt-tekst-svak); }
 .tablet .fremdrift-bar { background: rgba(255,255,255,0.12); }
 
 /* Tablet-hjem seksjoner */
-.tablet-seksjon { background: #13203b; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.2rem 1.4rem; margin-top: 1.2rem; }
+.tablet-seksjon { background: var(--natt-flate); border: 1px solid var(--natt-kant); border-radius: 16px; padding: 1.2rem 1.4rem; margin-top: 1.2rem; }
 .tablet-seksjon h2 { margin: 0 0 0.8rem; font-size: 1.1rem; }
 .vekst-rad { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.6rem 0; border-top: 1px solid rgba(255,255,255,0.06); }
 .vekst-rad:first-of-type { border-top: 0; }
 .vekst-venstre { display: flex; flex-direction: column; }
-.vekst-merke { font-size: 0.78rem; color: #aeb8cc; text-transform: uppercase; letter-spacing: 0.03em; }
+.vekst-merke { font-size: 0.78rem; color: var(--natt-tekst-svak); text-transform: uppercase; letter-spacing: 0.03em; }
 .vekst-tall { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
 .vekst-diff { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vekst-diff.opp { color: #51cf66; }
@@ -685,22 +736,22 @@ button.liten.slett:hover { background: #fdecea; }
 .premie-saldo > div { display: flex; flex-direction: column; gap: 0.2rem; }
 .premie-tall { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .premie-tall.gronn { color: #51cf66; }
-.premie-merke { font-size: 0.78rem; color: #aeb8cc; }
-.skills { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; background: linear-gradient(120deg, #0f3320, #13203b); border-color: rgba(80,200,120,0.35); }
-.skills-merke { font-size: 0.8rem; color: #aeb8cc; text-transform: uppercase; letter-spacing: 0.04em; }
+.premie-merke { font-size: 0.78rem; color: var(--natt-tekst-svak); }
+.skills { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; background: linear-gradient(120deg, #0f3320, var(--natt-flate)); border-color: rgba(80,200,120,0.35); }
+.skills-merke { font-size: 0.8rem; color: var(--natt-tekst-svak); text-transform: uppercase; letter-spacing: 0.04em; }
 .skills-tall { font-size: 3rem; font-weight: 900; color: #51cf66; line-height: 1; }
 .skills-tekst { font-weight: 600; }
 .send-sjef-boks { display: flex; flex-direction: column; gap: 0.5rem; }
-.send-sjef-knapp { width: 100%; padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); background: #13203b; color: #e6ebf5; font-weight: 700; font-size: 1rem; cursor: pointer; }
+.send-sjef-knapp { width: 100%; padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); background: var(--natt-flate); color: var(--natt-tekst); font-weight: 700; font-size: 1rem; cursor: pointer; }
 .send-sjef-knapp:active { transform: scale(0.99); }
 .send-sjef { display: flex; flex-direction: column; gap: 0.6rem; }
-.send-sjef select, .send-sjef textarea, .send-sjef input { width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #0a0f1f; color: #e6ebf5; font: inherit; }
+.send-sjef select, .send-sjef textarea, .send-sjef input { width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--natt-kant-sterk); background: var(--natt); color: var(--natt-tekst); font: inherit; }
 .send-sjef-knapper { display: flex; justify-content: space-between; gap: 0.75rem; }
 .send-sjef-takk { text-align: center; font-weight: 700; }
 
 /* Meldinger fra butikksjef (oppgave m/ vis_paa_tablet) */
 .sjefmeldinger { display: flex; flex-direction: column; gap: 0.7rem; }
-.sjefmeldinger-tom { color: #aeb8cc; text-align: center; padding: 0.4rem 0; font-size: 1.05rem; }
+.sjefmeldinger-tom { color: var(--natt-tekst-svak); text-align: center; padding: 0.4rem 0; font-size: 1.05rem; }
 .sjefmelding { display: flex; align-items: flex-start; gap: 0.9rem; padding: 1rem 1.1rem; border-radius: 14px; background: #0f1a30; border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #4a5a7a; }
 .sjefmelding.snart { border-left-color: #f0a500; }
 .sjefmelding.haster { border-left-color: #ff6b6b; background: #2a141a; }
@@ -709,15 +760,15 @@ button.liten.slett:hover { background: #fdecea; }
 .sjefmelding-tekst strong { font-size: 1.1rem; }
 .sjefmelding-tekst p { margin: 0; color: #cdd5e6; font-size: 0.98rem; }
 .sjefmelding-bilde { max-width: 100%; max-height: 180px; width: auto; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); }
-.sjefmelding-frist { font-size: 0.82rem; font-weight: 700; color: #aeb8cc; }
+.sjefmelding-frist { font-size: 0.82rem; font-weight: 700; color: var(--natt-tekst-svak); }
 .sjefmelding-frist.snart { color: #f0a500; }
 .sjefmelding-frist.haster { color: #ff8787; }
 .sjefmelding-hak { flex-shrink: 0; min-height: 48px; padding: 0 1.1rem; border-radius: 12px; border: 1px solid rgba(80,200,120,0.5); background: #0f3320; color: #8ce0a6; font-weight: 800; font-size: 1rem; cursor: pointer; }
 .sjefmelding-hak:active { transform: scale(0.98); }
-.sjefmelding-hak.av { border-color: rgba(255,255,255,0.18); background: #1a2540; color: #aeb8cc; }
+.sjefmelding-hak.av { border-color: var(--natt-kant-sterk); background: var(--natt-flate-hak); color: var(--natt-tekst-svak); }
 .sjefmelding-hak:disabled { opacity: 0.6; }
 .sjefmeldinger-ferdige { display: flex; flex-direction: column; gap: 0.6rem; }
-.sjefmeldinger-ferdig-knapp { align-self: flex-start; background: none; border: 0; color: #aeb8cc; font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 0.2rem 0; }
+.sjefmeldinger-ferdig-knapp { align-self: flex-start; background: none; border: 0; color: var(--natt-tekst-svak); font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 0.2rem 0; }
 .merke-tablet { display: inline-block; margin-left: 0.4rem; font-size: 0.72rem; font-weight: 700; color: #8ab4ff; background: rgba(80,130,255,0.12); border: 1px solid rgba(80,130,255,0.3); border-radius: 6px; padding: 0.05rem 0.4rem; vertical-align: middle; }
 
 /* Rutine-bildebevis */
@@ -859,24 +910,24 @@ button.liten.slett:hover { background: #fdecea; }
 
 /* Produksjonsplan på tableten (logging) */
 .pp-tab-liste { display: flex; flex-direction: column; gap: 0.6rem; }
-.pp-tab-rad { background: #13203b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0.8rem 0.9rem; }
-.pp-tab-rad.ferdig { border-color: var(--gronn); background: #14301f; }
+.pp-tab-rad { background: var(--natt-flate); border: 1px solid var(--natt-kant); border-radius: 12px; padding: 0.8rem 0.9rem; }
+.pp-tab-rad.ferdig { border-color: var(--gronn); background: var(--natt-flate-ferdig); }
 .pp-tab-topp { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
-.pp-tab-navn { font-weight: 700; color: #e6ebf5; }
-.pp-tab-tall { font-weight: 800; color: #e6ebf5; font-size: 1.1rem; white-space: nowrap; }
+.pp-tab-navn { font-weight: 700; color: var(--natt-tekst); }
+.pp-tab-tall { font-weight: 800; color: var(--natt-tekst); font-size: 1.1rem; white-space: nowrap; }
 .pp-tab-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 999px; margin: 0.5rem 0; overflow: hidden; }
 .pp-tab-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
 .pp-tab-bunn { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.pp-tab-start { font-size: 0.85rem; color: #9fb0cc; }
+.pp-tab-start { font-size: 0.85rem; color: var(--natt-tekst-svakere); }
 
 /* Produksjonsplan-kort på tablet-hjem */
 .pp-hjem { display: block; text-decoration: none; color: inherit; }
 .pp-hjem:active { transform: scale(0.995); }
 .pp-hjem-topp { display: flex; align-items: center; gap: 0.8rem; }
-.pp-hjem-ikon { font-size: 1.6rem; }
+
 .pp-hjem-tekst { display: flex; flex-direction: column; flex: 1; gap: 0.1rem; }
-.pp-hjem-tekst strong { color: #e6ebf5; font-size: 1.05rem; }
-.pp-hjem-tekst > span { color: #9fb0cc; font-size: 0.88rem; }
+.pp-hjem-tekst strong { color: var(--natt-tekst); font-size: 1.05rem; }
+.pp-hjem-tekst > span { color: var(--natt-tekst-svakere); font-size: 0.88rem; }
 .pp-hjem-pst { font-weight: 800; color: #e0b000; background: rgba(224,176,0,0.15); padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.9rem; white-space: nowrap; }
 .pp-hjem-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; margin-top: 0.6rem; overflow: hidden; }
 .pp-hjem-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
@@ -1223,7 +1274,7 @@ button.liten.slett:hover { background: #fdecea; }
 .vekst-eng-topp { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
 .vekst-eng-topp h2 { margin: 0; }
 .metrikk-bytte.mork { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
-.metrikk-bytte.mork .metrikk-knapp { color: #aeb8cc; }
+.metrikk-bytte.mork .metrikk-knapp { color: var(--natt-tekst-svak); }
 .metrikk-bytte.mork .metrikk-knapp:hover { color: #fff; background: transparent; }
 .metrikk-bytte.mork .metrikk-knapp.aktiv { background: #1f2d4d; color: #fff; box-shadow: none; }
 .vekst-streak-badge { display: inline-block; margin: 0.1rem 0 1rem; padding: 0.5rem 0.95rem; border-radius: 999px; background: linear-gradient(90deg, #b8540f, #f08c00); color: #fff; font-weight: 800; font-size: 0.95rem; }
@@ -1623,9 +1674,9 @@ button.liten { min-height: 40px; }
 .tablet-hode .undertittel { margin: 0.35rem 0 0; }
 
 /* --tekst-svak (#5b606b) er valgt for LYS bakgrunn. Paa nettbrettets
-   moerke (#0a0f1f) faller kontrasten under WCAG AA - funnet av axe i
+   moerke (var(--natt)) faller kontrasten under WCAG AA - funnet av axe i
    ekte nettleser 2026-08-19, paa undertittelen jeg selv la inn dagen
-   for. Nettbrettet bruker #aeb8cc til dempet tekst paa moerkt.
+   for. Nettbrettet bruker var(--natt-tekst-svak) til dempet tekst paa moerkt.
 
    FORSTE FORSOK SATTE DEN PAA `.tablet` OG GJORDE DET VERRE. `.kort` er
    fortsatt LYS inne i nettbrettskallet, saa den regelen la lysegraa
@@ -1636,7 +1687,7 @@ button.liten { min-height: 40px; }
    skallet er moerkt, kortene er lyse. Dempet tekst maa folge FLATEN den
    ligger paa, ikke skallet den er inni. */
 .tablet-hode .undertittel,
-.tablet-seksjon .undertittel { color: #aeb8cc; }
+.tablet-seksjon .undertittel { color: var(--natt-tekst-svak); }
 
 /* Hansker. 44px er iOS-minimum for bar finger; med arbeidshansker paa
    en kald morgen bommer man. Gjelder kun nettbrettet - lederens
@@ -1659,6 +1710,20 @@ button.liten { min-height: 40px; }
 .tablet .ik-form input { width: 6.5rem; padding: 0.85rem; font-size: 1.2rem; }
 .tablet .ik-tabell td, .tablet .ik-tabell th { padding: 0.7rem 0.6rem; }
 .tablet .lenke-rad { min-height: 64px; }
+
+/* ET AVVIK ER EN OPPGAVE, IKKE EN KVITTERING.
+   Alt annet paa nettbrettets IK-mat-side forsvinner naar det er gjort;
+   en maaling utenfor kravet blir staaende til noen har rettet den.
+   Derfor egen linje med ord i - ikke en farge paa raden, som ville
+   forsvunnet for den som ikke skiller roedt fra graatt. */
+.ikmat-utenfor {
+  display: block;
+  margin-top: 0.2rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--natt-rod);
+}
+.tablet .ikmat-rutine .rutine-tekst { line-height: 1.35; }
 
 /* --- Nettbrettets ramme: treffomraader ------------------------------
    Funnet av e2e/innlogget.spec.ts 2026-08-19. Arbeidsflaten var satt

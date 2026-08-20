@@ -700,3 +700,86 @@ values
   ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-333333333333',
    date '2025-03-23', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1000, 100000, 35000)
 on conflict (retailer_id, stasjon_id, dato, ean) do nothing;
+
+
+-- =====================================================================
+-- NETTBRETTET MED DATA (bolge 5).
+--
+-- HVORFOR ET TIL. `nettbrett@test.sentiqa.no` staar i Testkjeden, som er
+-- tom med vilje - den beviser tomtilstanden, og det skal den fortsette
+-- med. Men da kan den ikke bevise en ARBEIDSFLYT: en koe uten oppgaver
+-- er ikke en koe.
+--
+-- Denne staar i Analysekjeden, paa 5101 Underby, og har IK-mat-punkter
+-- aa maale. Samme skille som mellom butikksjef@ og analyse@, og av samme
+-- grunn: begge produkttilstandene skal vaere ekte samtidig.
+--
+-- Rollen `butikkbruker_tablet` er unntatt to-faktor (delt PIN-enhet,
+-- mfa.ts), saa den logger inn med passord som de ovrige.
+-- =====================================================================
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change, email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-666666666666',
+   'authenticated', 'authenticated',
+   'nettbrett-analyse@test.sentiqa.no', crypt('test-nettbrett-analyse-2026', gen_salt('bf')),
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+   '', '', '', '', '', '', '', '')
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id,
+  last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), '33333333-3333-4333-8333-666666666666',
+   '{"sub":"33333333-3333-4333-8333-666666666666","email":"nettbrett-analyse@test.sentiqa.no"}'::jsonb,
+   'email', '33333333-3333-4333-8333-666666666666', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
+
+insert into public.profiler (id, retailer_id, rolle, fullt_navn)
+values
+  ('33333333-3333-4333-8333-666666666666', '11111111-1111-4111-8111-222222222222',
+   'butikkbruker_tablet', 'Nettbrett Underby')
+on conflict (id) do nothing;
+
+-- Ett nettbrett staar i EN butikk. Det er hele premisset for flata.
+insert into public.butikksjef_stasjoner (profil_id, stasjon_id)
+values
+  ('33333333-3333-4333-8333-666666666666', '44444444-4444-4444-8444-111111111111')
+on conflict do nothing;
+
+-- ---------------------------------------------------------------------
+-- IK-MAT-PUNKTENE hun skal maale.
+--
+-- TO FREKVENSER MED VILJE. Nettbrettets IK-mat-side er en koe med en rad
+-- per gruppe, og med bare en gruppe kunne et bevis ikke skille «riktig
+-- gruppert» fra «alt i en haug».
+--
+--   daglig     3 punkter
+--   ukentlig   2 punkter
+--
+-- Ingen avlesninger seedes. Koen skal starte full - det er tilstanden
+-- hun moeter naar hun kommer paa vakt, og den arbeidsflyten et bevis
+-- skal kunne gaa gjennom fra start.
+-- ---------------------------------------------------------------------
+insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn, type, min_temp, max_temp, frekvens, sortering)
+values
+  ('66666666-6666-4666-8666-000000000001', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Kjoledisk pakkemat', 'kjol', null, 4, 'daglig', 1),
+  ('66666666-6666-4666-8666-000000000002', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Fryser bakeri', 'frys', null, -18, 'daglig', 2),
+  ('66666666-6666-4666-8666-000000000003', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Varmedisk polser', 'varmholding', 60, null, 'daglig', 3),
+  ('66666666-6666-4666-8666-000000000004', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Oppvaskmaskin skyllevann', 'skyllevann', 82, null, 'ukentlig', 4),
+  ('66666666-6666-4666-8666-000000000005', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Kjolerom drikke', 'kjol', null, 7, 'ukentlig', 5)
+on conflict (id) do nothing;

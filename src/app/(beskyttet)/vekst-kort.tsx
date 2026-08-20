@@ -32,7 +32,7 @@ export function VekstKort({ metrikker }: { metrikker: { samlet: VekstMetrikk; ma
   return (
     <section className="tablet-seksjon vekst-eng">
       <div className="vekst-eng-topp">
-        <h2>📈 {t('Vekst mot i fjor')}</h2>
+        <h2>{t('Vekst mot i fjor')}</h2>
         <div className="metrikk-bytte mork">
           {VALG.map((v) => (
             <button key={v.key} type="button" className={`metrikk-knapp ${valg === v.key ? 'aktiv' : ''}`} onClick={() => setValg(v.key)}>
@@ -43,7 +43,7 @@ export function VekstKort({ metrikker }: { metrikker: { samlet: VekstMetrikk; ma
       </div>
 
       {m.streak > 0 && (
-        <div className="vekst-streak-badge">🔥 {m.streak} {t(m.streak === 1 ? 'dag' : 'dager')} {t('på rad over fjoråret!')}</div>
+        <div className="vekst-streak-badge">{m.streak} {t(m.streak === 1 ? 'dag' : 'dager')} {t('på rad over fjoråret!')}</div>
       )}
 
       <div className="vekst-tall-rad">

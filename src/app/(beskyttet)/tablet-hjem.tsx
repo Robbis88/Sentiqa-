@@ -11,12 +11,25 @@ import { MalekortTablet } from './maaling-tablet'
 import type { TabletKort } from '@/lib/malekort'
 import { MeldingerFraSjef, type SjefMelding } from './meldinger-sjef'
 
+// FLISENE ER ORD NAA, IKKE EMOJI.
+//
+// Avveiningen er verdt aa skrive ned, for den gaar begge veier: en
+// emoji kjennes igjen paa avstand og krever ikke lesing, og nettbrettet
+// brukes av folk som ikke alle leser norsk godt. Men ETIKETTENE
+// oversettes (`useT`), og emojien gjorde ikke det - den sto som et
+// bilde ved siden av et ord som byttet spraak.
+//
+// Og de fem emojiene var ikke ett formsprak: en hake, et bakverk, et
+// termometer, en medalje og en bok, hver med sine egne farger fra
+// systemfonten. Alternativet var aa tegne fem strekikoner til
+// `ikoner.tsx`, men et ikon som skal si «IK-mat & avvik» finnes ikke -
+// og et daarlig ikon over et riktig ord gjor ordet mindre, ikke stoerre.
 const TILES = [
-  { sti: '/rutiner', tekst: 'Rutiner', ikon: '✅' },
-  { sti: '/produksjonsplan', tekst: 'Produksjon', ikon: '🥐' },
-  { sti: '/ikmat', tekst: 'IK-mat & avvik', ikon: '🌡️' },
-  { sti: '/merker', tekst: 'Merker', ikon: '🏅' },
-  { sti: '/anvisninger', tekst: 'Anvisninger', ikon: '📖' },
+  { sti: '/rutiner', tekst: 'Rutiner' },
+  { sti: '/produksjonsplan', tekst: 'Produksjon' },
+  { sti: '/ikmat', tekst: 'IK-mat & avvik' },
+  { sti: '/merker', tekst: 'Merker' },
+  { sti: '/anvisninger', tekst: 'Anvisninger' },
 ]
 
 type Melding = { id: string; tekst: string; viktig: boolean }
@@ -58,7 +71,12 @@ export function TabletHjem({
         <div className="tablet-meldinger">
           {meldinger.map((m) => (
             <div className={`tablet-melding ${m.viktig ? 'viktig' : ''}`} key={m.id}>
-              <span className="tablet-melding-ikon">{m.viktig ? '❗' : '📣'}</span>
+              {/* Alvoret laa i en roed bakgrunn og et utropstegn-emoji.
+                  Naa staar det i ord: en beskjed som haster skal kunne
+                  skilles fra en vanlig av den som ikke ser farge. */}
+              <span className="tablet-melding-merke">
+                {m.viktig ? t('Viktig') : t('Beskjed')}
+              </span>
               <span>{m.tekst}</span>
             </div>
           ))}
@@ -85,7 +103,6 @@ export function TabletHjem({
       <div className="tablet-tiles">
         {TILES.map((flis) => (
           <Link key={flis.sti} href={flis.sti} className="tablet-tile">
-            <span className="tablet-tile-ikon">{flis.ikon}</span>
             <span className="tablet-tile-tekst">{t(flis.tekst)}</span>
           </Link>
         ))}
@@ -102,7 +119,6 @@ export function TabletHjem({
         return (
           <Link href="/produksjonsplan" className="tablet-seksjon pp-hjem">
             <div className="pp-hjem-topp">
-              <span className="pp-hjem-ikon">📋</span>
               <span className="pp-hjem-tekst">
                 <strong>{t('Produksjonsplan')}</strong>
                 <span>{t('I dag')}: {hjem.produksjon.antall} {t('produkter')} · {hjem.produksjon.lagd}/{hjem.produksjon.plan} {t('lagd')}</span>
@@ -115,17 +131,17 @@ export function TabletHjem({
       })()}
 
       <section className="tablet-seksjon premie">
-        <h2>🎁 {t('Vår premiesaldo')}</h2>
+        <h2>{t('Vår premiesaldo')}</h2>
         <div className="premie-saldo">
-          <div><span className="premie-tall">{kr.format(hjem.premie.vunnet)}</span><span className="premie-merke">🏆 {t('Vunnet')}</span></div>
-          <div><span className="premie-tall">{kr.format(hjem.premie.brukt)}</span><span className="premie-merke">🛒 {t('Brukt')}</span></div>
-          <div><span className="premie-tall gronn">{kr.format(hjem.premie.igjen)}</span><span className="premie-merke">💰 {t('Igjen')}</span></div>
+          <div><span className="premie-tall">{kr.format(hjem.premie.vunnet)}</span><span className="premie-merke">{t('Vunnet')}</span></div>
+          <div><span className="premie-tall">{kr.format(hjem.premie.brukt)}</span><span className="premie-merke">{t('Brukt')}</span></div>
+          <div><span className="premie-tall gronn">{kr.format(hjem.premie.igjen)}</span><span className="premie-merke">{t('Igjen')}</span></div>
         </div>
       </section>
 
       {hjem.skills && (
         <section className="tablet-seksjon skills">
-          <span className="skills-merke">🏆 {t('Skills-score')}</span>
+          <span className="skills-merke">{t('Skills-score')}</span>
           <span className="skills-tall">{hjem.skills.prosent} %</span>
           <span className="skills-tekst">{t(hjem.skills.tekst)}</span>
         </section>

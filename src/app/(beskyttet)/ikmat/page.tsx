@@ -6,6 +6,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
 import { registrerAvlesning, settOppStandard } from './handlinger'
 import { AvvikDel } from '../avvik/avvik-del'
+import { TabletIkMat } from './tablet-ikmat'
 
 type Punkt = {
   id: string
@@ -71,39 +72,62 @@ export default async function IkMatSide() {
   // stasjon har fortsatt en leder som skal se hvilken det er.
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
-  return (
-    <>
-      {/* NETTBRETTETS HODE LAA PAA BEGGE ROLLER, og det var ikke bare en
-          stilfeil: `.tablet-hode` bruker nettbrettets farger, som er
-          laget for morkt underlag. Paa lederens lyse side ga det 1,9:1 i
-          kontrast - godt under kravet - og axe fant det forst da bolge
-          4A begynte aa maale sida.
+  // NETTBRETTET FAAR EN KOE, IKKE ET REGNEARK. Se tablet-ikmat.tsx:
+  // maaleflaten finnes allerede paa /ikmat/maaling, og denne sida hadde
+  // en daarligere kopi av den ved siden av. Tallene her er de samme som
+  // tabellen under regner ut - bare gruppert slik hun jobber.
+  const tabletGrupper = (stasjoner ?? []).map((st) => {
+    const sineP = punkterPerStasjon.get(st.id) ?? []
+    return {
+      stasjonId: st.id,
+      grupper: FREKVENS_REKKE
+        .filter((f) => sineP.some((p) => p.frekvens === f))
+        .map((frekvens) => {
+          const iGruppa = sineP.filter((p) => p.frekvens === frekvens)
+          return {
+            frekvens,
+            antall: iGruppa.length,
+            malt: iGruppa.filter((p) => idagPer.has(p.id)).length,
+            utenfor: iGruppa.filter((p) => idagPer.get(p.id)?.innenfor === false).length,
+          }
+        }),
+    }
+  })
 
-          Nettbrettet beholder sitt hode uroert; det hoerer til bolge 5.
-          Lederen faar sidehodet resten av systemet bruker. */}
-      {paaNettbrett ? (
+  if (paaNettbrett) {
+    return (
+      <>
         <header className="tablet-hode">
           <h1>{svar}</h1>
           <p className="undertittel">
-            IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk.
-            {kanRedigere ? <> · <Link href="/ikmat/oppsett">Rediger oppsett</Link></> : null}
+            Er noe utenfor kravet, opprettes et avvik automatisk naar du fyller inn strakstiltak.
           </p>
         </header>
-      ) : (
-        <Sidehode
-          tittel={svar}
-          undertittel="IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk."
-          handlinger={kanRedigere
-            ? <Link href="/ikmat/oppsett" className="sq-knapp">Rediger oppsett</Link>
-            : undefined}
-        />
-      )}
+        <TabletIkMat stasjoner={tabletGrupper} />
+        <AvvikDel />
+      </>
+    )
+  }
+
+  // LEDEREN BEHOLDER RUTENETTET. Hennes spoersmaal er et annet - hva
+  // krever oppmerksomhet, og hvorfor - og da er hele tabellen riktig.
+  // `.tablet-hode` er borte herfra: den bruker nettbrettets farger, laget
+  // for moerkt underlag, og ga 1,9:1 paa lederens lyse side.
+  return (
+    <>
+      <Sidehode
+        tittel={svar}
+        undertittel="IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk."
+        handlinger={kanRedigere
+          ? <Link href="/ikmat/oppsett" className="sq-knapp">Rediger oppsett</Link>
+          : undefined}
+      />
 
       {(stasjoner ?? []).map((s) => {
         const sineP = punkterPerStasjon.get(s.id) ?? []
         return (
           <section className="kort" key={s.id}>
-            {!paaNettbrett && <h2>{s.butikknummer} {s.navn}</h2>}
+            <h2>{s.butikknummer} {s.navn}</h2>
 
             {sineP.length === 0 ? (
               kanRedigere ? (
