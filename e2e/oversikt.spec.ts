@@ -301,9 +301,29 @@ test.describe('/oversikt foelger stasjonskonteksten', () => {
     expect(await skallet(page)).toContain('5102')
     await expect(page.locator('.sq-sidehode h1')).toContainText('5102')
 
-    // DETTE ER SELVE BEVISET. Oppgaven ligger paa 5101; staar den her,
-    // leser motoren fortsatt alle stasjonene.
+    // DETTE ER SELVE BEVISET. Begge ligger paa 5101; staar en av dem
+    // her, leser motoren fortsatt alle stasjonene.
     await expect(page.locator('.sq-sak', { hasText: 'over frist' })).toHaveCount(0)
+    await expect(page.locator('.sq-sak', { hasText: 'Melding om krenkelse' })).toHaveCount(0)
+
+    // Og 5102 har sin EGEN ulest melding, som skal staa her og bare
+    // her. Uten dette kunne testen ikke skille «riktig filtrert» fra
+    // «alt borte».
+    await expect(page.locator('.sq-sak', { hasText: 'ulest melding' })).toHaveCount(1)
+  })
+
+  test('krenkelsen hoerer til stasjonen den ble meldt paa', async ({ page }) => {
+    // Krenkelsen er det hoyest rangerte signalet i systemet. Sto den
+    // ufiltrert - som den gjorde - toppet en melding fra 5101 forsiden
+    // mens toppstripen sto paa 5102.
+    await page.goto(`/oversikt?stasjon=${UNDERBY}`)
+    await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('.sq-sak', { hasText: 'Melding om krenkelse' })).toHaveCount(1)
+
+    // Paa 5101 undertrykkes «uleste meldinger» med vilje naar det
+    // finnes en krenkelse - to meldinger om samme innboks ville dyttet
+    // krenkelsen nedover. Den regelen er urort.
+    await expect(page.locator('.sq-sak', { hasText: 'ulest melding' })).toHaveCount(0)
   })
 
   test('delt lenke gir samme kontekst i skall og side - paa forste visning', async ({ page }) => {

@@ -74,8 +74,20 @@ async function samle(
   bareStasjon?: string,
 ): Promise<Data> {
   try {
-    // Tabeller uten stasjon_id (premier, varsler, fokus) avgrenses av RLS
-    // som for. Filteret legges bare der kolonnen finnes.
+    // FILTERET LEGGES DER KOLONNEN FINNES OG BETYR NOE.
+    //
+    // `tilbakemelding` kom hit i korrekthetstrinnet etter bolge 4B.2.
+    // Den har `stasjon_id not null`, men sto ufiltrert - og den baerer
+    // det HOYEST rangerte signalet i hele systemet. Foelgen var at en
+    // krenkelse meldt paa 5101 toppet forsiden mens toppstripen sto paa
+    // 5102: skallet sa en stasjon, og det forste oyet moette gjaldt en
+    // annen.
+    //
+    // `varsler` staar med vilje UTENFOR. Kolonnen er nullbar, og null
+    // betyr «hele kjeden». Et `.eq()` ville ikke avgrenset dem - det
+    // ville skjult dem.
+    //
+    // `pengepremie` og `fokuspunkter` avgrenses av RLS som for.
     const paaStasjon = <T,>(q: T): T =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (bareStasjon ? (q as any).eq('stasjon_id', bareStasjon) : q)
@@ -88,7 +100,8 @@ async function samle(
       await Promise.all([
         paaStasjon(supabase.from('oppgaver').select('id, tittel, frist, status').eq('status', 'apen').is('slettet_tid', null))
           .overrideTypes<{ id: string; tittel: string; frist: string | null; status: string }[]>(),
-        supabase.from('tilbakemelding').select('alvorlighet, lest_tid').is('lest_tid', null).limit(200)
+        paaStasjon(supabase.from('tilbakemelding').select('alvorlighet, lest_tid')
+          .is('lest_tid', null).limit(200))
           .overrideTypes<{ alvorlighet: string; lest_tid: string | null }[]>(),
         supabase.from('pengepremie').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
         supabase.from('pengepremie_bruk').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
