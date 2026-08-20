@@ -93,7 +93,10 @@ test.describe('bolge 3 - butikksjefens flater', () => {
     await expect(page.locator('dialog[open]')).toHaveCount(0)
 
     // 2. Riktig handling aapner det.
-    await page.getByRole('button', { name: 'Ny score' }).click()
+    // TO KNAPPER MED SAMME NAVN, og det er riktig: panelet aapnes baade
+    // fra sidehodet og fra tomtilstanden, som tilbyr veien videre naar
+    // det ikke finnes noe aa se paa. Samme panel, to inngangar.
+    await page.getByRole('button', { name: 'Ny score' }).first().click()
     const panel = page.locator('dialog[open]')
     await expect(panel).toBeVisible()
 
@@ -114,7 +117,7 @@ test.describe('bolge 3 - butikksjefens flater', () => {
 
   test('valideringen bestaar - tomt paakrevd felt lagrer ikke', async ({ page }) => {
     await page.goto('/puls/sporsmal')
-    await page.getByRole('button', { name: 'Nytt spørsmål' }).click()
+    await page.getByRole('button', { name: 'Nytt spørsmål' }).first().click()
     const panel = page.locator('dialog[open]')
     await expect(panel).toBeVisible()
 
