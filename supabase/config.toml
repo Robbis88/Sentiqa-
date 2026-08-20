@@ -299,9 +299,19 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+#
+# PAA I LOKAL OG CI. Eier og plattform-redaktor TVINGES gjennom TOTP i
+# produksjon (src/lib/auth/mfa.ts), og med dette avslaatt kunne de to
+# rollene ikke logge inn i CI i det hele tatt - eiergrenene sto dermed
+# uten testdekning gjennom hele redesignet.
+#
+# Dette er ikke en omgaaelse: det gjor testmiljoet LIKT produksjon.
+# Testen kjorer den samme innrulleringen og den samme verifiseringen som
+# en ekte eier, mot det samme API-et. Hemmeligheten finnes bare i den
+# ferske basen CI river etterpaa.
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]

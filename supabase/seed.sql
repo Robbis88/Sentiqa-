@@ -192,6 +192,64 @@ values
    'butikksjef', 'Test Analysesjef')
 on conflict (id) do nothing;
 
+
+-- ---------------------------------------------------------------------
+-- EIEREN - og hvorfor hun ikke fantes for naa (bolge 3, port 0).
+--
+-- `retailer_admin` og `plattform_redaktor` TVINGES gjennom to-faktor
+-- (src/lib/auth/mfa.ts). Fram til naa var TOTP slaatt AV i den lokale
+-- Supabase-en, og da kunne ingen av de to rollene logge inn i CI i det
+-- hele tatt. Folgen: eiergrenene - forsiden hans, regnskapets
+-- kjedevisning, /analyse, /dekning, /plattform - hadde null dekning
+-- gjennom hele redesignet, og testene hoppet over dem med en begrunnelse
+-- som saa fornuftig ut.
+--
+-- INGEN FAKTOR SEEDES HER. Den kunne vaert stappet rett inn i
+-- auth.mfa_factors, men da ville testen bevist at en seedet rad virker -
+-- ikke at innrulleringen gjor det. I stedet logger testen inn, blir
+-- tvunget til /sikkerhet slik en ekte ny eier blir, ruller inn gjennom
+-- det ekte API-et, leser hemmeligheten fra manuell-inntastingsfeltet og
+-- regner ut engangskoden selv. Samme kontrakt som et menneske.
+--
+-- Eieren ligger i Analysekjeden, der dataene er: da har eiergrenene
+-- faktisk noe aa vise.
+-- ---------------------------------------------------------------------
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change, email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-444444444444',
+   'authenticated', 'authenticated',
+   'eier@test.sentiqa.no', crypt('test-eier-2026', gen_salt('bf')),
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+   '', '', '', '', '', '', '', '')
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id,
+  last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), '33333333-3333-4333-8333-444444444444',
+   '{"sub":"33333333-3333-4333-8333-444444444444","email":"eier@test.sentiqa.no"}'::jsonb,
+   'email', '33333333-3333-4333-8333-444444444444', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
+
+-- Eier trenger ingen rad i butikksjef_stasjoner: RLS gir retailer_admin
+-- hele kjeden sin (stasjoner_select, 0001). Aa legge inn en likevel
+-- ville skjult om den regelen slutter aa gjelde.
+insert into public.profiler (id, retailer_id, rolle, fullt_navn)
+values
+  ('33333333-3333-4333-8333-444444444444', '11111111-1111-4111-8111-222222222222',
+   'retailer_admin', 'Test Eier')
+on conflict (id) do nothing;
+
 insert into public.butikksjef_stasjoner (profil_id, stasjon_id)
 values
   ('33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-111111111111'),
