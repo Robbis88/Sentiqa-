@@ -259,6 +259,55 @@ on conflict do nothing;
 
 
 -- ---------------------------------------------------------------------
+-- PLATTFORM-REDAKTOREN - siste rolle uten CI-dekning (port 0, 4B).
+--
+-- Bolge 4A avslorte hullet: /plattform avviste eieren, fordi ruta er
+-- plattform-redaktorens. Den rollen tvinges ogsaa gjennom to-faktor
+-- (mfaPaakrevd), saa den hadde samme problem som eieren hadde for
+-- bolge 3 - ingen kunne logge inn som den i CI, og /plattform,
+-- /redaktor og /kunnskap sto dermed uten dekning.
+--
+-- STAAR UTENFOR ALLE KJEDER. `profil_retailer_paakrevd` (0001) krever
+-- at nettopp denne rollen har retailer_id = null: hun publiserer PAA
+-- TVERS av kunder og skal ikke hoere til noen av dem. Seeden foelger
+-- den regelen i stedet for aa omgaa den - hadde vi gitt henne en kjede,
+-- ville testen bevist noe annet enn det produksjonen gjor.
+-- ---------------------------------------------------------------------
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change, email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-555555555555',
+   'authenticated', 'authenticated',
+   'redaktor@test.sentiqa.no', crypt('test-redaktor-2026', gen_salt('bf')),
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+   '', '', '', '', '', '', '', '')
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id,
+  last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), '33333333-3333-4333-8333-555555555555',
+   '{"sub":"33333333-3333-4333-8333-555555555555","email":"redaktor@test.sentiqa.no"}'::jsonb,
+   'email', '33333333-3333-4333-8333-555555555555', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
+
+insert into public.profiler (id, retailer_id, rolle, fullt_navn)
+values
+  ('33333333-3333-4333-8333-555555555555', null,
+   'plattform_redaktor', 'Test Redaktor')
+on conflict (id) do nothing;
+
+
+-- ---------------------------------------------------------------------
 -- MATSALGET - naevneren i svinn%.
 --
 -- Svinn% regnes IKKE av sida. `matsalg_vindu_sum` summerer

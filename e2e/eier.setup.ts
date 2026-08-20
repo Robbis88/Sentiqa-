@@ -1,7 +1,9 @@
 import { test as oppsett, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { EIER, HEMMELIGFIL, OKTFIL, totp } from './eier'
+import {
+  EIER, HEMMELIGFIL, OKTFIL, REDAKTOR, REDAKTOR_HEMMELIGFIL, REDAKTOR_OKTFIL, totp,
+} from './eier'
 
 // =====================================================================
 // Eieren rulles inn EN gang, for alt annet kjorer.
@@ -50,4 +52,36 @@ oppsett('eieren ruller inn to-faktor, en gang for alle', async ({ page }) => {
   mkdirSync(dirname(HEMMELIGFIL), { recursive: true })
   writeFileSync(HEMMELIGFIL, hemmelig, 'utf8')
   await page.context().storageState({ path: OKTFIL })
+})
+
+/**
+ * Samme flyt for plattform-redaktoren.
+ *
+ * Rollen tvinges gjennom TOTP paa noyaktig samme maate som eieren, og
+ * hun rulles inn paa noyaktig samme maate: ingen seedet faktor, ingen
+ * omgaaelse. To identiteter, to okter, og ingen av dem laaner den
+ * andres.
+ */
+oppsett('plattform-redaktoren ruller inn to-faktor', async ({ page }) => {
+  await page.goto('/logg-inn')
+  await page.fill('input[name="epost"]', REDAKTOR.epost)
+  await page.fill('input[name="passord"]', REDAKTOR.passord)
+  await page.click('button[type="submit"]')
+
+  await expect(page, 'Redaktoren ble ikke tvunget til innrullering')
+    .toHaveURL(/\/sikkerhet\?paakrevd=1/, { timeout: 30_000 })
+
+  await page.getByRole('button', { name: 'Sett opp to-faktor' }).click()
+  const hemmelig = (await page.locator('.mfa-hemmelig').innerText()).trim()
+  expect(hemmelig.length, 'Ingen hemmelighet paa innrulleringssida').toBeGreaterThan(10)
+
+  await page.getByLabel(/engangskoden/i).fill(totp(hemmelig))
+  await page.getByRole('button', { name: 'Aktiver to-faktor' }).click()
+
+  await expect(page, 'Innrulleringen slapp henne ikke gjennom porten')
+    .toHaveURL(/\/oversikt|\/plattform/, { timeout: 30_000 })
+
+  mkdirSync(dirname(REDAKTOR_HEMMELIGFIL), { recursive: true })
+  writeFileSync(REDAKTOR_HEMMELIGFIL, hemmelig, 'utf8')
+  await page.context().storageState({ path: REDAKTOR_OKTFIL })
 })

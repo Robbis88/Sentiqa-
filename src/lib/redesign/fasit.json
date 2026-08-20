@@ -474,7 +474,7 @@
       "Stasjonene mot hverandre",
       "Timer der én ikke holder",
       "Vaktene dette blir",
-      "{steg.tittel}"
+      "dynamisk:steg.tittel"
     ],
     "/brukere": [
       "Ingen brukere ennå",
@@ -487,9 +487,9 @@
       "Bra jobbet",
       "Ingen fokuspunkter ennå",
       "Verdt et blikk",
+      "navnFor.get(id) ?? '—'",
       "p.tittel ?? 'Bra jobbet'",
-      "p.tittel ?? 'Verdt et blikk'",
-      "{navnFor.get(id) ?? '—'}"
+      "p.tittel ?? 'Verdt et blikk'"
     ],
     "/ikmat/oppsett": [
       "Ingen kontrollpunkter",
@@ -499,7 +499,7 @@
       "Avvik (S01)",
       "Lukket ({lukket.length})",
       "Nytt avvik",
-      "{FREKVENS_ETIKETT[frekvens]}",
+      "dynamisk:FREKVENS_ETIKETT[frekvens]",
       "{s.butikknummer} {s.navn}",
       "Åpne ({apne.length})"
     ],
@@ -528,7 +528,7 @@
       "Maler",
       "Skrevet på {valgt.navn}",
       "Skriv kontrakt",
-      "{person.navn}"
+      "dynamisk:person.navn"
     ],
     "/kontrakt/[id]": [
       "Signering",
@@ -556,8 +556,8 @@
     ],
     "/maaling": [
       "Nytt målekort",
-      "erAdmin ? 'Ingen målekort ennå' : 'Ingen målekort er delt med deg ennå'",
-      "{m.navn}"
+      "dynamisk:m.navn",
+      "erAdmin ? 'Ingen målekort ennå' : 'Ingen målekort er delt med deg ennå'"
     ],
     "/meldinger": [
       "Ingen aktive meldinger",
@@ -572,7 +572,7 @@
       "Det vi ikke gjør",
       "Dine rettigheter",
       "Les gjennom",
-      "{t.hva}"
+      "dynamisk:t.hva"
     ],
     "/nyheter": [
       "Ingen nyheter ennå"
@@ -588,7 +588,7 @@
       "Tomt oppgavebibliotek",
       "Under opplæring",
       "Vaktplan",
-      "{k.navn}",
+      "dynamisk:k.navn",
       "{valgt.ansatt_navn} — sjekkliste"
     ],
     "/oversikt": [
@@ -603,12 +603,14 @@
       "Stasjonene mot hverandre",
       "Stasjonsrangering",
       "Venter på en komplett uke",
-      "{g.navn}",
+      "dynamisk:g.navn",
+      "dynamisk:overskrift(signaler)",
+      "dynamisk:pulsOverskrift(d.stasjonsnavn,vekst)",
+      "dynamisk:s.tittel",
+      "dynamisk:t(overskrift(alle.length))",
+      "dynamisk:tittel",
+      "pulsOverskrift('Klyngen', klynge.vekstPst)",
       "{ikon ? `${ikon} ` : ''}{tittel}",
-      "{overskrift(signaler)}",
-      "{pulsOverskrift('Klyngen', klynge.vekstPst)}",
-      "{pulsOverskrift(d.stasjonsnavn, vekst)}",
-      "{t(overskrift(alle.length))}",
       "✅ Oppgaver",
       "🎁 {t('Vår premiesaldo')}",
       "🏆 Måling",
@@ -644,14 +646,15 @@
     "/produksjonsplan": [
       "Ingen produksjonssalg registrert",
       "Notat til de ansatte",
-      "{g.navn}",
+      "dynamisk:g.navn",
+      "dynamisk:tittel",
       "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>",
       "🥐 Produksjon"
     ],
     "/produksjonsplan/treffsikkerhet": [
       "Dag for dag (siste ${trendDager.length})",
       "Ingen treffdata ennå for denne stasjonen",
-      "{tittel}"
+      "dynamisk:tittel"
     ],
     "/puls": [
       "Ingen målinger ennå",
@@ -676,7 +679,8 @@
       "Kostnader per konto · hele kjeden",
       "Per stasjon",
       "Påvirkbare kostnader",
-      "{navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'}"
+      "dynamisk:SEKSJON_TITTEL[navn]",
+      "navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'"
     ],
     "/rutiner/min": [
       "Ingen punkter ennå",
@@ -698,7 +702,7 @@
       "Ingen stasjoner ennå"
     ],
     "/rutiner": [
-      "{navnFor.get(sid) ?? '—'}"
+      "navnFor.get(sid) ?? '—'"
     ],
     "/salg": [
       "Ingen salgsdata ennå",
@@ -709,12 +713,13 @@
     "/salgsprognose": [
       "Ikke nok salgshistorikk for denne stasjonen ennå",
       "Ingen stasjoner tilgjengelig",
-      "Per kategori"
+      "Per kategori",
+      "dynamisk:tittel"
     ],
     "/sjekkpunkt": [
       "Ingen sjekkpunkter ennå",
       "Nytt sjekkpunkt",
-      "{navnFor.get(sid) ?? '—'}"
+      "navnFor.get(sid) ?? '—'"
     ],
     "/skills": [
       "Ingen score registrert",

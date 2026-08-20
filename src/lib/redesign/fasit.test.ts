@@ -93,11 +93,65 @@ describe('seksjoner', () => {
       .toEqual(['Per stasjon · ${dato}'])
   })
 
-  test('et rent uttrykk er ikke en overskrift', () => {
-    // `tittel={tittel}` sier ingenting om hva som staar paa skjermen.
-    // Talte vi den, ville vakten voktet et variabelnavn.
-    expect(seksjoner('<Signal tittel={tittel}>')).toEqual([])
-    expect(seksjoner('<Datatabell tittel={g.navn}>')).toEqual([])
+  // =================================================================
+  // DYNAMISKE SEKSJONER (port 0 til bolge 4B).
+  //
+  // Trinn 07 hoppet over `tittel={uttrykk}` uten tekst i seg. Det var
+  // riktig medisin mot feil sykdom: problemet var at `tittel={tittel}`
+  // ble lest som seksjonen «tittel», ikke at seksjonen ikke fantes.
+  // /regnskap mistet en ekte seksjon slik i bolge 4A.
+  //
+  // Naa faar den en maskinlesbar identitet i stedet. Kanarifuglene
+  // under er de seks tilfellene som avgjor om vakten fortsatt ser -
+  // og fortsatt reagerer.
+  // =================================================================
+
+  test('A - statisk overskrift finnes', () => {
+    expect(seksjoner('<h2>Per stasjon</h2>')).toEqual(['Per stasjon'])
+  })
+
+  test('B - dynamisk overskrift registreres med stabil identitet', () => {
+    expect(seksjoner('<h2>{navn}</h2>')).toEqual(['dynamisk:navn'])
+    expect(seksjoner('<Datatabell tittel={SEKSJON_TITTEL[navn]}>'))
+      .toEqual(['dynamisk:SEKSJON_TITTEL[navn]'])
+  })
+
+  test('C - AA FLYTTE en dynamisk seksjon er ikke et tap', () => {
+    // Samme seksjon, to former: som overskrift i sida, og som prop paa
+    // en komponent. Identiteten maa vaere den samme, ellers meldte hver
+    // eneste utflytting et tap som ikke fant sted.
+    expect(borte(seksjoner('<h2>{g.navn}</h2>'),
+                 seksjoner('<Datatabell tittel={g.navn}>'))).toEqual([])
+  })
+
+  test('D - EKTE TAP AV EN DYNAMISK SEKSJON MELDES', () => {
+    // Den viktigste. Slettes seksjonen, skal den komme ut av borte().
+    const foer = '<h2>Fast</h2><Datatabell tittel={g.navn}>'
+    const etter = '<h2>Fast</h2>'
+    expect(borte(seksjoner(foer), seksjoner(etter))).toEqual(['dynamisk:g.navn'])
+  })
+
+  test('E - et tilfeldig JSX-uttrykk er ikke en seksjon', () => {
+    // Bare overskrifter og `tittel`-propper gaar gjennom identiteten.
+    // Uten den avgrensningen ville hver `{variabel}` i en side blitt en
+    // seksjon, og fasiten ubrukelig.
+    expect(seksjoner('<p>{antall} rader</p><span>{navn}</span>')).toEqual([])
+    expect(seksjoner('<Rad primaer={p.navn} sekundaer={p.rolle} />')).toEqual([])
+  })
+
+  test('F - generiske primitiver bidrar ikke', () => {
+    // `<Sidehode tittel=…>` er sidas h1, ikke en seksjon - og
+    // komponentfilene under @/components naas ikke i det hele tatt
+    // (rutetre folger bare relative stier).
+    expect(seksjoner('<Sidehode tittel="Oversikt" />')).toEqual([])
+    expect(seksjoner('<Sidehode tittel={navn} />')).toEqual([])
+  })
+
+  test('uttrykk MED tekst voktes som tekst, ikke som identitet', () => {
+    // `o('Ingen anvisninger')` kan endres i stillhet, og teksten er det
+    // beste vi har. Den skal ikke gjemmes bak «dynamisk:».
+    expect(seksjoner("<Tomtilstand tittel={o('Ingen anvisninger')}>"))
+      .toEqual(["o('Ingen anvisninger')"])
   })
 
   test('men et uttrykk MED tekst i voktes fortsatt', () => {
