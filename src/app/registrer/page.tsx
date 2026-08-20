@@ -1,3 +1,4 @@
+import { Merke } from '@/components/ui/merke'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { RegistrerSkjema } from './skjema'
@@ -8,7 +9,7 @@ export default function RegistrerSide() {
   return (
     <main className="logg-inn">
       <div className="kort">
-        <div className="merke">Sentiqa</div>
+        <Merke />
         <h1>Kom i gang</h1>
         <p className="undertittel">Opprett kjeden din og legg til stasjonene. Faktura sendes på EHF.</p>
         <RegistrerSkjema />

@@ -1,24 +1,49 @@
 @import "tailwindcss";
 
-/* Sentiqa — designsystem (§12). Lys, ryddig SaaS-flate med brand-gradient. */
+/* =====================================================================
+   Sentiqa — designsystem
+   =====================================================================
+   Fargene er MERKEVARENS, satt 2026-08-19 (trinn 01). Systemet var blått
+   (#2563eb) fram til da; merkevaren er og har alltid vært grønn.
+
+   TOKENENE ER SEMANTISKE, IKKE MERKEVAREFARGER MED NAVN. Ingen side skal
+   skrive #2E7D6B. Trenger en flate primærfargen, ber den om `--primaer`
+   — da kan verdien endres per kjede senere uten å røre en eneste side.
+
+   Nøytralene er ikke valgt fritt: `--tekst-svak` (#64748b) og
+   arbeidsflaten (#f8fafc) i merkevarepaletten er slate-familien, så
+   kantene følger samme ramp. En grå med tilfeldig temperatur ved siden
+   av en valgt grå ser ut som en feil.
+
+   FARGE SKAL HA BETYDNING. Normal drift er nesten fargeløs. Grønt betyr
+   «dette er Sentiqa» eller «dette er i orden» — ikke «her er en flate
+   som trengte litt liv».
+   ===================================================================== */
 :root {
-  --bg: #f5f6f8;           /* svakt kjølig arbeidsflate */
+  --bg: #f8fafc;           /* arbeidsflate */
   --kort: #ffffff;
-  --tekst: #15171c;
-  --tekst-svak: #5b606b;
-  --kant: #e7e9ee;
-  --kant-sterk: #d8dbe2;
-  --skygge: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.05);
-  --skygge-lov: 0 8px 24px rgba(16, 24, 40, 0.12);
-  --primaer: #2563eb;      /* moderne blå */
-  --primaer-mork: #1d4ed8;
-  --primaer-svak: #eef4ff; /* lys tint for aktiv/markering */
-  --gradient: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6); /* brand-aksent */
+  --tekst: #0f1720;
+  --tekst-svak: #64748b;
+  --kant: #e2e8f0;
+  --kant-sterk: #cbd5e1;
+  /* Skyggen er tonet av teksten, ikke av en tilfeldig blåsvart. */
+  --skygge: 0 1px 2px rgba(15, 23, 32, 0.04), 0 2px 8px rgba(15, 23, 32, 0.05);
+  --skygge-lov: 0 8px 24px rgba(15, 23, 32, 0.12);
+  --primaer: #2e7d6b;      /* merkevaregrønn — fylte flater, hvit tekst */
+  --primaer-mork: #245f52; /* hover og trykk */
+  --primaer-svak: #e6f2ef; /* lys tint for aktiv/markering */
+  /* Grønn som er lesbar PÅ mørkt. Nettbrettskallet er mørkt, og
+     --primaer forsvinner i det. */
+  --primaer-lys: #7dc3ae;
   --radius: 10px;
   --radius-stor: 14px;
-  --gronn: #15803d; --gronn-svak: #e7f6ec;
-  --gul: #92600a;  --gul-svak: #fbf1d3;
-  --rod: #b42318;  --rod-svak: #fdecea;
+  /* Positiv status deler familie med merkevaren — «i orden» og «Sentiqa»
+     skal ikke se ut som to ulike grønnfarger. Verdien er mørkere enn
+     --primaer fordi den brukes som TEKST på lys flate, der --primaer så
+     vidt klarer kontrastkravet. */
+  --gronn: #1f6152; --gronn-svak: #e6f2ef;
+  --gul: #7a5321;  --gul-svak: #f5e8d3;
+  --rod: #9b2c2c;  --rod-svak: #fbe7e7;
 
   /* ---------------------------------------------------------------
      Avstand og typografi
@@ -65,8 +90,18 @@ h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 0
 h3 { letter-spacing: -0.01em; }
 .undertittel { color: var(--tekst-svak); margin: 0 0 1.25rem; line-height: 1.5; }
 
-/* =========================== Landingsside =========================== */
-.lp { color: var(--tekst); }
+/* =========================== Landingsside ===========================
+   Egen visuell verden, utenfor produktets designsystem (mønsteret
+   'utenfor' i monstre.ts). Den beholder sin cyan/blå/lilla gradient som
+   en LOKAL variabel — det er en markedsside, ikke en arbeidsflate.
+
+   Dette er en bevisst inkonsistens, ikke en forglemmelse: produktet er
+   grønt fra og med trinn 01, markedssida er fortsatt blå. Skal de møtes,
+   er det en egen beslutning om markedsføringen, ikke om designsystemet. */
+.lp {
+  color: var(--tekst);
+  --lp-gradient: linear-gradient(90deg, #22d3ee, #3b82f6, #8b5cf6);
+}
 .lp-hero {
   background: radial-gradient(1200px 600px at 50% -10%, rgba(59,130,246,0.25), transparent 60%), #0a0f1f;
   color: #fff; text-align: center; padding: 3rem 1.5rem 0; overflow: hidden;
@@ -86,7 +121,7 @@ h3 { letter-spacing: -0.01em; }
   border: 1px solid rgba(255,255,255,0.25); transition: transform 0.15s, box-shadow 0.15s;
 }
 .lp-knapp:hover { transform: translateY(-2px); }
-.lp-knapp.primar { background: var(--gradient); border: 0; color: #07101f; box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
+.lp-knapp.primar { background: var(--lp-gradient); border: 0; color: #07101f; box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
 .lp-knapp.stor { padding: 0.85rem 2rem; font-size: 1.05rem; }
 
 /* Rullende funksjons-marquee */
@@ -109,7 +144,7 @@ h3 { letter-spacing: -0.01em; }
 
 .lp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
 .lp-funk { background: var(--kort); border: 1px solid var(--kant); border-radius: 12px; padding: 1.5rem; box-shadow: var(--skygge); }
-.lp-funk h3 { margin: 0 0 0.5rem; font-size: 1.1rem; background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block; }
+.lp-funk h3 { margin: 0 0 0.5rem; font-size: 1.1rem; background: var(--lp-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block; }
 .lp-funk p { margin: 0; color: var(--tekst-svak); line-height: 1.5; font-size: 0.95rem; }
 
 .lp-priser { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; align-items: stretch; }
@@ -126,16 +161,23 @@ h3 { letter-spacing: -0.01em; }
 .lp-footer .merke { font-size: 1.3rem; }
 .lp-footer-svak { font-size: 0.8rem; opacity: 0.6; }
 
-/* Brand-merke */
+/* Ordmerket.
+   I appskallet er dette logofila (se merke.tsx) — ikke en rekonstruksjon
+   i CSS. Innloggingssidene setter fortsatt ordet som tekst; de er ikke
+   migrert ennå, så regelen må kle begge former.
+
+   Tekstvarianten er ren merkevaregrønn. Gradienten er borte: logoen har
+   ingen, og et ordmerke som er nesten riktig leser som en billig kopi. */
 .merke {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
   font-weight: 700;
   font-size: 1.1rem;
-  background: var(--gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primaer);
   letter-spacing: -0.02em;
 }
+.merke img { height: 26px; width: auto; display: block; }
 
 /* Kort */
 .kort {
@@ -174,7 +216,7 @@ h3 { letter-spacing: -0.01em; }
 .dok p, .dok li { line-height: 1.6; color: var(--tekst); }
 .dok ul { padding-left: 1.2rem; margin: 0.4rem 0 0; }
 .dok li { margin: 0.35rem 0; }
-.dok a { color: #2563eb; text-decoration: underline; }
+.dok a { color: var(--primaer); text-decoration: underline; }
 .dok-tilbake { margin-bottom: 1.5rem; font-size: 0.9rem; }
 .dok-tilbake a { color: var(--tekst-svak); text-decoration: none; }
 .dok-tilbake a:hover { color: var(--tekst); }
@@ -189,7 +231,7 @@ h3 { letter-spacing: -0.01em; }
 .felt { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--tekst-svak); }
 .felt-avkrysning { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.82rem; line-height: 1.45; color: var(--tekst-svak); }
 .felt-avkrysning input { margin-top: 0.15rem; flex: none; }
-.felt-avkrysning a { color: #2563eb; text-decoration: underline; }
+.felt-avkrysning a { color: var(--primaer); text-decoration: underline; }
 
 /* Målekort (Måling) */
 .malekort-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -202,7 +244,7 @@ h3 { letter-spacing: -0.01em; }
 .malekort-topp h2 { margin-bottom: 0.15rem; }
 .malekort-periode { font-size: 0.82rem; color: var(--tekst-svak); margin: 0 0 0.5rem; }
 .rang-egen { background: rgba(80,130,255,0.10); border-radius: 8px; }
-.rang-du { color: #2563eb; font-weight: 700; font-size: 0.8rem; }
+.rang-du { color: var(--primaer); font-weight: 700; font-size: 0.8rem; }
 
 /* Målekort på tablet (mørk verden) */
 .maaling-tablet-kort { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -266,7 +308,7 @@ button {
   cursor: pointer;
   transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
 }
-button:hover:not(:disabled) { background: var(--primaer-mork); box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
+button:hover:not(:disabled) { background: var(--primaer-mork); box-shadow: 0 2px 8px rgba(46, 125, 107, 0.25); }
 button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 button:disabled { opacity: 0.55; cursor: default; }
 button.logg-ut { background: transparent; color: var(--tekst-svak); font-weight: 500; }
@@ -275,7 +317,7 @@ button.logg-ut:hover { color: var(--tekst); }
 /* App-skall */
 .skall { display: grid; grid-template-columns: 220px 1fr; min-height: 100dvh; }
 .sidemeny {
-  background: #fff;
+  background: var(--kort);
   border-right: 1px solid var(--kant);
   padding: 1.25rem 1rem;
   display: flex;
@@ -310,7 +352,7 @@ button.logg-ut:hover { color: var(--tekst); }
   transition: background 0.12s, color 0.12s;
 }
 .sidemeny nav a:hover { background: var(--bg); color: var(--tekst); }
-.sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--primaer); font-weight: 600; }
+.sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--gronn); font-weight: 600; }
 .meny-bunn { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.75rem 0.6rem 0; border-top: 1px solid var(--kant); font-size: 0.7rem; color: var(--tekst-svak); }
 /* Mobil-meny: skjult på desktop */
 .meny-hamburger, .meny-overlay { display: none; }
@@ -330,9 +372,25 @@ button.logg-ut:hover { color: var(--tekst); }
 .vakt-navn { font-size: 0.85rem; font-weight: 600; color: var(--primaer); }
 .vakt-pin { width: 5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
 .vakt-feil { font-size: 0.75rem; color: #b10e1c; }
-.klokke-lenke { position: relative; font-size: 1.2rem; text-decoration: none; line-height: 1; }
+/* Bar emoji før, som var tekst og fikk størrelsen sin av font-size. Nå
+   SVG med currentColor, så fargen arves av flaten — det er derfor det
+   samme ikonet virker både her og på nettbrettets mørke topp uten en
+   eneste ekstra regel. Trykkflaten er satt eksplisitt; emojien fikk sin
+   av tilfeldig linjehøyde. */
+.klokke-lenke {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--tekst-svak);
+}
+.klokke-lenke:hover { background: var(--bg); color: var(--tekst); }
 .varsel-teller {
-  position: absolute; top: -6px; right: -8px; background: #b10e1c; color: #fff;
+  position: absolute; top: 0; right: 0; background: var(--rod); color: #fff;
   font-size: 0.65rem; font-weight: 700; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 999px; display: flex; align-items: center; justify-content: center;
 }
@@ -345,8 +403,11 @@ button.logg-ut:hover { color: var(--tekst); }
   font-size: 0.72rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: var(--gradient);
-  color: #fff;
+  /* Rollemerket sa hvilken rolle du har — det er informasjon, ikke
+     pynt, og trenger derfor ikke rope. Dempet tint i stedet for en
+     gradient som konkurrerte med sidens faktiske varsler. */
+  background: var(--primaer-svak);
+  color: var(--primaer-mork);
   font-weight: 600;
 }
 .innhold { padding: 1.75rem 2rem; }
@@ -366,7 +427,7 @@ button.logg-ut:hover { color: var(--tekst); }
     display: inline-flex; align-items: center; justify-content: center;
     position: fixed; top: 0.55rem; left: 0.6rem; z-index: 50;
     width: 2.5rem; height: 2.5rem; border: 1px solid var(--kant); border-radius: 8px;
-    background: #fff; font-size: 1.3rem; cursor: pointer; color: var(--tekst);
+    background: var(--kort); cursor: pointer; color: var(--tekst);
   }
   .toppstripe { padding-left: 3.5rem; flex-wrap: wrap; gap: 0.4rem 0.75rem; }
   .bruker { font-size: 0.8rem; }
@@ -375,7 +436,7 @@ button.logg-ut:hover { color: var(--tekst); }
   /* Brede tabeller kan skrolles vannrett i kortet sitt */
   .kort { overflow-x: auto; }
   .nokkeltall { grid-template-columns: 1fr 1fr; }
-  /* Touch-vennlige steppers (≥44 px) */
+  /* Touch-vennlige steppers (=44 px) */
   .stepper button { width: 2.6rem; height: 2.6rem; font-size: 1.3rem; }
   .stepper input { width: 4rem; padding: 0.55rem; }
   .plan-velg { flex-direction: column; align-items: stretch; }
@@ -406,9 +467,14 @@ button.logg-ut:hover { color: var(--tekst); }
 /* Status-pip (grønn/gul/rød, §12) */
 .status-pip { font-size: 0.75rem; padding: 0.12rem 0.5rem; border-radius: 999px; font-weight: 600; }
 .status-pip.gronn { background: var(--gronn-svak); color: var(--gronn); }
+/* TEKST PAA TINTEN ER --gronn, IKKE --primaer. Paret #2e7d6b paa #e6f2ef
+   gir 4.29:1 og faller under AA. Pa hvit klarer --primaer 4.93:1, saa
+   feilen finnes bare der de to moetes - og den ble funnet av axe i en
+   ekte nettleser, ikke av jsdom, som ikke maaler kontrast i det hele
+   tatt. Alle fem stedene med dette paret ble rettet samtidig. */
 .status-pip.gul   { background: var(--gul-svak);   color: var(--gul); }
 .status-pip.rod   { background: var(--rod-svak);   color: var(--rod); }
-.status-pip.bla   { background: var(--primaer-svak); color: var(--primaer); } /* §8D: blå, aldri rød */
+.status-pip.bla   { background: var(--primaer-svak); color: var(--gronn); } /* §8D: blå, aldri rød */
 
 /* Brukeradministrasjon */
 .stasjon-valg { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.3rem; }
@@ -553,7 +619,9 @@ button.liten.slett:hover { background: #fdecea; }
 /* =========================== Tablet («egen verden») =========================== */
 .tablet { background: #0a0f1f; color: #e6ebf5; min-height: 100dvh; }
 .tablet-topp { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; background: #0d1426; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.tablet-merke { font-weight: 800; font-size: 1.3rem; background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Nettbrettskallet er mørkt, så merkevaregrønnen må løftes for å bli
+   lesbar. Det er hva --primaer-lys finnes til. */
+.tablet-merke { font-weight: 800; font-size: 1.3rem; color: var(--primaer-lys); }
 .tablet-topp-hoyre { display: flex; align-items: center; gap: 0.9rem; }
 .sprak-velger { display: flex; gap: 0.1rem; }
 .sprak-flagg { background: none; border: 0; font-size: 1.25rem; cursor: pointer; opacity: 0.4; padding: 0.15rem 0.25rem; border-radius: 6px; line-height: 1; }
@@ -575,7 +643,7 @@ button.liten.slett:hover { background: #fdecea; }
 }
 .tablet-nav { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; background: #0d1426; position: sticky; top: 0; z-index: 25; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .tablet-fane { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 1.1rem; border-radius: 12px; text-decoration: none; color: #aeb8cc; font-size: 0.82rem; font-weight: 600; min-width: 84px; }
-.tablet-fane.aktiv { background: rgba(59,130,246,0.2); color: #fff; }
+.tablet-fane.aktiv { background: rgba(46,125,107,0.28); color: #fff; }
 .tablet-fane-ikon { font-size: 1.5rem; }
 .tablet-innhold { padding: 1.2rem; max-width: 920px; margin: 0 auto; }
 .tablet-innhold h1, .tablet-innhold h2, .tablet-innhold h3 { color: #f3f6fc; }
@@ -594,7 +662,8 @@ button.liten.slett:hover { background: #fdecea; }
 /* Rutine-fremdrift */
 .fremdrift { display: flex; align-items: center; gap: 0.6rem; margin: 0.3rem 0 0.7rem; }
 .fremdrift-bar { flex: 1; height: 9px; background: rgba(0,0,0,0.12); border-radius: 999px; overflow: hidden; }
-.fremdrift-fyll { height: 100%; background: var(--gradient); border-radius: 999px; transition: width 0.35s ease; }
+/* Fremdriften bæres av bredden, ikke av fargen. Én rolig grønn er nok. */
+.fremdrift-fyll { height: 100%; background: var(--primaer); border-radius: 999px; transition: width 0.35s ease; }
 .fremdrift-fyll.full { background: #2f9e44; }
 .fremdrift-tekst { font-size: 0.85rem; font-weight: 700; color: var(--tekst-svak); white-space: nowrap; }
 .tablet .fremdrift-tekst { color: #aeb8cc; }
@@ -766,7 +835,7 @@ button.liten.slett:hover { background: #fdecea; }
 
 .kunnskap-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .kunnskap-liste summary { cursor: pointer; font-weight: 600; }
-.kunnskap-kat { font-size: 0.75rem; background: var(--primaer-svak); color: var(--primaer); padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.4rem; }
+.kunnskap-kat { font-size: 0.75rem; background: var(--primaer-svak); color: var(--gronn); padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.4rem; }
 .kunnskap-liste p { margin-top: 0.5rem; line-height: 1.55; }
 
 .arr-liste { list-style: none; margin: 0.3rem 0 0.7rem; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
@@ -903,7 +972,7 @@ button.liten.slett:hover { background: #fdecea; }
 .prio-medium { background: var(--gul-svak, #fff4e0); color: var(--gul, #9a6a00); }
 .prio-lav { background: var(--bg); color: var(--tekst-svak); }
 
-/* Usynlig svinn per stasjon (+ manko rødt / − overskudd grønt) */
+/* Usynlig svinn per stasjon (+ manko rødt / - overskudd grønt) */
 .svinn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; margin-top: 0.6rem; }
 .svinn-kort { border: 1px solid var(--kant); border-radius: 12px; padding: 0.8rem 0.9rem; background: var(--bg); }
 .svinn-topp { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
@@ -961,7 +1030,7 @@ button.liten.slett:hover { background: #fdecea; }
 .rangering-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
 .rangering-liste li { display: flex; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-bottom: 1px solid var(--kant); }
 .rangering-liste li:last-child { border-bottom: 0; }
-.rang-nr { width: 1.6rem; height: 1.6rem; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primaer-svak); color: var(--primaer); font-weight: 800; font-size: 0.85rem; }
+.rang-nr { width: 1.6rem; height: 1.6rem; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primaer-svak); color: var(--gronn); font-weight: 800; font-size: 0.85rem; }
 .rang-navn { flex: 1; font-weight: 600; }
 .rang-verdi { font-weight: 700; }
 
@@ -1031,7 +1100,7 @@ button.liten.slett:hover { background: #fdecea; }
 .uke-avd-pst { font-weight: 700; white-space: nowrap; }
 @media (max-width: 560px) { .uke-tall, .uke-avd { grid-template-columns: 1fr; } }
 
-/* Rutiner / tablet-avkryssing (§11, §10 – store touch-targets ≥44px) */
+/* Rutiner / tablet-avkryssing (§11, §10 – store touch-targets =44px) */
 .rutine-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .rutine-liste li { display: flex; align-items: center; gap: 0.75rem; }
 .rutine-liste li.gjort .rutine-tekst { color: var(--tekst-svak); text-decoration: line-through; }
@@ -1094,13 +1163,13 @@ button.liten.slett:hover { background: #fdecea; }
 .ai-fab {
   position: fixed; bottom: 22px; right: 22px; z-index: 70;
   width: 58px; height: 58px; border-radius: 999px; border: 0;
-  background: var(--gradient); color: #07101f;
+  background: var(--primaer); color: #fff;
   font-size: 1.5rem; line-height: 1; cursor: pointer;
-  box-shadow: 0 10px 28px rgba(37,99,235,0.4);
+  box-shadow: 0 10px 28px rgba(46, 125, 107, 0.4);
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.ai-fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 14px 34px rgba(37,99,235,0.5); }
+.ai-fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 14px 34px rgba(46, 125, 107, 0.5); }
 .ai-fab.apen { background: var(--kort); color: var(--tekst-svak); box-shadow: var(--skygge-lov); }
 
 .ai-panel {
@@ -1116,7 +1185,7 @@ button.liten.slett:hover { background: #fdecea; }
 @media (prefers-reduced-motion: reduce) { .ai-panel { animation: none; } }
 
 .ai-topp { display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--kant); }
-.ai-avatar { width: 34px; height: 34px; border-radius: 999px; background: var(--gradient); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+.ai-avatar { width: 34px; height: 34px; border-radius: 999px; background: var(--primaer); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
 .ai-tittel-blokk { display: flex; flex-direction: column; line-height: 1.2; }
 .ai-tittel { font-weight: 700; font-size: 0.95rem; }
 .ai-und { font-size: 0.72rem; color: var(--tekst-svak); }
@@ -1135,7 +1204,7 @@ button.liten.slett:hover { background: #fdecea; }
 .ai-prikk { width: 7px; height: 7px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); flex-shrink: 0; }
 .ai-ny { background: none; border: 0; color: var(--tekst-svak); font-size: 1.05rem; cursor: pointer; padding: 0.3rem 0.4rem; border-radius: 6px; }
 .ai-ny:hover { background: var(--bg); color: var(--tekst); }
-.boble.strommer p::after { content: '▍'; margin-left: 1px; color: var(--primaer); animation: ai-blink 1s steps(2) infinite; }
+.boble.strommer p::after { content: '?'; margin-left: 1px; color: var(--primaer); animation: ai-blink 1s steps(2) infinite; }
 @keyframes ai-blink { 50% { opacity: 0; } }
 
 /* Heatmap (timesalg, §7) */
@@ -1242,13 +1311,19 @@ html { scroll-behavior: smooth; }
 /* Topplinje: sticky glass */
 .toppstripe { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,0.82); backdrop-filter: saturate(1.4) blur(8px); }
 
-/* KPI-fliser: brand-aksent + storre tall */
+/* KPI-fliser.
+   Den 3px brede gradientstripen på toppen er FJERNET, ikke gjort grønn.
+   Den fortalte ingenting — den lå der på hver eneste flis uansett hva
+   tallet var, og gjorde en normal skjerm fargerik. «Farge skal ha
+   betydning» betyr at en flate uten avvik skal være rolig. */
 .kpi { position: relative; overflow: hidden; }
-.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gradient); }
 .kpi-tall { font-size: 1.9rem; }
 
 /* Innlogging: premium */
-.logg-inn { background: radial-gradient(900px 480px at 50% -10%, rgba(59,130,246,0.10), transparent 60%), var(--bg); }
+/* Innloggingssida hadde en blå glød på toppen. Borte: «ingen
+   gradients/glow som standard del av designsystemet», og en glød i
+   forrige merkevares farge er dessuten feil farge. */
+.logg-inn { background: var(--bg); }
 .logg-inn .kort { box-shadow: var(--skygge-lov); padding: 2rem; }
 .logg-inn .merke { font-size: 1.7rem; text-align: center; }
 
@@ -1360,11 +1435,11 @@ a.sq-merkelapp:hover { color: var(--primaer); }
   list-style: none; display: inline-flex; align-items: center; gap: 0.35rem;
 }
 .sq-ai summary::-webkit-details-marker { display: none; }
-.sq-ai summary::before { content: '✦'; opacity: 0.7; }
+.sq-ai summary::before { content: '?'; opacity: 0.7; }
 .sq-ai p { margin-top: 0.5rem; color: var(--tekst-svak); font-size: 0.9rem; max-width: 58ch; }
 .sq-regnskap { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1.5rem; }
 
-/* Kommandopalett — én inngang til alt, ⌘K */
+/* Kommandopalett — én inngang til alt, ?K */
 .sq-sokknapp {
   display: flex; align-items: center; gap: 0.5rem; flex: 1; max-width: 26rem;
   padding: 0.4rem 0.6rem; border: 1px solid var(--kant-sterk); border-radius: 8px;
@@ -1445,7 +1520,7 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 .sq-ukedager .ukedag:hover { border-color: var(--tekst-svak); }
 .sq-ukedager .ukedag:has(input:checked) {
-  background: var(--primaer-svak); border-color: var(--primaer); color: var(--primaer); font-weight: 600;
+  background: var(--primaer-svak); border-color: var(--primaer); color: var(--gronn); font-weight: 600;
 }
 .sq-ukedager input { width: 18px; height: 18px; }
 
@@ -1471,7 +1546,7 @@ a.sq-merkelapp:hover { color: var(--primaer); }
    iOS Safari zoomer inn når et fokusert felt har font-size < 16px, og
    zoomer aldri ut igjen. Alle inputfelt lå på 13–15 px. Kompaktheten
    hentes nå i padding, ikke i skriftstørrelsen.
-   Prosjektet har selv kravet ≥44px (se tablet-CSS-en over).
+   Prosjektet har selv kravet =44px (se tablet-CSS-en over).
    --------------------------------------------------------------- */
 .felt input, .felt select, .felt textarea,
 .rutine-form input, .rutine-form select, .rutine-form textarea,
@@ -1692,3 +1767,201 @@ button.liten { min-height: 40px; }
   cursor: pointer;
 }
 .rettelse-valg input { margin-top: 0.2em; }
+
+
+/* =====================================================================
+   Primitivene (trinn 03)
+   =====================================================================
+   Alt her tegner med tokens. Ingen hex, ingen tilfeldige marginer,
+   ingen lokale skygger. Trengs en verdi som ikke finnes, hører den
+   hjemme i :root — ikke her.
+   ===================================================================== */
+
+/* --- Knapp ---------------------------------------------------------
+   `.sq-knapp` og `.sq-knapp.primar` fantes fra før og er urørt. Her
+   kommer bare de to variantene som manglet. */
+
+/* Handling som ikke skal konkurrere: «Avbryt», «Rediger». Ingen kant —
+   den ville gjort den like tung som en sekundærknapp. */
+.sq-knapp.sq-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tekst-svak);
+}
+.sq-knapp.sq-ghost:hover { background: var(--bg); color: var(--tekst); border-color: transparent; }
+
+/* Rød KANT, ikke rød flate. En fylt rød knapp roper like høyt som en
+   kritisk feil, og da betyr rødt to ting på samme skjerm. */
+.sq-knapp.sq-destruktiv { color: var(--rod); border-color: var(--rod-svak); }
+.sq-knapp.sq-destruktiv:hover { background: var(--rod-svak); border-color: var(--rod); }
+
+/* --- Felt ----------------------------------------------------------
+   Høyden arves fra `.felt`-reglene lenger oppe. Her er bare hjelpe-
+   teksten, som ikke fantes. */
+.sq-felthjelp { margin: 0; font-size: var(--tekst-liten); }
+
+/* --- Status --------------------------------------------------------
+   Fargelegger ALDRI raden. Prikken og teksten bærer det.
+   `normal` har ingen farge i det hele tatt — det er hele poenget. */
+.sq-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--luft-2);
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  white-space: nowrap;
+}
+.sq-status-prikk {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--kant-sterk);
+  flex: none;
+}
+.sq-status-endring .sq-status-prikk { background: var(--primaer); }
+.sq-status-handling { color: var(--gul); }
+.sq-status-handling .sq-status-prikk { background: var(--gul); }
+.sq-status-kritisk { color: var(--rod); font-weight: 600; }
+.sq-status-kritisk .sq-status-prikk { background: var(--rod); }
+
+/* --- Signal --------------------------------------------------------
+   Rendres bare når det finnes noe å si. Se kommentaren i status.tsx. */
+.sq-signal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--luft-3);
+  padding: var(--luft-3) var(--luft-4);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius);
+  background: var(--kort);
+}
+.sq-signal-prikk {
+  width: 7px; height: 7px;
+  border-radius: 999px;
+  margin-top: 0.45rem;
+  background: var(--tekst-svak);
+  flex: none;
+}
+.sq-signal-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--luft-1); }
+.sq-signal-tekst strong { font-size: var(--tekst-brod); font-weight: 600; }
+.sq-signal-tekst p { margin: 0; font-size: var(--tekst-liten); color: var(--tekst-svak); line-height: var(--linje-luftig); }
+.sq-signal-handling { flex: none; }
+
+/* Informasjon er nøytral. Ingen farge — den forteller noe, den ber
+   ikke om noe. */
+.sq-signal-mulighet { background: var(--gronn-svak); border-color: var(--gronn-svak); }
+.sq-signal-mulighet .sq-signal-prikk { background: var(--gronn); }
+.sq-signal-oppmerksomhet { background: var(--gul-svak); border-color: var(--gul-svak); }
+.sq-signal-oppmerksomhet .sq-signal-prikk { background: var(--gul); }
+.sq-signal-kritisk { background: var(--rod-svak); border-color: var(--rod); }
+.sq-signal-kritisk .sq-signal-prikk { background: var(--rod); }
+
+/* --- Liste og rad --------------------------------------------------
+   Ingen kort per rad. Én hårlinje mellom, og det holder. */
+.sq-liste { list-style: none; margin: 0; padding: 0; }
+.sq-rad {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-2);
+  border-bottom: 1px solid var(--kant);
+}
+.sq-rad:last-child { border-bottom: 0; }
+
+/* Hele raden er treffområdet der den er en lenke. Padding ligger på
+   lenka, ikke på li-en, så den fyller raden. */
+.sq-rad-lenke {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-4);
+  flex: 1;
+  min-width: 0;
+  padding: var(--luft-3) var(--luft-2);
+  border-radius: var(--radius);
+  color: inherit;
+  min-height: 44px;
+}
+a.sq-rad-lenke:hover { background: var(--bg); }
+.sq-rad-flat { cursor: default; }
+
+.sq-rad-merke { flex: none; display: flex; align-items: center; }
+.sq-rad-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.sq-rad-primaer { font-weight: 600; font-size: var(--tekst-brod); overflow-wrap: anywhere; }
+.sq-rad-sekundaer { font-size: var(--tekst-liten); color: var(--tekst-svak); }
+.sq-rad-status { flex: none; }
+.sq-rad-metadata {
+  flex: none;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sq-rad-handlinger { flex: none; display: flex; gap: var(--luft-2); padding-right: var(--luft-2); }
+
+/* --- Søk og filter -------------------------------------------------- */
+.sq-sok { display: flex; align-items: center; gap: var(--luft-2); flex: 1; min-width: 12rem; }
+.sq-sok-felt {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-2);
+  flex: 1;
+  padding: 0 var(--luft-3);
+  border: 1px solid var(--kant-sterk);
+  border-radius: 8px;
+  background: var(--kort);
+  color: var(--tekst-svak);
+  min-height: 40px;
+}
+.sq-sok-felt:focus-within { border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
+.sq-sok-felt input {
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--tekst);
+  min-width: 0;
+}
+.sq-sok-felt input:focus { outline: none; }
+
+.sq-filter { display: flex; align-items: center; gap: var(--luft-3); flex-wrap: wrap; }
+.sq-filter-merkelapp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--luft-2);
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+/* Telleren finnes fordi et glemt filter er den vanligste grunnen til
+   at «raden min er borte». */
+.sq-filter-teller {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--primaer-svak);
+  color: var(--primaer-mork);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* --- Ansattlista (pilot A) -----------------------------------------
+   Toppen av en liste: søk til venstre, filter til høyre. Samme
+   rekkefølge overalt, så man slutter å lete etter dem. */
+.sq-listetopp {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--luft-3);
+}
+.sq-listetall { margin: 0 0 var(--luft-2); font-size: var(--tekst-liten); }
+
+/* Bekreftelse på en destruktiv handling, i raden. Ikke en modal: den
+   ville tatt over skjermen for en handling som gjelder én rad. */
+.sq-bekreft { display: inline-flex; align-items: center; gap: var(--luft-2); }
+
+/* Skjema i sidepanel. Feltene under hverandre med samme luft — et
+   skjema skal ikke bli en trapp. */
+.sq-skjema { display: flex; flex-direction: column; gap: var(--luft-4); }

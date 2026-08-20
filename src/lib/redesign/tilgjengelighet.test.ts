@@ -9,6 +9,11 @@ import axe from 'axe-core'
 import {
   Sidehode, Nokkeltall, Tomtilstand, Datatabell, Forklaring,
 } from '../../components/ui/side'
+import { Knapp } from '../../components/ui/knapp'
+import { Felt, Velg } from '../../components/ui/felt'
+import { Status, Signal } from '../../components/ui/status'
+import { Liste, Rad } from '../../components/ui/liste'
+import { Sok, Filter } from '../../components/ui/sok'
 
 // =====================================================================
 // Tilgjengelighet paa primitivene, ikke paa sidene.
@@ -110,6 +115,130 @@ describe('tilgjengelighet paa ui-primitivene', () => {
       h(Forklaring, {
         sporsmaal: 'Hvorfor?',
         children: h('p', null, 'Fordi medianen staar imot enkeltdager.'),
+      }),
+    ))).toEqual([])
+  })
+})
+
+// =====================================================================
+// Primitivene fra trinn 03.
+//
+// Dette ER komponentmiljoet. Prosjektet har ikke Storybook, og skulle
+// ikke faa det for tre komponenter - men en primitiv uten et sted aa
+// rendre den blir aldri sett for den staar i en side. Her rendres hver
+// av dem, i hver tilstand som har egen markup, og maales.
+// =====================================================================
+
+describe('primitivene', () => {
+  test('Knapp i alle fire varianter', async () => {
+    for (const variant of ['primar', 'sekundaer', 'ghost', 'destruktiv'] as const) {
+      expect(await brudd(renderToStaticMarkup(
+        h(Knapp, { variant, children: 'Lagre' }),
+      ))).toEqual([])
+    }
+  })
+
+  test('Knapp med ikon beholder navnet sitt', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Knapp, {
+        variant: 'primar',
+        ikon: h('svg', { width: 14, height: 14, 'aria-hidden': true }),
+        children: 'Ny ansatt',
+      }),
+    ))).toEqual([])
+  })
+
+  test('Felt med hjelpetekst', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Felt, { etikett: 'Ansattnummer', hjelp: 'Kommer fra Azets.' }),
+    ))).toEqual([])
+  })
+
+  test('Felt med feil', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Felt, { etikett: 'PIN', feil: 'PIN maa vaere 4-6 siffer.' }),
+    ))).toEqual([])
+  })
+
+  // Skjult etikett er et VALG. Den skal fortsatt finnes for skjermleser
+  // - det er hele forskjellen paa skjult og glemt.
+  test('Felt med skjult etikett har fortsatt navn', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Felt, { etikett: 'Soek etter navn', skjultEtikett: true }),
+    ))).toEqual([])
+  })
+
+  test('Velg', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Velg, {
+        etikett: 'Stasjon',
+        children: h('option', { value: '1' }, '0452 Bones'),
+      }),
+    ))).toEqual([])
+  })
+
+  test('Status paa alle fire nivaa', async () => {
+    for (const nivaa of ['normal', 'endring', 'handling', 'kritisk'] as const) {
+      expect(await brudd(renderToStaticMarkup(
+        h(Status, { nivaa, children: 'Aktiv' }),
+      ))).toEqual([])
+    }
+  })
+
+  test('Signal paa alle fire nivaa', async () => {
+    for (const nivaa of ['informasjon', 'mulighet', 'oppmerksomhet', 'kritisk'] as const) {
+      expect(await brudd(renderToStaticMarkup(
+        h(Signal, {
+          nivaa,
+          tittel: 'Tre vakter staar uten utstempling',
+          children: 'Loennsfila lages ikke for de er lukket.',
+        }),
+      ))).toEqual([])
+    }
+  })
+
+  test('Liste med klikkbar rad', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Liste, {
+        merkelapp: 'Ansatte',
+        children: h(Rad, {
+          href: '/ansatte/1',
+          primaer: 'Kari Nordmann',
+          sekundaer: '0452 Bones',
+          status: h(Status, { children: 'Aktiv' }),
+          metadata: '1009',
+        }),
+      }),
+    ))).toEqual([])
+  })
+
+  test('Liste med handlinger paa raden', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Liste, {
+        merkelapp: 'Ansatte',
+        children: h(Rad, {
+          primaer: 'Kari Nordmann',
+          handlinger: h(Knapp, { variant: 'ghost', liten: true, children: 'Deaktiver' }),
+        }),
+      }),
+    ))).toEqual([])
+  })
+
+  test('Sok', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Sok, { plassholder: 'Soek etter navn', skjulte: { stasjon: 'abc' } }),
+    ))).toEqual([])
+  })
+
+  test('Filter med teller', async () => {
+    expect(await brudd(renderToStaticMarkup(
+      h(Filter, {
+        antall: 1,
+        children: h(Velg, {
+          etikett: 'Status',
+          skjultEtikett: true,
+          children: h('option', { value: 'aktiv' }, 'Aktiv'),
+        }),
       }),
     ))).toEqual([])
   })

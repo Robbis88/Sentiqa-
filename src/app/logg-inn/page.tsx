@@ -1,3 +1,4 @@
+import { Merke } from '@/components/ui/merke'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { InnloggingSkjema } from './skjema'
@@ -14,7 +15,7 @@ export default async function LoggInnSide({
   return (
     <main className="logg-inn">
       <div className="kort">
-        <div className="merke">Sentiqa</div>
+        <Merke />
         <h1>Logg inn</h1>
         <p className="undertittel">Fornemmer. Forstår. Forutser.</p>
         <InnloggingSkjema retur={retur} />
