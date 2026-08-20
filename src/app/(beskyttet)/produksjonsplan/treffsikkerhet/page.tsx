@@ -168,9 +168,15 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
     <>
       <Sidehode
         tittel="Treffsikkerhet"
-        undertittel={svar
-          ? `${svar}. Målt ved å kjøre motorene bakover på din egen historikk.`
-          : 'Hvor godt traff prognosene faktisk salg? Målt ved å kjøre motorene bakover på din egen historikk («backtest»).'}
+        undertittel={[
+          svar
+            ? `${svar}. Målt ved å kjøre motorene bakover på din egen historikk.`
+            : 'Hvor godt traff prognosene faktisk salg? Målt ved å kjøre motorene bakover på din egen historikk («backtest»).',
+          // HVILKEN STASJON GJELDER TALLENE? Sida sa det ikke - den
+          // maalte en stasjon uten aa navngi den. Da kan brukeren
+          // hverken stole paa tallet eller se at toppstripen er enig.
+          stasjon ? `${stasjon.butikknummer} ${stasjon.navn}` : null,
+        ].filter(Boolean).join(' · ')}
         handlinger={<Link href="/produksjonsplan" className="sq-knapp">Tilbake til planen</Link>}
       />
 

@@ -198,19 +198,29 @@ test.describe('stasjonskontekst', () => {
       }
       const tekst = await hode.first().innerText()
 
+      // SAMMENLIGN DET SOM FINNES AV BEVIS. Ikke hver side navngir
+      // stasjonen sin - en tom /timesalg har ingen tall aa knytte til
+      // noen. Da er det ingenting aa vaere uenige om, og testen sier det
+      // i stedet for aa kreve et bevis som ikke finnes.
+      //
+      // Butikknumrene matches eksplisitt: et loepende \d{4} ville
+      // truffet aarstallet i «17. mars 2026».
+      const NUMRE = /(5101|5102|5103)/g
+      const paaSida = [...new Set(tekst.match(NUMRE) ?? [])]
+      const sidaSummerer = /alle stasjoner|samlet|kjeden/i.test(tekst)
+
+      if (paaSida.length === 0 && !sidaSummerer) {
+        test.skip(true, 'Sida navngir ikke stasjonen sin - ingenting aa sammenligne')
+      }
+
       if (/^Alle stasjoner/i.test(vist)) {
-        // Skallet sier aggregat. Da skal ikke sida vise EN stasjon.
-        expect(tekst, `Skallet summerer, men sida viser en enkelt stasjon:
-${tekst}`)
-          .toMatch(/alle stasjoner|samlet|kjeden/i)
+        expect(sidaSummerer, `Skallet summerer, men sida sier:
+${tekst}`).toBe(true)
+        expect(paaSida, 'Skallet summerer, men sida viser EN stasjon').toEqual([])
       } else {
-        // Skallet viser en konkret stasjon. Butikknummeret er den
-        // entydige delen - navnet kan staa forkortet.
         const nr = vist.match(/\d{4}/)?.[0]
-        if (!nr) test.skip(true, 'Stasjonen har ikke butikknummer aa matche paa')
-        expect(tekst, `Skallet viser «${vist}», sida sier:
-${tekst}`)
-          .toContain(nr!)
+        expect(paaSida, `Skallet viser «${vist}», sida sier:
+${tekst}`).toEqual([nr])
       }
     })
   }
