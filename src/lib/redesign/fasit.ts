@@ -116,7 +116,7 @@ export function serverhandlinger(kilde: string): string[] {
 export function seksjoner(kilde: string): string[] {
   const ut: string[] = []
   for (const m of kilde.matchAll(/<h[23][^>]*>([\s\S]{0,120}?)<\/h[23]>/g)) {
-    ut.push(m[1])
+    ut.push(identitet(m[1]))
   }
   for (const m of kilde.matchAll(/\btittel=(?:"([^"]{0,200})"|\{)/g)) {
     const foran = /<([A-Z]\w*)[^<]*$/.exec(kilde.slice(0, m.index))
@@ -127,9 +127,9 @@ export function seksjoner(kilde: string): string[] {
     }
     // Malstreng: `Per stasjon · ${dato}`. Regex kommer til kort her,
     // fordi `${…}` inni strengen har sine egne backticks og klammer -
-    // et uttrykk som `${a ? ` · ${b}` : ''}` har begge deler nostet to
-    // niivaaer ned. Klammene telles i stedet, saa slutten blir funnet
-    // uansett hvor dypt uttrykket gaar.
+    // et uttrykk som `${a ? ` · ${b}` : ''}` har begge deler nøstet to
+    // nivåer ned. Klammene telles i stedet, så slutten blir funnet
+    // uansett hvor dypt uttrykket går.
     const start = m.index + m[0].length
     let dybde = 1
     let i = start
@@ -137,25 +137,68 @@ export function seksjoner(kilde: string): string[] {
       if (kilde[i] === '{') dybde++
       else if (kilde[i] === '}' && --dybde === 0) break
     }
-    const raa = kilde.slice(start, i).trim()
-    // DET MAA FINNES TEKST I DET. `tittel={tittel}` er en variabel, og
-    // uten denne linja la vakten ordet «tittel» inn i seksjonslista som
-    // om det stod paa skjermen. Pilot C skrev nettopp den formen.
-    //
-    // Kravet er at det finnes en streng et sted i uttrykket - ikke at
-    // uttrykket ER en streng. `o('Ingen anvisninger ennaa')` og
-    // `erAdmin ? 'A' : 'B'` har begge tekst som kan endres i stillhet,
-    // og de skal fortsatt voktes. `g.navn` har ingen.
-    if (!/['"`]/.test(raa)) continue
-    // Bare backtickene strippes. Fnuttene inni et uttrykk er en del av
-    // uttrykket - tar man dem, endrer teksten seg, og fasiten melder et
-    // tap som ikke fant sted.
-    ut.push(raa.replace(/^`|`$/g, ''))
+    ut.push(identitet(`{${kilde.slice(start, i).trim()}}`))
   }
-  return ut
-    .map((t) => t.replace(/\s+/g, ' ').trim())
+  return [...new Set(ut.map((t) => t.replace(/\s+/g, ' ').trim()))]
     .filter(Boolean)
     .sort()
+}
+
+/**
+ * Identiteten til én seksjon.
+ *
+ * TO SLAGS OVERSKRIFTER, OG BEGGE SKAL VOKTES:
+ *
+ *   statisk    «Per stasjon» — teksten ER identiteten, og en endring i
+ *              den er en endring brukeren ser.
+ *   dynamisk   `{SEKSJON_TITTEL[navn]}` — teksten kan ikke leses uten å
+ *              kjøre koden, men SEKSJONEN finnes, og at den forsvinner
+ *              er akkurat det vakten er til for.
+ *
+ * Den dynamiske får derfor en maskinlesbar identitet i stedet for å bli
+ * hoppet over: `dynamisk:<uttrykket>`. Prefikset er ikke pynt — det
+ * sier rett ut at dette ikke er tekst fra skjermen, så ingen leser
+ * fasiten som om «dynamisk:g.navn» stod noe sted.
+ *
+ * HVORFOR DENNE MÅTTE TIL. Fram til nå ble `tittel={uttrykk}` uten
+ * tekst i seg hoppet over. Det var riktig medisin mot feil sykdom:
+ * problemet var at `tittel={tittel}` ble lest som seksjonen «tittel»,
+ * ikke at seksjonen ikke fantes. /regnskap mistet en ekte seksjon på
+ * den måten i bølge 4A, og /oversikt har flere av dem.
+ *
+ * IDENTITETEN ER DEN SAMME UANSETT FORM. `<h2>{navn}</h2>` og
+ * `tittel={navn}` gir begge `dynamisk:navn` — så det å flytte en
+ * overskrift inn i en komponent er ikke et tap, mens det å slette den
+ * er det.
+ *
+ * Bare overskrifter og `tittel`-propper går gjennom her. Et tilfeldig
+ * JSX-uttrykk et sted i sida er ikke en seksjon og kommer aldri hit.
+ */
+function identitet(raa: string): string {
+  const t = raa.trim()
+  // Nøyaktig ett uttrykk, ingenting annet: `{...}`.
+  if (t.startsWith('{') && t.endsWith('}') && balansert(t)) {
+    const inni = t.slice(1, -1).trim()
+    // Har uttrykket tekst i seg — `o('Ingen ennå')`, en malstreng, en
+    // ternær med to strenger — er teksten det beste vi har, og den kan
+    // endres i stillhet. Da voktes den som tekst.
+    if (/['"`]/.test(inni)) return inni.replace(/^`|`$/g, '')
+    return `dynamisk:${inni.replace(/\s+/g, '')}`
+  }
+  return t
+}
+
+/** Sant når `{` og `}` går i null nøyaktig én gang, på slutten. */
+function balansert(t: string): boolean {
+  let dybde = 0
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === '{') dybde++
+    else if (t[i] === '}') {
+      dybde--
+      if (dybde === 0) return i === t.length - 1
+    }
+  }
+  return false
 }
 
 /**

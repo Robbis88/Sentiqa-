@@ -66,6 +66,20 @@ export function totp(hemmelig: string, naa = Date.now()): string {
  */
 export const HEMMELIGFIL = join(process.cwd(), 'test-results', 'eier-totp.txt')
 
+/**
+ * Plattform-redaktoren - den andre rollen som tvinges gjennom TOTP.
+ *
+ * Hun staar UTENFOR alle kjeder (retailer_id = null): hun publiserer paa
+ * tvers av kunder. Bolge 4A avslorte at /plattform manglet dekning fordi
+ * ingen kunne logge inn som henne i CI.
+ */
+export const REDAKTOR = {
+  epost: 'redaktor@test.sentiqa.no',
+  passord: 'test-redaktor-2026',
+}
+export const REDAKTOR_HEMMELIGFIL = join(process.cwd(), 'test-results', 'redaktor-totp.txt')
+export const REDAKTOR_OKTFIL = join(process.cwd(), 'test-results', 'redaktor-okt.json')
+
 /** Den innloggede okta oppsettsteget lagrer, som alle eiertester gjenbruker. */
 export const OKTFIL = join(process.cwd(), 'test-results', 'eier-okt.json')
 

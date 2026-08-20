@@ -72,44 +72,57 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('en gyldig endring lagres, og verdien staar etter omlasting', async ({ page }) => {
-    // SKRIVER PAA POSISJONEN, IKKE PAA TERSKELEN.
+    // MAALER TO HANDLINGER, IKKE EN.
     //
-    // Forste utgave endret svinnterskelen til 3,4 og satte den tilbake
-    // etterpaa. CI fant feilen med en gang: /svinn kjorer samtidig i en
-    // annen arbeider mot SAMME base, og hevder at terskelen er 2,5.
-    // Testen min var innom med 3,4 akkurat da den leste.
+    // Forste utgave maalte bare posisjonen, og feilet tre ganger paa rad
+    // uten aa si HVA som var galt: verdien sto rett etter lagring (fordi
+    // feltet er ukontrollert og beholdt det jeg nettopp skrev), og var
+    // borte etter omlasting. Det beviser bare at noe ikke ble skrevet -
+    // ikke hva.
     //
-    // En test som skriver, maa skrive paa noe ingen andre leser.
-    // Koordinatene brukes bare til aa hente vaer, og det skjer ikke i
-    // CI - de er derfor trygge aa roere.
+    // Naa proeves begge: en `select` gjennom `settStasjonstype`, og et
+    // tallfelt gjennom `settPosisjon`. Feiler bare den ene, vet vi hvor
+    // problemet ligger. Feiler begge, skriver ingen av handlingene, og
+    // det er noe annet enn en felttype.
     await page.goto('/stasjoner')
 
-    const rad = page.locator('.sq-rutenett tbody tr').first()
-    // BEGGE KOORDINATENE. `settPosisjon` skriver dem sammen - den er
-    // ett felt i to deler, ikke to felter. Fyller man bare den ene,
-    // lagres den andre som null, og det er ikke det testen vil maale.
-    const bredde = rad.locator('[name="breddegrad"]')
-    const lengde = rad.locator('[name="lengdegrad"]')
-    const foer = await bredde.inputValue()
-    const foerLengde = await lengde.inputValue()
+    const rad = () => page.locator('.sq-rutenett tbody tr').first()
+    const type = rad().locator('[name="stasjonstype"]')
+    const foerType = await type.inputValue()
+    const nyType = foerType === 'bydel' ? 'pendler' : 'bydel'
+
+    await type.selectOption(nyType)
+    await rad().getByRole('button', { name: /^Lagre type for/ }).click()
+    await page.waitForLoadState('networkidle')
+    await page.reload()
+    expect(
+      await rad().locator('[name="stasjonstype"]').inputValue(),
+      'settStasjonstype skrev ikke - da skriver ingen av handlingene',
+    ).toBe(nyType)
+
+    // Posisjonen: samme rad, annen handling, annen felttype.
+    const bredde = rad().locator('[name="breddegrad"]')
+    const lengde = rad().locator('[name="lengdegrad"]')
+    const foerB = await bredde.inputValue()
+    const foerL = await lengde.inputValue()
 
     await bredde.fill('60.3913')
     await lengde.fill('5.3221')
-    await rad.getByRole('button', { name: /^Lagre posisjon for/ }).click()
-
-    // Serverhandlingen revalidatar sida. Verdien skal vaere den nye.
-    await expect(page.locator('.sq-rutenett tbody tr').first().locator('[name="breddegrad"]'))
-      .toHaveValue('60.3913', { timeout: 15_000 })
-
+    await rad().getByRole('button', { name: /^Lagre posisjon for/ }).click()
+    await page.waitForLoadState('networkidle')
     await page.reload()
-    await expect(page.locator('.sq-rutenett tbody tr').first().locator('[name="breddegrad"]'))
-      .toHaveValue('60.3913')
+    expect(
+      await rad().locator('[name="breddegrad"]').inputValue(),
+      'settPosisjon skrev ikke, mens settStasjonstype gjorde det',
+    ).toBe('60.3913')
 
-    // Rydd opp saa testen kan kjores igjen mot samme base.
-    const tilbake = page.locator('.sq-rutenett tbody tr').first()
-    await tilbake.locator('[name="breddegrad"]').fill(foer)
-    await tilbake.locator('[name="lengdegrad"]').fill(foerLengde)
-    await tilbake.getByRole('button', { name: /^Lagre posisjon for/ }).click()
+    // Rydd opp - fixturen er delt.
+    await rad().locator('[name="stasjonstype"]').selectOption(foerType)
+    await rad().getByRole('button', { name: /^Lagre type for/ }).click()
+    await page.waitForLoadState('networkidle')
+    await rad().locator('[name="breddegrad"]').fill(foerB)
+    await rad().locator('[name="lengdegrad"]').fill(foerL)
+    await rad().getByRole('button', { name: /^Lagre posisjon for/ }).click()
   })
 
   test('INGEN ENDRING GIR INGEN ENDRING', async ({ page }) => {
