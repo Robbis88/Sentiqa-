@@ -94,7 +94,8 @@ test.describe('/oversikt for butikksjefen', () => {
     }
 
     // Og merkelappen skal beskrive den sorteringen som finnes.
-    await expect(page.locator('.sq-seksjon-hode'))
+    // Sida har flere seksjonshoder; det er DETTE som skal maales.
+    await expect(page.locator('.sq-seksjon:has(.sq-saker) .sq-seksjon-hode'))
       .toContainText('Etter alvor, konsekvens og varighet')
   })
 
@@ -358,10 +359,14 @@ test.describe('/oversikt foelger stasjonskonteksten', () => {
     await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
 
     const hode = await page.locator('.sq-sidehode').first().innerText()
-    const paaSida = [...new Set(hode.match(/\d{4}/g) ?? [])]
-    for (const nr of paaSida) {
-      expect(['5101', '5102', '5103'], `Fikk ${nr}, som ikke er hennes`).toContain(nr)
-    }
+
+    // MATCH BUTIKKNUMRENE EKSPLISITT. Et loepende \d{4} traff aarstallet
+    // i «20. august 2026» - samme fella som er beskrevet i
+    // stasjonskontekst.spec.ts, og den satte klørne i denne testen
+    // foerste gang den kjorte.
+    expect(hode, 'En annen kjedes stasjon staar i sidehodet').not.toContain('4177')
+    expect([...new Set(hode.match(/(5101|5102|5103)/g) ?? [])].length,
+      `Sidehodet navngir ingen av hennes stasjoner: «${hode}»`).toBe(1)
     expect(await skallet(page)).toMatch(/510[123]/)
   })
 
