@@ -3,6 +3,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { leggTilKunnskap, slettKunnskap } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Knapp } from '@/components/ui/knapp'
+import { Felt, Velg } from '@/components/ui/felt'
 
 type Artikkel = { id: string; kategori: string; tittel: string; innhold: string; kilde: string | null }
 
@@ -10,7 +12,17 @@ const KATEGORIER: [string, string][] = [
   ['rutine', 'Rutine'], ['prosedyre', 'Prosedyre'], ['hms', 'HMS'], ['arbeidsrett', 'Arbeidsrett'],
   ['tariff', 'Tariff'], ['lonn', 'Lønn'], ['annet', 'Annet'],
 ]
-const KAT_MERKE: Record<string, string> = { tariff: '📜 Tariff', lonn: '💰 Lønn', arbeidsrett: '⚖️ Arbeidsrett', rutine: '📋 Rutine', prosedyre: '🔧 Prosedyre', hms: '🦺 HMS', annet: '📄 Annet' }
+/**
+ * Kategorinavnet, uten ikon.
+ *
+ * SYV EMOJI UT, INGEN STATUS INN. En kategori er ikke en tilstand -
+ * «Tariff» er ikke mer eller mindre alvorlig enn «HMS». Aa bruke
+ * `Status` her ville laant et semantisk spraak til noe som ikke har
+ * semantikk, og da slutter fargene aa bety noe der de faktisk gjor det.
+ *
+ * Merkelappen er derfor bare et ord.
+ */
+const KAT_NAVN: Record<string, string> = Object.fromEntries(KATEGORIER)
 
 export default async function KunnskapSide() {
   const bruker = await hentInnloggetBruker()
@@ -27,14 +39,25 @@ export default async function KunnskapSide() {
       tittel="Ny artikkel"
       beskrivelse="Skriv innholdet slik du vil at chatboten skal svare."
     >
-      <form action={leggTilKunnskap} className="skjema">
-        <input name="tittel" placeholder="Tittel (f.eks. «Kasseoppgjør ved dagsslutt»)" required />
-        <select name="kategori" defaultValue="rutine" aria-label="Kategori">
+      {/* FELTENE HADDE INGEN ETIKETTER - bare plassholdere, som
+          forsvinner idet man begynner aa skrive. Samme felter, samme
+          navn, samme serverhandling; det som er nytt er at de har navn
+          ogsaa etter at man har fylt dem ut. */}
+      <form action={leggTilKunnskap} className="sq-skjema">
+        <Felt etikett="Tittel" name="tittel" placeholder="Kasseoppgjør ved dagsslutt" required />
+        <Velg etikett="Kategori" name="kategori" defaultValue="rutine">
           {KATEGORIER.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-        </select>
-        <input name="kilde" placeholder="Kilde (valgfri)" />
-        <textarea name="innhold" rows={8} placeholder="Innhold — beskriv slik du vil at chatboten skal svare." required />
-        <button type="submit" className="sq-knapp primar">Legg til artikkel</button>
+        </Velg>
+        <Felt etikett="Kilde" name="kilde" hjelp="Valgfri — hvor står dette skrevet?" />
+        <label className="felt"><span>Innhold</span>
+          <textarea
+            name="innhold" rows={8} required
+            placeholder="Beskriv slik du vil at assistenten skal svare."
+          />
+        </label>
+        <div className="knapperad">
+          <Knapp type="submit" variant="primar">Legg til artikkel</Knapp>
+        </div>
       </form>
     </Sidepanel>
   )
@@ -58,13 +81,25 @@ export default async function KunnskapSide() {
           handling={nyPanel}
         />
       ) : (
+        // Artiklene er noe man slaar opp i, ikke rader man skanner:
+        // sammenleggbar er riktig form, og den beholdes. Det som er
+        // endret er ikonene og den handskrevne stilen.
         <ul className="kunnskap-liste">
           {artikler.map((a) => (
             <li key={a.id}>
               <details>
-                <summary><span className="kunnskap-kat">{KAT_MERKE[a.kategori] ?? a.kategori}</span> {a.tittel}{a.kilde ? <span className="undertittel"> · {a.kilde}</span> : null}</summary>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{a.innhold}</p>
-                <form action={slettKunnskap}><input type="hidden" name="id" value={a.id} /><button type="submit" className="liten slett">Slett</button></form>
+                <summary>
+                  <span className="kunnskap-kat">{KAT_NAVN[a.kategori] ?? a.kategori}</span>
+                  {' '}{a.tittel}
+                  {a.kilde ? <span className="undertittel"> · {a.kilde}</span> : null}
+                </summary>
+                <p className="sq-brodtekst">{a.innhold}</p>
+                <div className="knapperad">
+                  <form action={slettKunnskap}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                </div>
               </details>
             </li>
           ))}

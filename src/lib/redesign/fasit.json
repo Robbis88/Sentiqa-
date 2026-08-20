@@ -487,6 +487,8 @@
       "Bra jobbet",
       "Ingen fokuspunkter ennå",
       "Verdt et blikk",
+      "p.tittel ?? 'Bra jobbet'",
+      "p.tittel ?? 'Verdt et blikk'",
       "{navnFor.get(id) ?? '—'}"
     ],
     "/ikmat/oppsett": [

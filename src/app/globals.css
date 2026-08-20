@@ -1965,3 +1965,14 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 /* Skjema i sidepanel. Feltene under hverandre med samme luft — et
    skjema skal ikke bli en trapp. */
 .sq-skjema { display: flex; flex-direction: column; gap: var(--luft-4); }
+
+/* --- Bolge 1 -------------------------------------------------------
+   Tekst der LINJESKIFTENE ER INNHOLDET: oppskrifter, prosedyrer,
+   kunnskapsartikler. Sto som `style={{ whiteSpace: 'pre-wrap' }}` tre
+   steder - samme regel skrevet tre ganger, usynlig for skrallen som
+   teller inline-stiler fordi hver av dem var «bare denne ene». */
+.sq-brodtekst {
+  white-space: pre-wrap;
+  line-height: var(--linje-luftig);
+  margin: var(--luft-3) 0;
+}

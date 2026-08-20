@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { manedAar } from '@/lib/format'
 import { GenererKnapp } from './generer-knapp'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Signal } from '@/components/ui/status'
 
 // «Generer fokuspunkter» (AI per stasjon) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -69,27 +70,45 @@ export default async function FokusSide() {
             : 'Eier lager dem etter at regnskapet er behandlet.'}
         />
       ) : (
+        // KORTET BLIR STAAENDE. Her er det ikke en layoutbeholder: hver
+        // seksjon er EN stasjons bilde, og det er den enheten en eier
+        // sammenligner og handler paa. Aa slaa dem sammen til en flat
+        // liste ville blandet Bones' punkter med Vardens.
+        //
+        // DET SOM ER ENDRET er punktene. De laa som to kolonner med
+        // fargede overskrifter og kulepunkter under - farge paa en
+        // overskrift, ikke paa saken. Naa er hvert punkt et signal:
+        // `mulighet` for det som gaar bra, `oppmerksomhet` for det som
+        // er verdt et blikk. Samme ord, samme rekkefolge, men fargen
+        // sitter paa den enkelte saken der den betyr noe.
         [...perStasjon.entries()].map(([id, b]) => (
           <section className="kort" key={id}>
             <h2>{navnFor.get(id) ?? '—'}</h2>
-            <div className="fokus-kol">
-              <div>
-                <h3 className="fokus-tittel gronn">Bra jobbet</h3>
-                <ul className="fokus-liste">
-                  {b.positivt.map((p, i) => (
-                    <li key={i}>{p.tittel ? <strong>{p.tittel}: </strong> : null}{p.tekst}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="fokus-tittel gul">Verdt et blikk</h3>
-                <ul className="fokus-liste">
-                  {b.forbedring.map((p, i) => (
-                    <li key={i}>{p.tittel ? <strong>{p.tittel}: </strong> : null}{p.tekst}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            {/* OVERSKRIFTENE BLIR STAAENDE. Forste utgave lot nivaaet paa
+                signalet baere skillet mellom «bra» og «verdt et blikk» -
+                altsaa fargen alene. Den som ikke ser farge, mistet da
+                inndelingen helt. Nivaaet forsterker overskriften; det
+                erstatter den ikke. */}
+            {b.positivt.length > 0 && (
+              <>
+                <h3>Bra jobbet</h3>
+                {b.positivt.map((p, i) => (
+                  <Signal key={`p${i}`} nivaa="mulighet" tittel={p.tittel ?? 'Bra jobbet'}>
+                    {p.tekst}
+                  </Signal>
+                ))}
+              </>
+            )}
+            {b.forbedring.length > 0 && (
+              <>
+                <h3>Verdt et blikk</h3>
+                {b.forbedring.map((p, i) => (
+                  <Signal key={`f${i}`} nivaa="oppmerksomhet" tittel={p.tittel ?? 'Verdt et blikk'}>
+                    {p.tekst}
+                  </Signal>
+                ))}
+              </>
+            )}
           </section>
         ))
       )}
