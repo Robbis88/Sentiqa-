@@ -352,7 +352,7 @@ button.logg-ut:hover { color: var(--tekst); }
   transition: background 0.12s, color 0.12s;
 }
 .sidemeny nav a:hover { background: var(--bg); color: var(--tekst); }
-.sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--primaer); font-weight: 600; }
+.sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--gronn); font-weight: 600; }
 .meny-bunn { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.75rem 0.6rem 0; border-top: 1px solid var(--kant); font-size: 0.7rem; color: var(--tekst-svak); }
 /* Mobil-meny: skjult på desktop */
 .meny-hamburger, .meny-overlay { display: none; }
@@ -467,9 +467,14 @@ button.logg-ut:hover { color: var(--tekst); }
 /* Status-pip (grønn/gul/rød, §12) */
 .status-pip { font-size: 0.75rem; padding: 0.12rem 0.5rem; border-radius: 999px; font-weight: 600; }
 .status-pip.gronn { background: var(--gronn-svak); color: var(--gronn); }
+/* TEKST PAA TINTEN ER --gronn, IKKE --primaer. Paret #2e7d6b paa #e6f2ef
+   gir 4.29:1 og faller under AA. Pa hvit klarer --primaer 4.93:1, saa
+   feilen finnes bare der de to moetes - og den ble funnet av axe i en
+   ekte nettleser, ikke av jsdom, som ikke maaler kontrast i det hele
+   tatt. Alle fem stedene med dette paret ble rettet samtidig. */
 .status-pip.gul   { background: var(--gul-svak);   color: var(--gul); }
 .status-pip.rod   { background: var(--rod-svak);   color: var(--rod); }
-.status-pip.bla   { background: var(--primaer-svak); color: var(--primaer); } /* §8D: blå, aldri rød */
+.status-pip.bla   { background: var(--primaer-svak); color: var(--gronn); } /* §8D: blå, aldri rød */
 
 /* Brukeradministrasjon */
 .stasjon-valg { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.3rem; }
@@ -830,7 +835,7 @@ button.liten.slett:hover { background: #fdecea; }
 
 .kunnskap-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .kunnskap-liste summary { cursor: pointer; font-weight: 600; }
-.kunnskap-kat { font-size: 0.75rem; background: var(--primaer-svak); color: var(--primaer); padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.4rem; }
+.kunnskap-kat { font-size: 0.75rem; background: var(--primaer-svak); color: var(--gronn); padding: 0.1rem 0.45rem; border-radius: 999px; margin-right: 0.4rem; }
 .kunnskap-liste p { margin-top: 0.5rem; line-height: 1.55; }
 
 .arr-liste { list-style: none; margin: 0.3rem 0 0.7rem; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
@@ -1025,7 +1030,7 @@ button.liten.slett:hover { background: #fdecea; }
 .rangering-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
 .rangering-liste li { display: flex; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-bottom: 1px solid var(--kant); }
 .rangering-liste li:last-child { border-bottom: 0; }
-.rang-nr { width: 1.6rem; height: 1.6rem; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primaer-svak); color: var(--primaer); font-weight: 800; font-size: 0.85rem; }
+.rang-nr { width: 1.6rem; height: 1.6rem; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primaer-svak); color: var(--gronn); font-weight: 800; font-size: 0.85rem; }
 .rang-navn { flex: 1; font-weight: 600; }
 .rang-verdi { font-weight: 700; }
 
@@ -1515,7 +1520,7 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 }
 .sq-ukedager .ukedag:hover { border-color: var(--tekst-svak); }
 .sq-ukedager .ukedag:has(input:checked) {
-  background: var(--primaer-svak); border-color: var(--primaer); color: var(--primaer); font-weight: 600;
+  background: var(--primaer-svak); border-color: var(--primaer); color: var(--gronn); font-weight: 600;
 }
 .sq-ukedager input { width: 18px; height: 18px; }
 
