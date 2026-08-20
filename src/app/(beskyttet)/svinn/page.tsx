@@ -5,8 +5,24 @@ import { kr, tall, datoLang } from '@/lib/format'
 import { hentAlt } from '@/lib/paginer'
 import { AiKontekst } from '../ai-kontekst'
 import Link from 'next/link'
-import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Nokkeltall, Datatabell, Forklaring } from '@/components/ui/side'
+import { Status, type Statusnivaa } from '@/components/ui/status'
 import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
+
+// =====================================================================
+// Pilot B: analysemonsteret paa primitivene.
+//
+// Pilot A var en liste. Denne er valgt fordi den er noe ANNET - klarer
+// primitivene bare den sida de ble tegnet for, er de ikke et system.
+//
+// SPORRINGEN ER URORT, som i pilot A. Samme vindu, samme RPC-er, samme
+// terskelregning. Endres tallene i en designmigrering, vet man ikke
+// lenger om det var designet eller regnestykket som gjorde det.
+//
+// DET SOM FALT UT: `.kpi`, `.status-pip` og tre haandskrevne tabeller.
+// Det fantes primitiv for alle tre allerede - de var skrevet for hver
+// side fordi det gikk raskere enn aa lete.
+// =====================================================================
 
 type Svinn = {
   stasjon_id: string
@@ -96,17 +112,31 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   type MatSum = { stasjon_id: string; mat_omsetning: number | null }
   const svinnSum = new Map(((svinnVindu ?? []) as SvinnSum[]).map((r) => [r.stasjon_id, r.svinn_kr ?? 0]))
   const matSum = new Map(((matVindu ?? []) as MatSum[]).map((r) => [r.stasjon_id, r.mat_omsetning ?? 0]))
+  // Terskelen deler i tre, som for. Det som er endret er hva de tre
+  // HETER, og hvor sterkt de roper.
+  //
+  // UNDER TERSKEL ER `normal`, IKKE SUKSESS. En stasjon som ligger der
+  // den skal, er utgangspunktet - ikke en god nyhet. Var den groenn,
+  // ville en kjede med tolv stasjoner i orden vaert et gronskjaer, og da
+  // finnes det ingen farge igjen til den ene som ikke er det.
+  //
+  // «Foelg med» het den mellomste for, og det var for snilt: den er
+  // ALLEREDE over terskel, bare mindre enn 25 % over. Navnet sa noe
+  // annet enn tallet ved siden av. Nivaaene er de samme som for - kun
+  // ordet og fargestyrken er endret.
   const terskelrader = (stasjoner ?? []).map((s) => {
     const svinn = svinnSum.get(s.id) ?? 0
     const mat = matSum.get(s.id) ?? 0
     const pst = mat > 0 ? (svinn / mat) * 100 : null
     const terskel = s.svinnterskel_prosent
-    let klasse = 'gul'
-    if (pst == null || terskel == null) klasse = ''
-    else if (pst <= terskel) klasse = 'gronn'
-    else if (pst <= terskel * 1.25) klasse = 'gul'
-    else klasse = 'rod'
-    return { navn: `${s.butikknummer} ${s.navn}`, pst, terskel, klasse, svinn, mat }
+    let nivaa: Statusnivaa | null = null
+    let dom = ''
+    if (pst != null && terskel != null) {
+      if (pst <= terskel) { nivaa = 'normal'; dom = 'Under terskel' }
+      else if (pst <= terskel * 1.25) { nivaa = 'endring'; dom = 'Like over terskel' }
+      else { nivaa = 'handling'; dom = 'Godt over terskel' }
+    }
+    return { navn: `${s.butikknummer} ${s.navn}`, pst, terskel, nivaa, dom, svinn, mat }
   })
   const alleRader = rader ?? []
   const erStasjon = valgtStasjon != null && navnFor.has(valgtStasjon)
@@ -161,83 +191,101 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
         handlinger={<AiKontekst tekst="Finn arsaken" sporsmal="Hva er de viktigste arsakene til svinnet vart den siste tiden?" />}
       />
 
-      <section className="nokkeltall">
-        <div className="kpi">
-          <span className="kpi-tall">{kr.format(total)}</span>
-          <span className="kpi-merke">Synlig svinn totalt</span>
-          {/* Paa svinn er OVER normalen daarlig — motsatt av salg. Derfor
-              snus dommen her, mens pilen peker samme vei. */}
-          {mot.tekst && (
-            <span className={`kpi-mot${verdtEtBlikk(mot) ? (mot.avvikProsent > 0 ? ' darlig' : ' god') : ''}`}>
-              {mot.tekst}
-            </span>
-          )}
-        </div>
-        <div className="kpi">
-          <span className="kpi-tall">{tall.format(alle.reduce((a, r) => a + (r.antall ?? 0), 0))}</span>
-          <span className="kpi-merke">Antall enheter</span>
-        </div>
-      </section>
+      {/* Nokkeltall skiller `retning` fra `bra` nettopp for et tilfelle
+          som dette: pilen viser bevegelsen, fargen viser dommen, og paa
+          svinn peker de hver sin vei. Opp er mer kastet mat.
 
-      <section className="kort">
-        <h2>Svinn mot terskel · siste 30 dager</h2>
-        <p className="undertittel">Synlig svinn i % av matsalg, mot terskel per stasjon (§11).</p>
-        <table className="tabell">
-          <thead><tr><th>Stasjon</th><th>Svinn %</th><th>Terskel</th><th>Status</th></tr></thead>
-          <tbody>
-            {terskelrader.map((r) => (
-              <tr key={r.navn}>
-                <td>{r.navn}</td>
-                <td>{r.pst != null ? `${r.pst.toFixed(1)} %` : '—'}</td>
-                <td>{r.terskel != null ? `${r.terskel} %` : '—'}</td>
-                <td>
-                  {r.klasse ? (
-                    <span className={`status-pip ${r.klasse}`}>
-                      {r.klasse === 'gronn' ? 'Under terskel' : r.klasse === 'gul' ? 'Følg med' : 'Over terskel'}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+          Fargen settes bare naar avviket er verdt et blikk. Ellers faar
+          hver eneste dag en dom, og da slutter dommen aa bety noe. */}
+      <div className="sq-nokkelrad">
+        <Nokkeltall
+          merkelapp="Synlig svinn totalt"
+          verdi={kr.format(total)}
+          sammenlignet={mot.tekst ?? undefined}
+          retning={mot.avvikProsent > 0 ? 'opp' : mot.avvikProsent < 0 ? 'ned' : 'flat'}
+          bra={verdtEtBlikk(mot) ? mot.avvikProsent < 0 : undefined}
+        />
+        <Nokkeltall
+          merkelapp="Antall enheter"
+          verdi={tall.format(alle.reduce((a, r) => a + (r.antall ?? 0), 0))}
+          sammenlignet={perVare.size > 0 ? `fordelt paa ${tall.format(perVare.size)} varer` : undefined}
+        />
+      </div>
+
+      <Datatabell tittel="Svinn mot terskel · siste 30 dager" antall={terskelrader.length}>
+        <thead><tr><th>Stasjon</th><th>Svinn %</th><th>Terskel</th><th>Status</th></tr></thead>
+        <tbody>
+          {terskelrader.map((r) => (
+            <tr key={r.navn}>
+              <td>{r.navn}</td>
+              <td>{r.pst != null ? `${r.pst.toFixed(1)} %` : '—'}</td>
+              <td>{r.terskel != null ? `${r.terskel} %` : '—'}</td>
+              <td>{r.nivaa ? <Status nivaa={r.nivaa}>{r.dom}</Status> : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Datatabell>
+
+      {/* Nivaa 4 i analysemonsteret: grunnlaget bak dommen, tilgjengelig
+          uten aa staa i veien. Sto for som en undertittel OVER tabellen -
+          altsaa metoden foer svaret. */}
+      <Forklaring sporsmaal="Hvordan regnes svinn %?">
+        <p>
+          Synlig svinn delt paa matsalget i et rullende 30-dagers vindu, mot
+          terskelen som er satt per stasjon (§11). Vinduet ruller og gaar ikke
+          dag for dag, fordi en enkelt dag svinger for mye til aa si noe: en
+          kasse som kastes en tirsdag gjoer tirsdagen roed uten at driften har
+          endret seg.
+        </p>
+        <p>
+          Summene regnes i basen, ikke her. Hentes raa rader og summeres i
+          sida, kapper PostgREST paa 1000 rader — da regnes prosenten paa en
+          vilkaarlig delmengde, og en stasjon over terskel kan vises som
+          groenn (mig 0077).
+        </p>
+      </Forklaring>
 
       {!erStasjon && (
-        <section className="kort">
-          <h2>Per stasjon · {datoLang.format(new Date(siste.dato))}</h2>
-          <table className="tabell">
-            <thead><tr><th>Stasjon</th><th>Svinn</th><th>Enheter</th></tr></thead>
-            <tbody>
-              {stasjonsrader.map(([id, p]) => (
-                <tr key={id}>
-                  <td>{navnFor.get(id) ?? '—'}</td>
-                  <td>{kr.format(p.sum)}</td>
-                  <td>{tall.format(p.antall)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      <section className="kort">
-        <h2>Mest svinn (varer){erStasjon ? ` · ${valgtNavn}` : ''}</h2>
-        <table className="tabell">
-          <thead><tr><th>Vare</th><th>Svinn</th><th>Enheter</th></tr></thead>
+        <Datatabell
+          tittel={`Per stasjon · ${datoLang.format(new Date(siste.dato))}`}
+          antall={stasjonsrader.length}
+          tom={<Tomtilstand
+            tittel="Ingen svinn registrert denne dagen"
+            forklaring="Ingen av stasjonene registrerte synlig svinn paa datoen. Tallene over gjelder fortsatt det rullende vinduet."
+          />}
+        >
+          <thead><tr><th>Stasjon</th><th>Svinn</th><th>Enheter</th></tr></thead>
           <tbody>
-            {toppVarer.map((v, i) => (
-              <tr key={i}>
-                <td>{v.navn}</td>
-                <td>{kr.format(v.sum)}</td>
-                <td>{tall.format(v.antall)}</td>
+            {stasjonsrader.map(([id, p]) => (
+              <tr key={id}>
+                <td>{navnFor.get(id) ?? '—'}</td>
+                <td>{kr.format(p.sum)}</td>
+                <td>{tall.format(p.antall)}</td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </section>
+        </Datatabell>
+      )}
+
+      <Datatabell
+        tittel={`Mest svinn (varer)${erStasjon ? ` · ${valgtNavn}` : ''}`}
+        antall={toppVarer.length}
+        tom={<Tomtilstand
+          tittel="Ingen varelinjer aa vise"
+          forklaring="Ingen varer med svinn paa denne datoen."
+        />}
+      >
+        <thead><tr><th>Vare</th><th>Svinn</th><th>Enheter</th></tr></thead>
+        <tbody>
+          {toppVarer.map((v, i) => (
+            <tr key={i}>
+              <td>{v.navn}</td>
+              <td>{kr.format(v.sum)}</td>
+              <td>{tall.format(v.antall)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Datatabell>
     </>
   )
 }

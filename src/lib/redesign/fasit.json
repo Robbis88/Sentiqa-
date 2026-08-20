@@ -430,6 +430,7 @@
     ],
     "/analyse": [
       "Endringer mot forrige periode",
+      "Ingen analyse ennå",
       "Muligheter",
       "Per stasjon",
       "Prioriterte tiltak",
@@ -437,34 +438,62 @@
       "Systemfeil (registrering)",
       "Usynlig svinn per stasjon"
     ],
+    "/ansatte": [
+      "Ny ansatt"
+    ],
     "/anvisninger": [
+      "Ny anvisning",
+      "o('Ingen anvisninger ennå')",
       "{o(kat)} <span className=\"undertittel\">· {liste.length}</span>"
     ],
     "/arrangementer": [
       "Forslag fra kalender <span className=\"undertittel\">— teller ikke før du bekrefter</span>",
+      "Ingen bekreftede arrangementer framover",
       "Kalender-kilder (iCal)",
-      "Kommende arrangementer"
+      "Kommende arrangementer",
+      "Ny kalender-kilde (iCal)",
+      "Nytt arrangement"
     ],
     "/bemanning": [
       "Bærer kontraktene planen?",
+      "Faste vakter",
+      "Ferie eller fravær",
+      "Ferie og fravær",
       "Forslag for uke {valgtUkeNr}",
+      "Hvor mange får plass?",
       "Hvor mye går folk i?",
+      "Ingen bemannede vinduer",
+      "Ny fast vakt",
+      "Nytt bemannet vindu",
+      "Når står det folk i butikken?",
       "Oppsett",
       "Planen mot det som faktisk skjedde",
       "Slik er timene fordelt",
       "Stasjonene mot hverandre",
+      "Timer der én ikke holder",
+      "Timer der én ikke holder",
+      "Vaktene dette blir",
       "{steg.tittel}"
+    ],
+    "/brukere": [
+      "Ingen brukere ennå",
+      "Ny bruker"
     ],
     "/dekning": [
       "Måned for måned"
     ],
     "/fokus": [
+      "Bra jobbet",
+      "Ingen fokuspunkter ennå",
+      "Verdt et blikk",
       "{navnFor.get(id) ?? '—'}"
     ],
     "/ikmat/oppsett": [
+      "Ingen kontrollpunkter",
       "{s.butikknummer} {s.navn} <span className=\"undertittel\">· {sineP.length} punkter</span>"
     ],
     "/ikmat": [
+      "{FREKVENS_ETIKETT[frekvens]}",
       "{s.butikknummer} {s.navn}"
     ],
     "/import": [
@@ -474,12 +503,19 @@
       "Status"
     ],
     "/kampanjer": [
+      "Ny kampanje",
       "{k.navn} <span className=\"undertittel\">· {kjedeNavn.get(k.retailer_id)}</span>"
     ],
     "/kasserer": [
+      "Ingen kassererdata ennå",
       "{s.butikknummer} {s.navn}"
     ],
+    "/konkurranser": [
+      "Ingen konkurranser ennå",
+      "Ny konkurranse"
+    ],
     "/kontrakt": [
+      "Ingen ansatte på ${valgt.navn}",
       "Ingen mal for dette valget",
       "Kjedens faste felt",
       "Maler",
@@ -493,14 +529,37 @@
       "Verdiene som ble satt inn",
       "{igjen.length} valg står igjen"
     ],
+    "/kunnskap": [
+      "Ingen artikler ennå",
+      "Ny artikkel"
+    ],
+    "/lederstotte": [
+      "Ingen lederstøtte-rapport ennå",
+      "Neste steg",
+      "Styrker",
+      "Utviklingsområder"
+    ],
     "/lonn": [
       "Dette ligger i fila",
       "Fila er klar",
+      "Ingen stemplinger for ${MND[maned - 1]} ${ar}",
       "Kontrakter som ikke dekker arbeidet",
-      "Kontroll før sending"
+      "Kontroll før sending",
+      "Åpen vakt · ${v.ansattNavn}"
     ],
     "/maaling": [
+      "Nytt målekort",
+      "erAdmin ? 'Ingen målekort ennå' : 'Ingen målekort er delt med deg ennå'",
       "{m.navn}"
+    ],
+    "/meldinger": [
+      "Ingen aktive meldinger",
+      "Ny melding"
+    ],
+    "/merker": [
+      "Ingen ansatte ennå",
+      "Ingen merker satt opp",
+      "Tildel et merke"
     ],
     "/mine-opplysninger": [
       "Det vi ikke gjør",
@@ -508,78 +567,153 @@
       "Les gjennom",
       "{t.hva}"
     ],
+    "/nyheter": [
+      "Ingen nyheter ennå"
+    ],
+    "/oppgaver": [
+      "Ingen åpne oppgaver",
+      "Ny oppgave"
+    ],
     "/opplaring": [
+      "Ingen under opplæring",
+      "Ny under opplæring",
       "Oppgavebibliotek",
+      "Tomt oppgavebibliotek",
       "Under opplæring",
       "Vaktplan",
+      "{k.navn}",
+      "{k.navn}",
       "{valgt.ansatt_navn} — sjekkliste"
     ],
     "/persondata": [
       "Hvem har sett hva",
+      "Ingenting å slette",
       "Innsyn for en ansatt",
       "Klar for sletting",
       "Oppbevaringstid"
     ],
     "/plattform": [
       "Aktive kjeder",
-      "Deaktiverte kjeder"
+      "Deaktiverte kjeder",
+      "Ingen aktive kjeder ennå",
+      "Mangler service-nøkkel",
+      "Ny kunde"
     ],
     "/premier": [
+      "Registrer bruk",
       "Siste bruk",
+      "Tildel pengepremie",
       "Tildelinger"
     ],
     "/produksjonsplan": [
+      "Ingen produksjonssalg registrert",
       "🥐 Produksjon",
       "🥐 Produksjon"
     ],
     "/produksjonsplan/treffsikkerhet": [
       "Dag for dag (siste {trendDager.length})",
+      "Ingen treffdata ennå for denne stasjonen",
       "{tittel}",
       "{tittel}"
     ],
+    "/puls": [
+      "Ingen målinger ennå",
+      "Start pulsmåling"
+    ],
+    "/puls/sporsmal": [
+      "Nytt puls-spørsmål",
+      "Tomt bibliotek"
+    ],
     "/puls/[id]": [
+      "Ingen svar ennå",
       "Kommentarer ({kommentarer.length})",
       "Per stasjon"
     ],
+    "/redaktor": [
+      "Ingen innlegg ennå",
+      "Nytt innlegg"
+    ],
     "/regnskap": [
+      "Ingen regnskapsdata ennå",
       "Kostnader per konto · hele kjeden",
       "Per stasjon",
       "{SEKSJON_TITTEL[navn]}"
     ],
+    "/rutiner/min": [
+      "Ingen punkter ennå",
+      "Nytt punkt"
+    ],
     "/rutiner/oppsett": [
+      "Ingen vaktskjemaer",
       "{st.butikknummer} {st.navn}"
     ],
     "/rutiner/oppsett/[id]": [
       "IK-mat-kontroll <span className=\"undertittel\">· {ikmatRutiner.length}</span>",
+      "Ingen rutiner i skjemaet ennå",
+      "Legg IK-mat-kontroll i vakta",
+      "Ny rutine",
       "Når er skjemaet aktivt",
       "Rutiner i dette skjemaet <span className=\"undertittel\">· {rutiner.length}</span>"
+    ],
+    "/rutiner/oversikt": [
+      "Ingen stasjoner ennå"
     ],
     "/rutiner": [
       "{navnFor.get(sid) ?? '—'}"
     ],
     "/salg": [
+      "Ingen salgsdata ennå",
       "Per kategori{erStasjon ? ` · ${valgtNavn}` : ''}",
       "Per stasjon",
       "Topp varegrupper{erStasjon ? ` · ${valgtNavn}` : ''}"
     ],
     "/salgsprognose": [
+      "Ikke nok salgshistorikk for denne stasjonen ennå",
+      "Ingen stasjoner tilgjengelig",
       "Per kategori"
     ],
     "/sjekkpunkt": [
+      "Ingen sjekkpunkter ennå",
+      "Nytt sjekkpunkt",
       "{navnFor.get(sid) ?? '—'}"
+    ],
+    "/skills": [
+      "Ingen score registrert",
+      "Ny skills-score"
+    ],
+    "/stasjoner": [
+      "Ingen stasjoner ennå",
+      "Ny stasjon"
     ],
     "/stempling": [
       "Inne nå <span className=\"undertittel\">· {inne.length}</span>"
     ],
     "/svinn": [
-      "Mest svinn (varer){erStasjon ? ` · ${valgtNavn}` : ''}",
-      "Per stasjon · {datoLang.format(new Date(siste.dato))}",
+      "Ingen svinn registrert denne dagen",
+      "Ingen svinndata ennå",
+      "Ingen varelinjer aa vise",
+      "Mest svinn (varer)${erStasjon ? ` · ${valgtNavn}` : ''}",
+      "Per stasjon · ${datoLang.format(new Date(siste.dato))}",
       "Svinn mot terskel · siste 30 dager"
     ],
+    "/tilbakemeldinger": [
+      "Ingen tilbakemeldinger ennå"
+    ],
+    "/timesalg": [
+      "Ingen timesalgsdata ennå"
+    ],
+    "/trafikk": [
+      "Ingen stasjoner å koble",
+      "Mangler service-nøkkel"
+    ],
     "/utsolgt": [
+      "Ingen tegn til tom hylle",
       "Oversikt — hvor butikken mister salg på tom hylle",
       "Samme vare, motsatt feil",
       "{valgt.stasjon.butikknummer} {valgt.stasjon.navn}"
+    ],
+    "/varsler": [
+      "Ingen varsler"
     ],
     "/databehandleravtale": [
       "1. Parter og bakgrunn",
