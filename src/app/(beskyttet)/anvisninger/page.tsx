@@ -4,6 +4,8 @@ import { oversettMange } from '@/lib/oversett'
 import { leggTilAnvisning, slettAnvisning } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Knapp } from '@/components/ui/knapp'
+import { Felt } from '@/components/ui/felt'
 
 type Anvisning = { id: string; kategori: string; tittel: string; innhold: string }
 
@@ -39,11 +41,16 @@ export default async function AnvisningerSide() {
   const antall = [...grupper.values()].reduce((n, l) => n + l.length, 0)
   const nyPanel = erLeder ? (
     <Sidepanel knapp="Ny anvisning" tittel="Ny anvisning">
-      <form action={leggTilAnvisning} className="skjema">
-        <label className="felt"><span>Kategori</span><input name="kategori" placeholder="f.eks. Hurtigmat" /></label>
-        <label className="felt"><span>Tittel</span><input name="tittel" placeholder="Slik lager du kaffe" required /></label>
-        <label className="felt"><span>Innhold</span><textarea name="innhold" rows={8} required /></label>
-        <button type="submit" className="sq-knapp primar">Legg til anvisning</button>
+      <form action={leggTilAnvisning} className="sq-skjema">
+        <Felt etikett="Kategori" name="kategori" placeholder="Hurtigmat"
+          hjelp="Samler anvisninger folk leter etter sammen." />
+        <Felt etikett="Tittel" name="tittel" placeholder="Slik lager du kaffe" required />
+        <label className="felt"><span>Innhold</span>
+          <textarea name="innhold" rows={8} required />
+        </label>
+        <div className="knapperad">
+          <Knapp type="submit" variant="primar">Legg til anvisning</Knapp>
+        </div>
       </form>
     </Sidepanel>
   ) : undefined
@@ -72,12 +79,16 @@ export default async function AnvisningerSide() {
             {liste.map((a) => (
               <details className="anvisning" key={a.id}>
                 <summary>{o(a.tittel)}</summary>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{o(a.innhold)}</p>
+                {/* Linjeskiftene i en oppskrift ER innholdet. Sto som
+                    inline-stil; er naa en klasse, som alt annet. */}
+                <p className="sq-brodtekst">{o(a.innhold)}</p>
                 {erLeder && (
-                  <form action={slettAnvisning}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <button type="submit" className="liten slett">Slett</button>
-                  </form>
+                  <div className="knapperad">
+                    <form action={slettAnvisning}>
+                      <input type="hidden" name="id" value={a.id} />
+                      <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                    </form>
+                  </div>
                 )}
               </details>
             ))}

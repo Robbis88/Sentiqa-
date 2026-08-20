@@ -4,6 +4,10 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { sendMelding, slettMelding } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Status } from '@/components/ui/status'
+import { Knapp } from '@/components/ui/knapp'
+import { Velg } from '@/components/ui/felt'
 
 type Melding = { id: string; stasjon_id: string | null; tekst: string; viktig: boolean; opprettet_tid: string }
 
@@ -28,16 +32,23 @@ export default async function MeldingerSide() {
       tittel="Ny melding"
       beskrivelse="Vises på stasjonens nettbrett til du sletter den."
     >
-      <form action={sendMelding} className="skjema">
-        <label className="felt"><span>Til</span>
-          <select name="stasjon_id" defaultValue="">
-            <option value="">Alle stasjoner</option>
-            {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-          </select>
+      {/* Samme felter, samme navn, samme serverhandling. Etiketten paa
+          avkryssingen sier naa HVA det gjor, ikke hvilken farge det
+          faar - fargen er en folge, ikke et valg. */}
+      <form action={sendMelding} className="sq-skjema">
+        <Velg etikett="Til" name="stasjon_id" defaultValue="">
+          <option value="">Alle stasjoner</option>
+          {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
+        </Velg>
+        <label className="felt"><span>Melding</span>
+          <textarea name="tekst" rows={3} required />
         </label>
-        <label className="felt"><span>Melding</span><textarea name="tekst" rows={3} required /></label>
-        <label className="felt avkryss"><input type="checkbox" name="viktig" /> Viktig (rød)</label>
-        <button type="submit" className="sq-knapp primar">Send til nettbrettet</button>
+        <label className="felt avkryss">
+          <input type="checkbox" name="viktig" /> Viktig — vises fremhevet på nettbrettet
+        </label>
+        <div className="knapperad">
+          <Knapp type="submit" variant="primar">Send til nettbrettet</Knapp>
+        </div>
       </form>
     </Sidepanel>
   )
@@ -60,20 +71,25 @@ export default async function MeldingerSide() {
           handling={nyMeldingPanel}
         />
       ) : (
-        <ul className="melding-liste">
+        <Liste merkelapp="Aktive meldinger">
           {liste.map((m) => (
-            <li key={m.id} className={m.viktig ? 'viktig' : ''}>
-              <div>
-                <p className="melding-tekst">{m.tekst}</p>
-                <span className="undertittel">{m.stasjon_id ? navnFor.get(m.stasjon_id) ?? '—' : 'Alle stasjoner'} · {tid.format(new Date(m.opprettet_tid))}</span>
-              </div>
-              <form action={slettMelding}>
-                <input type="hidden" name="id" value={m.id} />
-                <button type="submit" className="liten slett" aria-label="Slett">Slett</button>
-              </form>
-            </li>
+            <Rad
+              key={m.id}
+              primaer={m.tekst}
+              sekundaer={`${m.stasjon_id ? navnFor.get(m.stasjon_id) ?? '—' : 'Alle stasjoner'} · ${tid.format(new Date(m.opprettet_tid))}`}
+              // «Viktig» er avsenderens eget valg om at dette ikke kan
+              // ventes med. Det er en handling for den som leser det paa
+              // nettbrettet - derfor `handling`, ikke `kritisk`.
+              status={m.viktig ? <Status nivaa="handling">Viktig</Status> : undefined}
+              handlinger={(
+                <form action={slettMelding}>
+                  <input type="hidden" name="id" value={m.id} />
+                  <Knapp type="submit" variant="ghost" liten>Slett</Knapp>
+                </form>
+              )}
+            />
           ))}
-        </ul>
+        </Liste>
       )}
     </>
   )

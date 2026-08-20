@@ -3,14 +3,30 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { markerLest } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Status, type Statusnivaa } from '@/components/ui/status'
+import { Knapp } from '@/components/ui/knapp'
 
 type Tilbake = { id: string; stasjon_id: string; alvorlighet: string; tekst: string; involvert_beskrivelse: string | null; opprettet_tid: string; lest_tid: string | null }
 
-const MERKE: Record<string, { e: string; k: string }> = {
-  generelt: { e: '💬 Generelt', k: 'bla' },
-  uhell: { e: '🩹 Uhell', k: 'gul' },
-  nestenuhell: { e: '⚠️ Nestenuhell', k: 'gul' },
-  krenkelse: { e: '🚫 Krenkelse', k: 'rod' },
+/**
+ * Alvorlighet, oversatt til det semantiske spraaket resten av systemet
+ * bruker.
+ *
+ * FIRE EMOJI ERSTATTET AV FIRE NIVAAER. Merkene var 💬🩹⚠️🚫 - ikoner
+ * som maa laeres, og som ikke sier hvor alvorlig noe er for man har
+ * laert dem. Nivaaet sier det med farge og styrke, og ordet staar der
+ * uansett for den som ikke ser fargen.
+ *
+ * EN KRENKELSE ER KRITISK. Den laa som «rod» sammen med alt annet rodt.
+ * Det er den ene tingen paa denne sida som ikke kan vente, og den skal
+ * vaere umulig aa overse.
+ */
+const ALVOR: Record<string, { ord: string; nivaa: Statusnivaa }> = {
+  generelt: { ord: 'Generelt', nivaa: 'normal' },
+  uhell: { ord: 'Uhell', nivaa: 'handling' },
+  nestenuhell: { ord: 'Nestenuhell', nivaa: 'endring' },
+  krenkelse: { ord: 'Krenkelse', nivaa: 'kritisk' },
 }
 const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyle: 'short', timeStyle: 'short' })
 
@@ -45,24 +61,30 @@ export default async function TilbakemeldingerSide() {
             + 'ting kommer fram som ikke sies på et personalmøte.'}
         />
       ) : (
-        <ul className="melding-liste">
+        <Liste merkelapp="Tilbakemeldinger">
           {liste.map((m) => {
-            const merke = MERKE[m.alvorlighet] ?? MERKE.generelt
+            const alvor = ALVOR[m.alvorlighet] ?? ALVOR.generelt
             return (
-              <li key={m.id} className={!m.lest_tid ? 'viktig' : ''}>
-                <div>
-                  <span className={`status-pip ${merke.k}`}>{merke.e}</span>{' '}
-                  <span className="undertittel">{navnFor.get(m.stasjon_id) ?? '—'} · {tid.format(new Date(m.opprettet_tid))}</span>
-                  <p className="melding-tekst">{m.tekst}</p>
-                  {m.involvert_beskrivelse ? <p className="undertittel">Involvert: {m.involvert_beskrivelse}</p> : null}
-                </div>
-                {!m.lest_tid && (
-                  <form action={markerLest}><input type="hidden" name="id" value={m.id} /><button type="submit" className="liten">Lest</button></form>
-                )}
-              </li>
+              <Rad
+                key={m.id}
+                primaer={m.tekst}
+                sekundaer={[
+                  navnFor.get(m.stasjon_id) ?? '—',
+                  tid.format(new Date(m.opprettet_tid)),
+                  m.involvert_beskrivelse ? `involvert: ${m.involvert_beskrivelse}` : null,
+                  m.lest_tid ? null : 'ulest',
+                ].filter(Boolean).join(' · ')}
+                status={<Status nivaa={alvor.nivaa}>{alvor.ord}</Status>}
+                handlinger={!m.lest_tid ? (
+                  <form action={markerLest}>
+                    <input type="hidden" name="id" value={m.id} />
+                    <Knapp type="submit" variant="ghost" liten>Lest</Knapp>
+                  </form>
+                ) : undefined}
+              />
             )
           })}
-        </ul>
+        </Liste>
       )}
     </>
   )

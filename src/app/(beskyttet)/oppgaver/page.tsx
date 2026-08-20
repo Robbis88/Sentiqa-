@@ -2,7 +2,11 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
-import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Status } from '@/components/ui/status'
+import { Knapp } from '@/components/ui/knapp'
+import { iDag } from '@/lib/format'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyOppgave } from './ny-oppgave'
 import { veksleOppgave, slettOppgave } from './handlinger'
@@ -38,28 +42,51 @@ export default async function OppgaverSide() {
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   const apne = (oppgaver ?? []).filter((o) => o.status === 'apen')
   const fullfort = (oppgaver ?? []).filter((o) => o.status === 'fullfort')
+  const antallForsinket = (oppgaver ?? []).filter(
+    (o) => o.status === 'apen' && o.frist != null && o.frist < iDag(),
+  ).length
+
+  // HVA HASTER? Fristen fantes i dataene, men sto som en av fire
+  // opplysninger paa rad - like tung som stasjonsnavnet. En oppgave som
+  // har gaatt over fristen er noe annet enn en som ikke har det, og det
+  // skal kunne leses paa avstand.
+  //
+  // Rolig som standard: en aapen oppgave innenfor fristen faar INGEN
+  // farge. Fylte vi lista med gronne merker for «i rute», var det
+  // ingenting igjen den dagen noe faktisk ryker.
+  const idag = iDag()
+  const forsinket = (o: Oppgave) =>
+    o.status === 'apen' && o.frist != null && o.frist < idag
 
   const rad = (o: Oppgave) => (
-    <li key={o.id} className={o.status === 'fullfort' ? 'gjort' : ''}>
-      <form action={veksleOppgave}>
-        <input type="hidden" name="id" value={o.id} />
-        <input type="hidden" name="til" value={o.status === 'apen' ? 'fullfort' : 'apen'} />
-        <button type="submit" className={`kryss ${o.status === 'fullfort' ? 'av' : ''}`} aria-label="Veksle">
-          {o.status === 'fullfort' ? '✓' : ''}
-        </button>
-      </form>
-      <div className="rutine-tekst">
-        <strong>{o.tittel}</strong>
-        {o.vis_paa_tablet ? <span className="merke-tablet" title="Vises på tableten">📨 tablet</span> : null}
-        <span className="undertittel"> · {navnFor.get(o.stasjon_id) ?? '—'}</span>
-        {o.frist ? <span className="undertittel"> · frist {datoLang.format(new Date(o.frist))}</span> : null}
-        {o.beskrivelse ? <div className="undertittel">{o.beskrivelse}</div> : null}
-      </div>
-      <form action={slettOppgave}>
-        <input type="hidden" name="id" value={o.id} />
-        <button type="submit" className="liten slett" aria-label="Slett">✕</button>
-      </form>
-    </li>
+    <Rad
+      key={o.id}
+      primaer={o.tittel}
+      sekundaer={[
+        navnFor.get(o.stasjon_id) ?? '—',
+        o.frist ? `frist ${datoLang.format(new Date(o.frist))}` : null,
+        o.vis_paa_tablet ? 'vises på nettbrettet' : null,
+        o.beskrivelse,
+      ].filter(Boolean).join(' · ')}
+      status={forsinket(o) ? <Status nivaa="handling">Over frist</Status> : undefined}
+      handlinger={(
+        <>
+          {/* Handlingen som lukker saken staar forst. Krysset er den
+              samme serverhandlingen som for - samme felter, samme verdi. */}
+          <form action={veksleOppgave}>
+            <input type="hidden" name="id" value={o.id} />
+            <input type="hidden" name="til" value={o.status === 'apen' ? 'fullfort' : 'apen'} />
+            <Knapp type="submit" variant={o.status === 'apen' ? 'sekundaer' : 'ghost'} liten>
+              {o.status === 'apen' ? 'Ferdig' : 'Åpne igjen'}
+            </Knapp>
+          </form>
+          <form action={slettOppgave}>
+            <input type="hidden" name="id" value={o.id} />
+            <Knapp type="submit" variant="ghost" liten aria-label={`Slett ${o.tittel}`}>✕</Knapp>
+          </form>
+        </>
+      )}
+    />
   )
 
   const nyPanel = (
@@ -78,7 +105,13 @@ export default async function OppgaverSide() {
         tittel="Oppgaver"
         undertittel={apne.length === 0
           ? 'Ingenting åpent akkurat nå.'
-          : `${apne.length} ${apne.length === 1 ? 'åpen' : 'åpne'}.`}
+          : [
+              `${apne.length} ${apne.length === 1 ? 'åpen' : 'åpne'}`,
+              // Nivaa 1 paa en liste: hvor mange, og hvor mange krever
+              // noe av meg NAA. Det siste tallet maatte man for regne
+              // ut selv ved aa lese seg gjennom fristene.
+              antallForsinket > 0 ? `${antallForsinket} over frist` : null,
+            ].filter(Boolean).join(' · ') + '.'}
         handlinger={nyPanel}
       />
 
@@ -90,17 +123,15 @@ export default async function OppgaverSide() {
           handling={nyPanel}
         />
       ) : (
-        <ul className="rutine-liste">{apne.map(rad)}</ul>
+        <Liste merkelapp="Åpne oppgaver">{apne.map(rad)}</Liste>
       )}
 
+      {/* Fullforte er dokumentasjon, ikke arbeid. De ligger sammenlagt,
+          naa i primitivet som allerede gjor akkurat dette. */}
       {fullfort.length > 0 && (
-        // Fullforte er dokumentasjon, ikke arbeid. De ligger sammenlagt.
-        <details className="sq-forklaring" style={{ marginTop: '1.5rem' }}>
-          <summary>Fullført ({fullfort.length})</summary>
-          <div className="sq-forklaring-innhold">
-            <ul className="rutine-liste">{fullfort.map(rad)}</ul>
-          </div>
-        </details>
+        <Forklaring sporsmaal={`Fullført (${fullfort.length})`}>
+          <Liste merkelapp="Fullførte oppgaver">{fullfort.map(rad)}</Liste>
+        </Forklaring>
       )}
     </>
   )
