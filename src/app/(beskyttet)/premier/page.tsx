@@ -3,8 +3,11 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
 import { registrerBruk, slettBruk, tildelPremie, vekslUtbetalt, slettTildeling } from './handlinger'
-import { Sidehode } from '@/components/ui/side'
+import { Sidehode, Datatabell } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Status } from '@/components/ui/status'
+import { Knapp } from '@/components/ui/knapp'
 
 type Bruk = { id: string; stasjon_id: string; beskrivelse: string; belop_kr: number; dato: string }
 type Tildeling = { id: string; stasjon_id: string; beskrivelse: string; belop_kr: number; dato: string; utbetalt: boolean }
@@ -98,8 +101,11 @@ export default async function PremierSide() {
         )}
       />
 
-      <div className="tabellramme">
-        <table className="tabell">
+      {/* DENNE ER EN EKTE MATRISE og blir staaende som tabell: man leser
+          «vunnet mot brukt mot igjen» bortover, og stasjon mot stasjon
+          nedover. Aa gjore den om til en liste for aa se moderne ut ville
+          odelagt nettopp det den er god til. */}
+      <Datatabell tittel="Premiepotten per stasjon" antall={(stasjoner ?? []).length}>
           <thead><tr><th>Stasjon</th><th>Vunnet</th><th>Brukt</th><th>Igjen</th></tr></thead>
           <tbody>
             {(stasjoner ?? []).map((s) => {
@@ -115,58 +121,77 @@ export default async function PremierSide() {
               )
             })}
           </tbody>
-        </table>
-      </div>
+      </Datatabell>
 
+      {/* TILDELINGER ER OBJEKTER, ikke en matrise. Ingen leser
+          belopskolonnen mot datokolonnen; man leter etter EN tildeling
+          og gjor noe med den.
+
+          «Utbetalt: Nei» er det som krever noe av eieren - derfor
+          `handling`, ikke bare en gul prikk. Og den var FOR en knapp
+          forkledd som et statusmerke, med `border: 0` og en peker som
+          inline-stil: noe som saa ut som en tilstand, men var en
+          handling. Naa er de to ting: tilstanden vises, handlingen
+          heter det den gjor.
+
+          ROLLEFORSKJELLEN BESTAAR. Bare eier kan veksle og slette;
+          butikksjefen ser det samme, men uten knappene. */}
       {(tildelinger ?? []).length > 0 && (
-        <section className="kort">
+        <>
           <h2>Tildelinger</h2>
-          <table className="tabell">
-            <thead><tr><th>Stasjon</th><th>Beskrivelse</th><th>Beløp</th><th>Dato</th><th>Utbetalt</th>{erAdmin && <th></th>}</tr></thead>
-            <tbody>
-              {(tildelinger ?? []).map((t) => (
-                <tr key={t.id}>
-                  <td>{navnFor.get(t.stasjon_id) ?? '—'}</td>
-                  <td>{t.beskrivelse}</td>
-                  <td>{kr.format(Number(t.belop_kr))}</td>
-                  <td>{datoLang.format(new Date(t.dato))}</td>
-                  <td>
-                    {erAdmin ? (
-                      <form action={vekslUtbetalt}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <input type="hidden" name="til" value={t.utbetalt ? 'nei' : 'ja'} />
-                        <button type="submit" className={`status-pip ${t.utbetalt ? 'gronn' : 'gul'}`} style={{ border: 0, cursor: 'pointer' }}>{t.utbetalt ? 'Ja' : 'Nei'}</button>
-                      </form>
-                    ) : (
-                      <span className={`status-pip ${t.utbetalt ? 'gronn' : 'gul'}`}>{t.utbetalt ? 'Ja' : 'Nei'}</span>
-                    )}
-                  </td>
-                  {erAdmin && <td><form action={slettTildeling}><input type="hidden" name="id" value={t.id} /><button type="submit" className="liten slett">Slett</button></form></td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+          <Liste merkelapp="Tildelte premier">
+            {(tildelinger ?? []).map((t) => (
+              <Rad
+                key={t.id}
+                primaer={t.beskrivelse}
+                sekundaer={`${navnFor.get(t.stasjon_id) ?? '—'} · ${datoLang.format(new Date(t.dato))}`}
+                metadata={kr.format(Number(t.belop_kr))}
+                status={(
+                  <Status nivaa={t.utbetalt ? 'normal' : 'handling'}>
+                    {t.utbetalt ? 'Utbetalt' : 'Ikke utbetalt'}
+                  </Status>
+                )}
+                handlinger={erAdmin ? (
+                  <>
+                    <form action={vekslUtbetalt}>
+                      <input type="hidden" name="id" value={t.id} />
+                      <input type="hidden" name="til" value={t.utbetalt ? 'nei' : 'ja'} />
+                      <Knapp type="submit" variant="ghost" liten>
+                        {t.utbetalt ? 'Marker som ikke utbetalt' : 'Marker utbetalt'}
+                      </Knapp>
+                    </form>
+                    <form action={slettTildeling}>
+                      <input type="hidden" name="id" value={t.id} />
+                      <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                    </form>
+                  </>
+                ) : undefined}
+              />
+            ))}
+          </Liste>
+        </>
       )}
 
       {(bruk ?? []).length > 0 && (
-        <section className="kort">
+        <>
           <h2>Siste bruk</h2>
-          <table className="tabell">
-            <thead><tr><th>Stasjon</th><th>Beskrivelse</th><th>Beløp</th><th>Dato</th><th></th></tr></thead>
-            <tbody>
-              {(bruk ?? []).map((b) => (
-                <tr key={b.id}>
-                  <td>{navnFor.get(b.stasjon_id) ?? '—'}</td>
-                  <td>{b.beskrivelse}</td>
-                  <td>{kr.format(Number(b.belop_kr))}</td>
-                  <td>{datoLang.format(new Date(b.dato))}</td>
-                  <td><form action={slettBruk}><input type="hidden" name="id" value={b.id} /><button type="submit" className="liten slett">Slett</button></form></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+          <Liste merkelapp="Brukte premiemidler">
+            {(bruk ?? []).map((b) => (
+              <Rad
+                key={b.id}
+                primaer={b.beskrivelse}
+                sekundaer={`${navnFor.get(b.stasjon_id) ?? '—'} · ${datoLang.format(new Date(b.dato))}`}
+                metadata={kr.format(Number(b.belop_kr))}
+                handlinger={(
+                  <form action={slettBruk}>
+                    <input type="hidden" name="id" value={b.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                )}
+              />
+            ))}
+          </Liste>
+        </>
       )}
     </>
   )

@@ -1976,3 +1976,22 @@ a.sq-rad-lenke:hover { background: var(--bg); }
   line-height: var(--linje-luftig);
   margin: var(--luft-3) 0;
 }
+
+/* --- Bolge 3 -------------------------------------------------------
+   Tre inline-stiler som gikk igjen paa tvers av administrasjonssidene.
+   Hver av dem var «bare denne ene» der den sto - og det er nettopp slik
+   inline-gjeld vokser: usynlig per fil, tung i sum. */
+.sq-inline-skjema { display: inline; }
+.sq-luft-over { margin-top: var(--luft-6); }
+.sq-smalt-felt { width: 5rem; }
+.sq-tett { margin-bottom: 0; }
+.sq-finstilt { margin-top: var(--luft-1); font-size: 0.78rem; }
+/* Utfylt kontraktstekst: linjeskiftene ER innholdet, og skrifta skal
+   vaere sidas egen - ikke nettleserens monospace. */
+.sq-utfylt {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: var(--tekst-brod);
+  line-height: var(--linje-luftig);
+  margin: 0;
+}

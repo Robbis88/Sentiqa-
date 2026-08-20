@@ -1,7 +1,10 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { ROLLE_ETIKETT } from '@/lib/auth/typer'
-import { Sidehode, Datatabell, Tomtilstand } from '@/components/ui/side'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Status } from '@/components/ui/status'
+import { Knapp } from '@/components/ui/knapp'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyBruker } from './ny-bruker'
 import { fjernBruker } from './handlinger'
@@ -55,34 +58,42 @@ export default async function BrukereSide() {
         handlinger={nyBrukerPanel}
       />
 
-      <Datatabell
-        antall={liste.length}
-        tom={(
-          <Tomtilstand
-            tittel="Ingen brukere ennå"
-            forklaring={'Butikksjefer logger inn som seg selv. Nettbrettet har en '
-              + 'delt konto, der de ansatte skiller seg med PIN.'}
-            handling={nyBrukerPanel}
-          />
-        )}
-      >
-        <thead><tr><th>Navn</th><th>Rolle</th><th>Stasjoner</th><th></th></tr></thead>
-        <tbody>
+      {/* IKKE EN SAMMENLIGNINGSMATRISE. Ingen leser rollekolonnen mot
+          stasjonskolonnen - man leter etter EN person og gjor noe med
+          henne. Da er det en liste, og radene skilles av en haarlinje i
+          stedet for et rutenett.
+
+          Rollen staar som `normal`: at noen ER butikksjef er ikke en
+          tilstand som krever noe, det er bare hvem hun er. */}
+      {liste.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen brukere ennå"
+          forklaring={'Butikksjefer logger inn som seg selv. Nettbrettet har en '
+            + 'delt konto, der de ansatte skiller seg med PIN.'}
+          handling={nyBrukerPanel}
+        />
+      ) : (
+        <Liste merkelapp="Brukere med tilgang">
           {liste.map((p) => (
-            <tr key={p.id}>
-              <td>{p.fullt_navn ?? '—'}</td>
-              <td>{ROLLE_ETIKETT[p.rolle as keyof typeof ROLLE_ETIKETT] ?? p.rolle}</td>
-              <td>{(stasjonerForProfil.get(p.id) ?? []).join(', ') || '—'}</td>
-              <td className="tall">
+            <Rad
+              key={p.id}
+              primaer={p.fullt_navn ?? '—'}
+              sekundaer={(stasjonerForProfil.get(p.id) ?? []).join(' · ') || 'ingen stasjoner tildelt'}
+              status={(
+                <Status nivaa="normal">
+                  {ROLLE_ETIKETT[p.rolle as keyof typeof ROLLE_ETIKETT] ?? p.rolle}
+                </Status>
+              )}
+              handlinger={(
                 <form action={fjernBruker}>
                   <input type="hidden" name="id" value={p.id} />
-                  <button type="submit" className="liten slett">Fjern</button>
+                  <Knapp type="submit" variant="destruktiv" liten>Fjern</Knapp>
                 </form>
-              </td>
-            </tr>
+              )}
+            />
           ))}
-        </tbody>
-      </Datatabell>
+        </Liste>
+      )}
     </>
   )
 }

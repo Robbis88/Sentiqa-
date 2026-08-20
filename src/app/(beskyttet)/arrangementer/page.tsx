@@ -61,14 +61,16 @@ export default async function ArrangementerSide() {
               tittel="Nytt arrangement"
               beskrivelse="Faktoren er hvor mye salget løftes: 1,2 betyr 20 % over en normal dag."
             >
-              <form action={leggTilArrangement} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <form action={leggTilArrangement} className="sq-skjema arr-form">
                 <div className="arr-form">
                   <input name="navn" placeholder="F.eks. Brann – Rosenborg" required />
                   <input name="dato" type="date" required aria-label="Dato" />
-                  <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Faktor" style={{ width: '5rem' }} />
+                  <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Faktor" className="sq-smalt-felt" />
                 </div>
                 {stasjonsValg}
-                <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til arrangement</button>
+                <div className="knapperad">
+                  <button type="submit" className="sq-knapp primar">Legg til arrangement</button>
+                </div>
               </form>
             </Sidepanel>
             <Sidepanel
@@ -77,14 +79,16 @@ export default async function ArrangementerSide() {
               beskrivelse="Nattjobben henter hendelser 60 dager fram som forslag du bekrefter selv."
               knappeklasse="sq-knapp"
             >
-              <form action={leggTilKalenderKilde} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <form action={leggTilKalenderKilde} className="sq-skjema arr-form">
                 <div className="arr-form">
                   <input name="navn" placeholder="Navn (f.eks. Brann hjemmekamper)" required />
-                  <input name="ical_url" type="url" placeholder="https://…/kalender.ics" required style={{ flex: '1 1 18rem' }} />
-                  <input name="standard_faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Standardfaktor" style={{ width: '5rem' }} />
+                  <input name="ical_url" type="url" placeholder="https://…/kalender.ics" required aria-label="Kalender-URL" />
+                  <input name="standard_faktor" type="number" step="0.05" min="0.1" max="5" defaultValue="1.2" aria-label="Standardfaktor" className="sq-smalt-felt" />
                 </div>
                 {stasjonsValg}
-                <button type="submit" className="sq-knapp primar" style={{ alignSelf: 'flex-start' }}>Legg til kilde</button>
+                <div className="knapperad">
+                  <button type="submit" className="sq-knapp primar">Legg til kilde</button>
+                </div>
               </form>
             </Sidepanel>
           </>
@@ -100,7 +104,7 @@ export default async function ArrangementerSide() {
                 <span>{dag(f.dato)} · {f.navn} <span className="undertittel">· {stasjonTekst(f.stasjon_id)}</span></span>
                 <form action={bekreftArrangement} className="arr-form">
                   <input type="hidden" name="id" value={f.id} />
-                  <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue={f.faktor} aria-label="Faktor" style={{ width: '4.5rem' }} />
+                  <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue={f.faktor} aria-label="Faktor" className="sq-smalt-felt" />
                   <button type="submit" className="liten">Bekreft</button>
                 </form>
                 <form action={forkastArrangement}><input type="hidden" name="id" value={f.id} /><button type="submit" className="liten slett">Forkast</button></form>

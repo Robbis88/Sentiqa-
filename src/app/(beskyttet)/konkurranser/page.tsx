@@ -6,6 +6,7 @@ import { NyKonkurranse } from './ny-konkurranse'
 import { kaarVinner, markerUtbetalt, slettKonkurranse } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Status } from '@/components/ui/status'
 
 type Konk = {
   id: string
@@ -76,9 +77,12 @@ export default async function KonkurranserSide() {
             <section className="kort" key={k.id}>
               <h2>
                 {k.navn}{' '}
-                <span className={`status-pip ${k.status === 'aktiv' ? 'gronn' : 'gul'}`}>
+                {/* En paagaaende konkurranse er utgangspunktet - `normal`.
+                    En avsluttet uten kaaret vinner er derimot noe som
+                    venter paa noen, og det staar i teksten. */}
+                <Status nivaa={k.status === 'aktiv' ? 'normal' : 'endring'}>
                   {k.status === 'aktiv' ? 'Aktiv' : 'Avsluttet'}
-                </span>
+                </Status>
               </h2>
               <p>{k.kpi}</p>
               <p className="undertittel">
@@ -89,8 +93,8 @@ export default async function KonkurranserSide() {
               {k.vinner_stasjon_id && (
                 <p>Vinner: <strong>{navnFor.get(k.vinner_stasjon_id) ?? '—'}</strong>
                   {harPremie && (k.premie_utbetalt
-                    ? <span className="status-pip gronn" style={{ marginLeft: '0.5rem' }}>Premie utbetalt</span>
-                    : <span className="status-pip gul" style={{ marginLeft: '0.5rem' }}>Premie ikke utbetalt</span>)}
+                    ? <Status nivaa="normal">Premie utbetalt</Status>
+                    : <Status nivaa="handling">Premie ikke utbetalt</Status>)}
                 </p>
               )}
 

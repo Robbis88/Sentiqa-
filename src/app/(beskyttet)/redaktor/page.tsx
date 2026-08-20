@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Status } from '@/components/ui/status'
 import { NyttInnlegg } from './ny-innlegg'
 import { settPublisert, slettInnlegg } from './handlinger'
 
@@ -60,9 +61,12 @@ export default async function RedaktorSide() {
             <li key={i.id} className="sq-innlegg">
               <div className="sq-innlegg-topp">
                 <strong>{i.tittel}</strong>
-                <span className={`status-pip ${i.publisert ? 'gronn' : 'gul'}`}>
+                {/* «Utkast» er det som krever noe av redaktoren - det
+                    ligger og venter paa aa bli publisert. «Publisert» er
+                    ferdig, og faar ingen farge. */}
+                <Status nivaa={i.publisert ? 'normal' : 'endring'}>
                   {i.publisert ? 'Publisert' : 'Utkast'}
-                </span>
+                </Status>
               </div>
               <p className="sq-innlegg-tekst">{i.innhold}</p>
               <div className="sq-innlegg-bunn">

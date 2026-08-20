@@ -6,6 +6,7 @@ import { datoLang } from '@/lib/format'
 import { avsluttRunde, slettRunde } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Status } from '@/components/ui/status'
 import { NyRundeSkjema, type PulsSporsmal } from './ny-skjema'
 
 type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: string; status: string; puls_sporsmal: { tekst: string; kategori: string } | null }
@@ -88,7 +89,13 @@ export default async function PulsSide() {
               <li key={r.id} className="sq-innlegg">
                 <div className="sq-innlegg-topp">
                   <strong><Link href={`/puls/${r.id}`}>{r.puls_sporsmal?.tekst ?? '—'}</Link></strong>
-                  <span className={`status-pip ${r.status === 'aktiv' ? 'gronn' : 'gul'}`}>{r.status === 'aktiv' ? 'Aktiv' : 'Avsluttet'}</span>
+                  {/* En aktiv maaling er utgangspunktet, ikke en seier -
+                      derfor `normal`. Den avsluttede er ikke et problem
+                      heller; den er ferdig. Ingen av dem trenger farge
+                      for aa bli forstaatt, og ordet staar der uansett. */}
+                  <Status nivaa={r.status === 'aktiv' ? 'normal' : 'endring'}>
+                    {r.status === 'aktiv' ? 'Aktiv' : 'Avsluttet'}
+                  </Status>
                 </div>
                 <div className="sq-innlegg-bunn">
                   <span className="undertittel">

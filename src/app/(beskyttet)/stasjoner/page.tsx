@@ -118,11 +118,11 @@ export default async function StasjonerSide() {
                   <td>
                     <form action={settVaerfolsomhet} className="terskel-form">
                       <input type="hidden" name="stasjon_id" value={s.id} />
-                      <input name="vaerfolsomhet" inputMode="decimal" defaultValue={s.vaerfolsomhet ?? 0.5} placeholder="0.5" aria-label="Værfølsomhet 0–1 (manuell fallback)" style={{ width: '4rem' }} />
+                      <input name="vaerfolsomhet" inputMode="decimal" defaultValue={s.vaerfolsomhet ?? 0.5} placeholder="0.5" aria-label="Værfølsomhet 0–1 (manuell fallback)" className="sq-smalt-felt" />
                       <button type="submit" className="liten">Lagre</button>
                     </form>
                     {s.vaerfolsomhet_laert != null ? (
-                      <div className="undertittel" style={{ marginTop: '0.3rem', fontSize: '0.78rem' }}>
+                      <div className="undertittel sq-finstilt">
                         Lært: <b>{s.vaerfolsomhet_laert.toFixed(2)}</b> · temp {s.vaer_temp_korr != null ? `${s.vaer_temp_korr >= 0 ? '+' : ''}${s.vaer_temp_korr.toFixed(2)}` : '–'} · nedbør {s.vaer_nedbor_korr != null ? `${s.vaer_nedbor_korr >= 0 ? '+' : ''}${s.vaer_nedbor_korr.toFixed(2)}` : '–'} <span title="Motoren bruker den lærte verdien; tallet over er kun fallback">(i bruk)</span>
                       </div>
                     ) : null}

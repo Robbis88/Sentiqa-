@@ -5,6 +5,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { gjenskapKontrakt } from '@/lib/kontrakt/gjenskap'
 import { docxTilTekst } from '@/lib/kontrakt/docx'
 import { SigneringSkjema } from '../signering'
+import { Status } from '@/components/ui/status'
 import { Sidehode } from '@/components/ui/side'
 
 // Kontrakten som tekst, slik den faktisk ble fylt ut.
@@ -72,7 +73,7 @@ export default async function KontraktVisning({ params }: { params: Params }) {
       />
 
       <section className="kort">
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis sq-tett">
           Dokumentet lagres ikke som fil. Det bygges på nytt fra verdiene og
           malversjonen hver gang — samme mal og samme verdier gir samme dokument.
           En kopi i tillegg ville vært en andre sannhet å holde i synk, og den dagen
@@ -85,7 +86,10 @@ export default async function KontraktVisning({ params }: { params: Params }) {
         {rad.signert_tid ? (
           <>
             <p>
-              <span className="status-pip gronn">Signert</span>{' '}
+              {/* Signert er MAALET paa denne sida - men det er ogsaa
+                  utgangspunktet naar den forst er naadd. `normal`, med
+                  ordet som baerer. */}
+              <Status nivaa="normal">Signert</Status>{' '}
               {new Date(rad.signert_tid).toLocaleDateString('nb-NO')}
               {rad.signert_metode === 'bekreftelse' && ' · signert utenfor systemet'}
             </p>
@@ -110,7 +114,7 @@ export default async function KontraktVisning({ params }: { params: Params }) {
           alleredeSignert={rad.signert_tid !== null}
         />
 
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis sq-tett">
           Dette er broen til BankID, ikke en erstatning for den: her er det et
           menneske som bekrefter at papiret finnes. Laster du opp på nytt, erstattes
           ikke det gamle — hver opplasting får sin egen fil, så et signert eksemplar
@@ -126,7 +130,7 @@ export default async function KontraktVisning({ params }: { params: Params }) {
             Vi fjerner dem ikke automatisk — det ville vært å endre en juridisk
             gjennomgått avtale uten at noen leste den.
           </p>
-          <ul className="undertittel" style={{ marginBottom: 0 }}>
+          <ul className="undertittel sq-tett">
             {igjen.map((v) => <li key={v}>{v}</li>)}
           </ul>
         </section>
@@ -134,16 +138,10 @@ export default async function KontraktVisning({ params }: { params: Params }) {
 
       <section className="kort">
         <h2>Slik ble den fylt ut</h2>
+        {/* Utfyllingen skal leses som teksten den er, med linjeskiftene
+            intakt. Fem inline-regler ble en klasse. */}
         {tekst ? (
-          <pre
-            style={{
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'inherit',
-              fontSize: '0.9rem',
-              lineHeight: 1.5,
-              margin: 0,
-            }}
-          >
+          <pre className="sq-utfylt">
             {tekst}
           </pre>
         ) : (

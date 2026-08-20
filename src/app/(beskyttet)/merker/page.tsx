@@ -93,7 +93,7 @@ export default async function MerkerSide() {
                     <span className="merke-pill" key={t.id} title={t.merker?.navn}>
                       <span className="merke-emoji">{t.merker?.emoji}</span> {t.merker?.navn}
                       {erLeder && (
-                        <form action={fjernTildeling} style={{ display: 'inline' }}>
+                        <form action={fjernTildeling} className="sq-inline-skjema">
                           <input type="hidden" name="id" value={t.id} />
                           <button type="submit" className="merke-fjern" aria-label="Fjern">×</button>
                         </form>
@@ -110,7 +110,7 @@ export default async function MerkerSide() {
       {erLeder && merkeliste.length > 0 && (
         // Hvilke merker som FINNES er oppsett, ikke dagens arbeid. Det er
         // merkeveggen folk kommer for.
-        <details className="sq-forklaring" style={{ marginTop: '2rem' }}>
+        <details className="sq-forklaring sq-luft-over">
           <summary>Merkene som finnes ({merkeliste.length})</summary>
           <div className="sq-forklaring-innhold">
             <ul className="laereplan-liste">
@@ -124,8 +124,8 @@ export default async function MerkerSide() {
                 </li>
               ))}
             </ul>
-            <form action={leggTilMerke} className="rutine-form" style={{ marginTop: '0.75rem' }}>
-              <input name="emoji" placeholder="🏅" maxLength={4} style={{ width: '4rem' }} />
+            <form action={leggTilMerke} className="sq-skjema">
+              <input name="emoji" placeholder="🏅" maxLength={4} className="sq-smalt-felt" aria-label="Merkesymbol" />
               <input name="navn" placeholder="Merkenavn" required />
               <input name="beskrivelse" placeholder="Beskrivelse (valgfri)" />
               <button type="submit" className="liten">Legg til</button>
