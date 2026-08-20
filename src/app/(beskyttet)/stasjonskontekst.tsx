@@ -25,7 +25,6 @@ export function Stasjonskontekst({
   tillatAlle: boolean
 }) {
   const ref = useRef<HTMLFormElement>(null)
-
   return (
     <form action={settStasjon} ref={ref} className="sq-stasjonskontekst">
       <label>

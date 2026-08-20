@@ -8,6 +8,7 @@ import { Appskall } from './appskall'
 import { OversettProvider } from './oversett-kontekst'
 import { SEKSJONER } from './navigasjon'
 import { stasjonskontekst } from '@/lib/stasjonskontekst'
+import { URL_HODE } from '@/lib/supabase/proxy'
 
 export default async function BeskyttetLayout({
   children,
@@ -32,11 +33,21 @@ export default async function BeskyttetLayout({
     .select('*', { count: 'exact', head: true })
     .eq('lest', false)
 
-  // Stasjonskonteksten. Eieren kan se porteføljen samlet; butikksjefen
-  // har som regel én stasjon og skal da ikke se noen velger i det hele
-  // tatt. Samme oppslag og samme prioritering som før — de fire linjene
-  // bor nå i primitiven, der sidene også kan hente dem.
-  const kontekst = await stasjonskontekst(supabase, bruker.rolle)
+  // Stasjonskonteksten.
+  //
+  // URL-EN KOMMER FRA ET FORESPØRSELSHODE, ikke fra searchParams — en
+  // layout får dem ikke. Uten den kunne ikke skallet vite at siden under
+  // sto på en annen stasjon, og det var nettopp feilen trinn 09 lukker.
+  //
+  // Skallet og siden kaller nå samme funksjon med samme URL og samme
+  // informasjonskapsel. Da kan de ikke svare forskjellig.
+  const { headers } = await import('next/headers')
+  const urlHode = (await headers()).get(URL_HODE) ?? ''
+  const [sti, sokestreng = ''] = urlHode.split('?')
+  const kontekst = await stasjonskontekst(
+    supabase, sti || '/', new URLSearchParams(sokestreng),
+  )
+
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),

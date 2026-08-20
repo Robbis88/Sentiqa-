@@ -10,8 +10,10 @@ import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl } from '@/lib/stasjonsvalg'
 import { Signal } from '@/components/ui/status'
-import { Felt, Velg } from '@/components/ui/felt'
+import { Felt } from '@/components/ui/felt'
 import { Knapp } from '@/components/ui/knapp'
 
 // =====================================================================
@@ -102,8 +104,27 @@ export default async function ProduksjonsplanSide({
     stasjoner = stasjoner.filter((s) => ids.has(s.id))
   }
 
-  const valgtNr = sp.butikknummer || stasjoner?.[0]?.butikknummer || ''
-  const stasjon = stasjoner.find((s) => s.butikknummer === valgtNr)
+  // STASJONEN KOMMER FRA DEN DELTE KONTRAKTEN, ikke fra sidas eget valg.
+  //
+  // For hadde sida en egen stasjonsvelger paa `?butikknummer=`, mens
+  // appskallet viste sitt eget huskede valg. De to visste ikke om
+  // hverandre, og skjermen kunne si «5102 Grenseby» i toppen mens planen
+  // under gjaldt 4177. Naa gaar begge gjennom `husketStasjon` med samme
+  // URL og samme kapsel, i samme rekkefolge: URL foran hukommelse foran
+  // forste stasjon.
+  //
+  // `?butikknummer=` BESTAAR. Delte lenker skal fortsatt lande riktig,
+  // og `stasjonFraUrl` oversetter nummeret til en id slik at resten av
+  // systemet slipper aa kjenne sidas parameternavn.
+  //
+  // Ingen `tillatAlle`: en produksjonsplan for alle stasjoner er ikke en
+  // plan noen kan bake etter. Staar det huskede valget paa «alle», faller
+  // det tilbake til forste stasjon - samme sted som appskallet lander.
+  const sok = new URLSearchParams()
+  if (sp.butikknummer) sok.set('butikknummer', sp.butikknummer)
+  const valgtId = await husketStasjon(stasjoner, stasjonFraUrl(sok, stasjoner))
+  const stasjon = stasjoner.find((s) => s.id === valgtId) ?? stasjoner[0]
+  const valgtNr = stasjon?.butikknummer ?? ''
 
   const imorgen = new Date()
   imorgen.setDate(imorgen.getDate() + 1)
@@ -223,15 +244,17 @@ export default async function ProduksjonsplanSide({
         handlinger={<Link href="/produksjonsplan/treffsikkerhet" className="sq-knapp">Treffsikkerhet</Link>}
       />
 
-      {/* De to sporsmaalene sida maa ha svar paa for den kan si noe.
-          Samme rad, samme rekkefolge, med etiketter som staar igjen naar
-          feltet er fylt ut. */}
+      {/* STASJONSVELGEREN ER BORTE HERFRA. Den gjorde samme jobb som den i
+          toppstripen, med et annet svar - og to velgere for det samme er
+          ikke et valg, det er en felle. Dagen staar igjen: den er sidas
+          eget sporsmaal, og finnes ikke i appskallet.
+
+          Butikknummeret folger med som skjult felt, saa et bytte av dag
+          ikke stille bytter stasjon. */}
       <form method="get" className="sq-listetopp">
-        <Velg etikett="Stasjon" name="butikknummer" defaultValue={valgtNr}>
-          {(stasjoner ?? []).map((s) => <option key={s.id} value={s.butikknummer}>{s.butikknummer} {s.navn}</option>)}
-        </Velg>
+        {valgtNr && <input type="hidden" name="butikknummer" value={valgtNr} />}
         <Felt etikett="Dag" name="dato" type="date" defaultValue={dato} />
-        <Knapp type="submit">Vis plan</Knapp>
+        <Knapp type="submit">Vis dagen</Knapp>
       </form>
 
       {/* NIVAA 3: hva systemet foreslaar, og hvorfor det ser slik ut.
