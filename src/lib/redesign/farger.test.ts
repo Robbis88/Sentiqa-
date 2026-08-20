@@ -190,6 +190,11 @@ const PAR: [string, string, string][] = [
   ['--natt-flamme', '--natt-flate', '.tablet-streak'],
   ['--natt-tekst', '--natt-flate-ferdig', '.pp-tab-rad.ferdig'],
   ['--natt-tekst', '--natt-flate-viktig', '.tablet-melding.viktig'],
+  // Aksentene nettbrettet ARVER fra primitivene. `.tablet` skriver om
+  // `--rod`, `--gul` og `--gronn` til disse; uten omskrivingen sto
+  // dagens #9b2c2c paa nattbakgrunn og gav 2,5:1.
+  ['--natt-gul', '--natt-flate', '.sq-status-handling paa nettbrettet'],
+  ['--natt-gronn', '--natt-flate', 'positiv status paa nettbrettet'],
 ]
 
 describe('kontrastvakten', () => {
@@ -240,5 +245,9 @@ describe('kontrastvakten', () => {
     expect(CSS).toMatch(/\.tablet \{[^}]*background: var\(--natt\)/)
     expect(CSS).toMatch(/\.tablet-fane \{[^}]*color: var\(--natt-tekst-svak\)/)
     expect(CSS).toMatch(/\.ikmat-utenfor \{[^}]*color: var\(--natt-rod\)/)
+    // Og at natten faktisk skriver om dagens aksenter. Faller denne ut,
+    // maaler parene over noe nettbrettet ikke bruker.
+    expect(CSS).toMatch(/\.tablet \{[^}]*--rod: var\(--natt-rod\)/)
+    expect(CSS).toMatch(/\.tablet \{[^}]*--gul: var\(--natt-gul\)/)
   })
 })

@@ -77,6 +77,12 @@
   --natt-rod: #ffb3b3;           /* alvor som TEKST paa moerkt */
   --natt-blaa: #7cc4ff;
   --natt-flamme: #ff922b;
+  /* Aksentene maa byttes, ikke bare bakgrunnen. `--rod` er #9b2c2c -
+     tegnet som TEKST paa lys flate - og gir 2,5:1 paa nattbakgrunnen.
+     Det er under halvparten av kravet, og det ville slaatt til i det
+     oyeblikket en Status med nivaa dukket opp paa nettbrettet. */
+  --natt-gul: #f5c98a;
+  --natt-gronn: #7fd6b8;
   --natt-kant: rgba(255,255,255,0.08);
   --natt-kant-sterk: rgba(255,255,255,0.18);
 
@@ -664,15 +670,76 @@ button.liten.slett:hover { background: #fdecea; }
 .lenke-slett:hover { color: #b10e1c; }
 
 /* =========================== Tablet («egen verden») =========================== */
-.tablet { background: var(--natt); color: var(--natt-tekst); min-height: 100dvh; }
+/* =====================================================================
+   NATTEN OVERSKRIVER DAGEN.
+   Primitivene er bygget paa tokens, ikke paa farger. Da trenger ikke
+   nettbrettet egne komponenter for aa se ut som seg selv - det trenger
+   egne TOKENS. Ett sted, og hele biblioteket foelger med: sidehodet,
+   radene, tomtilstanden, tabellen, statusene.
+   Det er ogsaa svaret paa «ikke kopier desktop inn i tablet» slik det
+   faktisk betyr noe: samme system, to paletter - ikke to systemer.
+   ===================================================================== */
+.tablet {
+  --bg: var(--natt);
+  --kort: var(--natt-flate);
+  --tekst: var(--natt-tekst);
+  --tekst-svak: var(--natt-tekst-svak);
+  --kant: var(--natt-kant);
+  --kant-sterk: var(--natt-kant-sterk);
+  --rod: var(--natt-rod);
+  --gul: var(--natt-gul);
+  --gronn: var(--natt-gronn);
+  --skygge: none;
+  --skygge-lov: none;
+
+  background: var(--natt);
+  color: var(--natt-tekst);
+  min-height: 100dvh;
+}
+
+/* Knappene skrev sin egen hvite bakgrunn foer tokenene fantes. */
+.tablet .sq-knapp {
+  background: var(--natt-flate);
+  color: var(--natt-tekst);
+  border-color: var(--natt-kant-sterk);
+}
+.tablet .sq-knapp:hover { background: var(--natt-flate-lys); }
+
+/* HANSKER, OVERALT. Skallet satte 48 paa sine egne flater, men sidene
+   under arvet lederens 40 - «Lest», «Registrer avvik», «Aapne». Fire
+   piksler er ingenting med mus og alt med votter.
+   44 er iOS-minimum for bar finger; 48 der ramma brukes i bevegelse. */
+.tablet button,
+.tablet .sq-knapp,
+.tablet a.knapp,
+.tablet summary {
+  min-height: 44px;
+}
+.tablet input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+.tablet select,
+.tablet textarea {
+  min-height: 44px;
+}
+.tablet input[type='checkbox'],
+.tablet input[type='radio'] { width: 24px; height: 24px; }
+/* Lenkeraden i en koe skal treffes paa hele hoyden, ikke bare paa
+   teksten. Denne var 28 px hoy da bolge 5 maalte den. */
+.tablet .rutine-tekst.ikmat-lenke { min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
 .tablet-topp { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; background: var(--natt-topp); border-bottom: 1px solid var(--natt-kant); }
 /* Nettbrettskallet er mørkt, så merkevaregrønnen må løftes for å bli
    lesbar. Det er hva --primaer-lys finnes til. */
 .tablet-merke { font-weight: 800; font-size: 1.3rem; color: var(--primaer-lys); }
 .tablet-topp-hoyre { display: flex; align-items: center; gap: 0.9rem; }
-.sprak-velger { display: flex; gap: 0.1rem; }
-.sprak-flagg { background: none; border: 0; font-size: 1.25rem; cursor: pointer; opacity: 0.4; padding: 0.15rem 0.25rem; border-radius: 6px; line-height: 1; }
-.sprak-flagg.aktiv { opacity: 1; background: rgba(255,255,255,0.14); }
+.sprak-velger { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+/* Var seks flaggemoji paa 1,25rem. Naa er det spraaknavn, og da maa
+   knappen ha ord-stoerrelse og en ramme aa staa i. */
+.sprak-flagg {
+  background: none; border: 1px solid transparent; cursor: pointer;
+  opacity: 0.55; padding: 0.3rem 0.6rem; border-radius: 999px;
+  font-size: 0.85rem; font-weight: 600; line-height: 1.2;
+  color: inherit; white-space: nowrap;
+}
+.sprak-flagg.aktiv { opacity: 1; background: var(--natt-kant-sterk); border-color: var(--natt-kant-sterk); }
 .sprak-flagg:hover { opacity: 0.85; }
 .tablet-utlogg { background: var(--natt-kant); border: 1px solid var(--natt-kant-sterk); color: var(--natt-tekst); padding: 0.45rem 0.85rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
 .tablet-utlogg:active { transform: scale(0.97); }
@@ -685,7 +752,7 @@ button.liten.slett:hover { background: #fdecea; }
   .tablet-merke { font-size: 1.1rem; }
   .tablet-topp-hoyre { gap: 0.5rem 0.6rem; flex-wrap: wrap; justify-content: flex-end; width: 100%; }
   .sprak-velger { flex-wrap: wrap; justify-content: flex-end; }
-  .sprak-flagg { font-size: 1.05rem; padding: 0.1rem 0.16rem; }
+  .sprak-flagg { font-size: 0.78rem; padding: 0.25rem 0.4rem; }
   .tablet-utlogg { padding: 0.35rem 0.65rem; font-size: 0.78rem; }
 }
 .tablet-nav { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; background: var(--natt-topp); position: sticky; top: 0; z-index: 25; overflow-x: auto; border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -1733,7 +1800,7 @@ button.liten { min-height: 40px; }
    Det er den som skal treffes med hansker, av en som staar med noe i
    den andre haanda. 44 er iOS-minimum for bar finger; 48 er valgt her
    fordi rammen brukes i bevegelse. */
-.tablet .sprak-flagg { min-width: 48px; min-height: 48px; font-size: 1.4rem; }
+.tablet .sprak-flagg { min-width: 48px; min-height: 48px; font-size: 0.95rem; }
 .tablet .sprak-velger { gap: 0.35rem; }
 .tablet .tablet-fane { min-height: 48px; justify-content: center; }
 .tablet .tablet-topp-hoyre a,

@@ -92,11 +92,19 @@ export function kontrast(a: string, b: string): number {
   return (ly + 0.05) / (mork + 0.05)
 }
 
-/** Tokenene slik de er definert i `:root`. */
+/**
+ * Tokenene slik de er definert i `:root`.
+ *
+ * BARE FORSTE DEFINISJON TELLER, som i tokens.test.ts. Nettbrettet
+ * skriver om de samme navnene inne i `.tablet` - `--rod` blir
+ * `--natt-rod` der - og en siste-vinner-lesning ville faatt
+ * kontrastvakten til aa maale nattens roede mot dagens lyse tone. Et
+ * par ingen har, altsaa, mens paret alle ser sto umaalt.
+ */
 export function tokenverdier(css: string): Record<string, string> {
   const ut: Record<string, string> = {}
   for (const [, navn, verdi] of css.matchAll(/(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
-    ut[navn] = verdi
+    if (!(navn in ut)) ut[navn] = verdi
   }
   return ut
 }

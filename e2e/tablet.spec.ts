@@ -77,13 +77,52 @@ test.describe('nettbrettet faar sin egen verden', () => {
       page.on('pageerror', (e) => feil.push(e.message))
       await paaFlata(page, sti)
 
-      // INGEN DESKTOP-PRIMITIVES. «Ikke kopier desktop inn i tablet» er
-      // ikke noe man kan huske seg til - det maa maales. Disse fem er
-      // lederflatens byggeklosser, tegnet for lys bakgrunn og for mus.
+      // «IKKE KOPIER DESKTOP INN I TABLET» - maalt to ganger, fordi
+      // regelen har to halvdeler, og forste utgave av denne testen tok
+      // bare den ene.
+      //
+      // 1. SPRAAKET. `Nokkeltall` og `Signal` er lederflatens verktoy
+      //    for «hva krever oppmerksomhet, og hvorfor». Nettbrettet spor
+      //    om noe annet, og skal ikke ha dem.
       const lekkasje = await page.evaluate(() => [
-        '.sq-sidehode', '.sq-nokkeltall', '.sq-datatabell', '.sq-signal', '.sq-rad',
+        '.sq-nokkeltall', '.sq-signal', '.sq-puls', '.sq-sak',
       ].filter((k) => document.querySelector(k) !== null))
-      expect(lekkasje, `${sti}: lederflatens byggeklosser paa nettbrettet`).toEqual([])
+      expect(lekkasje, `${sti}: lederflatens analysespraak paa nettbrettet`).toEqual([])
+
+      // 2. FLATA. Byggeklossene DELES - sidehodet, radene, tabellen -
+      //    og det er meningen: ett system, to paletter. Men da maa
+      //    palettbyttet faktisk virke. Foerste maaling fant lederens
+      //    hvite kort midt i det moerke skallet paa fem ruter.
+      const lyse = await page.evaluate(() => {
+        const flate = (el: Element): string => {
+          let n: Element | null = el
+          while (n) {
+            const b = getComputedStyle(n).backgroundColor
+            const m = b.match(/rgba?\(([^)]+)\)/)
+            if (m) {
+              const d = m[1].split(',').map((x) => Number(x))
+              if ((d[3] ?? 1) > 0.5) return `${d[0]},${d[1]},${d[2]}`
+            }
+            n = n.parentElement
+          }
+          return '0,0,0'
+        }
+        const ut: string[] = []
+        for (const sel of ['.sq-sidehode', '.sq-rad-lenke', '.sq-tom', '.tabell', '.kort']) {
+          for (const el of document.querySelectorAll(sel)) {
+            const r = el.getBoundingClientRect()
+            if (r.width === 0 || r.height === 0) continue
+            const [rr, gg, bb] = flate(el).split(',').map(Number)
+            // Enkel lyshet. Vi trenger ikke WCAG her - vi trenger aa
+            // vite om flata er dag eller natt.
+            if ((rr * 299 + gg * 587 + bb * 114) / 1000 > 128) {
+              ut.push(`${sel} paa rgb(${flate(el)})`)
+            }
+          }
+        }
+        return [...new Set(ut)]
+      })
+      expect(lyse, `${sti}: lys flate i den moerke verdenen`).toEqual([])
 
       expect(feil, `Klientfeil paa ${sti}:\n  ${feil.join('\n  ')}`).toEqual([])
     })
