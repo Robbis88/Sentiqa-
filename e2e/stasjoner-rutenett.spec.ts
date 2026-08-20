@@ -71,28 +71,38 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
   })
 
   test('en gyldig endring lagres, og verdien staar etter omlasting', async ({ page }) => {
+    // SKRIVER PAA POSISJONEN, IKKE PAA TERSKELEN.
+    //
+    // Forste utgave endret svinnterskelen til 3,4 og satte den tilbake
+    // etterpaa. CI fant feilen med en gang: /svinn kjorer samtidig i en
+    // annen arbeider mot SAMME base, og hevder at terskelen er 2,5.
+    // Testen min var innom med 3,4 akkurat da den leste.
+    //
+    // En test som skriver, maa skrive paa noe ingen andre leser.
+    // Koordinatene brukes bare til aa hente vaer, og det skjer ikke i
+    // CI - de er derfor trygge aa roere.
     await loggInnEier(page)
     await page.goto('/stasjoner')
 
     const rad = page.locator('.sq-rutenett tbody tr').first()
-    const felt = rad.locator('[name="terskel"]')
+    const felt = rad.locator('[name="breddegrad"]')
     const foer = await felt.inputValue()
 
-    await felt.fill('3.4')
-    await rad.getByRole('button', { name: /^Lagre svinnterskel for/ }).click()
+    await felt.fill('60.3913')
+    await rad.getByRole('button', { name: /^Lagre posisjon for/ }).click()
 
     // Serverhandlingen revalidatar sida. Verdien skal vaere den nye.
-    await expect(page.locator('.sq-rutenett tbody tr').first().locator('[name="terskel"]'))
-      .toHaveValue('3.4', { timeout: 15_000 })
+    await expect(page.locator('.sq-rutenett tbody tr').first().locator('[name="breddegrad"]'))
+      .toHaveValue('60.3913', { timeout: 15_000 })
 
     await page.reload()
-    await expect(page.locator('.sq-rutenett tbody tr').first().locator('[name="terskel"]'))
-      .toHaveValue('3.4')
+    await expect(page.locator('.sq-rutenett tbody tr').first().locator('[name="breddegrad"]'))
+      .toHaveValue('60.3913')
 
     // Rydd opp saa testen kan kjores igjen mot samme base.
     const tilbake = page.locator('.sq-rutenett tbody tr').first()
-    await tilbake.locator('[name="terskel"]').fill(foer)
-    await tilbake.getByRole('button', { name: /^Lagre svinnterskel for/ }).click()
+    await tilbake.locator('[name="breddegrad"]').fill(foer)
+    await tilbake.getByRole('button', { name: /^Lagre posisjon for/ }).click()
   })
 
   test('INGEN ENDRING GIR INGEN ENDRING', async ({ page }) => {
@@ -104,6 +114,7 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
 
     const rad = page.locator('.sq-rutenett tbody tr').first()
     const foer = await rad.locator('[name="vaerfolsomhet"]').inputValue()
+    // Skriver samme verdi tilbake - trygt, og det er nettopp poenget.
     await rad.getByRole('button', { name: /^Lagre værfølsomhet for/ }).click()
 
     await page.reload()
