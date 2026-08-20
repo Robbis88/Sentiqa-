@@ -110,3 +110,210 @@ on conflict do nothing;
 -- Ingen salgsdata med vilje. Sidene skal moete testene i TOM TILSTAND,
 -- og det er en gyldig ting aa teste: tomme tilstander er de som aldri
 -- ses under utvikling, fordi utvikleren alltid har data.
+--
+-- Det gjelder FORTSATT Testkjeden over. Analysedataene under ligger i en
+-- EGEN kjede, nettopp for at begge tilstandene skal finnes samtidig:
+-- Testkjeden er tom, Analysekjeden har tall. RLS holder dem fra
+-- hverandre, saa den tomme tilstanden er like ekte som for.
+
+
+-- =====================================================================
+-- ANALYSEKJEDEN - deterministisk fixture for analysesidene.
+--
+-- HVORFOR EN EGEN KJEDE OG IKKE DATA I TESTKJEDEN:
+--
+-- Sju ruter testes i «taaler tom database» (e2e/innlogget.spec.ts). La
+-- vi svinn- og salgsrader i Testkjeden, ville de testene fortsatt vaere
+-- groenne - men de ville ikke lenger teste det de sier. En test som har
+-- sluttet aa maale ser ut som en test som ikke finner noe.
+--
+-- Med to kjeder er BEGGE produkttilstandene ekte samtidig, og skillet
+-- gaar gjennom RLS - altsaa den samme mekanismen som skiller to ekte
+-- kunder. Tomtilstandstesten er derfor ogsaa en isolasjonstest.
+--
+-- ALLE TALL ER VALGT FOR AA TREFFE EKSISTERENDE LOGIKK. Ingen terskel er
+-- endret, ingen beregning er rort. Se regnestykket ved hver blokk.
+--
+--   kjede       11111111-1111-4111-8111-222222222222
+--   Underby     44444444-4444-4444-8444-111111111111  5101  2,0 % svinn
+--   Grenseby    44444444-4444-4444-8444-222222222222  5102  2,8 % svinn
+--   Overby      44444444-4444-4444-8444-333333333333  5103  4,0 % svinn
+--   analysesjef 33333333-3333-4333-8333-333333333333
+-- =====================================================================
+
+insert into public.retailers (id, navn, slug, org_nr)
+values ('11111111-1111-4111-8111-222222222222', 'Analysekjeden', 'analyse', '999999998')
+on conflict (id) do nothing;
+
+-- TERSKELEN ER DEN SAMME 2.5 SOM I TESTKJEDEN. Tre stasjoner fordi
+-- terskelstatusen er per stasjon: skal alle tre tilstandene vises
+-- samtidig, trengs tre rader. Det er testdata tilpasset systemet, ikke
+-- omvendt.
+insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype, svinnterskel_prosent)
+values
+  ('44444444-4444-4444-8444-111111111111', '11111111-1111-4111-8111-222222222222',
+   '5101', 'Underby',  'pendler', 2.5),
+  ('44444444-4444-4444-8444-222222222222', '11111111-1111-4111-8111-222222222222',
+   '5102', 'Grenseby', 'bydel',   2.5),
+  ('44444444-4444-4444-8444-333333333333', '11111111-1111-4111-8111-222222222222',
+   '5103', 'Overby',   'bydel',   2.5)
+on conflict (id) do nothing;
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change, email_change_token_new, email_change_token_current,
+  phone_change, phone_change_token, reauthentication_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-333333333333',
+   'authenticated', 'authenticated',
+   'analyse@test.sentiqa.no', crypt('test-analyse-2026', gen_salt('bf')),
+   now(), now(), now(),
+   '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+   '', '', '', '', '', '', '', '')
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, identity_data, provider, provider_id,
+  last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), '33333333-3333-4333-8333-333333333333',
+   '{"sub":"33333333-3333-4333-8333-333333333333","email":"analyse@test.sentiqa.no"}'::jsonb,
+   'email', '33333333-3333-4333-8333-333333333333', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
+
+insert into public.profiler (id, retailer_id, rolle, fullt_navn)
+values
+  ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-222222222222',
+   'butikksjef', 'Test Analysesjef')
+on conflict (id) do nothing;
+
+insert into public.butikksjef_stasjoner (profil_id, stasjon_id)
+values
+  ('33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-111111111111'),
+  ('33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-222222222222'),
+  ('33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-333333333333')
+on conflict do nothing;
+
+
+-- ---------------------------------------------------------------------
+-- MATSALGET - naevneren i svinn%.
+--
+-- Svinn% regnes IKKE av sida. `matsalg_vindu_sum` summerer
+-- `v_salg_per_stasjon_dag.mat_omsetning`, som er
+-- `sum(omsetning_eks_mva) filter (where avdeling_kode = '120')` over
+-- `daglig_salg` (mig 0084). Derfor seedes avdeling 120, ikke et ferdig
+-- prosenttall: fixturen skal gaa den samme veien som en ekte import.
+--
+-- 100 000 kr per stasjon gjor regnestykket lesbart - svinn i kroner blir
+-- prosenten ganget med tusen.
+--
+-- AVDELING 120, IKKE 10. Drivstoff (ENERGI/10) filtreres bort av
+-- visningen, og en fixture paa 10 ville gitt matsalg = 0 og svinn% =
+-- null. Se AGENTS.md.
+-- ---------------------------------------------------------------------
+insert into public.daglig_salg (
+  retailer_id, stasjon_id, dato, ean, varenavn,
+  avdeling_kode, avdeling_navn, antall, omsetning_eks_mva, bto_fortjeneste_kr
+)
+values
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-17', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1000, 100000, 35000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
+   date '2026-03-17', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1000, 100000, 35000),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-333333333333',
+   date '2026-03-17', '7090000000120', 'Matsalg samlet', '120', 'MAT', 1000, 100000, 35000)
+on conflict (retailer_id, stasjon_id, dato, ean) do nothing;
+
+
+-- ---------------------------------------------------------------------
+-- SVINNET PAA MAALEDAGEN - 2026-03-17, en TIRSDAG.
+--
+-- Sida finner selv siste dato med svinn og legger et rullende
+-- 30-dagersvindu bakover: 2026-02-16 .. 2026-03-17. Alt svinn i vinduet
+-- ligger paa denne ene dagen, saa vindussummen ER dagssummen:
+--
+--   Underby   1200 +  800 = 2000  /100000 = 2,0 %  <= 2,5   under terskel
+--   Grenseby  1800 + 1000 = 2800  /100000 = 2,8 %  > 2,5, <= 3,125  like over
+--   Overby    2500 + 1500 = 4000  /100000 = 4,0 %  > 3,125          godt over
+--
+-- Den midterste grensa er terskel * 1.25 = 3,125 - satt i sida, ikke
+-- her, og ikke rort.
+--
+-- To varelinjer per stasjon, alle med ulikt belop, saa «Mest svinn
+-- (varer)» faar en entydig rekkefolge: 2500, 1800, 1500, 1200, 1000, 800.
+-- Uten ulike belop ville sorteringen vaert uavgjort, og testen flaky.
+--
+-- FORTEGNET ER POSITIVT. Det er konvensjonen sida regner med: KPI-en
+-- viser `kr.format(total)` uten fortegnsvending, og AI-verktoyet summerer
+-- likedan (src/lib/ai/verktoy.ts).
+-- ---------------------------------------------------------------------
+insert into public.synlig_svinn (
+  retailer_id, stasjon_id, dato, ean, varenavn, antall, nettopris_total
+)
+select v.* from (values
+  ('11111111-1111-4111-8111-222222222222'::uuid, '44444444-4444-4444-8444-111111111111'::uuid,
+   date '2026-03-17', '7090000000011', 'Baguette skinke', 12::numeric, 1200::numeric),
+  ('11111111-1111-4111-8111-222222222222'::uuid, '44444444-4444-4444-8444-111111111111'::uuid,
+   date '2026-03-17', '7090000000012', 'Kaffe filter',     8::numeric,  800::numeric),
+  ('11111111-1111-4111-8111-222222222222'::uuid, '44444444-4444-4444-8444-222222222222'::uuid,
+   date '2026-03-17', '7090000000021', 'Wienerbrod',      18::numeric, 1800::numeric),
+  ('11111111-1111-4111-8111-222222222222'::uuid, '44444444-4444-4444-8444-222222222222'::uuid,
+   date '2026-03-17', '7090000000022', 'Yoghurt stor',    10::numeric, 1000::numeric),
+  ('11111111-1111-4111-8111-222222222222'::uuid, '44444444-4444-4444-8444-333333333333'::uuid,
+   date '2026-03-17', '7090000000031', 'Grillpolse',      25::numeric, 2500::numeric),
+  ('11111111-1111-4111-8111-222222222222'::uuid, '44444444-4444-4444-8444-333333333333'::uuid,
+   date '2026-03-17', '7090000000032', 'Salatbolle',      15::numeric, 1500::numeric)
+) as v
+where not exists (
+  select 1 from public.synlig_svinn
+  where retailer_id = '11111111-1111-4111-8111-222222222222'
+);
+
+
+-- ---------------------------------------------------------------------
+-- HISTORIKKEN - fire like tirsdager, og hvorfor det er akkurat fire.
+--
+-- `motNormalen` krever MIN_GRUNNLAG = 4 dager med samme ukedag for den
+-- sier noe i det hele tatt (src/lib/salg/normalen.ts). Sida henter 56
+-- dager bakover, og disse fire er de eneste tirsdagene der som har
+-- svinn:
+--
+--   2026-01-20, 2026-01-27, 2026-02-03, 2026-02-10
+--
+-- ALLE FIRE LIGGER UTENFOR 30-DAGERSVINDUET (som starter 2026-02-16).
+-- Det er med vilje: historikken skal styre normalen UTEN aa flytte
+-- terskelprosentene over.
+--
+-- Hver tirsdag har kjedesum 1000 + 1400 + 2000 = 4400. Medianen av fire
+-- like tall er 4400, og maaledagen er 8800:
+--
+--   (8800 - 4400) / 4400 = +100,0 % mot en vanlig tirsdag
+--
+-- Det er langt over verdtEtBlikk sin grense paa 10 %, saa dommen SKAL
+-- felles - og paa svinn er opp daarlig. Det er nettopp dette som gjor at
+-- «pil opp» og «roed dom» kan testes hver for seg.
+-- ---------------------------------------------------------------------
+insert into public.synlig_svinn (
+  retailer_id, stasjon_id, dato, ean, varenavn, antall, nettopris_total
+)
+select
+  '11111111-1111-4111-8111-222222222222'::uuid, s.stasjon_id, d.dato,
+  s.ean, 'Historisk svinn', 10::numeric, s.belop
+from (values
+  ('44444444-4444-4444-8444-111111111111'::uuid, '7090000000091', 1000::numeric),
+  ('44444444-4444-4444-8444-222222222222'::uuid, '7090000000092', 1400::numeric),
+  ('44444444-4444-4444-8444-333333333333'::uuid, '7090000000093', 2000::numeric)
+) as s(stasjon_id, ean, belop)
+cross join (values
+  (date '2026-01-20'), (date '2026-01-27'), (date '2026-02-03'), (date '2026-02-10')
+) as d(dato)
+where not exists (
+  select 1 from public.synlig_svinn
+  where retailer_id = '11111111-1111-4111-8111-222222222222'
+    and dato < date '2026-02-16'
+);

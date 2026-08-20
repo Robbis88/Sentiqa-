@@ -99,10 +99,48 @@ export function serverhandlinger(kilde: string): string[] {
     .sort()
 }
 
-/** Overskriftene på en side. Rå kilde — `{uttrykk}` beholdes som skrevet. */
+/**
+ * Overskriftene på en side. Rå kilde — `{uttrykk}` beholdes som skrevet.
+ *
+ * LESER OGSÅ `tittel`-PROPEN, ikke bare `<h2>`. Da pilot B flyttet tre
+ * tabeller inn i `Datatabell`, forsvant tre overskrifter for denne
+ * vakten — ikke fordi de var borte fra skjermen, men fordi de hadde
+ * flyttet fra en tagg til en prop. Vakten meldte tap. Neste side ville
+ * meldt det samme, og den etter der igjen, helt til noen sluttet å lese
+ * meldingen. Da hadde en seksjon som FAKTISK forsvant sett ut som resten.
+ *
+ * `<Sidehode tittel=…>` telles ikke: det er sidas h1, ikke en seksjon.
+ * Uten det unntaket ville hver migrerte side fått sitt eget navn inn i
+ * seksjonslista, og fasiten blitt full av rader som ikke betyr noe.
+ */
 export function seksjoner(kilde: string): string[] {
-  return [...kilde.matchAll(/<h2[^>]*>([\s\S]{0,120}?)<\/h2>/g)]
-    .map((m) => m[1].replace(/\s+/g, ' ').trim())
+  const ut: string[] = []
+  for (const m of kilde.matchAll(/<h[23][^>]*>([\s\S]{0,120}?)<\/h[23]>/g)) {
+    ut.push(m[1])
+  }
+  for (const m of kilde.matchAll(/\btittel=(?:"([^"]{0,200})"|\{)/g)) {
+    const foran = /<([A-Z]\w*)[^<]*$/.exec(kilde.slice(0, m.index))
+    if (foran?.[1] === 'Sidehode') continue
+    if (m[1] !== undefined) {
+      ut.push(m[1])
+      continue
+    }
+    // Malstreng: `Per stasjon · ${dato}`. Regex kommer til kort her,
+    // fordi `${…}` inni strengen har sine egne backticks og klammer -
+    // et uttrykk som `${a ? ` · ${b}` : ''}` har begge deler nostet to
+    // niivaaer ned. Klammene telles i stedet, saa slutten blir funnet
+    // uansett hvor dypt uttrykket gaar.
+    const start = m.index + m[0].length
+    let dybde = 1
+    let i = start
+    for (; i < kilde.length && i < start + 400; i++) {
+      if (kilde[i] === '{') dybde++
+      else if (kilde[i] === '}' && --dybde === 0) break
+    }
+    ut.push(kilde.slice(start, i).trim().replace(/^`|`$/g, ''))
+  }
+  return ut
+    .map((t) => t.replace(/\s+/g, ' ').trim())
     .filter(Boolean)
     .sort()
 }

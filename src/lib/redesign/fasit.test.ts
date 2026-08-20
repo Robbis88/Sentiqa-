@@ -78,6 +78,67 @@ describe('seksjoner', () => {
       .toEqual(['Salg', '{MND[m]} {ar}'])
   })
 
+  // KANARIFUGLENE. Disse tre er ikke pynt: de feiler den dagen skraperen
+  // slutter aa se overskrifter som har flyttet inn i designsystemet. En
+  // vakt som slutter aa se, ser noyaktig ut som en vakt som ikke finner
+  // noe - og da er /svinn og alle sidene etter den umaalte i stillhet.
+  test('overskrift i en tittel-prop telles', () => {
+    expect(seksjoner('<Datatabell tittel="Mest svinn" antall={3}>'))
+      .toEqual(['Mest svinn'])
+  })
+
+  test('tittel med malstreng telles', () => {
+    expect(seksjoner('<Datatabell tittel={`Per stasjon · ${dato}`}>'))
+      .toEqual(['Per stasjon · ${dato}'])
+  })
+
+  test('nostet uttrykk i malstrengen stopper den ikke', () => {
+    // Dette er formen som faktisk star i /svinn. Regexen som lette etter
+    // «backtick, ikke-backtick, backtick» fant den ikke i det hele tatt,
+    // og en overskrift den ikke finner er en overskrift den ikke vokter.
+    expect(seksjoner('<Datatabell tittel={`Mest svinn${a ? ` · ${b}` : \'\'}`}>'))
+      .toEqual(['Mest svinn${a ? ` · ${b}` : \'\'}'])
+  })
+
+  test('h3 teller — Datatabell rendrer tittelen sin som h3', () => {
+    expect(seksjoner('<h3>Svinn mot terskel</h3>')).toEqual(['Svinn mot terskel'])
+  })
+
+  test('sidas eget navn er ikke en seksjon', () => {
+    // Uten dette unntaket ville hver migrerte side lagt sitt eget navn i
+    // seksjonslista, og lista sluttet aa handle om seksjoner.
+    expect(seksjoner('<Sidehode\n  tittel="Synlig svinn"\n  undertittel="x"\n/>'))
+      .toEqual([])
+  })
+
+  // ---------------------------------------------------------------
+  // At vakten SER de nye formene er bare halve jobben. Den andre halve
+  // er at den fortsatt REAGERER. En parser som er gjort tolerant nok
+  // kan ende med aa svelge et ekte tap, og da er vakten verre enn
+  // ingen: den staar groenn mens en seksjon er borte fra skjermen.
+  // ---------------------------------------------------------------
+  test('EKTE TAP: en slettet tittel-prop meldes', () => {
+    const foer = '<h2>Oversikt</h2><Datatabell tittel="Per stasjon">'
+    const etter = '<h2>Oversikt</h2>'
+    expect(borte(seksjoner(foer), seksjoner(etter))).toEqual(['Per stasjon'])
+  })
+
+  test('EKTE TAP: en slettet h2 meldes', () => {
+    const foer = '<h2>Oversikt</h2><Datatabell tittel="Per stasjon">'
+    const etter = '<Datatabell tittel="Per stasjon">'
+    expect(borte(seksjoner(foer), seksjoner(etter))).toEqual(['Oversikt'])
+  })
+
+  test('EKTE TAP: aa bytte tagg mot prop er IKKE et tap', () => {
+    // Det motsatte tilfellet, og grunnen til at unntaket finnes: samme
+    // overskrift flyttet fra <h2> til en prop skal ikke melde tap. Ellers
+    // meldte hver eneste migrerte side et tap som ikke fantes, og da
+    // slutter folk aa lese meldingen - som er hvordan et ekte tap
+    // slipper forbi.
+    expect(borte(seksjoner('<h2>Per stasjon</h2>'),
+                 seksjoner('<Datatabell tittel="Per stasjon">'))).toEqual([])
+  })
+
   test('h2 med attributter og linjeskift', () => {
     expect(seksjoner('<h2 className="x">\n  Klar for\n  sletting\n</h2>'))
       .toEqual(['Klar for sletting'])
