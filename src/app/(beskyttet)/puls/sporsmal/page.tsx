@@ -4,6 +4,9 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { settOppStandard, leggTilSporsmal, vekslAktivSporsmal, slettSporsmal } from '../handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Status } from '@/components/ui/status'
+import { Knapp } from '@/components/ui/knapp'
 
 type Sporsmal = { id: string; kategori: string; tekst: string; aktiv: boolean }
 
@@ -42,29 +45,40 @@ export default async function SporsmalSide() {
           handling={<form action={settOppStandard}><button type="submit" className="sq-knapp primar">Sett opp standardspørsmål</button></form>}
         />
       ) : (
-        <div className="tabellramme">
-          <table className="tabell">
-            <thead><tr><th>Kategori</th><th>Spørsmål</th><th>Aktiv</th><th></th></tr></thead>
-            <tbody>
-              {liste.map((s) => (
-                <tr key={s.id} className={s.aktiv ? '' : 'gjort'}>
-                  <td>{s.kategori}</td>
-                  <td>{s.tekst}</td>
-                  <td>
-                    <form action={vekslAktivSporsmal}>
-                      <input type="hidden" name="id" value={s.id} />
-                      <input type="hidden" name="til" value={s.aktiv ? 'nei' : 'ja'} />
-                      <button type="submit" className="liten">{s.aktiv ? 'På' : 'Av'}</button>
-                    </form>
-                  </td>
-                  <td className="tall">
-                    <form action={slettSporsmal}><input type="hidden" name="id" value={s.id} /><button type="submit" className="liten slett">Slett</button></form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        // Biblioteket er en LISTE over sporsmaal man skrur av og paa.
+        // Ingen leser kategorikolonnen mot aktiv-kolonnen; man leter
+        // etter ETT sporsmaal. «Aktiv» er tilstanden, og den staar naa
+        // som tilstand - `normal` naar den er paa, for det er
+        // utgangspunktet, og `endring` naar den er tatt ut av bruk.
+        <Liste merkelapp="Puls-spørsmål">
+          {liste.map((sp) => (
+            <Rad
+              key={sp.id}
+              primaer={sp.tekst}
+              sekundaer={sp.kategori}
+              status={(
+                <Status nivaa={sp.aktiv ? 'normal' : 'endring'}>
+                  {sp.aktiv ? 'I bruk' : 'Av'}
+                </Status>
+              )}
+              handlinger={(
+                <>
+                  <form action={vekslAktivSporsmal}>
+                    <input type="hidden" name="id" value={sp.id} />
+                    <input type="hidden" name="til" value={sp.aktiv ? 'nei' : 'ja'} />
+                    <Knapp type="submit" variant="ghost" liten>
+                      {sp.aktiv ? 'Ta ut av bruk' : 'Ta i bruk'}
+                    </Knapp>
+                  </form>
+                  <form action={slettSporsmal}>
+                    <input type="hidden" name="id" value={sp.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                </>
+              )}
+            />
+          ))}
+        </Liste>
       )}
     </>
   )

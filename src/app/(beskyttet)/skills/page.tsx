@@ -2,7 +2,9 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { registrerSkills, slettSkills } from './handlinger'
-import { Sidehode, Datatabell, Tomtilstand } from '@/components/ui/side'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Knapp } from '@/components/ui/knapp'
 import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Score = { id: string; stasjon_id: string; prosent: number; kommentar: string | null; registrert_tid: string }
@@ -49,29 +51,34 @@ export default async function SkillsSide() {
         handlinger={nyPanel}
       />
 
-      <Datatabell
-        antall={liste.length}
-        tom={(
-          <Tomtilstand
-            tittel="Ingen score registrert"
-            forklaring="Legg inn score fra treningsappen, så ser teamet utviklingen sin på nettbrettet."
-            handling={nyPanel}
-          />
-        )}
-      >
-        <thead><tr><th>Stasjon</th><th className="tall">Score</th><th>Dato</th><th>Kommentar</th><th></th></tr></thead>
-        <tbody>
+      {/* Hver rad er EN registrering man kan slette - ikke en kolonne
+          noen leser mot en annen. Scoren staar som metadata, hoyrestilt
+          med tabulaere siffer, saa den fortsatt kan skummes nedover. */}
+      {liste.length === 0 ? (
+        <Tomtilstand
+          tittel="Ingen score registrert"
+          forklaring="Legg inn score fra treningsappen, så ser teamet utviklingen sin på nettbrettet."
+          handling={nyPanel}
+        />
+      ) : (
+        <Liste merkelapp="Registrerte score">
           {liste.map((s) => (
-            <tr key={s.id}>
-              <td>{navnFor.get(s.stasjon_id) ?? '—'}</td>
-              <td className="tall">{Number(s.prosent)} %</td>
-              <td>{tid.format(new Date(s.registrert_tid))}</td>
-              <td>{s.kommentar ?? ''}</td>
-              <td className="tall"><form action={slettSkills}><input type="hidden" name="id" value={s.id} /><button type="submit" className="liten slett">Slett</button></form></td>
-            </tr>
+            <Rad
+              key={s.id}
+              primaer={navnFor.get(s.stasjon_id) ?? '—'}
+              sekundaer={[tid.format(new Date(s.registrert_tid)), s.kommentar]
+                .filter(Boolean).join(' · ')}
+              metadata={`${Number(s.prosent)} %`}
+              handlinger={(
+                <form action={slettSkills}>
+                  <input type="hidden" name="id" value={s.id} />
+                  <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                </form>
+              )}
+            />
           ))}
-        </tbody>
-      </Datatabell>
+        </Liste>
+      )}
     </>
   )
 }

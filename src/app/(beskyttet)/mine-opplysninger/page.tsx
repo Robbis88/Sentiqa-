@@ -5,6 +5,7 @@ import {
   KONTROLLTILTAK_VERSJON, maaBekrefte, RETTIGHETER, TILTAK,
 } from '@/lib/personvern/kontrolltiltak'
 import { BekreftSkjema } from './bekreft'
+import { Status } from '@/components/ui/status'
 import { Sidehode } from '@/components/ui/side'
 
 // Informasjonsplikten etter aml. § 9-2 andre ledd, gjort til en side.
@@ -57,8 +58,8 @@ export default async function MineOpplysninger() {
         </section>
       ) : (
         <section className="kort">
-          <p style={{ margin: 0 }}>
-            <span className="status-pip gronn">Lest</span>{' '}
+          <p className="sq-tett">
+            <Status nivaa="normal">Lest</Status>{' '}
             <span className="undertittel">
               Du har bekreftet denne teksten. Endrer den seg, får du beskjed på nytt.
             </span>
@@ -72,7 +73,7 @@ export default async function MineOpplysninger() {
           <p><strong>Hvorfor:</strong> {t.hvorfor}</p>
           <p><strong>Hvem ser det:</strong> {t.hvemSer}</p>
           <p><strong>Hvor lenge:</strong> {t.hvorLenge}</p>
-          {t.merk && <p className="notis" style={{ marginBottom: 0 }}>{t.merk}</p>}
+          {t.merk && <p className="notis sq-tett">{t.merk}</p>}
         </section>
       ))}
 
@@ -96,7 +97,7 @@ export default async function MineOpplysninger() {
             <strong>{r.tittel}.</strong> {r.tekst}
           </p>
         ))}
-        <p className="notis" style={{ marginBottom: 0 }}>
+        <p className="notis sq-tett">
           Alle oppslag på personopplysninger logges — hvem som så hva, og når. Spør
           du butikksjefen hvem som har sett opplysningene dine, finnes det et svar.
         </p>
