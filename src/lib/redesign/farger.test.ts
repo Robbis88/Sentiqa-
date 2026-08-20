@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { tellFarger, UNNTAK } from './farger'
+import { tellFarger, UNNTAK, kontrast, tokenverdier } from './farger'
 import { utenKommentarer } from './design'
 
 const SRC = join(process.cwd(), 'src')
@@ -125,5 +125,81 @@ describe('maalingen virker', () => {
   test('unntakene finnes', () => {
     const alle = new Set(kildefiler(SRC).map(relativ))
     for (const f of Object.keys(UNNTAK)) expect(alle.has(f)).toBe(true)
+  })
+})
+
+// =====================================================================
+// Kontrastvakten.
+//
+// Paret er (tekstfarge, flate) slik primitivene faktisk setter dem.
+// Lista er handholdt med vilje: en parser som skulle utlede kaskaden
+// ville vaert et lite nettleser-prosjekt, og en vakt man ikke stoler
+// paa er verre enn ingen. Hver linje navngir regelen den speiler, saa
+// den kan etterprovees mot `globals.css`.
+//
+// Endrer noen en av reglene uten aa endre linja her, maaler vakten feil
+// par - og det er det `parene finnes i css-en` under fanger.
+// =====================================================================
+
+const CSS = readFileSync(join(SRC, 'app', 'globals.css'), 'utf8')
+const T = tokenverdier(CSS)
+
+/** [tekst, flate, hvor det staar] */
+const PAR: [string, string, string][] = [
+  ['--tekst', '--kort', '.sq-signal / all brodtekst paa kort'],
+  ['--tekst', '--bg', 'sida under kortene'],
+  ['--tekst-svak', '--kort', '.undertittel, .sq-rad sekundaer'],
+  ['--tekst-svak', '--bg', 'samme, utenfor et kort'],
+  // De tre tonene. Det var her signalet stod med dempet tekst.
+  ['--tekst', '--rod-svak', '.sq-signal-kritisk .sq-signal-tekst p'],
+  ['--tekst', '--gul-svak', '.sq-signal-oppmerksomhet .sq-signal-tekst p'],
+  ['--tekst', '--gronn-svak', '.sq-signal-mulighet .sq-signal-tekst p'],
+  // Aksentfarge paa sin egen tone: statuspiller og merkelapper.
+  ['--rod', '--rod-svak', '.status-pip.rod, .sq-status-kritisk'],
+  ['--gul', '--gul-svak', '.status-pip.gul'],
+  ['--gronn', '--gronn-svak', '.status-pip.gronn, sidemenyens aktive lenke'],
+]
+
+describe('kontrastvakten', () => {
+  test('tokenene er lesbare fra globals.css', () => {
+    for (const [tekst, flate] of PAR) {
+      expect(T[tekst], `${tekst} finnes ikke i :root`).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(T[flate], `${flate} finnes ikke i :root`).toMatch(/^#[0-9a-f]{6}$/i)
+    }
+  })
+
+  test('all brodtekst naar 4.5:1', () => {
+    const feil = PAR
+      .map(([tekst, flate, hvor]) => [kontrast(T[tekst], T[flate]), tekst, flate, hvor] as const)
+      .filter(([k]) => k < 4.5)
+      .map(([k, tekst, flate, hvor]) => `${tekst} paa ${flate} = ${k.toFixed(2)}:1  (${hvor})`)
+    expect(feil, [
+      'Under WCAG AA for tekst. Enten er fargen feil, eller flata er feil.',
+      'Dempet tekst paa en tone er den vanlige feilen: `--tekst-svak` bestaar',
+      'bare paa hvitt, og bare saa vidt.',
+    ].join('\n')).toEqual([])
+  })
+
+  // KANARIFUGL 1: maalingen selv. Returnerer `kontrast` plutselig 21 for
+  // alt - feil parsing, feil formel - blir testen over gronn mens den
+  // ikke maaler noe. Tallene er frosne literaler, ikke tokener, saa de
+  // endrer seg ikke naar paletten gjor det.
+  test('formelen regner riktig', () => {
+    expect(kontrast('#ffffff', '#000000')).toBeCloseTo(21, 2)
+    expect(kontrast('#ffffff', '#ffffff')).toBeCloseTo(1, 2)
+    expect(kontrast('#64748b', '#ffffff')).toBeCloseTo(4.76, 1)
+    // Paret som faktisk stod i signalet fram til bolge 4B.1.
+    expect(kontrast('#64748b', '#fbe7e7')).toBeLessThan(4.5)
+  })
+
+  // KANARIFUGL 2: parene. Skrives en regel om - `.sq-signal-tekst p` fra
+  // `--tekst` tilbake til noe dempet - skal vakten merke at lista ikke
+  // lenger beskriver CSS-en, ikke fortsette aa maale et par som ingen
+  // bruker.
+  test('parene finnes i css-en', () => {
+    expect(CSS).toMatch(/\.sq-signal-tekst p \{[^}]*color: var\(--tekst\)/)
+    expect(CSS).toMatch(/\.sq-signal-kritisk \{[^}]*background: var\(--rod-svak\)/)
+    expect(CSS).toMatch(/\.sq-signal-oppmerksomhet \{[^}]*background: var\(--gul-svak\)/)
+    expect(CSS).toMatch(/\.sq-signal-mulighet \{[^}]*background: var\(--gronn-svak\)/)
   })
 })

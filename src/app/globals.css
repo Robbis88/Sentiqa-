@@ -1577,10 +1577,21 @@ button.liten { min-height: 40px; }
 .bem-kalender th:first-child, .bem-kalender td:first-child {
   text-align: left; width: 4.5rem; white-space: nowrap;
 }
-.bem-kalender th.rod-dag { color: var(--rod, #b4232a); }
-.bem-kalender td.rod-time { background: rgba(180, 35, 42, 0.07); }
+.bem-kalender th.rod-dag { color: var(--rod); }
+/* Den dyre timen. Tinten kommer fra tokenet, ikke fra en rgba skrevet
+   rett inn - og merket «kr²» i cella baerer opplysningen, saa fargen
+   bare forsterker. */
+.bem-kalender td.rod-time { background: color-mix(in srgb, var(--rod) 7%, transparent); }
+.bem-dyr {
+  margin-left: var(--luft-1);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--rod);
+  text-decoration: none;
+  border: 0;
+}
 .bem-vakt-tittel { margin: 1.5rem 0 0.25rem; font-size: 1rem; }
-.tabell tr.rod-dag td:first-child { color: var(--rod, #b4232a); }
+.tabell tr.rod-dag td:first-child { color: var(--rod); }
 .stilling-rad { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .stilling-rad input { width: 4.5rem; }
 .tabell tr.valgt-rad { background: var(--flate-svak, rgba(0,0,0,0.035)); font-weight: 600; }
@@ -1597,8 +1608,8 @@ button.liten { min-height: 40px; }
 .bem-ukevelger a.valgt {
   border-color: var(--aksent, #4f46e5); background: var(--aksent, #4f46e5); color: #fff;
 }
-.bem-ukevelger .rod-prikk { color: var(--rod, #b4232a); }
-.bem-ukevelger a.valgt .rod-prikk { color: #ffd9db; }
+.bem-ukevelger .rod-prikk { color: var(--rod); }
+.bem-ukevelger a.valgt .rod-prikk { color: var(--rod-svak); }
 
 /* --- Nettbrettets sidehode -----------------------------------------
    Ett tall, stort nok til aa leses paa en meters avstand mens man gaar
@@ -1843,7 +1854,17 @@ button.liten { min-height: 40px; }
 }
 .sq-signal-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--luft-1); }
 .sq-signal-tekst strong { font-size: var(--tekst-brod); font-weight: 600; }
-.sq-signal-tekst p { margin: 0; font-size: var(--tekst-liten); color: var(--tekst-svak); line-height: var(--linje-luftig); }
+/* FORKLARINGEN I ET SIGNAL SKAL IKKE VAERE DEMPET. Den stod med
+   `--tekst-svak`, og det holdt saa vidt paa hvitt (4,76:1) - men et
+   signal er sjelden hvitt. Paa de tre tonene ble den 4,01 (rod), 3,94
+   (gul) og 4,15 (gronn), altsaa under kravet paa alle tre. Se
+   kontrastvakten i farger.test.ts.
+
+   Dempingen kjopte heller ingenting: et signal rendres bare naar
+   systemet har regnet ut at noe krever oppmerksomhet, og da er
+   forklaringen det man faktisk skal lese. Storrelse og vekt baerer
+   hierarkiet mot overskriften. */
+.sq-signal-tekst p { margin: 0; font-size: var(--tekst-liten); color: var(--tekst); line-height: var(--linje-luftig); }
 .sq-signal-handling { flex: none; }
 
 /* Informasjon er nøytral. Ingen farge — den forteller noe, den ber

@@ -20,6 +20,10 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { nesteSteg } from '@/lib/bemanningssteg'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Signal, Status } from '@/components/ui/status'
+import { Liste, Rad } from '@/components/ui/liste'
+import { Knapp } from '@/components/ui/knapp'
+import { Felt, Velg } from '@/components/ui/felt'
 import Link from 'next/link'
 
 const UKEDAG = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn']
@@ -522,29 +526,43 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         tittel="Bemanning"
         undertittel={`${steg.tittel}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
         handlinger={
-          <form className="rutine-form">
-            <select name="maned" defaultValue={maned} aria-label="Måned">
+          <form className="sq-listetopp">
+            <Velg etikett="Måned" name="maned" defaultValue={maned} skjultEtikett>
               {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-            </select>
-            <input name="ar" type="number" defaultValue={ar} style={{ width: '5rem' }} aria-label="År" />
-            <button type="submit" className="sq-knapp">Vis</button>
+            </Velg>
+            <Felt
+              etikett="År" name="ar" type="number" defaultValue={ar}
+              skjultEtikett className="sq-smalt-felt"
+            />
+            <Knapp type="submit">Vis</Knapp>
           </form>
         }
       />
 
       {/* NIVÅ 2 — det ene neste steget. Ikke fem likeverdige knapper. */}
+      {/* NIVAA 1: hva stopper meg. Dette ER definisjonen paa et signal -
+          systemet har regnet ut at noe hindrer planen, og sier hva.
+          `nesteSteg` rangerer de fem blokkeringene (bemanningssteg.ts);
+          det som er nytt er at alvoret staar i NIVAAET og ikke bare i
+          en kortkant, og at veien videre ligger i signalet.
+
+          `stopper` betyr at planen ikke kan lages i det hele tatt -
+          derfor `kritisk`. De ovrige er ting som gjor forslaget
+          daarligere, ikke umulig. */}
       {steg.blokkering !== 'klar' && (
-        <section className={`kort ${steg.stopper ? 'oppmerksomhet' : ''}`}>
-          <h2>{steg.tittel}</h2>
-          <p>{steg.forklaring}</p>
-          {steg.handling === 'import' && (
-            <p><Link href="/import" className="sq-knapp primar">Gå til Import</Link></p>
-          )}
-        </section>
+        <Signal
+          nivaa={steg.stopper ? 'kritisk' : 'oppmerksomhet'}
+          tittel={steg.tittel}
+          handling={steg.handling === 'import'
+            ? <Link href="/import" className="sq-knapp primar">Gå til Import</Link>
+            : undefined}
+        >
+          {steg.forklaring}
+        </Signal>
       )}
 
       {plan && plan.gjennomforbar && (
-        <section className="kort">
+        <section>
           <h2>Forslag for uke {valgtUkeNr}</h2>
           <nav className="bem-ukevelger" aria-label="Bytt uke">
             {alleUker.map((u) => (
@@ -591,6 +609,12 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                         const c = rutenett.get(`${p.dato}:${t}`)
                         if (!c) return <td key={p.dato} className="undertittel">—</td>
                         return (
+                          // DOBBEL LONN STO BARE SOM EN SVAK ROED FLATE og
+                          // en tittel-tekst. Tittelen finnes ikke paa
+                          // beroring, og skjermlesere leser den ikke
+                          // paalitelig - saa for den som ikke saa fargen,
+                          // fantes ikke opplysningen. Naa staar det et
+                          // merke i cella, og fargen forsterker det.
                           <td
                             key={p.dato}
                             className={c.kostnad > 1 ? 'rod-time' : undefined}
@@ -598,6 +622,9 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                               + (c.kostnad > 1 ? ' · dobbel lønn' : '')}
                           >
                             {c.sum}{c.fast > 0 ? '*' : ''}
+                            {c.kostnad > 1 && (
+                              <abbr className="bem-dyr" title="Dobbel lønn denne timen">kr²</abbr>
+                            )}
                           </td>
                         )
                       })}
@@ -654,7 +681,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       {/* NIVÅ 3 — hva systemet foreslår, og hvorfor. Dette sto ØVER planen
           før: man møtte regnestykket bak forslaget før forslaget. */}
       {disponible !== null && plan !== null && (
-        <section className="kort">
+        <section>
           <h2>Slik er timene fordelt</h2>
           <p>
             <strong>{Math.round(disponible)} timer</strong> til disposisjon i {MND[maned - 1]}.
@@ -702,7 +729,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       )}
 
       {avvik && (avvik.overforbruk >= 1 || avvik.underforbruk >= 1) && (
-        <section className="kort">
+        <section>
           <h2>Planen mot det som faktisk skjedde</h2>
           <p className="undertittel">
             Kun dagene som har vært. Over- og underforbruk står hver for seg med vilje —
@@ -733,7 +760,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       )}
 
       {sammenligning.some((s) => s.vurdering !== 'for lite data') && (
-        <section className="kort">
+        <section>
           <h2>Stasjonene mot hverandre</h2>
           <p className="undertittel">
             Siste halvannet år. En stasjon alene sier ingenting om den bruker for mange timer —
@@ -769,7 +796,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       )}
 
       {stillinger.length > 0 && (
-        <section className="kort">
+        <section>
           <h2>Hvor mye går folk i?</h2>
           <p className="undertittel">
             Anslått fra stemplingene — medianmåneden, så ferie og sykdom ikke drar tallet ned.
@@ -820,7 +847,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       )}
 
       {dekning && (
-        <section className="kort">
+        <section>
           <h2>Bærer kontraktene planen?</h2>
           <p className="undertittel">
             Det forrige spørsmålet var om det finnes folk nok. Dette er om det finnes{' '}
@@ -856,7 +883,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           </div>
 
           {dekning.korte.length > 0 && (
-            <div className="tabellramme" style={{ marginTop: '1rem' }}>
+            <div className="tabellramme sq-luft-over-liten">
               <table className="tabell">
                 <thead>
                   <tr>
@@ -881,7 +908,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           )}
 
           {dekning.utenKontrakt.length > 0 && (
-            <p className="notis" style={{ marginBottom: 0 }}>
+            <p className="notis sq-tett">
               Uten bekreftet stillingsprosent: {dekning.utenKontrakt.join(', ')}. Bekreft
               dem i tabellen over — så lenge de står tomme, er kapasiteten et anslag bygget
               på nettopp de timene som kanskje manglet dekning.
@@ -901,34 +928,39 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         over på nytt med en gang.
       </p>
 
-      <section className="kort">
+      <section>
         <h3>Når står det folk i butikken?</h3>
         <p className="undertittel">
           Når står det folk der — ikke når døra åpner. Begynner noen en time før åpning, er det den
           timen som skal stå. Endrer dere åpningstid permanent, legg inn en ny rad med dato fra
           endringen; den gamle blir stående som historikk.
         </p>
+        {/* OBJEKTER, IKKE EN MATRISE. Ingen leser «fra»-kolonnen mot
+            «min.»-kolonnen; man leter etter EN rad og retter eller
+            sletter den.
+
+            «Gjelder fra i framtida» sto som halv gjennomsiktighet - en
+            inline-stil, og en tilstand baaret av opasitet alene. Naa
+            staar det som tilstand med ord. */}
         {alleVinduer.length > 0 ? (
-          <table className="tabell">
-            <thead><tr><th>Dag</th><th>Fra</th><th>Til</th><th>Min.</th><th>Gjelder fra</th><th></th></tr></thead>
-            <tbody>
-              {alleVinduer.map((v) => (
-                <tr key={v.id} style={{ opacity: v.gjelder_fra > iDag ? 0.5 : 1 }}>
-                  <td>{UKEDAG[v.ukedag]}</td>
-                  <td>{kl(v.fra_time)}</td>
-                  <td>{kl(v.til_time)}</td>
-                  <td>{v.min_bemanning}</td>
-                  <td>{v.gjelder_fra}</td>
-                  <td>
-                    <form action={slettVindu}>
-                      <input type="hidden" name="id" value={v.id} />
-                      <button type="submit" className="liten slett">Slett</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Liste merkelapp="Bemannede vinduer">
+            {alleVinduer.map((v) => (
+              <Rad
+                key={v.id}
+                primaer={`${UKEDAG[v.ukedag]} ${kl(v.fra_time)}–${kl(v.til_time)}`}
+                sekundaer={`minst ${v.min_bemanning} på jobb · gjelder fra ${v.gjelder_fra}`}
+                status={v.gjelder_fra > iDag
+                  ? <Status nivaa="endring">Trer i kraft senere</Status>
+                  : undefined}
+                handlinger={(
+                  <form action={slettVindu}>
+                    <input type="hidden" name="id" value={v.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                )}
+              />
+            ))}
+          </Liste>
         ) : (
           <Tomtilstand
             tittel="Ingen bemannede vinduer"
@@ -942,7 +974,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </div>
       </section>
 
-      <section className="kort">
+      <section>
         <h3>Hvor mange får plass?</h3>
         <p className="undertittel">
           Flest personer planen har lov å foreslå i én time. Har dere to kasser, er det ingen
@@ -957,34 +989,38 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         <TakSkjema stasjonId={valgt.id} naa={grenser?.maks_bemanning ?? null} />
       </section>
 
-      <section className="kort">
+      <section>
         <h3>Faste vakter</h3>
         <p className="undertittel">
           Deg selv, NK, eller andre som alltid står. De går på fastlønn og bruker ikke av timerammen,
           men dekker minimumsbemanningen i timene de står. En timelønnet NK med fast vakt hører
           også hjemme her — velg da timelønn, så trekkes timene fra rammen selv om vakten er fast.
         </p>
+        {/* LONNSFORMEN ER DET SOM BETYR NOE HER: en timelonnet fast vakt
+            trekkes fra rammen, en fastlonnet gjor det ikke. Den sto som
+            en kolonne blant fem; naa staar den som tilstand, fordi det
+            er den som avgjor om vakten koster av timene dine. */}
         {vaktListe.length > 0 ? (
-          <table className="tabell">
-            <thead><tr><th>Hvem</th><th>Dag</th><th>Fra</th><th>Til</th><th>Lønn</th><th></th></tr></thead>
-            <tbody>
-              {vaktListe.map((v) => (
-                <tr key={v.id}>
-                  <td>{v.navn}</td>
-                  <td>{UKEDAG[v.ukedag]}</td>
-                  <td>{kl(v.fra_time)}</td>
-                  <td>{kl(v.til_time)}</td>
-                  <td>{v.timelonnet ? 'Timelønn' : 'Fastlønn'}</td>
-                  <td>
-                    <form action={slettFastVakt}>
-                      <input type="hidden" name="id" value={v.id} />
-                      <button type="submit" className="liten slett">Slett</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Liste merkelapp="Faste vakter">
+            {vaktListe.map((v) => (
+              <Rad
+                key={v.id}
+                primaer={v.navn}
+                sekundaer={`${UKEDAG[v.ukedag]} ${kl(v.fra_time)}–${kl(v.til_time)}`}
+                status={(
+                  <Status nivaa={v.timelonnet ? 'endring' : 'normal'}>
+                    {v.timelonnet ? 'Timelønn — trekkes fra rammen' : 'Fastlønn'}
+                  </Status>
+                )}
+                handlinger={(
+                  <form action={slettFastVakt}>
+                    <input type="hidden" name="id" value={v.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                )}
+              />
+            ))}
+          </Liste>
         ) : (
           <p className="undertittel">Ingen faste vakter lagt inn. Da må hele gulvet dekkes av timerammen.</p>
         )}
@@ -995,33 +1031,29 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </div>
       </section>
 
-      <section className="kort">
+      <section>
         <h3>Timer der én ikke holder</h3>
         <p className="undertittel">
           Varemottak, eller andre timer der én ikke holder. Uten en rad her foreslås aldri to
           personer på en rolig time — de ekstra hendene går dit kundene faktisk er.
         </p>
         {kravListe.length > 0 ? (
-          <table className="tabell">
-            <thead><tr><th>Dag</th><th>Fra</th><th>Til</th><th>Antall</th><th>Hvorfor</th><th></th></tr></thead>
-            <tbody>
-              {kravListe.map((k) => (
-                <tr key={k.id}>
-                  <td>{UKEDAG[k.ukedag]}</td>
-                  <td>{kl(k.fra_time)}</td>
-                  <td>{kl(k.til_time)}</td>
-                  <td>{k.antall}</td>
-                  <td>{k.begrunnelse ?? '—'}</td>
-                  <td>
-                    <form action={slettKrav}>
-                      <input type="hidden" name="id" value={k.id} />
-                      <button type="submit" className="liten slett">Slett</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Liste merkelapp="Timer der én ikke holder">
+            {kravListe.map((k) => (
+              <Rad
+                key={k.id}
+                primaer={`${UKEDAG[k.ukedag]} ${kl(k.fra_time)}–${kl(k.til_time)}`}
+                sekundaer={k.begrunnelse ?? 'ingen begrunnelse'}
+                metadata={`${k.antall} personer`}
+                handlinger={(
+                  <form action={slettKrav}>
+                    <input type="hidden" name="id" value={k.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                )}
+              />
+            ))}
+          </Liste>
         ) : (
           <p className="undertittel">Ingen slike timer lagt inn.</p>
         )}
@@ -1032,32 +1064,31 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         </div>
       </section>
 
-      <section className="kort">
+      <section>
         <h3>Ferie og fravær</h3>
         <p className="undertittel">
           Er en fast vakt borte, dekker den ikke minimumsbemanningen lenger, og timene må
           kjøpes av rammen. Fem ukers ferie <strong>henter</strong> timer — den sparer dem ikke.
         </p>
+        {/* FRAVAER HENTER TIMER, det sparer dem ikke - og hvem som er
+            borte er det man leter etter naar planen ikke gaar opp.
+            Navnet er derfor primaert, perioden sekundaer. */}
         {fravaerListe.length > 0 ? (
-          <table className="tabell">
-            <thead><tr><th>Hvem</th><th>Fra</th><th>Til</th><th>Hvorfor</th><th></th></tr></thead>
-            <tbody>
-              {fravaerListe.map((f) => (
-                <tr key={f.id}>
-                  <td>{f.navn}</td>
-                  <td>{f.fra_dato}</td>
-                  <td>{f.til_dato}</td>
-                  <td>{f.arsak ?? '—'}</td>
-                  <td>
-                    <form action={slettFravaer}>
-                      <input type="hidden" name="id" value={f.id} />
-                      <button type="submit" className="liten slett">Slett</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Liste merkelapp="Ferie og fravær">
+            {fravaerListe.map((f) => (
+              <Rad
+                key={f.id}
+                primaer={f.navn}
+                sekundaer={`${f.fra_dato} – ${f.til_dato}${f.arsak ? ` · ${f.arsak}` : ''}`}
+                handlinger={(
+                  <form action={slettFravaer}>
+                    <input type="hidden" name="id" value={f.id} />
+                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
+                  </form>
+                )}
+              />
+            ))}
+          </Liste>
         ) : (
           <p className="undertittel">Ingen fravær registrert.</p>
         )}
