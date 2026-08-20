@@ -19,8 +19,15 @@ const SJEF = { epost: 'analyse@test.sentiqa.no', passord: 'test-analyse-2026' }
 const SJEFENS = ['/lonn', '/kontrakt', '/opplaring', '/ikmat', '/ikmat/oppsett',
   '/rutiner/oppsett', '/regnskap']
 
-/** Eierens ruter i 4A - krever TOTP. */
-const EIERENS = ['/import', '/persondata', '/abonnement', '/plattform', '/regnskap']
+/**
+ * Eierens ruter i 4A - krever TOTP.
+ *
+ * /plattform staar IKKE her: den er plattform-redaktorens, ikke
+ * eierens (`rolle !== 'plattform_redaktor'` avviser henne). Den rollen
+ * tvinges ogsaa gjennom TOTP, og seeden har ingen slik bruker - det er
+ * neste testhull, og det er notert framfor aa dekkes over.
+ */
+const EIERENS = ['/import', '/persondata', '/abonnement', '/regnskap']
 
 async function loggInnSjef(page: Page) {
   await page.goto('/logg-inn')

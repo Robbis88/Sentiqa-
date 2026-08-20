@@ -85,10 +85,16 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
     await page.goto('/stasjoner')
 
     const rad = page.locator('.sq-rutenett tbody tr').first()
-    const felt = rad.locator('[name="breddegrad"]')
-    const foer = await felt.inputValue()
+    // BEGGE KOORDINATENE. `settPosisjon` skriver dem sammen - den er
+    // ett felt i to deler, ikke to felter. Fyller man bare den ene,
+    // lagres den andre som null, og det er ikke det testen vil maale.
+    const bredde = rad.locator('[name="breddegrad"]')
+    const lengde = rad.locator('[name="lengdegrad"]')
+    const foer = await bredde.inputValue()
+    const foerLengde = await lengde.inputValue()
 
-    await felt.fill('60.3913')
+    await bredde.fill('60.3913')
+    await lengde.fill('5.3221')
     await rad.getByRole('button', { name: /^Lagre posisjon for/ }).click()
 
     // Serverhandlingen revalidatar sida. Verdien skal vaere den nye.
@@ -102,6 +108,7 @@ test.describe('/stasjoner som redigeringsrutenett', () => {
     // Rydd opp saa testen kan kjores igjen mot samme base.
     const tilbake = page.locator('.sq-rutenett tbody tr').first()
     await tilbake.locator('[name="breddegrad"]').fill(foer)
+    await tilbake.locator('[name="lengdegrad"]').fill(foerLengde)
     await tilbake.getByRole('button', { name: /^Lagre posisjon for/ }).click()
   })
 
