@@ -1,16 +1,11 @@
 import 'server-only'
 import { cookies } from 'next/headers'
 import {
-  fraLagring, sidenTaalerAggregat, stasjonFraUrl, velgStasjon, type Stasjon,
+  fraLagring, sidenTaalerAggregat, stasjonFraUrl, STASJONSKAPSEL, velgStasjon,
+  type Stasjon,
 } from './stasjonsvalg'
 
-/**
- * Navnet på informasjonskapselen.
- *
- * Bor her, ikke i 'use server'-fila: den kan bare eksportere async
- * funksjoner, og en konstant der brekker bygget.
- */
-export const STASJONSKAPSEL = 'sentiqa_stasjon'
+export { STASJONSKAPSEL }
 
 /**
  * Hvilken stasjon siden skal vise.
@@ -27,17 +22,6 @@ export async function husketStasjon(
 ): Promise<string | null> {
   const husket = fraLagring((await cookies()).get(STASJONSKAPSEL)?.value)
   return velgStasjon(alle, { fraUrl, fraHukommelse: husket, tillatAlle })
-}
-
-/**
- * Rå verdi i informasjonskapselen, uten tolkning.
- *
- * Brukes til ÉN ting: å se om det huskede valget er noe annet enn det
- * URL-en nettopp ga oss. Er det det, skal hukommelsen oppdateres - og
- * uten dette ville appskallet ikke visst at det var noe å oppdatere.
- */
-export async function raaHukommelse(): Promise<string | null> {
-  return fraLagring((await cookies()).get(STASJONSKAPSEL)?.value)
 }
 
 /**

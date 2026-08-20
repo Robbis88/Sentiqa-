@@ -1,6 +1,8 @@
 'use server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { URL_HODE } from '@/lib/supabase/proxy'
 
 // Navnet ligger i lib/stasjonskontekst.ts. En 'use server'-fil kan BARE
 // eksportere async funksjoner — en konstant her brekker bygget, fordi
@@ -29,4 +31,24 @@ export async function settStasjon(formData: FormData) {
     maxAge: 60 * 60 * 24 * 365,
   })
   revalidatePath('/', 'layout')
+
+  // ET KLIKK NÅ SLÅR EN URL FRA I GÅR.
+  //
+  // URL-en vinner over hukommelsen — riktig for en delt lenke, og feil i
+  // det sekundet brukeren selv velger noe annet i toppstripen. Sto det
+  // `?butikknummer=4177` i adressefeltet, ville parameteren overstyrt
+  // valget hennes og klikket sett dødt ut.
+  //
+  // Derfor fjernes stasjonsparameteren når hun velger selv. Det skjer
+  // her, på serveren, og ikke med en `router.replace` i nettleseren:
+  // klientveien var et kappløp mot navigeringen, og den tapte av og til.
+  const url = (await headers()).get(URL_HODE) ?? ''
+  const [sti, spor = ''] = url.split('?')
+  const igjen = new URLSearchParams(spor)
+  if (igjen.has('stasjon') || igjen.has('butikknummer')) {
+    igjen.delete('stasjon')
+    igjen.delete('butikknummer')
+    const rest = igjen.toString()
+    redirect(rest ? `${sti}?${rest}` : sti)
+  }
 }

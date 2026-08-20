@@ -142,9 +142,12 @@ test.describe('stasjonskontekst', () => {
     expect(await enigeOmStasjon(page)).toContain('5101')
 
     // Et klikk NAA skal slaa parameteren i adressefeltet. Gjor det ikke
-    // det, ser valget dodt ut for brukeren.
+    // det, vinner URL-en og valget ser dodt ut for brukeren.
+    // Serverhandlingen rydder parameteren og sender henne til samme side
+    // uten den - dagen skal staa igjen.
     await page.locator('.sq-stasjonskontekst select').selectOption({ label: '5103 Overby' })
     await expect(page).not.toHaveURL(/butikknummer/, { timeout: 15_000 })
+    await expect(page).toHaveURL(/dato=2026-02-02/)
     expect(await enigeOmStasjon(page)).toContain('5103')
   })
 

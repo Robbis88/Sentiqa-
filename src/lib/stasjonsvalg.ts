@@ -73,6 +73,17 @@ export function visVelger(alle: Stasjon[], tillatAlle: boolean): boolean {
  */
 export const ALLE = 'alle'
 
+/**
+ * Navnet på informasjonskapselen som husker valget.
+ *
+ * Bor i denne rene modulen, ikke i `stasjonskontekst.ts`: proxyen må
+ * kunne lese og skrive den, og den kan ikke importere en modul merket
+ * `server-only`. Konstanten har flyttet én gang før av samme slags
+ * grunn - den lå i en `use server`-fil, der hver eksport blir et
+ * handlingsendepunkt.
+ */
+export const STASJONSKAPSEL = 'sentiqa_stasjon'
+
 /** Domeneverdi → URL/informasjonskapsel. */
 export const tilLagring = (valg: Valg): string => valg ?? ALLE
 

@@ -52,13 +52,10 @@ const nokkeltall = (page: Page, merkelapp: string) =>
 /**
  * Sidas EGET stasjonsvalg, ikke appskallets.
  *
- * FUNN, IKKE TESTSTOY: det staar to «Stasjon»-velgere paa denne sida.
- * Appskallet har en (`.sq-stasjonskontekst`, satt i trinn 02 nettopp for
- * at ti sider ikke skulle spore hver for seg), og sida har sin egen som
- * gaar paa `?butikknummer=`. De gjor ulike ting og vet ikke om
- * hverandre. Aa slaa dem sammen er en funksjonell endring i hvordan sida
- * velger stasjon - ikke en designmigrering - saa den er notert og ikke
- * gjort her.
+ * Sida hadde en egen «Stasjon»-velger ved siden av appskallets fram til
+ * trinn 09. Den er borte naa; skjemaet spor bare om dagen. Hjelperen
+ * staar igjen fordi den avgrenser til sidas eget skjema, og det er
+ * fortsatt riktig aa gjore.
  */
 const sidensSkjema = (page: Page) => page.locator('form.sq-listetopp')
 
@@ -73,15 +70,19 @@ test.describe('/produksjonsplan uten salgsdata', () => {
     await expect(page.getByRole('link', { name: /Import/i })).toBeVisible()
   })
 
-  test('stasjon og dag kan velges selv uten data', async ({ page }) => {
-    // Filteret staar over tomtilstanden med vilje: det er slik man leter
-    // seg fram til en dag som HAR data.
+  test('dagen kan velges selv uten data - og bare dagen', async ({ page }) => {
+    // Dagvelgeren staar over tomtilstanden med vilje: det er slik man
+    // leter seg fram til en dag som HAR data.
     await loggInn(page, TOM)
     await page.goto('/produksjonsplan')
     const skjema = sidensSkjema(page)
-    await expect(skjema.getByLabel('Stasjon')).toBeVisible()
     await expect(skjema.getByLabel('Dag')).toBeVisible()
-    await expect(skjema.getByRole('button', { name: 'Vis plan' })).toBeVisible()
+    await expect(skjema.getByRole('button', { name: 'Vis dagen' })).toBeVisible()
+
+    // STASJONEN SPORS DET IKKE OM HER LENGER. Den staar i toppstripen,
+    // ett sted for hele systemet. To velgere for det samme er ikke et
+    // valg - det er en felle, og det var den trinn 09 fjernet.
+    await expect(skjema.getByLabel('Stasjon')).toHaveCount(0)
   })
 })
 
