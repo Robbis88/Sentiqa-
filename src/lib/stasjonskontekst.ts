@@ -1,6 +1,8 @@
 import 'server-only'
 import { cookies } from 'next/headers'
-import { velgStasjon, type Stasjon } from './stasjonsvalg'
+import {
+  fraLagring, sidenTaalerAggregat, stasjonFraUrl, velgStasjon, type Stasjon,
+} from './stasjonsvalg'
 
 /**
  * Navnet på informasjonskapselen.
@@ -23,41 +25,63 @@ export async function husketStasjon(
   fraUrl?: string | null,
   tillatAlle = false,
 ): Promise<string | null> {
-  const husket = (await cookies()).get(STASJONSKAPSEL)?.value ?? null
+  const husket = fraLagring((await cookies()).get(STASJONSKAPSEL)?.value)
   return velgStasjon(alle, { fraUrl, fraHukommelse: husket, tillatAlle })
+}
+
+/**
+ * Rå verdi i informasjonskapselen, uten tolkning.
+ *
+ * Brukes til ÉN ting: å se om det huskede valget er noe annet enn det
+ * URL-en nettopp ga oss. Er det det, skal hukommelsen oppdateres - og
+ * uten dette ville appskallet ikke visst at det var noe å oppdatere.
+ */
+export async function raaHukommelse(): Promise<string | null> {
+  return fraLagring((await cookies()).get(STASJONSKAPSEL)?.value)
 }
 
 /**
  * Hele stasjonskonteksten i ett kall.
  *
- * Logikken lå i to halvdeler: `husketStasjon()` her, og oppslaget av
- * hvilke stasjoner brukeren har tilgang til gjentatt i hver side som
- * trengte det. Seks sider gjorde det samme fire linjene, og hver av dem
- * kunne glemme `tillatAlle` — som er forskjellen på at eieren ser
- * porteføljen samlet og at han ser den første stasjonen sin.
+ * TO TING ENDRET SEG I TRINN 09, og begge var den samme feilen:
  *
- * ENDRER INGEN OPPFØRSEL. Samme spørring, samme prioritering:
- * URL vinner over informasjonskapsel, som vinner over første stasjon.
- * En delt lenke skal fortsatt vise det den lovet.
+ * 1) FUNKSJONEN TAR NÅ RUTA, IKKE ROLLEN. `tillatAlle` var definert som
+ *    `rolle === 'retailer_admin'`, og det svarte på feil spørsmål.
+ *    «Kan disse tallene summeres?» er en egenskap ved SIDA -
+ *    produksjonsplanen for alle stasjoner er ikke en plan noen kan bake
+ *    etter - mens «har jeg mer enn én stasjon å summere?» er en egenskap
+ *    ved brukeren. Begge må være sanne. Den gamle regelen tok fra
+ *    butikksjefen med to stasjoner et aggregat hun allerede hadde.
  *
- * `tillatAlle` følger rollen, ikke sida: bare eieren har flere stasjoner
- * å se samlet. En butikksjef med én stasjon får ingen velger i det hele
- * tatt — se `visVelger`.
+ * 2) FUNKSJONEN TAR NÅ URL-EN. Før gjorde den det ikke, og kunne derfor
+ *    ikke vite om siden under viste noe annet. Det var hele feilen:
+ *    appskallet sa «5102 Grenseby» mens /produksjonsplan sto på 4177,
+ *    fordi de to leste hver sin kilde. Nå leser de den samme, i den
+ *    samme rekkefølgen, gjennom den samme funksjonen - og da KAN de ikke
+ *    svare forskjellig.
+ *
+ * Ingen ny tilgang: `stasjoner` kommer fra en RLS-vaktet spørring, og en
+ * butikksjef ser bare sine egne (`har_stasjonstilgang`, 0001).
  */
 export async function stasjonskontekst(
   supabase: SupabaseKlient,
-  rolle: string,
-  fraUrl?: string | null,
+  sti: string,
+  sok?: URLSearchParams,
 ): Promise<Stasjonskontekst> {
   const { data } = await supabase
     .from('stasjoner').select('id, navn, butikknummer')
     .is('slettet_tid', null).order('butikknummer')
   const stasjoner = (data ?? []) as Stasjon[]
-  const tillatAlle = rolle === 'retailer_admin'
+
+  const tillatAlle = sidenTaalerAggregat(sti) && stasjoner.length > 1
+  const fraUrl = sok ? stasjonFraUrl(sok, stasjoner) : undefined
+
   return {
     stasjoner,
     valgt: await husketStasjon(stasjoner, fraUrl, tillatAlle),
     tillatAlle,
+    /** Sant når URL-en - ikke hukommelsen - avgjorde. */
+    fraUrl: fraUrl !== undefined,
   }
 }
 
@@ -66,6 +90,7 @@ export type Stasjonskontekst = {
   /** null = alle stasjoner samlet. Bare mulig når `tillatAlle`. */
   valgt: string | null
   tillatAlle: boolean
+  fraUrl: boolean
 }
 
 type SupabaseKlient = {

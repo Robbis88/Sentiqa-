@@ -9,11 +9,28 @@ function erOffentligSti(sti: string): boolean {
   return sti === '/' || OFFENTLIGE_PREFIX.some((r) => sti.startsWith(r))
 }
 
+/**
+ * Navnet på hodet som bærer URL-en inn til layouten.
+ *
+ * HVORFOR DETTE MÅ TIL: en layout i App Router får ikke `searchParams`.
+ * Appskallet kunne derfor ikke vite at siden under det sto på
+ * `?butikknummer=4177`, og viste sitt eget huskede valg i stedet - to
+ * stasjonskontekster på samme skjerm. Proxyen ser URL-en uansett, og
+ * sender den videre som et forespørselshode.
+ *
+ * Bare stien og spørrestrengen. Ingen tolkning her: proxyen kjenner
+ * verken parameternavn eller stasjoner, og skal ikke gjøre det.
+ */
+export const URL_HODE = 'x-sentiqa-url'
+
 // Fornyer Supabase-sesjonen og setter oppdaterte auth-cookies på responsen.
 // Kjøres fra proxy.ts (Next 16s "middleware"). Gjør KUN en optimistisk
 // sjekk — den ekte autorisasjonen skjer i DAL + RLS nær datakilden (§3).
 export async function oppdaterSesjon(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  const hoder = new Headers(request.headers)
+  hoder.set(URL_HODE, request.nextUrl.pathname + request.nextUrl.search)
+
+  let response = NextResponse.next({ request: { headers: hoder } })
 
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -27,7 +44,10 @@ export async function oppdaterSesjon(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value)
           }
-          response = NextResponse.next({ request })
+          // Kapslene må også følge med i de VIDERESENDTE hodene, ellers
+          // mister den nye responsen den ferske auth-kapselen.
+          hoder.set('cookie', request.cookies.toString())
+          response = NextResponse.next({ request: { headers: hoder } })
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(name, value, options)
           }

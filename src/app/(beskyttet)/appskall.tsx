@@ -27,12 +27,14 @@ type Props = {
   navn: string
   uleste: number
   kontekst: Kontekst
+  /** Se Stasjonskontekst: URL-en som skal bli det nye huskede valget. */
+  synkroniser?: string | null
   seksjoner: Seksjon[]
   children: React.ReactNode
 }
 
 export function Appskall({
-  rolle, navn, uleste, kontekst, seksjoner, children,
+  rolle, navn, uleste, kontekst, synkroniser, seksjoner, children,
 }: Props) {
   const menypunkter = seksjoner.flatMap((s) =>
     s.punkter.map((p) => ({ ...p, gruppe: s.tittel })))
@@ -47,6 +49,7 @@ export function Appskall({
           navn={navn}
           uleste={uleste}
           kontekst={kontekst}
+          synkroniser={synkroniser}
           menypunkter={menypunkter}
         />
         {/* Landemerket heter noe. Med to nav-elementer på siden — menyen

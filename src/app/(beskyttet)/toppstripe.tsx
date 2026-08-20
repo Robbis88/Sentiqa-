@@ -30,11 +30,12 @@ type Props = {
   navn: string
   uleste: number
   kontekst: Kontekst
+  synkroniser?: string | null
   /** Punktene kommandopaletten kan hoppe til. */
   menypunkter: { sti: string; tekst: string; gruppe: string }[]
 }
 
-export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props) {
+export function Toppstripe({ rolle, navn, uleste, kontekst, synkroniser, menypunkter }: Props) {
   return (
     <header className="toppstripe">
       {erLeder(rolle) && <Kommandopalett punkter={menypunkter} />}
@@ -44,6 +45,7 @@ export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props
           stasjoner={kontekst.stasjoner}
           valgt={kontekst.valgt}
           tillatAlle={kontekst.tillatAlle}
+          synkroniser={synkroniser}
         />
       )}
 
