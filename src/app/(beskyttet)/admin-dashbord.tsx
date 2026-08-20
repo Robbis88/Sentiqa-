@@ -23,6 +23,7 @@ import { AiKort } from './ai-kort'
 import { Stasjonsrangering, type RangRad } from './stasjonsrangering'
 import { Budsjettstatus, type BudsjettRad } from './budsjettstatus'
 import { AVDELINGER } from '@/lib/avdelinger'
+import { forsidetall, type Forsidetall, type Regnskapslinje } from '@/lib/regnskap/forsidetall'
 import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 
 const KRITISK = new Set(['uhell', 'krenkelse'])
@@ -40,14 +41,10 @@ function minus30(iso: string): string {
 
 type Oppgave = { id: string; stasjon_id: string; tittel: string; frist: string | null; status: string; fullfort_tid: string | null }
 type Tilbake = { id: string; stasjon: string; alvorlighet: string; tekst: string; kritisk: boolean }
-/**
- * Ett regnskapstall mot budsjett.
- *
- * `overErBra` er ikke pynt. Omsetning over budsjett er bra;
- * PERSONALKOSTNAD over budsjett er det motsatte, og sto likevel med
- * groenn pil opp. Retningen og dommen maa kunne peke hver sin vei.
- */
-type Kpi = { merke: string; verdi: string; avvik: number | null; overErBra: boolean }
+// Formen paa de fire regnskapstallene ligger naa i
+// `lib/regnskap/forsidetall.ts`, sammen med regelen om hvilken vei
+// dommen gaar. Se kommentaren der.
+type Kpi = Forsidetall
 type Konk = { id: string; navn: string; premie_kr: number | null; periode_slutt: string }
 type FPunkt = { tittel: string | null; tekst: string }
 type FokusGruppe = { id: string; navn: string; forbedring: FPunkt[]; positivt: FPunkt[] }
@@ -170,22 +167,11 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     const { data: clusterL } = sistePeriode
       ? await supabase.from('regnskapslinjer').select('seksjon, post, regnskap, budsjett').eq('periode', sistePeriode).is('stasjon_id', null).overrideTypes<ClusterL[]>()
       : { data: null }
-    const cl = clusterL ?? []
-    const finnC = (seksjon: string, re: RegExp) => cl.find((l) => l.seksjon === seksjon && re.test(l.post))
-    const avvikP = (l: ClusterL) => (l.budsjett ? (((l.regnskap ?? 0) - l.budsjett) / l.budsjett) * 100 : null)
-    const omsT = finnC('omsetning', /^omsetning totalt/i)
-    const bruttoT = finnC('bruttofortjeneste', /^bruttofortjeneste totalt/i)
-    const resEx = finnC('resultat', /ex 9900/i)
-    const persEx = finnC('driftskostnader', /personalkostnad ex 9900/i)
-    const kpiStrip: Kpi[] = []
-    // Emojiene som sto her ble strippet igjen ved utskrift
-    // (`merke.replace(/^[^\p{L}]+/u, '')`) - de var altsaa aldri synlige,
-    // bare baaret rundt.
-    if (omsT) kpiStrip.push({ merke: 'Omsetning', verdi: kr.format(omsT.regnskap ?? 0), avvik: avvikP(omsT), overErBra: true })
-    if (bruttoT) kpiStrip.push({ merke: 'Bruttofortjeneste', verdi: kr.format(bruttoT.regnskap ?? 0), avvik: avvikP(bruttoT), overErBra: true })
-    if (resEx) kpiStrip.push({ merke: 'Resultat (ex 9900)', verdi: kr.format(resEx.regnskap ?? 0), avvik: avvikP(resEx), overErBra: true })
-    // Lønn mot LØNNSBUDSJETT (ikke mot omsetning). Over budsjett er daarlig.
-    if (persEx) kpiStrip.push({ merke: 'Lønn vs budsjett', verdi: kr.format(persEx.regnskap ?? 0), avvik: avvikP(persEx), overErBra: false })
+    // FORSIDEN SKRIVER IKKE SIN EGEN BUDSJETTREGEL LENGER. Den sto
+    // her som `avvik >= 0 ? 'opp' : 'ned'` med groenn farge paa opp -
+    // og det er feil for loenn, som er den ene av de fire som er en
+    // kostnad. `motBudsjett` har skilt retning fra dom hele tiden.
+    const kpiStrip: Kpi[] = forsidetall((clusterL ?? []) as Regnskapslinje[])
 
     // Driftsstatus per stasjon (grønn/gul/rød) fra varsel-motoren — samme
     // «alt som ikke er bra»-logikk som /regnskap. Mest kritiske øverst.
@@ -335,35 +321,53 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
           eller daarlig uten at man kjenner fargekoden. Naa staar dommen
           i ord ved siden av. Grensene er de samme tolv prosentpoengene
           som for, og de samme som `klyngebilde()` bruker. */}
-      {klynge.rader.length > 0 && (
-        <section className="sq-seksjon">
-          <div className="sq-seksjon-hode">
-            <h2>Stasjonene mot hverandre</h2>
+      <section className="sq-seksjon">
+        <div className="sq-seksjon-hode">
+          <h2>Stasjonene mot hverandre</h2>
+          {klynge.rader.length > 0 && (
             <span className="sq-merkelapp">Avvik fra de øvrige · svakest først</span>
-          </div>
-          <Liste>
-            {klynge.rader.map((r) => {
-              // Fortegn velges paa det AVRUNDEDE tallet, ellers blir
-              // -0,4 til "-0 pp".
-              const pp = Math.round(r.avvikPp)
-              const dom = r.avvikPp < -STASJONSAVVIK
-                ? { nivaa: 'kritisk' as const, ord: 'Henger etter' }
-                : r.avvikPp > STASJONSAVVIK
-                  ? { nivaa: 'normal' as const, ord: 'Foran de andre' }
-                  : { nivaa: 'endring' as const, ord: 'På linje' }
-              return (
-                <Rad
-                  key={r.stasjonId}
-                  primaer={r.navn}
-                  sekundaer={`${pp >= 0 ? '+' : '−'}${Math.abs(pp)} prosentpoeng mot de øvrige`}
-                  status={<Status nivaa={dom.nivaa}>{dom.ord}</Status>}
-                  metadata={`${r.vekstPst >= 0 ? '+' : '−'}${Math.abs(r.vekstPst).toFixed(0)} % mot i fjor`}
-                />
-              )
-            })}
-          </Liste>
-        </section>
-      )}
+          )}
+        </div>
+        {/* SEKSJONEN FORSVANT FOER, HELE. Uten en komplett uke ble baade
+            denne og pulsen borte uten et ord, og eieren satt igjen med en
+            forside som saa ferdig ut mens halve svaret manglet - i
+            motsetning til butikksjefen, som fikk «Venter paa en komplett
+            uke». Ingen tall er funnet paa: forklaringen sier hva som
+            mangler og hvor det kommer fra. */}
+        {klynge.rader.length === 0 ? (
+          <Tomtilstand
+            tittel="Ingen komplett uke å sammenligne på"
+            forklaring={`Sammenligningen måler hver stasjon mot de øvrige i samme uke, og krever daglige salgsdata for en hel uke (mandag–søndag) og den samme uken i fjor. Uten begge kan ikke stasjonen skilles fra markedet. Det er også derfor ukens omsetningstall mangler over. ${
+              d.sisteSalg
+                ? `Siste daglige salgsdag i systemet er ${d.sisteSalg.dato}.`
+                : 'Ingen daglige salgsdata er lastet opp ennå.'
+            }`}
+            handling={<Link href="/import" className="sq-knapp">Gå til Import</Link>}
+          />
+        ) : (
+        <Liste>
+          {klynge.rader.map((r) => {
+            // Fortegn velges paa det AVRUNDEDE tallet, ellers blir
+            // -0,4 til "-0 pp".
+            const pp = Math.round(r.avvikPp)
+            const dom = r.avvikPp < -STASJONSAVVIK
+              ? { nivaa: 'kritisk' as const, ord: 'Henger etter' }
+              : r.avvikPp > STASJONSAVVIK
+                ? { nivaa: 'normal' as const, ord: 'Foran de andre' }
+                : { nivaa: 'endring' as const, ord: 'På linje' }
+            return (
+              <Rad
+                key={r.stasjonId}
+                primaer={r.navn}
+                sekundaer={`${pp >= 0 ? '+' : '−'}${Math.abs(pp)} prosentpoeng mot de øvrige`}
+                status={<Status nivaa={dom.nivaa}>{dom.ord}</Status>}
+                metadata={`${r.vekstPst >= 0 ? '+' : '−'}${Math.abs(r.vekstPst).toFixed(0)} % mot i fjor`}
+              />
+            )
+          })}
+        </Liste>
+        )}
+      </section>
 
       {/* 5 · Hvordan ligger vi an NÅ — ikke forrige uke, ikke forrige måned.
           Systemet har hatt begge tallene hele tiden uten å sette dem sammen. */}
@@ -412,14 +416,16 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
           <div className="sq-tallrad">
             {d.kpiStrip.map((k) => (
               <Nokkeltall
-                key={k.merke}
+                key={k.kode}
                 merkelapp={k.merke}
-                verdi={k.verdi}
-                sammenlignet={k.avvik == null ? undefined
-                  : `${k.avvik >= 0 ? '+' : '−'}${Math.abs(k.avvik).toFixed(0)} % mot budsjett`}
-                retning={k.avvik == null ? 'flat' : k.avvik >= 0 ? 'opp' : 'ned'}
-                bra={k.avvik == null ? undefined
-                  : k.overErBra ? k.avvik >= 0 : k.avvik <= 0}
+                verdi={kr.format(k.mot.regnskap)}
+                sammenlignet={k.mot.avvikProsent == null ? undefined
+                  : `${k.mot.avvikProsent >= 0 ? '+' : '−'}${Math.abs(k.mot.avvikProsent).toFixed(0)} % mot budsjett`}
+                retning={k.mot.avvikProsent == null ? 'flat' : k.mot.avvik >= 0 ? 'opp' : 'ned'}
+                // `null` = ingen dom: enten mangler budsjettet, eller
+                // avviket er under to prosent. Da skal tallet staa uten
+                // farge, ikke gjettes paa.
+                bra={k.mot.bra ?? undefined}
               />
             ))}
           </div>

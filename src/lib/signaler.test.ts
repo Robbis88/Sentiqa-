@@ -40,6 +40,80 @@ describe('rangering', () => {
   })
 })
 
+// =====================================================================
+// HVA SORTERINGEN FAKTISK LOVER.
+//
+// Forsiden sto med merkelappen «Viktigst overst» over lista. Det er en
+// paastand om nivaarekkefolge, og motoren gir den ikke. Regnestykket er
+// hele forklaringen:
+//
+//   grunnpoeng   kritisk 1000   folg 300   info 50
+//   kroner       + inntil 400   (kvadratrot-dempet)
+//   dager        + inntil 200
+//
+//   kritisk  [1000 .. 1600]
+//   folg     [ 300 ..  900]
+//   info     [  50 ..  650]
+//
+// Kritisk kan derfor ALDRI tapes av noe under - 1000 er over begge tak.
+// Men info og folg OVERLAPPER: et info-funn med stort utslag og lang
+// varighet naar 650, og et nakent folg-funn ligger paa 300.
+//
+// Det er ikke en feil. Det er hele poenget med aa la konsekvens og
+// varighet telle: en orientering som har kostet 90 000 kroner i fire
+// dager ER viktigere enn en «folg med» det ikke staar noe bak. Feilen
+// laa i merkelappen, som lovte noe annet enn motoren gjor.
+//
+// I dag baerer ingen info-kilde hverken kroner eller dager, saa
+// omslaget skjer ikke med de dataene som finnes. Testene under maaler
+// KONTRAKTEN, ikke dagens data - nettopp fordi det er kontrakten
+// merkelappen paastod noe om.
+// =====================================================================
+describe('hva rekkefolgen lover', () => {
+  const MAKS = { kroner: 400, dager: 200 }
+  const ekstremt = { konsekvensKr: -100_000_000, dager: 9999 }
+
+  test('kritisk kan ikke tapes av noe under', () => {
+    const kritiskLavest = poengFor(s({ niva: 'kritisk' }))
+    const folgHoyest = poengFor(s({ niva: 'folg', ...ekstremt }))
+    const infoHoyest = poengFor(s({ niva: 'info', ...ekstremt }))
+    expect(folgHoyest).toBeLessThan(kritiskLavest)
+    expect(infoHoyest).toBeLessThan(kritiskLavest)
+
+    // Og maalt gjennom sorteringen, ikke bare gjennom poengene.
+    const r = rangerSignaler([
+      s({ id: 'folg', niva: 'folg', ...ekstremt }),
+      s({ id: 'info', niva: 'info', ...ekstremt }),
+      s({ id: 'kritisk', niva: 'kritisk' }),
+    ])
+    expect(r[0].id).toBe('kritisk')
+  })
+
+  test('men info KAN gaa foran folg - og det er med vilje', () => {
+    const r = rangerSignaler([
+      s({ id: 'nakent-folg', niva: 'folg' }),
+      s({ id: 'tungt-info', niva: 'info', konsekvensKr: -90000, dager: 4 }),
+    ])
+    // Endrer noen dette til at nivaaet alltid vinner, skal DENNE testen
+    // feile - og da skal merkelappen paa forsiden endres tilbake i
+    // samme slengen. De to henger sammen.
+    expect(r[0].id).toBe('tungt-info')
+  })
+
+  // KANARIFUGL. Grensene over er regnet ut fra takene i `poengFor`.
+  // Endres et tak uten at nivaaene endres, kan overlappet forsvinne
+  // eller vokse - og da er kommentaren over og merkelappen paa forsiden
+  // ikke lenger sanne. Dette er tallene de hviler paa.
+  test('takene er de som er regnet med', () => {
+    const nakent = poengFor(s({ niva: 'folg' }))
+    expect(poengFor(s({ niva: 'folg', konsekvensKr: -100_000_000 })) - nakent).toBe(MAKS.kroner)
+    expect(poengFor(s({ niva: 'folg', dager: 9999 })) - nakent).toBe(MAKS.dager)
+    expect(poengFor(s({ niva: 'kritisk' }))).toBe(1000)
+    expect(poengFor(s({ niva: 'folg' }))).toBe(300)
+    expect(poengFor(s({ niva: 'info' }))).toBe(50)
+  })
+})
+
 describe('avdelingssignaler', () => {
   const butikk = { omsetning: 366188, omsetningIfjor: 115887 } // +216 %
 

@@ -35,6 +35,18 @@ async function tilOversikten(page: Page) {
 
 const NIVAAORD = ['Haster', 'Følg med', 'Til orientering']
 
+/** Stasjonene i Analysekjeden, og en fra en kjede sjefen ikke har. */
+const UNDERBY = '44444444-4444-4444-8444-111111111111'   // 5101
+const GRENSEBY = '44444444-4444-4444-8444-222222222222'  // 5102
+const FREMMED = '22222222-2222-4222-8222-222222222222'   // Testkjeden
+
+/** Hva toppstripen staar paa. */
+async function skallet(page: Page): Promise<string> {
+  const velger = page.locator('.sq-stasjonskontekst select')
+  return (await velger.evaluate(
+    (e) => (e as HTMLSelectElement).selectedOptions[0]?.textContent ?? '')).trim()
+}
+
 async function axeRent(page: Page, hva: string) {
   const res = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
@@ -61,17 +73,29 @@ test.describe('/oversikt for butikksjefen', () => {
     await expect(saker.first()).toContainText('Melding om krenkelse')
     await expect(saker.first()).toHaveAttribute('data-niva', 'kritisk')
 
-    // Og rekkefolgen skal vaere ikke-stigende i alvor. Det er ikke det
-    // samme som at den forste er kritisk: en liste som gaar kritisk,
-    // info, kritisk ville bestaatt den forste sjekken og likevel vaert
-    // ubrukelig aa lese ovenfra.
-    const rang: Record<string, number> = { kritisk: 0, folg: 1, info: 2 }
+    // ALT KRITISK STAAR OVER ALT ANNET. Det er det motoren faktisk
+    // garanterer - 1000 grunnpoeng er over baade folg-taket paa 900 og
+    // info-taket paa 650 (bevist i signaler.test.ts).
+    //
+    // Testen krevde foer at HELE lista var ikke-stigende i alvor. Den
+    // var groenn, men den maalte et loefte motoren ikke gir: et tungt
+    // info-funn kan gaa foran et nakent folg-funn, med vilje. En test
+    // som laaser en oppforsel produktet ikke har lovt, blokkerer en
+    // riktig endring senere - og den ville gjort det uten aa forklare
+    // hvorfor.
     const nivaaer = await saker.evaluateAll(
       (n) => n.map((e) => e.getAttribute('data-niva') ?? ''))
     expect(nivaaer.length, 'Fixturen gir ingen signaler').toBeGreaterThan(2)
-    const tall = nivaaer.map((n) => rang[n] ?? 9)
-    expect(tall, `Alvoret hopper: ${nivaaer.join(' -> ')}`)
-      .toEqual([...tall].sort((a, b) => a - b))
+    const sisteKritisk = nivaaer.lastIndexOf('kritisk')
+    const forsteIkkeKritisk = nivaaer.findIndex((n) => n !== 'kritisk')
+    if (sisteKritisk >= 0 && forsteIkkeKritisk >= 0) {
+      expect(sisteKritisk, `Kritisk under noe mildere: ${nivaaer.join(' -> ')}`)
+        .toBeLessThan(forsteIkkeKritisk)
+    }
+
+    // Og merkelappen skal beskrive den sorteringen som finnes.
+    await expect(page.locator('.sq-seksjon-hode'))
+      .toContainText('Etter alvor, konsekvens og varighet')
   })
 
   test('A2 - lista staar OVER tallene, ikke under', async ({ page }) => {
@@ -145,25 +169,14 @@ test.describe('/oversikt for butikksjefen', () => {
   })
 
   test('I - skallet og sida er enige om stasjonen', async ({ page }) => {
-    // KJENT AVVIK, RAPPORTERT I 4B.2: butikksjefens forside aggregerer
-    // ALLE hennes stasjoner uansett hva toppstripen staar paa. Eierens
-    // gren gjor det riktig (husketStasjon -> drill-down), sjefens er
-    // aldri koblet paa. Aa fikse det ville endret hvilke rader
-    // signalmotoren leser, og det er forbudt i denne batchen.
-    //
-    // Det testen KAN kreve i dag: sida skal ikke navngi en ANNEN
-    // stasjon enn den skallet viser. Aa skrive «5102» i hodet mens
-    // stripen staar paa 5101 er nettopp feilen trinn 09 lukket.
-    const velger = page.locator('.sq-stasjonskontekst select')
-    if (await velger.count() === 0) test.skip(true, 'Ingen velger')
-    const vist = (await velger.evaluate(
-      (e) => (e as HTMLSelectElement).selectedOptions[0]?.textContent ?? '')).trim()
+    const vist = await skallet(page)
     const skallnr = vist.match(/\d{4}/)?.[0]
     const hode = await page.locator('.sq-sidehode').first().innerText()
     const paaSida = [...new Set(hode.match(/(5101|5102|5103)/g) ?? [])]
-    for (const nr of paaSida) {
-      expect(nr, `Skallet viser «${vist}», sidehodet sier ${nr}`).toBe(skallnr)
-    }
+
+    // Sidehodet SKAL navngi stasjonen. Sto det ingenting der, kunne
+    // testen ikke skille «enige» fra «sida sier ingenting».
+    expect(paaSida, `Sidehodet navngir ingen stasjon: «${hode}»`).toEqual([skallnr])
   })
 
   test('J - kommandopaletten virker fra forsiden', async ({ page }) => {
@@ -249,5 +262,102 @@ test.describe('/oversikt for nettbrettet', () => {
     const overskrifter = await page.evaluate(() => [...document.querySelectorAll('h1, h2, h3')]
       .map((e) => (e.textContent ?? '').trim()).filter(Boolean))
     expect(overskrifter.length, 'Nettbrettets hjem er tomt').toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------
+// STASJONSKONTEKSTEN PAA FORSIDEN
+//
+// Korrekthetstrinnet etter 4B.2. Butikksjefens /oversikt leste ALLE
+// hennes stasjoner uansett hva toppstripen sto paa - skallet sa «5102
+// Grenseby» over en side som regnet paa alle tre. Det er den samme
+// doble konteksten trinn 09 lukket, og den sto igjen paa systemets
+// forside fordi bare eiergrenen var koblet paa.
+//
+// Bevisene under maaler INNDATA, ikke bare overskriften: oppgaven over
+// frist ligger paa 5101, saa den skal forsvinne fra sakslista naar
+// konteksten er 5102. En test som bare leser sidehodet ville vaert
+// groenn selv om signalmotoren fortsatt fikk alle stasjonene.
+// ---------------------------------------------------------------------
+test.describe('/oversikt foelger stasjonskonteksten', () => {
+  test.beforeEach(async ({ page }) => {
+    await loggInn(page, SJEF)
+  })
+
+  test('skall 5101 -> forsiden leser 5101', async ({ page }) => {
+    await page.goto(`/oversikt?stasjon=${UNDERBY}`)
+    await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+
+    expect(await skallet(page)).toContain('5101')
+    await expect(page.locator('.sq-sidehode h1')).toContainText('5101')
+    // Oppgaven over frist ligger paa 5101 og SKAL vaere med.
+    await expect(page.locator('.sq-sak', { hasText: 'over frist' })).toHaveCount(1)
+  })
+
+  test('skall 5102 -> forsiden leser 5102, og inndataene foelger med', async ({ page }) => {
+    await page.goto(`/oversikt?stasjon=${GRENSEBY}`)
+    await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+
+    expect(await skallet(page)).toContain('5102')
+    await expect(page.locator('.sq-sidehode h1')).toContainText('5102')
+
+    // DETTE ER SELVE BEVISET. Oppgaven ligger paa 5101; staar den her,
+    // leser motoren fortsatt alle stasjonene.
+    await expect(page.locator('.sq-sak', { hasText: 'over frist' })).toHaveCount(0)
+  })
+
+  test('delt lenke gir samme kontekst i skall og side - paa forste visning', async ({ page }) => {
+    // Proxyen skriver kapselen naar lenka baerer en gyldig stasjon, men
+    // den gjelder foerst fra NESTE forespoersel. Leste sida bare
+    // kapselen, ville en delt lenke vist skallets nye stasjon over
+    // sidas gamle - og det er den eneste visningen en delt lenke faar.
+    await page.goto(`/oversikt?stasjon=${GRENSEBY}`)
+    await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+    const vist = await skallet(page)
+    const hode = await page.locator('.sq-sidehode').first().innerText()
+    expect(hode).toContain(vist.match(/\d{4}/)?.[0] ?? 'x')
+  })
+
+  test('en valgt stasjon gir ikke et skjult aggregat', async ({ page }) => {
+    // /oversikt taaler aggregat bare for eieren (TAALER_AGGREGAT).
+    // Butikksjefen med tre stasjoner skal derfor ha EN stasjon, ikke en
+    // sum forkledd som en.
+    await page.goto(`/oversikt?stasjon=${GRENSEBY}`)
+    await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+
+    const hode = await page.locator('.sq-sidehode').first().innerText()
+    expect(hode, 'Sidehodet summerer i stedet for aa navngi').not.toContain('Dine stasjoner')
+    expect([...new Set(hode.match(/(5101|5102|5103)/g) ?? [])]).toEqual(['5102'])
+  })
+
+  test('en lenke til en annen kjedes stasjon flytter ingen', async ({ page }) => {
+    // Oppslaget gaar gjennom brukerens egen sesjon, saa RLS avgjor hva
+    // som finnes. En daarlig lenke skal falle pent tilbake - ikke gi tom
+    // side, og aller minst vise en annen kjedes tall.
+    await page.goto(`/oversikt?stasjon=${FREMMED}`)
+    await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+
+    const hode = await page.locator('.sq-sidehode').first().innerText()
+    const paaSida = [...new Set(hode.match(/\d{4}/g) ?? [])]
+    for (const nr of paaSida) {
+      expect(['5101', '5102', '5103'], `Fikk ${nr}, som ikke er hennes`).toContain(nr)
+    }
+    expect(await skallet(page)).toMatch(/510[123]/)
+  })
+
+  test('pulsen er den valgte stasjonens, og den samme hver gang', async ({ page }) => {
+    // `r[0]` fra en spoerring uten `order by`: med tre stasjoner var det
+    // udefinert hvilken stasjons uketall som havnet under overskriften.
+    // Basen kan returnere radene i hvilken som helst rekkefolge.
+    const lest: string[] = []
+    for (let i = 0; i < 3; i++) {
+      await page.goto(`/oversikt?stasjon=${UNDERBY}`)
+      await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
+      const puls = page.locator('.sq-puls')
+      if (await puls.count() === 0) test.skip(true, 'Ingen komplett uke i fixturen')
+      lest.push((await puls.first().innerText()).replace(/\s+/g, ' ').trim())
+    }
+    expect(new Set(lest).size, `Pulsen varierer mellom kjoringer: ${lest.join(' | ')}`).toBe(1)
+    expect(lest[0], 'Pulsen navngir ikke den valgte stasjonen').toContain('5101')
   })
 })

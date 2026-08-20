@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang, iDag } from '@/lib/format'
+import { stasjonsnavn as stasjonsnavnFor } from '@/lib/stasjonsvalg'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
 import {
   avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
@@ -102,9 +103,14 @@ async function samle(
           .gte('periode_slutt', idag).is('slettet_tid', null).limit(5)).overrideTypes<Konk[]>(),
         paaStasjon(supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
           .is('slettet_tid', null).order('dato').limit(8)).overrideTypes<Arr[]>(),
+        // ORDNET. Sto uten `order by`, og `ukerapport` under plukket
+        // `r[0]`. Med tre stasjoner var det dermed UDEFINERT hvilken
+        // stasjons uketall som havnet under overskriften - basen kan
+        // returnere radene i hvilken som helst rekkefolge, og gjor det.
         (bareStasjon
           ? supabase.from('stasjoner').select('id, navn, butikknummer').eq('id', bareStasjon)
-          : supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null)),
+          : supabase.from('stasjoner').select('id, navn, butikknummer')
+            .is('slettet_tid', null).order('butikknummer')),
         paaStasjon(supabase.from('avvik').select('id, beskrivelse, frist').eq('gjennomfort', false).is('slettet_tid', null)
           .order('frist', { nullsFirst: false }).limit(10)).overrideTypes<Avvik[]>(),
         supabase.from('varsler').select('id, tittel, tekst, type, lenke').eq('lest', false).is('slettet_tid', null)
@@ -119,7 +125,12 @@ async function samle(
     }
 
     const stasjonsListe = stasjoner.data ?? []
-    const stasjonsnavn = stasjonsListe.length === 1 ? stasjonsListe[0].navn : 'Dine stasjoner'
+    // NUMMERET SKAL STAA. Sidehodet er stedet skallet og sida kan
+    // sammenlignes med oyet: staar toppstripen paa 5102, skal ordet
+    // under si 5102. «Underby» alene beviser ingenting.
+    const stasjonsnavn = stasjonsListe.length === 1
+      ? stasjonsnavnFor(stasjonsListe[0])
+      : 'Dine stasjoner'
 
     const ulesteTilb = tilb.data ?? []
     const vunnet = (prem.data ?? []).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
@@ -129,7 +140,12 @@ async function samle(
     if (bruker.retailerId) {
       try {
         const r = await hentEllerLagUkerapport(supabase, bruker.retailerId, stasjonsListe)
-        ukerapport = r[0] ?? null
+        // DEN VALGTE STASJONEN, ikke «den forste rapporten». Etter at
+        // stasjonskonteksten kom paa plass har lista uansett bare en
+        // rad - men et `[0]` som TILFELDIGVIS er riktig er ikke det
+        // samme som et oppslag som er det, og neste person som endrer
+        // spoerringen over ser ikke forskjellen.
+        ukerapport = (bareStasjon ? r.find((x) => x.stasjonId === bareStasjon) : r[0]) ?? null
       } catch { ukerapport = null }
     }
 

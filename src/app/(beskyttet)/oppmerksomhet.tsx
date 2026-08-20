@@ -107,7 +107,24 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
     <section className="sq-seksjon">
       <div className="sq-seksjon-hode">
         <h2>{overskrift(signaler)}</h2>
-        <span className="sq-merkelapp">Viktigst øverst</span>
+        {/* «VIKTIGST OEVERST» LOVTE MER ENN MOTOREN GIR.
+            Det leses som ren alvorlighetsrekkefolge, og den garanterer
+            `rangerSignaler` ikke: kritisk kan aldri tapes (1000 er over
+            baade folg-taket paa 900 og info-taket paa 650), men info og
+            folg OVERLAPPER - et info-funn med stort utslag over mange
+            dager naar 650, et nakent folg-funn ligger paa 300.
+
+            Det er ikke en feil aa rette. Det er hele grunnen til at
+            konsekvens og varighet teller: en orientering som har kostet
+            90 000 kroner i fire dager ER viktigere enn en «folg med»
+            det ikke staar noe bak. Merkelappen er derfor endret til aa
+            si hva som faktisk avgjor - de tre tingene `signaler.ts`
+            selv navngir, i den rekkefolgen den bruker dem.
+
+            Grensene er maalt i `signaler.test.ts` > «hva rekkefolgen
+            lover». Snur noen kontrakten, feiler de testene, og da skal
+            denne setningen endres tilbake i samme slengen. */}
+        <span className="sq-merkelapp">Etter alvor, konsekvens og varighet</span>
       </div>
 
       <ul className="sq-saker">
