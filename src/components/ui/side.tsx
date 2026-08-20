@@ -121,17 +121,39 @@ export function Datatabell({
   tittel,
   antall,
   tom,
+  rutenett,
   children,
 }: {
   tittel?: string
   /** Vises ved siden av tittelen. «12 ansatte» er raskere enn å telle. */
   antall?: number
   tom?: ReactNode
+  /**
+   * Tabellen inneholder KONTROLLER, ikke bare tall.
+   *
+   * Dette er hele det nye mønsteret fra port 0 til bølge 4, og det er
+   * med vilje så lite. Kartleggingen av de tre kandidatene viste at et
+   * redigeringsrutenett deler LAYOUT med en lesetabell — tett rutenett,
+   * rad per objekt, kolonner som betyr noe — men ikke oppførsel:
+   *
+   *   /produksjonsplan  lagrer i det du endrer (klient, optimistisk)
+   *   /stasjoner        lagrer når du trykker Lagre (server, per felt)
+   *
+   * En komponent som eide lagringen måtte valgt én av dem og tvunget den
+   * på den andre. Derfor eier den bare formen: celler som tåler et felt
+   * uten å bli halvannen centimeter høye, og kontroller som stiller seg
+   * på linje nedover kolonnen.
+   *
+   * Det tredje kandidatet, /bemanning, viste seg å ikke være et
+   * redigeringsrutenett i det hele tatt — radene er lesbare, med slett
+   * som eneste handling. Den hører til liste-mønsteret fra bølge 3.
+   */
+  rutenett?: boolean
   children: ReactNode
 }) {
   if (antall === 0 && tom) return <>{tom}</>
   return (
-    <div className="sq-datatabell">
+    <div className={`sq-datatabell${rutenett ? ' sq-rutenett' : ''}`}>
       {tittel && (
         <div className="sq-datatabell-topp">
           <h3>{tittel}</h3>

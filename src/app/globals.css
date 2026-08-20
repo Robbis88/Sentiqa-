@@ -1995,3 +1995,33 @@ a.sq-rad-lenke:hover { background: var(--bg); }
   line-height: var(--linje-luftig);
   margin: 0;
 }
+
+/* --- Redigeringsrutenett (port 0, bolge 4) -------------------------
+   En tabell som inneholder KONTROLLER, ikke bare tall.
+
+   Den eier bare formen. Lagringen blir liggende i sida, fordi de to
+   ekte tilfellene lagrer paa hver sin maate - i det du endrer, eller
+   naar du trykker Lagre - og en komponent som eide den maatte tvunget
+   den ene modellen paa den andre.
+
+   TETTHET ER POENGET. Dette er operativ programvare: tjue stasjoner
+   skal kunne leses uten aa rulle. Feltene krymper til innholdet sitt i
+   stedet for aa fylle cella, og radene beholder tabellens hoyde. */
+.sq-rutenett .tabell td { padding: var(--luft-2) var(--luft-3); vertical-align: middle; }
+.sq-rutenett .tabell input,
+.sq-rutenett .tabell select {
+  padding: 0.3rem 0.45rem;
+  font-size: var(--tekst-liten);
+  min-height: 32px;
+}
+/* Feltgruppa i en celle: felt og knapp paa linje, uten aa sprenge raden. */
+.sq-rutenett-gruppe {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-2);
+  flex-wrap: wrap;
+}
+.sq-rutenett-gruppe input { max-width: 7rem; }
+/* Lagre-knappen skal vaere der, men ikke rope. Den staar tjue ganger
+   nedover sida. */
+.sq-rutenett-gruppe .sq-knapp.liten { padding: 0.25rem 0.6rem; }
