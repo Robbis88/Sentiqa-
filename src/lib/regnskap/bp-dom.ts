@@ -1,3 +1,5 @@
+import { TERSKLER } from './terskler'
+
 // =====================================================================
 // Dommen om en avdeling: ordet, alvoret og rekkefølgen.
 //
@@ -97,15 +99,37 @@ export function delEtterKobling<T extends {
 }
 
 /**
- * Er brutto-gapet verdt å reagere på?
+ * Tjener vi den margen planen lovet?
  *
- * Gapet er teoretisk minus faktisk margin — svinn, feilpris eller
- * telling. Et par tideler er støy; tre prosentpoeng på en avdeling med
- * volum er penger som forsvinner uten å vises i salgstallene.
+ * DOMENEREGELEN, fra Robert 2026-08-21:
+ *
+ *   «Kassen er fasit på en perfekt hverdag. BP-budsjett i brutto mot
+ *    regnskap er fasiten på pengene vi tjener. Sier BP 60 %, kassa 80 %
+ *    og regnskapet 40 %, så er gapet mellom BP og regnskap det som må
+ *    dekkes.»
+ *
+ * GJELDER ALLE AVDELINGER. Kassa er taket paa en perfekt dag overalt -
+ * mat kastes, drikke svinner, priser slaas feil, noe gis bort. Ingen
+ * avdeling naar kassas tall over tid, og planen er satt med det vissa.
+ *
+ * VARM DRIKKE AVSLOERTE DET. Kaffeavtaler: kunden betaler én fast sum og
+ * tar så mye han vil. Hver kopp etter den første går ut uten et salg
+ * bak seg — kassa ser bare de registrerte koppene og sier 80 %,
+ * tellingen ser alt som er brukt og sier 20 %. Andelen avtaler varierer
+ * sterkt mellom stasjoner.
+ *
+ * Fargela man kassa-mot-regnskap, ville varm drikke vært rød hver
+ * eneste måned, uten et grep å ta: differansen ER avtalene. Budsjettet
+ * er derimot satt med dem innbakt.
+ *
+ * TAR INDEKSEN, IKKE PROSENTPOENGENE. `TERSKLER.brfGul` er allerede
+ * «bruttofortjeneste, index % under budsjett» og gjelder det samme.
+ * En egen pp-grense her ville gitt to sannheter om når brutto er for
+ * lav — og butikksjefen ville sett gult på /regnskap og grønt her.
  */
-export function gapAlvor(gapPp: number | null): Alvor {
-  if (gapPp == null) return 'normal'
-  if (gapPp >= 3) return 'handling'
-  if (gapPp >= 1) return 'endring'
+export function bruttoAlvor(indeksPst: number | null): Alvor {
+  if (indeksPst == null) return 'normal'
+  if (indeksPst <= TERSKLER.brfGul * 2) return 'handling'
+  if (indeksPst <= TERSKLER.brfGul) return 'endring'
   return 'normal'
 }

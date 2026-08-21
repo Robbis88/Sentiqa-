@@ -1,6 +1,6 @@
 import { kr } from '@/lib/format'
 import { Status } from '@/components/ui/status'
-import { alvor, domsord, gapAlvor } from '@/lib/regnskap/bp-dom'
+import { alvor, bruttoAlvor, domsord } from '@/lib/regnskap/bp-dom'
 
 // =====================================================================
 // Én avdeling, lest som en setning.
@@ -40,6 +40,10 @@ export type BpRad = {
   kobling: Kobling | null
   ifjor_omsetning_kr: number | null
   bp_vekst_pst: number | null
+  bp_brutto_ytd_pst: number | null
+  brutto_mot_bp_pp: number | null
+  brutto_mot_bp_kr: number | null
+  brutto_mot_bp_indeks: number | null
 }
 
 /** De fire tilstandene `v_bp_status_avdeling` skiller mellom (0114). */
@@ -76,6 +80,10 @@ function utenDom(kobling: Kobling | null, bp: number | null): string {
 function dom(kroner: number): string {
   return `${kr.format(Math.abs(Math.round(kroner)))} ${domsord(kroner)}`
 }
+
+/** Prosent med komma, eller en tankestrek naar tallet ikke finnes. */
+const prosent = (v: number | null) =>
+  (v == null ? '—' : `${v.toFixed(1).replace('.', ',')} %`)
 
 const pst = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')} %`
 
@@ -144,33 +152,69 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
         </p>
       )}
 
-      {/* LEKKASJEN. To maater aa regne den samme margen paa: kassa tror
-          den er X, regnskapet viser Y. Forskjellen er svinn, feilpris
-          eller telling - og den vises ikke i salgstallene i det hele
-          tatt. */}
-      {(rad.teoretisk_brutto_pst != null || rad.faktisk_brutto_ytd_pst != null) && (
+      {/* BRUTTO: TRE TALL, OG BARE ETT AV DEM ER EN DOM.
+
+          «Kassen er fasit paa en perfekt hverdag. BP-budsjett i brutto
+           mot regnskap er fasiten paa pengene vi tjener. Sier BP 60 %,
+           kassa 80 % og regnskapet 40 %, saa er gapet mellom BP og
+           regnskap det som maa dekkes.»  - Robert, 2026-08-21
+
+          Derfor er dette en STIGE og ikke tre likestilte tall: taket,
+          loeftet, virkeligheten - og til slutt avstanden som maa
+          dekkes inn. Bare den siste har farge.
+
+          Foer dette sto «Gap» = kassa minus regnskap, med farge. For
+          varm drikke ville den vaert roed hver eneste maaned uten et
+          grep aa ta: kaffeavtaler gjor at kassa teller kopper som er
+          solgt, mens tellingen ser alt som er BRUKT. Vi ville sendt
+          butikksjefen etter et svinn som ikke finnes. */}
+      {(rad.teoretisk_brutto_pst != null || rad.faktisk_brutto_ytd_pst != null
+        || rad.bp_brutto_ytd_pst != null) && (
         <dl className="bp-brutto">
           <div>
-            <dt>Kassen tilsier</dt>
-            <dd>{rad.teoretisk_brutto_pst != null
-              ? `${rad.teoretisk_brutto_pst.toFixed(1).replace('.', ',')} %` : '—'}</dd>
+            <dt>Kassen, perfekt dag</dt>
+            <dd>{prosent(rad.teoretisk_brutto_pst)}</dd>
           </div>
           <div>
-            <dt>Regnskap hittil i år</dt>
-            <dd>{rad.faktisk_brutto_ytd_pst != null
-              ? `${rad.faktisk_brutto_ytd_pst.toFixed(1).replace('.', ',')} %` : '—'}</dd>
+            <dt>Planen lover</dt>
+            <dd>{prosent(rad.bp_brutto_ytd_pst)}</dd>
           </div>
-          <div className="bp-gap">
-            <dt>Gap</dt>
-            <dd>
-              {gap != null ? (
-                <Status nivaa={gapAlvor(gap)}>
-                  {`${gap.toFixed(1).replace('.', ',')} pp`}
+          <div>
+            <dt>Regnskapet viser</dt>
+            <dd>{prosent(rad.faktisk_brutto_ytd_pst)}</dd>
+          </div>
+          {rad.brutto_mot_bp_pp != null && (
+            <div className="bp-gap">
+              <dt>{rad.brutto_mot_bp_pp < 0 ? 'Å dekke inn' : 'Over plan'}</dt>
+              <dd>
+                <Status nivaa={bruttoAlvor(rad.brutto_mot_bp_indeks)}>
+                  {`${Math.abs(rad.brutto_mot_bp_pp).toFixed(1).replace('.', ',')} pp`}
+                  {rad.brutto_mot_bp_kr != null
+                    && ` · ${kr.format(Math.abs(rad.brutto_mot_bp_kr))}`}
                 </Status>
-              ) : '—'}
-            </dd>
-          </div>
+              </dd>
+            </div>
+          )}
         </dl>
+      )}
+
+      {/* REGELEN GJELDER ALLE AVDELINGER, ikke bare varm drikke.
+          Kassa er taket paa en perfekt dag overalt - mat kastes, drikke
+          svinner, priser slaas feil, noe gis bort. Varm drikke er bare
+          det tydeligste tilfellet, fordi kaffeavtaler gjor differansen
+          stor OG helt normal.
+
+          Denne linja staar naar differansen er stor nok til aa reise
+          spoersmaalet «hvor ble det av margen», saa den som lurer faar
+          svaret i stedet for aa gjette paa svinn. */}
+      {gap != null && gap >= 10 && (
+        <p className="bp-grunnlag">
+          Kassen ligger {gap.toFixed(1).replace('.', ',')} prosentpoeng over
+          regnskapet. Forskjellen er alt kassen ikke ser — svinn, kast,
+          feilpris og det som gis bort. På varm drikke er den normalt stor
+          fordi kaffeavtaler gir kopper uten et salg bak seg. Målestokken
+          over er planen, ikke kassen.
+        </p>
       )}
 
       {/* Sier om forventningen er regnet fra fjoraarets EGEN kurve eller

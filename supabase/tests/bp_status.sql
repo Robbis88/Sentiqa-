@@ -452,6 +452,103 @@ begin
       feil := feil + 1;
     end if;
 
+    -- --- BRUTTO: PLANEN MOT REGNSKAPET, IKKE KASSA -----------------
+    --
+    -- Robert, 2026-08-21: «Kassen er fasit paa en perfekt hverdag.
+    -- BP-budsjett i brutto mot regnskap er fasiten paa pengene vi
+    -- tjener. Sier BP 60 %, kassa 80 % og regnskapet 40 %, saa er gapet
+    -- mellom BP og regnskap det som maa dekkes.»
+    --
+    -- Testdataene er BOKSTAVELIG TALT det eksempelet, paa kode 130 i
+    -- aarets foerste avlagte maaned:
+    --
+    --   budsjett   omsetning 100 000, brutto 60 000   -> 60 %
+    --   regnskap   omsetning 100 000, brutto 40 000   -> 40 %
+    --   kassa      omsetning  50 000, brutto 40 000   -> 80 %
+    --
+    -- Forventet: brutto_mot_bp_pp = -20,0. Ikke +40 (kassa mot
+    -- regnskap), og ikke -40 (kassa mot budsjett). De tre tallene er
+    -- valgt slik at ingen av forvekslingene kan gi det samme svaret.
+    --
+    -- KAFFEAVTALEN er hele grunnen til at kassaomsetningen er lavere
+    -- enn regnskapets: koppene gaar ut uten et salg bak seg.
+    insert into public.regnskapslinjer
+      (retailer_id, stasjon_id, periode, seksjon, kode, post, regnskap, budsjett,
+       avvik, index_pct, regnskap_hittil, budsjett_hittil)
+    values
+      (RET, STASJ, date_trunc('year', mnd)::date, 'omsetning',
+       '131', '131 Kaffeavtale', 100000, 100000, 0, 0, 0, 0),
+      (RET, STASJ, date_trunc('year', mnd)::date, 'bruttofortjeneste',
+       '131', '131 Kaffeavtale', 40000, 60000, 0, 0, 0, 0);
+
+    insert into public.daglig_salg
+      (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    values (RET, STASJ, date_trunc('year', mnd)::date, 'ean-kaffe',
+            '131', 'VARM DRIKKE', 50000, 40000);
+
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ and gruppe_kode = '131'
+      and maned = date_trunc('year', mnd)::date;
+
+    if r.stasjon_id is null then
+      raise warning 'ingen rad for varm drikke i aarets foerste maaned';
+      feil := feil + 1;
+    else
+      if r.bp_brutto_ytd_pst is distinct from 60.0 then
+        raise warning 'bp_brutto_ytd_pst er % - ventet 60,0 (planen lover)',
+          r.bp_brutto_ytd_pst;
+        feil := feil + 1;
+      end if;
+      if r.faktisk_brutto_ytd_pst is distinct from 40.0 then
+        raise warning 'faktisk_brutto_ytd_pst er % - ventet 40,0 (regnskapet)',
+          r.faktisk_brutto_ytd_pst;
+        feil := feil + 1;
+      end if;
+      if r.teoretisk_brutto_pst is distinct from 80.0 then
+        raise warning 'teoretisk_brutto_pst er % - ventet 80,0 (kassa)',
+          r.teoretisk_brutto_pst;
+        feil := feil + 1;
+      end if;
+
+      -- DOMMEN.
+      if r.brutto_mot_bp_pp is distinct from -20.0 then
+        raise warning 'brutto_mot_bp_pp er % - ventet -20,0 (regnskap 40 mot '
+                      'plan 60). Er den +40, maaler den kassa mot regnskapet; '
+                      'er den -40, maaler den kassa mot budsjettet.',
+          r.brutto_mot_bp_pp;
+        feil := feil + 1;
+      end if;
+      if r.brutto_mot_bp_kr is distinct from -20000 then
+        raise warning 'brutto_mot_bp_kr er % - ventet -20000', r.brutto_mot_bp_kr;
+        feil := feil + 1;
+      end if;
+      -- Indeksen alvoret hentes fra: (40000-60000)/60000 = -33,3 %.
+      if r.brutto_mot_bp_indeks is distinct from -33.3 then
+        raise warning 'brutto_mot_bp_indeks er % - ventet -33,3',
+          r.brutto_mot_bp_indeks;
+        feil := feil + 1;
+      end if;
+
+      -- KAFFEAVTALEN SKAL IKKE VAERE EN DOM. Kassa-mot-regnskap er
+      -- fortsatt 40 pp her, og det er helt normalt for varm drikke.
+      -- Faller den verdien sammen med `brutto_mot_bp_pp`, er de to
+      -- blandet sammen igjen.
+      if r.brutto_gap_pst is distinct from 40.0 then
+        raise warning 'brutto_gap_pst er % - ventet 40,0 (kassa 80 mot '
+                      'regnskap 40). Den skal fortsatt regnes, den skal '
+                      'bare ikke vaere dommen.', r.brutto_gap_pst;
+        feil := feil + 1;
+      end if;
+      if r.brutto_gap_pst = r.brutto_mot_bp_pp then
+        raise warning 'BLANDET SAMMEN: kassa-mot-regnskap og plan-mot-regnskap '
+                      'gir samme tall (%). Testdataene er valgt slik at de '
+                      'IKKE kan vaere like.', r.brutto_gap_pst;
+        feil := feil + 1;
+      end if;
+    end if;
+
     raise exception 'RULL_TILBAKE';
   exception
     when others then
