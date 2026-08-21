@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { normaliserTimer } from '@/lib/bemanning/lederdekning'
 
 // =====================================================================
 // Oppsettet som styrer timeregnskapet.
@@ -38,13 +39,20 @@ export async function settDekning(formData: FormData) {
   const svar = String(formData.get('svar') ?? '')
   const notat = String(formData.get('notat') ?? '').trim() || null
 
+  // TIMETALLET UTLEDES ALDRI AV LEDERSTATUSEN. Det leses fra feltet
+  // eieren skrev i, og bare derfra. Automatikken i 0119 ga Laguneparken
+  // 953 timer uten at noen hadde tatt stilling — et forhåndsutfylt felt
+  // ville vært den samme automatikken med et ekstra klikk.
+  const timer = normaliserTimer(String(formData.get('timer_tilbake') ?? ''))
+
   if (!stasjonId || !Number.isInteger(ar) || ar < 2020 || ar > 2100) return
   if (!Number.isInteger(maned) || maned < 1 || maned > 12) return
   if (!['ja', 'nei', 'ukjent'].includes(svar)) return
 
   const supabase = await lagSupabaseServerKlient()
 
-  if (svar === 'ukjent') {
+  if (svar === 'ukjent' && timer === null && !notat) {
+    // Ingenting å huske. Tomt i basen og tomt på skjermen er samme ting.
     await supabase.from('bemanning_lederdekning').delete()
       .eq('stasjon_id', stasjonId).eq('ar', ar).eq('maned', maned)
   } else {
@@ -53,7 +61,12 @@ export async function settDekning(formData: FormData) {
       stasjon_id: stasjonId,
       ar,
       maned,
+      // `fastlonnet` er `not null` i basen. Har eieren ikke tatt
+      // stilling, men skrevet timer eller et notat, er `false` det
+      // ærligste: «ikke bekreftet at det var en fastlønnet leder her».
+      // Å lagre `true` ville vært en påstand ingen har kommet med.
       fastlonnet: svar === 'ja',
+      timer_tilbake: timer,
       notat,
       oppdatert_av: bruker.id,
       oppdatert_tid: new Date().toISOString(),
