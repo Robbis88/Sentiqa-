@@ -145,8 +145,11 @@ ytd as (
          date_trunc('year', b.maned)::date               as aar,
          sum(b.regn_brt)                                 as brutto_kr,
          sum(b.regn_oms)                                 as oms_kr,
-         sum(coalesce(b.bp_brt_avlagt, b.bp_brt_aapen))  as bp_brutto_kr,
-         sum(coalesce(b.bp_oms_avlagt, b.bp_oms_aapen))  as bp_oms_kr
+         -- EGNE NAVN. `bp_brutto_kr` finnes allerede i med_status, og
+         -- sluttutvalget leser den UKVALIFISERT. Uten prefikset her
+         -- ble den tvetydig, og hele viewet lot seg ikke opprette.
+         sum(coalesce(b.bp_brt_avlagt, b.bp_brt_aapen))  as ytd_bp_brutto_kr,
+         sum(coalesce(b.bp_oms_avlagt, b.bp_oms_aapen))  as ytd_bp_oms_kr
   from budsjett b
   where b.er_avlagt
   group by b.stasjon_id, b.gruppe_kode, date_trunc('year', b.maned)
@@ -207,7 +210,7 @@ select
   gruppe_navn,
 
   round(bp_omsetning_kr)                            as bp_omsetning_kr,
-  round(bp_brutto_kr)                               as bp_brutto_kr,
+  round(m.bp_brutto_kr)                             as bp_brutto_kr,
 
   -- BURDE VAERT NAA. Bare meningsfullt inneveaerende maaned.
   case when periode_status = 'innevaerende' and bp_omsetning_kr is not null
@@ -367,33 +370,33 @@ select
   -- avlagte maaneder, og sida viser den inneveaerende.
 
   -- Hva planen lovet i margin, over de samme avlagte maanedene.
-  case when coalesce(y.bp_oms_kr, 0) <= 0
-         or abs(y.bp_brutto_kr) > y.bp_oms_kr then null
-       else round((y.bp_brutto_kr / y.bp_oms_kr) * 100, 1) end
+  case when coalesce(y.ytd_bp_oms_kr, 0) <= 0
+         or abs(y.ytd_bp_brutto_kr) > y.ytd_bp_oms_kr then null
+       else round((y.ytd_bp_brutto_kr / y.ytd_bp_oms_kr) * 100, 1) end
                                                     as bp_brutto_ytd_pst,
 
   -- DOMMEN. Regnskapets margin minus den budsjetterte, i prosentpoeng.
   -- Negativ = vi tjener mindre paa hver krone enn planen la opp til.
   -- Det er dette tallet som maa dekkes inn.
   case when coalesce(y.oms_kr, 0) <= 0 or abs(y.brutto_kr) > y.oms_kr
-         or coalesce(y.bp_oms_kr, 0) <= 0 or abs(y.bp_brutto_kr) > y.bp_oms_kr
+         or coalesce(y.ytd_bp_oms_kr, 0) <= 0 or abs(y.ytd_bp_brutto_kr) > y.ytd_bp_oms_kr
        then null
-       else round(((y.brutto_kr / y.oms_kr) - (y.bp_brutto_kr / y.bp_oms_kr)) * 100, 1)
+       else round(((y.brutto_kr / y.oms_kr) - (y.ytd_bp_brutto_kr / y.ytd_bp_oms_kr)) * 100, 1)
   end                                               as brutto_mot_bp_pp,
 
   -- SAMME DOM I KRONER. Prosentpoeng sier hvor mye tynnere hver krone
   -- er; kroner sier hvor mye det ble. En avdeling kan ligge 2 pp under
   -- paa stort volum og tape mer enn en som ligger 10 pp under paa lite.
-  case when y.brutto_kr is null or y.bp_brutto_kr is null then null
-       else round(y.brutto_kr - y.bp_brutto_kr) end
+  case when y.brutto_kr is null or y.ytd_bp_brutto_kr is null then null
+       else round(y.brutto_kr - y.ytd_bp_brutto_kr) end
                                                     as brutto_mot_bp_kr,
 
   -- Og som INDEKS, saa alvoret kan hentes fra `TERSKLER.brfGul` -
   -- «bruttofortjeneste, index % under budsjett». Den grensen finnes
   -- allerede og gjelder det samme; en ny terskel her ville gitt to
   -- sannheter om naar brutto er for lav.
-  case when coalesce(y.bp_brutto_kr, 0) = 0 then null
-       else round(((y.brutto_kr - y.bp_brutto_kr) / y.bp_brutto_kr) * 100, 1)
+  case when coalesce(y.ytd_bp_brutto_kr, 0) = 0 then null
+       else round(((y.brutto_kr - y.ytd_bp_brutto_kr) / y.ytd_bp_brutto_kr) * 100, 1)
   end                                               as brutto_mot_bp_indeks
 
 from med_status m
