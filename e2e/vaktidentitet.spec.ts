@@ -52,17 +52,55 @@ async function loggInn(page: Page) {
   await expect(page).not.toHaveURL(/\/logg-inn$/, { timeout: 15_000 })
 }
 
+/**
+ * Fyller ut vaktskjemaet og VENTER TIL SERVEREN HAR SVART.
+ *
+ * Foerste utgave klikket og gikk rett til en `toHaveText` med femten
+ * sekunders tak. Det holdt i den foerste describen og feilet i den
+ * andre - samme kode, samme data, ulik plassering i fila. Aarsaken var
+ * ikke koden: `/oversikt` er nettbrettets tyngste side, og naar de
+ * andre arbeiderne er dypt inne i sine spec-er tar den lenger tid enn
+ * taket. En «element(s) not found» sier ingenting om det.
+ *
+ * Naa ventes det paa at skjemaet har SETTLET - enten staar navnet der,
+ * eller saa staar det en feilmelding - og en mislykket innlogging
+ * rapporteres med meldingen sin i stedet for som et savnet element.
+ */
 async function startVakt(page: Page, nr: string, pin: string) {
   await page.goto('/oversikt')
   await page.fill('.vakt input[name="ansatt_nr"]', nr)
   await page.fill('.vakt input[name="pin"]', pin)
   await page.locator('.vakt button[type="submit"]').click()
+  await expect(
+    page.locator('.vakt-navn, .vakt-feil'),
+    'vaktskjemaet svarte hverken med navn eller feilmelding',
+  ).toHaveCount(1, { timeout: 45_000 })
+}
+
+/** Krever at vakta faktisk kom i gang, og sier hvorfor hvis den ikke gjorde det. */
+async function krevVakt(page: Page, navn: string) {
+  const feil = page.locator('.vakt-feil')
+  if (await feil.count() > 0) {
+    throw new Error(`vakta startet ikke: «${(await feil.textContent())?.trim()}»`)
+  }
+  await expect(page.locator('.vakt-navn')).toHaveText(navn, { timeout: 45_000 })
 }
 
 /** Navnet i toppstripa når vakta er i gang. Tom streng når ingen står på vakt. */
 async function vaktnavn(page: Page): Promise<string> {
   const n = page.locator('.vakt-navn')
   return (await n.count()) === 0 ? '' : ((await n.textContent()) ?? '').trim()
+}
+
+/**
+ * Leser vaktkapselen slik serveren skrev den.
+ *
+ * `cookies().set()` URL-koder verdien, saa raa `JSON.parse` faller paa
+ * `%7B%22id%22...`. Den feilen sto som en syntaksfeil i beviset og saa
+ * ut som om signaturen manglet.
+ */
+function lesKapsel(raa: string): { id?: string; sig?: string } {
+  return JSON.parse(decodeURIComponent(raa)) as { id?: string; sig?: string }
 }
 
 /**
@@ -95,7 +133,7 @@ test.describe('vaktinnlogging krever nummer OG pin', () => {
 
   test('riktig nummer + riktig PIN gir vakt', async ({ page }) => {
     await startVakt(page, ADA.nr, ADA.pin)
-    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+    await krevVakt(page, ADA.navn)
   })
 
   test('riktig nummer + feil PIN avvises', async ({ page }) => {
@@ -188,7 +226,7 @@ test.describe('vaktkapselen er ubetrodd', () => {
     // faktisk logget seg paa. Uten dette beviset kunne alle de andre
     // vaert gronne av at vakta aldri virket i det hele tatt.
     await startVakt(page, ADA.nr, ADA.pin)
-    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+    await krevVakt(page, ADA.navn)
 
     for (const sti of ['/rutiner', '/ikmat', '/vaar-stasjon', '/oversikt']) {
       await page.goto(sti)
@@ -214,7 +252,7 @@ test.describe('vaktkapselen er ubetrodd', () => {
     // nettopp det som far folk til aa stole paa at riktig person staar
     // paalogget.
     await startVakt(page, ADA.nr, ADA.pin)
-    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+    await krevVakt(page, ADA.navn)
 
     await skrivKapsel(page, { id: ADA.id, navn: 'Direktøren' })
     await page.goto('/oversikt')
@@ -261,12 +299,12 @@ test.describe('vaktkapselen er ubetrodd', () => {
     // En implementasjon som signerte noe konstant, eller som bare sjekket
     // at signaturen «ser riktig ut», ville sluppet dette gjennom.
     await startVakt(page, ADA.nr, ADA.pin)
-    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+    await krevVakt(page, ADA.navn)
 
     const kapsler = await page.context().cookies()
     const raa = kapsler.find((k) => k.name === 'sentiqa_vakt')?.value
     expect(raa, 'fant ingen vaktkapsel etter innlogging').toBeTruthy()
-    const adas = JSON.parse(raa!) as { id: string; sig: string }
+    const adas = lesKapsel(raa!)
     expect(adas.id, 'kapselen baerer ikke Adas ID').toBe(ADA.id)
     expect(adas.sig, 'kapselen er usignert').toBeTruthy()
 
@@ -280,7 +318,7 @@ test.describe('vaktkapselen er ubetrodd', () => {
     // bestemme. Det er ikke bare uleste data: sto det der, ville neste
     // utvikler som trengte et navn raskt, lest det derfra.
     await startVakt(page, ADA.nr, ADA.pin)
-    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+    await krevVakt(page, ADA.navn)
     const raa = (await page.context().cookies()).find((k) => k.name === 'sentiqa_vakt')?.value
     expect(raa ?? '', 'navnet ligger fortsatt i kapselen').not.toContain('Ada')
   })
