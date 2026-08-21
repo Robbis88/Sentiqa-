@@ -23,7 +23,6 @@ declare
   feil      int := 0;
   RET       constant uuid := 'eeeeeeee-0000-4000-8000-000000000001';
   STASJ     constant uuid := 'eeeeeeee-1111-4000-8000-000000000001';
-  JOBB      uuid;
   mnd       date;
   mnd_ifjor date;
   siste     date;
@@ -59,24 +58,24 @@ begin
 
     -- --- SALG: hele maaneden i fjor, og hittil i aar -----------------
     -- I fjor: 1 000 kr per dag hele maaneden. I aar: 900 kr per dag
-    -- hittil. Da er andelen i fjor kjent, og «burde_naa» regnbar for
-    -- haand.
-    insert into public.import_jobber (id, retailer_id, filnavn, status)
-      values (gen_random_uuid(), RET, 'bp-test', 'ferdig')
-      returning id into JOBB;
+    -- hittil. Da er fjoraarets kurve jevn, andelen blir dagnr/dager,
+    -- og «burde_naa» er regnbar for haand.
+    --
+    -- `kilde_jobb_id` er nullbar, saa testen trenger ingen importjobb.
+    -- Foerste utkast opprettet en - paa en kolonne som ikke finnes.
 
     insert into public.daglig_salg
       (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
-       omsetning_eks_mva, bto_fortjeneste_kr, kilde_jobb_id)
-    select RET, STASJ, d::date, '1', '120', 'MAT', 1000, 500, JOBB
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    select RET, STASJ, d::date, '1', '120', 'MAT', 1000, 500
     from generate_series(mnd_ifjor,
                          (mnd_ifjor + interval '1 month - 1 day')::date,
                          interval '1 day') d;
 
     insert into public.daglig_salg
       (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
-       omsetning_eks_mva, bto_fortjeneste_kr, kilde_jobb_id)
-    select RET, STASJ, d::date, '1', '120', 'MAT', 900, 360, JOBB
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    select RET, STASJ, d::date, '1', '120', 'MAT', 900, 360
     from generate_series(mnd, siste, interval '1 day') d;
 
     select * into r
