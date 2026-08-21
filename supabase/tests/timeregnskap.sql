@@ -29,7 +29,7 @@ declare
   r       record;
 begin
   if to_regclass('public.v_timeregnskap') is null then
-    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117-0120 kjort?';
+    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117-0119 kjort?';
   end if;
 
   begin
@@ -52,17 +52,21 @@ begin
       (RET, STASJ, jan, 'omsetning', '120', '120 Mat',
        9600000, 10000000, 0, 0, 0, 0);
 
-    -- MAALESTOKKEN ER RAMMEN, IKKE PLANLEGGINGSTALLET.
-    -- bemanning_budsjett.timer  = rammen St1 ga        -> 12 000
-    -- bemanning_maned.disponible = etter fradrag       -> 11 400
-    -- De er ULIKE med vilje: forveksler viewet dem, blir opptjente
-    -- timer 10 944 i stedet for 11 520, og testen feller.
+    -- MAALESTOKKEN ER DET SOM FAKTISK DELES UT.
+    -- bemanning_maned.disponible = rettigheten           -> 12 000
+    -- bemanning_budsjett.timer   = for eierens fradrag   -> 12 600
+    -- De er ULIKE med vilje: maaler viewet mot raatallet, blir
+    -- opptjente timer 12 096 i stedet for 11 520, og testen feller.
+    --
+    -- Fradragene er eierens margin og deles ALDRI ut - de er der for
+    -- loennsoekninger, overtid og det som maatte komme. Stasjonen ser
+    -- dem aldri, saa rettigheten er disponible og ingenting annet.
     insert into public.bemanning_aar (stasjon_id, ar, timer_aar, fast_arsverk_timer)
       values (STASJ, 2026, 12000 * 12, 0);
     insert into public.bemanning_budsjett (stasjon_id, ar, maned, timer)
-      values (STASJ, 2026, 1, 12000);
+      values (STASJ, 2026, 1, 12600);
     insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
-      values (STASJ, 2026, 1, 11400);
+      values (STASJ, 2026, 1, 12000);
 
     -- Brukt noeyaktig hele budsjettet: 12 000 timer.
     --
@@ -107,14 +111,6 @@ begin
       end if;
       if r.timer_over is distinct from 480 then
         raise warning 'timer_over er % - ventet 480', r.timer_over;
-        feil := feil + 1;
-      end if;
-      -- PLANLEGGINGSTALLET STAAR FOR SEG SELV. 11 400, ikke 12 000 -
-      -- og det er nettopp fordi de to er ulike at kontrollene over
-      -- beviser at rammen brukes, ikke planen.
-      if r.plan_timer is distinct from 11400 then
-        raise warning 'plan_timer er % - ventet 11400 (etter fradrag)',
-          r.plan_timer;
         feil := feil + 1;
       end if;
       -- 4 800 000 / 12 000 = 400 kr brutto per time. Budsjettert:
@@ -246,9 +242,9 @@ begin
     values (RET, STASJ, feb, 'ean-feb', '120', 'MAT', 87273, 48000);
 
     insert into public.bemanning_budsjett (stasjon_id, ar, maned, timer)
-      values (STASJ, 2026, 2, 1000);
+      values (STASJ, 2026, 2, 1050);
     insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
-      values (STASJ, 2026, 2, 950);
+      values (STASJ, 2026, 2, 1000);
 
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = feb;
