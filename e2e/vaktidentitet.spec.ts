@@ -356,29 +356,34 @@ test.describe('vaktkapselen er ubetrodd', () => {
 })
 
 // ---------------------------------------------------------------------
-// C. TILSKRIVING: at vakta virker skal ikke bety at den skrives ned
+// C. TILSKRIVING: identiteten som fester seg til arbeidet
 // ---------------------------------------------------------------------
 test.describe('en skrevet kapsel tilskrives ikke arbeid', () => {
-  test('sjekkpunktsvar under en skrevet kapsel far ikke Bos identitet', async ({ page }) => {
-    // Den ENESTE maaten aa bevise dette utenfra: gjor noe under den
-    // skrevne kapselen, og se at flata ikke oppforer seg som om Bo er
-    // paalogget. Selve `ansatt_id`-kolonnen er ikke lesbar herfra -
-    // sjekkpunkt_svar leses ikke ut med ansatt i noen visning - saa
-    // beviset maaler det som ER synlig: at identiteten aldri ble antatt.
+  test('Bo staar ikke som paa vakt paa noen arbeidsflate', async ({ page }) => {
+    // HVA SOM FAKTISK AVGJOR TILSKRIVING: `ansatt_id` paa
+    // rutine_utforinger, ik_avlesninger, sjekkpunkt_svar, avvik, puls og
+    // tilbakemeldinger settes fra `lesAktivAnsatt()` - den samme
+    // funksjonen som fyller navnet i toppstripa. Er vakta tom der, er
+    // `ansatt_id` null overalt. Det er derfor toppstripa ER beviset.
+    //
+    // FORSTE UTGAVE KLIKKET «ja» PAA ET SJEKKPUNKT, og det var feil paa
+    // to maater. Den beviste ingenting ekstra - `ansatt_id` er ikke
+    // lesbar fra noen visning, saa klikket kunne ikke observeres - og
+    // den ENDRET DELT TILSTAND: sjekkpunktene ligger i den samme
+    // seedede basen som e2e/tablet.spec.ts maaler «kritisk foerst» mot,
+    // og de to filene kjorer parallelt. Beviset felte en annen fils
+    // bevis.
+    //
+    // Naa leses tre arbeidsflater uten aa roere noe.
     await loggInn(page)
     await page.goto('/oversikt')
     await skrivKapsel(page, { id: BO.id, navn: BO.navn })
 
-    await page.goto('/sjekkpunkt')
-    expect(await vaktnavn(page), 'Bo sto som paa vakt paa arbeidsflata').not.toBe(BO.navn)
-
-    const ja = page.locator('.tsjekk-ja')
-    if (await ja.count() > 0) {
-      await ja.click()
-      // Svaret skal ga gjennom - handlingen tillater vakt-loese svar,
-      // slik den alltid har gjort - men uten Bos identitet i toppstripa.
-      await expect(page.locator('.rutine-liste')).toBeVisible({ timeout: 15_000 })
-      expect(await vaktnavn(page)).not.toBe(BO.navn)
+    for (const sti of ['/sjekkpunkt', '/rutiner', '/ikmat/maaling']) {
+      const svar = await page.goto(sti)
+      expect(svar?.status(), `${sti} svarte ${svar?.status()}`).toBeLessThan(400)
+      expect(await vaktnavn(page), `Bo sto som paa vakt paa ${sti}`).not.toBe(BO.navn)
+      expect(await vaktnavn(page), `${sti} ga en vakt uten signatur`).toBe('')
     }
   })
 })
