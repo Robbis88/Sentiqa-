@@ -189,6 +189,11 @@ set search_path = public, pg_temp
 as $$
 declare
   v_retailer   uuid;
+  -- KLOKKA, IKKE TRANSAKSJONEN. `now()` staar stille gjennom en hel
+  -- transaksjon, og funksjonen sammenligner mot tidsstempler satt med
+  -- `clock_timestamp()`. Blander man de to, faar man et vindu som
+  -- maaler fra feil nullpunkt - og en nedtelling paa 901 sekunder i et
+  -- vindu paa 900. Hele funksjonen bruker derfor en klokke.
   v_bruker     uuid := auth.uid();
   v_vindu      interval := interval '15 minutes';
   v_maks_id    int := 5;
@@ -237,7 +242,7 @@ begin
     -- pausen forlenge seg selv saa lenge noen hamret, og aldri gaa ut.
     -- Da hadde vi bygget en permanent utestenging med en annen ordlyd.
     and not f.blokkert
-    and f.opprettet_tid > now() - v_vindu
+    and f.opprettet_tid > clock_timestamp() - v_vindu
     and f.id > coalesce((
       select max(g.id) from public.pin_forsok g
       where g.retailer_id = v_retailer
@@ -251,7 +256,7 @@ begin
     and f.bruker_id is not distinct from v_bruker
     and not f.ok
     and not f.blokkert
-    and f.opprettet_tid > now() - v_vindu;
+    and f.opprettet_tid > clock_timestamp() - v_vindu;
 
   if v_feil_id >= v_maks_id or v_feil_enhet >= v_maks_enhet then
     -- Hvor lenge til det eldste relevante forsoeket faller ut av vinduet.
@@ -260,10 +265,10 @@ begin
     where f.retailer_id = v_retailer
       and not f.ok
       and not f.blokkert
-      and f.opprettet_tid > now() - v_vindu
+      and f.opprettet_tid > clock_timestamp() - v_vindu
       and (f.ansatt_nr is not distinct from p_ansatt_nr
            or f.bruker_id is not distinct from v_bruker);
-    v_vent := greatest(1, ceil(extract(epoch from (v_eldste + v_vindu - now())))::int);
+    v_vent := greatest(1, ceil(extract(epoch from (v_eldste + v_vindu - clock_timestamp())))::int);
 
     -- Ogsaa et blokkert forsoek skal staa i sporet. Det er nettopp de
     -- radene som viser at noen holdt paa.
