@@ -228,6 +228,44 @@ begin
       feil := feil + 1;
     end if;
 
+    -- 2j) COOLDOWNEN UTLOEPER. Det manglende beviset: at pausen slipper
+    --     taket igjen. Alt over viser at den SLAAR INN.
+    --
+    --     Maalt som en KONTRAST, ikke ved aa vente et kvarter: to numre
+    --     med noeyaktig like mange feil, der det ene settet er tjue
+    --     minutter gammelt. Faller det gamle utenfor vinduet og det
+    --     ferske ikke gjor det, er det vinduet - ikke tilfeldigheter -
+    --     som avgjor.
+    --
+    --     Radene settes inn direkte her, ikke gjennom funksjonen: vi
+    --     trenger et tidsstempel i fortiden, og funksjonen stempler
+    --     alltid naa.
+    insert into public.pin_forsok
+      (retailer_id, ansatt_nr, bruker_id, kilde, ok, blokkert, opprettet_tid)
+    select RETAILER, '5009', TABLET, 'vakt', false, false,
+           clock_timestamp() - interval '20 minutes'
+    from generate_series(1, 5);
+
+    insert into public.pin_forsok
+      (retailer_id, ansatt_nr, bruker_id, kilde, ok, blokkert, opprettet_tid)
+    select RETAILER, '5010', TABLET, 'vakt', false, false, clock_timestamp()
+    from generate_series(1, 5);
+
+    -- Gammelt: utenfor vinduet, altsaa ikke sperret. Nummeret finnes
+    -- ikke, saa svaret skal vaere `avvist` - ikke `sperret`.
+    select * into r from public.verifiser_ansatt_pin('5009', 'HASH-FEIL', 'vakt');
+    if r.status <> 'avvist' then
+      raise warning 'COOLDOWN SLIPPER IKKE: fem tjue minutter gamle feil ga fortsatt %', r.status;
+      feil := feil + 1;
+    end if;
+
+    -- Ferskt: innenfor vinduet, altsaa sperret.
+    select * into r from public.verifiser_ansatt_pin('5010', 'HASH-FEIL', 'vakt');
+    if r.status <> 'sperret' then
+      raise warning 'KONTRASTEN HOLDER IKKE: fem ferske feil ga % - da maaler ikke vinduet noe', r.status;
+      feil := feil + 1;
+    end if;
+
     -- 2i) Og det direkte forsoeket: kan `authenticated` i det hele tatt
     --     lese kolonnen? Alt over gaar gjennom funksjonen; dette gaar
     --     rett paa tabellen, slik PostgREST ville gjort det.
