@@ -104,6 +104,36 @@ function lesKapsel(raa: string): { id?: string; sig?: string } {
 }
 
 /**
+ * Fyller ut stemplingsskjemaet og venter til det har SETTLET.
+ *
+ * SELEKTORENE ER SKOPET TIL SKJEMAET. `/stempling` har ni
+ * submit-knapper - spraakvelgeren alene har seks - og vaktskjemaet i
+ * toppstripa har OGSAA et `ansatt_nr`-felt etter korrekthetstrinnet.
+ * Et globalt `input[name="ansatt_nr"]` traff derfor to felter.
+ *
+ * OG DEN VENTER PAA BEGGE UTFALL. Foerste utgave ventet bare paa
+ * kvitteringen, og brukte opp hele testens tidsbudsjett paa aa se etter
+ * et element som aldri kom - uten aa si et ord om hva som sto der i
+ * stedet. «element(s) not found» er ikke en diagnose.
+ */
+async function stemple(page: Page, nr: string, pin: string) {
+    await stemple(page, nr, pin)
+  await expect(
+    page.locator('.stempling-kvittering, .stempling-feil'),
+    'stemplingsskjemaet svarte hverken med kvittering eller feilmelding',
+  ).toHaveCount(1, { timeout: 45_000 })
+}
+
+/** Krever kvittering, og sier hva som sto der hvis den mangler. */
+async function krevKvittering(page: Page) {
+  const feil = page.locator('.stempling-feil')
+  if (await feil.count() > 0) {
+    throw new Error(`stemplingen gikk ikke gjennom: «${(await feil.textContent())?.trim()}»`)
+  }
+  await expect(page.locator('.stempling-kvittering')).toBeVisible({ timeout: 45_000 })
+}
+
+/**
  * Skriver vaktkapselen for hånd — slik en angriper med nettbrettets
  * sesjon ville gjort det.
  *
@@ -409,15 +439,12 @@ test.describe('verifiseringen virker for begge innlogginger', () => {
     // Ingen e2e rorte skjemaet foer dette, saa den veien var uten bevis
     // gjennom hele omleggingen.
     await loggInn(page)
-    await page.goto('/stempling')
-    await page.fill('.stempling-skjema input[name="ansatt_nr"]', ADA.nr)
-    await page.fill('.stempling-skjema input[name="pin"]', ADA.pin)
-    await page.locator('.stempling-skjema button[type="submit"]').click()
+    await stemple(page, ADA.nr, ADA.pin)
 
     // Kvitteringen sier NAVN og KLOKKESLETT. «Lagret» er ikke nok: hun
     // skal se at det ble riktig person uten aa lete.
+    await krevKvittering(page)
     const kvittering = page.locator('.stempling-kvittering')
-    await expect(kvittering).toBeVisible({ timeout: 30_000 })
     await expect(kvittering).toContainText(ADA.navn)
     await expect(kvittering).toContainText(/INN|UT/)
   })
