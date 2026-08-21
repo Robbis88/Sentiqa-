@@ -1,34 +1,36 @@
 -- =====================================================================
--- v_timeregnskap: butikksjefens timer holdes utenfor tellingen
+-- v_timeregnskap: rammen justeres naar det ikke er fastloennet leder
 --
--- `timer_aar` er den VARIABLE rammen - St1 har trukket fra ett aarsverk
--- (1695 t) fordi butikksjefen normalt gaar paa fastloenn. Rammen er
--- altsaa definert UTEN henne, og da maa forbruket telles likedan.
+-- St1 trekker ett aarsverk fra timebudsjettet FORDI de antar at
+-- butikksjefen gaar paa fastloenn. Holder ikke antakelsen, maa arbeidet
+-- hennes gjores av timeloennede - fra en ramme som ikke er dimensjonert
+-- for det.
 --
--- Ellers sammenligner vi en befolkning MED butikksjef mot en ramme
--- UTEN, og faar et overforbruk ingen kan gjore noe med: det er ikke en
--- bemanningsbeslutning at butikksjefen er paa jobb.
+--   ramme = bemanning_budsjett.timer
+--         + (aarsverket / 12) for hver maaned UTEN fastloennet leder
 --
--- Robert, 2026-08-21: «om jeg legger inn ansattnummeret til alle
--- butikksjefene da, saa regner vi ikke med de?»
+-- Robert: «hvis det ikke er fastloennete i 6 maaneder saa legger den
+-- til halvparten i budsjettet til den aktuelle butikken.»
 --
--- HVA DETTE KOSTER, sagt hoeyt. Sissel paa Dale gaar paa TIMELOENN og
--- faar betalt for alt hun jobber - altsaa belaster hun konto 503, samme
--- budsjett som rammen. Holdes timene hennes utenfor, forsvinner de fra
--- begge sider av regnestykket. Jobber hun 1 695 gaar det opp; jobber
--- hun 2 200, blir 500 timer usynlige i timebildet.
+-- ALLE TIMER TELLES. Ingen unntak, ingen ansattnummer, ingen kobling
+-- som kan gaa galt. En TIMELOENNET butikksjef faar rammen justert opp
+-- OG timene sine talt: jobber hun et aarsverk gaar det opp, jobber hun
+-- mer vises det. Det var noeyaktig blindsonen i forkastet 0119.
 --
--- Derfor staar `leder_timer` som EGET tall. Ikke i dommen - hun er ikke
--- en bemanningsbeslutning - men ikke skjult heller. Kronene fanges
--- uansett av `/regnskap`, som sammenligner loenn mot loennsbudsjett.
+-- FLATT 1/12, IKKE ETTER BRUTTOKURVEN. Rammen fordeles ellers etter
+-- BP-ens brutto, fordi timeloennede foelger salget. En butikksjef gjor
+-- ikke det - hun er der i februar ogsaa. Aa vekte hennes aarsverk etter
+-- julehandelen ville gitt for lite hjelp i lavsesongen, som er nettopp
+-- naar rammen er trangest.
 --
--- Fra 2026-11-01 er ingen butikksjef paa timeloenn lenger (ny leder paa
--- Dale gaar paa fastloenn), og da er blindsonen borte av seg selv.
+-- INGEN RAD = UKJENT, IKKE «JA». `lederdekning` sier 'ukjent' og
+-- justeringen er null. En tom konfigurasjon skal se tom ut - ikke se ut
+-- som om alt er i orden.
 --
--- INGEN LEDER REGISTRERT -> INGEN EKSKLUDERING. `stasjon_leder` er tom
--- til noen fyller den. Da teller viewet alle, akkurat som foer, og
--- `leder_timer` er null. Det er synlig i tallet, ikke en stille
--- antakelse - en tom konfigurasjon skal se tom ut.
+-- `arsverk_timer` er `bemanning_aar.fast_arsverk_timer`, som i dag er
+-- 0 paa alle fem stasjoner. Da blir justeringen 0 selv om maaneden er
+-- huket av. Kolonnen staar med saa det er SYNLIG at tallet mangler,
+-- i stedet for at justeringen bare uteblir.
 -- =====================================================================
 
 create or replace view public.v_timeregnskap
@@ -77,23 +79,29 @@ kassen as (
   group by v.stasjon_id, date_trunc('month', v.dato)
 ),
 
--- Stemplede timer, delt i to av `stasjon_leder`. `left join` og ikke
--- `exists`: vi trenger aa vite hvilke rader som traff, ikke bare om
--- noen gjorde det.
+-- Rammen for maaneden, justert for manglende lederdekning.
+ramme as (
+  select bb.stasjon_id, bb.ar, bb.maned,
+         bb.timer                                    as ramme_raa,
+         coalesce(a.fast_arsverk_timer, 0)           as arsverk_timer,
+         ld.fastlonnet,
+         case when ld.fastlonnet is false
+              then coalesce(a.fast_arsverk_timer, 0) / 12
+              else 0 end                             as justering
+  from public.bemanning_budsjett bb
+  left join public.bemanning_aar a
+    on a.stasjon_id = bb.stasjon_id and a.ar = bb.ar
+  left join public.bemanning_lederdekning ld
+    on ld.stasjon_id = bb.stasjon_id
+   and ld.ar = bb.ar and ld.maned = bb.maned
+),
+
 timer as (
-  select s.stasjon_id,
-         s.maaned as maned,
-         sum(s.timer) filter (where sl.id is null) as brukte_timer,
-         sum(s.timer) filter (where sl.id is not null) as leder_timer
-  from public.v_stempling_ansatt_mnd s
-  left join public.stasjon_leder sl
-    on sl.stasjon_id = s.stasjon_id
-   and sl.ansatt_nr  = s.ansatt_nr
-   -- Perioden maa overlappe maaneden, ikke bare inneholde dagen 1.
-   -- En leder som slutter 15. i maaneden er leder DEN maaneden.
-   and sl.fra_dato  <= (s.maaned + interval '1 month - 1 day')::date
-   and (sl.til_dato is null or sl.til_dato >= s.maaned)
-  group by s.stasjon_id, s.maaned
+  select stasjon_id,
+         maaned      as maned,
+         sum(timer)  as brukte_timer
+  from public.v_stempling_ansatt_mnd
+  group by stasjon_id, maaned
 )
 
 select
@@ -123,12 +131,12 @@ select
   round((r.margin * 100)::numeric, 1)                    as realisert_margin_pst,
 
   -- RAMMEN St1 ga, fordelt paa maaneder. Ikke planleggingstallet.
-  round(bb.timer)                                        as budsjett_timer,
+  round((rm.ramme_raa + rm.justering))                                        as budsjett_timer,
 
   -- TIMENE STASJONEN HAR RETT PAA.
   case
-    when coalesce(b.bp_brt_avlagt, b.bp_brt_aapen) > 0 and bb.timer is not null
-      then round(bb.timer
+    when coalesce(b.bp_brt_avlagt, b.bp_brt_aapen) > 0 and (rm.ramme_raa + rm.justering) is not null
+      then round((rm.ramme_raa + rm.justering)
                  * (case when b.er_avlagt then b.regn_brt else k.oms * r.margin end)
                  / coalesce(b.bp_brt_avlagt, b.bp_brt_aapen))
   end                                                    as opptjente_timer,
@@ -138,9 +146,9 @@ select
   -- OPPGJOERET. Positivt = brukt mer enn tjent inn.
   case
     when coalesce(b.bp_brt_avlagt, b.bp_brt_aapen) > 0
-     and bb.timer is not null and t.brukte_timer is not null
+     and (rm.ramme_raa + rm.justering) is not null and t.brukte_timer is not null
       then round(t.brukte_timer
-                 - bb.timer
+                 - (rm.ramme_raa + rm.justering)
                    * (case when b.er_avlagt then b.regn_brt else k.oms * r.margin end)
                    / coalesce(b.bp_brt_avlagt, b.bp_brt_aapen))
   end                                                    as timer_over,
@@ -153,8 +161,8 @@ select
        then round((case when b.er_avlagt then b.regn_brt else k.oms * r.margin end)
                   / t.brukte_timer)
   end                                                    as brutto_per_time,
-  case when bb.timer > 0
-       then round(coalesce(b.bp_brt_avlagt, b.bp_brt_aapen) / bb.timer)
+  case when (rm.ramme_raa + rm.justering) > 0
+       then round(coalesce(b.bp_brt_avlagt, b.bp_brt_aapen) / (rm.ramme_raa + rm.justering))
   end                                                    as bp_brutto_per_time,
 
   -- Det butikksjefen faar PLANLEGGE: rammen minus reserve for
@@ -162,11 +170,15 @@ select
   -- mellom «faar planlegge» og «har faatt» kan etterregnes.
   round(m.disponible_timer)                              as plan_timer,
 
-  -- Butikksjefens egne timer. STAAR UTENFOR DOMMEN over, men
-  -- ikke skjult: er de langt over 1695/12 i maaneden, er det
-  -- en kostnad noen boer se, selv om den ikke er en
-  -- bemanningsbeslutning.
-  round(t.leder_timer)                                   as leder_timer
+  -- Justeringen, synlig. Blir den en usynlig tommel paa vekten,
+  -- slutter tallet over aa vaere etterproevbart.
+  round(rm.ramme_raa)                                    as ramme_for_justering,
+  round(rm.justering)                                    as ramme_justering_timer,
+  round(rm.arsverk_timer)                                as arsverk_timer,
+  case when rm.fastlonnet is null then 'ukjent'
+       when rm.fastlonnet        then 'fastlonnet'
+       else                           'ikke_fastlonnet'
+  end                                                    as lederdekning
 
 from bp b
 left join realisert r
@@ -174,10 +186,10 @@ left join realisert r
  and r.aar        = date_trunc('year', b.maned)::date
 left join kassen k
   on k.stasjon_id = b.stasjon_id and k.maned = b.maned
-left join public.bemanning_budsjett bb
-  on bb.stasjon_id = b.stasjon_id
- and bb.ar         = extract(year  from b.maned)::int
- and bb.maned      = extract(month from b.maned)::int
+left join ramme rm
+  on rm.stasjon_id = b.stasjon_id
+ and rm.ar         = extract(year  from b.maned)::int
+ and rm.maned      = extract(month from b.maned)::int
 left join public.bemanning_maned m
   on m.stasjon_id = b.stasjon_id
  and m.ar         = extract(year  from b.maned)::int

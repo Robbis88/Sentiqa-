@@ -57,6 +57,8 @@ begin
     -- bemanning_maned.disponible = etter fradrag       -> 11 400
     -- De er ULIKE med vilje: forveksler viewet dem, blir opptjente
     -- timer 10 944 i stedet for 11 520, og testen feller.
+    insert into public.bemanning_aar (stasjon_id, ar, timer_aar, fast_arsverk_timer)
+      values (STASJ, 2026, 12000 * 12, 0);
     insert into public.bemanning_budsjett (stasjon_id, ar, maned, timer)
       values (STASJ, 2026, 1, 12000);
     insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
@@ -124,83 +126,103 @@ begin
     end if;
 
     -- ============================================================
-    -- BUTIKKSJEFENS TIMER HOLDES UTENFOR TELLINGEN
+    -- RAMMEN JUSTERES NAAR DET IKKE ER FASTLOENNET LEDER
     -- ============================================================
-    -- Rammen `timer_aar` er definert UTEN butikksjefens aarsverk, saa
-    -- forbruket maa telles likedan. Uten dette sammenlignes en
-    -- befolkning MED leder mot en ramme UTEN.
+    -- St1 trakk fra ett aarsverk fordi de antok fastloenn. Holder ikke
+    -- antakelsen, maa arbeidet gjores av timeloennede - fra en ramme
+    -- som ikke er dimensjonert for det.
     --
-    -- Januar har 12 000 timer paa ansatt '1'. Vi legger til 200 timer
-    -- paa ansatt '9', og gjor '9' til butikksjef. Da skal:
+    -- Aarsverket settes til 1200 (ikke 1695) med vilje: 1200/12 = 100
+    -- er et rundt tall som ikke kan forveksles med noe annet i denne
+    -- testen, og som gir en synlig forskjell i opptjente timer.
     --
-    --   brukte_timer  fortsatt vaere 12 000  (ikke 12 200)
-    --   leder_timer   vaere 200
-    --
-    -- Tallene er valgt slik at en feil ikke kan gjemme seg: 200 timer
-    -- er langt over enhver avrunding.
-    insert into public.stempling
-      (stasjon_id, ansatt_nr, ansatt_navn, dato, fra_tid, til_tid, minutter, betalt)
-    values (STASJ, '9', 'Leder Ledersen', jan,
-            time '08:00', time '16:00', 200 * 60, true);
+    -- FOER: ramme 12 000 -> opptjent 12 000 x 4,8/5,0 = 11 520
+    -- ETTER: ramme 12 100 -> opptjent 12 100 x 4,8/5,0 = 11 616
+    update public.bemanning_aar set fast_arsverk_timer = 1200
+     where stasjon_id = STASJ and ar = 2026;
 
-    insert into public.stasjon_leder
-      (retailer_id, stasjon_id, ansatt_nr, navn, fra_dato)
-    values (RET, STASJ, '9', 'Leder Ledersen', jan);
+    -- UKJENT FOERST. Ingen rad = ingen justering, og det skal SIES.
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.lederdekning <> 'ukjent' then
+      raise warning 'uten rad i lederdekning er svaret % - ventet ukjent. '
+                    'En tom konfigurasjon skal se tom ut.', r.lederdekning;
+      feil := feil + 1;
+    end if;
+    if r.ramme_justering_timer is distinct from 0 then
+      raise warning 'ukjent maaned ble justert med % timer', r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+    if r.opptjente_timer is distinct from 11520 then
+      raise warning 'opptjente_timer er % foer justering - ventet 11520',
+        r.opptjente_timer;
+      feil := feil + 1;
+    end if;
+
+    -- JA: fratrekket St1 gjorde er riktig, rammen staar.
+    insert into public.bemanning_lederdekning
+      (retailer_id, stasjon_id, ar, maned, fastlonnet, notat)
+    values (RET, STASJ, 2026, 1, true, 'test: fastloennet paa plass');
 
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = jan;
+    if r.lederdekning <> 'fastlonnet' then
+      raise warning 'lederdekning er % - ventet fastlonnet', r.lederdekning;
+      feil := feil + 1;
+    end if;
+    if r.opptjente_timer is distinct from 11520 then
+      raise warning 'opptjente_timer er % med fastloennet leder - ventet '
+                    '11520. En huket maaned skal IKKE justeres.',
+        r.opptjente_timer;
+      feil := feil + 1;
+    end if;
 
+    -- NEI: permisjon, timeloenn, vikariat - grunnen spiller ingen rolle.
+    update public.bemanning_lederdekning set fastlonnet = false
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.lederdekning <> 'ikke_fastlonnet' then
+      raise warning 'lederdekning er % - ventet ikke_fastlonnet', r.lederdekning;
+      feil := feil + 1;
+    end if;
+    if r.ramme_justering_timer is distinct from 100 then
+      raise warning 'ramme_justering_timer er % - ventet 100 (1200/12)',
+        r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+    if r.budsjett_timer is distinct from 12100 then
+      raise warning 'budsjett_timer er % - ventet 12100 (12000 + 100)',
+        r.budsjett_timer;
+      feil := feil + 1;
+    end if;
+    -- SELVE POENGET: en maaned uten fastloennet leder tjener FLERE timer
+    -- paa samme brutto, fordi rammen skulle vaert stoerre.
+    if r.opptjente_timer is distinct from 11616 then
+      raise warning 'opptjente_timer er % - ventet 11616 (12100 x 4,8/5,0). '
+                    'Er den 11520, ble justeringen ikke lagt til rammen '
+                    'foer bruttoforholdet.', r.opptjente_timer;
+      feil := feil + 1;
+    end if;
+    -- ... og da blir overforbruket mindre: 12 000 - 11 616 = 384.
+    if r.timer_over is distinct from 384 then
+      raise warning 'timer_over er % - ventet 384', r.timer_over;
+      feil := feil + 1;
+    end if;
+
+    -- ALLE TIMER TELLES FORTSATT. Ingen ekskluderes - det var hele
+    -- grunnen til at ansatt_nr-loesningen ble forkastet.
     if r.brukte_timer is distinct from 12000 then
-      raise warning 'brukte_timer er % - ventet 12000. Er den 12200, '
-                    'telles butikksjefen med i bemanningen - mot en ramme '
-                    'som er definert uten henne.', r.brukte_timer;
-      feil := feil + 1;
-    end if;
-    if r.leder_timer is distinct from 200 then
-      raise warning 'leder_timer er % - ventet 200. Timene skal staa '
-                    'utenfor dommen, men ikke vaere skjult.', r.leder_timer;
-      feil := feil + 1;
-    end if;
-
-    -- PERIODEN MAA OVERLAPPE MAANEDEN, ikke bare inneholde dag 1. En
-    -- leder som slutter 15. i maaneden er leder DEN maaneden - og en
-    -- som slutter foer maaneden begynner, er det ikke.
-    update public.stasjon_leder set til_dato = jan + 14 where ansatt_nr = '9';
-    select * into r from public.v_timeregnskap
-    where stasjon_id = STASJ and maned = jan;
-    if r.leder_timer is distinct from 200 then
-      raise warning 'en leder som sluttet 15. januar ble ikke regnet som '
-                    'leder i januar (leder_timer = %)', r.leder_timer;
-      feil := feil + 1;
-    end if;
-
-    -- ... OG EN SOM IKKE VAR LEDER ENNAA SKAL TELLES SOM ALLE ANDRE.
-    -- Dette er Hasan: butikksjef paa Varden fra 01.08, men timeloennet
-    -- ansatt foer det. Timene hans i juli hoerer hjemme i rammen.
-    --
-    -- Uttrykt ved aa flytte fra_dato FRAM, ikke til_dato bakover: en
-    -- leder kan ikke slutte foer hun begynner, og check-skranken sa
-    -- fra da testen forsokte nettopp det.
-    update public.stasjon_leder
-       set fra_dato = feb, til_dato = null
-     where ansatt_nr = '9';
-    select * into r from public.v_timeregnskap
-    where stasjon_id = STASJ and maned = jan;
-    if r.brukte_timer is distinct from 12200 then
-      raise warning 'en som foerst ble leder i februar ble likevel holdt '
-                    'utenfor i januar (brukte_timer = % - ventet 12200)',
-        r.brukte_timer;
-      feil := feil + 1;
-    end if;
-    if r.leder_timer is not null then
-      raise warning 'leder_timer er % i januar for en som ble leder i '
-                    'februar - ventet null', r.leder_timer;
+      raise warning 'brukte_timer er % - ventet 12000. Ingen skal '
+                    'ekskluderes fra tellingen.', r.brukte_timer;
       feil := feil + 1;
     end if;
 
     -- Ryddet, saa kontrollene under ser samme tall som foer.
-    delete from public.stasjon_leder where ansatt_nr = '9';
-    delete from public.stempling where ansatt_nr = '9';
+    delete from public.bemanning_lederdekning where stasjon_id = STASJ;
+    update public.bemanning_aar set fast_arsverk_timer = 0
+     where stasjon_id = STASJ and ar = 2026;
 
     -- ============================================================
     -- FEBRUAR: aapen. Roberts andre eksempel.
