@@ -176,7 +176,17 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
             <dd>{prosent(rad.teoretisk_brutto_pst)}</dd>
           </div>
           <div>
-            <dt>Planen lover</dt>
+            {/* IKKE «planen lover». Bruttobudsjettet for 2026 ER margen
+                vi oppnaadde i 2025 - det er ikke en ambisjon, det er en
+                maaling av i fjor. (Omsetningsbudsjettet er derimot satt
+                med vekst; se `bp_vekst_pst` over.)
+
+                Derfor maaler siste trinn egentlig ETT spoersmaal:
+                har innkjoep og varemiks blitt bedre eller verre enn i
+                fjor? Sto det «planen lover», leste man et positivt tall
+                som «budsjettet var satt for lavt» - naar det i
+                virkeligheten er bedre innkjoepspriser. */}
+            <dt>Planen, fjorårets nivå</dt>
             <dd>{prosent(rad.bp_brutto_ytd_pst)}</dd>
           </div>
           <div>
@@ -185,7 +195,9 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           </div>
           {rad.brutto_mot_bp_pp != null && (
             <div className="bp-gap">
-              <dt>{rad.brutto_mot_bp_pp < 0 ? 'Å dekke inn' : 'Over plan'}</dt>
+              <dt>
+                {rad.brutto_mot_bp_pp < 0 ? 'Å dekke inn' : 'Bedre enn i fjor'}
+              </dt>
               <dd>
                 <Status nivaa={bruttoAlvor(rad.brutto_mot_bp_indeks)}>
                   {`${Math.abs(rad.brutto_mot_bp_pp).toFixed(1).replace('.', ',')} pp`}
@@ -214,6 +226,20 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           feilpris og det som gis bort. På varm drikke er den normalt stor
           fordi kaffeavtaler gir kopper uten et salg bak seg. Målestokken
           over er planen, ikke kassen.
+        </p>
+      )}
+
+      {/* EN FORBEDRING SKAL FORKLARES, IKKE BARE FEIRES. Bruttobudsjettet
+          er fjoraarets oppnaadde margin, saa et positivt tall betyr at
+          noe faktisk er blitt bedre - typisk innkjoepspriser eller
+          varemiks. Uten denne linja leses det som «vi slo budsjettet»,
+          og da leter ingen etter hva som virket. */}
+      {rad.brutto_mot_bp_pp != null && rad.brutto_mot_bp_pp >= 1 && (
+        <p className="bp-grunnlag">
+          Margen er {rad.brutto_mot_bp_pp.toFixed(1).replace('.', ',')} prosentpoeng
+          bedre enn i fjor. Bruttobudsjettet er fjorårets oppnådde margin, så
+          dette er ikke et budsjett satt for lavt — det er bedre innkjøpspriser
+          eller endret varemiks. Verdt å vite hva som virket.
         </p>
       )}
 

@@ -58,6 +58,8 @@ with lister as (
       'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
       'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
       'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
+    -- Er det en fastloennet butikksjef paa plass? En rad per maaned.
+    'bemanning_lederdekning',
       'push_abonnementer'
     ]::text[] as kalde
 )

@@ -122,6 +122,17 @@ export function delEtterKobling<T extends {
  * eneste måned, uten et grep å ta: differansen ER avtalene. Budsjettet
  * er derimot satt med dem innbakt.
  *
+ * BRUTTOBUDSJETTET ER FJORÅRETS OPPNÅDDE MARGIN, ikke en ambisjon.
+ * BP 2026 bruker margen stasjonen faktisk oppnådde i 2025. Det gjør
+ * dette målet skarpere enn det ser ut: det svarer på ÉN ting — har
+ * innkjøp og varemiks blitt bedre eller verre enn i fjor?
+ *
+ * Merk asymmetrien mot omsetningssiden: OMSETNINGSbudsjettet er satt
+ * med vekst (+15 til +32 % på bilvask i 2026), mens BRUTTObudsjettet
+ * er i fjor. De to sidene av samme plan er altså laget på hver sin
+ * måte, og det er greit — men det betyr at «over budsjett» på brutto
+ * ikke betyr det samme som «over budsjett» på omsetning.
+ *
  * TAR INDEKSEN, IKKE PROSENTPOENGENE. `TERSKLER.brfGul` er allerede
  * «bruttofortjeneste, index % under budsjett» og gjelder det samme.
  * En egen pp-grense her ville gitt to sannheter om når brutto er for
