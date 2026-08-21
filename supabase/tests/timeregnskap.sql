@@ -56,9 +56,16 @@ begin
       values (STASJ, 2026, 1, 12000);
 
     -- Brukt noeyaktig hele budsjettet: 12 000 timer.
+    --
+    -- `stempling` har INGEN retailer_id - stasjonen er noekkelen - og
+    -- fra_tid/til_tid er paakrevd. Klokkeslettene er nominelle: viewet
+    -- summerer `minutter`, ikke differansen mellom dem, saa en rad kan
+    -- baere flere timer enn vinduet tilsier. Det er en fikstur, ikke en
+    -- vakt som ble stemplet.
     insert into public.stempling
-      (retailer_id, stasjon_id, ansatt_nr, ansatt_navn, dato, minutter, betalt)
-    values (RET, STASJ, '1', 'Test Testesen', jan, 12000 * 60, true);
+      (stasjon_id, ansatt_nr, ansatt_navn, dato, fra_tid, til_tid, minutter, betalt)
+    values (STASJ, '1', 'Test Testesen', jan,
+            time '08:00', time '16:00', 12000 * 60, true);
 
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = jan;
