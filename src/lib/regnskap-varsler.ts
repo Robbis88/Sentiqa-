@@ -19,18 +19,8 @@ export type RegnskapVarsel = {
   gruppe: number
 }
 
-// Terskler — alt justerbart på ett sted.
-const T = {
-  omsRod: -10, omsGul: -3, // omsetning, index % under budsjett
-  driftRod: 10, driftGul: 3, // driftskostnader, % over budsjett
-  brfGul: -5, // bruttofortjeneste, index % under budsjett
-  resGul: -10_000, // resultat, kr under budsjett (men positivt)
-  lonnOverRod: 10, lonnOverGul: 5, // lønn over LØNNSBUDSJETT i % (St1 setter budsjett)
-  lonnBruttoMiss: -3, // brutto under budsjett % når lønnsbudsjettet er brukt
-  mankoRod: 15_000, mankoGul: 5_000, mankoPstRod: 10, mankoPstGul: 4,
-  overskudd: 5_000, overskuddPst: 4,
-  kast: 4_000, kastPst: 3,
-}
+import { TERSKLER } from './regnskap/terskler'
+const T = TERSKLER
 
 type Linje = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
 type Svinn = { stasjon_id: string | null; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null; kast: number | null }

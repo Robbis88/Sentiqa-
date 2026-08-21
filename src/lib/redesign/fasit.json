@@ -9,6 +9,7 @@
     "/avvik",
     "/bemanning",
     "/brukere",
+    "/businessplan",
     "/databehandleravtale",
     "/dekning",
     "/fokus",
@@ -93,6 +94,7 @@
       "/arrangementer",
       "/bemanning",
       "/brukere",
+      "/businessplan",
       "/dekning",
       "/fokus",
       "/ikmat",
@@ -133,6 +135,7 @@
       "/ansatte",
       "/anvisninger",
       "/bemanning",
+      "/businessplan",
       "/fokus",
       "/ikmat",
       "/ikmat/oppsett",
@@ -488,6 +491,11 @@
       "Ingen brukere ennå",
       "Ny bruker"
     ],
+    "/businessplan": [
+      "Ingen businessplan for denne måneden",
+      "Ingen stasjon valgt",
+      "dynamisk:navn"
+    ],
     "/dekning": [
       "Måned for måned"
     ],
@@ -822,6 +830,9 @@
       "/nyheter"
     ],
     "/bemanning": [
+      "/import"
+    ],
+    "/businessplan": [
       "/import"
     ],
     "/ikmat/maaling": [

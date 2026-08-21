@@ -656,3 +656,90 @@
   font-weight: 700;
   text-decoration: none;
 }
+
+/* =====================================================================
+   Businessplan: én avdeling, lest som en setning
+   ---------------------------------------------------------------------
+   Ikke en KPI-vegg. Seks tall ved siden av hverandre tvinger leseren til
+   å regne selv; her bygges svaret i tre trinn nedover — dommen, så
+   forklaringen, så lekkasjen.
+
+   Alt er tokens. Fargevakten teller hver hex utenfor en tokenlinje.
+   ===================================================================== */
+.bp-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-4);
+}
+
+.bp-rad {
+  padding: var(--luft-5);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius-stor);
+  background: var(--kort);
+}
+
+/* Dommen: navnet til venstre, kronene til høyre. Ett blikk. */
+.bp-topp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--luft-4);
+  flex-wrap: wrap;
+}
+.bp-navn {
+  margin: 0;
+  font-size: var(--tekst-tittel);
+  font-weight: 700;
+}
+
+/* Forklaringen. Mindre enn dommen — den svarer på «hvorfor», ikke på
+   «hva». Fjoråret står sist og dempet: det er kontekst, ikke en dom. */
+.bp-forklaring {
+  margin: var(--luft-2) 0 0;
+  display: flex;
+  gap: var(--luft-4);
+  flex-wrap: wrap;
+  font-size: var(--tekst-brod);
+}
+.bp-mot-plan { font-weight: 600; }
+.bp-mot-ifjor { color: var(--tekst-svak); }
+
+/* Lekkasjen. To måter å regne den samme margen på, og forskjellen
+   mellom dem. Står nederst fordi den bare gir mening etter at man vet
+   om avdelingen er i rute. */
+.bp-brutto {
+  display: flex;
+  gap: var(--luft-6);
+  flex-wrap: wrap;
+  margin: var(--luft-4) 0 0;
+  padding-top: var(--luft-4);
+  border-top: 1px solid var(--kant);
+}
+.bp-brutto > div { display: flex; flex-direction: column; gap: var(--luft-1); }
+.bp-brutto dt {
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+.bp-brutto dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bp-gap dd { font-weight: 800; }
+
+.bp-grunnlag {
+  margin: var(--luft-3) 0 0;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+
+/* En måned som ikke har skjedd: budsjettet alene, uten dom. Dempet, så
+   den ikke leses som en måling. */
+.bp-rad-plan { opacity: 0.75; }
+.bp-planlagt {
+  margin: var(--luft-2) 0 0;
+  color: var(--tekst-svak);
+  font-variant-numeric: tabular-nums;
+}

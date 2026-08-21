@@ -246,6 +246,7 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     // «hvorfor ble det slik», og ingenting krever en handling i dag.
     tittel: 'Innsikt',
     punkter: [
+      { sti: '/businessplan', tekst: 'Businessplan', roller: [A, B] },
       { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
       { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
       { sti: '/maaling', tekst: 'Måling', roller: [A, B] },
