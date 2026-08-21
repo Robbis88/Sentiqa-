@@ -57,6 +57,73 @@ const erRolle = (s: string): s is Rolle => (ALLE_ROLLER as string[]).includes(s)
  * et `return <>…<p>`. Mellomrom og linjeskift varierer, klammer er
  * valgfrie, og begge deler er dekket.
  */
+/**
+ * Rollegrener som står som en BLOKK, ikke som én linje.
+ *
+ * BLINDSONEN DENNE LUKKER: `avvisteRoller` leste bare grener som
+ * returnerte med én gang — `if (bruker.rolle === 'X') return <Noe />`.
+ * Men den vanligste formen i denne kodebasen er en blokk med arbeid før
+ * returen:
+ *
+ *     if (bruker.rolle === 'butikkbruker_tablet') {
+ *       const idag = ...
+ *       ...
+ *       return <TabletPlan ... />
+ *     }
+ *     if (!erLeder(bruker.rolle)) return <p>Kun for ledere.</p>
+ *
+ * Grenen over ble ikke sett i det hele tatt, fordi det står `const` og
+ * ikke `return` rett etter klammen. Det gikk galt i BEGGE retninger:
+ *
+ *   FALSKT FUNN    Rollen ble aldri regnet som håndtert, så portneren
+ *                  under fikk «avvise» en rolle som hadde returnert
+ *                  lenge før den. Slo ut på /produksjonsplan i det
+ *                  øyeblikket nettbrettet fikk rollen sin registrert.
+ *
+ *   STILLE MISS    En blokk som avviser med tekst — `{ const grunn =
+ *                  await hentGrunn(); return <p>{grunn}</p> }` — ble
+ *                  heller ikke sett. Menyen kunne love en side som
+ *                  avviste, uten at noen vakt sa fra.
+ *
+ * Skillet er det samme som ellers i fila: returnerer blokka en KOMPONENT
+ * (stor forbokstav), er det rollens egen visning. Returnerer den bare
+ * tekst, er det en avvisning.
+ */
+const harReturn = /\breturn\b/
+const harKomponent = /<[A-Z]\w/
+
+function blokkgrener(kilde: string): { haandtert: Rolle[]; nektet: Rolle[] } {
+  const haandtert: Rolle[] = []
+  const nektet: Rolle[] = []
+  const start = /if\s*\(\s*bruker\.rolle\s*===\s*'([a-z_]+)'\s*\)\s*\{/g
+  for (const m of kilde.matchAll(start)) {
+    const rolle = m[1]
+    if (!erRolle(rolle)) continue
+    // Finn slutten på blokka ved å telle klammer. En regex kan ikke
+    // gjøre dette, og en som later som, tar feil på første nøstede if.
+    let dybde = 0
+    let i = m.index + m[0].length - 1
+    let slutt = -1
+    for (; i < kilde.length; i++) {
+      if (kilde[i] === '{') dybde++
+      else if (kilde[i] === '}') {
+        dybde--
+        if (dybde === 0) { slutt = i; break }
+      }
+    }
+    if (slutt < 0) continue // ubalansert kilde — si ingenting heller enn å gjette
+    const blokk = kilde.slice(m.index, slutt)
+    if (!harReturn.test(blokk)) continue // ingen retur: grenen svarer ikke
+    // Komponenten står sjelden rett etter `return`. Den vanlige formen er
+    // `return (<> <TabletHode …/> <TabletPlan …/> </>)`, der første tegn
+    // er et fragment — en regel som krevde komponenten rett etter
+    // `return` ville vært blind for nettopp den vanligste formen.
+    if (harKomponent.test(blokk)) haandtert.push(rolle)
+    else nektet.push(rolle)
+  }
+  return { haandtert, nektet }
+}
+
 export function avvisteRoller(kilde: string): Avvisning {
   const nektede = new Set<Rolle>()
 
@@ -70,6 +137,8 @@ export function avvisteRoller(kilde: string): Avvisning {
   // Derfor: én gjennomgang i kildens rekkefølge. En rolle som allerede
   // har fått sitt svar, når aldri portneren under.
   const haandtert = new Set<Rolle>()
+  const iBlokk = blokkgrener(kilde)
+  for (const r of iBlokk.haandtert) haandtert.add(r)
 
   // `if (<vilkår>) [{] return <Noe` eller `… redirect(`. Taggen skiller:
   // liten forbokstav / fragment = tekstsvar = portner. Stor forbokstav
@@ -141,6 +210,8 @@ export function avvisteRoller(kilde: string): Avvisning {
     return { slag: 'ukjent', tekst: vilkaar }
   }
 
+  // En blokk som svarer med tekst er en avvisning, og skal telle som en.
+  for (const r of iBlokk.nektet) nektede.add(r)
   // Trekk fra de som fikk svaret sitt lenger opp.
   for (const r of haandtert) nektede.delete(r)
   return { slag: 'roller', nektede: [...nektede].sort() }

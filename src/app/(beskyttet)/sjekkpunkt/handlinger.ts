@@ -61,8 +61,8 @@ export async function slettSjekkpunkt(formData: FormData) {
 export async function svarSjekkpunktTablet(sjekkpunktId: string, stasjonId: string, ja: boolean): Promise<{ ok: boolean }> {
   const bruker = await hentInnloggetBruker()
   if (!sjekkpunktId || !stasjonId) return { ok: false }
-  const ansatt = await lesAktivAnsatt()
   const supabase = await lagSupabaseServerKlient()
+  const ansatt = await lesAktivAnsatt(supabase)
   await supabase.from('sjekkpunkt_svar').upsert(
     { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: ja, svart_av: bruker.id, svart_tid: new Date().toISOString(), ansatt_id: ansatt?.id ?? null },
     { onConflict: 'sjekkpunkt_id,dato' },
@@ -82,8 +82,8 @@ export async function svar(formData: FormData) {
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   const verdi = String(formData.get('svar') ?? '') === 'ja'
   if (!sjekkpunktId || !stasjonId) return
-  const ansatt = await lesAktivAnsatt()
   const supabase = await lagSupabaseServerKlient()
+  const ansatt = await lesAktivAnsatt(supabase)
   await supabase.from('sjekkpunkt_svar').upsert(
     { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: verdi, svart_av: bruker.id, svart_tid: new Date().toISOString(), ansatt_id: ansatt?.id ?? null },
     { onConflict: 'sjekkpunkt_id,dato' },

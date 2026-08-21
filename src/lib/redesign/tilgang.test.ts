@@ -111,6 +111,57 @@ describe('rollevakt', () => {
     }
   })
 
+  test('en gren i en BLOKK teller som egen visning', () => {
+    // KANARIFUGL FOR REGELEN SOM BLE LAGT TIL I BØLGE 5.
+    //
+    // Vakten leste bare grener som returnerte med én gang. Den vanligste
+    // formen i denne kodebasen er en blokk med arbeid før returen, og
+    // den var usynlig: rollen ble aldri regnet som håndtert, og en
+    // portner lenger nede fikk «avvise» en rolle som hadde returnert
+    // lenge før den. Det ga et falskt funn på /produksjonsplan i det
+    // øyeblikket nettbrettet fikk rollen sin registrert i navigasjonen.
+    //
+    // Slutter regelen å se blokker, blir det falske funnet borte igjen —
+    // og et falskt funn som forsvinner ser ut som en side som ble fikset.
+    const medBlokk = `
+      export default async function Side() {
+        const bruker = await hentInnloggetBruker()
+        if (bruker.rolle === 'butikkbruker_tablet') {
+          const data = await hent()
+          return <TabletPlan data={data} />
+        }
+        if (!erLeder(bruker.rolle)) return <p>Ingen tilgang.</p>
+        return <Leder />
+      }`
+    const svar = avvisteRoller(medBlokk)
+    expect(svar.slag, 'formen skal være lesbar').toBe('roller')
+    if (svar.slag === 'roller') {
+      expect(svar.nektede, 'nettbrettet returnerer i sin egen blokk og skal ikke telles som avvist')
+        .not.toContain('butikkbruker_tablet')
+      expect(svar.nektede, 'plattform-redaktøren har ingen gren og skal fortsatt avvises')
+        .toContain('plattform_redaktor')
+    }
+
+    // OG GRENSA HOLDER: en blokk som bare svarer med TEKST er en
+    // avvisning, ikke en egen visning. Uten dette kravet ville regelen
+    // gjort enhver rollesjekk til et fribrev.
+    const baretekst = `
+      export default async function Side() {
+        const bruker = await hentInnloggetBruker()
+        if (bruker.rolle === 'butikkbruker_tablet') {
+          const grunn = await hentGrunn()
+          return <p>{grunn}</p>
+        }
+        return <Leder />
+      }`
+    const svar2 = avvisteRoller(baretekst)
+    expect(svar2.slag).toBe('roller')
+    if (svar2.slag === 'roller') {
+      expect(svar2.nektede, 'en blokk som bare returnerer tekst er en avvisning')
+        .toContain('butikkbruker_tablet')
+    }
+  })
+
   test('hver tilgangssjekk er leselig for vakten', () => {
     const uleselige: string[] = []
     for (const [rute, kilde] of kildeFor) {

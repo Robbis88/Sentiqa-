@@ -52,19 +52,30 @@ export async function leggTilAnsatt(_t: AnsattTilstand, formData: FormData): Pro
 }
 
 /**
- * To unike indekser kan slå til her, og de betyr helt ulike ting.
+ * Én melding for begge indeksene — med vilje, og med et tap.
  *
- * Sier vi bare «allerede i bruk», må butikksjefen gjette hvilken av dem
- * hun skal endre — og det vanlige gjettet er PIN, fordi det er det hun
- * nettopp valgte selv. Da endrer hun feil felt og får samme feil igjen.
+ * FØR: «PIN er allerede i bruk — velg en annen.» Den var vennlig, og
+ * den bekreftet en hemmelighet. En butikksjef kunne prøve seg fram og
+ * kartlegge hvilke PIN-er som er i bruk i hele kjeden, fire siffer om
+ * gangen. Så lenge PIN var identiteten på nettbrettet, var det nok til
+ * å logge på som noen.
+ *
+ * TAPET, SOM SKAL STÅ SKREVET: den forrige utgaven het at hun ellers
+ * måtte gjette hvilket felt som var galt, og at det vanlige gjettet er
+ * PIN. Det argumentet er fortsatt riktig. Meldingen nevner derfor BEGGE
+ * årsakene i stedet for å velge én — hun kan fortsatt rette feilen, men
+ * svaret sier ikke hvilken av dem det var.
+ *
+ * Grunnen til at PIN-en må være unik i det hele tatt, er at den var et
+ * databaseoppslag. Etter dette trinnet er den bare en hemmelighet, og
+ * `ansatte_pin_unik` kan droppes. Det er en migrasjon, og hører til et
+ * eget trinn.
  */
 function forklarFeil(melding: string): string {
-  if (/ansatt_nr/i.test(melding)) {
-    return 'Ansattnummeret er allerede brukt på en annen ansatt. '
-      + 'Sjekk nummeret mot Azets.'
-  }
   if (/duplicate|unique/i.test(melding)) {
-    return 'PIN er allerede i bruk — velg en annen.'
+    return 'Kunne ikke lagre. Ansattnummeret eller PIN-en er allerede '
+      + 'i bruk på en annen ansatt — velg en ny PIN, og sjekk nummeret '
+      + 'mot Azets.'
   }
   return melding
 }

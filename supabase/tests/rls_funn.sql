@@ -34,6 +34,9 @@ with lister as (
       'tablet_meldinger', 'skills_score', 'tildelte_merker',
       'opplaering_skift', 'opplaering_utfort', 'avvik', 'malekort',
       'malekort_scope', 'rutiner',
+    -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
+    -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
+    'pin_forsok',
       'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
       'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned',
       'bemanning_stasjon', 'stempling', 'stempling_hendelse',

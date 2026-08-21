@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { TabletHode } from '../tablet-hode'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { oversettMange } from '@/lib/oversett'
@@ -34,7 +36,15 @@ export default async function AnvisningerSide() {
   // (selv om sprak-cookien er satt av en tablet-bruker i samme nettleser).
   const { cookies } = await import('next/headers')
   const sprak = bruker.rolle === 'butikkbruker_tablet' ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
-  const fast = ['Anvisninger', 'Prosedyrer og oppskrifter — slå opp når du trenger det.', 'Ingen anvisninger ennå.']
+  const fast = [
+    'Anvisninger', 'Prosedyrer og oppskrifter — slå opp når du trenger det.',
+    'Ingen anvisninger ennå.', 'anvisning', 'anvisninger',
+    // Nettbrettets «Hjelp» og foten under den (bolge 5).
+    'Hjelp', 'Slå opp når du trenger det.', 'Mer hjelp',
+    'Lenker', 'Hurtiglenker for å hjelpe kunder',
+    'Nyheter', 'Oppdateringer og tips',
+    'Slik måler vi', 'Hva systemet lagrer om deg',
+  ]
   const oversatt = await oversettMange([...fast, ...(data ?? []).flatMap((a) => [a.kategori, a.tittel, a.innhold])], sprak)
   const o = (s: string) => oversatt.get(s) ?? s
 
@@ -55,13 +65,25 @@ export default async function AnvisningerSide() {
     </Sidepanel>
   ) : undefined
 
+  // «HJELP» PAA NETTBRETTET, «Anvisninger» hos lederen.
+  //
+  // Samme innhold, to aerend. Lederen vedlikeholder et bibliotek; hun som
+  // staar i butikken har et problem og trenger svaret. Derfor heter fana
+  // det hun kommer for — og derfor staar Lenker, Nyheter og «Slik maaler
+  // vi» i foten her, i stedet for som egne faner og fliser.
+  const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
+
   return (
     <>
-      <Sidehode
-        tittel={o('Anvisninger')}
-        undertittel={o('Prosedyrer og oppskrifter — slå opp når du trenger det.')}
-        handlinger={nyPanel}
-      />
+      {paaNettbrett ? (
+        <TabletHode tittel={o('Hjelp')} undertittel={o('Slå opp når du trenger det.')} />
+      ) : (
+        <Sidehode
+          tittel={o('Anvisninger')}
+          undertittel={o('Prosedyrer og oppskrifter — slå opp når du trenger det.')}
+          handlinger={nyPanel}
+        />
+      )}
 
       {grupper.size === 0 ? (
         <Tomtilstand
@@ -96,6 +118,36 @@ export default async function AnvisningerSide() {
         ))
       )}
       <p className="undertittel">{antall} {antall === 1 ? o('anvisning') : o('anvisninger')}</p>
+
+      {/* FOTEN. Tre ruter som hver hadde en fane eller en flis paa hjem,
+          og som alle svarer paa det samme aerendet: «jeg trenger aa vite
+          noe». De mistet ikke en vei — de mistet en dublett, og fikk et
+          sted der de hoerer sammen. */}
+      {paaNettbrett && (
+        <nav className="tablet-fot" aria-label={o('Mer hjelp')}>
+          <Link href="/lenker" className="tablet-videre">
+            <span className="tablet-videre-tekst">
+              <strong>{o('Lenker')}</strong>
+              <span className="undertittel">{o('Hurtiglenker for å hjelpe kunder')}</span>
+            </span>
+            <span className="tablet-videre-pil" aria-hidden>›</span>
+          </Link>
+          <Link href="/nyheter" className="tablet-videre">
+            <span className="tablet-videre-tekst">
+              <strong>{o('Nyheter')}</strong>
+              <span className="undertittel">{o('Oppdateringer og tips')}</span>
+            </span>
+            <span className="tablet-videre-pil" aria-hidden>›</span>
+          </Link>
+          <Link href="/mine-opplysninger" className="tablet-videre">
+            <span className="tablet-videre-tekst">
+              <strong>{o('Slik måler vi')}</strong>
+              <span className="undertittel">{o('Hva systemet lagrer om deg')}</span>
+            </span>
+            <span className="tablet-videre-pil" aria-hidden>›</span>
+          </Link>
+        </nav>
+      )}
     </>
   )
 }

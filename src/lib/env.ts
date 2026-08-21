@@ -26,6 +26,12 @@ const skjema = z.object({
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().min(1).optional(), // mailto:… kontakt
+  // Signerer vaktkapselen paa nettbrettet. Uten den kan ingen starte
+  // vakt - med vilje: en kapsel uten signatur kan skrives for haand av
+  // den som har nettbrettets sesjon, og da er identiteten en paastand.
+  // Valgfri i skjemaet saa bygget ikke velter, men kontrollen feiler
+  // LUKKET i drift: mangler den, virker ikke vaktinnlogging.
+  VAKT_SIGNATUR_SECRET: z.string().min(32).optional(),
   // Vercel Cron sender denne i Authorization-headeren ved nattjobber.
   CRON_SECRET: z.string().min(1).optional(),
 })

@@ -5,6 +5,8 @@ import { NyttSjekkpunkt } from './nytt-sjekkpunkt'
 import { svar, slettSjekkpunkt } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { TabletSjekk, type Punkt as TabletPunkt } from './tablet-sjekk'
+import { TabletHode } from '../tablet-hode'
 
 type Sjekk = {
   id: string
@@ -57,6 +59,41 @@ export default async function SjekkpunktSide() {
         kritiskNei > 0 ? `${kritiskNei} kritisk besvart nei` : null,
         kritiskUbesvart > 0 ? `${kritiskUbesvart} kritisk ubesvart` : null,
       ].filter(Boolean).join(' · ')
+
+  // NETTBRETTET FAAR ETT SPOERSMAAL AV GANGEN. Se tablet-sjekk.tsx:
+  // denne ruta er koens hoyest prioriterte rad, og fram til bolge 5
+  // fikk hun lederens adminpanel naar hun trykket paa den.
+  //
+  // Rekkefolgen er koens egen (lib/tablet/gjenstaar.ts): kritisk foerst,
+  // saa etter klokkeslett. Den staar to steder fordi de to listene har
+  // ulik form — men de skal si det samme, og gjor det.
+  if (bruker.rolle === 'butikkbruker_tablet') {
+    const tabletPunkter: TabletPunkt[] = alle
+      .map((p) => ({
+        id: p.id,
+        stasjonId: p.stasjon_id,
+        sporsmaal: p.sporsmaal,
+        kritisk: p.kritisk,
+        klokkeslett: p.klokkeslett,
+        svar: svarFor.has(p.id) ? (svarFor.get(p.id) as boolean) : null,
+      }))
+      .sort((a, b) => {
+        if (a.kritisk !== b.kritisk) return a.kritisk ? -1 : 1
+        if ((a.klokkeslett === null) !== (b.klokkeslett === null)) {
+          return a.klokkeslett === null ? 1 : -1
+        }
+        if (a.klokkeslett && b.klokkeslett && a.klokkeslett !== b.klokkeslett) {
+          return a.klokkeslett < b.klokkeslett ? -1 : 1
+        }
+        return 0
+      })
+    return (
+      <>
+        <TabletHode tittel={svarTekst} undertittel={datoLang.format(new Date(idag))} />
+        <TabletSjekk punkter={tabletPunkter} />
+      </>
+    )
+  }
 
   return (
     <>

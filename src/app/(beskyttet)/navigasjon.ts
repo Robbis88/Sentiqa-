@@ -121,9 +121,46 @@ export function gruppeFor(sti: string): Fanegruppe | null {
  * ville gaatt upaaaktet hen.
  */
 export const TABLETMENY: Punkt[] = [
-  { sti: '/oversikt', tekst: 'Hjem', roller: [T] },
+  { sti: '/oversikt', tekst: 'I dag', roller: [T] },
   { sti: '/rutiner', tekst: 'Rutiner', roller: [T] },
-  { sti: '/anvisninger', tekst: 'Anvisninger', roller: [T] },
+  { sti: '/anvisninger', tekst: 'Hjelp', roller: [T] },
+]
+
+/**
+ * Rutene nettbrettet naar UTEN aa vaere en fane.
+ *
+ * FASITEN LOEY, OG DEN LOEY I VAAR FAVOER. Fire faner og fem fliser var
+ * ni innganger til aatte ruter — men nettbrettet brukte tretten.
+ * '/produksjonsplan' sto i koen hver dag, '/varsler' henger i bjella,
+ * '/ikmat/maaling' er der temperaturen faktisk skrives, og
+ * '/sjekkpunkt' er koens hoyest prioriterte rad. Ingen av dem sto med
+ * rollen [T] noe sted, og naabart() kunne derfor ikke se dem.
+ *
+ * Foelgen var ikke at de var utilgjengelige. Foelgen var at de kunne
+ * FORSVINNE uten at vakthunden bjeffet — og en vakt som ikke ser en
+ * rute, ser noyaktig ut som en vakt som ikke finner noe galt.
+ *
+ * Dette er derfor ikke seks nye evner. Det er seks evner som endelig
+ * telles. '/vaar-stasjon' er den eneste virkelig nye flata.
+ */
+export const NETTBRETTFLATER: Punkt[] = [
+  // Sekundaerflata: engasjement og innsikt, naadd som EN rad fra «I dag».
+  // Ikke en fjerde modus — derfor ikke i TABLETMENY.
+  { sti: '/vaar-stasjon', tekst: 'Vår stasjon', roller: [T] },
+  // Naas fra koen og fra fremdriften paa «I dag».
+  { sti: '/produksjonsplan', tekst: 'Produksjon', roller: [T] },
+  // Koens hoyest prioriterte rad.
+  { sti: '/sjekkpunkt', tekst: 'Sjekkpunkter', roller: [T] },
+  // Der temperaturen faktisk skrives. Naas fra /rutiner og /ikmat.
+  { sti: '/ikmat/maaling', tekst: 'IK-mat måling', roller: [T] },
+  // Bjella i toppstripa.
+  { sti: '/varsler', tekst: 'Varsler', roller: [T] },
+  // ARBEIDSDAGEN, IKKE ENHETEN. Vakt-PIN-en i toppstripa sier hvem som
+  // holder nettbrettet (informasjonskapsel, 12 t, ingen skriving).
+  // Stemplingen skriver lonnsgrunnlag. To evner, ikke en — se
+  // stempling/handlinger.ts. Naas som kontekstuell rad paa «I dag».
+  { sti: '/stempling', tekst: 'Stemple inn og ut', roller: [T] },
+  // Foten under «Hjelp». Laa i TABLETMENY som egen fane til bolge 5.
   { sti: '/lenker', tekst: 'Lenker', roller: [T] },
 ]
 
@@ -255,5 +292,6 @@ export function naabart(rolle: Brukerrolle): string[] {
     for (const f of g.faner) if (f.roller.includes(rolle)) ut.add(f.sti)
   }
   for (const p of TABLETMENY) if (p.roller.includes(rolle)) ut.add(p.sti)
+  for (const p of NETTBRETTFLATER) if (p.roller.includes(rolle)) ut.add(p.sti)
   return [...ut].sort()
 }

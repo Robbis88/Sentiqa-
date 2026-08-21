@@ -6,6 +6,8 @@ import {
   type Fasit,
 } from './fasit'
 import { MONSTRE, RUTEMONSTER, TABLETRUTER } from './monstre'
+import { FLYTTEDE_SEKSJONER, OMSKREVNE_SEKSJONER } from './flyttet'
+import { utenKommentarer } from './design'
 
 // =====================================================================
 // Vakthund for redesignet.
@@ -136,9 +138,145 @@ describe('funksjonsbevaring', () => {
 
   // --- MYKT: skal endres, men ikke umerket ---
 
+  // -------------------------------------------------------------------
+  // Flytting er ikke tap — men det må bevises, ikke påstås.
+  // -------------------------------------------------------------------
+
+  /**
+   * Hele UI-treet for en rute, som én streng, UTEN kommentarer.
+   *
+   * Kommentarene må vekk, ellers leser vakten sin egen dokumentasjon som
+   * kode. Første utgave felte `/oversikt` for å «rendre VekstKort
+   * fortsatt» — treffet lå i en kommentar i tablet-hero.tsx som forklarte
+   * hvorfor komponenten var flyttet vekk. En vakt som ikke skiller kode
+   * fra prosa, straffer den som skriver ned hvorfor.
+   */
+  function kildeForRute(rute: string): string {
+    const sti = filer(APP, (n) => n === 'page.tsx').find((f) => rutenavn(f) === rute)
+    if (!sti) return ''
+    const buffer = new Map<string, string | null>()
+    const les = (p: string) => {
+      if (!buffer.has(p)) {
+        try { buffer.set(p, readFileSync(p, 'utf8')) } catch { buffer.set(p, null) }
+      }
+      return buffer.get(p) ?? null
+    }
+    return rutetre(sti, les, APP).map((f) => utenKommentarer(les(f) ?? '')).join('\n')
+  }
+
+  test('flyttede seksjoner er flyttet, ikke tapt', () => {
+    // FEM KRAV PER RAD. Erklæringen i flyttet.ts er en påstand; dette er
+    // forsøket på å motbevise den. Holder ikke ett av kravene, feller
+    // vakten HER — på erklæringen — i stedet for å la den dekke over noe.
+    const brudd: string[] = []
+    const tabletRuter = new Set(naa.naabart['butikkbruker_tablet'] ?? [])
+
+    for (const f of FLYTTEDE_SEKSJONER) {
+      const merke = `${f.seksjon} (${f.fra} → ${f.til})`
+
+      // 1. Borte fra der den sto. Ellers er ingenting flyttet, og
+      //    erklæringen skjuler en dublett i stedet for en flytting.
+      if ((naa.seksjoner[f.fra] ?? []).includes(f.seksjon)) {
+        brudd.push(`${merke}: står fortsatt på ${f.fra} — dette er ikke en flytting`)
+      }
+
+      // 2. Finnes der den skal være. Dette er hele forskjellen på flyttet
+      //    og slettet.
+      if (!(naa.seksjoner[f.til] ?? []).includes(f.seksjon)) {
+        brudd.push(`${merke}: finnes ikke på ${f.til} — da er den TAPT, ikke flyttet`)
+      }
+
+      // 3. Samme capability. Komponenten som bar seksjonen skal ha fulgt
+      //    med — ikke blitt skrevet om til noe som ligner.
+      const tilKilde = kildeForRute(f.til)
+      if (!tilKilde.includes(f.komponent)) {
+        brudd.push(`${merke}: ${f.til} rendrer ikke ${f.komponent} — capabilityen fulgte ikke med`)
+      }
+      if (kildeForRute(f.fra).includes(f.komponent)) {
+        brudd.push(`${merke}: ${f.fra} rendrer fortsatt ${f.komponent}`)
+      }
+
+      // 4. Samme rolle. Den som så seksjonen før, skal se den nå.
+      //    Nettbrettet er den eneste rollen som når begge rutene.
+      if (!tabletRuter.has(f.fra) || !tabletRuter.has(f.til)) {
+        brudd.push(`${merke}: nettbrettet når ikke begge rutene — rollen fulgte ikke med`)
+      }
+
+      // 5. Navigerbar. En flate ingen kommer til, er ikke en flytting —
+      //    det er en gjemmeleik. Dette er den lumske av de fem.
+      //
+      //    LEST AV HELE TREET, ikke av `naa.lenker`. Det kartet leser
+      //    bare page.tsx, med god grunn (se byggFasit): en delt komponent
+      //    ville dratt appskallets lenker inn på hver eneste rute. Men
+      //    nettbrettets vei til «Vår stasjon» ligger nettopp i en
+      //    komponent — tablet-hjem.tsx — og et krav som bare så page.tsx
+      //    ville felt en lenke som står der og virker.
+      if (!kildeForRute(f.naaddFra).includes(`"${f.til}"`)) {
+        brudd.push(`${merke}: ${f.naaddFra} lenker ikke til ${f.til} — ingen kommer dit`)
+      }
+    }
+
+    expect(brudd, `\n  ${brudd.join('\n  ')}\n`).toEqual([])
+  })
+
+  test('omskrevne seksjoner står på samme rute', () => {
+    // Strengere enn en flytting: her har ingenting flyttet seg, bare
+    // uttrykket vakten leser navnet ut av. Da må BEGGE navnene høre til
+    // samme rute — det gamle borte, det nye på plass.
+    const brudd: string[] = []
+    for (const o of OMSKREVNE_SEKSJONER) {
+      const paaRuta = naa.seksjoner[o.rute] ?? []
+      if (paaRuta.includes(o.fra)) {
+        brudd.push(`${o.fra}: står fortsatt på ${o.rute} — ingenting er skrevet om`)
+      }
+      if (!paaRuta.includes(o.til)) {
+        brudd.push(`${o.fra} → ${o.til}: ${o.til} finnes ikke på ${o.rute} — dette er et tap`)
+      }
+    }
+    expect(brudd, `\n  ${brudd.join('\n  ')}\n`).toEqual([])
+  })
+
   test('ingen seksjon er borte uten at det er erklært', () => {
+    // ERKLÆRINGEN ER IKKE ET FRITAK, og det er verdt å si tydelig.
+    //
+    // Fasiten under er oppdatert med flyttingen, så denne testen er like
+    // streng som før — den krever fortsatt at INGENTING er borte. Det
+    // `flyttet.ts` gjør, er å holde de fem kravene i live etterpå: at
+    // seksjonene faktisk står på `/vaar-stasjon`, med samme komponent,
+    // for samme rolle, lenket fra «I dag». Faller én av dem, feller
+    // testen over — ikke denne.
+    //
+    // Alternativet var å la fasiten stå uoppdatert og trekke fra det
+    // erklærte her. Da hadde fasiten løyet om hvor seksjonene er, og
+    // fratrekket kunne vokst stille. En erklæring som beviser noe er
+    // bedre enn en som unntar noe.
     expect(borteI(fasit!.seksjoner, naa.seksjoner), `Seksjoner borte. ${hjelp}`)
       .toEqual({})
+  })
+
+  test('erklaeringene i flyttet.ts peker paa ruter som finnes', () => {
+    // KANARIFUGL FOR ERKLÆRINGEN SELV.
+    //
+    // Bevisene over er bare verdt noe hvis de faktisk kjører. En rad som
+    // peker på en rute som ikke finnes, gir tomme seksjonslister på begge
+    // sider — og da er alle fem kravene trivielt oppfylt uten at noe er
+    // sjekket. Det er den stilleste måten en vakt kan slutte å se på.
+    const finnes = new Set(naa.ruter)
+    const doede: string[] = []
+    for (const f of FLYTTEDE_SEKSJONER) {
+      for (const [felt, rute] of [['fra', f.fra], ['til', f.til], ['naaddFra', f.naaddFra]]) {
+        if (!finnes.has(rute)) doede.push(`${f.seksjon}: ${felt} = ${rute} finnes ikke`)
+      }
+      if ((naa.seksjoner[f.til] ?? []).length === 0) {
+        doede.push(`${f.seksjon}: ${f.til} har ingen seksjoner i det hele tatt`)
+      }
+    }
+    for (const o of OMSKREVNE_SEKSJONER) {
+      if (!finnes.has(o.rute)) doede.push(`${o.fra}: rute = ${o.rute} finnes ikke`)
+    }
+    expect(doede, `Erklæringer som ikke måler noe:\n  ${doede.join('\n  ')}\n`).toEqual([])
+    expect(FLYTTEDE_SEKSJONER.length + OMSKREVNE_SEKSJONER.length,
+      'Lista er tom — da kjører de fem kravene på ingenting.').toBeGreaterThan(0)
   })
 
   test('ingen navigasjonsvei er borte uten at det er erklært', () => {

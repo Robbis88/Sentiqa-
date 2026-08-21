@@ -14,8 +14,8 @@ export async function kryssAv(formData: FormData) {
   const stasjonId = String(formData.get('stasjon_id') ?? '')
   const dato = String(formData.get('dato') ?? '')
   if (!rutineId || !stasjonId || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return
-  const ansatt = await lesAktivAnsatt()
   const supabase = await lagSupabaseServerKlient()
+  const ansatt = await lesAktivAnsatt(supabase)
   await supabase.from('rutine_utforinger').upsert(
     { rutine_id: rutineId, stasjon_id: stasjonId, dato, utfort_av: bruker.id, ansatt_id: ansatt?.id ?? null },
     { onConflict: 'rutine_id,dato', ignoreDuplicates: true },
@@ -37,8 +37,8 @@ export async function kryssAvMedBilde(formData: FormData) {
   const buffer = Buffer.from(await fil.arrayBuffer())
   const ext = fil.type === 'image/png' ? 'png' : 'jpg'
   const sti = `${bruker.retailerId}/${stasjonId}/${randomUUID()}.${ext}`
-  const ansatt = await lesAktivAnsatt()
   const supabase = await lagSupabaseServerKlient()
+  const ansatt = await lesAktivAnsatt(supabase)
 
   const opp = await supabase.storage.from(BILDE_BUCKET).upload(sti, buffer, { contentType: fil.type })
   if (opp.error) return

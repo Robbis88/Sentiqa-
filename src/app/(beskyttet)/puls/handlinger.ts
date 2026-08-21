@@ -119,7 +119,7 @@ export async function svarRunde(_t: SvarResultat | undefined, formData: FormData
   if (!rundeId || !Number.isInteger(skala) || skala < 1 || skala > 5) return { feil: 'Velg en verdi.' }
 
   const supabase = await lagSupabaseServerKlient()
-  const ansatt = await lesAktivAnsatt()
+  const ansatt = await lesAktivAnsatt(supabase)
   const stasjonId = await hentStasjonId(supabase, ansatt)
   if (!stasjonId) return { feil: 'Fant ingen stasjon.' }
 

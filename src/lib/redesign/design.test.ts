@@ -111,6 +111,28 @@ describe('design-skrallen', () => {
       .toBeGreaterThan(0)
   })
 
+  test('emoji-moensteret ser de som ikke ber om aa vaere emoji', () => {
+    // KANARIFUGL FOR EN VAKT SOM ALLEREDE HAR VAERT BLIND.
+    //
+    // Fram til bolge 5 lette moensteret etter surrogatpar eller U+FE0F.
+    // Hake-i-boks og utropstegn er ingen av delene - de er ETT kodepunkt
+    // inne i BMP med emoji-utseende som standard - og de sto paa
+    // nettbrettet gjennom hele bolgen mens tellingen sa null.
+    //
+    // Denne feller hvis noen snevrer moensteret inn igjen. Uten den ser
+    // en halvblind vakt noyaktig ut som en ren kodebase.
+    const skalTelles = ['\u2705', '\u2757', '\u{1F950}', '\u26A0\uFE0F']
+    for (const e of skalTelles) {
+      expect(maal(`<p>${e}</p>`).emoji, `Moensteret ser ikke ${e}`).toBe(1)
+    }
+    // Og de funksjonelle glyffene skal fortsatt gaa fri. En skralle som
+    // feller haken paa en knapp, blir slaatt av - og da maaler den null.
+    const skalStaa = ['\u2713', '\u2715', '\u2014', '\u203A', '\u25B2', '\u21A9\uFE0E']
+    for (const g of skalStaa) {
+      expect(maal(`<p>${g}</p>`).emoji, `Moensteret feller ${g}, som er tekst`).toBe(0)
+    }
+  })
+
   test('ingen av signalene har vokst', () => {
     if (process.env.OPPDATER_FASIT === '1' || !existsSync(FASIT)) {
       writeFileSync(FASIT, `${JSON.stringify(naa, null, 2)}\n`)

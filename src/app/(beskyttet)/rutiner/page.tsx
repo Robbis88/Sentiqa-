@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { TabletHode } from '../tablet-hode'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
@@ -101,6 +102,9 @@ export default async function RutinerSide() {
     'Alt klart!', '1 igjen — nesten i mål!', 'igjen', 'Ferdige',
     'Alt er gjort', 'Ingen rutiner på vakta nå', 'dager på rad',
     'Lagre bilde', 'krever bilde', 'målt', 'trykk for å måle',
+    // Foten som gir vei til IK-mat og Produksjon (bolge 5).
+    'Mer rutinearbeid', 'IK-mat', 'Alle kontrollpunkter, gruppert',
+    'Produksjon', 'Dagens plan',
     ...Object.values(VAKTTYPE_ETIKETT),
   ]
   for (const { skjema, vindu } of aktive) {
@@ -154,10 +158,7 @@ export default async function RutinerSide() {
           Svaret er det samme for begge: hvor mange igjen. Formen er det
           ikke. */}
       {paaNettbrett ? (
-        <header className="tablet-hode">
-          <h1>{svaret}</h1>
-          <p className="undertittel">{datoLang.format(new Date(naa.dato))}</p>
-        </header>
+        <TabletHode tittel={svaret} undertittel={datoLang.format(new Date(naa.dato))} />
       ) : (
         <Sidehode
           tittel={svaret}
@@ -270,6 +271,37 @@ export default async function RutinerSide() {
             })}
           </section>
         ))
+      )}
+
+      {/* FOTEN SOM GJOER AT IK-MAT OG PRODUKSJON IKKE TRENGER EN FANE.
+          De var to av fem fliser paa hjem, i et rutenett der alt saa
+          like viktig ut. Naa gjelder to veier inn, og de svarer paa
+          hvert sitt sporsmaal:
+
+            KREVER DE ARBEID I DAG   koen paa «I dag» henter dem fram,
+                                     sortert etter hva som haster.
+            OPPSOEKER HUN DEM SELV   herfra, fra flata der rutinearbeid
+                                     hoerer hjemme.
+
+          En fane er for et aerend man har hele tiden. «Har jeg maalt
+          kjolen i dag» er ikke det — det er en rutine, og staar her. */}
+      {paaNettbrett && (
+        <nav className="tablet-fot" aria-label={o('Mer rutinearbeid') ?? 'Mer rutinearbeid'}>
+          <Link href="/ikmat" className="tablet-videre">
+            <span className="tablet-videre-tekst">
+              <strong>{o('IK-mat')}</strong>
+              <span className="undertittel">{o('Alle kontrollpunkter, gruppert')}</span>
+            </span>
+            <span className="tablet-videre-pil" aria-hidden>›</span>
+          </Link>
+          <Link href="/produksjonsplan" className="tablet-videre">
+            <span className="tablet-videre-tekst">
+              <strong>{o('Produksjon')}</strong>
+              <span className="undertittel">{o('Dagens plan')}</span>
+            </span>
+            <span className="tablet-videre-pil" aria-hidden>›</span>
+          </Link>
+        </nav>
       )}
     </>
   )

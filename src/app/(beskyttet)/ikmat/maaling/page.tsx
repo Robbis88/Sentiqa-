@@ -6,6 +6,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { FREKVENS_ETIKETT } from '@/lib/ikmat/standard'
 import { MaalingListe, type Punkt, type Logget } from './maaling-liste'
+import { TabletMaaling } from './tablet-maaling'
+import { TabletHode } from '../../tablet-hode'
 import { Sidehode } from '@/components/ui/side'
 
 const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
@@ -56,6 +58,37 @@ export default async function MaalingSide({ searchParams }: { searchParams: Prom
     : antallMaalt >= antallPunkter
       ? `Alle ${antallPunkter} målt`
       : `${antallMaalt} av ${antallPunkter} målt`
+
+  // NETTBRETTET FAAR EN ENHET AV GANGEN. Se tablet-maaling.tsx.
+  //
+  // Dette er den ene flata der arbeidet faktisk skjer, og den hadde
+  // lederens form: alle enhetene under hverandre, hvert felt aapent
+  // samtidig. Ruta sto heller ikke i noen bevisliste — verken
+  // treffomraade, kontrast eller lekkasje ble maalt her.
+  // Rollen leses ut i en variabel foerst, som paa /rutiner, /ikmat og
+  // /stempling. Det er ikke bare stil: rollevakten leser kilden, og et
+  // `bruker.rolle === '...'` rett foran et fragment-retur leser den som
+  // en AVVISNING - «denne rollen faar en tekst i stedet for sida».
+  // Med vilkaaret i en variabel er formen den samme som resten av
+  // kodebasen, og vakten kan ikke misforstaa den.
+  const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
+
+  if (paaNettbrett) {
+    return (
+      <>
+        <TabletHode
+          tittel={status}
+          undertittel={[FREKVENS_ETIKETT[frekvens], utenfor > 0 ? `${utenfor} utenfor kravet` : null]
+            .filter(Boolean).join(' · ')}
+        />
+        <TabletMaaling
+          punkter={(punkter ?? []).map((p) => ({ id: p.id, navn: p.navn, min_temp: p.min_temp, max_temp: p.max_temp }))}
+          logget={logget}
+          frekvensEtikett={FREKVENS_ETIKETT[frekvens]}
+        />
+      </>
+    )
+  }
 
   return (
     <>

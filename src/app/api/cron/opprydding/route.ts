@@ -18,6 +18,26 @@ const TABELLER = [
   'ai_tool_log',
 ] as const
 
+/**
+ * Sikkerhetsloggen har KORTERE frist enn resten.
+ *
+ * `pin_forsok` er både rate limiting og revisjonsspor for vakt- og
+ * stemplingsinnlogging. Den vokser med hver eneste innsjekk, og en
+ * sikkerhetslogg som vokser i det uendelige er ikke et sikkerhetstiltak
+ * — den er en samling personopplysninger om når folk var på jobb.
+ *
+ * Nitti dager er valgt fordi det er lenge nok til å etterforske et
+ * mønster noen først oppdager etter noen uker, og kort nok til at vi
+ * ikke bygger et arkiv over ansattes bevegelser. Rate limitingen selv
+ * ser bare femten minutter tilbake.
+ *
+ * Ingen arkivering: radene slettes. Skal noe tas vare på lenger, er det
+ * en bevisst beslutning som hører hjemme et annet sted enn i en
+ * opprydding.
+ */
+const SIKKERHETSLOGG_DAGER = 90
+const SIKKERHETSLOGG = ['pin_forsok'] as const
+
 export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization')
   if (!env.CRON_SECRET || auth !== `Bearer ${env.CRON_SECRET}`) {
@@ -36,6 +56,18 @@ export async function GET(req: NextRequest) {
       .delete()
       .lt('opprettet_tid', grenseISO)
       .select('retailer_id')
+    slettet[tabell] = error ? `feil: ${error.message}` : (data?.length ?? 0)
+  }
+
+  // Sikkerhetsloggen, med sin egen kortere frist.
+  const sikkerhetsgrense = new Date()
+  sikkerhetsgrense.setDate(sikkerhetsgrense.getDate() - SIKKERHETSLOGG_DAGER)
+  for (const tabell of SIKKERHETSLOGG) {
+    const { data, error } = await supabase
+      .from(tabell)
+      .delete()
+      .lt('opprettet_tid', sikkerhetsgrense.toISOString())
+      .select('id')
     slettet[tabell] = error ? `feil: ${error.message}` : (data?.length ?? 0)
   }
 

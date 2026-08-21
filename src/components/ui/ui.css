@@ -403,3 +403,256 @@
   padding-top: var(--luft-5);
   border-top: 1px solid var(--kant, #e5e7eb);
 }
+
+/* =====================================================================
+   Nettbrettet: veier videre, og de to utfør-flatene
+   ---------------------------------------------------------------------
+   Bølge 5. Alt her er tokens — ingen farge er skrevet i forbifarten.
+   Fargevakten teller hver rgba() og hver hex utenfor en tokenlinje, og
+   nettbrettets palett fikk sine egne navn i forrige bølge nettopp for at
+   disse reglene skulle kunne skrives uten å hardkode noe.
+
+   Kontrasten er regnet før den ble skrevet, mot --natt-flate (#13203b)
+   og --natt-flate-lys (#18264a):
+
+     --natt-tekst        13,5 : 1      --natt-gronn   9,4 : 1
+     --natt-tekst-svak    8,1 : 1      --natt-rod     9,5 : 1
+
+   --natt-tekst-dempet er med vilje IKKE brukt her: 4,28 : 1 på
+   --natt-flate-lys, altså under AA. Den er tegnet for bunnen, ikke for
+   en berørt flate.
+   ===================================================================== */
+
+/* --- Vei videre: én rad, ett sted ------------------------------------
+   Erstatter flisrutenettet. En flis i et rutenett sier «her er en
+   modul, og den er like viktig som de fire andre». En rad i en liste
+   sier «dette er neste sted» — og den kan bære en forklaring, som en
+   flis på fire ganger fire centimeter ikke kan. */
+.tablet-videre {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-4);
+  min-height: 4.5rem;
+  padding: var(--luft-4);
+  margin-bottom: var(--luft-3);
+  border-radius: var(--radius-stor);
+  background: var(--natt-flate);
+  border: 1px solid var(--natt-kant);
+  color: var(--natt-tekst);
+  text-decoration: none;
+}
+.tablet-videre:active { background: var(--natt-flate-lys); }
+.tablet-videre-tekst {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-1);
+  line-height: var(--linje-tett);
+}
+.tablet-videre-tekst strong { font-size: 1.15rem; font-weight: 700; }
+.tablet-videre-tekst .undertittel {
+  font-size: var(--tekst-brod);
+  color: var(--natt-tekst-svak);
+}
+.tablet-videre-pil { flex-shrink: 0; font-size: 1.6rem; color: var(--natt-tekst-svak); }
+
+/* Foten under Rutiner og Hjelp. Skilt fra innholdet over med luft, ikke
+   med en strek: den er en fortsettelse, ikke en ny seksjon. */
+.tablet-fot { display: block; margin-top: var(--luft-6); }
+
+/* --- Stempling: arbeidsdagen, ikke enheten ---------------------------
+   Står under køen med vilje. Har hun glemt å stemple inn er det ikke
+   det som haster mest klokka 14 — men det skal være synlig hele dagen,
+   fordi det er timene hennes. Grønn kantstripe når hun står inne: samme
+   grammatikk som køens røde stripe for kritisk. En stripe peker, en
+   farget flate roper. */
+.stempling-rad {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-4);
+  min-height: 4.5rem;
+  padding: var(--luft-4);
+  margin-bottom: var(--luft-3);
+  border-radius: var(--radius-stor);
+  background: var(--natt-flate);
+  border: 1px solid var(--natt-kant);
+  border-left: 4px solid transparent;
+  color: var(--natt-tekst);
+  text-decoration: none;
+}
+.stempling-rad:active { background: var(--natt-flate-lys); }
+.stempling-rad.inne { border-left-color: var(--natt-gronn); }
+.stempling-rad-tekst {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-1);
+  line-height: var(--linje-tett);
+}
+.stempling-rad-tekst strong { font-size: 1.15rem; font-weight: 700; }
+.stempling-rad-tekst .undertittel {
+  font-size: var(--tekst-brod);
+  color: var(--natt-tekst-svak);
+}
+.stempling-rad-pil { flex-shrink: 0; font-size: 1.6rem; color: var(--natt-tekst-svak); }
+
+/* =====================================================================
+   Nivå 3 — utfør. Ett spørsmål, én enhet.
+   ---------------------------------------------------------------------
+   To flater, samme grammatikk: teller øverst (hvor i køen er jeg),
+   saken i midten så stor at den leses på en armlengdes avstand, og
+   handlingen nederst der tommelen er.
+   ===================================================================== */
+.tsjekk,
+.tmaal {
+  padding: var(--luft-5);
+  margin-bottom: var(--luft-5);
+  border-radius: var(--radius-stor);
+  background: var(--natt-flate);
+  border: 1px solid var(--natt-kant);
+}
+.tsjekk-teller,
+.tmaal-teller {
+  margin: 0 0 var(--luft-3);
+  display: flex;
+  align-items: center;
+  gap: var(--luft-3);
+  font-size: var(--tekst-brod);
+  font-weight: 600;
+  color: var(--natt-tekst-svak);
+  font-variant-numeric: tabular-nums;
+}
+/* Kritisk i ORD, ikke bare i en farge. Den som ikke skiller rødt fra
+   grått skal se det samme som den som gjør det. */
+.tsjekk-kritisk {
+  padding: var(--luft-1) var(--luft-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--natt-rod);
+  color: var(--natt-rod);
+  font-size: var(--tekst-liten);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tsjekk-sporsmaal,
+.tmaal-navn {
+  margin: 0;
+  font-size: var(--tekst-svar);
+  font-weight: 800;
+  line-height: var(--linje-tett);
+  color: var(--natt-tekst-klar);
+}
+.tmaal-krav {
+  margin: var(--luft-2) 0 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--natt-tekst-svak);
+}
+
+/* To knapper, like store, side om side. Ingen av dem er primær: et nei
+   er like riktig et svar som et ja, og en uthevet ja-knapp ville vært en
+   oppfordring til å svare feil raskt. */
+.tsjekk-knapper {
+  display: flex;
+  gap: var(--luft-3);
+  margin-top: var(--luft-5);
+}
+.tsjekk-ja,
+.tsjekk-nei {
+  flex: 1;
+  min-height: 4.5rem;
+  border-radius: var(--radius-stor);
+  background: var(--natt-flate-lys);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+.tsjekk-ja { border: 2px solid var(--natt-gronn); color: var(--natt-gronn); }
+.tsjekk-nei { border: 2px solid var(--natt-rod); color: var(--natt-rod); }
+.tsjekk-ja:disabled,
+.tsjekk-nei:disabled { opacity: 0.5; }
+
+.sjekk-kritisk-merke {
+  margin-right: var(--luft-2);
+  font-weight: 800;
+  color: var(--rod);
+}
+
+/* Temperaturfeltet. Skrives med hansker, og en feilskrevet temperatur er
+   et mattilsynsavvik — ikke en skrivefeil. Derfor stort felt, stor
+   skrift og tabularsiffer, så 8 og 3 ikke kan forveksles. */
+.tmaal-felt {
+  display: flex;
+  gap: var(--luft-3);
+  margin-top: var(--luft-5);
+}
+.tmaal-felt input {
+  flex: 1;
+  min-height: 4.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.tmaal-felt input.avvik { border-color: var(--natt-rod); }
+.tmaal-felt button {
+  min-height: 4.5rem;
+  min-width: 8rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* Avviket er en instruks, ikke en straff: hva er galt, hva må gjøres,
+   hva skjer når jeg lagrer. Rammen peker, den roper ikke. */
+.tmaal-avvik {
+  margin-top: var(--luft-4);
+  padding: var(--luft-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--natt-rod);
+  background: var(--natt-flate-lys);
+}
+.tmaal-avvik-tittel {
+  margin: 0 0 var(--luft-2);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--natt-rod);
+}
+.tmaal-avvik .undertittel {
+  display: block;
+  margin-bottom: var(--luft-3);
+  color: var(--natt-tekst-svak);
+}
+.tmaal-avvik textarea { width: 100%; font-size: 1.05rem; }
+
+/* Ferdig er en beskjed verdt å gi ordentlig. Køen kan bli tom, og det
+   skal kjennes. */
+.tsjekk-ferdig,
+.tmaal-ferdig { text-align: center; }
+.tsjekk-ferdig-tekst,
+.tmaal-ferdig-tekst {
+  margin: 0;
+  font-size: var(--tekst-svar);
+  font-weight: 800;
+  color: var(--natt-gronn);
+}
+.tsjekk-ferdig-under,
+.tmaal-ferdig-under {
+  margin: var(--luft-2) 0 0;
+  font-size: var(--tekst-brod);
+  color: var(--natt-tekst-svak);
+}
+.tmaal-videre {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  margin-top: var(--luft-5);
+  padding: 0 var(--luft-6);
+  border-radius: var(--radius-stor);
+  border: 1px solid var(--natt-kant-sterk);
+  background: var(--natt-flate-lys);
+  color: var(--natt-tekst);
+  font-weight: 700;
+  text-decoration: none;
+}

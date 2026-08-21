@@ -409,10 +409,15 @@ button.logg-ut:hover { color: var(--tekst); }
 }
 .bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.6rem; }
 .topp-hoyre { display: flex; align-items: center; gap: 1rem; }
-.vakt { display: flex; align-items: center; gap: 0.4rem; }
+.vakt { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .vakt-navn { font-size: 0.85rem; font-weight: 600; color: var(--primaer); }
+/* To felter nå: nummeret utpeker, PIN-en beviser. Nummeret er smalest —
+   det er ikke en hemmelighet, og det står på lønnsslippen hennes. */
+.vakt-nr { width: 4rem; padding: 0.35rem 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
 .vakt-pin { width: 5rem; padding: 0.35rem 0.5rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.85rem; }
-.vakt-feil { font-size: 0.75rem; color: #b10e1c; }
+/* Meldingen er lang med vilje (den sier hva du gjør hvis du mangler
+   nummer), så den får hele bredden i stedet for å presse feltene. */
+.vakt-feil { flex-basis: 100%; font-size: 0.75rem; color: var(--rod); }
 /* Bar emoji før, som var tekst og fikk størrelsen sin av font-size. Nå
    SVG med currentColor, så fargen arves av flaten — det er derfor det
    samme ikonet virker både her og på nettbrettets mørke topp uten en
@@ -769,6 +774,7 @@ button.liten.slett:hover { background: #fdecea; }
 .tablet-utlogg:active { transform: scale(0.97); }
 .tablet-topp-hoyre .klokke-lenke { color: var(--natt-tekst); }
 .tablet-topp-hoyre .vakt-navn { color: var(--natt-blaa); }
+.tablet-topp-hoyre .vakt-nr,
 .tablet-topp-hoyre .vakt-pin { background: var(--natt); color: var(--natt-tekst); border-color: rgba(255,255,255,0.25); }
 /* Mobil: bryt topplinja sa vakt/bjelle/logg-ut ikke faller utenfor skjermen */
 @media (max-width: 560px) {
@@ -1900,8 +1906,12 @@ button.liten { min-height: 40px; }
    fylle det inn i ettertid er den vanlige veien. Derfor staar feltet i
    raden og ikke bak en redigeringsside. */
 .ansattnr-form { display: flex; align-items: center; gap: var(--luft-2); }
+/* 44 px er iOS-minimum. Feltet har vaert 19 hoyt siden det ble laget;
+   ingen bevis saa det, fordi seeden ikke hadde ansatte og lista aldri
+   ble rendret i CI. En tom liste er ikke en gronn test. */
 .ansattnr-form input {
   width: 7rem;
+  min-height: 44px;
   font-variant-numeric: tabular-nums;
 }
 /* Tomt felt skal se ut som noe som mangler, ikke som et felt man kan la

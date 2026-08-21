@@ -6,6 +6,9 @@ import { hashPin, lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 import { nesteRetning, harStaattLenge } from '@/lib/stempling/tilstand'
 import { skrivAvledteVakter } from '@/lib/stempling/skriv'
 
+/** Raden `verifiser_ansatt_pin` gir. Hashen er ikke med - det er hele poenget. */
+type Verifikasjon = { ansatt_id: string | null; status: 'ok' | 'avvist' | 'sperret'; vent_sekunder: number }
+
 export type StemplingSvar = {
   ok?: true
   navn?: string
@@ -50,28 +53,49 @@ export async function stemple(
 
   const supabase = await lagSupabaseServerKlient()
 
-  // Oppslag paa NUMMER. PIN-en sammenlignes etterpaa, saa to ansatte med
-  // samme PIN ikke laser hverandre ute - slik de gjor i dagens
-  // vakt-innsjekk, der maybeSingle() feiler paa flere treff og begge
-  // faar «Ukjent PIN» uten aa skjonne hvorfor.
-  const { data: ansatt } = await supabase
-    .from('ansatte')
-    .select('id, navn, pin_hash, stasjon_id')
-    .eq('retailer_id', bruker.retailerId)
-    .eq('ansatt_nr', nummer)
-    .eq('aktiv', true)
-    .is('slettet_tid', null)
-    .maybeSingle<{ id: string; navn: string; pin_hash: string; stasjon_id: string }>()
+  // VERIFISERINGEN LIGGER I BASEN (0112). `pin_hash` er ikke lenger
+  // lesbar for klientrollen: en nettbrettsesjon kunne ellers hente
+  // hashene til alle kolleger paa stasjonen og knekke dem offline.
+  //
+  // Funksjonen slaar opp paa NUMMER, sammenligner hashen inne i basen,
+  // teller forsoek og skriver revisjonssporet. Den returnerer id-en ved
+  // treff - aldri hashen.
+  //
+  // Hashen regnes fortsatt ut her i Node. Da slipper PIN-en aldri inn i
+  // en databasesporring, og dermed heller ikke inn i en sporringslogg.
+  const { data: svar } = await supabase.rpc('verifiser_ansatt_pin', {
+    p_ansatt_nr: nummer,
+    p_pin_hash: hashPin(bruker.retailerId, pin),
+    p_kilde: 'stempling',
+  })
+  const rad = (svar as Verifikasjon[] | null)?.[0]
 
+  // PAUSEN ER ET EGET SVAR, og den lekker ingenting: forsoek telles paa
+  // nummeret som ble tastet, ogsaa naar ingen har det nummeret. Uten et
+  // eget svar ville hun staatt og tastet riktig kode om og om igjen.
+  if (rad?.status === 'sperret') {
+    const min = Math.max(1, Math.ceil(rad.vent_sekunder / 60))
+    return { feil: `For mange forsøk. Prøv igjen om ${min} ${min === 1 ? 'minutt' : 'minutter'}.` }
+  }
   // Samme melding for ukjent nummer og feil PIN. Ellers kan man prove
   // seg fram til hvilke numre som finnes.
-  if (!ansatt || ansatt.pin_hash !== hashPin(bruker.retailerId, pin)) {
+  if (!rad || rad.status !== 'ok' || !rad.ansatt_id) {
     return { feil: 'Fant ingen med det nummeret og den PIN-en.' }
   }
 
+  // Navnet og hjemstasjonen hentes ETTER at identiteten er bevist. Begge
+  // kolonnene er fortsatt lesbare for klientrollen; det var bare `pin_hash`
+  // som maatte bak funksjonen.
+  const { data: ansatt } = await supabase
+    .from('ansatte')
+    .select('navn, stasjon_id')
+    .eq('id', rad.ansatt_id)
+    .maybeSingle<{ navn: string; stasjon_id: string }>()
+  if (!ansatt) return { feil: 'Fant ingen med det nummeret og den PIN-en.' }
+
   // Stasjonen er nettbrettets, ikke den ansattes hjemstasjon: folk
   // jobber paa tvers i clusteret, og timene hoerer til der arbeidet skjedde.
-  const aktiv = await lesAktivAnsatt()
+  const aktiv = await lesAktivAnsatt(supabase)
   const stasjonId = (await hentStasjonId(supabase, aktiv)) ?? ansatt.stasjon_id
   if (!stasjonId) return { feil: 'Nettbrettet vet ikke hvilken stasjon det står på.' }
 

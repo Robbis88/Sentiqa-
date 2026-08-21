@@ -232,6 +232,20 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // --- Nettbrett ---
   '/rutiner': 'tablet',
   '/lenker': 'tablet',
+  // Sekundær engasjementsflate (bølge 5). Brukerærendet er «hvordan gjør
+  // vi det som stasjon?» — ikke «hva skal jeg gjøre nå?».
+  //
+  // DEN ER MED VILJE IKKE `dashbord` OG IKKE `analyse`. Et dashbord
+  // rangerer det som krever oppmerksomhet, og analyse forklarer hvorfor
+  // tallene ble slik. Denne gjør ingen av delene: den viser fire faste
+  // tall uten filtre, uten perioder og uten drill-down, og ingenting på
+  // den krever en handling i dag. Å gi den `dashbord` ville sagt at den
+  // skal vokse i den retningen — og det er nettopp det den ikke skal.
+  //
+  // Den er heller ikke en fjerde hovedmodus. Fanene er tre — I dag ·
+  // Rutiner · Hjelp — og denne nås som én rad fra «I dag». Plasseringen
+  // er selve beskjeden om rangordenen.
+  '/vaar-stasjon': 'tablet',
   // Stemple inn og ut (0110). Nivå 1 er «hva skjer når jeg trykker» —
   // to felter, én knapp, og en kvittering som sier navn og klokkeslett
   // stort nok til å ses uten å lete.
