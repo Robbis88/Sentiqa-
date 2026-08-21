@@ -70,6 +70,12 @@ jobs:
       # derfor ingenting aa rotere eller lekke.
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GQ
+      # Signerer vaktkapselen. Ingen hemmelighet her: den gjelder en base
+      # som slettes naar jobben er ferdig. Men den maa vaere STABIL
+      # gjennom kjoringen - bytter nokkelen, slutter en gyldig vakt aa
+      # gjelde ved neste foresporsel, og bevisene ville sett ut som om
+      # signaturen var i stykker.
+      VAKT_SIGNATUR_SECRET: ci-test-noekkel-for-vaktkapselen-minst-32-tegn
 
     steps:
       - uses: actions/checkout@v4

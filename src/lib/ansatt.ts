@@ -1,5 +1,5 @@
 import 'server-only'
-import { createHash } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -40,19 +40,77 @@ export function hashPin(retailerId: string, pin: string): string {
   return createHash('sha256').update(`${retailerId}:${pin}`).digest('hex')
 }
 
+/**
+ * Signaturen på vaktkapselen.
+ *
+ * HVORFOR DATABASEVALIDERING IKKE VAR NOK — og dette er verdt å skrive
+ * ned, for det så ut som det holdt:
+ *
+ * Første forsøk slo opp ID-en fra kapselen og godtok den hvis raden
+ * fantes, var aktiv, ikke slettet og hørte til samme kjede. Beviset
+ * `skrevet kapsel med en annen gyldig ansatt-ID` felte det med en gang.
+ * Bo ER en gyldig, aktiv ansatt i samme kjede. Ingenting i raden hans
+ * sier «denne kapselen ble utstedt etter at noen tastet Bos PIN».
+ *
+ * Et oppslag kan svare på om identiteten FINNES. Det kan aldri svare på
+ * om den ble BEVIST. Til det trengs enten en hemmelighet eller
+ * serverside-tilstand — det finnes ingen tredje vei.
+ *
+ * Valget falt på en signatur framfor en øktstabell: den krever ingen
+ * migrasjon, ingen ny tabell, og ingen ny runde med RLS-policyer.
+ *
+ * FEILER LUKKET. Mangler hemmeligheten, kan ingen starte vakt — i
+ * stedet for at alle kan starte hvem som helst. En sikkerhetskontroll
+ * som slår seg selv av når den mangler oppsett, er ikke en kontroll.
+ */
+function vaktnokkel(): string | null {
+  const n = process.env.VAKT_SIGNATUR_SECRET
+  return n && n.length >= 32 ? n : null
+}
+
+/** Er vaktinnlogging satt opp på denne installasjonen? */
+export function vaktErSattOpp(): boolean {
+  return vaktnokkel() !== null
+}
+
+function signer(nokkel: string, id: string): string {
+  return createHmac('sha256', nokkel).update(id).digest('hex')
+}
+
+/**
+ * Sammenligning i konstant tid.
+ *
+ * En vanlig `===` på en hex-streng lekker hvor mange tegn som stemte,
+ * gjennom hvor lang tid den brukte. Det er en tynn kanal over nett, men
+ * den er gratis å lukke — og en signatur man kan gjette tegn for tegn er
+ * ingen signatur.
+ */
+function likeSignaturer(a: string, b: string): boolean {
+  const x = Buffer.from(a, 'utf8')
+  const y = Buffer.from(b, 'utf8')
+  if (x.length !== y.length) return false
+  return timingSafeEqual(x, y)
+}
+
 export type AktivAnsatt = { id: string; navn: string }
 
 /**
- * Hvem står på vakt akkurat nå — verifisert, ikke husket.
+ * Hvem står på vakt akkurat nå — bevist, ikke husket.
  *
- * Kapselen sier hvem den PÅSTÅR at det er. Denne funksjonen slår opp
- * påstanden og godtar den bare hvis raden fortsatt finnes, hører til
- * innlogget brukers kjede, er aktiv og ikke slettet.
+ * TO LÅS, OG BEGGE MÅ ÅPNE:
  *
- * NAVNET KOMMER FRA BASEN, ikke fra kapselen. Ellers kunne en skrevet
- * kapsel sette et navn systemet så viste som om det var kjent — og et
- * navn på skjermen er nettopp det som får folk til å stole på at riktig
- * person er logget på.
+ *   1. SIGNATUREN  beviser at kapselen ble utstedt av `checkInn`, altså
+ *                  at noen faktisk tastet nummer og PIN. Uten den kan
+ *                  hvem som helst med nettbrettets sesjon skrive seg
+ *                  inn som hvem som helst.
+ *
+ *   2. OPPSLAGET   beviser at identiteten fortsatt gjelder: samme kjede,
+ *                  aktiv, ikke slettet. Uten det ville en kapsel fra før
+ *                  noen sluttet virke i tolv timer til.
+ *
+ * NAVNET KOMMER FRA BASEN, ikke fra kapselen — og det er nettopp derfor
+ * kapselen ikke bærer noe navn lenger. Et navn på skjermen er det som
+ * får folk til å stole på at riktig person er pålogget.
  *
  * `cache()` gjør oppslaget én gang per forespørsel. Uten den ville
  * layouten og siden under spurt hver for seg, og noen sider kaller den
@@ -64,21 +122,31 @@ export type AktivAnsatt = { id: string; navn: string }
  */
 export const lesAktivAnsatt = cache(
   async (supabase: SupabaseClient): Promise<AktivAnsatt | null> => {
+    const nokkel = vaktnokkel()
+    if (!nokkel) return null // feiler lukket: ingen nøkkel, ingen vakt
+
     const raw = (await cookies()).get(COOKIE)?.value
     if (!raw) return null
 
-    let paastand: { id?: unknown }
+    let paastand: { id?: unknown; sig?: unknown }
     try {
-      paastand = JSON.parse(raw) as { id?: unknown }
+      paastand = JSON.parse(raw) as { id?: unknown; sig?: unknown }
     } catch {
       return null
     }
     const id = paastand?.id
-    if (typeof id !== 'string' || id.length === 0) return null
+    const sig = paastand?.sig
+    if (typeof id !== 'string' || !id) return null
+    if (typeof sig !== 'string' || !sig) return null
+
+    // LÅS 1: ble denne kapselen utstedt av oss?
+    if (!likeSignaturer(sig, signer(nokkel, id))) return null
 
     const bruker = await hentInnloggetBruker()
     if (!bruker.retailerId) return null
 
+    // LÅS 2: gjelder identiteten fortsatt?
+    //
     // RLS (`ansatte_les`, 0078) begrenser allerede til `mine_stasjoner()`.
     // Kjedefilteret står likevel eksplisitt: to lag som må svikte
     // samtidig, og en policy som endres i morgen tar ikke med seg dette.
@@ -99,16 +167,22 @@ export const lesAktivAnsatt = cache(
 /**
  * Settes KUN etter at nummer og PIN er kontrollert.
  *
- * Lagrer bare ID-en. Navnet sto her før, og det var den delen kapselen
- * ikke hadde noen rett til å bestemme.
+ * Lagrer ID-en og en signatur over den. Navnet sto her før, og det var
+ * den delen kapselen ikke hadde noen rett til å bestemme.
  */
 export async function settAktivAnsatt(a: { id: string }) {
-  ;(await cookies()).set(COOKIE, JSON.stringify({ id: a.id }), {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 12, // én vakt
-  })
+  const nokkel = vaktnokkel()
+  if (!nokkel) return
+  ;(await cookies()).set(
+    COOKIE,
+    JSON.stringify({ id: a.id, sig: signer(nokkel, a.id) }),
+    {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 12, // én vakt
+    },
+  )
 }
 
 export async function fjernAktivAnsatt() {

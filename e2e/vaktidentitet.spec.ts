@@ -156,14 +156,22 @@ test.describe('vaktinnlogging krever nummer OG pin', () => {
   })
 
   test('ansatt uten ansattnummer avvises, med en vei videre', async ({ page }) => {
-    // Kim har PIN, men ikke nummer. Hun kan ikke starte vakt - og
-    // beskjeden skal si hva hun skal gjore, uten aa rope at nettopp
-    // hennes PIN var riktig.
-    await startVakt(page, '', KIM.pin)
+    // Kim er aktiv og har PIN, men intet ansattnummer. Etter
+    // korrekthetstrinnet er nummeret identiteten, saa det finnes ingen
+    // vei inn for henne - og beskjeden maa si hva hun skal gjore.
+    //
+    // Maalt med et NUMMER som ikke finnes, ikke med et tomt felt: et
+    // tomt felt beviser bare at skjemaet krever noe.
+    await startVakt(page, '900001', KIM.pin)
     const melding = (await page.locator('.vakt-feil').textContent())?.trim() ?? ''
-    expect(await vaktnavn(page)).toBe('')
+    expect(await vaktnavn(page), 'Kim kom inn uten nummer').toBe('')
     expect(melding.toLowerCase(), 'beskjeden sier ikke hva hun skal gjore')
       .toContain('ansattnummer')
+
+    // Og et tomt felt gir ogsaa avvisning.
+    await page.reload()
+    await startVakt(page, '', KIM.pin)
+    expect(await vaktnavn(page)).toBe('')
   })
 })
 
@@ -232,6 +240,49 @@ test.describe('vaktkapselen er ubetrodd', () => {
     await skrivKapsel(page, { id: DAG.id, navn: 'Dag Deaktivert' })
     await page.goto('/oversikt')
     expect(await vaktnavn(page), 'en deaktivert ansatt sto som paa vakt').toBe('')
+  })
+
+  test('kapsel med ekte ID men feil signatur avvises', async ({ page }) => {
+    // Signaturen er det som skiller «denne identiteten finnes» fra
+    // «denne identiteten ble bevist». Uten den kunne Bos ID limes inn
+    // uten at noen hadde tastet Bos PIN — og Bo ER en gyldig, aktiv
+    // ansatt i samme kjede, så et databaseoppslag sier ja.
+    await page.goto('/oversikt')
+    await skrivKapsel(page, { id: BO.id, sig: 'a'.repeat(64) })
+    await page.goto('/oversikt')
+    expect(await vaktnavn(page), 'en gjettet signatur ble godtatt').toBe('')
+  })
+
+  test('ekte signatur limt paa en annen ID avvises', async ({ page }) => {
+    // DEN SKARPESTE VARIANTEN. Vi logger inn som Ada, tar hennes EKTE
+    // signatur ut av kapselen, og limer den paa Bos ID. Signaturen er
+    // gyldig - den er bare ikke gyldig FOR DEN ID-EN.
+    //
+    // En implementasjon som signerte noe konstant, eller som bare sjekket
+    // at signaturen «ser riktig ut», ville sluppet dette gjennom.
+    await startVakt(page, ADA.nr, ADA.pin)
+    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+
+    const kapsler = await page.context().cookies()
+    const raa = kapsler.find((k) => k.name === 'sentiqa_vakt')?.value
+    expect(raa, 'fant ingen vaktkapsel etter innlogging').toBeTruthy()
+    const adas = JSON.parse(raa!) as { id: string; sig: string }
+    expect(adas.id, 'kapselen baerer ikke Adas ID').toBe(ADA.id)
+    expect(adas.sig, 'kapselen er usignert').toBeTruthy()
+
+    await skrivKapsel(page, { id: BO.id, sig: adas.sig })
+    await page.goto('/oversikt')
+    expect(await vaktnavn(page), 'Adas signatur ga Bos identitet').not.toBe(BO.navn)
+  })
+
+  test('kapselen baerer ikke lenger et navn', async ({ page }) => {
+    // Navnet var den delen kapselen aldri hadde noen rett til aa
+    // bestemme. Det er ikke bare uleste data: sto det der, ville neste
+    // utvikler som trengte et navn raskt, lest det derfra.
+    await startVakt(page, ADA.nr, ADA.pin)
+    await expect(page.locator('.vakt-navn')).toHaveText(ADA.navn, { timeout: 15_000 })
+    const raa = (await page.context().cookies()).find((k) => k.name === 'sentiqa_vakt')?.value
+    expect(raa ?? '', 'navnet ligger fortsatt i kapselen').not.toContain('Ada')
   })
 
   test('soppel i kapselen velter ingenting', async ({ page }) => {

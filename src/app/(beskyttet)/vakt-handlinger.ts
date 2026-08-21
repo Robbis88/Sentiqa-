@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { hashPin, settAktivAnsatt, fjernAktivAnsatt } from '@/lib/ansatt'
+import { hashPin, settAktivAnsatt, fjernAktivAnsatt, vaktErSattOpp } from '@/lib/ansatt'
 
 export type VaktTilstand = { feil?: string } | undefined
 
@@ -45,6 +45,13 @@ const AVVIST =
 export async function checkInn(_t: VaktTilstand, formData: FormData): Promise<VaktTilstand> {
   const bruker = await hentInnloggetBruker()
   if (!bruker.retailerId) return { feil: 'Mangler tilgang.' }
+
+  // FEILER LUKKET. Uten signaturnokkelen kan kapselen skrives for
+  // haand, og da er vakta en paastand. Da er det riktigere at ingen kan
+  // starte vakt enn at alle kan starte som hvem som helst.
+  if (!vaktErSattOpp()) {
+    return { feil: 'Vakt er ikke satt opp paa denne installasjonen. Si fra til butikksjefen.' }
+  }
 
   const nummer = String(formData.get('ansatt_nr') ?? '').trim()
   const pin = String(formData.get('pin') ?? '').trim()

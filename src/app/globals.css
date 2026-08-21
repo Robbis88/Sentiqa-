@@ -1906,8 +1906,12 @@ button.liten { min-height: 40px; }
    fylle det inn i ettertid er den vanlige veien. Derfor staar feltet i
    raden og ikke bak en redigeringsside. */
 .ansattnr-form { display: flex; align-items: center; gap: var(--luft-2); }
+/* 44 px er iOS-minimum. Feltet har vaert 19 hoyt siden det ble laget;
+   ingen bevis saa det, fordi seeden ikke hadde ansatte og lista aldri
+   ble rendret i CI. En tom liste er ikke en gronn test. */
 .ansattnr-form input {
   width: 7rem;
+  min-height: 44px;
   font-variant-numeric: tabular-nums;
 }
 /* Tomt felt skal se ut som noe som mangler, ikke som et felt man kan la
