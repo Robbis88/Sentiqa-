@@ -735,9 +735,25 @@
   color: var(--tekst-svak);
 }
 
-/* En måned som ikke har skjedd: budsjettet alene, uten dom. Dempet, så
-   den ikke leses som en måling. */
-.bp-rad-plan { opacity: 0.75; }
+/* En måned som ikke har skjedd: budsjettet alene, uten dom.
+
+   INGEN `opacity` HER. Den sto her først, på 0.75, og axe felte den i
+   nettleseren: `--tekst-svak` holder 4,71:1 på kortet — den passerer så
+   vidt — og 0.75 gjennomsiktighet dro den ned til 2,98:1. Gjennom-
+   siktighet demper ikke bare det man mener å dempe; den legger seg oppå
+   en farge som allerede ligger på grensen, og resultatet står ingen
+   steder i koden.
+
+   Raden dempes derfor med KANTEN, ikke med teksten. Marginen er uansett
+   tynn: 4,71:1 på kortet og 4,55:1 på arbeidsflaten, mot et krav på 4,5.
+   Regnestykket står i `kontrast.test.ts`, som feller hvis noen gjør
+   fargen lysere.
+
+   Og den sterkeste forskjellen er uansett at det IKKE står en dom her —
+   fraværet av det fargede merket sier at måneden ikke har skjedd. */
+.bp-rad-plan {
+  border-style: dashed;
+}
 .bp-planlagt {
   margin: var(--luft-2) 0 0;
   color: var(--tekst-svak);

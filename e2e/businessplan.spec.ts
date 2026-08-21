@@ -13,6 +13,13 @@ import { OKTFIL } from './eier'
 // tomtilstanden her. Det som KAN måles er rolle, tomtilstand,
 // tilgjengelighet og at ruta i det hele tatt svarer.
 //
+// AKKURAT DEN KOMBINASJONEN — salg uten BP — er ikke en fattig
+// testsituasjon. Den er en ekte produksjonstilstand, og den avslørte en
+// feil: viewet gir en rad så snart det finnes ENTEN budsjett ELLER
+// salg, så sida fikk fulle rader der `mot_bp_kr` var null hele veien.
+// Summen ble null, og forsiden skrev «I rute mot planen» for en stasjon
+// uten plan. Se `sier ikke «i rute»`-testen under.
+//
 // Selve dommen — hva som står øverst, hvilket ord det får og hvilken
 // terskel som gjelder — er bevist deterministisk i
 // `src/lib/regnskap/bp-dom.test.ts`, og regnestykket bak i
@@ -39,6 +46,15 @@ test.describe('/businessplan som eier', () => {
     // brukeren skal gjette seg til.
     await expect(page.locator('body')).toContainText(/businessplan/i)
     await expect(page.locator('.sq-tom, .bp-liste')).toHaveCount(1)
+  })
+
+  test('sier ikke «i rute» om en stasjon uten businessplan', async ({ page }) => {
+    // REGRESJONEN, SKREVET NED. Uten BP er svaret «vi vet ikke», og det
+    // er hele grunnen til at sida finnes. Å skrive «i rute» der er ikke
+    // en unøyaktighet — det er den sterkest mulige beroligelsen, gitt i
+    // nøyaktig den situasjonen der ingenting er målt.
+    await page.goto('/businessplan')
+    await expect(page.locator('body')).not.toContainText(/i rute/i)
   })
 
   test('ingen axe-brudd', async ({ page }) => {

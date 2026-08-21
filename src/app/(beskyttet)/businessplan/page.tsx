@@ -89,7 +89,25 @@ export default async function BusinessplanSide(
 
   const alle = rader ?? []
 
-  if (alle.length === 0) {
+  // Nyeste maaned foerst - den inneveaerende er den operative.
+  const maned = alle.map((r) => r.maned).sort().reverse()[0]
+  const iMnd = alle.filter((r) => r.maned === maned)
+
+  // «INGEN BP» ER IKKE «I RUTE», OG DET STO DET NESTEN HER.
+  //
+  // Viewet gir en rad saa snart det finnes ENTEN budsjett ELLER salg for
+  // en avdeling. En stasjon med salg og ingen businessplan gir derfor
+  // fulle rader der `mot_bp_kr` er null hele veien - og da ble `sumBak`
+  // null, og forsiden skrev «I rute mot planen».
+  //
+  // Det er den falske tryggheten hele sida finnes for aa hindre, snudd
+  // mot brukeren: sterkest mulig formulering om at alt er bra, i
+  // nøyaktig den situasjonen der ingenting er maalt.
+  //
+  // Funnet av CI, som har salg i seeden og aldri BP.
+  const medDom = iMnd.filter((r) => r.mot_bp_kr != null)
+
+  if (alle.length === 0 || medDom.length === 0) {
     return (
       <>
         <Sidehode tittel="Businessplan" undertittel="Ligger vi i rute?" />
@@ -101,10 +119,6 @@ export default async function BusinessplanSide(
       </>
     )
   }
-
-  // Nyeste maaned foerst - den inneveaerende er den operative.
-  const maned = alle.map((r) => r.maned).sort().reverse()[0]
-  const iMnd = alle.filter((r) => r.maned === maned)
 
   // DET SOM KREVER NOE STAAR OEVERST. Sortert paa kroner bak plan, ikke
   // alfabetisk og ikke paa stoerrelse: den avdelingen som mangler mest
