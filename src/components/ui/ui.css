@@ -705,6 +705,17 @@
 .bp-mot-plan { font-weight: 600; }
 .bp-mot-ifjor { color: var(--tekst-svak); }
 
+/* Hva planen krever. Står MELLOM forklaringen og lekkasjen, fordi den
+   er forutsetningen for å lese avviket over — ikke en detalj under.
+   Full tekstfarge og ikke dempet: dette er ikke kontekst, det er den
+   andre halvdelen av dommen. */
+.bp-krav {
+  margin: var(--luft-2) 0 0;
+  font-size: var(--tekst-liten);
+  font-variant-numeric: tabular-nums;
+}
+.bp-krav-grunnlag { color: var(--tekst-svak); }
+
 /* Lekkasjen. To måter å regne den samme margen på, og forskjellen
    mellom dem. Står nederst fordi den bare gir mening etter at man vet
    om avdelingen er i rute. */

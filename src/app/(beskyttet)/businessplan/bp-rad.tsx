@@ -38,6 +38,8 @@ export type BpRad = {
   brutto_gap_pst: number | null
   grunnlag: string | null
   kobling: Kobling | null
+  ifjor_omsetning_kr: number | null
+  bp_vekst_pst: number | null
 }
 
 /** De fire tilstandene `v_bp_status_avdeling` skiller mellom (0114). */
@@ -121,6 +123,26 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           </span>
         )}
       </p>
+
+      {/* HVA PLANEN KREVER. Uten denne linja er «−55,8 % mot forventet»
+          umulig aa handle paa: butikksjefen kan ikke se om avdelingen
+          svikter, eller om planen ba om vekst som aldri kom. Det foerste
+          er hennes bord - det andre er en samtale med St1 sentralt.
+
+          BILVASK paa Lone er begge deler samtidig: salget ned 42 % mot i
+          fjor, OG en plan som krevde +32 %. De legger seg oppaa
+          hverandre til -56 %, og uten dette tallet ser det ut som drift
+          alene. */}
+      {rad.bp_vekst_pst != null && (
+        <p className="bp-krav">
+          Planen krever {pst(rad.bp_vekst_pst)} mot i fjor
+          {rad.ifjor_omsetning_kr != null && (
+            <span className="bp-krav-grunnlag">
+              {' '}({kr.format(rad.ifjor_omsetning_kr)} i fjor)
+            </span>
+          )}
+        </p>
+      )}
 
       {/* LEKKASJEN. To maater aa regne den samme margen paa: kassa tror
           den er X, regnskapet viser Y. Forskjellen er svinn, feilpris

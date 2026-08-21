@@ -34,15 +34,15 @@ begin
     raise exception 'BLIND TEST: v_bp_status_avdeling finnes ikke - er 0113/0114 kjort?';
   end if;
 
-  -- Kolonnen kom i 0114. Kjores testen mot 0113-viewet, feiler den paa
-  -- «column kobling does not exist» midt i - en feilmelding som ser ut
-  -- som en kodefeil. Her sier den i stedet hva som mangler.
-  if not exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'v_bp_status_avdeling'
-      and column_name = 'kobling'
-  ) then
-    raise exception 'BLIND TEST: viewet mangler kolonnen kobling - er 0114 kjort?';
+  -- Kolonnene kom i 0114 (`kobling`) og 0115 (`bp_vekst_pst`). Kjores
+  -- testen mot et eldre view, feiler den paa «column does not exist»
+  -- midt inne i en kontroll - en feilmelding som ser ut som en kodefeil
+  -- i testen. Her sier den i stedet hva som mangler.
+  if (select count(*) from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'v_bp_status_avdeling'
+        and column_name in ('kobling', 'bp_vekst_pst')) < 2 then
+    raise exception 'BLIND TEST: viewet mangler kobling og/eller bp_vekst_pst - er 0114 og 0115 kjort?';
   end if;
 
   begin
@@ -397,6 +397,58 @@ begin
       raise warning 'BLIND TEST: viewet ga faerre enn fire koblingsverdier for '
                     'testdata som dekker alle fire. Klassifiserer den i det '
                     'hele tatt?';
+      feil := feil + 1;
+    end if;
+
+    -- --- VEKSTKRAVET: HVA PLANEN BER OM MOT I FJOR -----------------
+    --
+    -- Testdataene over: budsjett 100 000 for maaneden, og i fjor 1 000
+    -- kr per dag i en hel maaned. Vekstkravet er derfor regnbart for
+    -- haand - og det er 100 000 mot (1000 * dager), ikke mot noe
+    -- «hittil»-tall.
+    --
+    -- MAALT MOT HELE MAANEDEN MED VILJE. Regnes kravet mot fjoraaret
+    -- HITTIL, beveger det seg med dagteljaren: den samme planen ville
+    -- sett ut som et annet krav hver morgen. Denne testen felles hvis
+    -- noen bytter til hittil-tallet, fordi de to er langt fra hverandre.
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ and maned = mnd and gruppe_kode = '120';
+
+    if r.ifjor_omsetning_kr is distinct from
+       round(1000 * extract(days from (mnd + interval '1 month - 1 day')))
+    then
+      raise warning 'ifjor_omsetning_kr er % - ventet hele fjoraarets '
+                    'maaned (1000 kr x % dager)', r.ifjor_omsetning_kr,
+        extract(days from (mnd + interval '1 month - 1 day'));
+      feil := feil + 1;
+    end if;
+
+    if r.bp_vekst_pst is null then
+      raise warning 'bp_vekst_pst er null selv om baade budsjett og '
+                    'fjoraar finnes';
+      feil := feil + 1;
+    elsif abs(r.bp_vekst_pst
+              - (100 * (100000 - 1000 * extract(days from (mnd + interval '1 month - 1 day')))
+                 / (1000 * extract(days from (mnd + interval '1 month - 1 day'))))) > 0.2
+    then
+      raise warning 'bp_vekst_pst er % - stemmer ikke med 100000 mot '
+                    'fjoraarets hele maaned. Er den regnet mot '
+                    'hittil-tallet i stedet?', r.bp_vekst_pst;
+      feil := feil + 1;
+    end if;
+
+    -- UTEN FJORAAR: INTET KRAV. En ny avdeling har ikke uendelig
+    -- vekstkrav - den har ikke noe. `211` har budsjett og ingen
+    -- salgshistorikk i det hele tatt.
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ and maned = mnd and gruppe_kode = '211';
+
+    if r.bp_vekst_pst is not null then
+      raise warning 'bp_vekst_pst er % for en avdeling uten fjoraarstall '
+                    '- et vekstkrav mot ingenting finnes ikke',
+        r.bp_vekst_pst;
       feil := feil + 1;
     end if;
 
