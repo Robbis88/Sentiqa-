@@ -912,3 +912,24 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* Kvitteringen. En innstilling som styrer 141,25 timer i måneden må
+   kunne svare på om den ble lagret — første utgave svarte ikke, og da
+   ser en avvist lagring nøyaktig ut som en vellykket. */
+.dekning-feil {
+  margin: var(--luft-2) 0 0;
+  font-size: var(--tekst-liten);
+  font-weight: 600;
+  color: var(--tekst);
+  border-left: 3px solid var(--kant-sterk);
+  padding-left: var(--luft-3);
+  line-height: 1.45;
+}
+.dekning-lagret {
+  margin: var(--luft-2) 0 0;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+.dekning-arsverk-boks { padding-bottom: var(--luft-4); border-bottom: 1px solid var(--kant); }
+.dekning-arsverk-boks .dekning-arsverk { padding-bottom: 0; border-bottom: 0; }
+.dekning-arsverk input[type="text"] { width: 8rem; font-variant-numeric: tabular-nums; }
