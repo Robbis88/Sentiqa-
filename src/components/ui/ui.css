@@ -786,3 +786,120 @@
   color: var(--tekst-svak);
   font-variant-numeric: tabular-nums;
 }
+
+/* =====================================================================
+   Timeregnskap: har vi råd til timene vi bruker?
+
+   To sider, samme sak. Oppgjøret viser tallet; oppsettet viser haken
+   som styrer det. Derfor deler de visuelt språk — den som setter en
+   hake skal kjenne igjen siden hun så tallet på.
+   ===================================================================== */
+
+.tr-liste { display: flex; flex-direction: column; gap: var(--luft-4); }
+.tr-rad {
+  padding: var(--luft-5);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius-stor);
+  background: var(--kort);
+}
+.tr-topp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--luft-4);
+  flex-wrap: wrap;
+}
+.tr-navn { margin: 0; font-size: 1.05rem; }
+
+.tr-tall {
+  display: flex;
+  gap: var(--luft-6);
+  flex-wrap: wrap;
+  margin: var(--luft-4) 0 0;
+}
+.tr-tall > div { display: flex; flex-direction: column; gap: var(--luft-1); }
+.tr-tall dt { font-size: var(--tekst-liten); color: var(--tekst-svak); }
+.tr-tall dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Forbehold om tallet over. Står ETTER tallet, ikke før: den som bare
+   skummer skal få tallet, den som stopper skal få forbeholdet. */
+.tr-note {
+  margin: var(--luft-3) 0 0;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  line-height: 1.45;
+}
+/* En innstilling som mangler er ikke støy — den er grunnen til at
+   tallet er feil. Full tekstfarge, ikke dempet. */
+.tr-mangler { color: var(--tekst); }
+
+/* --- Oppsettet ---------------------------------------------------- */
+
+.dekning-stasjon { margin-bottom: var(--luft-5); }
+.dekning-navn { margin: 0 0 var(--luft-4); font-size: 1.05rem; }
+
+.dekning-arsverk {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--luft-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--luft-4);
+  border-bottom: 1px solid var(--kant);
+}
+.dekning-arsverk label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-1);
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+.dekning-arsverk input { width: 8rem; font-variant-numeric: tabular-nums; }
+.dekning-hint { font-size: var(--tekst-liten); color: var(--tekst-svak); }
+/* Uten årsverk gjør hakene ingenting. Det skal ikke være dempet. */
+.dekning-mangler { font-size: var(--tekst-liten); color: var(--tekst); font-weight: 600; }
+
+.dekning-maaneder {
+  list-style: none;
+  margin: var(--luft-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-3);
+}
+.dekning-mnd {
+  padding: var(--luft-3) 0 0;
+  border-top: 1px solid var(--kant);
+}
+.dekning-mnd:first-child { border-top: 0; padding-top: 0; }
+
+.dekning-rad {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-3);
+  flex-wrap: wrap;
+}
+.dekning-mnd-navn {
+  min-width: 6.5rem;
+  font-weight: 600;
+  font-size: var(--tekst-liten);
+}
+.dekning-rad select { min-width: 16rem; }
+.dekning-rad input[type="text"] { flex: 1 1 14rem; min-width: 10rem; }
+
+/* Konsekvensen av haken, i klartekst. Den som setter den om et halvt år
+   skal se hva den gjør, ikke gjette. */
+.dekning-forklaring {
+  margin: var(--luft-2) 0 0;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  line-height: 1.45;
+}
+
+/* En uavklart måned skal SE uavklart ut. Stiplet, ikke bare tom —
+   ellers ser den ut som en måned noen har tatt stilling til. */
+.dekning-ukjent { border-top-style: dashed; }
