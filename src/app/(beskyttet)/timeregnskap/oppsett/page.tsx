@@ -149,7 +149,18 @@ export default async function LederdekningOppsett(
                       <input type="hidden" name="ar" value={ar} />
                       <input type="hidden" name="maned" value={m} />
                       <span className="dekning-mnd-navn">{navn}</span>
-                      <select name="svar" defaultValue={
+                      {/* MAANEDSNAVNET ER EN SPAN, IKKE EN LABEL - det
+                          staar der for oeyet og gjelder hele raden. En
+                          skjermleser hoerte derfor «velg» uten aa vite
+                          hvilken maaned eller hvilken stasjon. axe fant
+                          det; jsdom-vakten kan ikke se det, fordi den
+                          maaler primitivene og ikke sida.
+                          Stasjonen staar med: det er fem seksjoner paa
+                          sida, og «Mars» alene er ikke et sted. */}
+                      <select
+                        name="svar"
+                        aria-label={`${st.butikknummer} ${st.navn}, ${navn}: lederdekning`}
+                        defaultValue={
                         na === 'fastlonnet' ? 'ja' : na === 'ikke_fastlonnet' ? 'nei' : 'ukjent'
                       }>
                         <option value="ukjent">Ikke tatt stilling</option>
@@ -158,10 +169,16 @@ export default async function LederdekningOppsett(
                       </select>
                       <input
                         type="text" name="notat" defaultValue={r?.notat ?? ''}
+                        aria-label={`${st.butikknummer} ${st.navn}, ${navn}: notat`}
                         placeholder="Hvorfor — «Sissel på timelønn»"
                         maxLength={120}
                       />
-                      <button type="submit" className="sq-knapp sq-dempet">Lagre</button>
+                      <button
+                        type="submit" className="sq-knapp sq-dempet"
+                        aria-label={`Lagre ${navn} for ${st.navn}`}
+                      >
+                        Lagre
+                      </button>
                     </form>
                     {/* HVA HAKEN GJØR, i klartekst. Den som leser dette om
                         et halvt år skal se konsekvensen, ikke gjette den. */}
