@@ -117,7 +117,10 @@ function lesKapsel(raa: string): { id?: string; sig?: string } {
  * stedet. «element(s) not found» er ikke en diagnose.
  */
 async function stemple(page: Page, nr: string, pin: string) {
-    await stemple(page, nr, pin)
+  await page.goto('/stempling')
+  await page.fill('.stempling-skjema input[name="ansatt_nr"]', nr)
+  await page.fill('.stempling-skjema input[name="pin"]', pin)
+  await page.locator('.stempling-skjema button[type="submit"]').click()
   await expect(
     page.locator('.stempling-kvittering, .stempling-feil'),
     'stemplingsskjemaet svarte hverken med kvittering eller feilmelding',
