@@ -127,10 +127,18 @@ grant select (
 -- ingen capability - men den lot en butikksjef PATCHe en kollegas
 -- pin_hash til noe hun selv kjente, utenom produktet og uten spor.
 --
+-- SAMME FELLE SOM FOR SELECT, og jeg gikk i den. Et `revoke update
+-- (pin_hash)` gjor INGENTING saa lenge tabellnivaa-granten fra 0025
+-- staar: en tabellrett dekker alle kolonner, og kan ikke trekkes tilbake
+-- kolonne for kolonne. Man maa fjerne tabellretten og dele ut kolonnene.
+-- Vakthunden fanget det paa foerste kjoering.
+--
 -- Skal PIN-endring bygges senere, er det en egen kontrollert
 -- serverhandling med revisjon, rolle- og tenantkontroll og uskillelige
 -- feilmeldinger. Ikke ved aa gi denne retten tilbake.
-revoke update (pin_hash) on public.ansatte from authenticated;
+revoke update on public.ansatte from authenticated;
+grant update (navn, stasjon_id, ansatt_nr, aktiv, slettet_tid)
+  on public.ansatte to authenticated;
 
 -- INSERT blir staaende paa tabellnivaa: `pin_hash` er `not null`, og
 -- lederen som oppretter en ansatt SKAL sette den foerste PIN-en. Det er
@@ -273,9 +281,16 @@ begin
 end;
 $$;
 
--- EXECUTE er eksplisitt og smal. `revoke from public` foerst: uten den
--- arver enhver rolle retten, ogsaa `anon`.
-revoke all on function public.verifiser_ansatt_pin(text, text, text) from public;
+-- EXECUTE er eksplisitt og smal.
+--
+-- `revoke from public` ALENE ER IKKE NOK, og det var den andre fella.
+-- Supabase deler ut EXECUTE paa nye funksjoner til anon, authenticated
+-- og service_role gjennom `alter default privileges` - navngitt, ikke
+-- gjennom PUBLIC. En revoke fra PUBLIC roerer dem derfor ikke i det
+-- hele tatt, og funksjonen sto aapen for anon. Vakthunden fanget ogsaa
+-- denne paa foerste kjoering.
+revoke all on function public.verifiser_ansatt_pin(text, text, text)
+  from public, anon, authenticated, service_role;
 grant execute on function public.verifiser_ansatt_pin(text, text, text) to authenticated;
 
 comment on function public.verifiser_ansatt_pin(text, text, text) is
