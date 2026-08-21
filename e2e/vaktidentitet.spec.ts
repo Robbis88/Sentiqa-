@@ -400,14 +400,19 @@ test.describe('en skrevet kapsel tilskrives ikke arbeid', () => {
 // Her maales det SQL ikke kan se: at menneskene fortsatt kommer inn.
 test.describe('verifiseringen virker for begge innlogginger', () => {
   test('stempling gaar gjennom med nummer og PIN', async ({ page }) => {
+    // SELEKTORENE ER SKOPET TIL SKJEMAET. `/stempling` har ni
+    // submit-knapper - spraakvelgeren alene har seks - og vaktskjemaet
+    // i toppstripa har OGSAA et `ansatt_nr`-felt etter
+    // korrekthetstrinnet. Et globalt `input[name="ansatt_nr"]` traff
+    // derfor to felter, og Playwright nektet aa gjette.
     // `stemple()` gikk fra et direkte oppslag paa `pin_hash` til RPC-en.
     // Ingen e2e rorte skjemaet foer dette, saa den veien var uten bevis
     // gjennom hele omleggingen.
     await loggInn(page)
     await page.goto('/stempling')
-    await page.fill('input[name="ansatt_nr"]', ADA.nr)
-    await page.fill('input[name="pin"]', ADA.pin)
-    await page.locator('button[type="submit"]').click()
+    await page.fill('.stempling-skjema input[name="ansatt_nr"]', ADA.nr)
+    await page.fill('.stempling-skjema input[name="pin"]', ADA.pin)
+    await page.locator('.stempling-skjema button[type="submit"]').click()
 
     // Kvitteringen sier NAVN og KLOKKESLETT. «Lagret» er ikke nok: hun
     // skal se at det ble riktig person uten aa lete.
@@ -420,9 +425,9 @@ test.describe('verifiseringen virker for begge innlogginger', () => {
   test('feil PIN paa stempling avvises uten aa royke noe', async ({ page }) => {
     await loggInn(page)
     await page.goto('/stempling')
-    await page.fill('input[name="ansatt_nr"]', ADA.nr)
-    await page.fill('input[name="pin"]', BO.pin)
-    await page.locator('button[type="submit"]').click()
+    await page.fill('.stempling-skjema input[name="ansatt_nr"]', ADA.nr)
+    await page.fill('.stempling-skjema input[name="pin"]', BO.pin)
+    await page.locator('.stempling-skjema button[type="submit"]').click()
 
     const feil = page.locator('.stempling-feil')
     await expect(feil).toBeVisible({ timeout: 30_000 })
