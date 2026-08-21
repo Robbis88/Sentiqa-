@@ -903,3 +903,12 @@
 /* En uavklart måned skal SE uavklart ut. Stiplet, ikke bare tom —
    ellers ser den ut som en måned noen har tatt stilling til. */
 .dekning-ukjent { border-top-style: dashed; }
+
+/* Timetallet eieren skriver. Smalt, høyrestilt og med tabulærsiffer:
+   141,25 og 70,5 skal kunne sammenlignes med øyet nedover lista. */
+.dekning-timer {
+  width: 9rem;
+  flex: 0 0 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

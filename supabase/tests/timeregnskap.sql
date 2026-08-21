@@ -29,7 +29,7 @@ declare
   r       record;
 begin
   if to_regclass('public.v_timeregnskap') is null then
-    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117-0119 kjort?';
+    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117-0120 kjort?';
   end if;
 
   begin
@@ -122,18 +122,20 @@ begin
     end if;
 
     -- ============================================================
-    -- RAMMEN JUSTERES NAAR DET IKKE ER FASTLOENNET LEDER
+    -- RAMMEN JUSTERES BARE AV ET TALL EIEREN HAR SATT
     -- ============================================================
     -- St1 trakk fra ett aarsverk fordi de antok fastloenn. Holder ikke
-    -- antakelsen, maa arbeidet gjores av timeloennede - fra en ramme
-    -- som ikke er dimensjonert for det.
+    -- antakelsen, KAN eieren legge timer tilbake - men det er en
+    -- beslutning, ikke en konsekvens.
     --
-    -- Aarsverket settes til 1200 (ikke 1695) med vilje: 1200/12 = 100
-    -- er et rundt tall som ikke kan forveksles med noe annet i denne
-    -- testen, og som gir en synlig forskjell i opptjente timer.
+    -- `fast_arsverk_timer` settes til 1200 her, og det er med vilje at
+    -- den IKKE lenger paavirker noe: 1200/12 = 100 ville vaert den
+    -- automatiske justeringen i 0119. Ser vi 100 eller 11 616 i
+    -- kontrollene under uten at noen har satt `timer_tilbake`, er
+    -- automatikken tilbake. Tallet staar altsaa der som en felle.
     --
-    -- FOER: ramme 12 000 -> opptjent 12 000 x 4,8/5,0 = 11 520
-    -- ETTER: ramme 12 100 -> opptjent 12 100 x 4,8/5,0 = 11 616
+    -- I produktet er den fortsatt et FORSLAG i skjemaet - «full maaned
+    -- = 141,25 timer» - men den fylles aldri inn.
     update public.bemanning_aar set fast_arsverk_timer = 1200
      where stasjon_id = STASJ and ar = 2026;
 
@@ -155,27 +157,16 @@ begin
       feil := feil + 1;
     end if;
 
-    -- JA: fratrekket St1 gjorde er riktig, rammen staar.
+    -- «NEI» ALENE SKAL IKKE GI EN ENESTE TIME.
+    --
+    -- Dette er hele rettelsen i 0120. For den utloeste fastlonnet =
+    -- false en automatisk justering paa aarsverk/12 - og paa
+    -- Laguneparken, der lederen er fastloennet men var i pappaperm, ga
+    -- det 953 timer uten at noen hadde tatt stilling til om noen
+    -- faktisk dekket ham. Stasjonen ville gaatt fra +154 til -799.
     insert into public.bemanning_lederdekning
       (retailer_id, stasjon_id, ar, maned, fastlonnet, notat)
-    values (RET, STASJ, 2026, 1, true, 'test: fastloennet paa plass');
-
-    select * into r from public.v_timeregnskap
-    where stasjon_id = STASJ and maned = jan;
-    if r.lederdekning <> 'fastlonnet' then
-      raise warning 'lederdekning er % - ventet fastlonnet', r.lederdekning;
-      feil := feil + 1;
-    end if;
-    if r.opptjente_timer is distinct from 11520 then
-      raise warning 'opptjente_timer er % med fastloennet leder - ventet '
-                    '11520. En huket maaned skal IKKE justeres.',
-        r.opptjente_timer;
-      feil := feil + 1;
-    end if;
-
-    -- NEI: permisjon, timeloenn, vikariat - grunnen spiller ingen rolle.
-    update public.bemanning_lederdekning set fastlonnet = false
-     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+    values (RET, STASJ, 2026, 1, false, 'test: ingen leder, ingen timer gitt');
 
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = jan;
@@ -183,35 +174,179 @@ begin
       raise warning 'lederdekning er % - ventet ikke_fastlonnet', r.lederdekning;
       feil := feil + 1;
     end if;
-    if r.ramme_justering_timer is distinct from 100 then
-      raise warning 'ramme_justering_timer er % - ventet 100 (1200/12)',
+    if r.ramme_justering_timer is distinct from 0 then
+      raise warning 'AUTOMATIKK: fastlonnet = false ga % timer uten at noen '
+                    'satte timer_tilbake. Rammen skal ikke oeke av en '
+                    'lederstatus alene.', r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+    if r.opptjente_timer is distinct from 11520 then
+      raise warning 'opptjente_timer er % - ventet 11520 (uendret). '
+                    'Er den 11616, er automatikken tilbake.', r.opptjente_timer;
+      feil := feil + 1;
+    end if;
+
+    -- ... OG ET TALL EIEREN SETTER SKAL VIRKE, ogsaa med desimal.
+    -- 100,5 timer, ikke 100: halve maaneder er hele grunnen til at
+    -- feltet er numerisk og ikke en hake.
+    update public.bemanning_lederdekning set timer_tilbake = 100.5
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.ramme_justering_timer is distinct from 100.5 then
+      raise warning 'ramme_justering_timer er % - ventet 100,5. Er den 100 '
+                    'eller 101, avrundes eierens valg bort.',
         r.ramme_justering_timer;
       feil := feil + 1;
     end if;
-    if r.budsjett_timer is distinct from 12100 then
-      raise warning 'budsjett_timer er % - ventet 12100 (12000 + 100)',
+    if r.budsjett_timer is distinct from 12101 then
+      raise warning 'budsjett_timer er % - ventet 12101 (12000 + 100,5)',
         r.budsjett_timer;
       feil := feil + 1;
     end if;
-    -- SELVE POENGET: en maaned uten fastloennet leder tjener FLERE timer
-    -- paa samme brutto, fordi rammen skulle vaert stoerre.
+    -- 12 100,5 x 4,8/5,0 = 11 616,48 -> 11 616.
     if r.opptjente_timer is distinct from 11616 then
-      raise warning 'opptjente_timer er % - ventet 11616 (12100 x 4,8/5,0). '
-                    'Er den 11520, ble justeringen ikke lagt til rammen '
-                    'foer bruttoforholdet.', r.opptjente_timer;
+      raise warning 'opptjente_timer er % - ventet 11616 (12100,5 x 4,8/5,0)',
+        r.opptjente_timer;
       feil := feil + 1;
     end if;
-    -- ... og da blir overforbruket mindre: 12 000 - 11 616 = 384.
     if r.timer_over is distinct from 384 then
       raise warning 'timer_over er % - ventet 384', r.timer_over;
       feil := feil + 1;
     end if;
 
-    -- ALLE TIMER TELLES FORTSATT. Ingen ekskluderes - det var hele
-    -- grunnen til at ansatt_nr-loesningen ble forkastet.
+    -- FASTLOENNET LEDER OG TIMER SAMTIDIG ER LOV. Hun kan ha vaert
+    -- sykmeldt halve maaneden. De to feltene svarer paa hvert sitt
+    -- spoersmaal, og skal kunne vaere uenige.
+    update public.bemanning_lederdekning set fastlonnet = true
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.lederdekning <> 'fastlonnet' then
+      raise warning 'lederdekning er % - ventet fastlonnet', r.lederdekning;
+      feil := feil + 1;
+    end if;
+    if r.ramme_justering_timer is distinct from 100.5 then
+      raise warning 'timene forsvant da lederen ble satt til fastloennet '
+                    '(%). Feltene skal kunne vaere uenige.',
+        r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+
+    -- ALLE TIMER TELLES. Ingen ekskluderes.
     if r.brukte_timer is distinct from 12000 then
-      raise warning 'brukte_timer er % - ventet 12000. Ingen skal '
-                    'ekskluderes fra tellingen.', r.brukte_timer;
+      raise warning 'brukte_timer er % - ventet 12000', r.brukte_timer;
+      feil := feil + 1;
+    end if;
+
+    -- 0 ER FORBUDT VED SKRANKE. «Ingenting» skal ha en representasjon,
+    -- ellers bommer en spoerring etter `is null` paa halvparten.
+    begin
+      update public.bemanning_lederdekning set timer_tilbake = 0
+       where stasjon_id = STASJ and ar = 2026 and maned = 1;
+      raise warning 'timer_tilbake = 0 ble godtatt - skranken mangler';
+      feil := feil + 1;
+    exception
+      when check_violation then null;
+    end;
+
+    -- ============================================================
+    -- DE FIRE TILFELLENE, MED DE EKTE TALLENE
+    -- ============================================================
+    -- 1695/12 = 141,25 er forslaget for en hel maaned. Disse fire er
+    -- situasjonene Robert beskrev, og de skal kunne skilles fra
+    -- hverandre uten spesiallogikk - bare et tall i et felt.
+    --
+    -- Rammen er 12 000 og bruttoforholdet 4,8/5,0 = 0,96 hele veien, saa
+    -- hver opptjent-verdi er regnbar for haand.
+
+    -- (1) FULL MAANED. Sissel paa Dale gaar paa timeloenn hele veien.
+    --     12 141,25 x 0,96 = 11 655,6 -> 11 656
+    update public.bemanning_lederdekning
+       set fastlonnet = false, timer_tilbake = 141.25,
+           notat = 'Sissel timeloenn hele maaneden'
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.ramme_justering_timer is distinct from 141.25 then
+      raise warning 'FULL MAANED: justeringen er % - ventet 141,25. Er den '
+                    '141,3, avrunder viewet eierens valg til feil tall.',
+        r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+    if r.opptjente_timer is distinct from 11656 then
+      raise warning 'FULL MAANED: opptjente_timer er % - ventet 11656',
+        r.opptjente_timer;
+      feil := feil + 1;
+    end if;
+
+    -- (2) HALV MAANED. Overgang midt i maaneden - Lone i april.
+    --     Hele grunnen til at feltet er et TALL og ikke en hake.
+    --     12 070,5 x 0,96 = 11 587,68 -> 11 588
+    update public.bemanning_lederdekning
+       set timer_tilbake = 70.5, notat = 'vikar halve maaneden'
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.ramme_justering_timer is distinct from 70.50 then
+      raise warning 'HALV MAANED: justeringen er % - ventet 70,5',
+        r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+    if r.opptjente_timer is distinct from 11588 then
+      raise warning 'HALV MAANED: opptjente_timer er % - ventet 11588',
+        r.opptjente_timer;
+      feil := feil + 1;
+    end if;
+
+    -- (3) PERMISJON UTEN TILBAKEFOERING. Bjoern paa Laguneparken:
+    --     fastloennet leder, men i pappaperm - og ingen vikar spiste av
+    --     timebudsjettet. Faktumet registreres, ingenting gis tilbake.
+    --
+    --     DETTE ER TILFELLET DEN GAMLE AUTOMATIKKEN TOK FEIL PAA. Der ga
+    --     `fastlonnet = false` 953 timer paa aaret, og stasjonen gikk fra
+    --     +154 til -799 uten at noen hadde tatt stilling.
+    update public.bemanning_lederdekning
+       set fastlonnet = false, timer_tilbake = null,
+           notat = 'Bjoern i pappaperm - ingen vikar'
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.lederdekning <> 'ikke_fastlonnet' then
+      raise warning 'PERMISJON: lederdekning er % - faktumet skal staa selv '
+                    'naar ingenting gis tilbake', r.lederdekning;
+      feil := feil + 1;
+    end if;
+    if r.ramme_justering_timer is distinct from 0 then
+      raise warning 'PERMISJON: justeringen er % - ventet 0. Automatikken '
+                    'er tilbake, og stasjonen faar timer ingen har gitt den.',
+        r.ramme_justering_timer;
+      feil := feil + 1;
+    end if;
+    if r.opptjente_timer is distinct from 11520 then
+      raise warning 'PERMISJON: opptjente_timer er % - ventet 11520 (uendret)',
+        r.opptjente_timer;
+      feil := feil + 1;
+    end if;
+
+    -- (4) INGENTING. Verken lederstatus eller timer - raden finnes ikke.
+    delete from public.bemanning_lederdekning
+     where stasjon_id = STASJ and ar = 2026 and maned = 1;
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.lederdekning <> 'ukjent' then
+      raise warning 'INGENTING: lederdekning er % - ventet ukjent',
+        r.lederdekning;
+      feil := feil + 1;
+    end if;
+    if r.ramme_justering_timer is distinct from 0 then
+      raise warning 'INGENTING: justeringen er %', r.ramme_justering_timer;
       feil := feil + 1;
     end if;
 

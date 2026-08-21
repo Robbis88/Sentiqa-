@@ -2,7 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import {
-  ARSVERK_TIMER, MANEDER, forklarDekning, justeringPerManed, uavklarte,
+  ARSVERK_TIMER, MANEDER, forklarDekning, forslagHelManed, timetall, uavklarte,
   type Dekning,
 } from '@/lib/bemanning/lederdekning'
 import { settArsverk, settDekning } from './handlinger'
@@ -34,7 +34,10 @@ import { settArsverk, settDekning } from './handlinger'
 export const dynamic = 'force-dynamic'
 
 type Stasjon = { id: string; navn: string; butikknummer: string }
-type Rad = { stasjon_id: string; maned: number; fastlonnet: boolean; notat: string | null }
+type Rad = {
+  stasjon_id: string; maned: number; fastlonnet: boolean
+  timer_tilbake: number | null; notat: string | null
+}
 type Aar = { stasjon_id: string; fast_arsverk_timer: number }
 
 export default async function LederdekningOppsett(
@@ -56,7 +59,7 @@ export default async function LederdekningOppsett(
     supabase.from('stasjoner').select('id, navn, butikknummer')
       .is('slettet_tid', null).order('butikknummer'),
     supabase.from('bemanning_lederdekning')
-      .select('stasjon_id, maned, fastlonnet, notat').eq('ar', ar),
+      .select('stasjon_id, maned, fastlonnet, timer_tilbake, notat').eq('ar', ar),
     supabase.from('bemanning_aar')
       .select('stasjon_id, fast_arsverk_timer').eq('ar', ar),
   ])
@@ -109,7 +112,7 @@ export default async function LederdekningOppsett(
 
       {liste.map((st) => {
         const timer = arsverk.get(st.id) ?? 0
-        const perManed = justeringPerManed(timer)
+        const forslag = forslagHelManed(timer || ARSVERK_TIMER)
         return (
           <section key={st.id} className="sq-kort dekning-stasjon">
             <h2 className="dekning-navn">{st.butikknummer} {st.navn}</h2>
@@ -130,8 +133,8 @@ export default async function LederdekningOppsett(
               <button type="submit" className="sq-knapp">Lagre</button>
               <span className={timer > 0 ? 'dekning-hint' : 'dekning-mangler'}>
                 {timer > 0
-                  ? `${perManed} timer per måned uten fastlønnet leder`
-                  : 'Ikke satt — hakene under gjør ingenting før dette er lagret'}
+                  ? `Forslag full måned: ${timetall(forslag)} timer`
+                  : `Ikke satt — forslaget bruker ${timetall(forslag)} som standard`}
               </span>
             </form>
 
@@ -182,7 +185,7 @@ export default async function LederdekningOppsett(
                     </form>
                     {/* HVA HAKEN GJØR, i klartekst. Den som leser dette om
                         et halvt år skal se konsekvensen, ikke gjette den. */}
-                    <p className="dekning-forklaring">{forklarDekning(na, perManed)}</p>
+                    <p className="dekning-forklaring">{forklarDekning(na, r?.timer_tilbake ?? null)}</p>
                   </li>
                 )
               })}
