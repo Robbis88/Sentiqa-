@@ -181,10 +181,10 @@ med_status as (
 )
 
 select
-  stasjon_id,
+  m.stasjon_id,
   maned,
   periode_status,
-  gruppe_kode,
+  m.gruppe_kode,
   gruppe_navn,
 
   round(bp_omsetning_kr)                            as bp_omsetning_kr,
