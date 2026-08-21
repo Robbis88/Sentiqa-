@@ -247,15 +247,29 @@ test.describe('vaktkapselen er ubetrodd', () => {
   })
 
   test('navnet i kapselen brukes ikke — det hentes fra basen', async ({ page }) => {
-    // En kapsel med Adas EKTE id, men et paafunnet navn. Godtas ID-en,
-    // skal navnet likevel komme fra raden. Et navn paa skjermen er
-    // nettopp det som far folk til aa stole paa at riktig person staar
-    // paalogget.
+    // Adas EKTE signatur, hennes EKTE ID — og et påfunnet navn limt inn
+    // ved siden av. Signaturen er gyldig, så kapselen slipper gjennom
+    // lås 1; spørsmålet er hva systemet så viser.
+    //
+    // FØRSTE UTGAVE AV DETTE BEVISET VAR STILLE FEIL. Den skrev en helt
+    // ny kapsel `{id, navn}` uten signatur, og fikk selvsagt ingen vakt.
+    // Testen felte — men den felte på lås 1, ikke på det den skulle
+    // måle. Et bevis som består av feil grunn er verdiløst; et som
+    // FEILER av feil grunn skjuler at det aldri prøvde.
+    //
+    // Et navn på skjermen er nettopp det som får folk til å stole på at
+    // riktig person er pålogget. Derfor bærer kapselen ikke noe navn i
+    // det hele tatt, og et som limes inn skal ignoreres.
     await startVakt(page, ADA.nr, ADA.pin)
     await krevVakt(page, ADA.navn)
 
-    await skrivKapsel(page, { id: ADA.id, navn: 'Direktøren' })
+    const raa = (await page.context().cookies()).find((k) => k.name === 'sentiqa_vakt')?.value
+    expect(raa, 'fant ingen vaktkapsel etter innlogging').toBeTruthy()
+    const ekte = lesKapsel(raa!)
+
+    await skrivKapsel(page, { id: ADA.id, sig: ekte.sig, navn: 'Direktøren' })
     await page.goto('/oversikt')
+
     const navn = await vaktnavn(page)
     expect(navn, 'kapselens navn ble vist').not.toContain('Direkt')
     expect(navn, 'den ekte raden ble ikke lest').toBe(ADA.navn)
