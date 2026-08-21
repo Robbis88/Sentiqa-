@@ -16,7 +16,7 @@ export const TABLET_ORD: string[] = [
   'på rad over fjoråret!', 'dag', 'dager', 'mot i fjor',
   // Premie + skills
   'Vår premiesaldo', 'Vunnet', 'Brukt', 'Igjen', 'Skills-score',
-  'Helt perfekt! Hele teamet er på topp 🏆', 'Sterkt — nesten på topp!',
+  'Helt perfekt! Hele teamet er på topp', 'Sterkt — nesten på topp!',
   'Bra jobba — fortsett sånn', 'På god vei', 'Her er det rom for å løfte seg',
   // Puls
   'Takk for svaret!', 'Kommentar (valgfri, anonym)', 'Ikke nå', 'Send', 'Sender …',

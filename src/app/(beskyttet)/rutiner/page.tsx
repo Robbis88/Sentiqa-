@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
+import { Sidehode } from '@/components/ui/side'
 import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu } from '@/lib/rutineskjema'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { oversettMange } from '@/lib/oversett'
@@ -137,21 +138,35 @@ export default async function RutinerSide() {
   // tallene gjelder.
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
+  // Svaret er det samme for begge rollene; bare rammen rundt er ulik.
+  const svaret = totaltPaaVakt === 0
+    ? o('Ingen rutiner på vakta nå') ?? 'Ingen rutiner på vakta nå'
+    : igjenTotalt === 0
+      ? o('Alt er gjort') ?? 'Alt er gjort'
+      : `${igjenTotalt} ${o('igjen')}`
+
   return (
     <>
-      <header className="tablet-hode">
-        <h1>
-          {totaltPaaVakt === 0
-            ? o('Ingen rutiner på vakta nå')
-            : igjenTotalt === 0
-              ? o('Alt er gjort')
-              : `${igjenTotalt} ${o('igjen')}`}
-        </h1>
-        <p className="undertittel">
-          {datoLang.format(new Date(naa.dato))}
-          {erLeder ? <> · <Link href="/rutiner/oppsett">Rutineoppsett</Link></> : null}
-        </p>
-      </header>
+      {/* DEN SISTE STIL-LEKKASJEN. `.tablet-hode` er tegnet for moerkt
+          underlag, og sto paa BEGGE roller her - paa lederens lyse side
+          ga det samme 1,9:1 som /ikmat hadde, og den sto oppfoert som et
+          kjent unntak i port0-4b.spec.ts fram til bolge 5.
+          Svaret er det samme for begge: hvor mange igjen. Formen er det
+          ikke. */}
+      {paaNettbrett ? (
+        <header className="tablet-hode">
+          <h1>{svaret}</h1>
+          <p className="undertittel">{datoLang.format(new Date(naa.dato))}</p>
+        </header>
+      ) : (
+        <Sidehode
+          tittel={svaret}
+          undertittel={datoLang.format(new Date(naa.dato))}
+          handlinger={erLeder
+            ? <Link href="/rutiner/oppsett" className="sq-knapp">Rutineoppsett</Link>
+            : undefined}
+        />
+      )}
 
       {perStasjon.size === 0 ? (
         <section className="kort">

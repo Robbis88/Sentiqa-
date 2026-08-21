@@ -111,10 +111,10 @@ export function MeldingerFraSjef({
 
   return (
     <section className="tablet-seksjon sjefmeldinger">
-      <h2>📨 {t('Meldinger fra butikksjef')}</h2>
+      <h2>{t('Meldinger fra butikksjef')}</h2>
 
       {aapne.length === 0 && ferdige.length === 0 && (
-        <p className="sjefmeldinger-tom">📭 {t('Ingen nye meldinger fra butikksjef')}</p>
+        <p className="sjefmeldinger-tom">{t('Ingen nye meldinger fra butikksjef')}</p>
       )}
 
       {aapne.map((m) => (

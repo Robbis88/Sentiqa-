@@ -8,7 +8,7 @@ export function Vakt({ aktiv }: { aktiv: { id: string; navn: string } | null }) 
   if (aktiv) {
     return (
       <div className="vakt">
-        <span className="vakt-navn">👤 {aktiv.navn}</span>
+        <span className="vakt-navn">{aktiv.navn}</span>
         <form action={checkUt}><button type="submit" className="liten">Logg av</button></form>
       </div>
     )

@@ -21,7 +21,7 @@ export type HjemData = {
 }
 
 function skillsTekst(p: number): string {
-  if (p >= 100) return 'Helt perfekt! Hele teamet er på topp 🏆'
+  if (p >= 100) return 'Helt perfekt! Hele teamet er på topp'
   if (p >= 90) return 'Sterkt — nesten på topp!'
   if (p >= 70) return 'Bra jobba — fortsett sånn'
   if (p >= 50) return 'På god vei'

@@ -140,17 +140,21 @@ test.describe('nettbrettets stiler blir paa nettbrettet', () => {
   /**
    * Kjente lekkasjer, med grunn og forfallsdato.
    *
-   * `/rutiner` ER nettbrettets rute - «Paa vakt», rolle [T] i
-   * navigasjonen, monster `tablet` i kartet. En leder som gaar dit
-   * direkte faar nettbrettets hode paa lys bakgrunn, samme feil som
-   * /ikmat hadde. Forskjellen er at /ikmat har en ekte lederflate aa
-   * gaa til, mens /rutiner ikke har det: lederens egen er /rutiner/min.
+   * LISTA ER TOM ETTER BOLGE 5, og det var hele avtalen da den ble
+   * opprettet. Den sto med ett navn: `/rutiner: .tablet-hode`. Ruta ER
+   * nettbrettets - «Paa vakt», rolle [T] i navigasjonen - men en leder
+   * som gikk dit direkte fikk nettbrettets moerke hode paa lys
+   * bakgrunn, samme 1,9:1 som /ikmat hadde.
    *
-   * Aa loese det her ville vaert aa redesigne nettbrettet, og det er
-   * bolge 5. Unntaket staar oppfort framfor aa vaere skjult - og naar
-   * bolge 5 er ferdig, skal denne lista vaere tom.
+   * Loesningen var den samme som paa /ikmat: svaret er det samme for
+   * begge rollene - hvor mange igjen - men formen er det ikke. Lederen
+   * faar `Sidehode`, nettbrettet beholder sitt.
+   *
+   * En tom liste er ikke det samme som en fjernet liste. Den staar
+   * igjen fordi den er MEKANIKKEN som gjor unntak synlige framfor
+   * skjulte, og neste lekkasje skal maatte skrives inn her med en grunn.
    */
-  const KJENTE = new Set(['/rutiner: .tablet-hode'])
+  const KJENTE = new Set<string>([])
 
   test('ingen .tablet-klasse paa lederens flate', async ({ page }) => {
     await loggInn(page, SJEF)

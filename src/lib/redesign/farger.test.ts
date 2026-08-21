@@ -165,6 +165,36 @@ const PAR: [string, string, string][] = [
   ['--rod', '--rod-svak', '.status-pip.rod, .sq-nokkeltall-mot.darlig'],
   ['--gul', '--gul-svak', '.status-pip.gul'],
   ['--gronn', '--gronn-svak', '.status-pip.gronn, sidemenyens aktive lenke'],
+
+  // NETTBRETTETS MORKE VERDEN, som ingen deterministisk vakt naadde for
+  // bolge 5. Fargene sto skrevet rett inn i femtiaatte regler, og en
+  // farge som ikke er et token finnes ikke for denne testen.
+  //
+  // Maalingen viste at flata var i orden fra for - laveste par er 4,67
+  // - saa dette er ikke en feilretting. Det er forskjellen paa «i orden
+  // i dag» og «kan ikke skli uten at noen ser det».
+  ['--natt-tekst', '--natt', 'brodtekst paa bunnen'],
+  ['--natt-tekst', '--natt-flate', 'kort, fliser, rader'],
+  ['--natt-tekst', '--natt-topp', 'topplinja'],
+  ['--natt-tekst-klar', '--natt', 'overskrifter'],
+  ['--natt-tekst-svak', '--natt', '.tablet-hode .undertittel'],
+  ['--natt-tekst-svak', '--natt-flate', '.tablet-seksjon .undertittel'],
+  ['--natt-tekst-svak', '--natt-topp', '.tablet-fane, inaktiv'],
+  ['--natt-tekst-svakere', '--natt-flate', '.pp-tab-start'],
+  // Pila i lenkeradene. Det svakeste paret i hele systemet, og det er
+  // et TEGN - «›» - ikke en dekorasjon. Derfor maalt som tekst.
+  ['--natt-tekst-dempet', '--natt-flate', '.lenke-pil'],
+  ['--natt-rod', '--natt-flate', '.ikmat-utenfor'],
+  ['--natt-rod', '--natt-flate-viktig', '.tablet-melding.viktig .tablet-melding-merke'],
+  ['--natt-blaa', '--natt-topp', '.vakt-navn'],
+  ['--natt-flamme', '--natt-flate', '.tablet-streak'],
+  ['--natt-tekst', '--natt-flate-ferdig', '.pp-tab-rad.ferdig'],
+  ['--natt-tekst', '--natt-flate-viktig', '.tablet-melding.viktig'],
+  // Aksentene nettbrettet ARVER fra primitivene. `.tablet` skriver om
+  // `--rod`, `--gul` og `--gronn` til disse; uten omskrivingen sto
+  // dagens #9b2c2c paa nattbakgrunn og gav 2,5:1.
+  ['--natt-gul', '--natt-flate', '.sq-status-handling paa nettbrettet'],
+  ['--natt-gronn', '--natt-flate', 'positiv status paa nettbrettet'],
 ]
 
 describe('kontrastvakten', () => {
@@ -210,5 +240,14 @@ describe('kontrastvakten', () => {
     expect(CSS).toMatch(/\.sq-signal-mulighet \{[^}]*background: var\(--gronn-svak\)/)
     expect(CSS).toMatch(/\.sq-status-kritisk \{[^}]*color: var\(--rod\)/)
     expect(CSS).toMatch(/\.sq-status-handling \{[^}]*color: var\(--gul\)/)
+    // Og at den moerke verdenen faktisk BRUKER tokenene sine. Skrives en
+    // farge tilbake inn i en regel, maaler lista over et par ingen ser.
+    expect(CSS).toMatch(/\.tablet \{[^}]*background: var\(--natt\)/)
+    expect(CSS).toMatch(/\.tablet-fane \{[^}]*color: var\(--natt-tekst-svak\)/)
+    expect(CSS).toMatch(/\.ikmat-utenfor \{[^}]*color: var\(--natt-rod\)/)
+    // Og at natten faktisk skriver om dagens aksenter. Faller denne ut,
+    // maaler parene over noe nettbrettet ikke bruker.
+    expect(CSS).toMatch(/\.tablet \{[^}]*--rod: var\(--natt-rod\)/)
+    expect(CSS).toMatch(/\.tablet \{[^}]*--gul: var\(--natt-gul\)/)
   })
 })

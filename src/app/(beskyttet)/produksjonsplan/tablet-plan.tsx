@@ -22,7 +22,7 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
     <>
       {notat && (
         <div className="tablet-melding viktig">
-          <span className="tablet-melding-ikon">📝</span>
+          <span className="tablet-melding-merke">{t('Beskjed')}</span>
           <span>{notat}</span>
         </div>
       )}
@@ -42,7 +42,7 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
                   </div>
                   <div className="pp-tab-bar"><span style={{ width: `${pst}%` }} /></div>
                   <div className="pp-tab-bunn">
-                    {p.start_antall > 0 && <span className="pp-tab-start">🌅 {t('Klart til morgen')}: {p.start_antall}</span>}
+                    {p.start_antall > 0 && <span className="pp-tab-start">{t('Klart til morgen')}: {p.start_antall}</span>}
                     <div className="stepper">
                       <button type="button" onClick={() => endre(p, x - 1)} aria-label="−">−</button>
                       <input inputMode="numeric" value={x} onChange={(e) => endre(p, Number(e.target.value.replace(/\D/g, '')))} aria-label={`${t('Lagd')} ${p.varenavn}`} />
