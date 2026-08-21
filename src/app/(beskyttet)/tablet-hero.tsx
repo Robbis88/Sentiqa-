@@ -2,6 +2,16 @@
 import { useEffect, useState } from 'react'
 import { useT } from './oversett-kontekst'
 
+// =====================================================================
+// «God morgen, Alida — 08:14»
+//
+// STREAKEN STO HER OG STAAR NAA PAA «Vaar stasjon». Den er regnet av
+// salg mot fjoraaret (`hentHjemData`), altsaa analyse — og Nivaa 1 skal
+// svare paa hva hun skal gjore naa, ikke hvordan butikken ligger an.
+// Den forsvant ikke: `VekstKort` viste det samme tallet rett under, saa
+// den sto to ganger paa samme flate. Naa staar den ett sted.
+// =====================================================================
+
 function hilsen(time: number): string {
   if (time < 6) return 'God natt'
   if (time < 10) return 'God morgen'
@@ -10,7 +20,7 @@ function hilsen(time: number): string {
   return 'God kveld'
 }
 
-export function TabletHero({ navn, streak }: { navn?: string; streak: number }) {
+export function TabletHero({ navn }: { navn?: string }) {
   const t = useT()
   const [tid, setTid] = useState('')
   const [hei, setHei] = useState('Hei')
@@ -36,9 +46,6 @@ export function TabletHero({ navn, streak }: { navn?: string; streak: number }) 
         <div className="tablet-hilsen">{t(hei)}{navn ? `, ${navn}` : ''}</div>
         <div className="tablet-klokke">{tid}</div>
       </div>
-      {/* Sto med flamme-emoji. Tallet er allerede stort og streaken har
-          sin egen farge — flammen la ikke til noe man ikke så. */}
-      {streak > 0 && <div className="tablet-streak">{streak}<span>{t('dager på rad')}</span></div>}
     </div>
   )
 }

@@ -4,7 +4,8 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { hentHjemData } from '@/lib/tablethjem'
-import { beregnMalekort, tabletKort, type Malekort, type TabletKort } from '@/lib/malekort'
+import { nesteRetning } from '@/lib/stempling/tilstand'
+import type { Stemplingstilstand } from '../stempling-rad'
 import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
 import { iDag } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
@@ -22,7 +23,8 @@ export default async function OversiktSide(
   const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
 
-  // Tablet-hjem (egen verden): hero + streak + funksjons-fliser.
+  // Nettbrettets «I dag» (egen verden). Se tablet-hjem.tsx for hvorfor
+  // flisene og okonomien ikke lenger staar her.
   if (bruker.rolle === 'butikkbruker_tablet') {
     const aktiv = await lesAktivAnsatt()
     const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -41,27 +43,45 @@ export default async function OversiktSide(
       .filter((p) => !besvart.has(p.id) && (!p.klokkeslett || p.klokkeslett <= naaTid))
       .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
     const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag) : null
-    const streak = rutinestat?.streak ?? 0
     // Det som faktisk gjenstaar i dag - grunnlaget for skiftlista.
     const rutinerIgjen = Math.max(0, (rutinestat?.forventet ?? 0) - (rutinestat?.utfort ?? 0))
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
 
-    // Målekort delt med tablet → egen butikks stilling (motiverende kort).
-    let maling: TabletKort[] = []
-    if (st) {
-      const { data: stData } = await supabase.rpc('malekort_stasjoner')
-      const malStasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[])
-        .map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))
-      const { data: kortData } = await supabase
-        .from('malekort')
-        .select('id, navn, metrikk, normalisering, periode, retning, krev_fullstendig_periode, anonymiser')
-        .eq('vis_tablet', true)
-        .is('slettet_tid', null)
-        .order('sortering')
-        .overrideTypes<Malekort[]>()
-      const malkort = kortData ?? []
-      const malRes = await Promise.all(malkort.map((k) => beregnMalekort(supabase, k, malStasjoner)))
-      maling = malkort.map((k, i) => tabletKort(k.navn, malRes[i], st.id))
+    // ER HUN STEMPLET INN? Raden paa «I dag» skal si hva et trykk
+    // FOERER TIL, ikke hva den heter — «Stemple ut» naar hun staar inne.
+    //
+    // KOBLET PAA ID, ALDRI PAA NAVN. Samme ansatt finnes under tre
+    // identiteter i denne basen: `ansatt_nr`, `ansatte.id` og et
+    // fritekstnavn. Vakt-kapselen baerer id-en; stemplingen foeres paa
+    // nummeret. Broa mellom dem gaar gjennom raden, ikke gjennom navnet
+    // — to som heter det samme ville ellers delt arbeidsdag.
+    //
+    // `nesteRetning()` er den samme funksjonen `stemple()` bruker.
+    // Delt, saa raden og handlinga ikke kan si hver sin ting.
+    let stempling: Stemplingstilstand = { slag: 'ukjent' }
+    if (aktiv && st) {
+      const { data: ansattRad } = await supabase
+        .from('ansatte').select('ansatt_nr').eq('id', aktiv.id)
+        .maybeSingle<{ ansatt_nr: string | null }>()
+      if (ansattRad?.ansatt_nr) {
+        const { data: siste } = await supabase
+          .from('stempling_hendelse')
+          .select('type, tidspunkt')
+          .eq('stasjon_id', st.id)
+          .eq('ansatt_nr', ansattRad.ansatt_nr)
+          .is('annullert_tid', null)
+          .order('tidspunkt', { ascending: false })
+          .limit(1)
+          .maybeSingle<{ type: 'inn' | 'ut'; tidspunkt: string }>()
+        stempling = siste && nesteRetning(siste) === 'ut'
+          ? {
+              slag: 'inne',
+              siden: new Intl.DateTimeFormat('nb-NO', {
+                timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hour12: false,
+              }).format(new Date(siste.tidspunkt)),
+            }
+          : { slag: 'ute' }
+      }
     }
 
     // «Meldinger fra butikksjef» = oppgaver merket vis_paa_tablet for stasjonen.
@@ -98,7 +118,7 @@ export default async function OversiktSide(
     const sjefMeldingerO = sjefMeldinger.map((m) => ({ ...m, tittel: o(m.tittel), beskrivelse: m.beskrivelse ? o(m.beskrivelse) : null }))
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
-    return <TabletHjem navn={aktiv?.navn} streak={streak} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} maling={maling} rutinerIgjen={rutinerIgjen} ord={ord} />
+    return <TabletHjem navn={aktiv?.navn} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} rutinerIgjen={rutinerIgjen} stempling={stempling} ord={ord} />
   }
 
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.

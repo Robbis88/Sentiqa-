@@ -66,18 +66,25 @@
     "/timesalg",
     "/trafikk",
     "/utsolgt",
+    "/vaar-stasjon",
     "/varsler"
   ],
   "naabart": {
     "butikkbruker_tablet": [
       "/anvisninger",
       "/ikmat",
+      "/ikmat/maaling",
       "/lenker",
       "/merker",
       "/mine-opplysninger",
       "/nyheter",
       "/oversikt",
-      "/rutiner"
+      "/produksjonsplan",
+      "/rutiner",
+      "/sjekkpunkt",
+      "/stempling",
+      "/vaar-stasjon",
+      "/varsler"
     ],
     "retailer_admin": [
       "/analyse",
@@ -445,6 +452,7 @@
     ],
     "/anvisninger": [
       "Ny anvisning",
+      "o('Hjelp')",
       "o('Ingen anvisninger ennå')",
       "{o(kat)} <span className=\"undertittel\">· {liste.length}</span>"
     ],
@@ -491,6 +499,11 @@
       "p.tittel ?? 'Bra jobbet'",
       "p.tittel ?? 'Verdt et blikk'"
     ],
+    "/ikmat/maaling": [
+      "dynamisk:naa.navn",
+      "dynamisk:status",
+      "{t('Målt i dag')} <span className=\"undertittel\">· {malt}</span>"
+    ],
     "/ikmat/oppsett": [
       "Ingen kontrollpunkter",
       "{s.butikknummer} {s.navn} <span className=\"undertittel\">· {sineP.length} punkter</span>"
@@ -500,6 +513,7 @@
       "Lukket ({lukket.length})",
       "Nytt avvik",
       "dynamisk:FREKVENS_ETIKETT[frekvens]",
+      "dynamisk:svar",
       "{s.butikknummer} {s.navn}",
       "Åpne ({apne.length})"
     ],
@@ -602,7 +616,6 @@
       "Ingen komplett uke å sammenligne på",
       "Ingenting trenger oppmerksomhet",
       "Mot budsjett denne måneden",
-      "Måling",
       "Månedens konkurranse",
       "Oppgaver",
       "Oversikten er ikke komplett",
@@ -616,12 +629,9 @@
       "dynamisk:overskrift(signaler)",
       "dynamisk:pulsOverskrift(d.stasjonsnavn,vekst)",
       "dynamisk:s.tittel",
-      "dynamisk:t(overskrift(alle.length))",
       "dynamisk:tittel",
       "pulsOverskrift('Klyngen', klynge.vekstPst)",
-      "t('Meldinger fra butikksjef')",
-      "t('Vekst mot i fjor')",
-      "t('Vår premiesaldo')"
+      "t('Meldinger fra butikksjef')"
     ],
     "/persondata": [
       "Hvem har sett hva",
@@ -650,6 +660,7 @@
       "Produksjon",
       "dynamisk:g.navn",
       "dynamisk:tittel",
+      "lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage",
       "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>"
     ],
     "/produksjonsplan/treffsikkerhet": [
@@ -703,6 +714,7 @@
       "Ingen stasjoner ennå"
     ],
     "/rutiner": [
+      "dynamisk:svaret",
       "navnFor.get(sid) ?? '—'"
     ],
     "/salg": [
@@ -720,7 +732,10 @@
     "/sjekkpunkt": [
       "Ingen sjekkpunkter ennå",
       "Nytt sjekkpunkt",
-      "navnFor.get(sid) ?? '—'"
+      "dynamisk:naa.sporsmaal",
+      "dynamisk:svarTekst",
+      "navnFor.get(sid) ?? '—'",
+      "{t('Besvart i dag')} <span className=\"undertittel\">· {besvart.length}</span>"
     ],
     "/skills": [
       "Ingen score registrert",
@@ -731,7 +746,8 @@
       "Ny stasjon"
     ],
     "/stempling": [
-      "Inne nå <span className=\"undertittel\">· {inne.length}</span>"
+      "Inne nå <span className=\"undertittel\">· {inne.length}</span>",
+      "Stemple inn og ut"
     ],
     "/svinn": [
       "Ingen svinn registrert denne dagen",
@@ -756,6 +772,12 @@
       "Oversikt — hvor butikken mister salg på tom hylle",
       "Samme vare, motsatt feil",
       "{valgt.stasjon.butikknummer} {valgt.stasjon.navn}"
+    ],
+    "/vaar-stasjon": [
+      "Måling",
+      "t('Vekst mot i fjor')",
+      "t('Vår premiesaldo')",
+      "t('Vår stasjon')"
     ],
     "/varsler": [
       "Ingen varsler"
@@ -794,6 +816,11 @@
     ]
   },
   "lenker": {
+    "/anvisninger": [
+      "/lenker",
+      "/mine-opplysninger",
+      "/nyheter"
+    ],
     "/bemanning": [
       "/import"
     ],
@@ -854,7 +881,9 @@
       "/rutiner/oversikt"
     ],
     "/rutiner": [
+      "/ikmat",
       "/ikmat/maaling",
+      "/produksjonsplan",
       "/rutiner/oppsett"
     ],
     "/salg": [
@@ -869,6 +898,9 @@
     ],
     "/timesalg": [
       "/import"
+    ],
+    "/vaar-stasjon": [
+      "/merker"
     ],
     "/databehandleravtale": [
       "/",

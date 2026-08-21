@@ -32,9 +32,27 @@ export function TabletSkiftet({
     )
   }
 
+  // Overskriften settes sammen i `overskrift()`, som får `t` med seg.
+  //
+  // TO FORSØK BLE FORKASTET FØR DETTE. Først sto den som `t(overskrift(n))`
+  // — én ferdig streng — og da kunne den ikke oversettes: «4 ting igjen»
+  // finnes ikke i noen ordliste, og finnes aldri, fordi det er uendelig
+  // mange av dem. Nettbrettets viktigste overskrift sto på norsk uansett
+  // hvilket språk hun hadde valgt.
+  //
+  // Så sto den som en IIFE midt inne i `<h2>`, og da forsvant den ut av
+  // vakthundens seksjonskart: vakten leser navnet på en seksjon ut av
+  // kilden, og en funksjon som kalles på stedet har ikke noe navn å lese.
+  // Seksjonen så ut som fjernet fordi den var blitt uleselig — akkurat
+  // den formen for stille tap vakten finnes for.
+  //
+  // Nå gjøres begge deler ett sted: tallet står utenfor frasen, og
+  // uttrykket har et navn vakten kan se.
+  const tittel = overskrift(alle.length, t)
+
   return (
     <section className="tskift" aria-labelledby="tskift-tittel">
-      <h2 className="tskift-tittel" id="tskift-tittel">{t(overskrift(alle.length))}</h2>
+      <h2 className="tskift-tittel" id="tskift-tittel">{tittel}</h2>
 
       <ol className="tskift-liste">
         {vist.map((g, i) => (
@@ -58,7 +76,7 @@ export function TabletSkiftet({
         // Ingenting er skjult — resten står i kø. Uten denne linjen ville
         // en tom liste kunnet lyve.
         <p className="tskift-flere">
-          {t('og')} {flere} {flere === 1 ? t('ting til') : t('ting til')}
+          {t('og')} {flere} {t('ting til')}
         </p>
       )}
     </section>

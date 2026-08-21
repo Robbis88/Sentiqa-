@@ -9,6 +9,7 @@ import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
+import { TabletHode } from '../tablet-hode'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl } from '@/lib/stasjonsvalg'
@@ -76,9 +77,21 @@ export default async function ProduksjonsplanSide({
       if (!g) { g = { navn, produkter: [] }; gmap.set(navn, g) }
       g.produkter.push({ varenavn: l.varenavn, planlagt: l.planlagt, start_antall: l.start_antall, lagd_hittil: l.lagd_hittil })
     }
+    // Hodet, og bare hodet. Planen under — stepperen, «lagd hittil»,
+    // serverhandlingen som lagrer — er urørt: dette er en UX-bølge.
+    const planlagt = [...gmap.values()].reduce((n, g) => n + g.produkter.reduce((m, pr) => m + pr.planlagt, 0), 0)
+    const lagd = [...gmap.values()].reduce((n, g) => n + g.produkter.reduce((m, pr) => m + pr.lagd_hittil, 0), 0)
     return (
       <>
-        <h1>Produksjon i dag</h1>
+        {/* Sto som «Produksjon i dag» — et modulnavn, i en rå <h1> som
+            var den eneste på nettbrettet uten `.tablet-hode` rundt seg.
+            Nettbrettets hode skal bære SVARET, slik /rutiner og /ikmat
+            gjør det: hvor mange igjen å lage. Tallene er summer av de
+            samme linjene planen viser — ingen ny beregning. */}
+        <TabletHode
+          tittel={lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage`}
+          undertittel={`${lagd} av ${planlagt} lagd`}
+        />
         <TabletPlan stasjonId={st.id} dato={idag} notat={hode.notat} grupper={[...gmap.values()]} />
       </>
     )

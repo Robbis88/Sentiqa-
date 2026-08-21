@@ -3,8 +3,18 @@ import { useState, useEffect, useActionState } from 'react'
 import { svarRunde, type SvarResultat } from './puls/handlinger'
 import { useT } from './oversett-kontekst'
 
+// FJESENE ER SELVE SPOERSMAALET, og blir staaende: en femtrinns skala
+// tegnet som ansikter leses av folk som ikke leser norsk godt, og det er
+// halve poenget med aa spoerre paa nettbrettet.
+//
+// MEN ETIKETTEN SA `1`. En skjermleser leste «knapp, 1» fem ganger, og
+// tallet alene sier ikke om 1 er best eller verst. Naa staar ordet.
 const FJES = [
-  { v: 1, e: '😣' }, { v: 2, e: '🙁' }, { v: 3, e: '😐' }, { v: 4, e: '🙂' }, { v: 5, e: '😄' },
+  { v: 1, e: '😣', ord: 'Veldig dårlig' },
+  { v: 2, e: '🙁', ord: 'Dårlig' },
+  { v: 3, e: '😐', ord: 'Sånn passe' },
+  { v: 4, e: '🙂', ord: 'Bra' },
+  { v: 5, e: '😄', ord: 'Veldig bra' },
 ]
 
 // Sporadisk puls-popup: dukker opp av og til (throttlet pr runde via
@@ -63,7 +73,7 @@ export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | nul
     <div className="puls-popp">
       <div className="puls-popp-kort">
         {tilstand?.ok ? (
-          <p className="puls-popp-takk">{t('Takk for svaret!')} 💙</p>
+          <p className="puls-popp-takk">{t('Takk for svaret!')}</p>
         ) : (
           <>
             <p className="puls-popp-q">{runde.tekst}</p>
@@ -72,7 +82,7 @@ export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | nul
               <input type="hidden" name="skala" value={valgt ?? ''} />
               <div className="puls-faces">
                 {FJES.map((f) => (
-                  <button type="button" key={f.v} className={`puls-face ${valgt === f.v ? 'valgt' : ''}`} onClick={() => setValgt(f.v)} aria-label={`${f.v}`}>
+                  <button type="button" key={f.v} className={`puls-face ${valgt === f.v ? 'valgt' : ''}`} onClick={() => setValgt(f.v)} aria-label={t(f.ord)}>
                     <span className="puls-emoji">{f.e}</span>
                   </button>
                 ))}

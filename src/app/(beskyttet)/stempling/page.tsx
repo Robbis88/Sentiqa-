@@ -2,6 +2,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 import { StemplingSkjema } from './skjema'
+import { Sidehode } from '@/components/ui/side'
+import { TabletHode } from '../tablet-hode'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +16,8 @@ type Innstemplet = { ansatt_navn: string; tidspunkt: string }
 export default async function StemplingSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle === 'plattform_redaktor') return <p>Ingen tilgang.</p>
+
+  const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
   const supabase = await lagSupabaseServerKlient()
   const aktiv = await lesAktivAnsatt()
@@ -51,9 +55,23 @@ export default async function StemplingSide() {
 
   return (
     <>
-      <header className="tablet-hode">
-        <h1>Stemple inn og ut</h1>
-      </header>
+      {/* DEN SISTE STIL-LEKKASJEN, RUNDE TO. `.tablet-hode` er tegnet
+          for moerkt underlag og sto her paa BEGGE roller — samme 1,9:1
+          paa lederens lyse side som /rutiner og /ikmat hadde fram til
+          bolge 5. Den overlevde fordi ruta ikke sto i noen bevisliste:
+          verken i TABLETMENY, i naabart() eller i e2e. Begge deler er
+          rettet naa — formen her, og listene i navigasjon.ts. */}
+      {paaNettbrett ? (
+        <TabletHode
+          tittel="Stemple inn og ut"
+          undertittel="Timene dine. Vakt-PIN-en i toppen sier bare hvem som bruker nettbrettet."
+        />
+      ) : (
+        <Sidehode
+          tittel="Stemple inn og ut"
+          undertittel="Ansattnummer og PIN. Utstempling regner vakten om til timer for lønn."
+        />
+      )}
 
       <StemplingSkjema />
 

@@ -100,12 +100,27 @@ export function utenKommentarer(kilde: string): string {
  * Emoji, men ikke funksjonelle glyffer.
  *
  * Kryss (✕), hake (✓) og dra-håndtak (⠿) er beholdt med vilje — de gjør
- * en jobb ord ikke gjør på en knapp. Skillet som treffer: piktografiske
- * emoji ligger utenfor BMP (surrogatpar), eller er merket med
- * variasjonsvelger U+FE0F for å be om emoji-utseende. Dingbatene over
- * har ingen av delene.
+ * en jobb ord ikke gjør på en knapp.
+ *
+ * DEN FØRSTE UTGAVEN VAR HALVBLIND, og det er verdt å skrive ned
+ * hvorfor. Den lette etter surrogatpar (emoji utenfor BMP) eller
+ * variasjonsvelgeren U+FE0F, og antok at alt annet var typografi. Men
+ * en håndfull emoji er ETT kodepunkt inne i BMP, med emoji-utseende som
+ * standard, uten å be om det: ✅ (U+2705) og ❗ (U+2757) er begge slike.
+ * De sto på nettbrettet gjennom hele bølge 5 mens tellingen sa null —
+ * og ❗ bar alvor helt alene, som symbol, uten ord ved siden av.
+ *
+ * Unicode har allerede navnet på skillet vi mente. `Emoji_Presentation`
+ * er «tegnes som emoji uten å be om det», så vi slipper å gjette på
+ * kodepunktområder:
+ *
+ *   \p{Emoji_Presentation}           🥐 😣 ✅ ❗ — emoji av natur
+ *   \p{Extended_Pictographic}\uFE0F  ⚠️ ✉️     — tekst som ber om emoji
+ *
+ * ✓ ✕ ▲ ▼ ↩ › er piktografiske eller typografiske, men har
+ * Emoji_Presentation=No og ingen U+FE0F. De står, som før.
  */
-const EMOJI = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2000-\u32FF]\uFE0F/g
+const EMOJI = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/gu
 
 export function maal(kilde: string): Designmaal {
   const k = utenKommentarer(kilde)

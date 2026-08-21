@@ -62,6 +62,11 @@ export function gjenstaar(k: Kilder): Gjoeremaal[] {
     ut.push({
       id: `sjekk-${s.id}`,
       tekst: s.sporsmaal,
+      // Peker paa /sjekkpunkt, som fra bolge 5 har en egen nettbrettgren.
+      // Fram til da moette hun lederens adminpanel — med «Nytt
+      // sjekkpunkt» — mens svaret egentlig ble gitt i en popup som dukket
+      // opp av seg selv. To flater for den samme jobben, paa koens
+      // hoyest prioriterte rad.
       sti: '/sjekkpunkt',
       slag: 'sjekkpunkt',
       kritisk: s.kritisk,
@@ -87,7 +92,11 @@ export function gjenstaar(k: Kilder): Gjoeremaal[] {
     ut.push({
       id: `oppg-${o.id}`,
       tekst: o.tittel,
-      sti: '/oversikt',
+      // BLINDGATE FRAM TIL BOLGE 5: sto som '/oversikt', altsaa sida hun
+      // allerede var paa. Trykket gjorde ingenting synlig. Beskjeden fra
+      // butikksjefen ligger lenger nede paa den samme flata, saa svaret
+      // er et anker — ikke en ny rute.
+      sti: '/oversikt#beskjeder',
       slag: 'oppgave',
       kritisk: false,
       klokkeslett: null,
@@ -121,9 +130,22 @@ export function gjenstaar(k: Kilder): Gjoeremaal[] {
   })
 }
 
-/** Overskriften over lista. Skrevet som et menneske ville sagt det. */
-export function overskrift(antall: number): string {
-  if (antall === 0) return 'Alt er gjort'
-  if (antall === 1) return '1 ting igjen'
-  return `${antall} ting igjen`
+/**
+ * Overskriften over lista.
+ *
+ * TALLET STÅR UTENFOR FRASEN, og det er ikke kosmetikk. Fram til bølge 5
+ * returnerte denne én ferdig streng — «4 ting igjen» — som kalleren
+ * sendte gjennom `t()`. Det oppslaget kunne aldri treffe: frasen finnes
+ * ikke i ordlista, og kommer aldri til å gjøre det, fordi det er én
+ * variant per tall. Nettbrettets viktigste overskrift sto altså på norsk
+ * uansett hvilket språk hun hadde valgt, midt på en flate som ellers
+ * oversettes ord for ord.
+ *
+ * `t` tas imot her i stedet for at kalleren setter sammen strengen selv.
+ * Da finnes sammensetningen ETT sted, og en oversetter som senere skal
+ * flytte tallet bak ordet har ett sted å gjøre det.
+ */
+export function overskrift(antall: number, t: (s: string) => string = (s) => s): string {
+  if (antall === 0) return t('Alt er gjort')
+  return `${antall} ${t('ting igjen')}`
 }

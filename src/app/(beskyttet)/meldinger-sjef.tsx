@@ -110,7 +110,9 @@ export function MeldingerFraSjef({
   const ferdige = rader.filter((m) => m.fullfort)
 
   return (
-    <section className="tablet-seksjon sjefmeldinger">
+    // Ankeret koen lenker til. Uten det peker en oppgaverad paa sida den
+    // allerede staar paa, og trykket gjor ingenting.
+    <section className="tablet-seksjon sjefmeldinger" id="beskjeder">
       <h2>{t('Meldinger fra butikksjef')}</h2>
 
       {aapne.length === 0 && ferdige.length === 0 && (

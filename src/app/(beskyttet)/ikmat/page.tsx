@@ -7,6 +7,7 @@ import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
 import { registrerAvlesning, settOppStandard } from './handlinger'
 import { AvvikDel } from '../avvik/avvik-del'
 import { TabletIkMat } from './tablet-ikmat'
+import { TabletHode } from '../tablet-hode'
 
 type Punkt = {
   id: string
@@ -97,12 +98,10 @@ export default async function IkMatSide() {
   if (paaNettbrett) {
     return (
       <>
-        <header className="tablet-hode">
-          <h1>{svar}</h1>
-          <p className="undertittel">
-            Er noe utenfor kravet, opprettes et avvik automatisk naar du fyller inn strakstiltak.
-          </p>
-        </header>
+        <TabletHode
+          tittel={svar}
+          undertittel="Er noe utenfor kravet, opprettes et avvik automatisk når du fyller inn strakstiltak."
+        />
         <TabletIkMat stasjoner={tabletGrupper} />
         <AvvikDel />
       </>
