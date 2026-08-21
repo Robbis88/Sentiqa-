@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SKJUL_OMS_KODER, UTELAT_KODER } from '../avdelinger'
 
@@ -23,9 +23,28 @@ import { SKJUL_OMS_KODER, UTELAT_KODER } from '../avdelinger'
 // samme for kodelista: endrer du den ene, må du endre den andre.
 // =====================================================================
 
-const MIGRASJON = join(
-  process.cwd(), 'supabase', 'migrations', '0113_bp_status_avdeling.sql',
-)
+// Den NYESTE migrasjonen som definerer viewet - ikke et filnavn.
+//
+// Sto som `0113_bp_status_avdeling.sql` foerst. Da 0114 erstattet
+// viewet, leste testen fortsatt en fil som ikke lenger var i drift: den
+// ville vaert groenn paa 0113 sine filtre mens produksjon kjorte 0114
+// sine. En vakt som leser feil fil er verre enn ingen vakt - den
+// bekrefter noe som ikke gjelder.
+function nyesteViewfil(): string {
+  const katalog = join(process.cwd(), 'supabase', 'migrations')
+  const treff = readdirSync(katalog)
+    .filter((n) => n.endsWith('.sql'))
+    .filter((n) => /create\s+(or\s+replace\s+)?view\s+public\.v_bp_status_avdeling/i
+      .test(readFileSync(join(katalog, n), 'utf8')))
+    .sort()
+
+  if (treff.length === 0) {
+    throw new Error('Ingen migrasjon definerer v_bp_status_avdeling.')
+  }
+  return join(katalog, treff[treff.length - 1])
+}
+
+const MIGRASJON = nyesteViewfil()
 
 /** Kodene migrasjonen faktisk filtrerer på, lest ut av `not in (...)`. */
 function koderIMigrasjonen(): string[][] {
@@ -47,7 +66,7 @@ describe('utelatte koder', () => {
     // KANARIFUGL. Finner uttrekket ingen filtre, er alle sammenligninger
     // under trivielt grønne — og da måler testen at ingenting er likt
     // ingenting. Det er slik en vakt slutter å se.
-    expect(funnet.length, 'Fant ingen `not in (...)` i 0113 — leser testen riktig fil?')
+    expect(funnet.length, 'Fant ingen `not in (...)` i migrasjonen — leser testen riktig fil?')
       .toBeGreaterThan(0)
 
     for (const liste of funnet) {

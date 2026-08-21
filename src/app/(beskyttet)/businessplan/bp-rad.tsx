@@ -37,6 +37,37 @@ export type BpRad = {
   faktisk_brutto_ytd_pst: number | null
   brutto_gap_pst: number | null
   grunnlag: string | null
+  kobling: Kobling | null
+}
+
+/** De fire tilstandene `v_bp_status_avdeling` skiller mellom (0114). */
+export type Kobling =
+  | 'plan_med_salg'
+  | 'plan_uten_salg'
+  | 'plan_uten_kobling'
+  | 'salg_uten_plan'
+
+/**
+ * Hva en rad uten dom faktisk er.
+ *
+ * FØR 0114 STO DET «Ingen plan lagt inn» PÅ ALLE FIRE. For to av dem var
+ * det stikk motsatt av sannheten: `211 Selvvask`, `DRIFT` og `SYSTEM`
+ * har budsjett — det er salget som mangler. Å lese det som «ingen plan»
+ * flytter skylden fra kodeverket til butikksjefen, som ikke kan gjøre
+ * noe med noen av delene.
+ */
+function utenDom(kobling: Kobling | null, bp: number | null): string {
+  switch (kobling) {
+    case 'plan_uten_kobling':
+      return 'Har budsjett, men koden finnes ikke i salgsdataene — '
+        + 'den kan ikke måles mot noe'
+    case 'plan_uten_salg':
+      return 'Har budsjett, men ingen omsetning denne måneden'
+    case 'salg_uten_plan':
+      return 'Selger, men har ikke budsjett denne måneden'
+    default:
+      return bp != null ? 'Ikke målt ennå' : 'Ingen plan lagt inn'
+  }
 }
 
 /** «28 400 kr bak plan». Tallet formateres her, ordet kommer fra fasiten. */
@@ -56,11 +87,14 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
     return (
       <article className="bp-rad bp-rad-plan">
         <h3 className="bp-navn">{navn}</h3>
-        <p className="bp-planlagt">
-          {rad.bp_omsetning_kr != null
-            ? <>Planlagt {kr.format(rad.bp_omsetning_kr)}</>
-            : 'Ingen plan lagt inn'}
-        </p>
+        {rad.bp_omsetning_kr != null && (
+          <p className="bp-planlagt">Planlagt {kr.format(rad.bp_omsetning_kr)}</p>
+        )}
+        {/* En kommende maaned trenger ingen forklaring paa hvorfor den
+            ikke er maalt - det staar i at den ikke har skjedd. */}
+        {!kommende && (
+          <p className="bp-planlagt">{utenDom(rad.kobling, rad.bp_omsetning_kr)}</p>
+        )}
       </article>
     )
   }

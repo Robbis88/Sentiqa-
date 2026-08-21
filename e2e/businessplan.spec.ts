@@ -53,8 +53,16 @@ test.describe('/businessplan som eier', () => {
     // er hele grunnen til at sida finnes. Å skrive «i rute» der er ikke
     // en unøyaktighet — det er den sterkest mulige beroligelsen, gitt i
     // nøyaktig den situasjonen der ingenting er målt.
+    //
+    // MÅLER PÅSTANDEN, IKKE ORDET. Første utgave lette etter /i rute/ i
+    // hele body og felte på sidas egen undertittel — «Ligger vi i
+    // rute?». Det er spørsmålet sida stiller, og det skal stå der. En
+    // vakt som ikke skiller spørsmålet fra svaret tvinger fram at ordet
+    // fjernes for å få grønt, og da er det vakten som har omskrevet
+    // produktet.
     await page.goto('/businessplan')
-    await expect(page.locator('body')).not.toContainText(/i rute/i)
+    await expect(page.locator('h1')).not.toContainText(/i rute mot planen/i)
+    await expect(page.locator('body')).toContainText(/Ingen businessplan/i)
   })
 
   test('ingen axe-brudd', async ({ page }) => {
