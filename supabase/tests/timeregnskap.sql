@@ -174,12 +174,27 @@ begin
       feil := feil + 1;
     end if;
 
-    update public.stasjon_leder set til_dato = jan - 1 where ansatt_nr = '9';
+    -- ... OG EN SOM IKKE VAR LEDER ENNAA SKAL TELLES SOM ALLE ANDRE.
+    -- Dette er Hasan: butikksjef paa Varden fra 01.08, men timeloennet
+    -- ansatt foer det. Timene hans i juli hoerer hjemme i rammen.
+    --
+    -- Uttrykt ved aa flytte fra_dato FRAM, ikke til_dato bakover: en
+    -- leder kan ikke slutte foer hun begynner, og check-skranken sa
+    -- fra da testen forsokte nettopp det.
+    update public.stasjon_leder
+       set fra_dato = feb, til_dato = null
+     where ansatt_nr = '9';
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = jan;
     if r.brukte_timer is distinct from 12200 then
-      raise warning 'en leder som sluttet FOER januar ble likevel holdt '
-                    'utenfor (brukte_timer = % - ventet 12200)', r.brukte_timer;
+      raise warning 'en som foerst ble leder i februar ble likevel holdt '
+                    'utenfor i januar (brukte_timer = % - ventet 12200)',
+        r.brukte_timer;
+      feil := feil + 1;
+    end if;
+    if r.leder_timer is not null then
+      raise warning 'leder_timer er % i januar for en som ble leder i '
+                    'februar - ventet null', r.leder_timer;
       feil := feil + 1;
     end if;
 
