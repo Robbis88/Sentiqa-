@@ -75,7 +75,31 @@ const RUTENE = [
  */
 const EMOJI = new RegExp('\\p{Emoji_Presentation}|\\p{Extended_Pictographic}\\uFE0F', 'gu')
 
+/**
+ * Popupene settes paa snooze foer noe navigeres.
+ *
+ * HVORFOR: sjekkpunkt-popupen aapner seg selv 2,5 sekunder etter
+ * lasting, og fra bolge 5 har analysekjeden faktiske sjekkpunkter aa
+ * vise. Da ville den lagt seg over flata midt i en axe-kjoring eller en
+ * treffomraademaaling, og bevisene hadde blitt flakete - gronne eller
+ * roede etter hvor fort maskinen var den dagen.
+ *
+ * Popupen er et DYTT, ikke en flate. Den stiller de samme spoersmaalene
+ * som /sjekkpunkt, og DEN ruta har egne bevis nedenfor - der svaret
+ * faktisk gis. Aa slaa av dyttet mens vi maaler sida under, maaler
+ * dermed ikke bort noe: emojiene i popupen fanges av design-skrallen,
+ * som leser kilden og ikke DOM-en.
+ *
+ * `addInitScript` kjorer for hver navigasjon, ogsaa etter innlogging.
+ */
 async function loggInn(page: Page, b: { epost: string; passord: string }) {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('sjekk-vist', String(Date.now()))
+    } catch {
+      /* privat modus - da aapner popupen seg, og det taaler vi */
+    }
+  })
   await page.goto('/logg-inn')
   await page.fill('input[name="epost"]', b.epost)
   await page.fill('input[name="passord"]', b.passord)
@@ -303,13 +327,37 @@ test.describe('IK-mat: koen, ikke regnearket', () => {
     await page.locator('.ikmat-rutine', { hasText: 'Daglig' }).first()
       .getByRole('link').click()
     await expect(page).toHaveURL(/\/ikmat\/maaling/)
-    await expect(page.locator('body')).toContainText('Kjoledisk pakkemat')
 
-    // Maal en enhet. Kravet er under 4 grader; 3 er innenfor.
-    const rad = page.locator('.maaling-rad', { hasText: 'Kjoledisk pakkemat' }).first()
-    await rad.getByRole('textbox').fill('3')
-    await rad.getByRole('button', { name: 'Lagre' }).click()
-    await expect(rad).toContainText('3', { timeout: 15_000 })
+    // EN ENHET AV GANGEN (bolge 5). Fram til da sto alle tre under
+    // hverandre med hvert sitt felt aapent, og hun maatte selv finne
+    // igjen raden hun sto paa etter hver lagring - med et termometer i
+    // den andre haanda.
+    await expect(page.locator('.tmaal-navn')).toHaveCount(1)
+    await expect(page.locator('.tmaal-navn')).toContainText('Kjoledisk pakkemat')
+    await expect(page.locator('.tmaal-krav')).toContainText('4')
+    await expect(page.locator('.tmaal-teller')).toContainText('1')
+
+    // Lederens sideform skal ikke finnes paa flata der arbeidet skjer.
+    await expect(page.locator('.sq-sidehode')).toHaveCount(0)
+    await expect(page.locator('.maaling-rad')).toHaveCount(0)
+
+    // Riktig tastatur. Med hansker og en desimal er dette ikke pynt.
+    const felt = page.locator('.tmaal-felt input')
+    await expect(felt).toHaveAttribute('inputmode', 'decimal')
+
+    // Maal den. Kravet er under 4 grader; 3 er innenfor.
+    await felt.fill('3')
+    await page.locator('.tmaal-felt button').click()
+
+    // NESTE ENHET TAR PLASSEN. Uten dette kravet ville en flate som
+    // bare tommer feltet og blir staaende, sett riktig ut.
+    await expect(page.locator('.tmaal-navn'))
+      .toContainText('Fryser bakeri', { timeout: 15_000 })
+    await expect(page.locator('.tmaal-teller')).toContainText('2')
+
+    // Og den maalte staar igjen under, med tallet sitt.
+    await expect(page.locator('.rutine-liste')).toContainText('Kjoledisk pakkemat')
+    await expect(page.locator('.rutine-liste')).toContainText('3')
 
     // Tilbake i koen skal tallet ha falt. Uten dette beviser ingenting
     // av det over at maalingen faktisk ble lagret.
@@ -317,6 +365,35 @@ test.describe('IK-mat: koen, ikke regnearket', () => {
     await expect(page.locator('.tablet-hode h1')).toContainText('4 igjen')
     await expect(page.locator('.ikmat-rutine', { hasText: 'Daglig' }).first())
       .toContainText('1/3')
+  })
+
+  test('en verdi utenfor kravet ber om strakstiltak foer den lagres', async ({ page }) => {
+    // AVVIK ER EN INSTRUKS, IKKE EN STRAFF. Og forklaringen kommer naar
+    // den trengs: setningen om at et avvik opprettes automatisk sto
+    // oeverst paa sida, foer noen hadde maalt noe.
+    await loggInn(page, MED_DATA)
+    await paaFlata(page, '/ikmat/maaling')
+
+    const navn = page.locator('.tmaal-navn')
+    await expect(navn).toHaveCount(1)
+
+    // Godt over ethvert kjolekrav.
+    await page.locator('.tmaal-felt input').fill('40')
+
+    const boks = page.locator('.tmaal-avvik')
+    await expect(boks).toBeVisible()
+    await expect(boks).toContainText(/avvik/i)
+    await expect(boks.locator('textarea')).toBeVisible()
+    // Og den er knyttet til VERDIEN, ikke til flata: tommes feltet, er
+    // den borte. Uten dette kravet ville en boks som alltid sto der,
+    // vaert gronn her.
+    //
+    // (Feltet tommes i stedet for aa fylles med et «innenfor»-tall.
+    // Hvilken enhet som staar for tur avhenger av hva forrige test
+    // maalte, og en fryser paa -18 og en varmedisk paa +60 har ikke ett
+    // felles tall som er innenfor for begge.)
+    await page.locator('.tmaal-felt input').fill('')
+    await expect(boks).toHaveCount(0)
   })
 })
 
@@ -452,11 +529,13 @@ test.describe('I dag handler om dagen', () => {
 // 7. NIVAA 3: ett sporsmaal, en enhet
 // ---------------------------------------------------------------------
 test.describe('sjekkpunkt: ett sporsmaal av gangen', () => {
+  test.describe.configure({ mode: 'serial' })
+
   test('koens kritiske rad forer til en flate hun kan svare paa', async ({ page }) => {
     // BLINDGATA SOM BLE LUKKET. Koen la sjekkpunktene oeverst, kritisk
     // foerst, og lenket til /sjekkpunkt - som ga lederens adminpanel med
     // «Nytt sjekkpunkt» og sletteknapper. Svaret ble i praksis gitt i en
-    // popup som dukket opp av seg selv.
+    // popup som dukket opp av seg selv etter 2,5 sekunder.
     await loggInn(page, MED_DATA)
     await paaFlata(page, '/sjekkpunkt')
 
@@ -464,89 +543,34 @@ test.describe('sjekkpunkt: ett sporsmaal av gangen', () => {
     await expect(page.locator('.sq-sidepanel')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Nytt sjekkpunkt/i })).toHaveCount(0)
 
-    // Enten staar det ett sporsmaal med to svar, eller saa er alt besvart.
-    const kort = page.locator('.tsjekk')
-    await expect(kort).toHaveCount(1)
-    const ja = page.locator('.tsjekk-ja')
-    if (await ja.count() > 0) {
-      await expect(page.locator('.tsjekk-sporsmaal')).toBeVisible()
-      await expect(page.locator('.tsjekk-nei')).toBeVisible()
-      // Ett av gangen: aldri to sporsmaal samtidig.
-      await expect(page.locator('.tsjekk-sporsmaal')).toHaveCount(1)
-    } else {
-      await expect(page.locator('.tsjekk-ferdig-tekst')).toBeVisible()
-    }
-  })
-})
+    // ETT sporsmaal, ikke to. Med to under hverandre hakes de av
+    // nedover uten aa leses, og et «nei» paa et kritisk punkt skal
+    // foelges opp samme dag.
+    await expect(page.locator('.tsjekk')).toHaveCount(1)
+    await expect(page.locator('.tsjekk-sporsmaal')).toHaveCount(1)
 
-test.describe('IK-mat: en enhet av gangen', () => {
-  test.describe.configure({ mode: 'serial' })
+    // KRITISK FOERST. Seeden har to punkter der det kritiske har det
+    // SENESTE klokkeslettet - uten det kunne rekkefolgen like gjerne
+    // vaert tilfeldig, og beviset ville ikke merket forskjellen.
+    await expect(page.locator('.tsjekk-sporsmaal')).toContainText('kjolerommet')
+    await expect(page.locator('.tsjekk-kritisk')).toBeVisible()
 
-  test('maaleflata viser ett navn, ett krav og ett felt', async ({ page }) => {
-    await loggInn(page, MED_DATA)
-    await paaFlata(page, '/ikmat/maaling')
-
-    // Lederens form skal vaere borte fra den ene flata der arbeidet skjer.
-    await expect(page.locator('.sq-sidehode')).toHaveCount(0)
-
-    const kort = page.locator('.tmaal')
-    await expect(kort).toHaveCount(1)
-
-    const navn = page.locator('.tmaal-navn')
-    if (await navn.count() > 0) {
-      await expect(navn).toHaveCount(1)
-      await expect(page.locator('.tmaal-krav')).toBeVisible()
-      await expect(page.locator('.tmaal-felt input')).toHaveCount(1)
-      // Riktig tastatur. Med hansker og en desimal er dette ikke pynt.
-      await expect(page.locator('.tmaal-felt input'))
-        .toHaveAttribute('inputmode', 'decimal')
-    } else {
-      await expect(page.locator('.tmaal-ferdig-tekst')).toBeVisible()
-    }
+    // To like store svar. Ingen av dem er «primaer»: et nei er like
+    // riktig et svar som et ja.
+    await expect(page.locator('.tsjekk-ja')).toBeVisible()
+    await expect(page.locator('.tsjekk-nei')).toBeVisible()
   })
 
-  test('en gyldig verdi sender henne til neste enhet', async ({ page }) => {
+  test('et svar sender henne til neste sporsmaal', async ({ page }) => {
     await loggInn(page, MED_DATA)
-    await paaFlata(page, '/ikmat/maaling')
-    const navn = page.locator('.tmaal-navn')
-    if (await navn.count() === 0) test.skip(true, 'alt er allerede maalt i dag')
+    await paaFlata(page, '/sjekkpunkt')
 
-    const foer = (await navn.textContent())?.trim()
-    const tellerFoer = (await page.locator('.tmaal-teller').textContent())?.trim()
+    const foerst = (await page.locator('.tsjekk-sporsmaal').textContent())?.trim()
+    await page.locator('.tsjekk-ja').click()
 
-    // En temperatur godt innenfor et hvilket som helst kjolekrav.
-    await page.locator('.tmaal-felt input').fill('3')
-    await page.locator('.tmaal-felt button').click()
-
-    // Enten kom neste enhet, eller saa var det den siste.
-    await expect(async () => {
-      const ferdig = await page.locator('.tmaal-ferdig-tekst').count()
-      if (ferdig > 0) return
-      const etter = (await page.locator('.tmaal-navn').textContent())?.trim()
-      expect(etter, 'samme enhet staar igjen - hun ble ikke sendt videre').not.toBe(foer)
-      const tellerEtter = (await page.locator('.tmaal-teller').textContent())?.trim()
-      expect(tellerEtter, 'telleren staar stille').not.toBe(tellerFoer)
-    }).toPass({ timeout: 15_000 })
-
-    // Og den maalte staar igjen i lista under, med tallet.
-    await expect(page.locator('.rutine-liste')).toContainText('3')
-  })
-
-  test('en verdi utenfor kravet ber om strakstiltak for den lagres', async ({ page }) => {
-    await loggInn(page, MED_DATA)
-    await paaFlata(page, '/ikmat/maaling')
-    const navn = page.locator('.tmaal-navn')
-    if (await navn.count() === 0) test.skip(true, 'alt er allerede maalt i dag')
-
-    // Godt over ethvert kjolekrav.
-    await page.locator('.tmaal-felt input').fill('40')
-
-    // FORKLARINGEN KOMMER NAAR DEN TRENGS. Setningen om at et avvik
-    // opprettes automatisk sto oeverst paa sida, foer noen hadde maalt
-    // noe. Naa staar den i det oeyeblikket tallet faller utenfor.
-    const boks = page.locator('.tmaal-avvik')
-    await expect(boks).toBeVisible()
-    await expect(boks).toContainText(/avvik/i)
-    await expect(boks.locator('textarea')).toBeVisible()
+    // Neste tar plassen, og det besvarte staar igjen i lista under.
+    await expect(page.locator('.tsjekk-sporsmaal'))
+      .not.toContainText(foerst ?? '', { timeout: 15_000 })
+    await expect(page.locator('.rutine-liste')).toContainText(foerst ?? '')
   })
 })

@@ -783,3 +783,28 @@ values
   ('66666666-6666-4666-8666-000000000005', '11111111-1111-4111-8111-222222222222',
    '44444444-4444-4444-8444-111111111111', 'Kjolerom drikke', 'kjol', null, 7, 'ukentlig', 5)
 on conflict (id) do nothing;
+-- ---------------------------------------------------------------------
+-- SJEKKPUNKTENE hun skal svare paa.
+--
+-- Koen paa «I dag» legger sjekkpunktene oeverst, kritisk foerst, og
+-- lenker til /sjekkpunkt. Uten data her er den raden aldri der, og
+-- beviset for at koens hoyest prioriterte rad foerer til en flate hun
+-- kan svare paa, ville kjort paa tomtilstanden i stedet. En test som
+-- ikke kan feile er ikke et bevis - den er en paastand med gronn hake.
+--
+-- DET KRITISKE HAR DET SENESTE KLOKKESLETTET, og det er hele poenget.
+-- Rekkefolgen er kritisk foerst, DERETTER klokkeslett. Ga det kritiske
+-- punktet ogsaa foerst i tid, ville en sortering som ignorerte
+-- kritikalitet gitt samme svar - og beviset kunne ikke merke forskjell.
+--
+-- Begge tidspunktene er tidlig paa dagen: koen viser bare punkter der
+-- tidspunktet har passert, og et sjekkpunkt satt til 22:00 ville vaert
+-- usynlig i en kjoring som starter om morgenen.
+-- ---------------------------------------------------------------------
+insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal, klokkeslett, kritisk)
+values
+  ('77777777-7777-4777-8777-000000000001', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Er kassen talt opp?', '06:00', false),
+  ('77777777-7777-4777-8777-000000000002', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Er kjolerommet laast?', '06:30', true)
+on conflict (id) do nothing;
