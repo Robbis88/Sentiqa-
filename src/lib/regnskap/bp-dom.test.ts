@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { alvor, domsord, sorterEtterAvvik, sumBakPlan, gapAlvor } from './bp-dom'
+import { alvor, delEtterKobling, domsord, sorterEtterAvvik, sumBakPlan, gapAlvor } from './bp-dom'
 import { TERSKLER } from './terskler'
 
 describe('dommen om en avdeling', () => {
@@ -52,6 +52,37 @@ describe('dommen om en avdeling', () => {
       { mot_bp_kr: -3100 },
     ]
     expect(sumBakPlan(rader), 'nettosummen ville vaert +8500').toBe(-31500)
+  })
+
+  test('det som ikke kan maales blir en fotnote, ikke en utelatelse', () => {
+    const rader = [
+      { kobling: 'plan_med_salg', bp_omsetning_kr: 500000, faktisk_omsetning: 380000 },
+      { kobling: 'plan_uten_salg', bp_omsetning_kr: 30000, faktisk_omsetning: null },
+      { kobling: 'plan_uten_kobling', bp_omsetning_kr: 7196, faktisk_omsetning: null },
+      { kobling: 'salg_uten_plan', bp_omsetning_kr: null, faktisk_omsetning: 146 },
+    ]
+    const d = delEtterKobling(rader)
+
+    // `plan_uten_salg` SKAL VAERE MED. Den har en plan, den er kjent i
+    // salgsdataene, og null omsetning er et svar - ikke et hull. Faller
+    // den ut her, forsvinner en avdeling som faktisk ligger 30 000 bak.
+    expect(d.maalbare.map((r) => r.kobling))
+      .toEqual(['plan_med_salg', 'plan_uten_salg'])
+
+    // Tallene er de ekte fra produksjon 2026-08-21.
+    expect(d.umaaltBudsjett, '211 Selvvask').toBe(7196)
+    expect(d.salgUtenPlan, 'DRIFT + SYSTEM').toBe(146)
+  })
+
+  test('fotnoten teller ikke budsjett to ganger', () => {
+    // `salg_uten_plan` har per definisjon intet budsjett. Blir den
+    // likevel talt med, sier fotnoten at penger ikke maales som aldri
+    // var planlagt - og da vokser tallet av seg selv.
+    const d = delEtterKobling([
+      { kobling: 'salg_uten_plan', bp_omsetning_kr: 99999, faktisk_omsetning: 146 },
+    ])
+    expect(d.salgUtenPlan).toBe(146)
+    expect(d.umaalte).toHaveLength(1)
   })
 
   test('gapet: tideler er stoy, prosentpoeng er penger', () => {

@@ -5,7 +5,7 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr, manedAar } from '@/lib/format'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
-import { sorterEtterAvvik, sumBakPlan } from '@/lib/regnskap/bp-dom'
+import { delEtterKobling, sorterEtterAvvik, sumBakPlan } from '@/lib/regnskap/bp-dom'
 import { BpAvdeling, type BpRad } from './bp-rad'
 
 // =====================================================================
@@ -26,7 +26,7 @@ import { BpAvdeling, type BpRad } from './bp-rad'
 // (kodene 10-14 gaar igjen i hver avdeling), og varegruppe har intet
 // budsjett. Sida lover derfor ikke et finere nivaa enn dataene har.
 //
-// ALL REGNING LIGGER I `v_bp_status_avdeling` (0113). Sida velger
+// ALL REGNING LIGGER I `v_bp_status_avdeling` (0113, rettet i 0114). Sida velger
 // rekkefolge og ord - den regner ikke. Da kan tallene bevises i SQL, der
 // de faktisk bor, og skjermen kan ikke komme til aa si noe annet enn
 // viewet.
@@ -120,10 +120,14 @@ export default async function BusinessplanSide(
     )
   }
 
+  // Ut av lista, ned i en fotnote - se `delEtterKobling`. Maalt i
+  // produksjon: 0,12 % av budsjettet, og 146 kr salg uten plan.
+  const { maalbare, umaaltBudsjett, salgUtenPlan } = delEtterKobling(iMnd)
+
   // DET SOM KREVER NOE STAAR OEVERST. Sortert paa kroner bak plan, ikke
   // alfabetisk og ikke paa stoerrelse: den avdelingen som mangler mest
   // mot planen er den hun bor se paa foerst.
-  const sortert = sorterEtterAvvik(iMnd)
+  const sortert = sorterEtterAvvik(maalbare)
 
   // BARE DE NEGATIVE. Nettosummen ville sagt «vi er i rute» fordi
   // Tobakk gaar bra, mens Mat mangler 28 400.
@@ -147,6 +151,27 @@ export default async function BusinessplanSide(
           <BpAvdeling key={r.gruppe_kode} rad={r} />
         ))}
       </section>
+
+      {/* FOTNOTEN, IKKE EN UTELATELSE. Kroner, ikke «noen linjer». Blir
+          det som ikke kan måles en dag stort, vokser tallet her i stedet
+          for å forsvinne - og det er hele forskjellen. */}
+      {(umaaltBudsjett > 0 || salgUtenPlan > 0) && (
+        <p className="undertittel sq-finstilt">
+          {umaaltBudsjett > 0 && (
+            <>
+              {kr.format(Math.round(umaaltBudsjett))} av budsjettet måles
+              ikke: koden finnes ikke i salgsdataene, så det finnes
+              ingenting å sammenligne med.{' '}
+            </>
+          )}
+          {salgUtenPlan > 0 && (
+            <>
+              {kr.format(Math.round(salgUtenPlan))} er solgt på avdelinger
+              uten budsjett denne måneden.
+            </>
+          )}
+        </p>
+      )}
 
       <p className="undertittel sq-finstilt">
         Drivstoff og pant er holdt utenfor, som i resten av
