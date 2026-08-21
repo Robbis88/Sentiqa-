@@ -149,6 +149,14 @@ jobs:
       - name: BP-status per avdeling
         run: npx supabase db query --local --file supabase/tests/bp_status.sql
 
+      # Timene er ikke gitt, de er fortjent: timebudsjett x (realisert
+      # brutto / BP-brutto). Testdataene er Roberts to eksempler tall for
+      # tall - 12 000 timer paa 4,8 av 5,0 mill gir 11 520, og en aapen
+      # maaned verdsettes med kassens OMSETNING til aarets REALISERTE
+      # margin, ikke kassens egen.
+      - name: Timeregnskap
+        run: npx supabase db query --local --file supabase/tests/timeregnskap.sql
+
       # Nettleseren mellomlagres paa versjonen i lockfila. Uten dette
       # lastes den ned paa nytt hver kjoring.
       - name: Mellomlager for nettleser
