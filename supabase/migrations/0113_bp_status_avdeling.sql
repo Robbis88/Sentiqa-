@@ -62,8 +62,8 @@ with naa as (
 budsjett as (
   -- Begge kildene i en. `filter` skiller dem, saa en avlagt og en aapen
   -- maaned aldri kan blande budsjettene sine.
-  -- UTELATTE KODER: drivstoff (10), pant (250) og grand total (40).
   --
+  -- UTELATTE KODER: drivstoff (10), pant (250) og grand total (40).
   -- Dette er den SAMME domeneregelen som `SKJUL_OMS_KODER` i
   -- src/lib/avdelinger.ts, og ikke en ny beslutning:
   --
@@ -71,16 +71,31 @@ budsjett as (
   --        ingenting om hvordan butikken drives.
   --   250  Pant - gjennomgang uten margin. En rad med 0 % brutto midt i
   --        en analyse som handler om margin er stoy, ikke informasjon.
-  --   40   CR - regnskapets grand total. Tas den med, dobbelteller den
-  --        hele stasjonen mot avdelingene.
+  --   40   CR - regnskapets grand total, summen av alle de andre. Tas
+  --        den med, dobbelttelles hele stasjonen mot avdelingene.
+  --        Beviset i bp_status.sql summerer viewet og krever at det
+  --        stemmer med 40 CR; da er utelatelsen kontrollert.
   --
   -- SQL kan ikke importere fra TypeScript, saa lista staar to steder.
   -- `utelatte-koder.test.ts` leser BEGGE og feller hvis de gaar fra
   -- hverandre - samme grep som `lister.test.ts` bruker paa de to
   -- RLS-filene, etter at de faktisk gjorde det.
   -- utelatte_koder := array['10', '250', '40']
+  select r.stasjon_id,
+         r.periode                                    as maned,
+         r.kode                                       as gruppe_kode,
+         min(r.post)                                  as post,
+         sum(r.budsjett) filter (where r.seksjon = 'bp_omsetning')          as bp_oms_aapen,
+         sum(r.budsjett) filter (where r.seksjon = 'bp_bruttofortjeneste')  as bp_brt_aapen,
+         sum(r.budsjett) filter (where r.seksjon = 'omsetning')             as bp_oms_avlagt,
+         sum(r.budsjett) filter (where r.seksjon = 'bruttofortjeneste')     as bp_brt_avlagt,
+         sum(r.regnskap) filter (where r.seksjon = 'omsetning')             as regn_oms,
+         sum(r.regnskap) filter (where r.seksjon = 'bruttofortjeneste')     as regn_brt,
+         count(*) filter (where r.seksjon in ('omsetning', 'bruttofortjeneste')) > 0
+                                                      as er_avlagt
+  from public.regnskapslinjer r
+  where r.kode is not null
     and r.kode not in ('10', '250', '40')
-    and r.kode <> '40'
     and r.seksjon in ('omsetning', 'bruttofortjeneste',
                       'bp_omsetning', 'bp_bruttofortjeneste')
   group by r.stasjon_id, r.periode, r.kode
