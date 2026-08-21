@@ -142,6 +142,13 @@ jobs:
       - name: pin_hash er lukket
         run: npx supabase db query --local --file supabase/tests/pin_hash_lukket.sql
 
+      # BP mot faktisk per avdeling. Den viktigste invarianten er at
+      # omsetning maales mot OMSETNINGSbudsjett og brutto mot
+      # bruttobudsjett - aldri paa kryss. Testdataene er 100 000 mot
+      # 40 000, saa en kryssing ikke kan gjemme seg i avrunding.
+      - name: BP-status per avdeling
+        run: npx supabase db query --local --file supabase/tests/bp_status.sql
+
       # Nettleseren mellomlagres paa versjonen i lockfila. Uten dette
       # lastes den ned paa nytt hver kjoring.
       - name: Mellomlager for nettleser
