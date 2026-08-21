@@ -26,7 +26,7 @@ export default async function OversiktSide(
   // Nettbrettets «I dag» (egen verden). Se tablet-hjem.tsx for hvorfor
   // flisene og okonomien ikke lenger staar her.
   if (bruker.rolle === 'butikkbruker_tablet') {
-    const aktiv = await lesAktivAnsatt()
+    const aktiv = await lesAktivAnsatt(supabase)
     const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
     const { cookies } = await import('next/headers')
     const sprak = (await cookies()).get('sprak')?.value ?? 'no'

@@ -56,7 +56,7 @@ export default async function BeskyttetLayout({
   // Tableten får sin egen mørke verden — aldri admin-skallet. PIN/vakt gjelder
   // KUN tableten; admin og butikksjef logger inn som seg selv (ingen vakt).
   if (bruker.rolle === 'butikkbruker_tablet') {
-    const aktivAnsatt = await lesAktivAnsatt()
+    const aktivAnsatt = await lesAktivAnsatt(supabase)
     const { cookies } = await import('next/headers')
     const sprak = (await cookies()).get('sprak')?.value ?? 'no'
     const { oversettTabletOrd } = await import('@/lib/oversett')

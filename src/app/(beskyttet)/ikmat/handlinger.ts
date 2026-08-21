@@ -28,7 +28,7 @@ export async function registrerAvlesning(formData: FormData) {
   const underMin = punkt.min_temp != null && temp < punkt.min_temp
   const overMax = punkt.max_temp != null && temp > punkt.max_temp
   const innenfor = !underMin && !overMax
-  const ansatt = await lesAktivAnsatt()
+  const ansatt = await lesAktivAnsatt(supabase)
 
   const { error: avlesningFeil } = await supabase.from('ik_avlesninger').insert({
     kontrollpunkt_id: punktId,
@@ -75,7 +75,7 @@ export async function loggMaaling(punktId: string, tempStr: string, strakstiltak
   const tiltak = String(strakstiltak ?? '').trim()
   if (!innenfor && !tiltak) return { innenfor: false, feil: 'Skriv strakstiltak for avviket.' }
 
-  const ansatt = await lesAktivAnsatt()
+  const ansatt = await lesAktivAnsatt(supabase)
   const { error: avlesningFeil } = await supabase.from('ik_avlesninger').insert({
     kontrollpunkt_id: punktId, stasjon_id: punkt.stasjon_id, dato: iDag(),
     temperatur: temp, innenfor, tiltak: innenfor ? null : tiltak, avlest_av: bruker.id, ansatt_id: ansatt?.id ?? null,

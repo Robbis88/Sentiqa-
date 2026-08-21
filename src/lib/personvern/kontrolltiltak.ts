@@ -54,7 +54,12 @@ export const TILTAK: Tiltak[] = [
       + 'hva. Det er også slik du får æren for jobben du har gjort.',
     hvemSer: 'Butikksjefen din og eier. Ved tilsyn: Mattilsynet.',
     hvorLenge: 'Så lenge dokumentasjonskravet gjelder.',
-    merk: 'Registreringene knyttes til PIN-koden din. Låner du den bort, '
+    // Teksten er en opplysningsplikt, ikke pynt: den skal beskrive
+    // hvordan det FAKTISK virker. Vakta startes med ansattnummer og
+    // PIN fra korrekthetstrinnet — sto det bare «PIN-koden din», ville
+    // notatet beskrevet en ordning som ikke lenger finnes.
+    merk: 'Registreringene knyttes til ansattnummeret ditt, som du '
+      + 'starter vakta med sammen med PIN-en din. Låner du dem bort, '
       + 'står du oppført for det den andre gjorde.',
   },
   {

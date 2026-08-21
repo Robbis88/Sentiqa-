@@ -16,7 +16,7 @@ import { Sidehode } from '@/components/ui/side'
 export default async function MineOpplysninger() {
   const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
-  const ansatt = bruker.rolle === 'butikkbruker_tablet' ? await lesAktivAnsatt() : null
+  const ansatt = bruker.rolle === 'butikkbruker_tablet' ? await lesAktivAnsatt(supabase) : null
 
   let bekreftet: string | null = null
   if (ansatt || bruker.rolle !== 'butikkbruker_tablet') {

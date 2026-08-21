@@ -21,14 +21,16 @@ export async function bekreftLest(_t: Tilstand, _fd: FormData): Promise<Tilstand
 
   const supabase = await lagSupabaseServerKlient()
 
-  // På nettbrettet er det den aktive PIN-brukeren som bekrefter, ikke
+  // På nettbrettet er det den som står på vakt som bekrefter, ikke
   // enheten. Uten det ville én bekreftelse dekket hele stasjonen.
-  const ansatt = bruker.rolle === 'butikkbruker_tablet' ? await lesAktivAnsatt() : null
+  // `lesAktivAnsatt` slår opp vakta i basen ved hver lesing, så en
+  // skrevet informasjonskapsel kan ikke bekrefte på andres vegne.
+  const ansatt = bruker.rolle === 'butikkbruker_tablet' ? await lesAktivAnsatt(supabase) : null
   if (bruker.rolle === 'butikkbruker_tablet' && !ansatt) {
-    return { feil: 'Logg inn med PIN-koden din først.' }
+    return { feil: 'Start vakt med ansattnummer og PIN først.' }
   }
 
-  // Stasjonen slås opp, for PIN-informasjonskapselen bærer bare id og navn.
+  // Stasjonen slås opp, for vaktkapselen bærer bare en ansatt-ID.
   // Null er greit: bekreftelsen gjelder personen, ikke stedet.
   const { data: rad } = ansatt
     ? await supabase.from('ansatte').select('stasjon_id').eq('id', ansatt.id)

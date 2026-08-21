@@ -20,7 +20,7 @@ export default async function StemplingSide() {
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
   const supabase = await lagSupabaseServerKlient()
-  const aktiv = await lesAktivAnsatt()
+  const aktiv = await lesAktivAnsatt(supabase)
   const stasjonId = await hentStasjonId(supabase, aktiv)
 
   // Kulturvalg per kjede (0110). Noen vil ha den sosiale kontrollen i at

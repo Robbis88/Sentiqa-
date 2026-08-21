@@ -71,7 +71,7 @@ export async function stemple(
 
   // Stasjonen er nettbrettets, ikke den ansattes hjemstasjon: folk
   // jobber paa tvers i clusteret, og timene hoerer til der arbeidet skjedde.
-  const aktiv = await lesAktivAnsatt()
+  const aktiv = await lesAktivAnsatt(supabase)
   const stasjonId = (await hentStasjonId(supabase, aktiv)) ?? ansatt.stasjon_id
   if (!stasjonId) return { feil: 'Nettbrettet vet ikke hvilken stasjon det står på.' }
 

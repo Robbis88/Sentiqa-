@@ -808,3 +808,49 @@ values
   ('77777777-7777-4777-8777-000000000002', '11111111-1111-4111-8111-222222222222',
    '44444444-4444-4444-8444-111111111111', 'Er kjolerommet laast?', '06:30', true)
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------
+-- ANSATTE, for identitetskontrakten.
+--
+--   ansatt_nr      utpeker personen
+--   PIN            beviser at det er riktig person
+--   sentiqa_vakt   husker resultatet, og er aldri selv bevis
+--
+-- Hashen er sha256('<retailer_id>:<pin>') — samme salt for hele kjeden,
+-- fordi PIN-en fram til korrekthetstrinnet var et databaseoppslag. Den
+-- bindingen er borte naa, og hashen kan bli en ekte passordhash i et
+-- eget trinn.
+--
+-- FEM RADER, HVER MED EN JOBB. En seed som bare hadde «en ansatt» kunne
+-- ikke skille «riktig person» fra «noen person», og det er hele skillet
+-- korrekthetstrinnet handler om.
+--
+--   1001 / 1234   Ada     — den normale veien inn
+--   1002 / 5678   Bo      — beviser at As nummer + Bs PIN avvises
+--   (uten nr)     Kim     — har PIN, men ikke nummer: kan ikke starte vakt
+--   1003 / 1111   Dag     — deaktivert: en kapsel med hans ID er ikke vakt
+--   2001 / 4321   Eir     — ANNEN KJEDE: en kapsel med hennes ID skal
+--                           avvises selv om raden finnes og er aktiv
+--
+-- Merk at Dag har bade `aktiv = false` og `slettet_tid`. Den unike
+-- PIN-indeksen er delvis (`where aktiv and slettet_tid is null`), saa en
+-- deaktivert rad frigjor PIN-en sin - og innsjekken filtrerer paa begge.
+-- ---------------------------------------------------------------------
+insert into public.ansatte (id, retailer_id, stasjon_id, navn, pin_hash, ansatt_nr, aktiv, slettet_tid)
+values
+  ('88888888-8888-4888-8888-000000000001', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Ada Testad',
+   '21b058637a2d60b80b7b34b773dc2abd820fe0a72998b859e4014a1e17d4e8bf', '1001', true, null),
+  ('88888888-8888-4888-8888-000000000002', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Bo Testad',
+   'b5f6c9aafa1ec6fb02eb962a05db28186d123e865b2c40cec38ff1a994249f60', '1002', true, null),
+  ('88888888-8888-4888-8888-000000000003', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Kim Utennummer',
+   '3a4093504ec215255bced4e5aa0f1bd576254d45ffea239f44e980a67e1dd548', null, true, null),
+  ('88888888-8888-4888-8888-000000000004', '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', 'Dag Deaktivert',
+   '5e705061bb2f0dcef6311a172079c287e5f1147aa1e97048c0b7947b222fe3cf', '1003', false, '2026-01-01T00:00:00Z'),
+  ('88888888-8888-4888-8888-000000000005', '11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-222222222222', 'Eir Annenkjede',
+   '5755e52d07e8445add373b1b16ec561e6ffb61787eff3c57f9926fb04d216ae9', '2001', true, null)
+on conflict (id) do nothing;

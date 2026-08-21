@@ -18,7 +18,7 @@ export async function sendTilbakemelding(_t: TilbakeResultat | undefined, formDa
   if (!ALVOR.includes(alvorlighet)) return { feil: 'Ugyldig type.' }
 
   const supabase = await lagSupabaseServerKlient()
-  const ansatt = await lesAktivAnsatt()
+  const ansatt = await lesAktivAnsatt(supabase)
   const stasjonId = await hentStasjonId(supabase, ansatt)
   if (!stasjonId) return { feil: 'Fant ingen stasjon.' }
 
