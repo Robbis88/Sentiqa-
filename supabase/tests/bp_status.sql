@@ -307,7 +307,11 @@ begin
     insert into public.daglig_salg
       (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
        omsetning_eks_mva, bto_fortjeneste_kr)
-    values (RET, STASJ, siste, '1', '900', 'DRIFT', 10, -500);
+    -- `ean` er del av primaernoekkelen (retailer_id, stasjon_id, dato,
+    -- ean) - avdelingskoden er det IKKE. Gjenbrukes ean paa samme dato,
+    -- kolliderer raden med MAT-serien over selv om avdelingen er en
+    -- annen. Det gjorde den, og CI fanget det.
+    values (RET, STASJ, siste, 'ean-drift', '900', 'DRIFT', 10, -500);
 
     select * into r
     from public.v_bp_status_avdeling
@@ -361,7 +365,7 @@ begin
     insert into public.daglig_salg
       (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
        omsetning_eks_mva, bto_fortjeneste_kr)
-    values (RET, STASJ, mnd_ifjor, '1', '140', 'BILVASK', 5000, 4000);
+    values (RET, STASJ, mnd_ifjor, 'ean-bilvask', '140', 'BILVASK', 5000, 4000);
 
     for r in
       select gruppe_kode, kobling from public.v_bp_status_avdeling
