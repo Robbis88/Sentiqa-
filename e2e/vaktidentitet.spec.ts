@@ -387,3 +387,92 @@ test.describe('en skrevet kapsel tilskrives ikke arbeid', () => {
     }
   })
 })
+
+
+// ---------------------------------------------------------------------
+// D. PRODUKTET: begge veiene gjennom den nye funksjonen
+// ---------------------------------------------------------------------
+//
+// Rettighetene, rate limitingen, tenantgjerdet og revisjonssporet er
+// bevist i SQL (supabase/tests/pin_hash_lukket.sql) - der de faktisk
+// bor, og der de tre approllene er den samme Postgres-rollen.
+//
+// Her maales det SQL ikke kan se: at menneskene fortsatt kommer inn.
+test.describe('verifiseringen virker for begge innlogginger', () => {
+  test('stempling gaar gjennom med nummer og PIN', async ({ page }) => {
+    // `stemple()` gikk fra et direkte oppslag paa `pin_hash` til RPC-en.
+    // Ingen e2e rorte skjemaet foer dette, saa den veien var uten bevis
+    // gjennom hele omleggingen.
+    await loggInn(page)
+    await page.goto('/stempling')
+    await page.fill('input[name="ansatt_nr"]', ADA.nr)
+    await page.fill('input[name="pin"]', ADA.pin)
+    await page.locator('button[type="submit"]').click()
+
+    // Kvitteringen sier NAVN og KLOKKESLETT. «Lagret» er ikke nok: hun
+    // skal se at det ble riktig person uten aa lete.
+    const kvittering = page.locator('.stempling-kvittering')
+    await expect(kvittering).toBeVisible({ timeout: 30_000 })
+    await expect(kvittering).toContainText(ADA.navn)
+    await expect(kvittering).toContainText(/INN|UT/)
+  })
+
+  test('feil PIN paa stempling avvises uten aa royke noe', async ({ page }) => {
+    await loggInn(page)
+    await page.goto('/stempling')
+    await page.fill('input[name="ansatt_nr"]', ADA.nr)
+    await page.fill('input[name="pin"]', BO.pin)
+    await page.locator('button[type="submit"]').click()
+
+    const feil = page.locator('.stempling-feil')
+    await expect(feil).toBeVisible({ timeout: 30_000 })
+    await expect(feil).toContainText(/Fant ingen/i)
+    await expect(page.locator('.stempling-kvittering')).toHaveCount(0)
+  })
+})
+
+// ---------------------------------------------------------------------
+// E. PAUSEN, SETT FRA BUTIKKGULVET
+// ---------------------------------------------------------------------
+//
+// EGEN KJEDE MED VILJE. Forsoekene telles per (retailer, ansattnummer) og
+// per (retailer, enhet). Brant dette beviset fem feil paa et nummer i
+// Analysekjeden, ville de andre bevisene i fila arvet en teller som
+// staar og tikker - og en test som gjor andre tester roede er verre enn
+// ingen test. Testkjeden har sin egen Eir, og sine egne tellere.
+test.describe('for mange forsoek gir en pause, ikke en laast doer', () => {
+  const TOMT = { epost: 'nettbrett@test.sentiqa.no', passord: 'test-nettbrett-2026' }
+  const EIR_NR = '2001'
+
+  test('sjette forsoek moeter en beskjed om aa vente', async ({ page }) => {
+    await page.addInitScript(() => {
+      try { localStorage.setItem('sjekk-vist', String(Date.now())) } catch { /* */ }
+    })
+    await page.goto('/logg-inn')
+    await page.fill('input[name="epost"]', TOMT.epost)
+    await page.fill('input[name="passord"]', TOMT.passord)
+    await page.click('button[type="submit"]')
+    await expect(page).not.toHaveURL(/\/logg-inn$/, { timeout: 15_000 })
+
+    // Fem feil paa samme nummer. Grensa er fem per ansattnummer per
+    // kvarter; det sjette skal moete pausen.
+    for (let i = 0; i < 5; i++) {
+      await startVakt(page, EIR_NR, '0000')
+      await expect(page.locator('.vakt-feil')).toBeVisible({ timeout: 30_000 })
+    }
+
+    await startVakt(page, EIR_NR, '0000')
+    const melding = (await page.locator('.vakt-feil').textContent())?.trim() ?? ''
+
+    // BESKJEDEN MAA SI AT DET ER EN PAUSE. Sto det «feil PIN» mens
+    // systemet ikke engang saa paa PIN-en, ville hun staatt og tastet
+    // riktig kode om og om igjen uten aa forstaa hvorfor.
+    expect(melding.toLowerCase(), `sjette forsoek sa: «${melding}»`)
+      .toMatch(/for mange|vent|prøv igjen om/)
+
+    // Og pausen gjelder ogsaa med RIKTIG PIN - ellers ville den bare
+    // bremset de mislykkede forsoekene, altsaa ingenting.
+    await startVakt(page, EIR_NR, '4321')
+    expect(await vaktnavn(page), 'pausen kunne omgaas med riktig PIN').toBe('')
+  })
+})

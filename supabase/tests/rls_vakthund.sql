@@ -31,6 +31,9 @@ declare
     'tablet_meldinger', 'skills_score', 'tildelte_merker',
     'opplaering_skift', 'opplaering_utfort', 'avvik', 'malekort',
     'malekort_scope', 'rutiner',
+    -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
+    -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
+    'pin_forsok',
     -- Oppsett for bemanningsplanleggeren (0081). Faa rader, men de
     -- joines mot timesalg per time - en upakket policy her trekker
     -- per-rad-kall inn i hver eneste planberegning.
@@ -232,6 +235,104 @@ begin
       case when r.anon_leser then 'anon' else 'authenticated' end;
     feil := feil + 1;
   end loop;
+
+  -- --- 6) Hemmelige kolonner: pin_hash ---
+  --
+  -- Lagt til 2026-08-21, etter at `pin_hash` viste seg lesbar for
+  -- klientrollen. RLS gjorde jobben sin - `ansatte_les` (0078) gir
+  -- nettbrettet radene paa egen stasjon. Men RLS avgjor RADER. Grants
+  -- avgjor KOLONNER, og `grant select on public.ansatte` (0025) var paa
+  -- TABELLNIVAA. Radgjerdet var riktig og kolonnegjerdet fantes ikke.
+  --
+  -- De fem sjekkene over var blinde for hele kategorien: de leser
+  -- policyer og tabellrettigheter, aldri kolonnerettigheter.
+  --
+  -- DENNE MAALER DEN EKSAKTE MENGDEN, ikke bare fravaeret av pin_hash.
+  -- Det er med vilje: da feller den BEGGE veier noen kan aapne hullet -
+  -- `grant select (pin_hash)` og `grant select on ansatte` gir samme
+  -- utslag, og en ny kolonne tvinger en beslutning i stedet for aa bli
+  -- lesbar av seg selv slik `ansatt_nr` ble i 0110.
+  declare
+    forventet text[] := array[
+      'id', 'retailer_id', 'stasjon_id', 'navn', 'ansatt_nr',
+      'aktiv', 'opprettet_av', 'opprettet_tid', 'slettet_tid'
+    ];
+    faktisk text[];
+  begin
+    -- KANARIFUGL. Finnes hverken tabellen eller kolonnen, maaler
+    -- sjekken ingenting - og en sjekk som ikke finner det den skal
+    -- vurdere skal rope, ikke tie. Det er noyaktig feilen sjekk 4 ble
+    -- laget for.
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'ansatte'
+        and column_name = 'pin_hash')
+    then
+      raise warning 'KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?';
+      feil := feil + 1;
+    end if;
+
+    select coalesce(array_agg(column_name::text order by column_name), array[]::text[])
+      into faktisk
+    from information_schema.column_privileges
+    where table_schema = 'public' and table_name = 'ansatte'
+      and grantee = 'authenticated' and privilege_type = 'SELECT';
+
+    if faktisk @> array['pin_hash'] then
+      raise warning 'HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline';
+      feil := feil + 1;
+    end if;
+
+    if not (faktisk <@ forventet and forventet <@ faktisk) then
+      raise warning 'KOLONNERETTER ENDRET  ansatte/authenticated SELECT er % - forventet %; ta stilling til hver nye kolonne',
+        faktisk, forventet;
+      feil := feil + 1;
+    end if;
+
+    -- Skrivetilgangen paa hemmeligheten. UPDATE ble fjernet i 0112 fordi
+    -- ingen kode bruker den; INSERT staar, fordi lederen som oppretter en
+    -- ansatt skal sette den foerste PIN-en.
+    if exists (
+      select 1 from information_schema.column_privileges
+      where table_schema = 'public' and table_name = 'ansatte'
+        and grantee = 'authenticated' and column_name = 'pin_hash'
+        and privilege_type = 'UPDATE')
+    then
+      raise warning 'HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet';
+      feil := feil + 1;
+    end if;
+  end;
+
+  -- --- 7) Sikkerhetsfunksjonen: hvem kan kalle den ---
+  --
+  -- `verifiser_ansatt_pin` er security definer og ser hashen. Blir
+  -- EXECUTE bredere enn `authenticated`, er den et orakel for flere enn
+  -- de innloggede - og `revoke from public` er lett aa glemme, fordi en
+  -- funksjon arver EXECUTE til PUBLIC av seg selv.
+  declare
+    kallere text[];
+  begin
+    -- KANARIFUGL: funksjonen maa finnes for at sjekken skal bety noe.
+    if not exists (
+      select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'verifiser_ansatt_pin')
+    then
+      raise warning 'FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?';
+      feil := feil + 1;
+    end if;
+
+    select coalesce(array_agg(distinct grantee::text order by grantee::text), array[]::text[])
+      into kallere
+    from information_schema.role_routine_grants
+    where specific_schema = 'public' and routine_name = 'verifiser_ansatt_pin'
+      and privilege_type = 'EXECUTE'
+      and grantee <> 'postgres';
+
+    if kallere <> array['authenticated'] then
+      raise warning 'FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av % - forventet kun authenticated', kallere;
+      feil := feil + 1;
+    end if;
+  end;
 
   if feil > 0 then
     raise exception 'RLS-vakthund: % funn. Se advarslene over.', feil;

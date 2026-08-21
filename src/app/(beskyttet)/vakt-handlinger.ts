@@ -6,6 +6,9 @@ import { hashPin, settAktivAnsatt, fjernAktivAnsatt, vaktErSattOpp } from '@/lib
 
 export type VaktTilstand = { feil?: string } | undefined
 
+/** Raden `verifiser_ansatt_pin` gir. Hashen er ikke med - det er hele poenget. */
+type Verifikasjon = { ansatt_id: string | null; status: 'ok' | 'avvist' | 'sperret'; vent_sekunder: number }
+
 /**
  * Samme melding for ukjent nummer og feil PIN.
  *
@@ -25,22 +28,41 @@ const AVVIST =
   + 'Har du ikke fått ansattnummer ennå, må butikksjefen legge det inn.'
 
 /**
+ * Pausen er et FJERDE svar, og det lekker ingenting.
+ *
+ * Forsøkene telles på nummeret som ble tastet — også når det ikke finnes
+ * noen med det nummeret. «Vent litt» sier derfor ikke om personen er
+ * ansatt her; det sier bare at noen har prøvd for mange ganger.
+ *
+ * Og det MÅ være et eget svar. Fikk hun «feil PIN» mens systemet i
+ * virkeligheten ikke engang så på PIN-en, ville hun stått og tastet
+ * riktig kode om og om igjen uten å forstå hvorfor den ikke virket.
+ */
+function sperret(sekunder: number): string {
+  const min = Math.max(1, Math.ceil(sekunder / 60))
+  return `For mange forsøk. Prøv igjen om ${min} ${min === 1 ? 'minutt' : 'minutter'}.`
+}
+
+/**
  * Start vakt: ansattnummer + PIN.
  *
- * NUMMER OG PIN, IKKE PIN ALENE. Fram til dette trinnet slo innsjekken
- * opp på `pin_hash` og LOT PIN-en være identiteten. Følgen var ikke at
- * to kunne kollidere — en unik indeks hindrer det — men at man ikke
- * trengte å utpeke noen: enhver gyldig PIN logget deg inn som den som
- * eide den. Med femti ansatte traff et tilfeldig firesifret forsøk én av
- * to hundre, og PIN-feltet sto i klartekst i toppstripa, i en butikk,
- * ved siden av kolleger og kunder.
+ * NUMMER OG PIN, IKKE PIN ALENE. Fram til korrekthetstrinnet slo
+ * innsjekken opp på `pin_hash` og lot PIN-en være identiteten. Følgen var
+ * ikke kollisjon — en unik indeks hindrer det — men at man ikke trengte å
+ * utpeke noen: enhver gyldig PIN logget deg inn som den som eide den.
  *
- * Å navngi personen først gjør gjettingen til én av ti tusen for en
- * BESTEMT person, og gjør skuldersurfing alene utilstrekkelig.
+ * VERIFISERINGEN LIGGER I BASEN NÅ, og det er ikke en omskriving for
+ * ryddighetens skyld. `pin_hash` er ikke lenger lesbar for klientrollen
+ * (0112), fordi en nettbrettsesjon ellers kunne hente hashene til alle
+ * kolleger på stasjonen og knekke dem offline på sekunder.
  *
- * Formen er den samme som `stemple()` (0110): oppslag på nummer,
- * sammenligning av hash etterpå. To steder som svarer på det samme
- * spørsmålet skal ikke gjøre det på hver sin måte.
+ * `verifiser_ansatt_pin` er security definer, henter tenanten fra
+ * databasekonteksten, teller forsøk og skriver revisjonssporet — alt i
+ * ett kall. En funksjon som svarte ja/nei uten å telle ville byttet et
+ * offline-angrep mot et online-angrep, og ikke lukket noe.
+ *
+ * Hashen regnes fortsatt ut her i Node. Da slipper PIN-en aldri inn i en
+ * databasespørring, og dermed heller ikke inn i en spørringslogg.
  */
 export async function checkInn(_t: VaktTilstand, formData: FormData): Promise<VaktTilstand> {
   const bruker = await hentInnloggetBruker()
@@ -60,26 +82,20 @@ export async function checkInn(_t: VaktTilstand, formData: FormData): Promise<Va
 
   const supabase = await lagSupabaseServerKlient()
 
-  // OPPSLAG PÅ NUMMER. PIN-en står ikke i spørringen i det hele tatt:
-  // en `where pin_hash = …` er per definisjon å bruke hemmeligheten som
-  // identitet, uansett hva som sammenlignes etterpå.
-  const { data: ansatt } = await supabase
-    .from('ansatte')
-    .select('id, pin_hash')
-    .eq('retailer_id', bruker.retailerId)
-    .eq('ansatt_nr', nummer)
-    .eq('aktiv', true)
-    .is('slettet_tid', null)
-    .maybeSingle<{ id: string; pin_hash: string }>()
+  const { data: svar } = await supabase.rpc('verifiser_ansatt_pin', {
+    p_ansatt_nr: nummer,
+    p_pin_hash: hashPin(bruker.retailerId, pin),
+    p_kilde: 'vakt',
+  })
+  const rad = (svar as Verifikasjon[] | null)?.[0]
 
-  if (!ansatt || ansatt.pin_hash !== hashPin(bruker.retailerId, pin)) {
-    return { feil: AVVIST }
-  }
+  if (rad?.status === 'sperret') return { feil: sperret(rad.vent_sekunder) }
+  if (!rad || rad.status !== 'ok' || !rad.ansatt_id) return { feil: AVVIST }
 
   // BARE ID-EN LAGRES. Navnet hentes fra basen ved hver lesing — se
   // `lesAktivAnsatt`. En kapsel skal huske et resultat, ikke bære et
   // navn systemet viser fram som om det var kontrollert.
-  await settAktivAnsatt({ id: ansatt.id })
+  await settAktivAnsatt({ id: rad.ansatt_id })
   revalidatePath('/', 'layout')
   return undefined
 }
