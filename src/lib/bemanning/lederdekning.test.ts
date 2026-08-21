@@ -60,6 +60,30 @@ describe('lederdekning', () => {
     expect(normaliserTimer('301')).toBeNull()
   })
 
+  test('de fire tilfellene leses ulikt', () => {
+    // Situasjonene Robert beskrev, i den rekkefølgen de forekommer.
+    // Setningen må skille dem — det er den som står under hver måned
+    // og forklarer hva raden faktisk gjør.
+    const full = forklarDekning('ikke_fastlonnet', 141.25)
+    const halv = forklarDekning('ikke_fastlonnet', 70.5)
+    const permisjon = forklarDekning('ikke_fastlonnet', null)
+    const ingenting = forklarDekning('ukjent', null)
+
+    expect(full).toContain('141,25 timer')
+    expect(halv).toContain('70,5 timer')
+
+    // PERMISJON UTEN TILBAKEFOERING er Bjørn på Laguneparken, og det
+    // tilfellet den gamle automatikken tok feil på: faktumet står,
+    // ingenting gis. Sier setningen bare det første, leses den som en
+    // tildeling.
+    expect(permisjon).toContain('Ingen fastlønnet butikksjef')
+    expect(permisjon).toContain('Ingen timer lagt tilbake')
+    expect(permisjon).not.toMatch(/økt med/)
+
+    // Alle fire skal kunne skilles fra hverandre av en leser.
+    expect(new Set([full, halv, permisjon, ingenting]).size).toBe(4)
+  })
+
   test('uavklarte måneder telles, også når ingen er fylt ut', () => {
     expect(uavklarte([], 12), 'ingenting utfylt').toBe(12)
     expect(uavklarte([{ fastlonnet: true }, { fastlonnet: false }], 12)).toBe(10)

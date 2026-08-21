@@ -187,9 +187,10 @@ select
   end                                                    as bp_brutto_per_time,
 
   round(rm.ramme_raa)                                    as ramme_for_justering,
-  -- EN DESIMAL. Halve maaneder gir 70,5, og `round()` uten desimal ville
-  -- gjort et bevisst valg om til et omtrentlig et.
-  round(rm.justering, 1)                                 as ramme_justering_timer,
+  -- TO DESIMALER. Forslaget for en hel maaned er 1695/12 = 141,25, og
+  -- med EN desimal ville viewet meldt 141,3 tilbake - et annet tall enn
+  -- det eieren satte. Det du skrev skal vaere det du ser.
+  round(rm.justering, 2)                                 as ramme_justering_timer,
   round(rm.arsverk_timer)                                as arsverk_timer,
   case when rm.fastlonnet is null then 'ukjent'
        when rm.fastlonnet        then 'fastlonnet'
