@@ -29,7 +29,7 @@ declare
   r       record;
 begin
   if to_regclass('public.v_timeregnskap') is null then
-    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117 kjort?';
+    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117/0118 kjort?';
   end if;
 
   begin
@@ -52,8 +52,15 @@ begin
       (RET, STASJ, jan, 'omsetning', '120', '120 Mat',
        9600000, 10000000, 0, 0, 0, 0);
 
-    insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
+    -- MAALESTOKKEN ER RAMMEN, IKKE PLANLEGGINGSTALLET.
+    -- bemanning_budsjett.timer  = rammen St1 ga        -> 12 000
+    -- bemanning_maned.disponible = etter fradrag       -> 11 400
+    -- De er ULIKE med vilje: forveksler viewet dem, blir opptjente
+    -- timer 10 944 i stedet for 11 520, og testen feller.
+    insert into public.bemanning_budsjett (stasjon_id, ar, maned, timer)
       values (STASJ, 2026, 1, 12000);
+    insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
+      values (STASJ, 2026, 1, 11400);
 
     -- Brukt noeyaktig hele budsjettet: 12 000 timer.
     --
@@ -100,6 +107,14 @@ begin
         raise warning 'timer_over er % - ventet 480', r.timer_over;
         feil := feil + 1;
       end if;
+      -- PLANLEGGINGSTALLET STAAR FOR SEG SELV. 11 400, ikke 12 000 -
+      -- og det er nettopp fordi de to er ulike at kontrollene over
+      -- beviser at rammen brukes, ikke planen.
+      if r.plan_timer is distinct from 11400 then
+        raise warning 'plan_timer er %% - ventet 11400 (etter fradrag)',
+          r.plan_timer;
+        feil := feil + 1;
+      end if;
       -- 4 800 000 / 12 000 = 400 kr brutto per time. Budsjettert:
       -- 5 000 000 / 12 000 = 417.
       if r.brutto_per_time is distinct from 400 then
@@ -129,8 +144,10 @@ begin
        omsetning_eks_mva, bto_fortjeneste_kr)
     values (RET, STASJ, feb, 'ean-feb', '120', 'MAT', 87273, 48000);
 
-    insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
+    insert into public.bemanning_budsjett (stasjon_id, ar, maned, timer)
       values (STASJ, 2026, 2, 1000);
+    insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
+      values (STASJ, 2026, 2, 950);
 
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = feb;
