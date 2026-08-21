@@ -23,13 +23,26 @@ declare
   feil      int := 0;
   RET       constant uuid := 'eeeeeeee-0000-4000-8000-000000000001';
   STASJ     constant uuid := 'eeeeeeee-1111-4000-8000-000000000001';
+  STASJ2    constant uuid := 'eeeeeeee-2222-4000-8000-000000000002';
   mnd       date;
+  forrige_mnd date;
   mnd_ifjor date;
   siste     date;
   r         record;
 begin
   if to_regclass('public.v_bp_status_avdeling') is null then
-    raise exception 'BLIND TEST: v_bp_status_avdeling finnes ikke - er 0113 kjort?';
+    raise exception 'BLIND TEST: v_bp_status_avdeling finnes ikke - er 0113/0114 kjort?';
+  end if;
+
+  -- Kolonnene kom i 0114 (`kobling`) og 0115 (`bp_vekst_pst`). Kjores
+  -- testen mot et eldre view, feiler den paa «column does not exist»
+  -- midt inne i en kontroll - en feilmelding som ser ut som en kodefeil
+  -- i testen. Her sier den i stedet hva som mangler.
+  if (select count(*) from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'v_bp_status_avdeling'
+        and column_name in ('kobling', 'bp_vekst_pst')) < 2 then
+    raise exception 'BLIND TEST: viewet mangler kobling og/eller bp_vekst_pst - er 0114 og 0115 kjort?';
   end if;
 
   begin
@@ -42,6 +55,7 @@ begin
     end if;
     mnd       := date_trunc('month', siste)::date;
     mnd_ifjor := (mnd - interval '1 year')::date;
+    forrige_mnd := (mnd - interval '1 month')::date;
 
     insert into public.retailers (id, navn) values (RET, 'BP-test');
     insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
@@ -224,6 +238,217 @@ begin
     if exists (select 1 from public.v_bp_status_avdeling
                where stasjon_id = STASJ and gruppe_kode = '40') then
       raise warning 'ROLLUP MED: kode 40 CR staar i viewet og dobbelteller stasjonen';
+      feil := feil + 1;
+    end if;
+
+    -- --- HVER STASJON MAALES MOT SIN EGEN SISTE SALGSDATO ----------
+    --
+    -- STASJ2 ligger en HEL MAANED etter med importen. Da er dens
+    -- inneveaerende maaned forrige maaned - ikke kjedens.
+    --
+    -- Dagnummer brukes med vilje IKKE som maalepunkt her: hvilken dag
+    -- CI-seeden slutter paa er ukjent, og en test som er stum den 1. i
+    -- maaneden er en test som ser ut til aa maale noe den ikke maaler.
+    -- Periodestatus er derimot entydig: med global dato ville raden
+    -- faatt «venter_regnskap», med stasjonens egen faar den
+    -- «innevaerende». De to kan ikke forveksles.
+    insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
+      values (STASJ2, RET, '0002', 'BP-etternoelaren', 'pendler');
+
+    insert into public.regnskapslinjer
+      (retailer_id, stasjon_id, periode, seksjon, kode, post, regnskap, budsjett,
+       avvik, index_pct, regnskap_hittil, budsjett_hittil)
+    values
+      (RET, STASJ2, forrige_mnd, 'bp_omsetning', '120', '120 Mat', 0, 100000, 0, 0, 0, 0);
+
+    -- Fjoraaret for den maaneden, jevnt - saa andelen er regnbar.
+    insert into public.daglig_salg
+      (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    select RET, STASJ2, d::date, '1', '120', 'MAT', 1000, 500
+    from generate_series((forrige_mnd - interval '1 year')::date,
+                         (forrige_mnd - interval '1 year' + interval '1 month - 1 day')::date,
+                         interval '1 day') d;
+
+    -- ... og i aar: bare de ti foerste dagene av FORRIGE maaned.
+    insert into public.daglig_salg
+      (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    select RET, STASJ2, d::date, '1', '120', 'MAT', 900, 360
+    from generate_series(forrige_mnd,
+                         (forrige_mnd + interval '9 days')::date,
+                         interval '1 day') d;
+
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ2 and maned = forrige_mnd and gruppe_kode = '120';
+
+    if r.stasjon_id is null then
+      raise warning 'etternoelaren fikk ingen rad for sin egen siste maaned';
+      feil := feil + 1;
+    elsif r.periode_status <> 'innevaerende' then
+      raise warning 'GLOBAL DATO: stasjonen som ligger en maaned etter fikk '
+                    'status % - ventet innevaerende. Maales den mot kjedens '
+                    'siste salgsdato i stedet for sin egen?', r.periode_status;
+      feil := feil + 1;
+    elsif r.burde_naa_omsetning is null then
+      raise warning 'etternoelaren fikk ingen burde_naa - er andelen borte?';
+      feil := feil + 1;
+    end if;
+
+    -- --- BRUTTOPROSENT UTEN MENINGSFULL NEVNER ---------------------
+    --
+    -- 10 kr omsetning og -500 kr brutto er ikke en margin paa -5000 %.
+    -- Det er to tall som kommer fra hver sin stoerrelse. `DRIFT` viste
+    -- -3536,4 % i produksjon foer dette.
+    --
+    -- KRONENE SKAL STAA. Nulles ogsaa de, forsvinner beviset paa at noe
+    -- er galt sammen med det gale tallet.
+    insert into public.daglig_salg
+      (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    -- `ean` er del av primaernoekkelen (retailer_id, stasjon_id, dato,
+    -- ean) - avdelingskoden er det IKKE. Gjenbrukes ean paa samme dato,
+    -- kolliderer raden med MAT-serien over selv om avdelingen er en
+    -- annen. Det gjorde den, og CI fanget det.
+    values (RET, STASJ, siste, 'ean-drift', '900', 'DRIFT', 10, -500);
+
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ and maned = mnd and gruppe_kode = '900';
+
+    if r.stasjon_id is null then
+      raise warning 'raden for DRIFT forsvant helt - den skal vises, bare uten prosent';
+      feil := feil + 1;
+    else
+      if r.teoretisk_brutto_pst is not null then
+        raise warning 'teoretisk_brutto_pst er % for 10 kr omsetning og '
+                      '-500 kr brutto - ventet null', r.teoretisk_brutto_pst;
+        feil := feil + 1;
+      end if;
+      if r.brutto_gap_pst is not null then
+        raise warning 'brutto_gap_pst er % naar den ene prosenten ikke '
+                      'finnes - et gap mot ingenting er ikke en lekkasje',
+          r.brutto_gap_pst;
+        feil := feil + 1;
+      end if;
+      if r.teoretisk_brutto_kr is distinct from -500 then
+        raise warning 'teoretisk_brutto_kr er % - ventet -500. Kronene skal '
+                      'staa selv naar prosenten ikke kan regnes', r.teoretisk_brutto_kr;
+        feil := feil + 1;
+      end if;
+    end if;
+
+    -- --- KOBLINGEN: FIRE TILSTANDER, IKKE TO -----------------------
+    --
+    -- 0113 kalte baade «har plan, ingen salg» og «har plan, ingen kode
+    -- aa koble til» for «ingen plan lagt inn» - motsatt av sannheten
+    -- for begge.
+
+    -- (c) plan, men koden finnes ikke i salgsdataene i det hele tatt.
+    --     Dette er `211 Selvvask`, `DRIFT` og `SYSTEM` i produksjon.
+    insert into public.regnskapslinjer
+      (retailer_id, stasjon_id, periode, seksjon, kode, post, regnskap, budsjett,
+       avvik, index_pct, regnskap_hittil, budsjett_hittil)
+    values
+      (RET, STASJ, mnd, 'bp_omsetning', '211', '211 Selvvask', 0, 50000, 0, 0, 0, 0);
+
+    -- (d) plan, og koden FINNES i stasjonens salgsdata - men ikke denne
+    --     maaneden. En ekte nulltilstand: avdelingen er kjent, den har
+    --     bare ikke solgt.
+    insert into public.regnskapslinjer
+      (retailer_id, stasjon_id, periode, seksjon, kode, post, regnskap, budsjett,
+       avvik, index_pct, regnskap_hittil, budsjett_hittil)
+    values
+      (RET, STASJ, mnd, 'bp_omsetning', '140', '140 Bilvask', 0, 30000, 0, 0, 0, 0);
+
+    insert into public.daglig_salg
+      (retailer_id, stasjon_id, dato, ean, avdeling_kode, avdeling_navn,
+       omsetning_eks_mva, bto_fortjeneste_kr)
+    values (RET, STASJ, mnd_ifjor, 'ean-bilvask', '140', 'BILVASK', 5000, 4000);
+
+    for r in
+      select gruppe_kode, kobling from public.v_bp_status_avdeling
+      where stasjon_id = STASJ and maned = mnd
+        and gruppe_kode in ('120', '900', '211', '140')
+    loop
+      if r.gruppe_kode = '120' and r.kobling <> 'plan_med_salg' then
+        raise warning 'kode 120 har baade plan og salg, men kobling er %', r.kobling;
+        feil := feil + 1;
+      elsif r.gruppe_kode = '900' and r.kobling <> 'salg_uten_plan' then
+        raise warning 'kode 900 selger uten budsjett, men kobling er %', r.kobling;
+        feil := feil + 1;
+      elsif r.gruppe_kode = '211' and r.kobling <> 'plan_uten_kobling' then
+        raise warning 'kode 211 finnes ikke i salgsdataene, men kobling er %. '
+                      'Dette er feilen som kalte «211 Selvvask» for «ingen '
+                      'plan lagt inn»', r.kobling;
+        feil := feil + 1;
+      elsif r.gruppe_kode = '140' and r.kobling <> 'plan_uten_salg' then
+        raise warning 'kode 140 er kjent i salgsdataene men solgte ikke denne '
+                      'maaneden, og kobling er % - ventet plan_uten_salg', r.kobling;
+        feil := feil + 1;
+      end if;
+    end loop;
+
+    -- KANARIFUGL FOR SELVE KLASSIFISERINGEN. Returnerer viewet bare en
+    -- av verdiene, gaar loekka over trivielt grønn for de andre.
+    if (select count(distinct kobling) from public.v_bp_status_avdeling
+        where stasjon_id = STASJ and maned = mnd) < 4 then
+      raise warning 'BLIND TEST: viewet ga faerre enn fire koblingsverdier for '
+                    'testdata som dekker alle fire. Klassifiserer den i det '
+                    'hele tatt?';
+      feil := feil + 1;
+    end if;
+
+    -- --- VEKSTKRAVET: HVA PLANEN BER OM MOT I FJOR -----------------
+    --
+    -- Testdataene over: budsjett 100 000 for maaneden, og i fjor 1 000
+    -- kr per dag i en hel maaned. Vekstkravet er derfor regnbart for
+    -- haand - og det er 100 000 mot (1000 * dager), ikke mot noe
+    -- «hittil»-tall.
+    --
+    -- MAALT MOT HELE MAANEDEN MED VILJE. Regnes kravet mot fjoraaret
+    -- HITTIL, beveger det seg med dagteljaren: den samme planen ville
+    -- sett ut som et annet krav hver morgen. Denne testen felles hvis
+    -- noen bytter til hittil-tallet, fordi de to er langt fra hverandre.
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ and maned = mnd and gruppe_kode = '120';
+
+    if r.ifjor_omsetning_kr is distinct from
+       round(1000 * extract(days from (mnd + interval '1 month - 1 day')))
+    then
+      raise warning 'ifjor_omsetning_kr er % - ventet hele fjoraarets '
+                    'maaned (1000 kr x % dager)', r.ifjor_omsetning_kr,
+        extract(days from (mnd + interval '1 month - 1 day'));
+      feil := feil + 1;
+    end if;
+
+    if r.bp_vekst_pst is null then
+      raise warning 'bp_vekst_pst er null selv om baade budsjett og '
+                    'fjoraar finnes';
+      feil := feil + 1;
+    elsif abs(r.bp_vekst_pst
+              - (100 * (100000 - 1000 * extract(days from (mnd + interval '1 month - 1 day')))
+                 / (1000 * extract(days from (mnd + interval '1 month - 1 day'))))) > 0.2
+    then
+      raise warning 'bp_vekst_pst er % - stemmer ikke med 100000 mot '
+                    'fjoraarets hele maaned. Er den regnet mot '
+                    'hittil-tallet i stedet?', r.bp_vekst_pst;
+      feil := feil + 1;
+    end if;
+
+    -- UTEN FJORAAR: INTET KRAV. En ny avdeling har ikke uendelig
+    -- vekstkrav - den har ikke noe. `211` har budsjett og ingen
+    -- salgshistorikk i det hele tatt.
+    select * into r
+    from public.v_bp_status_avdeling
+    where stasjon_id = STASJ and maned = mnd and gruppe_kode = '211';
+
+    if r.bp_vekst_pst is not null then
+      raise warning 'bp_vekst_pst er % for en avdeling uten fjoraarstall '
+                    '- et vekstkrav mot ingenting finnes ikke',
+        r.bp_vekst_pst;
       feil := feil + 1;
     end if;
 

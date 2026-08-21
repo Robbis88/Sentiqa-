@@ -167,6 +167,11 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/timesalg': 'analyse',
   '/salgsprognose': 'analyse',
   '/svinn': 'analyse',
+  // «Ligger vi i rute mot planen?» Analyse og ikke dashbord: den
+  // forklarer hvorfor tallene ser slik ut, og rangerer ikke funn paa
+  // tvers av systemet. Men den KREVER noe - derfor staar det som
+  // krever mest oeverst, sortert paa kroner bak plan.
+  '/businessplan': 'analyse',
   '/regnskap': 'analyse',
   '/analyse': 'analyse',
   '/maaling': 'analyse',
