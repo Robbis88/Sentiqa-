@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { alvor, delEtterKobling, domsord, sorterEtterAvvik, sumBakPlan, gapAlvor } from './bp-dom'
+import { alvor, bruttoAlvor, delEtterKobling, domsord, sorterEtterAvvik, sumBakPlan } from './bp-dom'
 import { TERSKLER } from './terskler'
 
 describe('dommen om en avdeling', () => {
@@ -85,13 +85,31 @@ describe('dommen om en avdeling', () => {
     expect(d.umaalte).toHaveLength(1)
   })
 
-  test('gapet: tideler er stoy, prosentpoeng er penger', () => {
-    expect(gapAlvor(5.2)).toBe('handling')
-    expect(gapAlvor(3)).toBe('handling')
-    expect(gapAlvor(2.9)).toBe('endring')
-    expect(gapAlvor(1)).toBe('endring')
-    expect(gapAlvor(0.9)).toBe('normal')
-    expect(gapAlvor(-1)).toBe('normal')
-    expect(gapAlvor(null)).toBe('normal')
+  test('brutto: dommen er planen mot regnskapet, ikke kassa', () => {
+    // DEN FEILEN SOM BLE RETTET. Kassa er fasit paa en perfekt hverdag;
+    // BP-budsjettet mot regnskapet er fasiten paa pengene vi tjener.
+    //
+    // VARM DRIKKE er grunnen: kaffeavtaler gir kopper uten et salg bak
+    // seg, saa kassa sier 80 % der tellingen sier 20 %. Farget vi den
+    // differansen, ville avdelingen vaert roed hver eneste maaned uten
+    // et grep aa ta.
+    expect(bruttoAlvor(TERSKLER.brfGul), `${TERSKLER.brfGul} % under budsjett`)
+      .toBe('endring')
+    expect(bruttoAlvor(TERSKLER.brfGul * 2)).toBe('handling')
+    expect(bruttoAlvor(TERSKLER.brfGul + 0.1)).toBe('normal')
+    expect(bruttoAlvor(0)).toBe('normal')
+    expect(bruttoAlvor(12)).toBe('normal')
+    expect(bruttoAlvor(null)).toBe('normal')
+  })
+
+  test('grensen for brutto er den samme som regnskapsvarslene bruker', () => {
+    // KANARIFUGL FOR TO SANNHETER, samme sort som den for omsetning.
+    // Finner noen paa en egen pp-grense her, ser butikksjefen gult paa
+    // /regnskap og gronn paa /businessplan for det SAMME tallet.
+    //
+    // Feller ogsaa hvis noen gjor brfGul positiv: da ville «under
+    // budsjett» plutselig betydd «over», og alle avdelinger blitt roede.
+    expect(TERSKLER.brfGul, 'brfGul skal vaere en NEGATIV indeksgrense')
+      .toBeLessThan(0)
   })
 })

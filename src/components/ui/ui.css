@@ -716,9 +716,17 @@
 }
 .bp-krav-grunnlag { color: var(--tekst-svak); }
 
-/* Lekkasjen. To måter å regne den samme margen på, og forskjellen
-   mellom dem. Står nederst fordi den bare gir mening etter at man vet
-   om avdelingen er i rute. */
+/* Brutto: taket, løftet, virkeligheten — og avstanden som må dekkes.
+
+   EN STIGE, IKKE TRE LIKESTILTE TALL. Sto først som «Kassen tilsier /
+   Regnskap / Gap», der gapet var kassa minus regnskapet og hadde farge.
+   For varm drikke ville det vært rødt hver eneste måned uten et grep å
+   ta: kaffeavtaler gir kopper uten et salg bak seg, så kassa teller
+   solgte kopper mens tellingen ser alt som er brukt.
+
+   Bare siste trinn har farge, og det er regnskapet mot BUDSJETTET.
+   Står nederst fordi det bare gir mening etter at man vet om
+   avdelingen er i rute på omsetning. */
 .bp-brutto {
   display: flex;
   gap: var(--luft-6);
@@ -737,6 +745,14 @@
   font-size: 1.15rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+/* Siste trinn skiller seg med en kant, ikke med størrelse. De tre andre
+   er like store fordi de er like sanne — det er bare denne som er en
+   dom. En egen skriftstørrelse ville sagt at de andre var mindre
+   viktige, og det er de ikke: uten dem er dommen uetterprøvbar. */
+.bp-gap {
+  padding-left: var(--luft-5);
+  border-left: 2px solid var(--kant);
 }
 .bp-gap dd { font-weight: 800; }
 
