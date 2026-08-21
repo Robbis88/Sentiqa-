@@ -2,7 +2,6 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { ARSVERK_TIMER } from '@/lib/bemanning/lederdekning'
 
 // =====================================================================
 // Oppsettet som styrer timeregnskapet.
@@ -106,4 +105,3 @@ export async function settArsverk(formData: FormData) {
   revalidatePath('/timeregnskap')
 }
 
-export { ARSVERK_TIMER }
