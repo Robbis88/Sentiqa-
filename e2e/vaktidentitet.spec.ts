@@ -29,6 +29,22 @@ import { test, expect, type Page } from '@playwright/test'
 // de skriver en kapsel for hånd, slik en angriper ville gjort.
 // =====================================================================
 
+// TESTENE HER FAAR LENGER TID, og det er ikke en lapp paa en treg test.
+//
+// Paastandene venter inntil 45 sekunder paa at en serverhandling har
+// settlet - `checkInn` og `stemple` gaar naa gjennom en RPC som teller
+// forsoek, skriver revisjonsspor og slaar opp ansatten. Standardtaket i
+// Playwright er 30 sekunder for HELE testen, saa en 45-sekunders
+// paastand kan aldri vente ferdig: testen doer foerst, og rapporterer
+// «svarte hverken med kvittering eller feilmelding» - som er sant, men
+// bare fordi ingen rakk aa spoerre ferdig.
+//
+// Rate limit-beviset gjor dessuten seks paalogginger etter hverandre.
+// Det er ETT bevis, ikke seks, og maa faa tid til aa vaere det.
+test.beforeEach(() => {
+  test.setTimeout(120_000)
+})
+
 const NETTBRETT = {
   epost: 'nettbrett-analyse@test.sentiqa.no',
   passord: 'test-nettbrett-analyse-2026',
