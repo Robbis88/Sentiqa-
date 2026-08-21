@@ -63,7 +63,7 @@ create table if not exists public.pin_forsok (
   -- Ble forsoeket avvist av pausen, ikke av PIN-en? Da er det et signal
   -- om at noen holder paa, ikke om at noen har glemt koden sin.
   blokkert      boolean not null default false,
-  opprettet_tid timestamptz not null default now()
+  opprettet_tid timestamptz not null default clock_timestamp()
 );
 
 -- Indeksene ER rate limitingen. Uten dem gjor hver innlogging en
@@ -81,6 +81,13 @@ comment on table public.pin_forsok is
   'pin_hash. Brukes til rate limiting (5 per ansattnummer / 20 per enhet '
   'per 15 min) og som revisjonsspor. Retensjon 90 dager, ryddes av '
   '/api/cron/opprydding.';
+
+-- Klokka, ikke transaksjonens starttid. `now()` staar stille gjennom en
+-- hel transaksjon, og en revisjonslogg der flere forsoek deler
+-- tidsstempel lyver om takten de kom i. Egen setning fordi
+-- `create table if not exists` ikke roerer en tabell som finnes.
+alter table public.pin_forsok
+  alter column opprettet_tid set default clock_timestamp();
 
 alter table public.pin_forsok enable row level security;
 
@@ -205,7 +212,22 @@ begin
     return;
   end if;
 
-  -- Feil paa denne identiteten siden siste treff, innenfor vinduet.
+  -- Feil paa denne identiteten SIDEN SISTE TREFF, innenfor vinduet.
+  --
+  -- SAMMENLIGNINGEN GAAR PAA `id`, IKKE PAA TID, og det er ikke
+  -- pedanteri. `now()` er TRANSAKSJONENS starttid, ikke klokka: skjer
+  -- flere forsoek i samme transaksjon, faar de identisk tidsstempel, og
+  -- «senere enn siste treff» blir da usant for alle sammen. Telleren sto
+  -- paa null uansett hvor mange ganger noen proevde.
+  --
+  -- I drift er hvert kall sin egen transaksjon, saa feilen var usynlig
+  -- der - og den ville blitt oppdaget den dagen noen faktisk gjettet
+  -- PIN-er. Beviset fant den paa foerste kjoering fordi det kjorer alt i
+  -- en transaksjon.
+  --
+  -- `id` er bigserial: alltid stigende, alltid forskjellig, ogsaa inne i
+  -- en transaksjon. Den er derfor det eneste som svarer riktig paa
+  -- «kom dette forsoeket etter forrige treff».
   select count(*) into v_feil_id
   from public.pin_forsok f
   where f.retailer_id = v_retailer
@@ -216,12 +238,12 @@ begin
     -- Da hadde vi bygget en permanent utestenging med en annen ordlyd.
     and not f.blokkert
     and f.opprettet_tid > now() - v_vindu
-    and f.opprettet_tid > coalesce((
-      select max(g.opprettet_tid) from public.pin_forsok g
+    and f.id > coalesce((
+      select max(g.id) from public.pin_forsok g
       where g.retailer_id = v_retailer
         and g.ansatt_nr is not distinct from p_ansatt_nr
         and g.ok
-    ), '-infinity'::timestamptz);
+    ), 0);
 
   select count(*) into v_feil_enhet
   from public.pin_forsok f
