@@ -58,6 +58,8 @@ with lister as (
       'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
       'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
       'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
+    -- Hvem er butikksjef naar. Fem rader, endres ved rollebytte.
+    'stasjon_leder',
       'push_abonnementer'
     ]::text[] as kalde
 )

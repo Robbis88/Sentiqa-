@@ -97,6 +97,8 @@ declare
     'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
     'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
     'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
+    -- Hvem er butikksjef naar. Fem rader, endres ved rollebytte.
+    'stasjon_leder',
     'push_abonnementer'
     -- Her stod opplaring_personer, opplaring_punkter og opplaring_fullfort
     -- (varme). Ingen av dem finnes i basen - de er erstattet av

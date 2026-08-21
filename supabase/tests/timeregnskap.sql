@@ -29,7 +29,7 @@ declare
   r       record;
 begin
   if to_regclass('public.v_timeregnskap') is null then
-    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117/0118 kjort?';
+    raise exception 'BLIND TEST: v_timeregnskap finnes ikke - er 0117-0120 kjort?';
   end if;
 
   begin
@@ -111,7 +111,7 @@ begin
       -- og det er nettopp fordi de to er ulike at kontrollene over
       -- beviser at rammen brukes, ikke planen.
       if r.plan_timer is distinct from 11400 then
-        raise warning 'plan_timer er %% - ventet 11400 (etter fradrag)',
+        raise warning 'plan_timer er % - ventet 11400 (etter fradrag)',
           r.plan_timer;
         feil := feil + 1;
       end if;
@@ -122,6 +122,70 @@ begin
         feil := feil + 1;
       end if;
     end if;
+
+    -- ============================================================
+    -- BUTIKKSJEFENS TIMER HOLDES UTENFOR TELLINGEN
+    -- ============================================================
+    -- Rammen `timer_aar` er definert UTEN butikksjefens aarsverk, saa
+    -- forbruket maa telles likedan. Uten dette sammenlignes en
+    -- befolkning MED leder mot en ramme UTEN.
+    --
+    -- Januar har 12 000 timer paa ansatt '1'. Vi legger til 200 timer
+    -- paa ansatt '9', og gjor '9' til butikksjef. Da skal:
+    --
+    --   brukte_timer  fortsatt vaere 12 000  (ikke 12 200)
+    --   leder_timer   vaere 200
+    --
+    -- Tallene er valgt slik at en feil ikke kan gjemme seg: 200 timer
+    -- er langt over enhver avrunding.
+    insert into public.stempling
+      (stasjon_id, ansatt_nr, ansatt_navn, dato, fra_tid, til_tid, minutter, betalt)
+    values (STASJ, '9', 'Leder Ledersen', jan,
+            time '08:00', time '16:00', 200 * 60, true);
+
+    insert into public.stasjon_leder
+      (retailer_id, stasjon_id, ansatt_nr, navn, fra_dato)
+    values (RET, STASJ, '9', 'Leder Ledersen', jan);
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+
+    if r.brukte_timer is distinct from 12000 then
+      raise warning 'brukte_timer er % - ventet 12000. Er den 12200, '
+                    'telles butikksjefen med i bemanningen - mot en ramme '
+                    'som er definert uten henne.', r.brukte_timer;
+      feil := feil + 1;
+    end if;
+    if r.leder_timer is distinct from 200 then
+      raise warning 'leder_timer er % - ventet 200. Timene skal staa '
+                    'utenfor dommen, men ikke vaere skjult.', r.leder_timer;
+      feil := feil + 1;
+    end if;
+
+    -- PERIODEN MAA OVERLAPPE MAANEDEN, ikke bare inneholde dag 1. En
+    -- leder som slutter 15. i maaneden er leder DEN maaneden - og en
+    -- som slutter foer maaneden begynner, er det ikke.
+    update public.stasjon_leder set til_dato = jan + 14 where ansatt_nr = '9';
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.leder_timer is distinct from 200 then
+      raise warning 'en leder som sluttet 15. januar ble ikke regnet som '
+                    'leder i januar (leder_timer = %)', r.leder_timer;
+      feil := feil + 1;
+    end if;
+
+    update public.stasjon_leder set til_dato = jan - 1 where ansatt_nr = '9';
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = jan;
+    if r.brukte_timer is distinct from 12200 then
+      raise warning 'en leder som sluttet FOER januar ble likevel holdt '
+                    'utenfor (brukte_timer = % - ventet 12200)', r.brukte_timer;
+      feil := feil + 1;
+    end if;
+
+    -- Ryddet, saa kontrollene under ser samme tall som foer.
+    delete from public.stasjon_leder where ansatt_nr = '9';
+    delete from public.stempling where ansatt_nr = '9';
 
     -- ============================================================
     -- FEBRUAR: aapen. Roberts andre eksempel.
