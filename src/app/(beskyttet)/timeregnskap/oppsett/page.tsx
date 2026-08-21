@@ -2,10 +2,10 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import {
-  ARSVERK_TIMER, MANEDER, forklarDekning, forslagHelManed, timetall, uavklarte,
+  ARSVERK_TIMER, MANEDER, forslagHelManed, uavklarte,
   type Dekning,
 } from '@/lib/bemanning/lederdekning'
-import { settArsverk, settDekning } from './handlinger'
+import { ArsverkSkjema, ManedRad } from './maaned-rad'
 
 // =====================================================================
 // «Var det en fastlønnet butikksjef her?» — én hake per måned.
@@ -117,26 +117,12 @@ export default async function LederdekningOppsett(
           <section key={st.id} className="sq-kort dekning-stasjon">
             <h2 className="dekning-navn">{st.butikknummer} {st.navn}</h2>
 
-            {/* ÅRSVERKET FØRST, og med et tall i feltet. Uten det gjør
-                hakene under ingenting, og det ville sett ut som om de
-                virket. */}
-            <form action={settArsverk} className="dekning-arsverk">
-              <input type="hidden" name="stasjon_id" value={st.id} />
-              <input type="hidden" name="ar" value={ar} />
-              <label>
-                Årsverket St1 trakk fra
-                <input
-                  type="number" name="timer" min={0} max={3000} step={1}
-                  defaultValue={timer || ARSVERK_TIMER}
-                />
-              </label>
-              <button type="submit" className="sq-knapp">Lagre</button>
-              <span className={timer > 0 ? 'dekning-hint' : 'dekning-mangler'}>
-                {timer > 0
-                  ? `Forslag full måned: ${timetall(forslag)} timer`
-                  : `Ikke satt — forslaget bruker ${timetall(forslag)} som standard`}
-              </span>
-            </form>
+            {/* ÅRSVERKET FØRST. Det inngår ikke i noen beregning - det
+                brukes bare til å regne ut forslaget «full måned =
+                141,25 timer» som står ved siden av timefeltet. */}
+            <ArsverkSkjema
+              stasjonId={st.id} ar={ar} timer={timer} forslag={forslag}
+            />
 
             <ol className="dekning-maaneder">
               {MANEDER.slice(0, sisteManed).map((navn, i) => {
@@ -146,47 +132,17 @@ export default async function LederdekningOppsett(
                   ? 'ukjent'
                   : r.fastlonnet ? 'fastlonnet' : 'ikke_fastlonnet'
                 return (
-                  <li key={m} className={`dekning-mnd dekning-${na}`}>
-                    <form action={settDekning} className="dekning-rad">
-                      <input type="hidden" name="stasjon_id" value={st.id} />
-                      <input type="hidden" name="ar" value={ar} />
-                      <input type="hidden" name="maned" value={m} />
-                      <span className="dekning-mnd-navn">{navn}</span>
-                      {/* MAANEDSNAVNET ER EN SPAN, IKKE EN LABEL - det
-                          staar der for oeyet og gjelder hele raden. En
-                          skjermleser hoerte derfor «velg» uten aa vite
-                          hvilken maaned eller hvilken stasjon. axe fant
-                          det; jsdom-vakten kan ikke se det, fordi den
-                          maaler primitivene og ikke sida.
-                          Stasjonen staar med: det er fem seksjoner paa
-                          sida, og «Mars» alene er ikke et sted. */}
-                      <select
-                        name="svar"
-                        aria-label={`${st.butikknummer} ${st.navn}, ${navn}: lederdekning`}
-                        defaultValue={
-                        na === 'fastlonnet' ? 'ja' : na === 'ikke_fastlonnet' ? 'nei' : 'ukjent'
-                      }>
-                        <option value="ukjent">Ikke tatt stilling</option>
-                        <option value="ja">Fastlønnet butikksjef på plass</option>
-                        <option value="nei">Nei — timelønn, permisjon eller vakanse</option>
-                      </select>
-                      <input
-                        type="text" name="notat" defaultValue={r?.notat ?? ''}
-                        aria-label={`${st.butikknummer} ${st.navn}, ${navn}: notat`}
-                        placeholder="Hvorfor — «Sissel på timelønn»"
-                        maxLength={120}
-                      />
-                      <button
-                        type="submit" className="sq-knapp sq-dempet"
-                        aria-label={`Lagre ${navn} for ${st.navn}`}
-                      >
-                        Lagre
-                      </button>
-                    </form>
-                    {/* HVA HAKEN GJØR, i klartekst. Den som leser dette om
-                        et halvt år skal se konsekvensen, ikke gjette den. */}
-                    <p className="dekning-forklaring">{forklarDekning(na, r?.timer_tilbake ?? null)}</p>
-                  </li>
+                  <ManedRad
+                    key={m}
+                    stasjonId={st.id}
+                    butikknummer={st.butikknummer}
+                    stasjonsnavn={st.navn}
+                    ar={ar} maned={m} manedsnavn={navn}
+                    dekning={na}
+                    timerTilbake={r?.timer_tilbake ?? null}
+                    notat={r?.notat ?? null}
+                    forslag={forslag}
+                  />
                 )
               })}
             </ol>
