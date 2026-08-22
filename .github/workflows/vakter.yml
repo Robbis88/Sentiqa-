@@ -157,6 +157,12 @@ jobs:
       - name: Timeregnskap
         run: npx supabase db query --local --file supabase/tests/timeregnskap.sql
 
+      # Faste vakter har perioder fra 0123. En endring i dag skal ikke
+      # skrive om hvordan det var i mars: en ny fastloennet vakt fra
+      # 1. november gjor ikke oktober fastloennet.
+      - name: Faste vakter med periode
+        run: npx supabase db query --local --file supabase/tests/fast_vakt_periode.sql
+
       # Nettleseren mellomlagres paa versjonen i lockfila. Uten dette
       # lastes den ned paa nytt hver kjoring.
       - name: Mellomlager for nettleser
