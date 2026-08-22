@@ -237,3 +237,17 @@ export function ukerIMaaned(ar: number, maned: number): string[][] {
   }
   return uker
 }
+
+/**
+ * Fjorårets tilsvarende aften, matchet på navn.
+ *
+ * Påskeaften og pinseaften flytter seg med påsken; julaften og
+ * nyttårsaften står stille. Ett oppslag dekker begge.
+ */
+export function fjorAften(iso: string): string | null {
+  const navn = aftenNavn(iso)
+  if (!navn) return null
+  const ifjor = aftenerForAar(Number(iso.slice(0, 4)) - 1)
+  for (const [d, n] of ifjor) if (n === navn) return d
+  return null
+}

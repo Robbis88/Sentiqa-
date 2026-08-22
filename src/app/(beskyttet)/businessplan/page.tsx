@@ -4,7 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr, manedAar } from '@/lib/format'
-import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Forklaring, Sidehode, Tomtilstand } from '@/components/ui/side'
 import { delEtterKobling, sorterEtterAvvik, sumBakPlan } from '@/lib/regnskap/bp-dom'
 import { BpAvdeling, type BpRad } from './bp-rad'
 
@@ -182,11 +182,24 @@ export default async function BusinessplanSide(
         </p>
       )}
 
-      <p className="undertittel sq-finstilt">
-        Drivstoff og pant er holdt utenfor, som i resten av
-        lederanalysene: drivstoff betjener seg selv på pumpa, og pant er
-        gjennomgang uten margin.
-      </p>
+      <Forklaring sporsmaal="Hva er holdt utenfor, og hva måles mot hva?">
+        <p>
+          Drivstoff og pant, som i resten av lederanalysene: drivstoff
+          betjener seg selv på pumpa og sier ingenting om hvordan
+          butikken drives, og pant er gjennomgang uten margin.
+        </p>
+        <p>
+          Omsetning måles mot omsetningsbudsjettet og brutto mot
+          bruttobudsjettet — aldri på kryss. Fjoråret står ved siden av
+          for å forklare utviklingen, men det er budsjettet som avgjør
+          om stasjonen er i rute.
+        </p>
+        <p>
+          Salget måles bare mot den delen av budsjettet som har rukket å
+          bli målt: er det lastet opp 20 dager med salg, sammenliknes de
+          med 20 dager av planen.
+        </p>
+      </Forklaring>
     </>
   )
 }

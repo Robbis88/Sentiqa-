@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
-  dagerMellom, fjorSlutt, kortDato, minusDager, sammenlikn, summer, ukedag, vinduer,
+  dagerMellom, dagsnavn, fjorSlutt, kortDato, minusDager, sammenlikn, summer, ukedag,
+  vinduer,
 } from './vekst-ifjor'
 
 const dag = (dato: string, verdi: number | null) => ({ dato, verdi })
@@ -65,6 +66,44 @@ describe('nærmeste dag, maks ett steg', () => {
     // Grensen skal ikke gripe inn en dag for tidlig.
     expect(fjorSlutt('2026-12-30')).toBe('2025-12-31')
     expect(ukedag('2026-12-30')).toBe(ukedag('2025-12-31'))
+  })
+})
+
+describe('helligdag mot helligdag', () => {
+  test('julaften mot julaften, ikke mot nabodagen', () => {
+    // Robert: «24 mot 24». −364 ville gitt 25.12.2025 — 1. juledag.
+    expect(fjorSlutt('2026-12-24')).toBe('2025-12-24')
+    expect(fjorSlutt('2026-12-31')).toBe('2025-12-31')
+  })
+
+  test('1. juledag mot 1. juledag, ikke mot 2.', () => {
+    // −364 fra 25.12.2026 gir 26.12.2025 — feil helligdag, og en helt
+    // annen handledag.
+    expect(minusDager('2026-12-25', 364)).toBe('2025-12-26')
+    expect(fjorSlutt('2026-12-25')).toBe('2025-12-25')
+  })
+
+  test('påsken flytter seg fem uker, og navnet følger med', () => {
+    // DEN SOM IKKE KAN LØSES MED DAGSFORSKYVNING. Skjærtorsdag er
+    // 2. april i 2026 og 17. april i 2025 — femten dager unna, langt
+    // utenfor rekkevidde for ±1 eller ±7.
+    expect(fjorSlutt('2026-04-02')).toBe('2025-04-17')
+    expect(fjorSlutt('2026-04-03')).toBe('2025-04-18') // langfredag
+    expect(fjorSlutt('2026-04-06')).toBe('2025-04-21') // 2. påskedag
+  })
+
+  test('17. mai mot 17. mai, selv om ukedagen ikke stemmer', () => {
+    // 2026: søndag. 2025: lørdag. Datoen vinner — nasjonaldagen er
+    // nasjonaldagen uansett hvilken ukedag den faller på.
+    expect(fjorSlutt('2026-05-17')).toBe('2025-05-17')
+    expect(ukedag('2026-05-17')).not.toBe(ukedag('2025-05-17'))
+  })
+
+  test('en vanlig dag følger fortsatt ukedagen', () => {
+    // Helligdagsregelen skal ikke gripe inn ellers: da ville lørdag
+    // kunne måles mot fredag, og lørdag er den største dagen i uka.
+    expect(fjorSlutt('2026-08-22')).toBe('2025-08-23')
+    expect(ukedag('2026-08-22')).toBe(ukedag('2025-08-23'))
   })
 })
 
@@ -170,6 +209,29 @@ describe('sammenlikningen', () => {
       '2026-08-17', '2026-08-17',
     )
     expect(s.pct).toBe(10)
+  })
+})
+
+describe('etiketten sier hvilken regel som ble brukt', () => {
+  test('navngir dagen naar den har et navn', () => {
+    expect(dagsnavn('2026-05-17')).toBe('Grunnlovsdagen')
+    expect(dagsnavn('2026-12-24')).toBe('Julaften')
+    expect(dagsnavn('2026-04-02')).toBe('Skjærtorsdag')
+  })
+
+  test('en vanlig dag har ikke noe navn, og faar ukedagsteksten', () => {
+    // KANARIFUGL: svarer denne med et navn paa en vanlig tirsdag, staar
+    // det plutselig helligdagstekst over hver eneste maaling.
+    expect(dagsnavn('2026-08-22')).toBeNull()
+    expect(dagsnavn('2026-08-18')).toBeNull()
+  })
+
+  test('17. mai: uten navnet ville etiketten sett ut som en feil', () => {
+    // Soendag mot loerdag. Staar det «samme ukedag» over det, leser
+    // brukeren riktig svar som en bug - og det er verre enn ingen tekst.
+    expect(ukedag('2026-05-17')).toBe('søndag')
+    expect(ukedag(fjorSlutt('2026-05-17'))).toBe('lørdag')
+    expect(dagsnavn('2026-05-17'), 'da maa navnet overta teksten').not.toBeNull()
   })
 })
 

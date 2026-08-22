@@ -9,8 +9,8 @@
 //
 // UNNTAKET: 364 dager tilbake fra 31. desember lander 1. januar SAMME
 // år. Da tas ETT steg til — 31.12.2025 — i stedet for en hel uke.
-// 371 dager ville beholdt ukedagen, men målt nyttårsaften mot
-// 1. juledag. Se `fjorSlutt`.
+// HELLIGDAG MOT HELLIGDAG gaar foran alt: julaften mot julaften,
+// Skjaertorsdag mot Skjaertorsdag. Se `fjorSlutt`.
 //
 // FJORÅRSVINDUET BYGGES BAKFRA. Sluttdatoen finnes først, og starten
 // regnes som slutt minus samme lengde som årets vindu. Brukes
@@ -26,6 +26,9 @@
  * produksjon på UTC, virker den feilen der og feiler bare lokalt — så
  * den overlever gjennomlesing og dukker opp først ved flytting.
  */
+import { fjorHelligdag, helligdagNavn } from './helligdager'
+import { aftenNavn, fjorAften } from './dagtyper'
+
 export function minusDager(iso: string, dager: number): string {
   const [y, m, d] = iso.split('-').map(Number)
   const dt = new Date(Date.UTC(y, m - 1, d))
@@ -39,31 +42,32 @@ const aar = (iso: string) => iso.slice(0, 4)
 /**
  * Fjorårets motsvarende dag.
  *
- * 364 dager tilbake treffer samme ukedag, og lander i praksis på samme
- * kalenderdato ± en dag: 22.08.2026 → 23.08.2025. Det er både samme
- * ukedag og nesten samme dato, og det er hele poenget.
+ * HELLIGDAG MOT HELLIGDAG, ellers ukedag mot ukedag.
+ *
+ * Robert 2026-08-22: «31 skal ikke måles mot 25. Her må du ta helligdag
+ * mot helligdag. 24 mot 24.»
+ *
+ * Er dagen en helligdag eller en aften, slås fjorårets tilsvarende opp
+ * på NAVN. Det løser både de faste og de bevegelige: julaften er 24.
+ * desember begge år, mens Skjærtorsdag er 2. april i 2026 og 17. april
+ * i 2025 — fem uker unna, og helt utenfor rekkevidde for en
+ * dagsforskyvning.
+ *
+ * Ellers gjelder 364 dager: samme ukedag, og i praksis samme
+ * kalenderdato ± en dag. 22.08.2026 → 23.08.2025.
  *
  * (Rundt et skuddår blir avstanden to dager — 01.03.2024 → 03.03.2023 —
  * fordi 29. februar ligger imellom. Ukedagen stemmer fortsatt.)
  *
- * UNNTAKET: 364 dager tilbake fra 31. desember lander 1. januar SAMME
- * år, som ikke er «i fjor» i det hele tatt.
- *
- * ETT STEG TILBAKE, IKKE EN HEL UKE. Første utgave brukte 371 dager
- * (53 uker) og beholdt dermed ukedagen — men 31.12.2026 ble da målt mot
- * 25.12.2025, altså nyttårsaften mot 1. juledag. To helt ulike
- * handledager.
- *
- * Robert 2026-08-22: «man skal sammenligne mot nærmeste dag, maks 1 dag
- * frem og tilbake.» Med ett steg blir det 31.12.2025 — samme dato, samme
- * slags dag, onsdag mot torsdag.
- *
- * DET ER ET BYTTE, OG DET ER BEVISST: én ukedag gis opp for å slippe å
- * måle mot en helligdag. Ukedagsregelen gjelder overalt ellers.
+ * SISTE UTVEI, for 31. desember som ikke er helligdag men aften: har vi
+ * ingen navnetreff, og 364 dager lander i SAMME kalenderår, tas ett steg
+ * til. Dagen før 1. januar er 31. desember året før.
  */
 export function fjorSlutt(sisteDato: string): string {
+  const navngitt = fjorHelligdag(sisteDato) ?? fjorAften(sisteDato)
+  if (navngitt) return navngitt
+
   const kandidat = minusDager(sisteDato, 364)
-  // Ett steg er alltid nok: dagen før 1. januar er 31. desember året før.
   return aar(kandidat) === aar(sisteDato) ? minusDager(sisteDato, 365) : kandidat
 }
 
@@ -178,4 +182,17 @@ export function ukedag(iso: string): string {
 export function kortDato(iso: string): string {
   const [y, m, d] = iso.split('-')
   return `${d}.${m}.${y.slice(2)}`
+}
+
+/**
+ * Navnet på dagen, når den har et.
+ *
+ * TIL ETIKETTEN, og det er ikke pynt. Undertittelen sier ellers «søndag
+ * mot lørdag» på 17. mai — og det ser ut som en feil i stedet for det
+ * det er: nasjonaldagen målt mot nasjonaldagen. Beskrivelsen må si
+ * hvilken regel som faktisk ble brukt, ellers mister tallet under den
+ * tilliten sin.
+ */
+export function dagsnavn(iso: string): string | null {
+  return helligdagNavn(iso) ?? aftenNavn(iso)
 }
