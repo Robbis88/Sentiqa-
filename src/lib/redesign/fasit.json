@@ -64,6 +64,7 @@
     "/stempling",
     "/svinn",
     "/tilbakemeldinger",
+    "/timeregnskap",
     "/timesalg",
     "/trafikk",
     "/utsolgt",
@@ -128,6 +129,7 @@
       "/stasjoner",
       "/svinn",
       "/tilbakemeldinger",
+      "/timeregnskap",
       "/timesalg",
       "/utsolgt"
     ],
@@ -768,6 +770,10 @@
     "/tilbakemeldinger": [
       "Ingen tilbakemeldinger ennå"
     ],
+    "/timeregnskap": [
+      "Ingenting å gjøre opp ennå",
+      "{p.st.butikknummer} {p.st.navn}"
+    ],
     "/timesalg": [
       "Ingen timesalgsdata ennå"
     ],
@@ -905,6 +911,10 @@
       "/import"
     ],
     "/svinn": [
+      "/import"
+    ],
+    "/timeregnskap": [
+      "/bemanning",
       "/import"
     ],
     "/timesalg": [

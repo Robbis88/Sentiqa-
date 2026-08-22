@@ -16,6 +16,7 @@ import {
   FastVaktSkjema, FravaerSkjema, KravSkjema, StillingSkjema, TakSkjema, VinduSkjema,
 } from './skjemaer'
 import { slettFastVakt, slettFravaer, slettKrav, slettVindu } from './handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { nesteSteg } from '@/lib/bemanningssteg'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
@@ -966,10 +967,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   ? <Status nivaa="endring">Trer i kraft senere</Status>
                   : undefined}
                 handlinger={(
-                  <form action={slettVindu}>
-                    <input type="hidden" name="id" value={v.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp handling={slettVindu} id={v.id} bekreftelse="Vindu slettet" />
                 )}
               />
             ))}
@@ -1026,10 +1024,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   </Status>
                 )}
                 handlinger={(
-                  <form action={slettFastVakt}>
-                    <input type="hidden" name="id" value={v.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp handling={slettFastVakt} id={v.id} bekreftelse="Fast vakt slettet" />
                 )}
               />
             ))}
@@ -1059,10 +1054,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 sekundaer={k.begrunnelse ?? 'ingen begrunnelse'}
                 metadata={`${k.antall} personer`}
                 handlinger={(
-                  <form action={slettKrav}>
-                    <input type="hidden" name="id" value={k.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp handling={slettKrav} id={k.id} bekreftelse="Krav slettet" />
                 )}
               />
             ))}
@@ -1094,10 +1086,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 primaer={f.navn}
                 sekundaer={`${f.fra_dato} – ${f.til_dato}${f.arsak ? ` · ${f.arsak}` : ''}`}
                 handlinger={(
-                  <form action={slettFravaer}>
-                    <input type="hidden" name="id" value={f.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp handling={slettFravaer} id={f.id} bekreftelse="Fravær slettet" />
                 )}
               />
             ))}

@@ -26,15 +26,26 @@ import type { ReactNode } from 'react'
 export function Sidehode({
   tittel,
   undertittel,
+  merke,
   handlinger,
 }: {
   tittel: string
   undertittel?: string
+  /**
+   * Hvem tallene gjelder — som regel stasjonen.
+   *
+   * STÅR OVER TITTELEN, ikke under. «28 400 kr bak plan» uten et navn
+   * er et tall uten eier, og da ser et stasjonsbytte ut som ingenting:
+   * samme overskrift, andre tall. Robert meldte nettopp det 2026-08-22
+   * som at velgeren ikke virket — den virket, men sa det ikke.
+   */
+  merke?: string
   handlinger?: ReactNode
 }) {
   return (
     <header className="sq-sidehode">
       <div className="sq-sidehode-tekst">
+        {merke && <p className="sq-sidehode-merke">{merke}</p>}
         <h1>{tittel}</h1>
         {undertittel && <p className="undertittel">{undertittel}</p>}
       </div>

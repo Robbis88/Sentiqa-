@@ -839,3 +839,39 @@
 .tr-mangler { color: var(--tekst); }
 
 
+
+/* Hvem tallene gjelder. Står OVER tittelen, i mindre og dempet skrift:
+   den som leser overskriften skal ha sett navnet først, uten at navnet
+   konkurrerer med tallet. Uten dette ser et stasjonsbytte ut som
+   ingenting — samme overskrift, andre tall. */
+.sq-sidehode-merke {
+  margin: 0 0 var(--luft-1);
+  font-size: var(--tekst-liten);
+  font-weight: 600;
+  color: var(--tekst-svak);
+  letter-spacing: 0.02em;
+}
+
+/* Kvitteringen på stasjonsbyttet. «Bytter …» mens det står på, navnet
+   etterpå — et valg som ikke kvitterer er et valg brukeren prøver på
+   nytt, og til slutt slutter å stole på. */
+.sq-stasjonssvar {
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  white-space: nowrap;
+}
+
+/* Slett, med et svar. Kvitteringen står ved siden av knappen, ikke
+   under: raden forsvinner ved neste tegning, og da må svaret ha vært
+   der man så. */
+.sq-slett { display: flex; align-items: center; gap: var(--luft-2); }
+.sq-slett-ok { font-size: var(--tekst-liten); color: var(--tekst-svak); white-space: nowrap; }
+/* Feilen er ikke støy — den er grunnen til at raden fortsatt er der. */
+.sq-slett-feil {
+  font-size: var(--tekst-liten);
+  font-weight: 600;
+  color: var(--tekst);
+  border-left: 3px solid var(--kant-sterk);
+  padding-left: var(--luft-2);
+  line-height: 1.4;
+}
