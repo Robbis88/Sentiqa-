@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { TabletHode } from '../tablet-hode'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -106,10 +107,7 @@ export default async function AnvisningerSide() {
                 <p className="sq-brodtekst">{o(a.innhold)}</p>
                 {erLeder && (
                   <div className="knapperad">
-                    <form action={slettAnvisning}>
-                      <input type="hidden" name="id" value={a.id} />
-                      <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                    </form>
+                    <SlettKnapp handling={slettAnvisning} id={a.id} bekreftelse="Anvisningen slettet" />
                   </div>
                 )}
               </details>

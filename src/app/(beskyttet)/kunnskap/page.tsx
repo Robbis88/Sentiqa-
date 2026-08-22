@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { leggTilKunnskap, slettKunnskap } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
@@ -95,10 +96,7 @@ export default async function KunnskapSide() {
                 </summary>
                 <p className="sq-brodtekst">{a.innhold}</p>
                 <div className="knapperad">
-                  <form action={slettKunnskap}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp handling={slettKunnskap} id={a.id} bekreftelse="Artikkelen slettet" />
                 </div>
               </details>
             </li>
