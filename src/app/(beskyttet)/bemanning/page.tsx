@@ -19,6 +19,7 @@ import { slettFastVakt, slettFravaer, slettKrav, slettVindu } from './handlinger
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { nesteSteg } from '@/lib/bemanningssteg'
+import { blandetLonnsform } from '@/lib/bemanning/lonnsform'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Signal, Status } from '@/components/ui/status'
@@ -357,6 +358,11 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
   const kravListe = (krav ?? []) as KravRad[]
   const vaktListe = (vakter ?? []) as VaktRad[]
+
+  // Samme navn med to loennsformer. Navnet brukes til aa SPOERRE, aldri
+  // til aa koble: det er fritekst, og aa koble ansatte paa navn er den
+  // samme feilen som er gjort foer. Her rettes ingenting automatisk.
+  const lonnsfunn = blandetLonnsform(vaktListe)
 
   // PERIODEN MAA OVERLAPPE MAANEDEN som planlegges. En vakt som sluttet
   // 30. april gjaldt i april, ikke i mai - og uten dette ville planen
@@ -1039,6 +1045,26 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
             trekkes fra rammen, en fastlonnet gjor det ikke. Den sto som
             en kolonne blant fem; naa staar den som tilstand, fordi det
             er den som avgjor om vakten koster av timene dine. */}
+        {/* ÉN GLEMT RAD VELTER HELE JUSTERINGEN, og ingenting paa
+            skjermen sier fra. Lone man-fre er fem rader med hvert sitt
+            loennsform-valg; rettes fire, ser den femte helt normal ut.
+
+            Varselet staar HER, rett over radene det gjelder. Oeverst paa
+            sida ville det blitt lest som generell stoey. */}
+        {lonnsfunn.map((f) => (
+          <Signal
+            key={f.navn}
+            nivaa="oppmerksomhet"
+            tittel={`${f.navn} står med begge lønnsformer`}
+          >
+            {f.fastlonnede} med fastlønn og {f.timelonnede} med timelønn.
+            {' '}Er {f.flertall} det riktige, gjelder det {f.timerIMindretall}
+            {' '}timer i uka som nå regnes motsatt vei
+            {f.flertall === 'fastlønn'
+              ? ' — de trekkes fra timerammen selv om lønnen er fast.'
+              : ' — og årsverket legges ikke tilbake i rammen den måneden.'}
+          </Signal>
+        ))}
         {vaktListe.length > 0 ? (
           <Liste merkelapp="Faste vakter">
             {vaktListe.map((v) => (
