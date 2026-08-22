@@ -121,6 +121,23 @@ export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
           men timene trekkes fra.
         </p>
       </fieldset>
+      {/* NÅR ENDRINGEN GJELDER FRA. Tomt = alltid, som før.
+          Uten dette skrev en endring i dag om hvordan det var i mars:
+          setter du butikksjefen til fastlønn 1. november, forsvant
+          justeringen i timeregnskapet for januar til oktober også.
+
+          Fylles ikke ut automatisk med dagens dato: de fleste
+          endringer er rettelser av noe som alltid har vært slik, og en
+          forhåndsutfylt dato ville delt historikken i to hver gang. */}
+      <label className="felt">
+        <span>Gjelder fra (valgfritt)</span>
+        <input type="date" name="gjelder_fra" />
+        <span className="undertittel">
+          La stå tomt hvis vakten alltid har vært slik. Fyller du ut en dato,
+          avsluttes den forrige perioden dagen før — og tall du så for
+          tidligere måneder står som de var.
+        </span>
+      </label>
       <div className="sq-skjema-bunn">
         <button type="submit" className="sq-knapp primar" disabled={venter}>
           {venter ? 'Legger til …' : 'Legg til'}

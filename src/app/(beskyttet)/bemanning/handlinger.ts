@@ -101,6 +101,21 @@ export async function lagreVindu(_t: Tilstand, fd: FormData): Promise<Tilstand> 
   return { ok: `Lagret for ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
+/**
+ * Dagen faste vakter fra for perioder fantes har alltid gjeldt fra.
+ *
+ * IKKE `now()`. Setter vi dagens dato som standard, ville alle maaneder
+ * for i dag plutselig staatt uten faste vakter - og timeregnskapet
+ * ville gitt hver stasjon 141 timer i maaneden for hele aaret.
+ */
+const FOR_ALLTID = '2020-01-01'
+
+/** ISO-dato eller ingenting. Et halvt datofelt er ikke en dato. */
+function gyldigDato(v: FormDataEntryValue | null): string | null {
+  const s = String(v ?? '').trim()
+  return /^d{4}-d{2}-d{2}$/.test(s) ? s : null
+}
+
 export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilstand> {
   const supabase = await klient()
   if (!supabase) return { feil: 'Ikke tilgang.' }
@@ -114,17 +129,41 @@ export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilst
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
 
-  // Én rad per ukedag — «butikksjef 07–15 man–fre» blir fem rader.
   const { stasjon_id, navn, fra_time, til_time, timelonnet } = felt.data
+  const fra = gyldigDato(fd.get('gjelder_fra')) ?? FOR_ALLTID
+
+  // PERIODEN FØR LUKKES FØRST, og det er ikke en detalj.
+  //
+  // To gyldige rader for samme vakt samtidig ville dobbelttelt
+  // dekningen i planleggeren — «butikksjef mandag» ville dekket
+  // mandagen to ganger, og gulvet sett bemannet uten at noen sto der.
+  //
+  // En `exclude`-skranke ville fanget det i basen, men krever btree_gist
+  // og gir en feilmelding ingen kan handle på. Her lukkes den forrige i
+  // stedet, og `bemanning.test.ts` feller hvis dette forsvinner.
+  const dagenFor = new Date(`${fra}T00:00:00Z`)
+  dagenFor.setUTCDate(dagenFor.getUTCDate() - 1)
+  const { error: lukkFeil } = await supabase.from('bemanning_fast_vakt')
+    .update({ gjelder_til: dagenFor.toISOString().slice(0, 10) })
+    .eq('stasjon_id', stasjon_id).eq('navn', navn)
+    .in('ukedag', felt.data.ukedager)
+    .lt('gjelder_fra', fra)
+    .is('gjelder_til', null)
+  if (lukkFeil) return { feil: `Kunne ikke lukke forrige periode: ${lukkFeil.message}` }
+
+  // Én rad per ukedag — «butikksjef 07–15 man–fre» blir fem rader.
   const { error } = await supabase.from('bemanning_fast_vakt').upsert(
     felt.data.ukedager.map((ukedag) => ({
       stasjon_id, navn, ukedag, fra_time, til_time, timelonnet,
+      gjelder_fra: fra,
+      gjelder_til: null,
       oppdatert_tid: new Date().toISOString(),
     })),
-    { onConflict: 'stasjon_id,navn,ukedag' },
+    { onConflict: 'stasjon_id,navn,ukedag,gjelder_fra' },
   )
   if (error) return { feil: error.message }
   revalidatePath('/bemanning')
+  revalidatePath('/timeregnskap')
   return { ok: `Lagt til på ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 

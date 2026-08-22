@@ -266,6 +266,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const nesteAr = nesteNr > 12 ? naa.getUTCFullYear() + 1 : naa.getUTCFullYear()
   const ar = Number(sok.ar) || nesteAr
   const maned = Number(sok.maned) || nesteManed
+
+  // Maaneden som ISO-datoer, for periodefiltrene under.
+  const forsteDagIMnd = `${ar}-${String(maned).padStart(2, '0')}-01`
+  const sisteDagIMnd = new Date(Date.UTC(ar, maned, 0)).toISOString().slice(0, 10)
   const iDag = naa.toISOString().slice(0, 10)
 
   const [{ data: rammer }, { data: vinduer }, { data: krav }, { data: vakter },
@@ -282,8 +286,17 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         .eq('stasjon_id', valgt.id).order('ukedag').order('gjelder_fra', { ascending: false }),
       supabase.from('bemanning_krav').select('id, ukedag, fra_time, til_time, antall, begrunnelse')
         .eq('stasjon_id', valgt.id).order('ukedag'),
-      supabase.from('bemanning_fast_vakt').select('id, navn, ukedag, fra_time, til_time, timelonnet')
-        .eq('stasjon_id', valgt.id).order('navn').order('ukedag'),
+      // BARE VAKTENE SOM GJALDT DEN MAANEDEN. For 0123 hadde faste
+      // vakter ingen periode, saa mars ble planlagt med dagens vakter -
+      // og en butikksjef i permisjon i vaar sto likevel oppfoert som
+      // dekning. Perioden maa OVERLAPPE maaneden: en vakt som sluttet
+      // 15. mars gjaldt i mars.
+      supabase.from('bemanning_fast_vakt')
+        .select('id, navn, ukedag, fra_time, til_time, timelonnet, gjelder_fra, gjelder_til')
+        .eq('stasjon_id', valgt.id)
+        .lte('gjelder_fra', sisteDagIMnd)
+        .or(`gjelder_til.is.null,gjelder_til.gte.${forsteDagIMnd}`)
+        .order('navn').order('ukedag'),
       supabase.from('bemanning_stasjon').select('maks_bemanning')
         .eq('stasjon_id', valgt.id).maybeSingle<{ maks_bemanning: number | null }>(),
       hentProfil(supabase, valgt.id, ar, maned),
