@@ -28,18 +28,43 @@ describe('datoregning', () => {
   })
 })
 
-describe('53-ukers-unntaket', () => {
-  test('31. desember faller ikke tilbake på samme år', () => {
-    // 2026-12-31 minus 364 = 2026-01-01 — samme kalenderår, altså
-    // ubrukelig som «i fjor». Da skal 371 brukes.
-    expect(minusDager('2026-12-31', 364)).toBe('2026-01-01')
-    expect(fjorSlutt('2026-12-31')).toBe('2025-12-25')
-    // Fortsatt samme ukedag.
-    expect(ukedag('2026-12-31')).toBe(ukedag('2025-12-25'))
+describe('nærmeste dag, maks ett steg', () => {
+  test('en vanlig dato treffer samme ukedag og nesten samme dato', () => {
+    // Robert 2026-08-22: «22.08.2026 måles mot 23.08.2025?» — ja, og det
+    // er nettopp det 364-dagersregelen gjør.
+    expect(fjorSlutt('2026-08-22')).toBe('2025-08-23')
+    expect(ukedag('2026-08-22')).toBe(ukedag('2025-08-23'))
   })
 
-  test('en vanlig dato bruker 364', () => {
-    expect(fjorSlutt('2026-08-17')).toBe('2025-08-18')
+  test('rundt et skuddår blir avstanden to dager, men ukedagen holder', () => {
+    // 29. februar ligger imellom. Verdt å vite: «maks 1 dag» er sant i
+    // vanlige år, ikke over en skuddårsgrense.
+    expect(fjorSlutt('2024-03-01')).toBe('2023-03-03')
+    expect(ukedag('2024-03-01')).toBe(ukedag('2023-03-03'))
+  })
+
+  test('31. desember tar ETT steg, ikke en hel uke', () => {
+    // 364 dager tilbake lander 1. januar SAMME år — ubrukelig.
+    expect(minusDager('2026-12-31', 364)).toBe('2026-01-01')
+
+    // Ett steg til gir samme dato året før. 371 ville beholdt ukedagen,
+    // men målt nyttårsaften mot 1. juledag — to helt ulike handledager.
+    expect(fjorSlutt('2026-12-31')).toBe('2025-12-31')
+    expect(fjorSlutt('2026-12-31')).not.toBe(minusDager('2026-12-31', 371))
+  })
+
+  test('byttet er bevisst: én ukedag gis opp for å slippe helligdagen', () => {
+    // Dette er den eneste dagen i året der ukedagsregelen viker, og det
+    // skal stå svart på hvitt i en test — ikke bare i en kommentar.
+    expect(ukedag('2026-12-31'), 'nyttårsaften 2026').toBe('torsdag')
+    expect(ukedag(fjorSlutt('2026-12-31')), 'nyttårsaften 2025').toBe('onsdag')
+    expect(ukedag(minusDager('2026-12-31', 371)), '1. juledag 2025').toBe('torsdag')
+  })
+
+  test('30. desember trenger ingen justering', () => {
+    // Grensen skal ikke gripe inn en dag for tidlig.
+    expect(fjorSlutt('2026-12-30')).toBe('2025-12-31')
+    expect(ukedag('2026-12-30')).toBe(ukedag('2025-12-31'))
   })
 })
 
@@ -49,13 +74,13 @@ describe('vinduene', () => {
     // vinduene ulik lengde og 31 dager sammenliknes med 24.
     const v = vinduer('2026-12-31', '2026-12-01')
     expect(v.iAar).toEqual({ fra: '2026-12-01', til: '2026-12-31' })
-    expect(v.iFjor.til).toBe('2025-12-25')
+    expect(v.iFjor.til).toBe('2025-12-31')
     expect(dagerMellom(v.iFjor.fra, v.iFjor.til))
       .toBe(dagerMellom(v.iAar.fra, v.iAar.til))
 
     // Regelen på startdatoen ville gitt 2025-12-02, altså 23 dager.
     expect(v.iFjor.fra).not.toBe(minusDager('2026-12-01', 364))
-    expect(v.iFjor.fra).toBe('2025-11-25')
+    expect(v.iFjor.fra).toBe('2025-12-01')
   })
 
   test('lengden er alltid lik', () => {

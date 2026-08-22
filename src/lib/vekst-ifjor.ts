@@ -8,8 +8,9 @@
 // 364 dager = 52 uker = garantert samme ukedag.
 //
 // UNNTAKET: 364 dager tilbake fra 31. desember lander 1. januar SAMME
-// år. Da brukes 371 dager (53 uker) i stedet, som er samme ukedag i
-// forrige kalenderår.
+// år. Da tas ETT steg til — 31.12.2025 — i stedet for en hel uke.
+// 371 dager ville beholdt ukedagen, men målt nyttårsaften mot
+// 1. juledag. Se `fjorSlutt`.
 //
 // FJORÅRSVINDUET BYGGES BAKFRA. Sluttdatoen finnes først, og starten
 // regnes som slutt minus samme lengde som årets vindu. Brukes
@@ -36,12 +37,34 @@ export function minusDager(iso: string, dager: number): string {
 const aar = (iso: string) => iso.slice(0, 4)
 
 /**
- * Fjorårets motsvarende dag: 364 dager tilbake, eller 371 om det ikke
- * holder for å komme ut av inneværende kalenderår.
+ * Fjorårets motsvarende dag.
+ *
+ * 364 dager tilbake treffer samme ukedag, og lander i praksis på samme
+ * kalenderdato ± en dag: 22.08.2026 → 23.08.2025. Det er både samme
+ * ukedag og nesten samme dato, og det er hele poenget.
+ *
+ * (Rundt et skuddår blir avstanden to dager — 01.03.2024 → 03.03.2023 —
+ * fordi 29. februar ligger imellom. Ukedagen stemmer fortsatt.)
+ *
+ * UNNTAKET: 364 dager tilbake fra 31. desember lander 1. januar SAMME
+ * år, som ikke er «i fjor» i det hele tatt.
+ *
+ * ETT STEG TILBAKE, IKKE EN HEL UKE. Første utgave brukte 371 dager
+ * (53 uker) og beholdt dermed ukedagen — men 31.12.2026 ble da målt mot
+ * 25.12.2025, altså nyttårsaften mot 1. juledag. To helt ulike
+ * handledager.
+ *
+ * Robert 2026-08-22: «man skal sammenligne mot nærmeste dag, maks 1 dag
+ * frem og tilbake.» Med ett steg blir det 31.12.2025 — samme dato, samme
+ * slags dag, onsdag mot torsdag.
+ *
+ * DET ER ET BYTTE, OG DET ER BEVISST: én ukedag gis opp for å slippe å
+ * måle mot en helligdag. Ukedagsregelen gjelder overalt ellers.
  */
 export function fjorSlutt(sisteDato: string): string {
   const kandidat = minusDager(sisteDato, 364)
-  return aar(kandidat) === aar(sisteDato) ? minusDager(sisteDato, 371) : kandidat
+  // Ett steg er alltid nok: dagen før 1. januar er 31. desember året før.
+  return aar(kandidat) === aar(sisteDato) ? minusDager(sisteDato, 365) : kandidat
 }
 
 /** Antall hele dager mellom to datoer. */
