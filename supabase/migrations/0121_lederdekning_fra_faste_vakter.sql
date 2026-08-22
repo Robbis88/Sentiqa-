@@ -43,9 +43,19 @@
 -- en ubrukt tabell med RLS-policyer maa staa i `rls_vakthund`-listene
 -- for alltid, og en tabell ingen skriver til er en tabell ingen
 -- oppdager at er feil.
+-- VIEWET FOERST. 0120 definerer `v_timeregnskap` med tabellen i seg,
+-- saa `drop table` alene feiler: «cannot drop table
+-- bemanning_lederdekning because other objects depend on it». Det
+-- gjelder ogsaa i produksjon, der 0120 er kjort - CI fanget det fordi
+-- hele settet 0001 -> kjores fra bunn.
+--
+-- `drop ... cascade` ville ogsaa virket, men den river det den finner
+-- uten aa si hva. Her staar det hva som ryker, i den rekkefolgen det
+-- ryker.
+drop view if exists public.v_timeregnskap;
 drop table if exists public.bemanning_lederdekning;
 
-create or replace view public.v_timeregnskap
+create view public.v_timeregnskap
 with (security_invoker = true) as
 
 with bp as (
