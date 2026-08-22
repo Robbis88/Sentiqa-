@@ -8,17 +8,19 @@
 -- timeregnskapet for januar til oktober ogsaa - Dales overforbruk hoppet
 -- ~1 350 timer den dagen, uten at noe faktisk skjedde.
 --
--- Testen beviser tre ting, og alle tre er ting som var galt for:
+-- FUNNENE STAAR I SELVE FEILMELDINGEN, ikke i en teller.
+-- `supabase db query` svelger `raise warning`, saa foerste utgave meldte
+-- «1 funn» og lot deg gjette hvilket. Det er samme sykdom som en
+-- serverhandling som svelger `{ error }` - og den kostet en runde her
+-- ogsaa.
 --
---   1. En vakt teller for maaneden hvis perioden OVERLAPPER den.
---   2. En vakt som ble fastloennet foerst i november gjor IKKE oktober
---      fastloennet.
---   3. Rader fra for perioder fantes gjelder fortsatt - de fikk
---      2020-01-01, ikke dagens dato.
+-- VIEWET STARTER FRA `regnskapslinjer`. Uten BP-rader gir det ingen rad
+-- i det hele tatt, og da blir `r` null - `null is distinct from 0` er
+-- SANT, saa testen felte paa en rad som ikke fantes. Det var funnet.
 -- =====================================================================
 do $$
 declare
-  feil   int := 0;
+  funn   text[] := '{}';
   RET    constant uuid := 'cccccccc-0000-4000-8000-000000000001';
   STASJ  constant uuid := 'cccccccc-1111-4000-8000-000000000001';
   r      record;
@@ -36,11 +38,20 @@ begin
     insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
       values (STASJ, RET, '0004', 'Periodebutikken', 'pendler');
 
+    -- BP for hele 2026. Viewet starter fra `regnskapslinjer`, saa uten
+    -- disse finnes stasjonen ikke i det hele tatt.
+    insert into public.regnskapslinjer
+      (retailer_id, stasjon_id, periode, seksjon, kode, post, regnskap, budsjett,
+       avvik, index_pct, regnskap_hittil, budsjett_hittil)
+    select RET, STASJ, make_date(2026, m, 1), 'bp_bruttofortjeneste',
+           '120', '120 Mat', 0, 100000, 0, 0, 0, 0
+    from generate_series(1, 12) m;
+
     -- Rammer for hele 2026, saa viewet har en rad per maaned aa vurdere.
     insert into public.bemanning_maned (stasjon_id, ar, maned, disponible_timer)
     select STASJ, 2026, m, 1000 from generate_series(1, 12) m;
 
-    -- --- 3) STANDARDEN ER 2020-01-01, IKKE I DAG --------------------
+    -- --- STANDARDEN ER 2020-01-01, IKKE I DAG -----------------------
     -- En rad uten periode skal gjelde bakover. Settes dagens dato som
     -- standard, staar hele fjoraaret plutselig uten faste vakter - og
     -- timeregnskapet gir hver stasjon 141 timer i maaneden for et helt
@@ -52,21 +63,22 @@ begin
     select gjelder_fra into r from public.bemanning_fast_vakt
     where stasjon_id = STASJ and ukedag = 1;
     if r.gjelder_fra <> date '2020-01-01' then
-      raise warning 'standard gjelder_fra er % - ventet 2020-01-01. Rader '
-                    'fra for perioder fantes har alltid gjeldt.', r.gjelder_fra;
-      feil := feil + 1;
+      funn := funn || format(
+        'standard gjelder_fra er %s - ventet 2020-01-01. Rader fra for '
+        'perioder fantes har alltid gjeldt.', r.gjelder_fra);
     end if;
 
     -- Med bare en timeloennet vakt skal januar faa justering.
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = date '2026-01-01';
-    if r.lederdekning <> 'ikke_fastlonnet' then
-      raise warning 'januar: lederdekning er % - ventet ikke_fastlonnet',
-        r.lederdekning;
-      feil := feil + 1;
+    if r.stasjon_id is null then
+      funn := funn || 'viewet ga ingen rad for januar - mangler BP eller ramme';
+    elsif r.lederdekning <> 'ikke_fastlonnet' then
+      funn := funn || format(
+        'januar: lederdekning er %s - ventet ikke_fastlonnet', r.lederdekning);
     end if;
 
-    -- --- 1) og 2) PERIODEN AVGJOER PER MAANED -----------------------
+    -- --- PERIODEN AVGJOER PER MAANED --------------------------------
     -- Ny butikksjef paa fastloenn fra 1. november. Den forrige perioden
     -- lukkes 31. oktober, slik serverhandlingen gjor det.
     update public.bemanning_fast_vakt
@@ -77,43 +89,41 @@ begin
       (stasjon_id, navn, ukedag, fra_time, til_time, timelonnet, gjelder_fra)
     values (STASJ, 'butikksjef', 1, 7, 15, false, date '2026-11-01');
 
-    -- Oktober skal fortsatt vaere timeloennet. DETTE ER HELE POENGET:
+    -- OKTOBER SKAL FORTSATT VAERE TIMELOENNET. Dette er hele poenget:
     -- for 0123 ville november-raden gjort oktober fastloennet med
     -- tilbakevirkende kraft.
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = date '2026-10-01';
-    if r.lederdekning <> 'ikke_fastlonnet' then
-      raise warning 'HISTORIKKEN SKREV SEG OM: oktober er % etter at en ny '
-                    'fastloennet vakt ble lagt inn fra 1. november. '
-                    'Perioden skal avgjore per maaned.', r.lederdekning;
-      feil := feil + 1;
+    if r.lederdekning is distinct from 'ikke_fastlonnet' then
+      funn := funn || format(
+        'HISTORIKKEN SKREV SEG OM: oktober er %s etter at en ny fastloennet '
+        'vakt ble lagt inn fra 1. november. Perioden skal avgjore per maaned.',
+        coalesce(r.lederdekning, '(ingen rad)'));
     end if;
 
     -- ... og november skal vaere fastloennet.
     select * into r from public.v_timeregnskap
     where stasjon_id = STASJ and maned = date '2026-11-01';
-    if r.lederdekning <> 'fastlonnet' then
-      raise warning 'november er % - ventet fastlonnet', r.lederdekning;
-      feil := feil + 1;
+    if r.lederdekning is distinct from 'fastlonnet' then
+      funn := funn || format('november er %s - ventet fastlonnet',
+        coalesce(r.lederdekning, '(ingen rad)'));
     end if;
     if r.ramme_justering_timer is distinct from 0 then
-      raise warning 'november fikk % timer justering med fastloennet vakt',
-        r.ramme_justering_timer;
-      feil := feil + 1;
+      funn := funn || format(
+        'november fikk %s timer justering med fastloennet vakt',
+        coalesce(r.ramme_justering_timer::text, '(ingen rad)'));
     end if;
 
-    -- --- OVERLAPP MAA VAERE MULIG AA OPPDAGE ------------------------
-    -- Skranken tillater to rader for samme vakt, saa lenge gjelder_fra
-    -- er ulik. Det er med vilje - historikk krever det - men to GYLDIGE
-    -- samtidig ville dobbelttelt dekningen i planleggeren.
-    -- Serverhandlingen lukker den forrige; her kontrolleres bare at
-    -- basen faktisk holder begge radene, saa historikken finnes.
+    -- --- BEGGE PERIODENE SKAL LIGGE LAGRET --------------------------
+    -- Skranken tillater to rader for samme vakt saa lenge gjelder_fra er
+    -- ulik. Det er med vilje: historikk krever det. To GYLDIGE samtidig
+    -- ville dobbelttelt dekningen i planleggeren, og det hindrer
+    -- serverhandlingen ved aa lukke den forrige.
     if (select count(*) from public.bemanning_fast_vakt
         where stasjon_id = STASJ and ukedag = 1) <> 2 then
-      raise warning 'begge periodene skal ligge lagret - fant %',
+      funn := funn || format('begge periodene skal ligge lagret - fant %s',
         (select count(*) from public.bemanning_fast_vakt
-         where stasjon_id = STASJ and ukedag = 1);
-      feil := feil + 1;
+         where stasjon_id = STASJ and ukedag = 1));
     end if;
 
     -- En periode kan ikke slutte for den begynner.
@@ -121,8 +131,7 @@ begin
       insert into public.bemanning_fast_vakt
         (stasjon_id, navn, ukedag, fra_time, til_time, gjelder_fra, gjelder_til)
       values (STASJ, 'nk', 2, 7, 15, date '2026-06-01', date '2026-05-01');
-      raise warning 'en periode som slutter for den begynner ble godtatt';
-      feil := feil + 1;
+      funn := funn || 'en periode som slutter for den begynner ble godtatt';
     exception
       when check_violation then null;
     end;
@@ -133,8 +142,9 @@ begin
       if sqlerrm <> 'RULL_TILBAKE' then raise; end if;
   end;
 
-  if feil > 0 then
-    raise exception 'fast_vakt_periode: % funn. Se advarslene over.', feil;
+  if array_length(funn, 1) > 0 then
+    raise exception 'fast_vakt_periode: % funn:%',
+      array_length(funn, 1), chr(10) || array_to_string(funn, chr(10));
   end if;
   raise notice '--- fast_vakt_periode: historikken skriver seg ikke om ---';
 end $$;
