@@ -906,3 +906,31 @@
 /* Forbeholdet dempes, men slettes ikke: en framskriving som ikke sier
    at den er en framskriving, blir lest som en måling. */
 .tr-styring-forbehold { font-weight: 400; color: var(--tekst-svak); }
+
+/* Vekst mot fjoråret: motparten skal være synlig.
+
+   «−12 %» uten fjorårstallet er et tall uten motpart, og ingen kan
+   etterprøve hva det ble målt mot. Vinduet står med fordi 364-dagers-
+   regelen flytter datoen — 17. august måles mot 18. august i fjor, og
+   det er ikke opplagt før man ser det. */
+.vekst-undertittel {
+  margin: 0 0 var(--luft-3);
+  font-size: 0.82rem;
+  color: var(--natt-tekst-svak);
+}
+.vekst-ifjor {
+  display: block;
+  margin-top: var(--luft-1);
+  font-size: 0.78rem;
+  color: var(--natt-tekst-svak);
+  font-variant-numeric: tabular-nums;
+}
+/* Manglende dager er ikke en fotnote — det er grunnen til at tallet
+   over kan være feil. Full nattekstfarge, ikke dempet. */
+.vekst-mangler {
+  display: block;
+  margin-top: var(--luft-1);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--natt-tekst);
+}

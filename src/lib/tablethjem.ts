@@ -1,14 +1,23 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  minusDager, sammenlikn, type Sammenlikning,
+} from './vekst-ifjor'
 
 type Klient = SupabaseClient
 
+/**
+ * Ett vindu sammenliknet mot fjoråret, med alt som trengs for å vise
+ * det ærlig: vinduene selv, dagtellingen, og hvor mange dager fjoråret
+ * mangler.
+ *
+ * Regnestykket ligger i `vekst-ifjor.ts` — rent, og felles av en test
+ * som kjører på 20 ms.
+ */
 export type VekstMetrikk = {
-  iDag: number
-  iFjor: number
-  mtd: number
-  mtdIfjor: number
-  streak: number // dager på rad over fjoråret (samme dato −364)
+  sisteDag: Sammenlikning
+  maanedHittil: Sammenlikning
+  streak: number // dager på rad over fjorårets samme ukedag (−364)
 }
 export type HjemData = {
   skills: { prosent: number; tekst: string } | null
@@ -26,11 +35,6 @@ function skillsTekst(p: number): string {
   if (p >= 70) return 'Bra jobba — fortsett sånn'
   if (p >= 50) return 'På god vei'
   return 'Her er det rom for å løfte seg'
-}
-function minus(dato: string, dager: number): string {
-  const d = new Date(`${dato}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() - dager)
-  return d.toISOString().slice(0, 10)
 }
 
 export async function hentHjemData(supabase: Klient, stasjonId: string): Promise<HjemData> {
@@ -66,22 +70,26 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     const mndStart = `${sisteDato.slice(0, 7)}-01`
 
     const beregn = (felt: (r: (typeof rader)[number]) => number): VekstMetrikk => {
-      const m = new Map(rader.map((r) => [r.dato, felt(r)]))
-      const sumRange = (fra: string, til: string) => [...m.entries()].reduce((a, [d, v]) => (d >= fra && d <= til ? a + v : a), 0)
+      const dagsrader = rader.map((r) => ({ dato: r.dato, verdi: felt(r) }))
+      const m = new Map(dagsrader.map((r) => [r.dato, r.verdi]))
+
+      // STREAK: dager på rad over fjorårets SAMME UKEDAG, ikke samme
+      // dato. Stopper når fjorårsdagen mangler — uten den sjekken teller
+      // en manglende dag som en seier.
       let streak = 0
       for (let i = 0; ; i++) {
-        const d = minus(sisteDato, i)
+        const d = minusDager(sisteDato, i)
         if (!m.has(d)) break
-        const ifjor = m.get(minus(d, 364))
-        if (ifjor == null) break // ingen fjorårsdata å sammenligne med
+        const ifjor = m.get(minusDager(d, 364))
+        if (ifjor == null) break
         if ((m.get(d) ?? 0) > ifjor) streak++
         else break
       }
+
       return {
-        iDag: m.get(sisteDato) ?? 0,
-        iFjor: m.get(minus(sisteDato, 364)) ?? 0,
-        mtd: sumRange(mndStart, sisteDato),
-        mtdIfjor: sumRange(minus(mndStart, 364), minus(sisteDato, 364)),
+        // Ett vindu på én dag: siste salgsdag mot fjorårets samme ukedag.
+        sisteDag: sammenlikn(dagsrader, sisteDato, sisteDato),
+        maanedHittil: sammenlikn(dagsrader, sisteDato, mndStart),
         streak,
       }
     }
