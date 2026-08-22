@@ -107,7 +107,7 @@ export default async function AnvisningerSide() {
                 <p className="sq-brodtekst">{o(a.innhold)}</p>
                 {erLeder && (
                   <div className="knapperad">
-                    <SlettKnapp handling={slettAnvisning} id={a.id} bekreftelse="Anvisningen slettet" />
+                    <SlettKnapp hva={a.tittel} handling={slettAnvisning} id={a.id} bekreftelse="Anvisningen slettet" />
                   </div>
                 )}
               </details>

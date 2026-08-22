@@ -3,6 +3,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { settOppStandard, leggTilMerke, slettMerke, tildelMerke, fjernTildeling } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Merke = { id: string; navn: string; emoji: string; beskrivelse: string | null }
 type Ansatt = { id: string; navn: string; stasjon_id: string }
@@ -93,10 +94,7 @@ export default async function MerkerSide() {
                     <span className="merke-pill" key={t.id} title={t.merker?.navn}>
                       <span className="merke-emoji">{t.merker?.emoji}</span> {t.merker?.navn}
                       {erLeder && (
-                        <form action={fjernTildeling} className="sq-inline-skjema">
-                          <input type="hidden" name="id" value={t.id} />
-                          <button type="submit" className="merke-fjern" aria-label="Fjern">×</button>
-                        </form>
+                        <SlettKnapp hva={`${t.merker?.navn ?? 'merket'} fra ${a.navn}`} handling={fjernTildeling} id={t.id} merke="Fjern" />
                       )}
                     </span>
                   ))}
@@ -117,10 +115,7 @@ export default async function MerkerSide() {
               {merkeliste.map((m) => (
                 <li key={m.id}>
                   <span><span className="merke-emoji">{m.emoji}</span> <strong>{m.navn}</strong>{m.beskrivelse ? <span className="undertittel"> — {m.beskrivelse}</span> : null}</span>
-                  <form action={slettMerke}>
-                    <input type="hidden" name="id" value={m.id} />
-                    <button type="submit" className="liten slett">Slett</button>
-                  </form>
+                  <SlettKnapp hva={m.navn} handling={slettMerke} id={m.id} merke="Slett" />
                 </li>
               ))}
             </ul>

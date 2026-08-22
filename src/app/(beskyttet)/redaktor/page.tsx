@@ -5,6 +5,7 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { Status } from '@/components/ui/status'
 import { NyttInnlegg } from './ny-innlegg'
 import { settPublisert, slettInnlegg } from './handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Innlegg = {
   id: string
@@ -79,10 +80,7 @@ export default async function RedaktorSide() {
                     <input type="hidden" name="til" value={i.publisert ? 'nei' : 'ja'} />
                     <button type="submit" className="liten">{i.publisert ? 'Avpubliser' : 'Publiser'}</button>
                   </form>
-                  <form action={slettInnlegg}>
-                    <input type="hidden" name="id" value={i.id} />
-                    <button type="submit" className="liten slett">Slett</button>
-                  </form>
+                  <SlettKnapp hva={i.tittel} handling={slettInnlegg} id={i.id} merke="Slett" />
                 </span>
               </div>
             </li>

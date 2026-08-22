@@ -7,6 +7,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 import { STANDARD_PULS_SPORSMAL } from '@/lib/puls/standard'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 // ---- Spørsmålsbibliotek ----
 export async function settOppStandard() {
@@ -43,14 +44,18 @@ export async function vekslAktivSporsmal(formData: FormData) {
   revalidatePath('/puls/sporsmal')
 }
 
-export async function slettSporsmal(formData: FormData) {
+export async function slettSporsmal(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('puls_sporsmal').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette puls sporsmal')
-  revalidatePath('/puls/sporsmal')
+  return kvitter(supabase.from('puls_sporsmal').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette sporsmal',
+    ok: 'Sporsmal slettet',
+    oppfrisk: ['/puls/sporsmal'],
+  })
 }
 
 // ---- Runder ----
@@ -99,14 +104,18 @@ export async function avsluttRunde(formData: FormData) {
   revalidatePath('/puls')
 }
 
-export async function slettRunde(formData: FormData) {
+export async function slettRunde(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('puls_runde').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette puls runde')
-  revalidatePath('/puls')
+  return kvitter(supabase.from('puls_runde').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette runde',
+    ok: 'Runde slettet',
+    oppfrisk: ['/puls'],
+  })
 }
 
 // ---- Svar (tablet, sporadisk popup) ----

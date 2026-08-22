@@ -10,6 +10,7 @@ import { iDag } from '@/lib/format'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyOppgave } from './ny-oppgave'
 import { veksleOppgave, slettOppgave } from './handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Oppgave = {
   id: string
@@ -80,10 +81,7 @@ export default async function OppgaverSide() {
               {o.status === 'apen' ? 'Ferdig' : 'Åpne igjen'}
             </Knapp>
           </form>
-          <form action={slettOppgave}>
-            <input type="hidden" name="id" value={o.id} />
-            <Knapp type="submit" variant="ghost" liten aria-label={`Slett ${o.tittel}`}>✕</Knapp>
-          </form>
+          <SlettKnapp hva={o.tittel} handling={slettOppgave} id={o.id} merke="Slett" />
         </>
       )}
     />

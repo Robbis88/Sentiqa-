@@ -3,7 +3,7 @@ import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { kr, datoLang } from '@/lib/format'
 import { maalKampanje, type KampanjeEffekt } from '@/lib/kampanjeeffekt'
 import { opprettKampanje, slettKampanje } from './handlinger'
-import { BekreftKnapp } from '../plattform/kunde-handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sidehode } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 
@@ -87,7 +87,7 @@ export default async function KampanjerSide() {
         <section className="kort" key={k.id}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0 }}>{k.navn} <span className="undertittel">· {kjedeNavn.get(k.retailer_id)}</span></h2>
-            <BekreftKnapp action={slettKampanje} id={k.id} etikett="Slett" klasse="liten slett" sporsmaal={`Slette kampanjen «${k.navn}»?`} />
+            <SlettKnapp hva={k.navn} handling={slettKampanje} id={k.id} sporsmaal={`Slette kampanjen «${k.navn}»?`} bekreftelse="Kampanje slettet" />
           </div>
           <p className="undertittel">{dag(k.fra_dato)} – {dag(k.til_dato)} · {k.eaner?.length ? `${k.eaner.length} valgte varer` : 'alle tilbudsvarer i perioden'}{e ? ` · baseline ${dag(e.baselineFra)}–${dag(e.baselineTil)}` : ''}</p>
           {!e ? <p className="undertittel">Kunne ikke beregne (mangler data?).</p> : (

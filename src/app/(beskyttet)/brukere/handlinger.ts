@@ -3,6 +3,8 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
+import type { Kvittering } from '@/lib/kvittering'
+import { taalerAaFeile } from '@/lib/skriv-svar'
 
 const Ny = z.object({
   navn: z.string().min(1, { error: 'Skriv inn navn.' }),
@@ -57,24 +59,51 @@ export async function opprettBruker(_t: BrukerTilstand, formData: FormData): Pro
     rolle,
   })
   if (pe) {
-    await admin.auth.admin.deleteUser(brukerId)
+    taalerAaFeile(await admin.auth.admin.deleteUser(brukerId),
+      'rydder bort innloggingen vi nettopp opprettet')
     return { feil: 'Kunne ikke opprette profil.' }
   }
 
-  await admin.from('butikksjef_stasjoner').insert(stasjonIds.map((sid) => ({ profil_id: brukerId, stasjon_id: sid })))
+  // EN BUTIKKSJEF UTEN STASJONER SER UT SOM EN VANLIG BRUKER. Feiler
+  // denne, er kontoen opprettet men uten noe aa styre - og det er
+  // ikke til aa skille fra en riktig opprettet konto.
+  const { error: se } = await admin.from('butikksjef_stasjoner')
+    .insert(stasjonIds.map((sid) => ({ profil_id: brukerId, stasjon_id: sid })))
+  if (se) return { feil: `Brukeren er opprettet, men stasjonene ble ikke koblet: ${se.message}` }
   revalidatePath('/brukere')
   return { ok: true }
 }
 
-export async function fjernBruker(formData: FormData) {
+// SLETTER ET MENNESKE, IKKE EN RAD. Derfor gaar den via admin-klienten
+// og `auth.admin.deleteUser` - cascade fjerner profil og tilganger. Den
+// kan ikke gaa gjennom `kvitter`, som snakker PostgREST.
+//
+// HVERT AVSLAG HAR SIN EGEN TEKST. «Ikke tilgang» paa alle fire ville
+// vaert usant paa tre av dem: aa forsoeke aa fjerne seg selv er ikke et
+// tilgangsproblem, og en bruker i en annen kjede er noe helt annet enn
+// en som ikke finnes. Foer sa alle fire ingenting i det hele tatt.
+export async function fjernBruker(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return
-  const id = String(formData.get('id') ?? '')
-  if (!id || id === bruker.id) return // ikke fjern deg selv
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
+    return { feil: 'Bare kjedeadministrator kan fjerne brukere.' }
+  }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
+  if (id === bruker.id) return { feil: 'Du kan ikke fjerne deg selv.' }
+
   const admin = lagSupabaseAdminKlient()
-  // Bekreft at brukeren tilhører egen tenant før sletting.
+  // Bekreft at brukeren tilhoerer egen tenant foer sletting.
   const { data } = await admin.from('profiler').select('retailer_id').eq('id', id).maybeSingle<{ retailer_id: string }>()
-  if (data?.retailer_id !== bruker.retailerId) return
-  await admin.auth.admin.deleteUser(id) // cascade fjerner profil + tilganger
+  if (!data) return { feil: 'Fant ikke brukeren.' }
+  if (data.retailer_id !== bruker.retailerId) {
+    return { feil: 'Brukeren hoerer til en annen kjede.' }
+  }
+
+  const { error } = await admin.auth.admin.deleteUser(id)
+  if (error) return { feil: `Kunne ikke fjerne brukeren: ${error.message}` }
+
   revalidatePath('/brukere')
+  return { ok: 'Brukeren er fjernet' }
 }

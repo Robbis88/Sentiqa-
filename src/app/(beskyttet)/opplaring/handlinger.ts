@@ -5,6 +5,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { STANDARD_OPPLAERING } from '@/lib/opplaering/standard'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 // ---- Master-oppgaver ----
 export async function settOppStandard() {
@@ -43,14 +44,18 @@ export async function redigerOppgave(formData: FormData) {
   revalidatePath('/opplaring')
 }
 
-export async function slettOppgave(formData: FormData) {
+export async function slettOppgave(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('opplaering_oppgave').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette opplaering oppgave')
-  revalidatePath('/opplaring')
+  return kvitter(supabase.from('opplaering_oppgave').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette oppgave',
+    ok: 'Oppgave slettet',
+    oppfrisk: ['/opplaring'],
+  })
 }
 
 // ---- Perioder (nyansatte) ----
@@ -85,14 +90,18 @@ export async function fullforPeriode(formData: FormData) {
   revalidatePath('/opplaring')
 }
 
-export async function slettPeriode(formData: FormData) {
+export async function slettPeriode(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('opplaering_periode').delete().eq('id', id), 'slette opplaering periode')
-  revalidatePath('/opplaring')
+  return kvitter(supabase.from('opplaering_periode').delete({ count: 'exact' }).eq('id', id), {
+    hva: 'slette periode',
+    ok: 'Periode slettet',
+    oppfrisk: ['/opplaring'],
+  })
 }
 
 // ---- Kvitt-bok (utført) ----
@@ -125,12 +134,16 @@ export async function leggTilSkift(formData: FormData) {
   revalidatePath('/opplaring')
 }
 
-export async function slettSkift(formData: FormData) {
+export async function slettSkift(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('opplaering_skift').delete().eq('id', id), 'slette opplaering skift')
-  revalidatePath('/opplaring')
+  return kvitter(supabase.from('opplaering_skift').delete({ count: 'exact' }).eq('id', id), {
+    hva: 'slette skift',
+    ok: 'Skift slettet',
+    oppfrisk: ['/opplaring'],
+  })
 }

@@ -6,6 +6,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER } from '@/lib/rutineskjema'
 import { IKMAT_RUTINE } from '@/lib/ikmat/rutine'
 import { alleMaaLykkes, maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 function ukedagerFra(formData: FormData): number[] {
   return formData.getAll('ukedager').map((u) => Number(u)).filter((n) => n >= 0 && n <= 6)
@@ -36,14 +37,18 @@ export async function leggTilSkjema(formData: FormData) {
   revalidatePath('/rutiner/oppsett')
 }
 
-export async function slettSkjema(formData: FormData) {
+export async function slettSkjema(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('rutineskjemaer').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette rutineskjemaer')
-  revalidatePath('/rutiner/oppsett')
+  return kvitter(supabase.from('rutineskjemaer').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette skjema',
+    ok: 'Skjema slettet',
+    oppfrisk: ['/rutiner/oppsett'],
+  })
 }
 
 export async function oppdaterSkjema(formData: FormData) {
@@ -141,12 +146,16 @@ export async function lagreRekkefolge(skjemaId: string, ids: string[]): Promise<
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
 }
 
-export async function slettRutine(formData: FormData) {
+export async function slettRutine(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('rutiner').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette rutiner')
-  revalidatePath('/rutiner/oppsett')
+  return kvitter(supabase.from('rutiner').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette rutine',
+    ok: 'Rutine slettet',
+    oppfrisk: ['/rutiner/oppsett'],
+  })
 }

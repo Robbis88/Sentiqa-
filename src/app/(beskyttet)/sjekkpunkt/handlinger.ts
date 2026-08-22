@@ -8,6 +8,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 const Nytt = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),
@@ -48,14 +49,18 @@ export async function leggTilSjekkpunkt(
   return { ok: true }
 }
 
-export async function slettSjekkpunkt(formData: FormData) {
+export async function slettSjekkpunkt(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('sjekkpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette sjekkpunkter')
-  revalidatePath('/sjekkpunkt')
+  return kvitter(supabase.from('sjekkpunkter').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette sjekkpunkt',
+    ok: 'Sjekkpunkt slettet',
+    oppfrisk: ['/sjekkpunkt'],
+  })
 }
 
 // Tablet: svar på ett sjekkpunkt (sporadisk popup). Tar args, ikke formData.

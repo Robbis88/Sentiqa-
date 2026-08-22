@@ -5,6 +5,7 @@ import { VAKTTYPER, VAKTTYPE_ETIKETT, UKEDAG_NAVN } from '@/lib/rutineskjema'
 import { leggTilSkjema, slettSkjema } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
@@ -90,10 +91,7 @@ export default async function OppsettSide() {
                 )}
                 <span className="skjema-handlinger">
                   <Link href={`/rutiner/oppsett/${sk.id}`} className="liten lenke-knapp">Rediger</Link>
-                  <form action={slettSkjema}>
-                    <input type="hidden" name="id" value={sk.id} />
-                    <button type="submit" className="liten slett">Slett skjema</button>
-                  </form>
+                  <SlettKnapp hva={sk.navn ?? 'skjemaet'} handling={slettSkjema} id={sk.id} merke="Slett skjema" />
                 </span>
               </div>
             </div>

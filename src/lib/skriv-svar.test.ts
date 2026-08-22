@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { alleMaaLykkes, maaLykkes, traffEnRad } from './skriv-svar'
+import { alleMaaLykkes, maaLykkes, taalerAaFeile, traffEnRad } from './skriv-svar'
 
 describe('maaLykkes', () => {
   test('slipper et vellykket svar rett gjennom', () => {
@@ -68,5 +68,16 @@ describe('alleMaaLykkes', () => {
 
   test('alle vellykkede går gjennom', () => {
     expect(alleMaaLykkes([{ error: null }, { error: null }], 'lagre')).toHaveLength(2)
+  })
+})
+
+describe('taalerAaFeile', () => {
+  test('kaster ikke, uansett hva som kom tilbake', () => {
+    // Tilbakerulling paa en feilvei. Brukeren har alt faatt en presis
+    // tekst; en stakksporing her ville byttet den mot noe daarligere.
+    expect(() => taalerAaFeile(
+      { error: { message: 'nei' } }, 'rydder kjeden etter mislykket invitasjon',
+    )).not.toThrow()
+    expect(() => taalerAaFeile({ error: null }, 'samme')).not.toThrow()
   })
 })

@@ -7,6 +7,7 @@ import { IKMAT_RUTINE } from '@/lib/ikmat/rutine'
 import { RutineListe } from './rutine-liste'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean; ikmat_frekvens: string | null }
@@ -125,7 +126,7 @@ export default async function SkjemaEditor({ params }: { params: Promise<{ id: s
                   <strong>{r.tittel}</strong>
                   <span className="undertittel"> · {dagerKort((r.ukedager ?? []) as number[])}</span>
                 </div>
-                <form action={slettRutine}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten slett" aria-label="Slett">✕</button></form>
+                <SlettKnapp hva={r.tittel} handling={slettRutine} id={r.id} merke="Slett" />
               </li>
             ))}
           </ul>

@@ -3,7 +3,7 @@ import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { beregnAbonnement } from '@/lib/pris'
 import { kr, datoLang } from '@/lib/format'
 import { NyKunde } from './ny-kunde'
-import { BekreftKnapp } from './kunde-handlinger'
+import { HandlingKnapp } from '@/components/ui/handling-knapp'
 import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePermanent } from './handlinger'
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
@@ -148,10 +148,10 @@ export default async function PlattformSide() {
                   <td>
                     <div className="plattform-handlinger">
                       {r.adminInfo?.epost ? (
-                        <BekreftKnapp action={sendInvitasjonPaaNytt} epost={r.adminInfo.epost} etikett="Send på nytt" sporsmaal={`Sende påloggingslenke på nytt til ${r.adminInfo.epost}?`} />
+                        <HandlingKnapp handling={sendInvitasjonPaaNytt} felt={{ epost: r.adminInfo.epost }} merke="Send på nytt" variant="sekundaer" sporsmaal={`Sende påloggingslenke på nytt til ${r.adminInfo.epost}?`} />
                       ) : null}
-                      <BekreftKnapp action={deaktiverKunde} id={r.id} etikett="Deaktiver" klasse="liten slett" sporsmaal={`Deaktivere ${r.navn}? Brukerne mister tilgang, men data beholdes (kan reaktiveres).`} />
-                      <BekreftKnapp action={slettKundePermanent} id={r.id} etikett="Slett" klasse="liten slett" sporsmaal={`PERMANENT slette ${r.navn} og ALLE data + brukere? Dette kan ikke angres.`} />
+                      <HandlingKnapp handling={deaktiverKunde} felt={{ id: r.id }} merke="Deaktiver" variant="destruktiv" sporsmaal={`Deaktivere ${r.navn}? Brukerne mister tilgang, men data beholdes (kan reaktiveres).`} />
+                      <HandlingKnapp handling={slettKundePermanent} felt={{ id: r.id }} merke="Slett" arbeider="Sletter …" variant="destruktiv" sporsmaal={`PERMANENT slette ${r.navn} og ALLE data + brukere? Dette kan ikke angres.`} />
                     </div>
                   </td>
                 </tr>
@@ -170,8 +170,8 @@ export default async function PlattformSide() {
               <li key={r.id}>
                 <span>{r.navn} <span className="undertittel">{r.org_nr ?? ''} · {r.stasjoner} stasjoner · sperret</span></span>
                 <div className="plattform-handlinger">
-                  <BekreftKnapp action={reaktiverKunde} id={r.id} etikett="Reaktiver" sporsmaal={`Reaktivere ${r.navn}? Brukerne får tilgang igjen.`} />
-                  <BekreftKnapp action={slettKundePermanent} id={r.id} etikett="Slett permanent" klasse="liten slett" sporsmaal={`PERMANENT slette ${r.navn} og ALLE data + brukere? Dette kan ikke angres.`} />
+                  <HandlingKnapp handling={reaktiverKunde} felt={{ id: r.id }} merke="Reaktiver" variant="sekundaer" sporsmaal={`Reaktivere ${r.navn}? Brukerne får tilgang igjen.`} />
+                  <HandlingKnapp handling={slettKundePermanent} felt={{ id: r.id }} merke="Slett permanent" arbeider="Sletter …" variant="destruktiv" sporsmaal={`PERMANENT slette ${r.navn} og ALLE data + brukere? Dette kan ikke angres.`} />
                 </div>
               </li>
             ))}

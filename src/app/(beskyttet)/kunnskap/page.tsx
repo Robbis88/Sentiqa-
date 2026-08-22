@@ -96,7 +96,7 @@ export default async function KunnskapSide() {
                 </summary>
                 <p className="sq-brodtekst">{a.innhold}</p>
                 <div className="knapperad">
-                  <SlettKnapp handling={slettKunnskap} id={a.id} bekreftelse="Artikkelen slettet" />
+                  <SlettKnapp hva={a.tittel} handling={slettKunnskap} id={a.id} bekreftelse="Artikkelen slettet" />
                 </div>
               </details>
             </li>

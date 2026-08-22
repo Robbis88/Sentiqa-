@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 // Lenker er tablet-funksjonen (hurtiglenker for å hjelpe kunder). Alle i
 // tenanten (også tablet) kan legge til/fjerne — kun plattform-redaktør sperres.
@@ -23,12 +24,16 @@ export async function leggTilLenke(formData: FormData) {
   revalidatePath('/lenker')
 }
 
-export async function slettLenke(formData: FormData) {
+export async function slettLenke(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!kanLenke(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!kanLenke(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('lenker').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette lenker')
-  revalidatePath('/lenker')
+  return kvitter(supabase.from('lenker').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette lenke',
+    ok: 'Lenke slettet',
+    oppfrisk: ['/lenker'],
+  })
 }

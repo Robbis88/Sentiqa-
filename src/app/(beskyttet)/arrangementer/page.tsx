@@ -4,6 +4,7 @@ import { iDag, datoLang } from '@/lib/format'
 import { leggTilArrangement, bekreftArrangement, forkastArrangement, leggTilKalenderKilde, slettKalenderKilde } from './handlinger'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Arr = { id: string; dato: string; navn: string; faktor: number; stasjon_id: string | null; status: string }
 type Kilde = { id: string; navn: string; ical_url: string; standard_faktor: number; stasjon_ider: string[] | null }
@@ -140,7 +141,7 @@ export default async function ArrangementerSide() {
             {(kilder ?? []).map((k) => (
               <li key={k.id}>
                 <span>{k.navn} <span className="undertittel">×{k.standard_faktor} · {stasjonerTekst(k.stasjon_ider)}</span></span>
-                <form action={slettKalenderKilde}><input type="hidden" name="id" value={k.id} /><button type="submit" className="liten slett">Fjern</button></form>
+                <SlettKnapp hva={k.navn} handling={slettKalenderKilde} id={k.id} merke="Fjern" />
               </li>
             ))}
           </ul>

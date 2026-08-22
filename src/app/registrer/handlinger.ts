@@ -5,6 +5,7 @@ import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { loggHendelse } from '@/lib/kontrollrom'
 import { DPA_VERSJON } from '@/lib/juss'
+import { taalerAaFeile } from '@/lib/skriv-svar'
 
 const Skjema = z.object({
   firma: z.string().min(2, { error: 'Skriv inn firmanavn.' }),
@@ -80,7 +81,8 @@ export async function registrer(_t: RegTilstand, formData: FormData): Promise<Re
     .from('profiler')
     .insert({ id: brukerId, retailer_id: retailer.id, rolle: 'retailer_admin', fullt_navn })
   if (pe) {
-    await admin.from('retailers').delete().eq('id', retailer.id)
+    taalerAaFeile(await admin.from('retailers').delete().eq('id', retailer.id),
+      'rydder bort kjeden vi nettopp opprettet')
     await admin.auth.admin.deleteUser(brukerId)
     return { feil: 'Kunne ikke fullføre registreringen.' }
   }

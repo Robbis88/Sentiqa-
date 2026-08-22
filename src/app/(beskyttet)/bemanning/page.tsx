@@ -1001,7 +1001,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   ? <Status nivaa="endring">Trer i kraft senere</Status>
                   : undefined}
                 handlinger={(
-                  <SlettKnapp handling={slettVindu} id={v.id} bekreftelse="Vindu slettet" />
+                  <SlettKnapp hva={`${UKEDAG[v.ukedag]} ${kl(v.fra_time)}`} handling={slettVindu} id={v.id} bekreftelse="Vindu slettet" />
                 )}
               />
             ))}
@@ -1081,7 +1081,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                   </Status>
                 )}
                 handlinger={(
-                  <SlettKnapp handling={slettFastVakt} id={v.id} bekreftelse="Fast vakt slettet" />
+                  <SlettKnapp hva={v.navn} handling={slettFastVakt} id={v.id} bekreftelse="Fast vakt slettet" />
                 )}
               />
             ))}
@@ -1111,7 +1111,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 sekundaer={k.begrunnelse ?? 'ingen begrunnelse'}
                 metadata={`${k.antall} personer`}
                 handlinger={(
-                  <SlettKnapp handling={slettKrav} id={k.id} bekreftelse="Krav slettet" />
+                  <SlettKnapp hva={`${UKEDAG[k.ukedag]} ${kl(k.fra_time)}`} handling={slettKrav} id={k.id} bekreftelse="Krav slettet" />
                 )}
               />
             ))}
@@ -1143,7 +1143,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
                 primaer={f.navn}
                 sekundaer={`${f.fra_dato} – ${f.til_dato}${f.arsak ? ` · ${f.arsak}` : ''}`}
                 handlinger={(
-                  <SlettKnapp handling={slettFravaer} id={f.id} bekreftelse="Fravær slettet" />
+                  <SlettKnapp hva={f.navn} handling={slettFravaer} id={f.id} bekreftelse="Fravær slettet" />
                 )}
               />
             ))}

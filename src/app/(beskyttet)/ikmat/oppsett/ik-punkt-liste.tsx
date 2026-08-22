@@ -2,6 +2,7 @@
 import { useRef, useState, useTransition } from 'react'
 import { TYPE_ETIKETT, FREKVENS_ETIKETT } from '@/lib/ikmat/standard'
 import { oppdaterPunkt, slettKontrollpunkt, lagrePunktRekkefolge } from '../handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 export type Punkt = { id: string; navn: string; type: string; frekvens: string; min_temp: number | null; max_temp: number | null }
 
@@ -67,7 +68,7 @@ export function IkPunktListe({ stasjonId, punkter }: { stasjonId: string; punkte
               </div>
               <div className="rutine-kort-knapper"><button type="submit" className="liten">Lagre</button></div>
             </form>
-            <form action={slettKontrollpunkt} className="rutine-kort-slett"><input type="hidden" name="id" value={p.id} /><button type="submit" className="liten slett">Slett punkt</button></form>
+            <SlettKnapp hva={p.navn} handling={slettKontrollpunkt} id={p.id} merke="Slett punkt" />
           </div>
         </li>
       ))}

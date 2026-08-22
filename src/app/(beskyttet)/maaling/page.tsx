@@ -7,6 +7,7 @@ import { Leaderboard } from './leaderboard'
 import { slettMalekort } from './handlinger'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 export const dynamic = 'force-dynamic'
 
@@ -156,10 +157,7 @@ export default async function MalingSide() {
                 </span>
               </div>
               {erAdmin && (
-                <form action={slettMalekort}>
-                  <input type="hidden" name="id" value={m.id} />
-                  <button type="submit" className="logg-ut">Slett</button>
-                </form>
+                <SlettKnapp hva={m.navn} handling={slettMalekort} id={m.id} merke="Slett" />
               )}
             </div>
             <Leaderboard resultat={resultater[i]} egenIds={egenIds} anonymiser={erButikksjef && m.anonymiser} />

@@ -864,7 +864,17 @@
 /* Slett, med et svar. Kvitteringen står ved siden av knappen, ikke
    under: raden forsvinner ved neste tegning, og da må svaret ha vært
    der man så. */
-.sq-slett { display: flex; align-items: center; gap: var(--luft-2); }
+/* INLINE-FLEX, IKKE FLEX. Knappen staar naa ogsaa midt i en tekstlinje
+   - i en merkelapp, i en listerad - og `flex` ville tatt hele bredden
+   der og dyttet alt annet ned paa neste linje. */
+.sq-slett {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--luft-2);
+  /* Feilteksten er lengre enn kvitteringen. Uten dette skyves knappen
+     ut av raden i stedet for at teksten braekker. */
+  flex-wrap: wrap;
+}
 .sq-slett-ok { font-size: var(--tekst-liten); color: var(--tekst-svak); white-space: nowrap; }
 /* Feilen er ikke støy — den er grunnen til at raden fortsatt er der. */
 .sq-slett-feil {

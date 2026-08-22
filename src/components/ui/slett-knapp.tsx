@@ -1,6 +1,6 @@
 'use client'
-import { useActionState } from 'react'
-import { Knapp } from './knapp'
+import { HandlingKnapp } from './handling-knapp'
+import type { Kvittering } from '@/lib/kvittering'
 
 // =====================================================================
 // Slett, med et svar.
@@ -8,52 +8,48 @@ import { Knapp } from './knapp'
 // Robert, 2026-08-22: «det er slette-knapper der, det er ikke noe som
 // gir beskjed om at de er slettet».
 //
-// Han hadde rett, og verre enn som så: `slett()` i bemanning kastet
+// Han hadde rett, og verre enn saa: `slett()` i bemanning kastet
 // resultatet av `.delete()`. Ble raden avvist av RLS, skjedde det
-// ingenting — og siden sa ingenting. Da er det umulig å vite om raden
+// ingenting - og sida sa ingenting. Da er det umulig aa vite om raden
 // er borte eller om knappen ikke virker, og begge deler ser like ut.
 //
-// ÉN KOMPONENT, IKKE 22 VARIANTER. Sletting finnes 22 steder i appen.
-// Skrives kvitteringen på nytt hvert sted, blir den ulik hvert sted —
-// og en av dem blir glemt.
-//
-// FEILEN BLIR STÅENDE, KVITTERINGEN FORSVINNER IKKE AV SEG SELV.
-// En bekreftelse som blinker bort er en bekreftelse man rekker å tvile
-// på. Neste navigering fjerner den; det holder.
+// SLETTING ER BARE ETT TILFELLE av en handling som maa svare. Formen
+// bor i `HandlingKnapp`; denne holder navnet og de valgene sletting
+// alltid tar: destruktiv variant, «Sletter …» mens den venter.
 // =====================================================================
 
-export type SlettTilstand = { ok?: string; feil?: string } | undefined
+/** Beholdt navn. Samme type som `Kvittering`. */
+export type SlettTilstand = Kvittering
 
 export function SlettKnapp({
   handling,
   id,
   merke = 'Slett',
+  hva,
   bekreftelse = 'Slettet',
+  sporsmaal,
 }: {
-  /** Serverhandling som tar (tilstand, formData) og svarer. */
   handling: (t: SlettTilstand, fd: FormData) => Promise<SlettTilstand>
   id: string
   merke?: string
-  /** Hva som står etterpå. «Slettet» passer sjelden på alt. */
+  /** Hva som slettes: «kampanjen Sommer». Blir knappens aria-label.
+      Uten den heter tjue knapper i en liste det samme. */
+  hva?: string
+  /** Hva som staar etterpaa. «Slettet» passer sjelden paa alt. */
   bekreftelse?: string
+  /** Spoersmaal foer innsending. Kun for det som ikke kan angres. */
+  sporsmaal?: string
 }) {
-  const [tilstand, kjor, venter] =
-    useActionState<SlettTilstand, FormData>(handling, undefined)
-
   return (
-    <form action={kjor} className="sq-slett">
-      <input type="hidden" name="id" value={id} />
-      <Knapp type="submit" variant="destruktiv" liten disabled={venter}>
-        {venter ? 'Sletter …' : merke}
-      </Knapp>
-      {tilstand?.feil && (
-        <span className="sq-slett-feil" role="alert">{tilstand.feil}</span>
-      )}
-      {tilstand?.ok && (
-        <span className="sq-slett-ok" role="status">
-          {tilstand.ok === 'ok' ? bekreftelse : tilstand.ok}
-        </span>
-      )}
-    </form>
+    <HandlingKnapp
+      handling={handling}
+      felt={{ id }}
+      merke={merke}
+      hva={hva}
+      arbeider="Sletter …"
+      bekreftelse={bekreftelse}
+      variant="destruktiv"
+      sporsmaal={sporsmaal}
+    />
   )
 }

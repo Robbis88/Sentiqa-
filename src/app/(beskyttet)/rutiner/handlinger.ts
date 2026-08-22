@@ -51,6 +51,10 @@ export async function kryssAvMedBilde(formData: FormData) {
   revalidatePath('/rutiner')
 }
 
+// AV/PAA-BRYTER, IKKE EN SLETT-KNAPP. Den staar i en ternaer sammen med
+// `kryssAv` og maa dele signatur med den. Krysset som forsvinner ER
+// kvitteringen her; en tekst ved siden av ville sagt det samme to
+// ganger. Skrivet svarer likevel - `maaLykkes` kaster om det feiler.
 export async function fjernKryss(formData: FormData) {
   await hentInnloggetBruker()
   const rutineId = String(formData.get('rutine_id') ?? '')
@@ -65,6 +69,6 @@ export async function fjernKryss(formData: FormData) {
     .eq('dato', dato)
     .maybeSingle<{ bilde_sti: string | null }>()
   if (data?.bilde_sti) await supabase.storage.from(BILDE_BUCKET).remove([data.bilde_sti])
-  maaLykkes(await supabase.from('rutine_utforinger').delete().eq('rutine_id', rutineId).eq('dato', dato), 'slette rutine utforinger')
+  maaLykkes(await supabase.from('rutine_utforinger').delete().eq('rutine_id', rutineId).eq('dato', dato), 'fjerne kryss')
   revalidatePath('/rutiner')
 }

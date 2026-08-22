@@ -7,6 +7,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { TabletSjekk, type Punkt as TabletPunkt } from './tablet-sjekk'
 import { TabletHode } from '../tablet-hode'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Sjekk = {
   id: string
@@ -144,10 +145,7 @@ export default async function SjekkpunktSide() {
                         <button type="submit" className={`janei nei ${s === false ? 'valgt' : ''}`}>Nei</button>
                       </form>
                       {kanLage && (
-                        <form action={slettSjekkpunkt}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <button type="submit" className="liten slett" aria-label="Slett">✕</button>
-                        </form>
+                        <SlettKnapp hva={p.sporsmaal} handling={slettSjekkpunkt} id={p.id} merke="Slett" />
                       )}
                     </div>
                   </li>

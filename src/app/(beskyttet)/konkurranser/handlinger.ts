@@ -5,6 +5,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maalKonkurranse } from '@/lib/konkurranse'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 const Ny = z.object({
   navn: z.string().min(1, { error: 'Skriv et navn.' }),
@@ -98,12 +99,16 @@ export async function markerUtbetalt(formData: FormData) {
   revalidatePath('/premier')
 }
 
-export async function slettKonkurranse(formData: FormData) {
+export async function slettKonkurranse(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (bruker.rolle !== 'retailer_admin') return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('konkurranser').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette konkurranser')
-  revalidatePath('/konkurranser')
+  return kvitter(supabase.from('konkurranser').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette konkurranse',
+    ok: 'Konkurranse slettet',
+    oppfrisk: ['/konkurranser'],
+  })
 }
