@@ -875,3 +875,16 @@
   padding-left: var(--luft-2);
   line-height: 1.4;
 }
+
+/* Oppgaven, ikke dommen. «1 745 timer over» er noe som har skjedd;
+   «284 547 kr mer i brutto» er noe som kan gjøres. Derfor full
+   tekstfarge og en kant — den skal leses, ikke skummes forbi. */
+.tr-krav {
+  margin: var(--luft-3) 0 0;
+  padding-left: var(--luft-3);
+  border-left: 3px solid var(--kant-sterk);
+  font-size: var(--tekst-liten);
+  font-weight: 600;
+  color: var(--tekst);
+  line-height: 1.45;
+}

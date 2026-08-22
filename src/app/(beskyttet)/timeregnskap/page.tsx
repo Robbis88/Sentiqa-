@@ -2,6 +2,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
+import { kr } from '@/lib/format'
+import { bruttoKrav, kravtekst } from '@/lib/bemanning/timekrav'
 
 // =====================================================================
 // «Har vi råd til timene vi bruker?»
@@ -39,6 +41,7 @@ type Rad = {
   grunnlag: string
   bp_brutto_kr: number | null
   realisert_brutto_kr: number | null
+  realisert_margin_pst: number | null
   budsjett_timer: number | null
   opptjente_timer: number | null
   brukte_timer: number | null
@@ -137,6 +140,16 @@ export default async function TimeregnskapSide() {
       // lederdekningen kan ikke vurderes.
       uavklart: ferdige.filter((r) => r.lederdekning === 'ukjent').length,
       anslag: ferdige.filter((r) => r.grunnlag === 'anslag').length,
+      // HVA SOM SKAL TIL. Regnes paa alt som er maalt - ogsaa den
+      // paagaaende maaneden - fordi oppgaven gjelder aaret, ikke en
+      // maaned isolert.
+      krav: bruttoKrav({
+        rammeTimer: sum(mine, (r) => r.budsjett_timer),
+        brukteTimer: sum(mine, (r) => r.brukte_timer),
+        bpBruttoKr: sum(mine, (r) => r.bp_brutto_kr),
+        realisertBruttoKr: sum(mine, (r) => r.realisert_brutto_kr),
+        realisertMarginPst: mine[0]?.realisert_margin_pst ?? null,
+      }),
       paagaar,
     }
   }).filter((p) => p.maaneder > 0 || p.paagaar)
@@ -201,6 +214,21 @@ export default async function TimeregnskapSide() {
                 verdsettes med kassens omsetning til årets realiserte
                 margin — et anslag som skal korrigeres når regnskapet
                 kommer, og som ikke skal leses som en måling. */}
+            {p.krav && p.krav.bruttoMangler > 0 && (
+              // OPPGAVEN, IKKE DOMMEN.
+              //
+              // «1 745 timer over» er sant, men ikke noe man kan gjøre noe
+              // med etter at timene er brukt. Snudd blir det en salgsoppgave:
+              //
+              //   brutto som kreves = BP-brutto × (brukte timer ÷ ramme)
+              //
+              // Samme regnestykke, den enden butikksjefen kan ta i — og
+              // midt i måneden er den fortsatt mulig å påvirke.
+              <p className="tr-krav">
+                {kravtekst(p.krav, (n: number) => kr.format(n))}
+              </p>
+            )}
+
             {p.paagaar && (
               // DEN PÅGÅENDE MÅNEDEN, MED HVOR LANGT DEN ER KOMMET.
               // Står utenfor summen over: to tredjedeler av en måned lagt
