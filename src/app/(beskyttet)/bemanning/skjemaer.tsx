@@ -121,23 +121,33 @@ export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
           men timene trekkes fra.
         </p>
       </fieldset>
-      {/* NÅR ENDRINGEN GJELDER FRA. Tomt = alltid, som før.
-          Uten dette skrev en endring i dag om hvordan det var i mars:
-          setter du butikksjefen til fastlønn 1. november, forsvant
-          justeringen i timeregnskapet for januar til oktober også.
+      {/* PERIODEN, BEGGE ENDER. Robert 2026-08-22: «har Lone hatt
+          fastlønn fra 01.05.26 til 31.12.26 må eg kunne skrive det, og
+          skrive timelønn fra 01.01.26–30.04.26.»
 
-          Fylles ikke ut automatisk med dagens dato: de fleste
-          endringer er rettelser av noe som alltid har vært slik, og en
+          Med bare «fra» kunne to perioder ikke settes presist: den
+          forrige ble lukket dagen før den nye, og et opphold mellom dem
+          var umulig å uttrykke.
+
+          Fylles ikke ut automatisk med dagens dato: de fleste endringer
+          er rettelser av noe som alltid har vært slik, og en
           forhåndsutfylt dato ville delt historikken i to hver gang. */}
-      <label className="felt">
-        <span>Gjelder fra (valgfritt)</span>
-        <input type="date" name="gjelder_fra" />
-        <span className="undertittel">
-          La stå tomt hvis vakten alltid har vært slik. Fyller du ut en dato,
-          avsluttes den forrige perioden dagen før — og tall du så for
-          tidligere måneder står som de var.
-        </span>
-      </label>
+      <div className="sq-skjema-rad">
+        <label className="felt">
+          <span>Gjelder fra</span>
+          <input type="date" name="gjelder_fra" />
+        </label>
+        <label className="felt">
+          <span>Gjelder til</span>
+          <input type="date" name="gjelder_til" />
+        </label>
+      </div>
+      <p className="undertittel">
+        La begge stå tomme hvis vakten alltid har vært slik. Fyller du ut
+        «fra», avsluttes en åpen periode dagen før — og tall du så for
+        tidligere måneder står som de var. «Til» lar deg lukke perioden
+        selv: timelønn 01.01–30.04, fastlønn fra 01.05.
+      </p>
       <div className="sq-skjema-bunn">
         <button type="submit" className="sq-knapp primar" disabled={venter}>
           {venter ? 'Legger til …' : 'Legg til'}

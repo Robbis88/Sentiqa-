@@ -126,6 +126,76 @@ begin
          where stasjon_id = STASJ and ukedag = 1));
     end if;
 
+    -- --- TO PERIODER MED HVER SIN LOENNSFORM ------------------------
+    -- Robert 2026-08-22: «har Lone hatt fastloenn fra 01.05.26 til
+    -- 31.12.26 maa eg kunne skrive det, og skrive timeloenn fra
+    -- 01.01.26-30.04.26.»
+    --
+    -- Det er to rader for samme vakt, med hver sin periode og hver sin
+    -- loennsform. Januar til april skal gi justering, mai og utover ikke.
+    delete from public.bemanning_fast_vakt where stasjon_id = STASJ;
+
+    insert into public.bemanning_fast_vakt
+      (stasjon_id, navn, ukedag, fra_time, til_time, timelonnet,
+       gjelder_fra, gjelder_til)
+    values
+      (STASJ, 'butikksjef', 1, 7, 15, true,  date '2026-01-01', date '2026-04-30'),
+      (STASJ, 'butikksjef', 1, 7, 15, false, date '2026-05-01', date '2026-12-31');
+
+    -- MARS: timeloennet periode -> rammen oekes.
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = date '2026-03-01';
+    if r.lederdekning is distinct from 'ikke_fastlonnet' then
+      funn := funn || format(
+        'mars er %s - ventet ikke_fastlonnet (timeloennet periode 01.01-30.04)',
+        coalesce(r.lederdekning, '(ingen rad)'));
+    end if;
+
+    -- APRIL: siste maaned i den timeloennede perioden. Grensen er den
+    -- lette aa ta feil av - «til 30.04» maa bety at april er MED.
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = date '2026-04-01';
+    if r.lederdekning is distinct from 'ikke_fastlonnet' then
+      funn := funn || format(
+        'GRENSEN GLAPP: april er %s. «Gjelder til 30.04» maa bety at april '
+        'er med - ellers taper stasjonen en maaned med justering.',
+        coalesce(r.lederdekning, '(ingen rad)'));
+    end if;
+
+    -- MAI: foerste maaned med fastloenn -> ingen justering.
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = date '2026-05-01';
+    if r.lederdekning is distinct from 'fastlonnet' then
+      funn := funn || format(
+        'GRENSEN GLAPP: mai er %s. «Gjelder fra 01.05» maa bety at mai er '
+        'med i den fastloennede perioden.',
+        coalesce(r.lederdekning, '(ingen rad)'));
+    end if;
+    if r.ramme_justering_timer is distinct from 0 then
+      funn := funn || format('mai fikk %s timer justering med fastloennet vakt',
+        coalesce(r.ramme_justering_timer::text, '(ingen rad)'));
+    end if;
+
+    -- ET OPPHOLD MELLOM PERIODENE ER IKKE DEKNING. Uten `gjelder_til`
+    -- kunne dette ikke uttrykkes: forrige periode ble alltid lukket
+    -- dagen for den neste, saa en maaned uten noen vakt fantes ikke.
+    delete from public.bemanning_fast_vakt where stasjon_id = STASJ;
+    insert into public.bemanning_fast_vakt
+      (stasjon_id, navn, ukedag, fra_time, til_time, timelonnet,
+       gjelder_fra, gjelder_til)
+    values
+      (STASJ, 'butikksjef', 1, 7, 15, false, date '2026-01-01', date '2026-02-28'),
+      (STASJ, 'butikksjef', 1, 7, 15, false, date '2026-04-01', null);
+
+    select * into r from public.v_timeregnskap
+    where stasjon_id = STASJ and maned = date '2026-03-01';
+    if r.lederdekning is distinct from 'ukjent' then
+      funn := funn || format(
+        'mars er %s - ventet ukjent. Stasjonen hadde INGEN fast vakt den '
+        'maaneden, og da vet vi ikke om St1s fratrekk holder.',
+        coalesce(r.lederdekning, '(ingen rad)'));
+    end if;
+
     -- En periode kan ikke slutte for den begynner.
     begin
       insert into public.bemanning_fast_vakt
