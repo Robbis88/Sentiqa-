@@ -1,99 +1,71 @@
 import { describe, expect, test } from 'vitest'
-import {
-  ARSVERK_TIMER, MANEDER, forklarDekning, forslagHelManed, normaliserTimer,
-  timetall, uavklarte,
-} from './lederdekning'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { ARSVERK_TIMER, timerPerManed, timetall } from './lederdekning'
+
+// =====================================================================
+// Ett årsverk, to språk.
+//
+// `ARSVERK_TIMER` her og `arsverk_timer := 1695` i migrasjonen som
+// definerer `v_timeregnskap` er samme tall. SQL kan ikke importere fra
+// TypeScript, så det står to steder — og da må noe binde dem sammen.
+//
+// SAMME GREP SOM `utelatte-koder.test.ts`, og av samme grunn: to kopier
+// av samme sannhet går fra hverandre. `rls_vakthund.sql` og
+// `rls_funn.sql` gjorde det 2026-08-19, og verktøyet man brukte for å
+// SE funnene løy om tabeller som var i orden.
+// =====================================================================
+
+const KATALOG = join(process.cwd(), 'supabase', 'migrations')
+
+/** Den nyeste migrasjonen som definerer viewet — ikke et filnavn. */
+function nyesteViewfil(): string {
+  const treff = readdirSync(KATALOG)
+    .filter((n) => n.endsWith('.sql'))
+    .filter((n) => /create\s+(or\s+replace\s+)?view\s+public\.v_timeregnskap/i
+      .test(readFileSync(join(KATALOG, n), 'utf8')))
+    .sort()
+  if (treff.length === 0) throw new Error('Ingen migrasjon definerer v_timeregnskap.')
+  return join(KATALOG, treff[treff.length - 1])
+}
 
 describe('lederdekning', () => {
-  test('årsverket er det St1 faktisk trekker fra', () => {
-    // KANARIFUGL FOR EN TALLENDRING I STILLHET. 1695 står i 0082 som
-    // «timene St1 trekker fra for butikksjefens fastlønn». Endres den
-    // her uten at noen sjekker migrasjonen, blir forslaget i skjemaet
-    // et annet tall enn det basen er dokumentert med.
+  test('årsverket er det samme i SQL som i TypeScript', () => {
+    const sql = readFileSync(nyesteViewfil(), 'utf8')
+    const markert = sql.match(/arsverk_timer\s*:=\s*(\d+)/)
+
+    // KANARIFUGL. Uten markøren finner uttrekket ingenting, og
+    // sammenligningen under blir trivielt grønn — da måler testen at
+    // ingenting er likt ingenting.
+    expect(markert, 'fant ingen `arsverk_timer := <tall>` i migrasjonen')
+      .not.toBeNull()
+    expect(Number(markert![1]), 'markøren i migrasjonen').toBe(ARSVERK_TIMER)
+
+    // Og tallet må faktisk brukes i regnestykket, ikke bare stå i en
+    // kommentar. Markøren er dokumentasjon; dette er koden.
+    const brukt = sql.match(
+      new RegExp(`nullif\\(a\\.fast_arsverk_timer,\\s*0\\),\\s*${ARSVERK_TIMER}\\)`, 'g'),
+    )
+    expect(brukt?.length, `${ARSVERK_TIMER} skal brukes som reserve i viewet`)
+      .toBeGreaterThanOrEqual(2)
+  })
+
+  test('1695 er tallet St1 faktisk trekker fra', () => {
+    // En speiltest beviser at to lister er LIKE, aldri at de er
+    // RIKTIGE. Dette er ankeret: 0082 dokumenterer 1695 som ett årsverk.
     expect(ARSVERK_TIMER).toBe(1695)
+    const oppsett = readFileSync(
+      join(KATALOG, '0082_bemanning_budsjett_v2.sql'), 'utf8',
+    )
+    expect(oppsett, '0082 skal fortsatt dokumentere 1695 som ett aarsverk')
+      .toContain('1695')
   })
 
-  test('forslaget beholder desimalen', () => {
-    // 141 og 141,25 er ikke samme tall når det ganges med tolv. Og et
-    // avrundet forslag inviterer til et avrundet valg — halve måneder
-    // er hele grunnen til at feltet finnes.
-    expect(forslagHelManed(ARSVERK_TIMER)).toBe(141.25)
+  test('timene per måned beholder desimalen', () => {
+    // 1695/12 = 141,25. Runder vi til 141, taper stasjonen tre timer i
+    // året på en avrunding ingen har bestemt.
+    expect(timerPerManed(ARSVERK_TIMER)).toBe(141.25)
     expect(timetall(141.25)).toBe('141,25')
-    expect(timetall(70.5)).toBe('70,5')
-  })
-
-  test('setningen sier BEGGE deler, også når de er uenige', () => {
-    // DEN VIKTIGSTE AV DISSE, og den er Bjørn på Laguneparken:
-    // fastlønnet leder i permisjon, men ingen timelønnet dekket ham.
-    // «Ingen fastlønnet butikksjef» ALENE ville lest som en tildeling.
-    expect(forklarDekning('ikke_fastlonnet', null))
-      .toBe('Ingen fastlønnet butikksjef. Ingen timer lagt tilbake.')
-    expect(forklarDekning('ikke_fastlonnet', 141.25))
-      .toBe('Ingen fastlønnet butikksjef. Rammen er økt med 141,25 timer.')
-
-    // Og motsatt: leder på plass, men eieren ga likevel timer — også
-    // gyldig, f.eks. når hun var sykmeldt halve måneden.
-    expect(forklarDekning('fastlonnet', 70.5))
-      .toBe('Fastlønnet butikksjef på plass. Rammen er økt med 70,5 timer.')
-    expect(forklarDekning('ukjent', null))
-      .toMatch(/Ikke tatt stilling/)
-  })
-
-  test('0 og tomt er det samme, og begge er null', () => {
-    // Databasen forbyr 0 ved skranke. «Ingenting» skal ha én
-    // representasjon, ellers bommer `is null` på halvparten.
-    expect(normaliserTimer('')).toBeNull()
-    expect(normaliserTimer('0')).toBeNull()
-    expect(normaliserTimer('0,0')).toBeNull()
-    expect(normaliserTimer('-5')).toBeNull()
-    expect(normaliserTimer('tull')).toBeNull()
-  })
-
-  test('komma og punktum leses likt, og tastefeil avvises', () => {
-    expect(normaliserTimer('141,25')).toBe(141.25)
-    expect(normaliserTimer('141.25')).toBe(141.25)
-    expect(normaliserTimer('70,5')).toBe(70.5)
-    // Et årsverk er 1695. Skriver noen det i ett månedsfelt, er det en
-    // tastefeil — og den ville doblet rammen.
-    expect(normaliserTimer('1695'), 'hele årsverket i én måned').toBeNull()
-    expect(normaliserTimer('300')).toBe(300)
-    expect(normaliserTimer('301')).toBeNull()
-  })
-
-  test('de fire tilfellene leses ulikt', () => {
-    // Situasjonene Robert beskrev, i den rekkefølgen de forekommer.
-    // Setningen må skille dem — det er den som står under hver måned
-    // og forklarer hva raden faktisk gjør.
-    const full = forklarDekning('ikke_fastlonnet', 141.25)
-    const halv = forklarDekning('ikke_fastlonnet', 70.5)
-    const permisjon = forklarDekning('ikke_fastlonnet', null)
-    const ingenting = forklarDekning('ukjent', null)
-
-    expect(full).toContain('141,25 timer')
-    expect(halv).toContain('70,5 timer')
-
-    // PERMISJON UTEN TILBAKEFOERING er Bjørn på Laguneparken, og det
-    // tilfellet den gamle automatikken tok feil på: faktumet står,
-    // ingenting gis. Sier setningen bare det første, leses den som en
-    // tildeling.
-    expect(permisjon).toContain('Ingen fastlønnet butikksjef')
-    expect(permisjon).toContain('Ingen timer lagt tilbake')
-    expect(permisjon).not.toMatch(/økt med/)
-
-    // Alle fire skal kunne skilles fra hverandre av en leser.
-    expect(new Set([full, halv, permisjon, ingenting]).size).toBe(4)
-  })
-
-  test('uavklarte måneder telles, også når ingen er fylt ut', () => {
-    expect(uavklarte([], 12), 'ingenting utfylt').toBe(12)
-    expect(uavklarte([{ fastlonnet: true }, { fastlonnet: false }], 12)).toBe(10)
-    expect(uavklarte([{ fastlonnet: null }, { fastlonnet: true }], 12)).toBe(11)
-    expect(uavklarte(Array(12).fill({ fastlonnet: true }), 12)).toBe(0)
-  })
-
-  test('tolv måneder, i rekkefølge', () => {
-    expect(MANEDER).toHaveLength(12)
-    expect(MANEDER[0]).toBe('Januar')
-    expect(MANEDER[11]).toBe('Desember')
+    expect(timerPerManed(1200)).toBe(100)
   })
 })

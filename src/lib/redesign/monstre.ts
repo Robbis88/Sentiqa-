@@ -220,7 +220,6 @@ export const RUTEMONSTER: Record<string, Monster> = {
 
   // --- Innstillinger ---
   '/timeregnskap': 'analyse',
-  '/timeregnskap/oppsett': 'innstillinger',
   '/ikmat/oppsett': 'innstillinger',
   '/rutiner/oppsett': 'innstillinger',
   '/persondata': 'innstillinger',

@@ -262,7 +262,6 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       { sti: '/stasjoner', tekst: 'Stasjoner', roller: [A] },
       { sti: '/brukere', tekst: 'Brukere', roller: [A] },
       { sti: '/import', tekst: 'Import', roller: [A] },
-      { sti: '/timeregnskap/oppsett', tekst: 'Lederdekning', roller: [A] },
       { sti: '/persondata', tekst: 'Persondata', roller: [A, B] },
       { sti: '/nyheter', tekst: 'Nyheter', roller: [A, B, T] },
       { sti: '/anvisninger', tekst: 'Anvisninger', roller: [A, B] },

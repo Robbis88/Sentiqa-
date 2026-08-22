@@ -119,8 +119,9 @@ export default async function TimeregnskapSide() {
       brukt,
       over: brukt - opptjent,
       justering: sum((r) => r.ramme_justering_timer),
+      // «ukjent» = stasjonen har ingen faste vakter registrert, saa
+      // lederdekningen kan ikke vurderes.
       uavklart: mine.filter((r) => r.lederdekning === 'ukjent').length,
-      utenArsverk: mine.some((r) => (r.arsverk_timer ?? 0) === 0),
       anslag: mine.filter((r) => r.grunnlag === 'anslag').length,
     }
   }).filter((p) => p.maaneder > 0)
@@ -143,13 +144,14 @@ export default async function TimeregnskapSide() {
       />
 
       {uavklarte > 0 && (
-        // EN HALVFERDIG KONFIGURASJON SER UT SOM EN FERDIG. Derfor står
-        // dette over tallene, ikke under: leses de uten dette, leses de
-        // som sikrere enn de er.
+        // EN STASJON UTEN FASTE VAKTER KAN IKKE VURDERES. Da vet vi ikke
+        // om St1s fratrekk for en fastlønnet butikksjef holder, og
+        // rammen står urørt. Dette står OVER tallene, ikke under: leses
+        // de uten dette, leses de som sikrere enn de er.
         <p className="undertittel sq-finstilt">
-          {uavklarte} måneder mangler svar på om det var fastlønnet butikksjef.
-          Rammen er ikke justert for dem.{' '}
-          <a href="/timeregnskap/oppsett">Sett lederdekning</a>
+          {uavklarte} måneder er ikke vurdert, fordi stasjonen ikke har faste
+          vakter registrert. Rammen er ikke justert for dem.{' '}
+          <a href="/bemanning">Til bemanning</a>
         </p>
       )}
 
@@ -192,20 +194,14 @@ export default async function TimeregnskapSide() {
               </p>
             )}
 
-            {p.justering > 0 && (
-              <p className="tr-note">
-                Rammen er økt med {t0(p.justering)} timer fordi det ikke var
-                fastlønnet butikksjef hele perioden.
-              </p>
-            )}
 
-            {p.utenArsverk && p.uavklart < p.maaneder && (
-              // Haket av, men årsverket er 0 -> justeringen ble null.
-              // Dette er nøyaktig den innstillingen som feiler stille.
-              <p className="tr-note tr-mangler">
-                Årsverket er ikke satt for denne stasjonen, så måneder uten
-                fastlønnet leder gir ingen justering.{' '}
-                <a href="/timeregnskap/oppsett">Sett det</a>
+            {p.justering > 0 && (
+              // Hvorfor rammen er større enn St1 ga. Uten denne linja er
+              // tallet over uetterprøvbart.
+              <p className="tr-note">
+                Rammen er økt med {t0(p.justering)} timer: stasjonen har ingen
+                fastlønnet fast vakt, så St1s fratrekk for en fastlønnet
+                butikksjef dekker ikke arbeidet.
               </p>
             )}
           </article>
