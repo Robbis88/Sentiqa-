@@ -5,6 +5,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 const Ny = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),
@@ -49,14 +50,18 @@ export async function leggTilOppgave(
   return { ok: true }
 }
 
-export async function slettOppgave(formData: FormData) {
+export async function slettOppgave(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('oppgaver').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette oppgaver')
-  revalidatePath('/oppgaver')
+  return kvitter(supabase.from('oppgaver').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette oppgave',
+    ok: 'Oppgave slettet',
+    oppfrisk: ['/oppgaver'],
+  })
 }
 
 // Tablet: ansatte kvitterer «utført» på en vis_paa_tablet-melding (RPC m/ RLS-sjekk).

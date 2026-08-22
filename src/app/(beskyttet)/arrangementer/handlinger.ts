@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 // Kun eier (retailer_admin) styrer arrangementer/kalender-kilder.
 async function kreverAdmin() {
@@ -68,11 +69,15 @@ export async function leggTilKalenderKilde(formData: FormData): Promise<void> {
   revalidatePath('/arrangementer')
 }
 
-export async function slettKalenderKilde(formData: FormData): Promise<void> {
-  if (!(await kreverAdmin())) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+export async function slettKalenderKilde(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  if (!(await kreverAdmin())) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('kalender_kilder').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette kalender kilder')
-  revalidatePath('/arrangementer')
+  return kvitter(supabase.from('kalender_kilder').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette kalenderkilde',
+    ok: 'Kalenderkilde slettet',
+    oppfrisk: ['/arrangementer'],
+  })
 }

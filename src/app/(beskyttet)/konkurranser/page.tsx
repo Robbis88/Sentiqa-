@@ -7,6 +7,7 @@ import { kaarVinner, markerUtbetalt, slettKonkurranse } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Status } from '@/components/ui/status'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Konk = {
   id: string
@@ -112,10 +113,7 @@ export default async function KonkurranserSide() {
                       <button type="submit" className="liten">Marker premie utbetalt</button>
                     </form>
                   )}
-                  <form action={slettKonkurranse}>
-                    <input type="hidden" name="id" value={k.id} />
-                    <button type="submit" className="liten slett">Slett</button>
-                  </form>
+                  <SlettKnapp hva={k.navn} handling={slettKonkurranse} id={k.id} merke="Slett" />
                 </div>
               )}
             </section>

@@ -32,7 +32,7 @@ export async function slettBruk(
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
   const id = String(formData.get('id') ?? '')
-  if (!id) return { feil: 'Ikke tilgang.' }
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
   // Feilen skal vaere synlig: «slettet» og «gikk ikke» ser
   // ellers helt like ut.
@@ -80,7 +80,7 @@ export async function slettTildeling(
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') return { feil: 'Ikke tilgang.' }
   const id = String(formData.get('id') ?? '')
-  if (!id) return { feil: 'Ikke tilgang.' }
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
   // Feilen skal vaere synlig: «slettet» og «gikk ikke» ser
   // ellers helt like ut.

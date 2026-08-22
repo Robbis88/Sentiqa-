@@ -8,6 +8,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Status } from '@/components/ui/status'
 import { NyRundeSkjema, type PulsSporsmal } from './ny-skjema'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: string; status: string; puls_sporsmal: { tekst: string; kategori: string } | null }
 
@@ -106,7 +107,7 @@ export default async function PulsSide() {
                     {r.status === 'aktiv' && (
                       <form action={avsluttRunde}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten">Avslutt</button></form>
                     )}
-                    <form action={slettRunde}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten slett">Slett</button></form>
+                    <SlettKnapp hva={r.start_dato} handling={slettRunde} id={r.id} merke="Slett" />
                   </span>
                 </div>
               </li>

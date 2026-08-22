@@ -42,6 +42,20 @@
 const SKRIVER = /\.(insert|update|upsert|delete)\s*\(/
 
 /**
+ * Navnene klienten gaar under.
+ *
+ * `admin` VAR EN BLINDSONE. Regexen krevde `supabase|klient|db`, og
+ * `lagSupabaseAdminKlient()` tilordnes `admin` - saa `await
+ * admin.from(...).update(...)` ble aldri talt. To slettehandlinger i
+ * plattform-konsollen sto usett gjennom hele opprydningen, og skrallen
+ * viste null mens de var der.
+ *
+ * En vakt som ikke ser, ser noeyaktig ut som en vakt som ikke finner
+ * noe. Testen under har en kanarifugl for nettopp dette navnet.
+ */
+const KLIENT = /supabase|klient|admin|\bdb\b/i
+
+/**
  * Fjerner kommentarer, så et eksempel i en kommentar ikke telles.
  *
  * Samme grep som `design.ts` bruker, og av samme grunn: en vakt som
@@ -79,7 +93,7 @@ export function kastedeSkriv(kilde: string): number[] {
       if (/^\s*(await|const|let|return|if|}|\/)/.test(linjer[j])) break
       bit += '\n' + linjer[j]
     }
-    if (SKRIVER.test(bit) && /supabase|klient|db\b/i.test(bit)) funn.push(i + 1)
+    if (SKRIVER.test(bit) && KLIENT.test(bit)) funn.push(i + 1)
   })
 
   return funn

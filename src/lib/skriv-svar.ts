@@ -92,3 +92,24 @@ export function alleMaaLykkes<T extends Skrivesvar>(svar: T[], hva: string): T[]
   for (const s of svar) maaLykkes(s, hva)
   return svar
 }
+
+/**
+ * Skrivet som har lov til å feile, fordi noen allerede har fått beskjed.
+ *
+ * DEN ENESTE LOVLIGE UNNTAKET fra kontrakten, og det finnes bare ett
+ * sted: tilbakerulling på en feilvei. Klarte vi ikke å invitere
+ * admin-brukeren, slettes kjeden vi nettopp opprettet — og så får
+ * brukeren en tekst som sier hva som gikk galt. Kaster ryddingen der,
+ * bytter vi en presis feilmelding mot en stakksporing, og brukeren blir
+ * dårligere stilt enn før.
+ *
+ * NAVNET ER POENGET. Et skriv som med vilje ikke sjekkes ser ellers
+ * nøyaktig ut som et som ble glemt, og skrivevakten kan ikke se
+ * forskjell. Denne er greppbar, og `hvorfor` tvinger fram en begrunnelse
+ * som står i koden i stedet for i hodet på den som skrev den.
+ */
+export function taalerAaFeile(svar: Skrivesvar, hvorfor: string): void {
+  if (svar.error) {
+    console.error(`[rydding feilet, tålt] ${hvorfor}: ${svar.error.message}`)
+  }
+}

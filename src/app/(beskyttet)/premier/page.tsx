@@ -161,7 +161,7 @@ export default async function PremierSide() {
                         {t.utbetalt ? 'Marker som ikke utbetalt' : 'Marker utbetalt'}
                       </Knapp>
                     </form>
-                    <SlettKnapp handling={slettTildeling} id={t.id} bekreftelse="Tildelingen slettet" />
+                    <SlettKnapp hva={`${navnFor.get(t.stasjon_id) ?? 'tildelingen'}`} handling={slettTildeling} id={t.id} bekreftelse="Tildelingen slettet" />
                   </>
                 ) : undefined}
               />
@@ -181,7 +181,7 @@ export default async function PremierSide() {
                 sekundaer={`${navnFor.get(b.stasjon_id) ?? '—'} · ${datoLang.format(new Date(b.dato))}`}
                 metadata={kr.format(Number(b.belop_kr))}
                 handlinger={(
-                  <SlettKnapp handling={slettBruk} id={b.id} bekreftelse="Bruken slettet" />
+                  <SlettKnapp hva={b.beskrivelse} handling={slettBruk} id={b.id} bekreftelse="Bruken slettet" />
                 )}
               />
             ))}

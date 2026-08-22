@@ -8,6 +8,7 @@ import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { STANDARD_KONTROLLPUNKTER, kravTekst } from '@/lib/ikmat/standard'
 import { alleMaaLykkes, maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 // Tablet/ansatt logger en temperatur. Utenfor kravet → avvik + varsel (§16.5).
 export async function registrerAvlesning(formData: FormData) {
@@ -137,15 +138,18 @@ export async function settOppStandard(formData: FormData) {
   revalidatePath('/ikmat/oppsett')
 }
 
-export async function slettKontrollpunkt(formData: FormData) {
+export async function slettKontrollpunkt(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('ik_kontrollpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette ik kontrollpunkter')
-  revalidatePath('/ikmat')
-  revalidatePath('/ikmat/oppsett')
+  return kvitter(supabase.from('ik_kontrollpunkter').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette kontrollpunkt',
+    ok: 'Kontrollpunkt slettet',
+    oppfrisk: ['/ikmat', '/ikmat/oppsett'],
+  })
 }
 
 function tilTall(formData: FormData, felt: string): number | null {

@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { finnNaermesteTeller } from '@/lib/trafikk'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 async function erEier(): Promise<boolean> {
   const bruker = await hentInnloggetBruker()
@@ -19,11 +20,11 @@ export async function finnTeller(formData: FormData): Promise<void> {
   const { data: st } = await admin.from('stasjoner').select('breddegrad, lengdegrad').eq('id', id).maybeSingle()
   if (!st?.breddegrad || !st?.lengdegrad) return
   const teller = await finnNaermesteTeller(st.breddegrad, st.lengdegrad)
-  await admin.from('stasjoner').update({
+  maaLykkes(await admin.from('stasjoner').update({
     trafikk_punkt_id: teller?.id ?? null,
     trafikk_punkt_navn: teller ? `${teller.navn} · ${teller.snittVolum} biler/døgn · ${teller.avstandKm} km` : null,
     trafikk_punkt_vei: teller?.vei ?? null,
-  }).eq('id', id)
+  }).eq('id', id), 'koble stasjonen til et tellepunkt')
   revalidatePath('/trafikk')
 }
 
@@ -35,6 +36,6 @@ export async function settTrafikkAktiv(formData: FormData): Promise<void> {
   if (!id) return
   let admin
   try { admin = lagSupabaseAdminKlient() } catch { return }
-  await admin.from('stasjoner').update({ trafikk_aktiv: aktiv }).eq('id', id)
+  maaLykkes(await admin.from('stasjoner').update({ trafikk_aktiv: aktiv }).eq('id', id), 'skru maalingen av eller paa')
   revalidatePath('/trafikk')
 }

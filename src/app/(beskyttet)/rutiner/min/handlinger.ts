@@ -5,6 +5,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 export async function leggTilPunkt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
@@ -49,12 +50,16 @@ export async function veksle(formData: FormData) {
   revalidatePath('/rutiner/min')
 }
 
-export async function slettPunkt(formData: FormData) {
+export async function slettPunkt(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('personlig_punkt').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette personlig punkt')
-  revalidatePath('/rutiner/min')
+  return kvitter(supabase.from('personlig_punkt').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette punkt',
+    ok: 'Punkt slettet',
+    oppfrisk: ['/rutiner/min'],
+  })
 }

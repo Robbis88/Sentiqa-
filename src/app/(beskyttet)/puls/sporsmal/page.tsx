@@ -7,6 +7,7 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Sporsmal = { id: string; kategori: string; tekst: string; aktiv: boolean }
 
@@ -70,10 +71,7 @@ export default async function SporsmalSide() {
                       {sp.aktiv ? 'Ta ut av bruk' : 'Ta i bruk'}
                     </Knapp>
                   </form>
-                  <form action={slettSporsmal}>
-                    <input type="hidden" name="id" value={sp.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp hva={sp.tekst} handling={slettSporsmal} id={sp.id} merke="Slett" />
                 </>
               )}
             />

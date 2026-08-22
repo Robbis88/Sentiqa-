@@ -9,6 +9,7 @@ import {
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Oppgave = { id: string; kategori: string; tittel: string; beskrivelse: string | null; estimert_min: number | null }
 type Periode = { id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; forventet_slutt: string | null; fullfort_tid: string | null }
@@ -137,7 +138,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                         <Status nivaa={pst === 100 ? 'normal' : 'endring'}>
                           {antall}/{totalOppgaver}
                         </Status>
-                        <form action={slettPeriode}><input type="hidden" name="id" value={p.id} /><button type="submit" className="liten slett" aria-label="Fjern">✕</button></form>
+                        <SlettKnapp hva={p.ansatt_navn} handling={slettPeriode} id={p.id} merke="Fjern" />
                       </span>
                     </li>
                   )
@@ -199,7 +200,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                     {skift.map((s) => (
                       <li key={s.id}>
                         <span><strong>{datoLang.format(new Date(s.dato))}</strong>{s.notater ? <span className="undertittel"> · {s.notater}</span> : null}</span>
-                        <form action={slettSkift}><input type="hidden" name="id" value={s.id} /><button type="submit" className="liten slett" aria-label="Fjern">✕</button></form>
+                        <SlettKnapp hva={s.dato} handling={slettSkift} id={s.id} merke="Fjern" />
                       </li>
                     ))}
                   </ul>
@@ -225,7 +226,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                           <input name="tittel" defaultValue={o.tittel} aria-label="Tittel" />
                           <button type="submit" className="liten">Lagre</button>
                         </form>
-                        <form action={slettOppgave}><input type="hidden" name="id" value={o.id} /><button type="submit" className="liten slett">Slett</button></form>
+                        <SlettKnapp hva={o.tittel} handling={slettOppgave} id={o.id} merke="Slett" />
                       </details>
                     </li>
                   ))}

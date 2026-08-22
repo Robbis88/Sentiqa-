@@ -5,6 +5,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { sokVarer, type VareTreff } from '@/lib/varehierarki'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 const ScopeRad = z.object({
   nivaa: z.enum(['avdeling', 'vareomrade', 'varegruppe', 'ean']),
@@ -97,14 +98,18 @@ export async function opprettMalekort(
   return { ok: true }
 }
 
-export async function slettMalekort(formData: FormData): Promise<void> {
+export async function slettMalekort(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (bruker.rolle !== 'retailer_admin') return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('malekort').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette malekort')
-  revalidatePath('/maaling')
+  return kvitter(supabase.from('malekort').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette malekort',
+    ok: 'Malekort slettet',
+    oppfrisk: ['/maaling'],
+  })
 }
 
 // Brukes av scope-velgeren (klient) til å søke opp individuelle varer (EAN).

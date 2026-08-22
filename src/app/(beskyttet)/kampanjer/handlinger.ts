@@ -2,6 +2,8 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 async function erEier(): Promise<boolean> {
   const bruker = await hentInnloggetBruker()
@@ -21,16 +23,26 @@ export async function opprettKampanje(formData: FormData): Promise<void> {
   const eaner = eanerRaw.length > 0 ? eanerRaw : null
   let admin
   try { admin = lagSupabaseAdminKlient() } catch { return }
-  await admin.from('kampanjer').insert({ retailer_id, navn, fra_dato, til_dato, eaner, opprettet_av: bruker.id })
+  maaLykkes(await admin.from('kampanjer').insert({ retailer_id, navn, fra_dato, til_dato, eaner, opprettet_av: bruker.id }), 'opprette kampanjen')
   revalidatePath('/kampanjer')
 }
 
-export async function slettKampanje(formData: FormData): Promise<void> {
-  if (!(await erEier())) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+export async function slettKampanje(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  if (!(await erEier())) return { feil: 'Bare eier kan slette kampanjer.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   let admin
-  try { admin = lagSupabaseAdminKlient() } catch { return }
-  await admin.from('kampanjer').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
-  revalidatePath('/kampanjer')
+  // `try { ... } catch { return }` ga noeyaktig samme bilde som et
+  // vellykket klikk. Mangler tjenestenoekkelen i miljoeet, skjedde det
+  // ingenting - og ingenting sa fra.
+  try { admin = lagSupabaseAdminKlient() } catch {
+    return { feil: 'Tjenestenøkkelen mangler i miljøet.' }
+  }
+  return kvitter(
+    admin.from('kampanjer')
+      .update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id),
+    { hva: 'slette kampanjen', ok: 'Kampanje slettet', oppfrisk: ['/kampanjer'] },
+  )
 }

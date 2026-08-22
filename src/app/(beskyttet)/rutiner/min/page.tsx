@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { leggTilPunkt, veksle, slettPunkt } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Punkt = { id: string; tittel: string; gjentakende: boolean; fullfort_tid: string | null }
 
@@ -76,10 +77,7 @@ export default async function MinSjekkliste() {
                     <strong>{p.tittel}</strong>
                     <span className="undertittel"> · {p.gjentakende ? 'daglig' : 'engangs'}</span>
                   </div>
-                  <form action={slettPunkt}>
-                    <input type="hidden" name="id" value={p.id} />
-                    <button type="submit" className="liten slett" aria-label="Slett">✕</button>
-                  </form>
+                  <SlettKnapp hva={p.tittel} handling={slettPunkt} id={p.id} merke="Slett" />
                 </li>
               )
             })}

@@ -5,6 +5,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { formulerNyhetstekst } from '@/lib/ai/nyhet'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 const Nytt = z.object({
   tittel: z.string().min(1, { error: 'Skriv en tittel.' }),
@@ -64,12 +65,16 @@ export async function settPublisert(formData: FormData) {
   revalidatePath('/redaktor')
 }
 
-export async function slettInnlegg(formData: FormData) {
+export async function slettInnlegg(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'plattform_redaktor') return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (bruker.rolle !== 'plattform_redaktor') return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('plattform_innlegg').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette plattform innlegg')
-  revalidatePath('/redaktor')
+  return kvitter(supabase.from('plattform_innlegg').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette innlegg',
+    ok: 'Innlegg slettet',
+    oppfrisk: ['/redaktor'],
+  })
 }

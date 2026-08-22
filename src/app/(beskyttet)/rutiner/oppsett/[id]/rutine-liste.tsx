@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState, useTransition } from 'react'
 import { oppdaterRutine, slettRutine, lagreRekkefolge } from '../handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Rutine = { id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
 
@@ -71,7 +72,7 @@ export function RutineListe({ skjemaId, rutiner }: { skjemaId: string; rutiner: 
               <Ukedager valgt={r.ukedager} />
               <div className="rutine-kort-knapper"><button type="submit" className="liten">Lagre</button></div>
             </form>
-            <form action={slettRutine} className="rutine-kort-slett"><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten slett">Slett rutine</button></form>
+            <SlettKnapp hva={r.tittel} handling={slettRutine} id={r.id} merke="Slett rutine" />
           </div>
         </li>
       ))}

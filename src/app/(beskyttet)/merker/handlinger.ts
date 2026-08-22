@@ -6,6 +6,7 @@ import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { STANDARD_MERKER } from '@/lib/merker/standard'
 import { maaLykkes } from '@/lib/skriv-svar'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
 
 export async function settOppStandard() {
   const bruker = await hentInnloggetBruker()
@@ -41,14 +42,18 @@ export async function leggTilMerke(formData: FormData) {
   revalidatePath('/merker')
 }
 
-export async function slettMerke(formData: FormData) {
+export async function slettMerke(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('merker').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette merker')
-  revalidatePath('/merker')
+  return kvitter(supabase.from('merker').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
+    hva: 'slette merke',
+    ok: 'Merke slettet',
+    oppfrisk: ['/merker'],
+  })
 }
 
 export async function tildelMerke(formData: FormData) {
@@ -67,12 +72,16 @@ export async function tildelMerke(formData: FormData) {
   revalidatePath('/merker')
 }
 
-export async function fjernTildeling(formData: FormData) {
+export async function fjernTildeling(_t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('tildelte_merker').delete().eq('id', id), 'slette tildelte merker')
-  revalidatePath('/merker')
+  return kvitter(supabase.from('tildelte_merker').delete({ count: 'exact' }).eq('id', id), {
+    hva: 'fjerne tildeling',
+    ok: 'Tildeling fjernet',
+    oppfrisk: ['/merker'],
+  })
 }

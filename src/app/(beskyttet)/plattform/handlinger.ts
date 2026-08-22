@@ -5,6 +5,8 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { kvitter, type Kvittering } from '@/lib/kvittering'
+import { taalerAaFeile } from '@/lib/skriv-svar'
 
 async function erEier(): Promise<boolean> {
   const bruker = await hentInnloggetBruker()
@@ -60,7 +62,8 @@ export async function opprettKunde(_t: KundeTilstand, formData: FormData): Promi
   const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
   const { data: inv, error: ie } = await admin.auth.admin.inviteUserByEmail(epost, { redirectTo: `${origin}/auth/bekreft` })
   if (ie || !inv?.user) {
-    await admin.from('retailers').delete().eq('id', retailer.id)
+    taalerAaFeile(await admin.from('retailers').delete().eq('id', retailer.id),
+      'rydder bort kjeden vi nettopp opprettet')
     return { feil: /already|registered|exist/i.test(ie?.message ?? '') ? 'E-posten er allerede i bruk.' : 'Kunne ikke sende invitasjon (er SMTP koblet i Supabase?).' }
   }
 
@@ -68,8 +71,10 @@ export async function opprettKunde(_t: KundeTilstand, formData: FormData): Promi
   const { error: pe } = await admin.from('profiler')
     .insert({ id: inv.user.id, retailer_id: retailer.id, rolle: 'retailer_admin', fullt_navn })
   if (pe) {
-    await admin.auth.admin.deleteUser(inv.user.id)
-    await admin.from('retailers').delete().eq('id', retailer.id)
+    taalerAaFeile(await admin.auth.admin.deleteUser(inv.user.id),
+      'rydder bort den inviterte brukeren')
+    taalerAaFeile(await admin.from('retailers').delete().eq('id', retailer.id),
+      'rydder bort kjeden vi nettopp opprettet')
     return { feil: 'Kunne ikke fullføre opprettelsen.' }
   }
 
@@ -79,58 +84,129 @@ export async function opprettKunde(_t: KundeTilstand, formData: FormData): Promi
 
 // Send påloggingslenke på nytt (kunden fikk aldri / mistet invitasjonen).
 // Bruker recovery-e-post → samme /auth/bekreft → /sett-passord-flyt.
-export async function sendInvitasjonPaaNytt(formData: FormData): Promise<void> {
-  if (!(await erEier())) return
-  const epost = String(formData.get('epost') ?? '').trim()
-  if (!epost) return
+export async function sendInvitasjonPaaNytt(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  if (!(await erEier())) return { feil: 'Bare eier kan gjøre dette.' }
+  const epost = String(fd.get('epost') ?? '').trim()
+  if (!epost) return { feil: 'Mangler e-postadresse.' }
   const h = await headers()
   const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
+
+  // SMTP ER DEN VANLIGE AARSAKEN, og den er usynlig herfra. Uten svar
+  // sto eieren og ventet paa en e-post som aldri ble sendt.
   const supabase = await lagSupabaseServerKlient()
-  await supabase.auth.resetPasswordForEmail(epost, { redirectTo: `${origin}/auth/bekreft` })
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    epost, { redirectTo: `${origin}/auth/bekreft` },
+  )
+  if (error) return { feil: `Kunne ikke sende: ${error.message}` }
+
   revalidatePath('/plattform')
+  return { ok: `Lenke sendt til ${epost}` }
+}
+
+// HELE PLATTFORM-KONSOLLEN SVARER. Fire handlinger som endrer en hel
+// kjedes tilgang sto stille: `try { admin = ... } catch { return }` ga
+// nøyaktig samme bilde som et vellykket klikk. Er tjenestenøkkelen ikke
+// satt i miljøet — som den ikke er lokalt — skjedde det ingenting, og
+// ingenting sa fra.
+async function eierOgAdmin(): Promise<
+  { admin: ReturnType<typeof lagSupabaseAdminKlient> } | { feil: string }
+> {
+  if (!(await erEier())) return { feil: 'Bare eier kan gjøre dette.' }
+  try {
+    return { admin: lagSupabaseAdminKlient() }
+  } catch {
+    return { feil: 'Tjenestenøkkelen mangler i miljøet.' }
+  }
+}
+
+/** Sperrer eller åpner innlogging for alle brukerne i kjeden. */
+async function settSperre(
+  admin: ReturnType<typeof lagSupabaseAdminKlient>, id: string, sperr: boolean,
+): Promise<string | null> {
+  const { data: profiler, error } = await admin.from('profiler').select('id').eq('retailer_id', id)
+  if (error) return `Fant ikke brukerne: ${error.message}`
+  for (const p of (profiler ?? []) as { id: string }[]) {
+    // ~100 aar = sperret.
+    const { error: ue } = await admin.auth.admin.updateUserById(
+      p.id, { ban_duration: sperr ? '876000h' : 'none' },
+    )
+    // ÉN BRUKER SOM IKKE LOT SEG SPERRE ER HELE POENGET MED HANDLINGEN.
+    // Fortsetter vi i stillhet, staar kjeden som deaktivert mens noen
+    // fortsatt kommer inn.
+    if (ue) return `Klarte ikke sperre alle brukerne: ${ue.message}`
+  }
+  return null
 }
 
 // Deaktiver (mykt, reversibelt): sperr innlogging for kjedens brukere + skjul kjeden.
-export async function deaktiverKunde(formData: FormData): Promise<void> {
-  if (!(await erEier())) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
-  let admin
-  try { admin = lagSupabaseAdminKlient() } catch { return }
-  const { data: profiler } = await admin.from('profiler').select('id').eq('retailer_id', id)
-  for (const p of (profiler ?? []) as { id: string }[]) {
-    await admin.auth.admin.updateUserById(p.id, { ban_duration: '876000h' }) // ~100 år = sperret
-  }
-  await admin.from('retailers').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
-  revalidatePath('/plattform')
+export async function deaktiverKunde(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  const k = await eierOgAdmin()
+  if ('feil' in k) return k
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
+
+  const sperrefeil = await settSperre(k.admin, id, true)
+  if (sperrefeil) return { feil: sperrefeil }
+
+  return kvitter(
+    k.admin.from('retailers')
+      .update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id),
+    { hva: 'deaktivere kjeden', ok: 'Kjeden er deaktivert', oppfrisk: ['/plattform'] },
+  )
 }
 
 // Reaktiver: opphev sperringen + vis kjeden igjen.
-export async function reaktiverKunde(formData: FormData): Promise<void> {
-  if (!(await erEier())) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
-  let admin
-  try { admin = lagSupabaseAdminKlient() } catch { return }
-  const { data: profiler } = await admin.from('profiler').select('id').eq('retailer_id', id)
-  for (const p of (profiler ?? []) as { id: string }[]) {
-    await admin.auth.admin.updateUserById(p.id, { ban_duration: 'none' })
-  }
-  await admin.from('retailers').update({ slettet_tid: null }).eq('id', id)
-  revalidatePath('/plattform')
+export async function reaktiverKunde(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  const k = await eierOgAdmin()
+  if ('feil' in k) return k
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
+
+  const sperrefeil = await settSperre(k.admin, id, false)
+  if (sperrefeil) return { feil: sperrefeil }
+
+  return kvitter(
+    k.admin.from('retailers').update({ slettet_tid: null }, { count: 'exact' }).eq('id', id),
+    { hva: 'reaktivere kjeden', ok: 'Kjeden er tilbake', oppfrisk: ['/plattform'] },
+  )
 }
 
 // Slett permanent (GDPR): all data + auth-brukere for godt. Uopprettelig.
-export async function slettKundePermanent(formData: FormData): Promise<void> {
-  if (!(await erEier())) return
-  const id = String(formData.get('id') ?? '')
-  if (!id) return
-  let admin
-  try { admin = lagSupabaseAdminKlient() } catch { return }
-  const { data: profiler } = await admin.from('profiler').select('id').eq('retailer_id', id)
+export async function slettKundePermanent(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  const k = await eierOgAdmin()
+  if ('feil' in k) return k
+  const id = String(fd.get('id') ?? '')
+  if (!id) return { feil: 'Mangler id.' }
+
+  const { data: profiler, error: pe } = await k.admin.from('profiler').select('id').eq('retailer_id', id)
+  if (pe) return { feil: `Fant ikke brukerne: ${pe.message}` }
   const brukerIder = (profiler ?? []).map((p: { id: string }) => p.id)
-  const { error } = await admin.rpc('slett_retailer_permanent', { p_retailer: id })
-  if (error) return
-  for (const uid of brukerIder) await admin.auth.admin.deleteUser(uid)
+
+  const { error } = await k.admin.rpc('slett_retailer_permanent', { p_retailer: id })
+  if (error) return { feil: `Kunne ikke slette kjeden: ${error.message}` }
+
+  // DATAENE ER BORTE ALLEREDE. Feiler en auth-bruker her, er kjeden
+  // likevel slettet - da er det riktige aa si hvor mange som ble igjen,
+  // ikke aa kaste og late som ingenting skjedde.
+  const etterlatte: string[] = []
+  for (const uid of brukerIder) {
+    const { error: de } = await k.admin.auth.admin.deleteUser(uid)
+    if (de) etterlatte.push(uid)
+  }
+
   revalidatePath('/plattform')
+  return etterlatte.length
+    ? {
+      feil: `Kjeden og dataene er slettet, men ${etterlatte.length} `
+        + 'innlogging(er) ble stående igjen. Fjern dem i Supabase.',
+    }
+    : { ok: 'Kjeden og alle data er slettet' }
 }

@@ -470,6 +470,7 @@
       "Nytt arrangement"
     ],
     "/bemanning": [
+      "${f.navn} står med begge lønnsformer",
       "Bærer kontraktene planen?",
       "Faste vakter",
       "Ferie eller fravær",

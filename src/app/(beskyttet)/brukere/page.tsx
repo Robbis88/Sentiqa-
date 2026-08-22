@@ -4,10 +4,10 @@ import { ROLLE_ETIKETT } from '@/lib/auth/typer'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
-import { Knapp } from '@/components/ui/knapp'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyBruker } from './ny-bruker'
 import { fjernBruker } from './handlinger'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 
 type Profil = { id: string; fullt_navn: string | null; rolle: string }
 type Kobling = { profil_id: string; stasjon_id: string }
@@ -85,10 +85,7 @@ export default async function BrukereSide() {
                 </Status>
               )}
               handlinger={(
-                <form action={fjernBruker}>
-                  <input type="hidden" name="id" value={p.id} />
-                  <Knapp type="submit" variant="destruktiv" liten>Fjern</Knapp>
-                </form>
+                <SlettKnapp hva={p.fullt_navn ?? 'brukeren'} handling={fjernBruker} id={p.id} merke="Fjern" />
               )}
             />
           ))}

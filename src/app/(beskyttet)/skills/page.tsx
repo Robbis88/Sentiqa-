@@ -70,7 +70,7 @@ export default async function SkillsSide() {
                 .filter(Boolean).join(' · ')}
               metadata={`${Number(s.prosent)} %`}
               handlinger={(
-                <SlettKnapp handling={slettSkills} id={s.id} bekreftelse="Scoren slettet" />
+                <SlettKnapp hva={`${s.prosent} %`} handling={slettSkills} id={s.id} bekreftelse="Scoren slettet" />
               )}
             />
           ))}

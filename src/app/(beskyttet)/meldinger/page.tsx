@@ -83,7 +83,7 @@ export default async function MeldingerSide() {
               // nettbrettet - derfor `handling`, ikke `kritisk`.
               status={m.viktig ? <Status nivaa="handling">Viktig</Status> : undefined}
               handlinger={(
-                <SlettKnapp handling={slettMelding} id={m.id} bekreftelse="Meldingen slettet" />
+                <SlettKnapp hva={m.tekst} handling={slettMelding} id={m.id} bekreftelse="Meldingen slettet" />
               )}
             />
           ))}
