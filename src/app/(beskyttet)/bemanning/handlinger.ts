@@ -132,6 +132,14 @@ export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilst
 
   const { stasjon_id, navn, fra_time, til_time, timelonnet } = felt.data
   const fra = gyldigDato(fd.get('gjelder_fra')) ?? FOR_ALLTID
+  const til = gyldigDato(fd.get('gjelder_til'))
+
+  // EN PERIODE KAN IKKE SLUTTE FOR DEN BEGYNNER. Skranken i basen sier
+  // det ogsaa, men en feilmelding fra Postgres er ikke et svar noen kan
+  // handle paa - den sier hva som er ulovlig, ikke hva du skrev feil.
+  if (til !== null && til < fra) {
+    return { feil: `«Gjelder til» (${til}) er for «gjelder fra» (${fra}).` }
+  }
 
   // PERIODEN FØR LUKKES FØRST, og det er ikke en detalj.
   //
@@ -157,7 +165,7 @@ export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilst
     felt.data.ukedager.map((ukedag) => ({
       stasjon_id, navn, ukedag, fra_time, til_time, timelonnet,
       gjelder_fra: fra,
-      gjelder_til: null,
+      gjelder_til: til,
       oppdatert_tid: new Date().toISOString(),
     })),
     { onConflict: 'stasjon_id,navn,ukedag,gjelder_fra' },

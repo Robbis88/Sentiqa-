@@ -47,6 +47,26 @@ type KravRad = {
 type VaktRad = {
   id: string; navn: string; ukedag: number; fra_time: number; til_time: number
   timelonnet: boolean
+  /** Perioden vakten gjelder. `gjelder_til = null` betyr «fortsatt». */
+  gjelder_fra: string; gjelder_til: string | null
+}
+
+/**
+ * Perioden en fast vakt gjelder, lest som en setning.
+ *
+ * «Alltid» naar ingen datoer er satt - ikke «2020-01-01–», som er en
+ * teknisk standard ingen har bestemt og som ser ut som en beslutning.
+ */
+function periode(v: { gjelder_fra: string; gjelder_til: string | null }): string {
+  const kort = (d: string) => {
+    const [aar, mnd, dag] = d.split('-')
+    return `${dag}.${mnd}.${aar.slice(2)}`
+  }
+  const fraStart = v.gjelder_fra <= '2020-01-01'
+  if (fraStart && v.gjelder_til === null) return 'alltid'
+  if (fraStart) return `til ${kort(v.gjelder_til!)}`
+  if (v.gjelder_til === null) return `fra ${kort(v.gjelder_fra)}`
+  return `${kort(v.gjelder_fra)}–${kort(v.gjelder_til)}`
 }
 
 const tilVindu = (v: VinduRad): Vindu => ({
@@ -337,6 +357,14 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
 
   const kravListe = (krav ?? []) as KravRad[]
   const vaktListe = (vakter ?? []) as VaktRad[]
+
+  // PERIODEN MAA OVERLAPPE MAANEDEN som planlegges. En vakt som sluttet
+  // 30. april gjaldt i april, ikke i mai - og uten dette ville planen
+  // for mai regnet med en dekning som ikke finnes.
+  const gjelderNaa = (v: VaktRad) =>
+    v.gjelder_fra <= sisteDagIMnd
+    && (v.gjelder_til === null || v.gjelder_til >= forsteDagIMnd)
+  const vakterIMnd = vaktListe.filter(gjelderNaa)
   // Kjeden bestemmer hvor mange timer året har. Hvordan de ligger utover
   // månedene er vår analyse, ikke BP-ens: samme årsramme, fordelt etter
   // stasjonens egne kunder. Radene fra bemanning_maned brukes derfor som
@@ -359,7 +387,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const oppsett = {
     vinduer: [...gjeldende.values()].map(tilVindu),
     krav: kravListe.map(tilKrav),
-    fasteVakter: vaktListe.map((v) => ({ ...tilVakt(v), navn: v.navn })),
+    fasteVakter: vakterIMnd.map((v) => ({ ...tilVakt(v), navn: v.navn })),
     fravaer: fravaerListe.map((f) => ({ navn: f.navn, fraDato: f.fra_dato, tilDato: f.til_dato })),
   }
   // Årsfordelingen først — gulvet i alle tolv månedene, så resten etter
@@ -1017,7 +1045,10 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               <Rad
                 key={v.id}
                 primaer={v.navn}
-                sekundaer={`${UKEDAG[v.ukedag]} ${kl(v.fra_time)}–${kl(v.til_time)}`}
+                // PERIODEN MAA STAA HER. Uten den ser to rader for samme
+                // vakt like ut, og man kan verken se eller rette hvilken
+                // som gjelder naar.
+                sekundaer={`${UKEDAG[v.ukedag]} ${kl(v.fra_time)}–${kl(v.til_time)} · ${periode(v)}`}
                 status={(
                   <Status nivaa={v.timelonnet ? 'endring' : 'normal'}>
                     {v.timelonnet ? 'Timelønn — trekkes fra rammen' : 'Fastlønn'}
