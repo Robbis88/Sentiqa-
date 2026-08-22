@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const Ny = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),
@@ -62,9 +63,9 @@ export async function settGjennomfort(formData: FormData) {
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-  await supabase
+  maaLykkes(await supabase
     .from('avvik')
     .update({ gjennomfort: til, gjennomfort_dato: til ? idag : null })
-    .eq('id', id)
+    .eq('id', id), 'oppdatere avvik')
   revalidatePath('/avvik')
 }

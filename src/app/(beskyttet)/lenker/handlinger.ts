@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // Lenker er tablet-funksjonen (hurtiglenker for å hjelpe kunder). Alle i
 // tenanten (også tablet) kan legge til/fjerne — kun plattform-redaktør sperres.
@@ -18,7 +19,7 @@ export async function leggTilLenke(formData: FormData) {
   if (!tittel || !url) return
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('lenker').insert({ retailer_id: bruker.retailerId, tittel, url, ikon, opprettet_av: bruker.id })
+  maaLykkes(await supabase.from('lenker').insert({ retailer_id: bruker.retailerId, tittel, url, ikon, opprettet_av: bruker.id }), 'opprette lenker')
   revalidatePath('/lenker')
 }
 
@@ -28,6 +29,6 @@ export async function slettLenke(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('lenker').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('lenker').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette lenker')
   revalidatePath('/lenker')
 }

@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const ALVOR = ['generelt', 'uhell', 'nestenuhell', 'krenkelse']
 export type TilbakeResultat = { ok?: true; feil?: string }
@@ -41,6 +42,6 @@ export async function markerLest(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('tilbakemelding').update({ lest_tid: new Date().toISOString(), lest_av: bruker.id }).eq('id', id)
+  maaLykkes(await supabase.from('tilbakemelding').update({ lest_tid: new Date().toISOString(), lest_av: bruker.id }).eq('id', id), 'oppdatere tilbakemelding')
   revalidatePath('/tilbakemeldinger')
 }

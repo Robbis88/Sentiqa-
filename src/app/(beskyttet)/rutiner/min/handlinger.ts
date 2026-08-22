@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export async function leggTilPunkt(formData: FormData) {
   const bruker = await hentInnloggetBruker()
@@ -12,12 +13,12 @@ export async function leggTilPunkt(formData: FormData) {
   const gjentakende = formData.get('gjentakende') === 'on'
   if (!tittel) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('personlig_punkt').insert({
+  maaLykkes(await supabase.from('personlig_punkt').insert({
     user_id: bruker.id,
     retailer_id: bruker.retailerId ?? null,
     tittel,
     gjentakende,
-  })
+  }), 'opprette personlig punkt')
   revalidatePath('/rutiner/min')
 }
 
@@ -32,18 +33,18 @@ export async function veksle(formData: FormData) {
 
   if (gjentakende) {
     if (til) {
-      await supabase.from('personlig_kryss').upsert(
+      maaLykkes(await supabase.from('personlig_kryss').upsert(
         { punkt_id: punktId, user_id: bruker.id, dato: iDag() },
         { onConflict: 'punkt_id,dato', ignoreDuplicates: true },
-      )
+      ), 'lagre personlig kryss')
     } else {
-      await supabase.from('personlig_kryss').delete().eq('punkt_id', punktId).eq('dato', iDag())
+      maaLykkes(await supabase.from('personlig_kryss').delete().eq('punkt_id', punktId).eq('dato', iDag()), 'slette personlig kryss')
     }
   } else {
-    await supabase
+    maaLykkes(await supabase
       .from('personlig_punkt')
       .update({ fullfort_tid: til ? new Date().toISOString() : null })
-      .eq('id', punktId)
+      .eq('id', punktId), 'oppdatere personlig punkt')
   }
   revalidatePath('/rutiner/min')
 }
@@ -54,6 +55,6 @@ export async function slettPunkt(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('personlig_punkt').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('personlig_punkt').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette personlig punkt')
   revalidatePath('/rutiner/min')
 }

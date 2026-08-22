@@ -1,6 +1,7 @@
 'use server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export type LinjeData = {
   stasjon_id: string
@@ -20,7 +21,7 @@ export async function setLinje(data: LinjeData): Promise<void> {
   const bruker = await hentInnloggetBruker()
   if (!bruker.retailerId || !data.stasjon_id || !data.dato || !data.varenavn) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('produksjonsplan_linjer').upsert(
+  maaLykkes(await supabase.from('produksjonsplan_linjer').upsert(
     {
       retailer_id: bruker.retailerId,
       stasjon_id: data.stasjon_id,
@@ -35,7 +36,7 @@ export async function setLinje(data: LinjeData): Promise<void> {
       oppdatert_tid: new Date().toISOString(),
     },
     { onConflict: 'stasjon_id,dato,varenavn' },
-  )
+  ), 'lagre produksjonsplan linjer')
 }
 
 // Notat til de ansatte (per stasjon/dag).
@@ -43,10 +44,10 @@ export async function setNotat(stasjon_id: string, dato: string, notat: string):
   const bruker = await hentInnloggetBruker()
   if (!bruker.retailerId || !stasjon_id || !dato) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('produksjonsplan_hode').upsert(
+  maaLykkes(await supabase.from('produksjonsplan_hode').upsert(
     { retailer_id: bruker.retailerId, stasjon_id, dato, notat: notat.trim() || null, oppdatert_tid: new Date().toISOString() },
     { onConflict: 'stasjon_id,dato' },
-  )
+  ), 'lagre produksjonsplan hode')
 }
 
 // Publiser planen til tableten (bevarer «lagd hittil»). Setter publisert_tid.
@@ -66,7 +67,7 @@ export async function loggLagd(stasjon_id: string, dato: string, varenavn: strin
   await hentInnloggetBruker() // sikrer innlogget sesjon; RLS styrer tilgang
   if (!stasjon_id || !dato || !varenavn) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('produksjonsplan_linjer')
+  maaLykkes(await supabase.from('produksjonsplan_linjer')
     .update({ lagd_hittil: Math.max(0, Math.round(lagd)), oppdatert_tid: new Date().toISOString() })
-    .eq('stasjon_id', stasjon_id).eq('dato', dato).eq('varenavn', varenavn)
+    .eq('stasjon_id', stasjon_id).eq('dato', dato).eq('varenavn', varenavn), 'oppdatere produksjonsplan linjer')
 }

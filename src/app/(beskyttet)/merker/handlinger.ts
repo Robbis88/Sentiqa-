@@ -5,6 +5,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { STANDARD_MERKER } from '@/lib/merker/standard'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export async function settOppStandard() {
   const bruker = await hentInnloggetBruker()
@@ -16,7 +17,7 @@ export async function settOppStandard() {
     .eq('retailer_id', bruker.retailerId)
     .is('slettet_tid', null)
   if ((count ?? 0) > 0) return
-  await supabase.from('merker').insert(
+  maaLykkes(await supabase.from('merker').insert(
     STANDARD_MERKER.map((m, i) => ({
       retailer_id: bruker.retailerId,
       navn: m.navn,
@@ -24,7 +25,7 @@ export async function settOppStandard() {
       emoji: m.emoji,
       sortering: i,
     })),
-  )
+  ), 'opprette merker')
   revalidatePath('/merker')
 }
 
@@ -36,7 +37,7 @@ export async function leggTilMerke(formData: FormData) {
   const beskrivelse = String(formData.get('beskrivelse') ?? '').trim() || null
   if (!navn) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('merker').insert({ retailer_id: bruker.retailerId, navn, emoji, beskrivelse, sortering: 999 })
+  maaLykkes(await supabase.from('merker').insert({ retailer_id: bruker.retailerId, navn, emoji, beskrivelse, sortering: 999 }), 'opprette merker')
   revalidatePath('/merker')
 }
 
@@ -46,7 +47,7 @@ export async function slettMerke(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('merker').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('merker').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette merker')
   revalidatePath('/merker')
 }
 
@@ -59,10 +60,10 @@ export async function tildelMerke(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   const { data: ansatt } = await supabase.from('ansatte').select('stasjon_id').eq('id', ansattId).maybeSingle<{ stasjon_id: string }>()
   if (!ansatt) return
-  await supabase.from('tildelte_merker').upsert(
+  maaLykkes(await supabase.from('tildelte_merker').upsert(
     { merke_id: merkeId, ansatt_id: ansattId, stasjon_id: ansatt.stasjon_id, tildelt_av: bruker.id, tildelt_dato: iDag() },
     { onConflict: 'merke_id,ansatt_id', ignoreDuplicates: true },
-  )
+  ), 'lagre tildelte merker')
   revalidatePath('/merker')
 }
 
@@ -72,6 +73,6 @@ export async function fjernTildeling(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('tildelte_merker').delete().eq('id', id)
+  maaLykkes(await supabase.from('tildelte_merker').delete().eq('id', id), 'slette tildelte merker')
   revalidatePath('/merker')
 }

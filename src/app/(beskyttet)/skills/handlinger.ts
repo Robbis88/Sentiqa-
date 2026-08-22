@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export async function registrerSkills(formData: FormData) {
   const bruker = await hentInnloggetBruker()
@@ -13,7 +14,7 @@ export async function registrerSkills(formData: FormData) {
   const kommentar = String(formData.get('kommentar') ?? '').trim() || null
   if (!stasjonId || !Number.isFinite(prosent) || prosent < 0 || prosent > 100) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('skills_score').insert({ retailer_id: bruker.retailerId, stasjon_id: stasjonId, prosent, kommentar, registrert_av: bruker.id })
+  maaLykkes(await supabase.from('skills_score').insert({ retailer_id: bruker.retailerId, stasjon_id: stasjonId, prosent, kommentar, registrert_av: bruker.id }), 'opprette skills score')
   revalidatePath('/skills')
 }
 

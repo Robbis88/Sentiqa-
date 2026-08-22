@@ -6,6 +6,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { trygtFilnavn } from '@/lib/storage-noekkel'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const BUCKET = 'raa-filer'
 
@@ -64,12 +65,12 @@ export async function lastOppMal(_t: Tilstand, fd: FormData): Promise<Tilstand> 
   if (opp.error) return { feil: `Opplasting feilet: ${opp.error.message}` }
 
   // Tidligere versjoner deaktiveres, men slettes ikke.
-  await supabase.from('kontraktmal').update({ aktiv: false })
+  maaLykkes(await supabase.from('kontraktmal').update({ aktiv: false })
     .eq('retailer_id', bruker.retailerId)
     .eq('ansettelsesform', felt.data.ansettelsesform)
     .eq('rolle', felt.data.rolle)
     .eq('mindreaarig', felt.data.mindreaarig)
-    .eq('tariffbundet', tariffbundet)
+    .eq('tariffbundet', tariffbundet), 'oppdatere kontraktmal')
 
   const { error } = await supabase.from('kontraktmal').insert({
     retailer_id: bruker.retailerId,

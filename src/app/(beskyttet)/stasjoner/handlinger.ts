@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentVaerForAlle } from '@/lib/vaer'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // Manuell vær-henting (test/oppfrisk). Cronen tar det automatisk hver natt.
 export async function oppdaterVaer(): Promise<{ ok: boolean; melding: string }> {
@@ -74,10 +75,10 @@ export async function settPosisjon(formData: FormData) {
   }
   if (!stasjonId) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase
+  maaLykkes(await supabase
     .from('stasjoner')
     .update({ breddegrad: num('breddegrad'), lengdegrad: num('lengdegrad') })
-    .eq('id', stasjonId)
+    .eq('id', stasjonId), 'oppdatere stasjoner')
   revalidatePath('/stasjoner')
 }
 
@@ -90,7 +91,7 @@ export async function settVaerfolsomhet(formData: FormData) {
   const n = Number(raw)
   if (!stasjonId || !Number.isFinite(n)) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('stasjoner').update({ vaerfolsomhet: Math.max(0, Math.min(1, n)) }).eq('id', stasjonId)
+  maaLykkes(await supabase.from('stasjoner').update({ vaerfolsomhet: Math.max(0, Math.min(1, n)) }).eq('id', stasjonId), 'oppdatere stasjoner')
   revalidatePath('/stasjoner')
 }
 
@@ -104,10 +105,10 @@ export async function settStasjonstype(formData: FormData) {
   if (!stasjonId || !(TYPER as readonly string[]).includes(primaer)) return
   const sekundaer = (TYPER as readonly string[]).includes(sekRaw) ? sekRaw : null
   const supabase = await lagSupabaseServerKlient()
-  await supabase
+  maaLykkes(await supabase
     .from('stasjoner')
     .update({ stasjonstype: primaer, stasjonstype_sekundaer: sekundaer })
-    .eq('id', stasjonId)
+    .eq('id', stasjonId), 'oppdatere stasjoner')
   revalidatePath('/stasjoner')
 }
 
@@ -121,7 +122,7 @@ export async function settTerskel(formData: FormData) {
   const verdi = raw === '' ? null : Number(raw)
   if (verdi !== null && !Number.isFinite(verdi)) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('stasjoner').update({ svinnterskel_prosent: verdi }).eq('id', stasjonId)
+  maaLykkes(await supabase.from('stasjoner').update({ svinnterskel_prosent: verdi }).eq('id', stasjonId), 'oppdatere stasjoner')
   revalidatePath('/stasjoner')
   revalidatePath('/svinn')
 }

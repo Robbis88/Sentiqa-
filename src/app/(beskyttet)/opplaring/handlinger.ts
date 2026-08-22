@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { STANDARD_OPPLAERING } from '@/lib/opplaering/standard'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // ---- Master-oppgaver ----
 export async function settOppStandard() {
@@ -12,9 +13,9 @@ export async function settOppStandard() {
   const supabase = await lagSupabaseServerKlient()
   const { count } = await supabase.from('opplaering_oppgave').select('*', { count: 'exact', head: true }).eq('retailer_id', bruker.retailerId).is('slettet_tid', null)
   if ((count ?? 0) > 0) return
-  await supabase.from('opplaering_oppgave').insert(
+  maaLykkes(await supabase.from('opplaering_oppgave').insert(
     STANDARD_OPPLAERING.map((o) => ({ retailer_id: bruker.retailerId, kategori: o.kategori, tittel: o.tittel, beskrivelse: o.beskrivelse, rekkefolge: o.rekkefolge, estimert_min: o.estimert_min, opprettet_av: bruker.id })),
-  )
+  ), 'opprette opplaering oppgave')
   revalidatePath('/opplaring')
 }
 
@@ -26,7 +27,7 @@ export async function leggTilOppgave(formData: FormData) {
   const estimert = Number(formData.get('estimert_min'))
   if (!tittel) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_oppgave').insert({ retailer_id: bruker.retailerId, kategori, tittel, estimert_min: Number.isFinite(estimert) && estimert > 0 ? estimert : null, rekkefolge: 999, opprettet_av: bruker.id })
+  maaLykkes(await supabase.from('opplaering_oppgave').insert({ retailer_id: bruker.retailerId, kategori, tittel, estimert_min: Number.isFinite(estimert) && estimert > 0 ? estimert : null, rekkefolge: 999, opprettet_av: bruker.id }), 'opprette opplaering oppgave')
   revalidatePath('/opplaring')
 }
 
@@ -38,7 +39,7 @@ export async function redigerOppgave(formData: FormData) {
   const tittel = String(formData.get('tittel') ?? '').trim()
   if (!id || !tittel) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_oppgave').update({ kategori, tittel }).eq('id', id)
+  maaLykkes(await supabase.from('opplaering_oppgave').update({ kategori, tittel }).eq('id', id), 'oppdatere opplaering oppgave')
   revalidatePath('/opplaring')
 }
 
@@ -48,7 +49,7 @@ export async function slettOppgave(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_oppgave').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('opplaering_oppgave').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette opplaering oppgave')
   revalidatePath('/opplaring')
 }
 
@@ -62,14 +63,14 @@ export async function leggTilPeriode(formData: FormData) {
   const slutt = String(formData.get('forventet_slutt') ?? '')
   if (!navn || !stasjonId || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_periode').insert({
+  maaLykkes(await supabase.from('opplaering_periode').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     ansatt_navn: navn,
     start_dato: start,
     forventet_slutt: /^\d{4}-\d{2}-\d{2}$/.test(slutt) ? slutt : null,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette opplaering periode')
   revalidatePath('/opplaring')
 }
 
@@ -80,7 +81,7 @@ export async function fullforPeriode(formData: FormData) {
   const til = String(formData.get('til') ?? '') === 'ja'
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_periode').update({ fullfort_tid: til ? new Date().toISOString() : null }).eq('id', id)
+  maaLykkes(await supabase.from('opplaering_periode').update({ fullfort_tid: til ? new Date().toISOString() : null }).eq('id', id), 'oppdatere opplaering periode')
   revalidatePath('/opplaring')
 }
 
@@ -90,7 +91,7 @@ export async function slettPeriode(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_periode').delete().eq('id', id)
+  maaLykkes(await supabase.from('opplaering_periode').delete().eq('id', id), 'slette opplaering periode')
   revalidatePath('/opplaring')
 }
 
@@ -104,9 +105,9 @@ export async function vekslUtfort(formData: FormData) {
   if (!periodeId || !oppgaveId) return
   const supabase = await lagSupabaseServerKlient()
   if (til) {
-    await supabase.from('opplaering_utfort').upsert({ periode_id: periodeId, oppgave_id: oppgaveId, bekreftet_av: bruker.id }, { onConflict: 'periode_id,oppgave_id', ignoreDuplicates: true })
+    maaLykkes(await supabase.from('opplaering_utfort').upsert({ periode_id: periodeId, oppgave_id: oppgaveId, bekreftet_av: bruker.id }, { onConflict: 'periode_id,oppgave_id', ignoreDuplicates: true }), 'lagre opplaering utfort')
   } else {
-    await supabase.from('opplaering_utfort').delete().eq('periode_id', periodeId).eq('oppgave_id', oppgaveId)
+    maaLykkes(await supabase.from('opplaering_utfort').delete().eq('periode_id', periodeId).eq('oppgave_id', oppgaveId), 'slette opplaering utfort')
   }
   revalidatePath('/opplaring')
 }
@@ -120,7 +121,7 @@ export async function leggTilSkift(formData: FormData) {
   const notater = String(formData.get('notater') ?? '').trim() || null
   if (!periodeId || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_skift').upsert({ periode_id: periodeId, dato, ansvarlig_bruker_id: bruker.id, notater }, { onConflict: 'periode_id,dato' })
+  maaLykkes(await supabase.from('opplaering_skift').upsert({ periode_id: periodeId, dato, ansvarlig_bruker_id: bruker.id, notater }, { onConflict: 'periode_id,dato' }), 'lagre opplaering skift')
   revalidatePath('/opplaring')
 }
 
@@ -130,6 +131,6 @@ export async function slettSkift(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('opplaering_skift').delete().eq('id', id)
+  maaLykkes(await supabase.from('opplaering_skift').delete().eq('id', id), 'slette opplaering skift')
   revalidatePath('/opplaring')
 }

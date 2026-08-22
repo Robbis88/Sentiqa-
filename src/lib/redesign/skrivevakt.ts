@@ -1,4 +1,13 @@
 // =====================================================================
+//
+// 2026-08-22: TALLET ER NULL. Alle 89 stedene tar naa imot svaret via
+// `maaLykkes` i `src/lib/skriv-svar.ts`. Skrallen er dermed ikke lenger
+// en nedstigning mot et maal - den er et gulv. Ett nytt kastet skriv
+// gjoer den roed, og det er meningen.
+//
+// `maaLykkes(await supabase...)` telles ikke, og skal ikke telles:
+// linja begynner ikke med `await`, og resultatet HAR en mottaker som
+// ser paa `error`. Det er hele forskjellen denne vakten maaler.
 // Skrivevakten: en serverhandling skal ikke kunne svelge feilen sin.
 //
 // PERMANENT KONTRAKT, satt av Robert 2026-08-21:

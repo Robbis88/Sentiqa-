@@ -7,6 +7,7 @@ import { iDag } from '@/lib/format'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const Nytt = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),
@@ -53,7 +54,7 @@ export async function slettSjekkpunkt(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('sjekkpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('sjekkpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette sjekkpunkter')
   revalidatePath('/sjekkpunkt')
 }
 
@@ -63,10 +64,10 @@ export async function svarSjekkpunktTablet(sjekkpunktId: string, stasjonId: stri
   if (!sjekkpunktId || !stasjonId) return { ok: false }
   const supabase = await lagSupabaseServerKlient()
   const ansatt = await lesAktivAnsatt(supabase)
-  await supabase.from('sjekkpunkt_svar').upsert(
+  maaLykkes(await supabase.from('sjekkpunkt_svar').upsert(
     { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: ja, svart_av: bruker.id, svart_tid: new Date().toISOString(), ansatt_id: ansatt?.id ?? null },
     { onConflict: 'sjekkpunkt_id,dato' },
-  )
+  ), 'lagre sjekkpunkt svar')
   if (!ja && bruker.retailerId) {
     const { data: sp } = await supabase.from('sjekkpunkter').select('sporsmaal, kritisk').eq('id', sjekkpunktId).maybeSingle<{ sporsmaal: string; kritisk: boolean }>()
     if (sp?.kritisk) {
@@ -84,10 +85,10 @@ export async function svar(formData: FormData) {
   if (!sjekkpunktId || !stasjonId) return
   const supabase = await lagSupabaseServerKlient()
   const ansatt = await lesAktivAnsatt(supabase)
-  await supabase.from('sjekkpunkt_svar').upsert(
+  maaLykkes(await supabase.from('sjekkpunkt_svar').upsert(
     { sjekkpunkt_id: sjekkpunktId, stasjon_id: stasjonId, dato: iDag(), svar: verdi, svart_av: bruker.id, svart_tid: new Date().toISOString(), ansatt_id: ansatt?.id ?? null },
     { onConflict: 'sjekkpunkt_id,dato' },
-  )
+  ), 'lagre sjekkpunkt svar')
 
   // Kritisk sjekkpunkt besvart «Nei» → varsle stasjonen (§11).
   if (!verdi && bruker.retailerId) {

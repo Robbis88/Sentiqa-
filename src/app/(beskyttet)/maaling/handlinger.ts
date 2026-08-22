@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { sokVarer, type VareTreff } from '@/lib/varehierarki'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const ScopeRad = z.object({
   nivaa: z.enum(['avdeling', 'vareomrade', 'varegruppe', 'ean']),
@@ -87,7 +88,7 @@ export async function opprettMalekort(
     const { error: sErr } = await supabase.from('malekort_scope').insert(rader)
     if (sErr) {
       // Rydd opp så vi ikke etterlater et målekort uten scopet brukeren valgte.
-      await supabase.from('malekort').delete().eq('id', kort.id)
+      maaLykkes(await supabase.from('malekort').delete().eq('id', kort.id), 'slette malekort')
       return { feil: 'Kunne ikke lagre vareutvalget.' }
     }
   }
@@ -102,7 +103,7 @@ export async function slettMalekort(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('malekort').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('malekort').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette malekort')
   revalidatePath('/maaling')
 }
 

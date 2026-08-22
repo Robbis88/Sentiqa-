@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // Kun eier (retailer_admin) styrer arrangementer/kalender-kilder.
 async function kreverAdmin() {
@@ -27,7 +28,7 @@ export async function leggTilArrangement(formData: FormData): Promise<void> {
   const stasjonIder: (string | null)[] = stasjoner.length > 0 ? stasjoner : [null]
   const rader = stasjonIder.map((stasjon_id) => ({ ...felles, stasjon_id }))
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('arrangementer').insert(rader)
+  maaLykkes(await supabase.from('arrangementer').insert(rader), 'opprette arrangementer')
   revalidatePath('/arrangementer')
 }
 
@@ -37,7 +38,7 @@ export async function bekreftArrangement(formData: FormData): Promise<void> {
   if (!id) return
   const faktor = Math.max(0.1, Math.min(5, Number(formData.get('faktor')) || 1.2))
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('arrangementer').update({ status: 'bekreftet', faktor }).eq('id', id)
+  maaLykkes(await supabase.from('arrangementer').update({ status: 'bekreftet', faktor }).eq('id', id), 'oppdatere arrangementer')
   revalidatePath('/arrangementer')
 }
 
@@ -46,7 +47,7 @@ export async function forkastArrangement(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('arrangementer').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('arrangementer').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette arrangementer')
   revalidatePath('/arrangementer')
 }
 
@@ -60,10 +61,10 @@ export async function leggTilKalenderKilde(formData: FormData): Promise<void> {
   if (!navn || !/^https?:\/\//i.test(ical_url)) return
   const stasjoner = valgteStasjoner(formData)
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('kalender_kilder').insert({
+  maaLykkes(await supabase.from('kalender_kilder').insert({
     retailer_id: bruker.retailerId, navn, ical_url, standard_faktor,
     stasjon_ider: stasjoner.length > 0 ? stasjoner : null, opprettet_av: bruker.id,
-  })
+  }), 'opprette kalender kilder')
   revalidatePath('/arrangementer')
 }
 
@@ -72,6 +73,6 @@ export async function slettKalenderKilde(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('kalender_kilder').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('kalender_kilder').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette kalender kilder')
   revalidatePath('/arrangementer')
 }

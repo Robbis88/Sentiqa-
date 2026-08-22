@@ -5,6 +5,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hashPin } from '@/lib/ansatt'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // Ansattnummeret kommer fra AZETS, ikke herfra og ikke fra easy@work.
 // Derfor er det valgfritt ved opprettelse: en ny ansatt finnes hos oss
@@ -126,6 +127,6 @@ export async function deaktiverAnsatt(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('ansatte').update({ aktiv: false, slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('ansatte').update({ aktiv: false, slettet_tid: new Date().toISOString() }).eq('id', id), 'slette ansatte')
   revalidatePath('/ansatte')
 }

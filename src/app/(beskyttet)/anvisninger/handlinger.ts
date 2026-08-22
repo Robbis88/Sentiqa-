@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export async function leggTilAnvisning(formData: FormData) {
   const bruker = await hentInnloggetBruker()
@@ -13,7 +14,7 @@ export async function leggTilAnvisning(formData: FormData) {
   const innhold = String(formData.get('innhold') ?? '').trim()
   if (!tittel || !innhold) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('anvisninger').insert({ retailer_id: bruker.retailerId, kategori, tittel, innhold, opprettet_av: bruker.id })
+  maaLykkes(await supabase.from('anvisninger').insert({ retailer_id: bruker.retailerId, kategori, tittel, innhold, opprettet_av: bruker.id }), 'opprette anvisninger')
   revalidatePath('/anvisninger')
 }
 

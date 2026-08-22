@@ -3,6 +3,7 @@ import type { SlettTilstand } from '@/components/ui/slett-knapp'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // Kunnskapsbasen er global og vedlikeholdes KUN av plattform-redaktøren.
 export async function leggTilKunnskap(formData: FormData): Promise<void> {
@@ -14,7 +15,7 @@ export async function leggTilKunnskap(formData: FormData): Promise<void> {
   const kilde = String(formData.get('kilde') ?? '').trim() || null
   if (!tittel || !innhold) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('kunnskap').insert({ retailer_id: null, kategori, tittel, innhold, kilde, opprettet_av: bruker.id })
+  maaLykkes(await supabase.from('kunnskap').insert({ retailer_id: null, kategori, tittel, innhold, kilde, opprettet_av: bruker.id }), 'opprette kunnskap')
   revalidatePath('/kunnskap')
 }
 
