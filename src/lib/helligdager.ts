@@ -65,6 +65,38 @@ export function helligdagNavn(iso: string): string | null {
   return forAar(year).get(iso) ?? null
 }
 
+/**
+ * Datoen en navngitt helligdag faller på i et gitt år.
+ *
+ * OMVENDT OPPSLAG, og det er hele poenget: «Skjærtorsdag i 2025» er
+ * 17. april, i 2026 2. april. Skal en dag sammenliknes med fjorårets
+ * TILSVARENDE dag, holder det ikke å regne dager — påsken flytter seg
+ * med opptil fem uker.
+ *
+ * Returnerer null for et navn som ikke finnes. Da er det en skrivefeil,
+ * og en stille tilbakefall til en dato ingen har bedt om er verre enn
+ * ingen dato.
+ */
+export function helligdagIAar(navn: string, year: number): string | null {
+  for (const [iso, n] of forAar(year)) if (n === navn) return iso
+  return null
+}
+
+/**
+ * Fjorårets TILSVARENDE helligdag, matchet på navn.
+ *
+ * Ikke på dato og ikke på ukedag. Påsken flytter seg med opptil fem
+ * uker: Skjærtorsdag er 2. april i 2026 og 17. april i 2025, så 364
+ * dager tilbake treffer en helt vanlig torsdag. Og for de faste
+ * treffer −364 nabodagen: 1. juledag måles mot 2. juledag.
+ *
+ * Null når dagen ikke er en helligdag. Da gjelder ukedagsregelen.
+ */
+export function fjorHelligdag(iso: string): string | null {
+  const navn = helligdagNavn(iso)
+  return navn ? helligdagIAar(navn, Number(iso.slice(0, 4)) - 1) : null
+}
+
 /** Er ISO-datoen en norsk helligdag (rød dag)? Søndager regnes ikke som helligdag her. */
 export function erHelligdag(iso: string): boolean {
   return helligdagNavn(iso) !== null

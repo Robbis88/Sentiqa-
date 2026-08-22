@@ -6,7 +6,7 @@ import { datoLang, iDag } from '@/lib/format'
 import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { hentKalibrering } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
-import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
+import { erHelligdag, fjorHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
 import { TabletHode } from '../tablet-hode'
@@ -194,7 +194,7 @@ export default async function ProduksjonsplanSide({
     datadybde = new Set(punkter.map((p) => p.dato)).size
 
     const vaerKoeff = await hentVaerKoeff(supabase, stasjon.id, 'varegruppe')
-    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, vaerKoeff, arrangementFaktor, helligdag: erHelligdag(dato) })
+    const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, vaerKoeff, arrangementFaktor, helligdag: erHelligdag(dato), fjorHelligdag: fjorHelligdag(dato) })
     // Selvlæring: gang inn korreksjon pr varegruppe fra egen treffhistorikk (§7).
     const kalibrering = await hentKalibrering(supabase, stasjon.id, 'produksjonsplan')
     advarsler = plan.advarsler

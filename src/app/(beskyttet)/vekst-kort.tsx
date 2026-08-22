@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { kr } from '@/lib/format'
 import type { VekstMetrikk } from '@/lib/tablethjem'
-import { kortDato, ukedag, type Sammenlikning } from '@/lib/vekst-ifjor'
+import { dagsnavn, kortDato, ukedag, type Sammenlikning } from '@/lib/vekst-ifjor'
 import { useT } from './oversett-kontekst'
 
 // =====================================================================
@@ -11,6 +11,10 @@ import { useT } from './oversett-kontekst'
 // PREMISSET: ukedag betyr mer enn dato i detaljhandel. En lørdag likner
 // mer på fjorårets lørdag enn på fjorårets samme kalenderdato. Derfor
 // −364 dager (52 uker), ikke «samme dato i fjor».
+//
+// UNNTAKET er navngitte dager: julaften mot julaften, Skjaertorsdag
+// mot Skjaertorsdag. Paasken flytter seg opptil fem uker mellom aar,
+// og ingen dagsforskyvning naar den. Se `fjorSlutt`.
 //
 // ALT SOM BESKRIVER DATAENE UTLEDES AV DATAENE. Undertittelen sa
 // «torsdag mot torsdag» som fast tekst. Den var riktig den dagen koden
@@ -86,6 +90,12 @@ export function VekstKort(
   const t = useT()
   const m = metrikker[valg]
 
+  // Fjoraarsdagen kommer fra vinduet som faktisk ble summert, ikke fra
+  // en ny utregning her. To steder som regner det samme rekker aa bli
+  // uenige.
+  const fjorDag = m.sisteDag.vinduIFjor.til
+  const navn = dagsnavn(sisteDato)
+
   return (
     <section className="tablet-seksjon vekst-eng">
       <div className="vekst-eng-topp">
@@ -104,10 +114,18 @@ export function VekstKort(
         </div>
       </div>
 
-      {/* UKEDAGEN UTLEDES AV DATOEN. Aldri hardkodet. */}
+      {/* HVILKEN REGEL SOM FAKTISK BLE BRUKT, ikke hvilken vi pleier
+          aa bruke. Paa 17. mai er det soendag mot loerdag - og staar
+          det «samme ukedag» over det, ser riktig svar ut som en feil.
+
+          UKEDAGEN UTLEDES ALLTID AV DATOEN. Undertittelen sa «torsdag
+          mot torsdag» som fast tekst. Den var riktig den dagen koden
+          ble skrevet, og feil resten av uka. */}
       <p className="vekst-undertittel">
-        {t('Sammenliknet med samme ukedag i fjor')} — {ukedag(sisteDato)}{' '}
-        {t('mot')} {ukedag(m.sisteDag.vinduIFjor.til)}.
+        {navn
+          ? `${t('Sammenliknet med')} ${navn} ${t('i fjor')} — ${kortDato(fjorDag)}.`
+          : `${t('Sammenliknet med samme ukedag i fjor')} — ${ukedag(sisteDato)} `
+            + `${t('mot')} ${ukedag(fjorDag)}.`}
       </p>
 
       {m.streak > 0 && (

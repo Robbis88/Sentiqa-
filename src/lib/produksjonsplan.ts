@@ -97,6 +97,16 @@ export function lagProduksjonsplan(opts: {
   arrangementFaktor?: number // produkt av arrangementer (Brann-kamp o.l.) for dagen
   ekskluderte?: Set<string>
   helligdag?: boolean // mål-dagen er helligdag → kun selve fjor-helligdagen, ingen naboer
+  /**
+   * Fjorårets TILSVARENDE helligdag, slått opp på navn.
+   *
+   * UTEN DENNE VAR LOVNADEN USANN. Sida sier «forslaget bygger på
+   * fjorårets samme helligdag», mens `−364` traff nabodagen:
+   * 1. juledag mot 2. juledag, 17. mai mot en vanlig søndag — og
+   * Skjærtorsdag mot en helt alminnelig torsdag femten dager unna,
+   * fordi påsken flytter seg.
+   */
+  fjorHelligdag?: string | null
 }): PlanForslag {
   const { maalDato, sisteSalgsdato, salg, vaerMaal, vaerFjor, vaerfolsomhet } = opts
   const arrangementFaktor = opts.arrangementFaktor ?? 1
@@ -105,7 +115,9 @@ export function lagProduksjonsplan(opts: {
 
   const malUkedag = ukedag(maalDato)
   // Fjor-match: samme ukedag for 52 uker siden (364 dager).
-  const fjorBase = leggTilDager(maalDato, -364)
+  // Er måldagen en helligdag, er fjorårets SAMME helligdag riktig base.
+  // Ukedagsregelen gjelder alle andre dager.
+  const fjorBase = opts.fjorHelligdag ?? leggTilDager(maalDato, -364)
   const fjorDatoer = opts.helligdag ? [fjorBase] : [-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d))
   const fjorSett = new Set(fjorDatoer)
   // Nylig: siste 28 dager fram til siste salgsdag.

@@ -1,6 +1,6 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Forklaring, Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { kr } from '@/lib/format'
 import { bruttoKrav, kravtekst } from '@/lib/bemanning/timekrav'
@@ -309,12 +309,35 @@ export default async function TimeregnskapSide() {
         ))}
       </section>
 
-      <p className="undertittel sq-finstilt">
-        Rammen er timene som faktisk deles ut. De 3 % sikkerhet og det
-        historiske sykefraværet holdes tilbake sentralt og inngår ikke — de
-        er margin for lønnsøkninger og overtid, ikke timer stasjonen
-        disponerer.
-      </p>
+      {/* BAK EN KNAPP, IKKE PAA SKJERMEN.
+
+          Robert 2026-08-22: «der du skriver veldig mye grunner for
+          hvorfor ting maales (...) der kunne vi hatt en info knapp
+          istedenfor? da slipper vi aa drukne i informasjon som man
+          kanskje kjenner til uansett.»
+
+          Den som kjenner regelen trenger den ikke hver gang. Den som
+          lurer skal finne den paa stedet - ikke i en haandbok. */}
+      <Forklaring sporsmaal="Hva er rammen, og hvordan tjenes timene inn?">
+        <p>
+          Rammen er timene som faktisk deles ut. De 3 % sikkerhet og det
+          historiske sykefraværet holdes tilbake sentralt og inngår ikke
+          — de er margin for lønnsøkninger og overtid, ikke timer
+          stasjonen disponerer.
+        </p>
+        <p>
+          Timene tjenes inn av brutto. Sier budsjettet 12 000 timer til
+          5 millioner, er prisen 417 kr per time — og da kan du ikke
+          bruke 12 000 timer på 4,8 millioner.
+        </p>
+        <p>
+          Bruttoen er den <strong>korrigerte</strong>: står det 700 000 i
+          kassa og regnskapet lander på 600 000 etter telling og svinn,
+          er det 600 000 som teller. Måneder uten ferdig regnskap
+          verdsettes med kassens omsetning og årets realiserte margin,
+          aldri kassens egen.
+        </p>
+      </Forklaring>
     </>
   )
 }

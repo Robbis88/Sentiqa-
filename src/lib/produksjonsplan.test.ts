@@ -64,3 +64,42 @@ describe('lagProduksjonsplan', () => {
     expect(r.forslag.find((f) => f.varenavn === 'Baguette ost')).toBeUndefined()
   })
 })
+
+describe('helligdager treffer fjorårets samme helligdag', () => {
+  // FEILEN SIDA LOVET BORT. «Forslaget bygger på fjorårets samme
+  // helligdag» sto på skjermen, mens koden brukte −364 og traff
+  // nabodagen. Verst i påsken, som flytter seg med opptil fem uker.
+  const p = (dato: string, antall: number): SalgsPunkt => ({
+    dato, varenavn: 'Bolle', varegruppeKode: null, varegruppeNavn: null, antall,
+  })
+
+  it('bruker helligdagsdatoen som blir gitt, ikke −364', () => {
+    // Skjærtorsdag 2026 er 2. april; i 2025 var den 17. april. −364
+    // ville truffet 3. april 2025 — en helt vanlig torsdag.
+    const plan = lagProduksjonsplan({
+      maalDato: '2026-04-02',
+      sisteSalgsdato: '2026-03-30',
+      // Nylig salg maa vaere med: et produkt uten det regnes som
+      // utgaatt og hoppes over.
+      salg: [p('2025-04-17', 40), p('2025-04-03', 5), p('2026-03-26', 10)],
+      vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5,
+      helligdag: true,
+      fjorHelligdag: '2025-04-17',
+    })
+    const bolle = plan.forslag.find((f) => f.varenavn === 'Bolle')
+    expect(bolle, 'skal foreslå noe i det hele tatt').toBeDefined()
+    // 40 fra selve helligdagen, ikke 5 fra den vanlige torsdagen.
+    expect(bolle!.fjorMedian, '17. april, ikke 3.').toBe(40)
+  })
+
+  it('en vanlig dag bruker fortsatt −364', () => {
+    // Helligdagsregelen skal ikke gripe inn ellers.
+    const plan = lagProduksjonsplan({
+      maalDato: '2026-08-22',
+      sisteSalgsdato: '2026-08-21',
+      salg: [p('2025-08-23', 30), p('2026-08-15', 10)],
+      vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5,
+    })
+    expect(plan.forslag.find((f) => f.varenavn === 'Bolle')?.fjorMedian).toBe(30)
+  })
+})
