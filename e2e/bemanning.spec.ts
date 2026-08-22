@@ -100,7 +100,8 @@ test.describe('/bemanning', () => {
     // Rollen skiller dem, og skjerper samtidig kontrollen: den sier nå
     // at det finnes en månedsVELGER, ikke bare noe som heter «Måned».
     await expect(page.getByRole('combobox', { name: 'Måned' })).toBeAttached()
-    await expect(page.getByRole('combobox', { name: 'År' })).toBeAttached()
+    // Aarsfeltet er et tallfelt, ikke en nedtrekksliste - `spinbutton`.
+    await expect(page.getByRole('spinbutton', { name: 'År' })).toBeAttached()
     await expect(page.getByRole('button', { name: 'Vis' })).toBeVisible()
   })
 
