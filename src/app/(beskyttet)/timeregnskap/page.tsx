@@ -4,6 +4,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { kr } from '@/lib/format'
 import { bruttoKrav, kravtekst } from '@/lib/bemanning/timekrav'
+import { styring, styringstekst } from '@/lib/bemanning/timestyring'
 
 // =====================================================================
 // «Har vi råd til timene vi bruker?»
@@ -52,6 +53,7 @@ type Rad = {
   arsverk_timer: number | null
   dager_med_salg: number | null
   dager_i_maaned: number | null
+  ifjor_andel: number | null
   lederdekning: string
 }
 
@@ -151,6 +153,17 @@ export default async function TimeregnskapSide() {
         realisertMarginPst: mine[0]?.realisert_margin_pst ?? null,
       }),
       paagaar,
+      // STYRINGEN, paa den paagaaende maaneden. Den avsluttede
+      // historikken kan ingen gjore noe med.
+      styring: paagaar ? styring({
+        rammeTimer: paagaar.budsjett_timer,
+        brukteTimer: paagaar.brukte_timer,
+        bpBruttoKr: paagaar.bp_brutto_kr,
+        bruttoHittilKr: paagaar.realisert_brutto_kr,
+        ifjorAndel: paagaar.ifjor_andel,
+        dagerMedSalg: paagaar.dager_med_salg,
+        dagerIMaaned: paagaar.dager_i_maaned,
+      }) : null,
     }
   }).filter((p) => p.maaneder > 0 || p.paagaar)
 
@@ -214,6 +227,20 @@ export default async function TimeregnskapSide() {
                 verdsettes med kassens omsetning til årets realiserte
                 margin — et anslag som skal korrigeres når regnskapet
                 kommer, og som ikke skal leses som en måling. */}
+            {p.styring && (
+              // DET ENESTE TALLET SOM KOMMER TIDSNOK TIL Å ENDRE NOE.
+              // Alt annet på denne siden er oppgjør: sant, men over.
+              //
+              // Står ØVERST blant notatene, før anslag og justering:
+              // det er dette hun skal gjøre noe med i dag.
+              <p className="tr-styring">
+                {styringstekst(p.styring)}
+                <span className="tr-styring-forbehold">
+                  {' '}Anslaget forutsetter at resten av måneden ligner fjoråret.
+                </span>
+              </p>
+            )}
+
             {p.krav && p.krav.bruttoMangler > 0 && (
               // OPPGAVEN, IKKE DOMMEN.
               //
