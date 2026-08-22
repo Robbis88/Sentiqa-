@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const Ny = z.object({
   stasjon_id: z.string().uuid({ error: 'Velg en stasjon.' }),
@@ -54,7 +55,7 @@ export async function slettOppgave(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('oppgaver').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('oppgaver').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette oppgaver')
   revalidatePath('/oppgaver')
 }
 
@@ -72,13 +73,13 @@ export async function veksleOppgave(formData: FormData) {
   const tilFullfort = String(formData.get('til') ?? '') === 'fullfort'
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase
+  maaLykkes(await supabase
     .from('oppgaver')
     .update(
       tilFullfort
         ? { status: 'fullfort', fullfort_av: bruker.id, fullfort_tid: new Date().toISOString() }
         : { status: 'apen', fullfort_av: null, fullfort_tid: null },
     )
-    .eq('id', id)
+    .eq('id', id), 'oppdatere oppgaver')
   revalidatePath('/oppgaver')
 }

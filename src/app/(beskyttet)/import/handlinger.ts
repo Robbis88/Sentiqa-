@@ -6,6 +6,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lagreForhandsparset } from '@/lib/import/kjerne'
 import type { ForhandsPayload } from '@/lib/import/typer'
 import { trygtFilnavn } from '@/lib/storage-noekkel'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const BUCKET = 'raa-filer'
 
@@ -161,6 +162,6 @@ export async function settAllowlist(formData: FormData) {
   const raw = String(formData.get('allowlist') ?? '')
   const liste = [...new Set(raw.split(/[\n,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean))]
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('retailers').update({ avsender_allowlist: liste }).eq('id', bruker.retailerId)
+  maaLykkes(await supabase.from('retailers').update({ avsender_allowlist: liste }).eq('id', bruker.retailerId), 'oppdatere retailers')
   revalidatePath('/import')
 }

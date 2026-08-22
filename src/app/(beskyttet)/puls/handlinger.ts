@@ -6,6 +6,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
 import { STANDARD_PULS_SPORSMAL } from '@/lib/puls/standard'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 // ---- Spørsmålsbibliotek ----
 export async function settOppStandard() {
@@ -14,9 +15,9 @@ export async function settOppStandard() {
   const supabase = await lagSupabaseServerKlient()
   const { count } = await supabase.from('puls_sporsmal').select('*', { count: 'exact', head: true }).eq('retailer_id', bruker.retailerId).is('slettet_tid', null)
   if ((count ?? 0) > 0) return
-  await supabase.from('puls_sporsmal').insert(
+  maaLykkes(await supabase.from('puls_sporsmal').insert(
     STANDARD_PULS_SPORSMAL.map((s, i) => ({ retailer_id: bruker.retailerId, kategori: s.kategori, tekst: s.tekst, sortering: i })),
-  )
+  ), 'opprette puls sporsmal')
   revalidatePath('/puls/sporsmal')
 }
 
@@ -27,7 +28,7 @@ export async function leggTilSporsmal(formData: FormData) {
   const tekst = String(formData.get('tekst') ?? '').trim()
   if (!tekst) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('puls_sporsmal').insert({ retailer_id: bruker.retailerId, kategori, tekst, sortering: 999 })
+  maaLykkes(await supabase.from('puls_sporsmal').insert({ retailer_id: bruker.retailerId, kategori, tekst, sortering: 999 }), 'opprette puls sporsmal')
   revalidatePath('/puls/sporsmal')
 }
 
@@ -38,7 +39,7 @@ export async function vekslAktivSporsmal(formData: FormData) {
   const til = String(formData.get('til') ?? '') === 'ja'
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('puls_sporsmal').update({ aktiv: til }).eq('id', id)
+  maaLykkes(await supabase.from('puls_sporsmal').update({ aktiv: til }).eq('id', id), 'oppdatere puls sporsmal')
   revalidatePath('/puls/sporsmal')
 }
 
@@ -48,7 +49,7 @@ export async function slettSporsmal(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('puls_sporsmal').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('puls_sporsmal').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette puls sporsmal')
   revalidatePath('/puls/sporsmal')
 }
 
@@ -77,14 +78,14 @@ export async function startRunde(formData: FormData) {
   }
   if (!sporsmalId) return
 
-  await supabase.from('puls_runde').insert({
+  maaLykkes(await supabase.from('puls_runde').insert({
     retailer_id: bruker.retailerId,
     sporsmal_id: sporsmalId,
     start_dato: start,
     slutt_dato: slutt,
     notat,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette puls runde')
   redirect('/puls')
 }
 
@@ -94,7 +95,7 @@ export async function avsluttRunde(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('puls_runde').update({ status: 'avsluttet' }).eq('id', id)
+  maaLykkes(await supabase.from('puls_runde').update({ status: 'avsluttet' }).eq('id', id), 'oppdatere puls runde')
   revalidatePath('/puls')
 }
 
@@ -104,7 +105,7 @@ export async function slettRunde(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('puls_runde').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('puls_runde').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette puls runde')
   revalidatePath('/puls')
 }
 

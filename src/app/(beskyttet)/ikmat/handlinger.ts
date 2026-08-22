@@ -7,6 +7,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { opprettVarsel } from '@/lib/varsler'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { STANDARD_KONTROLLPUNKTER, kravTekst } from '@/lib/ikmat/standard'
+import { alleMaaLykkes, maaLykkes } from '@/lib/skriv-svar'
 
 // Tablet/ansatt logger en temperatur. Utenfor kravet → avvik + varsel (§16.5).
 export async function registrerAvlesning(formData: FormData) {
@@ -131,7 +132,7 @@ export async function settOppStandard(formData: FormData) {
     sortering: i,
     opprettet_av: bruker.id,
   }))
-  await supabase.from('ik_kontrollpunkter').insert(rader)
+  maaLykkes(await supabase.from('ik_kontrollpunkter').insert(rader), 'opprette ik kontrollpunkter')
   revalidatePath('/ikmat')
   revalidatePath('/ikmat/oppsett')
 }
@@ -142,7 +143,7 @@ export async function slettKontrollpunkt(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('ik_kontrollpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('ik_kontrollpunkter').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette ik kontrollpunkter')
   revalidatePath('/ikmat')
   revalidatePath('/ikmat/oppsett')
 }
@@ -160,13 +161,13 @@ export async function oppdaterPunkt(formData: FormData) {
   const navn = String(formData.get('navn') ?? '').trim()
   if (!id || !navn) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('ik_kontrollpunkter').update({
+  maaLykkes(await supabase.from('ik_kontrollpunkter').update({
     navn,
     type: String(formData.get('type') ?? 'kjol'),
     frekvens: String(formData.get('frekvens') ?? 'daglig'),
     min_temp: tilTall(formData, 'min_temp'),
     max_temp: tilTall(formData, 'max_temp'),
-  }).eq('id', id)
+  }).eq('id', id), 'oppdatere ik kontrollpunkter')
   revalidatePath('/ikmat/oppsett')
   revalidatePath('/ikmat')
 }
@@ -182,7 +183,7 @@ export async function leggTilPunkt(formData: FormData) {
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase.from('ik_kontrollpunkter').select('sortering').eq('stasjon_id', stasjonId).is('slettet_tid', null).order('sortering', { ascending: false }).limit(1).maybeSingle<{ sortering: number | null }>()
-  await supabase.from('ik_kontrollpunkter').insert({
+  maaLykkes(await supabase.from('ik_kontrollpunkter').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     navn,
@@ -192,7 +193,7 @@ export async function leggTilPunkt(formData: FormData) {
     max_temp: tilTall(formData, 'max_temp'),
     sortering: (siste?.sortering ?? -1) + 1,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette ik kontrollpunkter')
   revalidatePath('/ikmat/oppsett')
   revalidatePath('/ikmat')
 }
@@ -202,7 +203,7 @@ export async function lagrePunktRekkefolge(stasjonId: string, ids: string[]): Pr
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !stasjonId || !Array.isArray(ids)) return
   const supabase = await lagSupabaseServerKlient()
-  await Promise.all(ids.map((id, i) => supabase.from('ik_kontrollpunkter').update({ sortering: i }).eq('id', id).eq('stasjon_id', stasjonId)))
+  alleMaaLykkes(await Promise.all(ids.map((id, i) => supabase.from('ik_kontrollpunkter').update({ sortering: i }).eq('id', id).eq('stasjon_id', stasjonId))), 'oppdatere ik kontrollpunkter')
   revalidatePath('/ikmat/oppsett')
   revalidatePath('/ikmat')
 }

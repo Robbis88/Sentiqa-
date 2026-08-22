@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export async function registrerBruk(formData: FormData) {
   const bruker = await hentInnloggetBruker()
@@ -14,14 +15,14 @@ export async function registrerBruk(formData: FormData) {
   const dato = String(formData.get('dato') ?? '')
   if (!stasjonId || !beskrivelse || !Number.isFinite(belop) || belop <= 0) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('pengepremie_bruk').insert({
+  maaLykkes(await supabase.from('pengepremie_bruk').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     beskrivelse,
     belop_kr: belop,
     dato: /^\d{4}-\d{2}-\d{2}$/.test(dato) ? dato : undefined,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette pengepremie bruk')
   revalidatePath('/premier')
 }
 
@@ -51,14 +52,14 @@ export async function tildelPremie(formData: FormData) {
   const dato = String(formData.get('dato') ?? '')
   if (!stasjonId || !beskrivelse || !Number.isFinite(belop) || belop <= 0) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('pengepremie').insert({
+  maaLykkes(await supabase.from('pengepremie').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     beskrivelse,
     belop_kr: belop,
     dato: /^\d{4}-\d{2}-\d{2}$/.test(dato) ? dato : undefined,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette pengepremie')
   revalidatePath('/premier')
 }
 
@@ -69,7 +70,7 @@ export async function vekslUtbetalt(formData: FormData) {
   const til = String(formData.get('til') ?? '') === 'ja'
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('pengepremie').update({ utbetalt: til }).eq('id', id)
+  maaLykkes(await supabase.from('pengepremie').update({ utbetalt: til }).eq('id', id), 'oppdatere pengepremie')
   revalidatePath('/premier')
 }
 

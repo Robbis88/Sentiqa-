@@ -5,6 +5,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { VAKTTYPER } from '@/lib/rutineskjema'
 import { IKMAT_RUTINE } from '@/lib/ikmat/rutine'
+import { alleMaaLykkes, maaLykkes } from '@/lib/skriv-svar'
 
 function ukedagerFra(formData: FormData): number[] {
   return formData.getAll('ukedager').map((u) => Number(u)).filter((n) => n >= 0 && n <= 6)
@@ -22,7 +23,7 @@ export async function leggTilSkjema(formData: FormData) {
   if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(slutt)) return
 
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('rutineskjemaer').insert({
+  maaLykkes(await supabase.from('rutineskjemaer').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     vakttype,
@@ -31,7 +32,7 @@ export async function leggTilSkjema(formData: FormData) {
     tid_slutt: slutt,
     ukedager: ukedagerFra(formData),
     opprettet_av: bruker.id,
-  })
+  }), 'opprette rutineskjemaer')
   revalidatePath('/rutiner/oppsett')
 }
 
@@ -41,7 +42,7 @@ export async function slettSkjema(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('rutineskjemaer').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('rutineskjemaer').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette rutineskjemaer')
   revalidatePath('/rutiner/oppsett')
 }
 
@@ -54,7 +55,7 @@ export async function oppdaterSkjema(formData: FormData) {
   const slutt = String(formData.get('tid_slutt') ?? '')
   if (!id || !/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(slutt)) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('rutineskjemaer').update({ navn, tid_start: start, tid_slutt: slutt, ukedager: ukedagerFra(formData) }).eq('id', id)
+  maaLykkes(await supabase.from('rutineskjemaer').update({ navn, tid_start: start, tid_slutt: slutt, ukedager: ukedagerFra(formData) }).eq('id', id), 'oppdatere rutineskjemaer')
   revalidatePath(`/rutiner/oppsett/${id}`)
   revalidatePath('/rutiner/oppsett')
 }
@@ -72,7 +73,7 @@ export async function leggTilRutine(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   // Plasser nederst: sortering = høyeste i skjemaet + 1.
   const { data: siste } = await supabase.from('rutiner').select('sortering').eq('skjema_id', skjemaId).is('slettet_tid', null).order('sortering', { ascending: false }).limit(1).maybeSingle<{ sortering: number | null }>()
-  await supabase.from('rutiner').insert({
+  maaLykkes(await supabase.from('rutiner').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     skjema_id: skjemaId,
@@ -82,7 +83,7 @@ export async function leggTilRutine(formData: FormData) {
     paakrevd_bilde: paakrevdBilde,
     sortering: (siste?.sortering ?? -1) + 1,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette rutiner')
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
   revalidatePath('/rutiner/oppsett')
 }
@@ -98,7 +99,7 @@ export async function leggTilIkmatRutine(formData: FormData) {
 
   const supabase = await lagSupabaseServerKlient()
   const { data: siste } = await supabase.from('rutiner').select('sortering').eq('skjema_id', skjemaId).is('slettet_tid', null).order('sortering', { ascending: false }).limit(1).maybeSingle<{ sortering: number | null }>()
-  await supabase.from('rutiner').insert({
+  maaLykkes(await supabase.from('rutiner').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     skjema_id: skjemaId,
@@ -109,7 +110,7 @@ export async function leggTilIkmatRutine(formData: FormData) {
     ikmat_frekvens: frekvens,
     sortering: (siste?.sortering ?? -1) + 1,
     opprettet_av: bruker.id,
-  })
+  }), 'opprette rutiner')
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
   revalidatePath('/rutiner/oppsett')
 }
@@ -122,12 +123,12 @@ export async function oppdaterRutine(formData: FormData) {
   const tittel = String(formData.get('tittel') ?? '').trim()
   if (!id || !tittel) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('rutiner').update({
+  maaLykkes(await supabase.from('rutiner').update({
     tittel,
     beskrivelse: String(formData.get('beskrivelse') ?? '').trim() || null,
     ukedager: ukedagerFra(formData),
     paakrevd_bilde: formData.get('paakrevd_bilde') === 'on',
-  }).eq('id', id)
+  }).eq('id', id), 'oppdatere rutiner')
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
 }
 
@@ -136,7 +137,7 @@ export async function lagreRekkefolge(skjemaId: string, ids: string[]): Promise<
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !skjemaId || !Array.isArray(ids)) return
   const supabase = await lagSupabaseServerKlient()
-  await Promise.all(ids.map((id, i) => supabase.from('rutiner').update({ sortering: i }).eq('id', id).eq('skjema_id', skjemaId)))
+  alleMaaLykkes(await Promise.all(ids.map((id, i) => supabase.from('rutiner').update({ sortering: i }).eq('id', id).eq('skjema_id', skjemaId))), 'oppdatere rutiner')
   revalidatePath(`/rutiner/oppsett/${skjemaId}`)
 }
 
@@ -146,6 +147,6 @@ export async function slettRutine(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('rutiner').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('rutiner').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette rutiner')
   revalidatePath('/rutiner/oppsett')
 }

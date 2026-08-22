@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 export async function settAbonnement(formData: FormData) {
   const bruker = await hentInnloggetBruker()
@@ -11,9 +12,9 @@ export async function settAbonnement(formData: FormData) {
   const premium = formData.get('premium_avtalevokter') === 'on'
 
   const supabase = await lagSupabaseServerKlient()
-  await supabase
+  maaLykkes(await supabase
     .from('retailers')
     .update({ faktura_epost: fakturaEpost, aarlig_forskudd: aarlig, premium_avtalevokter: premium })
-    .eq('id', bruker.retailerId)
+    .eq('id', bruker.retailerId), 'oppdatere retailers')
   revalidatePath('/abonnement')
 }

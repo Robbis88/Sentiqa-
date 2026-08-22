@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { formulerNyhetstekst } from '@/lib/ai/nyhet'
+import { maaLykkes } from '@/lib/skriv-svar'
 
 const Nytt = z.object({
   tittel: z.string().min(1, { error: 'Skriv en tittel.' }),
@@ -56,10 +57,10 @@ export async function settPublisert(formData: FormData) {
   const til = String(formData.get('til') ?? '') === 'ja'
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase
+  maaLykkes(await supabase
     .from('plattform_innlegg')
     .update({ publisert: til, publisert_tid: til ? new Date().toISOString() : null })
-    .eq('id', id)
+    .eq('id', id), 'oppdatere plattform innlegg')
   revalidatePath('/redaktor')
 }
 
@@ -69,6 +70,6 @@ export async function slettInnlegg(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('plattform_innlegg').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  maaLykkes(await supabase.from('plattform_innlegg').update({ slettet_tid: new Date().toISOString() }).eq('id', id), 'slette plattform innlegg')
   revalidatePath('/redaktor')
 }
