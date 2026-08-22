@@ -1,22 +1,26 @@
 // =====================================================================
-// Lederdekning: hva eieren har valgt å legge tilbake i rammen.
+// Lederdekning: leses fra faste vakter, ikke fra et eget skjema.
 //
-// St1 trekker ett årsverk fra timebudsjettet fordi de antar at
-// butikksjefen går på fastlønn. Holder ikke antakelsen, KAN eieren
-// legge timer tilbake — men det er en beslutning, ikke en konsekvens.
+// St1 trekker ett årsverk (1695 t) fra timebudsjettet fordi de antar at
+// butikksjefen går på fastlønn og dekker sitt eget arbeid. Om den
+// antakelsen holder, står allerede i `bemanning_fast_vakt.timelonnet` —
+// 0086 definerer den ordrett:
 //
-// TO SPØRSMÅL, OG DE KAN VÆRE UENIGE:
+//   true  = vakten er bundet, men belaster timerammen
+//   false = fastlønn, dekker gulvet uten å koste rammen
 //
-//   fastlonnet      Var det en fastlønnet butikksjef på plass? Et faktum.
-//   timer_tilbake   Hva eieren valgte å gi. NULL = ingenting.
+// REGELEN, UTEN NAVNEGJENKJENNING: har stasjonen faste vakter, men
+// ingen av dem er fastlønnet, legges årsverket/12 tilbake i rammen.
+// Vi trenger ikke vite hvilken rad som er butikksjefen — `navn` er
+// fritekst, og å koble på den ville vært samme feil som å koble ansatte
+// på navn.
 //
-// Bjørn på Laguneparken er hele grunnen til skillet: fastlønnet, men i
-// pappaperm til august. «Nei» er sant — og med automatikk ville
-// stasjonen fått 953 timer tilbake og gått fra +154 til −799, uten at
-// noen hadde tatt stilling til om det faktisk gikk med timelønnede til
-// å dekke ham.
+// FORKASTET: et eget skjema (`bemanning_lederdekning`, 0118–0120) som
+// spurte om det samme på nytt, med fire kontroller per måned. Det
+// motsa til og med seg selv på skjermen. Robert: «hvorfor gjøre det så
+// veldig vanskelig … dette skal 50–100 retailere onboarde seg selv på.»
 //
-// Regnestykket bor i `v_timeregnskap` (0120). Her ligger bare det
+// Regnestykket bor i `v_timeregnskap` (0121). Her ligger bare tallet
 // skjermen trenger.
 // =====================================================================
 
@@ -24,82 +28,21 @@
  * Ett årsverk, slik St1 regner det.
  *
  * Står i `0082`: «Timene St1 trekker fra for butikksjefens fastlønn
- * (1695 = ett årsverk).» Brukes bare til å regne ut FORSLAGET som vises
- * som tekst — aldri til å fylle inn et felt.
+ * (1695 = ett årsverk).» Viewet bruker samme tall som reserve når
+ * `bemanning_aar.fast_arsverk_timer` ikke er satt — og det er den
+ * normale tilstanden, siden ingenting i produktet setter den i dag.
+ *
+ * SQL kan ikke importere fra TypeScript, så tallet står to steder.
+ * Testen under leser begge og feller hvis de går fra hverandre.
  */
 export const ARSVERK_TIMER = 1695
 
-/** De tre tilstandene lederdekningen kan ha. «Ukjent» er ikke «nei». */
-export type Dekning = 'fastlonnet' | 'ikke_fastlonnet' | 'ukjent'
-
-export const MANEDER = [
-  'Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Desember',
-] as const
-
-/**
- * FORSLAGET for en hel måned — aldri en tildeling.
- *
- * 1695/12 = 141,25. Desimalen beholdes: en halv måned er 70,63, og et
- * avrundet forslag inviterer til et avrundet valg.
- *
- * Tallet vises som TEKST ved siden av feltet og fylles aldri inn.
- * Eieren må skrive det selv. Det er hele forskjellen på et forslag og
- * en automatikk — og den forskjellen er grunnen til at 0119 ble rettet.
- */
-export function forslagHelManed(arsverkTimer: number): number {
+/** Timene som legges tilbake i en måned uten fastlønnet fast vakt. */
+export function timerPerManed(arsverkTimer: number): number {
   return Math.round((arsverkTimer / 12) * 100) / 100
 }
 
 /** Norsk desimaltegn. 141.25 → «141,25». */
 export function timetall(v: number): string {
   return String(v).replace('.', ',')
-}
-
-/**
- * Setningen om hva raden faktisk gjør, i klartekst.
- *
- * MÅ SI BEGGE DELER. «Ingen fastlønnet butikksjef. Ingen timer lagt
- * tilbake.» er en helt gyldig — og vanlig — tilstand: lederen var i
- * permisjon, men ingen timelønnet dekket henne. Sier setningen bare det
- * første, leses faktumet som en tildeling.
- */
-export function forklarDekning(d: Dekning, timerTilbake: number | null): string {
-  const gitt = timerTilbake
-    ? `Rammen er økt med ${timetall(timerTilbake)} timer.`
-    : 'Ingen timer lagt tilbake.'
-
-  if (d === 'fastlonnet') return `Fastlønnet butikksjef på plass. ${gitt}`
-  if (d === 'ikke_fastlonnet') return `Ingen fastlønnet butikksjef. ${gitt}`
-  return `Ikke tatt stilling til lederdekning. ${gitt}`
-}
-
-/**
- * Hvor mange måneder som mangler et svar på lederdekning.
- *
- * Tallet står på siden fordi en delvis utfylt konfigurasjon ser
- * nøyaktig ut som en ferdig — helt til noen lurer på hvorfor en stasjon
- * ligger over.
- */
-export function uavklarte(
-  rader: { fastlonnet: boolean | null }[],
-  maanederIAr: number,
-): number {
-  return Math.max(0, maanederIAr - rader.filter((r) => r.fastlonnet !== null).length)
-}
-
-/**
- * Normaliserer et innskrevet timetall.
- *
- * 0 OG TOMT ER DET SAMME, og begge blir `null`. Databasen har en skranke
- * som forbyr 0 nettopp derfor: «ingenting» skal ha én representasjon, så
- * en spørring etter `is null` ikke bommer på halvparten.
- */
-export function normaliserTimer(rå: string): number | null {
-  const n = Number(rå.replace(',', '.'))
-  if (!Number.isFinite(n) || n <= 0) return null
-  // Et årsverk er 1695 timer. Over 300 i én måned er en tastefeil, ikke
-  // en beslutning — og den ville doblet rammen.
-  if (n > 300) return null
-  return Math.round(n * 100) / 100
 }
