@@ -83,7 +83,7 @@ export default async function VaarStasjonSide() {
         </div>
       </section>
 
-      {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} />}
+      {hjem.vekst && <VekstKort metrikker={hjem.vekst.metrikker} sisteDato={hjem.vekst.sisteDato} />}
 
       {hjem.skills && (
         <section className="tablet-seksjon skills">
