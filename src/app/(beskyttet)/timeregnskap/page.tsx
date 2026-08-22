@@ -91,19 +91,30 @@ export default async function TimeregnskapSide() {
   const liste = (stasjoner ?? []) as Stasjon[]
   const alle = (rader ?? []) as Rad[]
 
-  // Bare måneder som faktisk er målt. En måned uten stemplinger er ikke
-  // et null-forbruk — den er ikke importert ennå.
-  const maalte = alle.filter((r) => r.brukte_timer != null && r.opptjente_timer != null)
+  // TO ULIKE KRAV TIL DATA, OG DE ER IKKE DE SAMME.
+  //
+  // OPPGJØRET trenger stemplinger: uten dem finnes ikke forbruket.
+  // MÅLET trenger dem ikke — timene du har tjent inn er brutto delt på
+  // raten St1 satte, og den kan regnes fra første salgsdag.
+  //
+  // Robert 2026-08-22: «jeg snakker mer om når vi ikke har stemplinger.»
+  // Det er normaltilstanden midt i måneden — de kommer fra easy@work
+  // etterskuddsvis — og før dette viste siden da ingenting i det hele
+  // tatt for stasjonen. Et mål er nyttig uten et fasitsvar; det er
+  // nettopp det som gjør det til et mål.
+  const medBrutto = alle.filter((r) => r.opptjente_timer != null)
+  const medForbruk = medBrutto.filter((r) => r.brukte_timer != null)
 
-  if (maalte.length === 0) {
+  if (medBrutto.length === 0) {
     return (
       <>
         <Sidehode tittel="Timeregnskap" undertittel="Har vi råd til timene?" />
         <Tomtilstand
           tittel="Ingenting å gjøre opp ennå"
           forklaring={'Timeregnskapet trenger tre ting: timebudsjettet fra BP-en, '
-            + 'stemplinger, og brutto fra regnskapet. Mangler én av dem, finnes '
-            + 'det ingen ramme å måle mot.'}
+            + 'brutto fra regnskapet eller kassa, og stemplinger. De to '
+            + 'første gir målet; stemplingene gir oppgjøret. Uten de to '
+            + 'første finnes det ingen ramme å måle mot.'}
           handling={<a className="sq-knapp" href="/import">Til import</a>}
         />
       </>
@@ -122,8 +133,10 @@ export default async function TimeregnskapSide() {
       && r.dager_med_salg >= r.dager_i_maaned
 
   const per = liste.map((st) => {
-    const mine = maalte.filter((r) => r.stasjon_id === st.id)
-    const ferdige = mine.filter(helMaaned)
+    const mine = medBrutto.filter((r) => r.stasjon_id === st.id)
+    // OPPGJØRET: bare avsluttede måneder med stemplinger.
+    const ferdige = medForbruk.filter((r) => r.stasjon_id === st.id).filter(helMaaned)
+    // MÅLET: den pågående måneden, med eller uten stemplinger.
     const paagaar = mine.find((r) => !helMaaned(r))
     const sum = (rader: Rad[], f: (r: Rad) => number | null) =>
       rader.reduce((s, r) => s + (f(r) ?? 0), 0)
@@ -214,6 +227,7 @@ export default async function TimeregnskapSide() {
                 verdsettes med kassens omsetning til årets realiserte
                 margin — et anslag som skal korrigeres når regnskapet
                 kommer, og som ikke skal leses som en måling. */}
+
             {p.krav && p.krav.bruttoMangler > 0 && (
               // OPPGAVEN, IKKE DOMMEN.
               //
@@ -230,14 +244,46 @@ export default async function TimeregnskapSide() {
             )}
 
             {p.paagaar && (
-              // DEN PÅGÅENDE MÅNEDEN, MED HVOR LANGT DEN ER KOMMET.
-              // Står utenfor summen over: to tredjedeler av en måned lagt
-              // til fem hele er ikke et tall noen kan lese.
-              <p className="tr-note">
+              // PEKEPINNEN. Det eneste tallet på siden som kommer tidsnok
+              // til å endre noe — alt annet er oppgjør: sant, men over.
+              //
+              // REGELEN ER ÉN RATE. 800 timer på 800 000 kr er 1 000 kr
+              // brutto per time, og timene du har tjent inn er brutto
+              // delt på den raten. Robert 2026-08-22: «da er regelen
+              // veldig enkel eller?» — jo, og det er den samme regelen
+              // hele siden bygger på.
+              //
+              // BRUTTOEN ER KORRIGERT, IKKE KASSENS. Står det 700 000 i
+              // kassa og regnskapet lander på 600 000 etter telling, er
+              // det 600 000 som har tjent inn timer.
+              <p className="tr-styring">
                 Så langt i inneværende måned ({p.paagaar.dager_med_salg} av{' '}
-                {p.paagaar.dager_i_maaned} dager talt):{' '}
-                {t0(p.paagaar.brukte_timer)} timer brukt av{' '}
-                {t0(p.paagaar.opptjente_timer)} opptjente.
+                {p.paagaar.dager_i_maaned} dager): {t0(p.paagaar.opptjente_timer)}
+                {' '}timer tjent inn.
+                {/* UTEN STEMPLINGER FINNES INGEN FASIT, og det er
+                    normaltilstanden midt i måneden — de kommer fra
+                    easy@work etterskuddsvis. Målet er nyttig uten et
+                    fasitsvar; det er nettopp det som gjør det til et mål. */}
+                {p.paagaar.brukte_timer == null ? (
+                  <span className="tr-styring-forbehold">
+                    {' '}Ingen stemplinger importert for måneden ennå, så
+                    forbruket er ikke kjent. Tallet er vaktplanen din å holde
+                    seg innenfor.
+                  </span>
+                ) : (
+                  <>
+                    {' '}{t0(p.paagaar.brukte_timer)} timer brukt —{' '}
+                    {(p.paagaar.timer_over ?? 0) > 0
+                      ? `${t0(p.paagaar.timer_over)} for mye så langt.`
+                      : `${t0(Math.abs(p.paagaar.timer_over ?? 0))} å gå på.`}
+                    {/* En pekepinne, ikke en dom: tar salget seg opp,
+                        hentes avviket inn uten at noen gjorde noe. */}
+                    <span className="tr-styring-forbehold">
+                      {' '}En pekepinne underveis — tar salget seg opp, hentes
+                      avviket inn av seg selv.
+                    </span>
+                  </>
+                )}
               </p>
             )}
 

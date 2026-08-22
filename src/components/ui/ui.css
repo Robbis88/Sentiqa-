@@ -888,3 +888,21 @@
   color: var(--tekst);
   line-height: 1.45;
 }
+
+/* Styringen. Det eneste tallet på siden som kommer tidsnok til å endre
+   noe — alt annet er oppgjør. Derfor står den øverst blant notatene, i
+   full tekstfarge, med en tydeligere kant enn de andre. */
+.tr-styring {
+  margin: var(--luft-4) 0 0;
+  padding: var(--luft-3) var(--luft-4);
+  border-left: 4px solid var(--kant-sterk);
+  background: var(--bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tekst);
+  line-height: 1.5;
+}
+/* Forbeholdet dempes, men slettes ikke: en framskriving som ikke sier
+   at den er en framskriving, blir lest som en måling. */
+.tr-styring-forbehold { font-weight: 400; color: var(--tekst-svak); }
