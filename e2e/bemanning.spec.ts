@@ -93,8 +93,14 @@ test.describe('/bemanning', () => {
     for (const knapp of ['Nytt vindu', 'Ny fast vakt', 'Nytt krav', 'Nytt fravær']) {
       await expect(page.getByRole('button', { name: knapp }), knapp).toBeVisible()
     }
-    await expect(page.getByLabel('Måned')).toBeAttached()
-    await expect(page.getByLabel('År')).toBeAttached()
+    // ROLLE, IKKE BARE ETIKETT. Da «Ny fast vakt» fikk et «Gjelder fra»-
+    // felt, begynte getByLabel('Måned') å treffe to elementer: Chromium
+    // eksponerer datofeltets indre måned-hjul med samme navn.
+    //
+    // Rollen skiller dem, og skjerper samtidig kontrollen: den sier nå
+    // at det finnes en månedsVELGER, ikke bare noe som heter «Måned».
+    await expect(page.getByRole('combobox', { name: 'Måned' })).toBeAttached()
+    await expect(page.getByRole('combobox', { name: 'År' })).toBeAttached()
     await expect(page.getByRole('button', { name: 'Vis' })).toBeVisible()
   })
 
