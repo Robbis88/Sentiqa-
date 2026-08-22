@@ -1,4 +1,5 @@
 'use server'
+import type { SlettTilstand } from '@/components/ui/slett-knapp'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
@@ -16,12 +17,19 @@ export async function registrerSkills(formData: FormData) {
   revalidatePath('/skills')
 }
 
-export async function slettSkills(formData: FormData) {
+export async function slettSkills(
+  _t: SlettTilstand, formData: FormData,
+): Promise<SlettTilstand> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
   const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('skills_score').delete().eq('id', id)
+  // FEILEN SKAL VAERE SYNLIG. Ble raden avvist av RLS, skjedde
+  // det ingenting - og sida sa ingenting. Da er «slettet» og
+  // «gikk ikke» to tilstander som ser helt like ut.
+  const { error } = await supabase.from('skills_score').delete().eq('id', id)
+  if (error) return { feil: `Kunne ikke slette: ${error.message}` }
   revalidatePath('/skills')
+  return { ok: 'Scoren slettet' }
 }

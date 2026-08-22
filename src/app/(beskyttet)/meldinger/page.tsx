@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { sendMelding, slettMelding } from './handlinger'
@@ -82,10 +83,7 @@ export default async function MeldingerSide() {
               // nettbrettet - derfor `handling`, ikke `kritisk`.
               status={m.viktig ? <Status nivaa="handling">Viktig</Status> : undefined}
               handlinger={(
-                <form action={slettMelding}>
-                  <input type="hidden" name="id" value={m.id} />
-                  <Knapp type="submit" variant="ghost" liten>Slett</Knapp>
-                </form>
+                <SlettKnapp handling={slettMelding} id={m.id} bekreftelse="Meldingen slettet" />
               )}
             />
           ))}

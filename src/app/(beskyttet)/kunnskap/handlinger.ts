@@ -1,4 +1,5 @@
 'use server'
+import type { SlettTilstand } from '@/components/ui/slett-knapp'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -17,12 +18,19 @@ export async function leggTilKunnskap(formData: FormData): Promise<void> {
   revalidatePath('/kunnskap')
 }
 
-export async function slettKunnskap(formData: FormData): Promise<void> {
+export async function slettKunnskap(
+  _t: SlettTilstand, formData: FormData,
+): Promise<SlettTilstand> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'plattform_redaktor') return
+  if (bruker.rolle !== 'plattform_redaktor') return { feil: 'Ikke tilgang.' }
   const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!id) return { feil: 'Mangler id.' }
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('kunnskap').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  // FEILEN SKAL VAERE SYNLIG. Ble raden avvist av RLS, skjedde
+  // det ingenting - og sida sa ingenting. Da er «slettet» og
+  // «gikk ikke» to tilstander som ser helt like ut.
+  const { error } = await supabase.from('kunnskap').update({ slettet_tid: new Date().toISOString() }).eq('id', id)
+  if (error) return { feil: `Kunne ikke slette: ${error.message}` }
   revalidatePath('/kunnskap')
+  return { ok: 'Artikkelen slettet' }
 }

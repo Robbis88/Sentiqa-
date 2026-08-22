@@ -1,4 +1,5 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, datoLang } from '@/lib/format'
@@ -160,10 +161,7 @@ export default async function PremierSide() {
                         {t.utbetalt ? 'Marker som ikke utbetalt' : 'Marker utbetalt'}
                       </Knapp>
                     </form>
-                    <form action={slettTildeling}>
-                      <input type="hidden" name="id" value={t.id} />
-                      <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                    </form>
+                    <SlettKnapp handling={slettTildeling} id={t.id} bekreftelse="Tildelingen slettet" />
                   </>
                 ) : undefined}
               />
@@ -183,10 +181,7 @@ export default async function PremierSide() {
                 sekundaer={`${navnFor.get(b.stasjon_id) ?? '—'} · ${datoLang.format(new Date(b.dato))}`}
                 metadata={kr.format(Number(b.belop_kr))}
                 handlinger={(
-                  <form action={slettBruk}>
-                    <input type="hidden" name="id" value={b.id} />
-                    <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                  </form>
+                  <SlettKnapp handling={slettBruk} id={b.id} bekreftelse="Bruken slettet" />
                 )}
               />
             ))}

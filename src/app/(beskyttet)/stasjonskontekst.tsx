@@ -59,6 +59,13 @@ export function Stasjonskontekst({
   // serveren svarer. Ellers står det gamle navnet mens siden laster,
   // og det er nettopp da man lurer på om klikket gikk gjennom.
   const [nettoppValgt, settValgt] = useState<string | null>(null)
+  // Nullstilles naar serveren har levert et nytt valg: uten dette ville
+  // et bytte som ikke gikk gjennom staatt igjen som om det gjorde det.
+  const [sist, settSist] = useState(valgt)
+  if (sist !== valgt) {
+    settSist(valgt)
+    settValgt(null)
+  }
 
   const navnFor = (id: string | null) => {
     if (id === null || id === 'alle') return 'Alle stasjoner'

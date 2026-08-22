@@ -1,4 +1,5 @@
 'use server'
+import type { SlettTilstand } from '@/components/ui/slett-knapp'
 import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
@@ -24,14 +25,20 @@ export async function registrerBruk(formData: FormData) {
   revalidatePath('/premier')
 }
 
-export async function slettBruk(formData: FormData) {
+export async function slettBruk(
+  _t: SlettTilstand, formData: FormData,
+): Promise<SlettTilstand> {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
   const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!id) return { feil: 'Ikke tilgang.' }
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('pengepremie_bruk').delete().eq('id', id)
+  // Feilen skal vaere synlig: «slettet» og «gikk ikke» ser
+  // ellers helt like ut.
+  const { error } = await supabase.from('pengepremie_bruk').delete().eq('id', id)
+  if (error) return { feil: `Kunne ikke slette: ${error.message}` }
   revalidatePath('/premier')
+  return { ok: 'Bruken slettet' }
 }
 
 // ---- Tildeling av premie (utenom konkurranse) — KUN admin/eier ----
@@ -66,12 +73,18 @@ export async function vekslUtbetalt(formData: FormData) {
   revalidatePath('/premier')
 }
 
-export async function slettTildeling(formData: FormData) {
+export async function slettTildeling(
+  _t: SlettTilstand, formData: FormData,
+): Promise<SlettTilstand> {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return
+  if (bruker.rolle !== 'retailer_admin') return { feil: 'Ikke tilgang.' }
   const id = String(formData.get('id') ?? '')
-  if (!id) return
+  if (!id) return { feil: 'Ikke tilgang.' }
   const supabase = await lagSupabaseServerKlient()
-  await supabase.from('pengepremie').delete().eq('id', id)
+  // Feilen skal vaere synlig: «slettet» og «gikk ikke» ser
+  // ellers helt like ut.
+  const { error } = await supabase.from('pengepremie').delete().eq('id', id)
+  if (error) return { feil: `Kunne ikke slette: ${error.message}` }
   revalidatePath('/premier')
+  return { ok: 'Tildelingen slettet' }
 }

@@ -1,10 +1,10 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
+import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { registrerSkills, slettSkills } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
-import { Knapp } from '@/components/ui/knapp'
 import { Sidepanel } from '@/components/ui/sidepanel'
 
 type Score = { id: string; stasjon_id: string; prosent: number; kommentar: string | null; registrert_tid: string }
@@ -70,10 +70,7 @@ export default async function SkillsSide() {
                 .filter(Boolean).join(' · ')}
               metadata={`${Number(s.prosent)} %`}
               handlinger={(
-                <form action={slettSkills}>
-                  <input type="hidden" name="id" value={s.id} />
-                  <Knapp type="submit" variant="destruktiv" liten>Slett</Knapp>
-                </form>
+                <SlettKnapp handling={slettSkills} id={s.id} bekreftelse="Scoren slettet" />
               )}
             />
           ))}
