@@ -9,6 +9,9 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
+import {
+  LONNSKONTI, SYKEKONTI, kjedensSykesats, type Regnskapsrad,
+} from '@/lib/bemanning/sykereserve'
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
@@ -586,13 +589,19 @@ async function lagreSvinn(
 // har vært heldig, ikke frisk — 0 % der er en garantert sprekk. Er reserven
 // satt manuelt fra før, beholdes den.
 // ---------------------------------------------------------------------
-const LONNSKONTI = ['501', '502', '503', '508', '540', '541']
-const SYKEKONTI = ['505', '506']
 
-async function sykefravaerssatser(
+/**
+ * Kjedens sykefraværssats, fra regnskapet, siste tolv måneder.
+ *
+ * ETT TALL FOR ALLE STASJONER — se `sykereserve.ts` for hvorfor. Kort:
+ * fradraget er eierens margin, og en margin skal ikke variere med hvem
+ * som er syk. Før dette var satsen `max(egen, snitt)`, som ga stasjonen
+ * med høyest fravær både færre hender og mindre ramme.
+ */
+async function sykefravaerssats(
   supabase: Klient,
   retailerId: string,
-): Promise<{ perStasjon: Map<string, number>; poolet: number }> {
+): Promise<number> {
   const fra = new Date()
   fra.setUTCFullYear(fra.getUTCFullYear() - 1)
   const { data } = await supabase
@@ -604,26 +613,7 @@ async function sykefravaerssatser(
     .gte('periode', fra.toISOString().slice(0, 10))
     .in('kode', [...LONNSKONTI, ...SYKEKONTI])
 
-  const lonn = new Map<string, number>()
-  const syke = new Map<string, number>()
-  let lonnSum = 0
-  let sykeSum = 0
-  for (const r of (data ?? []) as { stasjon_id: string; kode: string; regnskap: number | null }[]) {
-    const v = r.regnskap ?? 0
-    if (SYKEKONTI.includes(r.kode)) {
-      syke.set(r.stasjon_id, (syke.get(r.stasjon_id) ?? 0) + v)
-      sykeSum += v
-    } else {
-      lonn.set(r.stasjon_id, (lonn.get(r.stasjon_id) ?? 0) + v)
-      lonnSum += v
-    }
-  }
-  const poolet = lonnSum > 0 ? (sykeSum / lonnSum) * 100 : 0
-  const perStasjon = new Map<string, number>()
-  for (const [id, l] of lonn) {
-    if (l > 0) perStasjon.set(id, Math.max(((syke.get(id) ?? 0) / l) * 100, poolet))
-  }
-  return { perStasjon, poolet }
+  return kjedensSykesats((data ?? []) as Regnskapsrad[])
 }
 
 async function lagreBp(
@@ -643,7 +633,7 @@ async function lagreBp(
     .single()
   const sikkerhetPst = (ret as { bemanning_sikkerhet_pst: number } | null)?.bemanning_sikkerhet_pst ?? 3
 
-  const { perStasjon: sykesats, poolet } = await sykefravaerssatser(supabase, retailerId)
+  const sykesats = await sykefravaerssats(supabase, retailerId)
 
   const mine = r.stasjoner
     .map((s) => ({ s, stasjonId: medNummer.get(s.butikknummer) }))
@@ -699,7 +689,9 @@ async function lagreBp(
 
   for (const { s, stasjonId } of mine) {
     const gammel = fra_for.get(stasjonId)
-    const reservePst = gammel?.reserve_pst ?? sykesats.get(stasjonId) ?? poolet
+    // KJEDENS SATS, ALLTID. Ikke `gammel?.reserve_pst`: den bar de
+    // gamle per-stasjon-verdiene, og ville frosset dem for alltid.
+    const reservePst = sykesats
     const stasjonSikkerhet = gammel?.sikkerhet_pst ?? sikkerhetPst
     const timerAar = s.timerAar ?? 0
 
