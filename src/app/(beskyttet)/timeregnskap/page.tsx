@@ -47,6 +47,8 @@ type Rad = {
   bp_brutto_per_time: number | null
   ramme_justering_timer: number | null
   arsverk_timer: number | null
+  dager_med_salg: number | null
+  dager_i_maaned: number | null
   lederdekning: string
 }
 
@@ -105,26 +107,39 @@ export default async function TimeregnskapSide() {
     )
   }
 
-  // Per stasjon, summert over målte måneder.
+  // EN DELVIS MÅNED HØRER IKKE HJEMME I EN SUM. Salgstallene stopper på
+  // gårsdagen, så den måneden som pågår har to tredjedeler av inntekten
+  // og to tredjedeler av timene. Regnestykket stemmer — men lagt sammen
+  // med avsluttede måneder kan ingen se hvor mye som er talt.
+  //
+  // Derfor: totalen dekker det som er ferdig. Den pågående måneden står
+  // for seg selv, med hvor langt den er kommet.
+  const helMaaned = (r: Rad) =>
+    r.dager_med_salg != null && r.dager_i_maaned != null
+      && r.dager_med_salg >= r.dager_i_maaned
+
   const per = liste.map((st) => {
     const mine = maalte.filter((r) => r.stasjon_id === st.id)
-    const sum = (f: (r: Rad) => number | null) =>
-      mine.reduce((s, r) => s + (f(r) ?? 0), 0)
-    const opptjent = sum((r) => r.opptjente_timer)
-    const brukt = sum((r) => r.brukte_timer)
+    const ferdige = mine.filter(helMaaned)
+    const paagaar = mine.find((r) => !helMaaned(r))
+    const sum = (rader: Rad[], f: (r: Rad) => number | null) =>
+      rader.reduce((s, r) => s + (f(r) ?? 0), 0)
+    const opptjent = sum(ferdige, (r) => r.opptjente_timer)
+    const brukt = sum(ferdige, (r) => r.brukte_timer)
     return {
       st,
-      maaneder: mine.length,
+      maaneder: ferdige.length,
       opptjent,
       brukt,
       over: brukt - opptjent,
-      justering: sum((r) => r.ramme_justering_timer),
+      justering: sum(ferdige, (r) => r.ramme_justering_timer),
       // «ukjent» = stasjonen har ingen faste vakter registrert, saa
       // lederdekningen kan ikke vurderes.
-      uavklart: mine.filter((r) => r.lederdekning === 'ukjent').length,
-      anslag: mine.filter((r) => r.grunnlag === 'anslag').length,
+      uavklart: ferdige.filter((r) => r.lederdekning === 'ukjent').length,
+      anslag: ferdige.filter((r) => r.grunnlag === 'anslag').length,
+      paagaar,
     }
-  }).filter((p) => p.maaneder > 0)
+  }).filter((p) => p.maaneder > 0 || p.paagaar)
 
   // DET SOM KOSTER MEST STÅR ØVERST. Ikke alfabetisk: den stasjonen som
   // har brukt flest timer den ikke har tjent inn, er den å se på først.
@@ -186,6 +201,18 @@ export default async function TimeregnskapSide() {
                 verdsettes med kassens omsetning til årets realiserte
                 margin — et anslag som skal korrigeres når regnskapet
                 kommer, og som ikke skal leses som en måling. */}
+            {p.paagaar && (
+              // DEN PÅGÅENDE MÅNEDEN, MED HVOR LANGT DEN ER KOMMET.
+              // Står utenfor summen over: to tredjedeler av en måned lagt
+              // til fem hele er ikke et tall noen kan lese.
+              <p className="tr-note">
+                Så langt i inneværende måned ({p.paagaar.dager_med_salg} av{' '}
+                {p.paagaar.dager_i_maaned} dager talt):{' '}
+                {t0(p.paagaar.brukte_timer)} timer brukt av{' '}
+                {t0(p.paagaar.opptjente_timer)} opptjente.
+              </p>
+            )}
+
             {p.anslag > 0 && (
               <p className="tr-note">
                 {p.anslag} av {p.maaneder} måneder er anslag: kassens omsetning
