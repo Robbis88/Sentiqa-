@@ -120,6 +120,14 @@ export default async function BusinessplanSide(
     )
   }
 
+  // NAVNET PAA STASJONEN. Uten det sa overskriften «28 400 kr bak plan
+  // hittil i august» uten aa si HVEM - og da ser et stasjonsbytte ut som
+  // ingenting. Robert meldte det som at velgeren ikke virket.
+  const stasjonsnavnet = liste.find((s) => s.id === stasjon)
+  const merke = stasjonsnavnet
+    ? `${stasjonsnavnet.butikknummer} ${stasjonsnavnet.navn}`
+    : ''
+
   // Ut av lista, ned i en fotnote - se `delEtterKobling`. Maalt i
   // produksjon: 0,12 % av budsjettet, og 146 kr salg uten plan.
   const { maalbare, umaaltBudsjett, salgUtenPlan } = delEtterKobling(iMnd)
@@ -141,6 +149,7 @@ export default async function BusinessplanSide(
         tittel={sumBak < 0
           ? `${kr.format(Math.abs(Math.round(sumBak)))} bak plan hittil i ${manedAar.format(new Date(maned)).toLowerCase()}`
           : `I rute mot planen i ${manedAar.format(new Date(maned)).toLowerCase()}`}
+        merke={merke}
         undertittel={verst
           ? `Størst avvik: ${verst.gruppe_navn ?? verst.gruppe_kode}. Businessplanen avgjør om vi er i rute — fjoråret forklarer utviklingen.`
           : 'Businessplanen avgjør om vi er i rute — fjoråret forklarer utviklingen.'}

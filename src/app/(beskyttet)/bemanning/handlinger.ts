@@ -1,4 +1,5 @@
 'use server'
+import type { SlettTilstand } from '@/components/ui/slett-knapp'
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
@@ -292,16 +293,41 @@ export async function leggTilFravaer(_t: Tilstand, fd: FormData): Promise<Tilsta
   return { ok: `${felt.data.navn} borte i ${dager} ${dager === 1 ? 'dag' : 'dager'}` }
 }
 
-async function slett(tabell: string, fd: FormData) {
+/**
+ * Sletter én rad, og SIER FRA.
+ *
+ * Foer 2026-08-22 kastet denne resultatet av `.delete()`. Ble raden
+ * avvist av RLS, skjedde det ingenting - og sida sa ingenting. Da er
+ * det umulig aa vite om raden er borte eller om knappen ikke virker.
+ *
+ * Samme kontrakt som resten: ingen skrivende serverhandling faar
+ * returnere som om alt gikk bra naar Supabase returnerte en feil.
+ */
+async function slett(
+  tabell: string, fd: FormData, hva: string,
+): Promise<SlettTilstand> {
   const supabase = await klient()
-  if (!supabase) return
+  if (!supabase) return { feil: 'Ikke tilgang.' }
   const id = String(fd.get('id') ?? '')
-  if (!id) return
-  await supabase.from(tabell).delete().eq('id', id)
+  if (!id) return { feil: 'Mangler id.' }
+
+  const { error } = await supabase.from(tabell).delete().eq('id', id)
+  if (error) return { feil: `Kunne ikke slette: ${error.message}` }
+
   revalidatePath('/bemanning')
+  revalidatePath('/timeregnskap')
+  return { ok: `${hva} slettet` }
 }
 
-export async function slettFastVakt(fd: FormData) { await slett('bemanning_fast_vakt', fd) }
-export async function slettKrav(fd: FormData) { await slett('bemanning_krav', fd) }
-export async function slettVindu(fd: FormData) { await slett('bemanning_vindu', fd) }
-export async function slettFravaer(fd: FormData) { await slett('bemanning_fravaer', fd) }
+export async function slettFastVakt(_t: SlettTilstand, fd: FormData) {
+  return slett('bemanning_fast_vakt', fd, 'Fast vakt')
+}
+export async function slettKrav(_t: SlettTilstand, fd: FormData) {
+  return slett('bemanning_krav', fd, 'Krav')
+}
+export async function slettVindu(_t: SlettTilstand, fd: FormData) {
+  return slett('bemanning_vindu', fd, 'Vindu')
+}
+export async function slettFravaer(_t: SlettTilstand, fd: FormData) {
+  return slett('bemanning_fravaer', fd, 'Fravær')
+}
