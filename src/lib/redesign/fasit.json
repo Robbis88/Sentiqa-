@@ -195,6 +195,7 @@
       "settAnsattnummer"
     ],
     "/anvisninger": [
+      "lastOppAnvisning",
       "leggTilAnvisning",
       "slettAnvisning"
     ],
@@ -456,10 +457,12 @@
       "Ny ansatt"
     ],
     "/anvisninger": [
+      "Eller skriv den inn",
+      "Last opp et ark (PDF)",
       "Ny anvisning",
       "o('Hjelp')",
       "o('Ingen anvisninger ennå')",
-      "{o(kat)} <span className=\"undertittel\">· {liste.length}</span>"
+      "{kat} <span className=\"undertittel\">· {liste.length}</span>"
     ],
     "/arrangementer": [
       "Forslag fra kalender <span className=\"undertittel\">— teller ikke før du bekrefter</span>",

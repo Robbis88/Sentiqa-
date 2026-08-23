@@ -2233,3 +2233,64 @@ a.sq-rad-lenke:hover { background: var(--bg); }
    som ikke fantes i paletten, skrevet rett inn da varselet ble laget.
    Nyansen finnes: `--rod` er nettopp tekstroden. */
 .sq-varselstekst { color: var(--rod); }
+
+/* --- Anvisningsarkivet: søk og kort ---------------------------------
+   FOR EN SOM STÅR MED HENDENE FULLE, ofte med hansker. Kortet er
+   trykkflaten, ikke tittelen — man treffer et kort, man treffer ikke en
+   tekstlinje.
+
+   SØKEFELTET ER KLEBRIG. Den som søker igjen skal ikke måtte scrolle
+   opp for å gjøre det. `--flate` under, ikke gjennomsiktig: uten en
+   bakgrunn ville radene skinne gjennom feltet når hun blar. */
+.anv-sok {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--flate);
+  padding: var(--luft-2) 0;
+  margin-bottom: var(--luft-3);
+}
+.anv-rutenett {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--luft-2);
+}
+@media (min-width: 560px) {
+  .anv-rutenett { grid-template-columns: 1fr 1fr; }
+}
+.anv-kort {
+  border: 1px solid var(--kant);
+  border-radius: 12px;
+  background: var(--kort);
+  box-shadow: var(--skygge);
+}
+.anv-kort-lenke {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  /* MINST 44 px HØYT. Et kort man skal treffe med hansker kan ikke være
+     en tekstlinje med luft rundt. */
+  min-height: 44px;
+  padding: 0.9rem 1rem;
+  text-decoration: none;
+  color: var(--tekst);
+  transition: border-color 0.15s, transform 0.1s;
+}
+.anv-kort:hover { border-color: var(--primaer); }
+/* Taktil respons ved tapp. Uten den er det umulig å vite om trykket
+   traff, og folk trykker en gang til. */
+.anv-kort-lenke:active { transform: scale(0.99); }
+.anv-kort-lenke strong { font-weight: 600; }
+.anv-kategori {
+  align-self: flex-start;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  border: 1px solid var(--kant);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+.anv-stikkord {
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+.anv-kort .knapperad { padding: 0 1rem 0.7rem; }
