@@ -1,31 +1,32 @@
 -- =====================================================================
 -- bp_brutto_fast: ett tall for hele aaret, eller en maanedskurve?
 --
--- MAALT MOT PRODUKSJON 2026-08-23: 15 av avdelingslinjene i viewet har
--- en budsjettmargin som staar paa samme tall alle tolv maanedene. De
--- oevrige varierer med fire til tolv ulike verdier.
+-- IKKE ET FUNN. En tolkningsnote, og det er hele ambisjonen.
 --
--- FOERSTE UTGAVE AV DENNE FILA KALTE DE 15 «avtalesatser, ikke maalt»,
--- og det var feil. Robert rettet det samme dag, og forklaringen er hele
--- poenget:
+-- 15 avdelingslinjer har en budsjettmargin som staar paa samme tall
+-- alle tolv maanedene. Jeg leste det foerst som «avtalesatser, ikke
+-- maalt», og senere som «flat = mistenkelig». Begge deler var feil.
+-- Robert forklarte hver eneste av dem 2026-08-23:
 --
---   En kaffeavtale koster 300 kr, og saa henter kunden saa mye kaffe
---   han vil. Bystasjonene - Varden, Bones, Laguneparken - har
---   avtalekunder innom flere ganger om dagen. Dale selger ekstremt mye
---   kaffe over disk og gir bort lite.
+--   VARM DRIKKE. En kaffeavtale koster 300 kr, og saa henter kunden
+--   saa mye han vil. Bystasjonene - Varden, Bones, Laguneparken - har
+--   avtalekunder innom flere ganger om dagen; Dale selger mye kaffe
+--   over disk og gir bort lite. Derav 20,0 % mot 70,4 % for samme
+--   produkt. Begge er riktige for sin stasjon.
 --
--- Derfor 20,0 % paa Bones og 70,4 % paa Dale for samme produkt. Begge
--- er HISTORISKE og ekte. De maaler stasjonens egen kundesammensetning,
--- ikke hvem som driver best.
+--   SELVVASK. Bare stoevsugeren ligger inne. Kosten er polettene, og
+--   de hentes inn og brukes om igjen. Tar du 20 eller 30 kr, blir
+--   bruttoen ikke hoeyere - derfor noeyaktig 78,4 % paa alle fire.
+--   Det er en strukturell konstant, ikke et rundt tall.
 --
--- HVA KOLONNEN DA ER GOD FOR, og det er fortsatt noe: staar budsjettet
--- paa ett aarstall, kan et avvik ikke leses som sesong - noe er
--- faktisk endret. Og nivaaet er stasjonens eget, saa tallet skal aldri
+-- OG GENERELT, som gjelder alle kategorier: brutto-forventningen
+-- settes av St1, og det er alltid en grunn. En stasjon som selger mye
+-- burger faar hoeyere forventning paa mat enn en som selger lite. Ny
+-- BP kommer hvert aar, og forventningen kan gaa BEGGE veier.
+--
+-- DET ENESTE KOLONNEN SIER er at et avvik paa en flat linje ikke kan
+-- leses som sesong. Den skal ikke farges, sorteres etter eller
 -- sammenliknes mellom stasjoner.
---
--- Selvvask staar paa noeyaktig 78,4 % paa alle fire stasjoner, til én
--- desimal. Den ser fortsatt satt ut og ikke maalt - i motsetning til
--- kaffen. Verdt et spoersmaal, ikke en konklusjon.
 --
 -- Denne migrasjonen legger til ÉN kolonne bakerst. Resten er 0116
 -- uendret - fila er GENERERT fra den, ikke skrevet av. Roeres 0116,
