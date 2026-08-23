@@ -1,24 +1,35 @@
 -- =====================================================================
--- bp_brutto_fast: er budsjettmarginen maalt, eller er den en avtalesats?
+-- bp_brutto_fast: ett tall for hele aaret, eller en maanedskurve?
 --
--- Hele 0116 hviler paa at bruttobudsjettet betyr noe, og sida sier det
--- ordrett til brukeren: «Bruttobudsjettet er fjoraarets oppnaadde
--- margin, saa dette er ikke et budsjett satt for lavt.»
+-- MAALT MOT PRODUKSJON 2026-08-23: 15 av avdelingslinjene i viewet har
+-- en budsjettmargin som staar paa samme tall alle tolv maanedene. De
+-- oevrige varierer med fire til tolv ulike verdier.
 --
--- MAALT MOT PRODUKSJON 2026-08-23 stemmer det for 38 av 57
--- avdelingslinjer: budsjettmarginen varierer med fire til tolv ulike
--- verdier over aaret. De 19 oevrige staar paa ett eneste tall, og de er
--- ikke tilfeldig valgt - Selvvask staar 78,4 % paa alle fire stasjoner,
--- til én desimal, og Bilvask 84,1-85,3 %. Varm drikke er flat overalt,
--- men paa 20,0 % (Bones) mot 70,4 % (Dale) for samme produkt.
+-- FOERSTE UTGAVE AV DENNE FILA KALTE DE 15 «avtalesatser, ikke maalt»,
+-- og det var feil. Robert rettet det samme dag, og forklaringen er hele
+-- poenget:
 --
--- Det er kategoriene der marginen foelger av en AVTALE og ikke av
--- innkjoep. For dem avviser setningen over den ene forklaringen som
--- faktisk stemmer: at tallet er satt, ikke oppnaadd.
+--   En kaffeavtale koster 300 kr, og saa henter kunden saa mye kaffe
+--   han vil. Bystasjonene - Varden, Bones, Laguneparken - har
+--   avtalekunder innom flere ganger om dagen. Dale selger ekstremt mye
+--   kaffe over disk og gir bort lite.
+--
+-- Derfor 20,0 % paa Bones og 70,4 % paa Dale for samme produkt. Begge
+-- er HISTORISKE og ekte. De maaler stasjonens egen kundesammensetning,
+-- ikke hvem som driver best.
+--
+-- HVA KOLONNEN DA ER GOD FOR, og det er fortsatt noe: staar budsjettet
+-- paa ett aarstall, kan et avvik ikke leses som sesong - noe er
+-- faktisk endret. Og nivaaet er stasjonens eget, saa tallet skal aldri
+-- sammenliknes mellom stasjoner.
+--
+-- Selvvask staar paa noeyaktig 78,4 % paa alle fire stasjoner, til én
+-- desimal. Den ser fortsatt satt ut og ikke maalt - i motsetning til
+-- kaffen. Verdt et spoersmaal, ikke en konklusjon.
 --
 -- Denne migrasjonen legger til ÉN kolonne bakerst. Resten er 0116
--- uendret - fila er generert fra den, ikke skrevet av, saa de ikke kan
--- skli fra hverandre. Forklaringen paa selve maalingen staar i 0116.
+-- uendret - fila er GENERERT fra den, ikke skrevet av. Roeres 0116,
+-- maa denne genereres paa nytt, ellers sklir de fra hverandre.
 -- =====================================================================
 
 create or replace view public.v_bp_status_avdeling
