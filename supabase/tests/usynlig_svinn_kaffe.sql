@@ -62,6 +62,29 @@
 -- 313. Tilfeldig svinn ville ikke landet Lone noeyaktig paa naboens
 -- forhold.
 --
+-- PERIODEN ER DESEMBER 2025 T.O.M. JUNI 2026 - sju maaneder, ikke
+-- kalenderaaret. Regnskapet starter i desember, og `fra`/`til` staar i
+-- svaret saa det ikke maa utledes av «maaneder = 7». Begge sider bruker
+-- de samme maanedene, saa desember skjevfordeler ingenting her - men
+-- den maaneden er avvikende og skal ikke leses bort.
+--
+-- LAGERJUSTERINGEN PER KOPP er 3,79 til 5,64 kr, utledet av dataene.
+-- Lone lavest fordi de gir bort vanlig kaffe; Bones hoeyest fordi latte
+-- og cappuccino har melk i seg.
+--
+-- DEN AVGJOERENDE KONTROLLEN er kopper per avtalekunde per dag:
+--
+--                 i dag   etter justering
+--   Lone           0,36        1,31
+--   Dale           0,59        1,07
+--   Bones          1,23        1,45
+--   Laguneparken   1,47        1,32
+--   Varden         1,73        2,16
+--
+-- En kunde som betaler 300 kr og henter 0,36 kopper om dagen kjoeper
+-- ikke noe fornuftig. Etter justering lander Lone mellom Dale og
+-- Laguneparken. 90 kopper om dagen paa 95 abonnenter er én kopp hver.
+--
 -- LESER KUN. Trygg i produksjon.
 -- =====================================================================
 
@@ -103,6 +126,8 @@ kasse as (
 
 select s.navn                                          as stasjon,
        count(*)                                        as maaneder,
+       min(r.periode)                                  as fra,
+       max(r.periode)                                  as til,
        round(sum(k.solgte))                            as solgte_kopper,
        round(sum(k.utdelte))                           as utdelte_kopper,
        round(100 * sum(k.utdelte)
@@ -137,6 +162,15 @@ select s.navn                                          as stasjon,
          / nullif(sum(k.bto_uten) / nullif(sum(k.oms), 0)
                   - sum(k.bto_med) / nullif(sum(k.oms), 0), 0)))
                                                        as maa_slaas_inn,
+       -- Lagerjusteringen per utdelt kopp, utledet av dataene og ikke
+       -- antatt. Lav der det gis bort vanlig kaffe, hoey der det er
+       -- latte og cappuccino - melk koster.
+       --
+       -- KOPPETALLET OVER FORUTSETTER SAMME MIKS i det uregistrerte som
+       -- i det registrerte. Er det latte som ikke slaas inn, koster hver
+       -- kopp mer og antallet faller. Kronene staar uansett.
+       round((sum(k.bto_uten) - sum(k.bto_med)) / nullif(sum(k.utdelte), 0), 2)
+                                                       as kr_per_kopp,
        -- Per dag, saa tallet kan sies til en vakt uten omregning.
        round(sum(k.utdelte) * (
          (sum(k.bto_med) / nullif(sum(k.oms), 0)
