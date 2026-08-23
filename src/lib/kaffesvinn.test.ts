@@ -60,19 +60,33 @@ describe('tersklene slipper vanlig svinn gjennom', () => {
     })), '200 % ujustert, men bare 2 000 kr').toBeNull()
   })
 
-  test('stor sum paa liten andel meldes heller ikke', () => {
+  test('stor sum paa svaert liten andel meldes ikke', () => {
+    // Andelen verner mot aa melde en stasjon som knapt deler ut kaffe.
     expect(lagKaffevarsel(som({
-      kaffeKr: 306_000, lojalitetKr: -300_000, manglerKr: 6000,
-    })), '6 000 kr, men bare 2 % ujustert').toBeNull()
+      kaffeKr: 406_000, lojalitetKr: -400_000, manglerKr: 6000,
+    })), '6 000 kr, men bare 1,5 % ujustert').toBeNull()
   })
 
-  test('begge over terskelen gir varsel', () => {
+  test('Bones-tilfellet: 8 550 kr og 14 % skal MELDES', () => {
+    // Grensen sto paa 15 % og slapp Bones saavidt unna. Laguneparken
+    // deler ut mest av alle og lander paa 0 - naar én stasjon viser at
+    // naer null er oppnaaelig, er 14 % ikke et gulv virkeligheten
+    // setter. Robert 2026-08-23: «tror under 3 %.»
+    const v = lagKaffevarsel(som({
+      kaffeKr: 72_107, lojalitetKr: -62_020, manglerKr: 8550,
+      vanligste: { varenavn: 'PÅFYLL CAFFE LATTE', krPerKopp: 7.7 },
+    }))
+    expect(v).not.toBeNull()
+    expect(v!.kopper).toBe(Math.round(8550 / 7.7))
+  })
+
+  test('rett over 3 % melder, rett under gjor ikke', () => {
     expect(lagKaffevarsel(som({
-      kaffeKr: 56_000, lojalitetKr: -50_000, manglerKr: 6000,
-    })), '6 000 kr og 12 % — under andelsgrensen').toBeNull()
+      kaffeKr: 106_000, lojalitetKr: -100_000, manglerKr: 6000,
+    })), '6 % ujustert').not.toBeNull()
     expect(lagKaffevarsel(som({
-      kaffeKr: 60_000, lojalitetKr: -50_000, manglerKr: 10_000,
-    })), '10 000 kr og 20 %').not.toBeNull()
+      kaffeKr: 306_000, lojalitetKr: -300_000, manglerKr: 6000,
+    })), '2 % ujustert').toBeNull()
   })
 
   test('ingen utdeling slaatt inn i det hele tatt: kronene alene avgjor', () => {
