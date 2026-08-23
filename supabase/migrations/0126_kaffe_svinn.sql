@@ -26,6 +26,24 @@
 -- stopper ved siste avlagte maaned. Uten `join ... using (periode)`
 -- ville kassa faatt et par maaneder ekstra og gapet blitt overdrevet.
 --
+-- ST1 HAR SITT EGET TALL, og det er fasit naar det finnes.
+-- `regnskap_usynlig_svinn` (0049) kommer fra regnskapsfila paa
+-- VAREGRUPPE-nivaa - femsifrede koder der avdelingen er de tre
+-- foerste: 13010 KAFFE, 13011 KAFFELOJALITET, 13012 TE/KAKAO/ANNET.
+-- Kaffen telles hver maaned paa alle fem stasjonene: 35 av 35 mulige
+-- rader. «Har de glemt aa telle» er ikke problemet paa varm drikke.
+--
+-- MATCH PAA KODEPREFIKS, ALDRI PAA FRITEKSTNAVNET. Moensteret
+-- `navn ilike (prosent)VARM(prosent)` traff `12014 OPPVARMET` -
+-- oppvarmet MAT - og ga et troverdig tall for feil avdeling. Et tall
+-- som er galt paa en plausibel maate blir ikke oppdaget av noen.
+-- `left(kode, 3)` er den samme noekkelen `regnskapslinjer` og
+-- `daglig_salg` bruker.
+--
+-- DETTE VIEWET UTLEDER LIKEVEL, og skal gjoere det: St1 gir KRONER,
+-- varselet skal si KOPPER. Lagerjusteringen per kopp finnes bare i
+-- `daglig_salg`. Se `supabase/tests/kaffesvinn_to_kilder.sql`.
+--
 -- MOENSTRE UTEN NORSKE TEGN. AGENTS.md ber om at ikke-ASCII strippes for
 -- innliming. Et moenster med ekte Aa i PAAFYLL ble til `^PFYLL` og traff
 -- ingenting - kolonnene kom tomme tilbake og saa ut som om utdelingene

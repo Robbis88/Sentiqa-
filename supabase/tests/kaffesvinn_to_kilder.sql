@@ -1,49 +1,54 @@
 -- =====================================================================
 -- St1 regner det ut selv. Stemmer det med det vi utledet?
 --
--- `regnskap_usynlig_svinn` (0049) kommer fra regnskapsfila og har St1s
--- eget tall per stasjon og kode: `usynlig_kr` (+ manko, - overskudd).
--- Vi rekonstruerte det samme av kassa minus telling uten aa vite at det
--- laa der.
+-- SVINNRAPPORTEN ER PAA VAREGRUPPE, ikke avdeling. Femsifrede koder,
+-- der avdelingen er de tre foerste:
 --
--- FOERSTE UTGAVE SAMMENLIKNET ULIKE VINDUER, og svaret var derfor
--- verdiloest. St1s tall finnes bare for NOEN maaneder per stasjon:
+--   13010 KAFFE             35 rader   7 mnd   5 stasjoner
+--   13011 KAFFELOJALITET    33 rader   7 mnd   5 stasjoner
+--   13012 TE/KAKAO/ANNET     6 rader   5 mnd   4 stasjoner
 --
---   Lone 7 maaneder, Bones 6, Dale 3, Laguneparken 2, Varden 1
+-- KAFFEN TELLES HVER MAANED, OVERALT. 13010 har 35 av 35 mulige rader.
+-- «Har de glemt aa telle» er ikke problemet paa varm drikke.
 --
--- Mot sju maaneder utledet. Vardens ene maaned mot vaare sju sier
--- ingenting - og differansen saa ut som en uenighet mellom kildene naar
--- den i hovedsak var ulik dekning.
+-- TRE FEIL PAA RAD, ALLE AV SAMME SLAG. Jeg filtrerte paa merkelapper
+-- jeg hadde gjettet:
 --
--- Denne versjonen joiner paa (stasjon, periode), saa bare maaneder som
--- finnes i BEGGE kildene telles. `dekning` sier hvor mange maaneder som
--- faktisk ble sammenliknet, saa et tynt grunnlag ikke ser tykt ut.
+--   `kode = '130'`      -> null rader. Koden er femsifret.
+--   `navn ilike '%MAT%'` -> null rader. Mat heter BAKERI, POELSE,
+--                          HAMBURGER, PIZZA, OPPVARMET, PAASMURT.
+--   `navn ilike '%VARM%'` -> traff `12014 OPPVARMET`. Oppvarmet MAT.
 --
--- HVORFOR DEKNINGEN ER TYNN er sitt eget spoersmaal. `lagreUsynligSvinn`
--- i import/kjerne.ts sletter per (retailer, periode) og setter inn paa
--- nytt, og kallet staar i en `try { } catch { }` med kommentaren «fila
--- har kanskje ikke per-stasjon-ark». Mangler arket i en maaneds fil,
--- finnes ikke raden - og det ser identisk ut med at St1 ikke fant noe.
--- Del 2 under viser dekningen maaned for maaned.
+-- Den siste er den verste. De to foerste ga null, og null ser ut som
+-- «ingen svinn» - ille nok. Den tredje ga FEIL RADER MED TROVERDIGE
+-- TALL: «Lone har 26 006 kr usynlig svinn paa varm drikke» var poelser
+-- og hamburgere. Et tall som er galt paa en plausibel maate blir ikke
+-- oppdaget av noen.
 --
--- KUN INNEVAERENDE AAR. Robert 2026-08-23: «vi maa kun justere paa
--- aaret, saa desember maa ikke vaere med. Neste aar kun 2027-tall.»
+-- REGELEN SOM FOELGER: match paa KODEPREFIKS, aldri paa fritekstnavnet.
+-- `left(kode, 3) = '130'` er avdelingen, og den er den samme noekkelen
+-- `regnskapslinjer` og `daglig_salg` bruker. Navnet er til aa lese, ikke
+-- til aa filtrere paa.
+--
+-- KUN INNEVAERENDE AAR, og samme maaneder paa begge sider av
+-- sammenlikningen.
 --
 -- LESER KUN. Trygg i produksjon.
 -- =====================================================================
 
--- ---------------------------------------------------------------------
--- DEL 1: samme maaneder paa begge sider
--- ---------------------------------------------------------------------
 with st1 as (
   select u.stasjon_id,
          u.periode,
-         sum(u.usynlig_kr) as kr
+         sum(u.usynlig_kr)                                          as kr,
+         sum(u.usynlig_kr) filter (where u.kode = '13010')          as kr_kaffe,
+         sum(u.usynlig_kr) filter (where u.kode = '13011')          as kr_lojalitet,
+         count(*)                                                   as rader
   from public.regnskap_usynlig_svinn u
   where u.slettet_tid is null
     and u.stasjon_id is not null
     and u.periode >= date_trunc('year', current_date)
-    and (u.kode = '130' or u.navn ilike '%VARM%')
+    -- KODEPREFIKS, ikke navn. Avdeling 130 = varm drikke.
+    and left(u.kode, 3) = '130'
   group by u.stasjon_id, u.periode
 ),
 
@@ -78,7 +83,9 @@ select s.navn                                          as stasjon,
        count(*)                                        as dekning,
        min(t.periode)                                  as fra,
        max(t.periode)                                  as til,
-       round(sum(t.kr))                                as st1_kr,
+       round(sum(t.kr_kaffe))                          as st1_kaffe_kr,
+       round(sum(t.kr_lojalitet))                      as st1_lojalitet_kr,
+       round(sum(t.kr))                                as st1_sum_kr,
        -- Utledet over NOEYAKTIG de samme maanedene.
        round(sum(k.bto_med) - sum(k.oms) * sum(r.bto) / nullif(sum(r.oms), 0))
                                                        as utledet_kr,
@@ -88,7 +95,7 @@ select s.navn                                          as stasjon,
        round(sum(k.utdelte))                           as utdelte_kopper,
        v.vanligste_paafyll,
        v.kr_per_kopp,
-       -- Koppene, regnet av ST1s tall. Det er fasit naar den finnes.
+       -- Koppene, regnet av ST1s tall. Fasit naar den finnes.
        case when v.kr_per_kopp > 0 and sum(t.kr) > 0
             then round(sum(t.kr) / v.kr_per_kopp)
        end                                             as maa_slaas_inn
@@ -100,4 +107,4 @@ left join public.v_kaffe_svinn v
   on v.stasjon_id = t.stasjon_id
  and v.aar = date_trunc('year', current_date)::date
 group by s.navn, v.vanligste_paafyll, v.kr_per_kopp
-order by 5 desc nulls last;
+order by 7 desc nulls last;
