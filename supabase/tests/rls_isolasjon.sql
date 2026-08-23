@@ -36,6 +36,23 @@ insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
 insert into public.butikksjef_stasjoner (profil_id, stasjon_id) values
   ('00000000-0000-0000-0000-0000000000a2', 'aaaaaaaa-0000-0000-0000-000000000001');
 
+-- Kaffesvinn paa BEGGE A-stasjonene og paa B. Sjef A er bare tildelt
+-- A-0001, saa hun skal se én rad - ikke A-0002 og ikke B.
+--
+-- 13010 er kaffe, 12011 er poelse. Policyen fra 0127 slipper bare
+-- 130xx gjennom til butikksjefen; resten av svinnrapporten er
+-- eierens sak, og poelseraden er der for aa bevise nettopp det.
+insert into public.regnskap_usynlig_svinn
+  (retailer_id, stasjon_id, periode, kode, navn, usynlig_kr) values
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000001',
+   date_trunc('month', current_date)::date, '13010', '13010 KAFFE', 5000),
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000001',
+   date_trunc('month', current_date)::date, '12011', '12011 POELSE', 9000),
+  ('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000002',
+   date_trunc('month', current_date)::date, '13010', '13010 KAFFE', 7000),
+  ('22222222-2222-2222-2222-222222222222', 'bbbbbbbb-0000-0000-0000-000000000001',
+   date_trunc('month', current_date)::date, '13010', '13010 KAFFE', 8000);
+
 -- Hjelper: utgi seg for en bruker
 create or replace function pg_temp.logg_inn_som(p_uid uuid) returns void
 language plpgsql as $$
@@ -62,6 +79,11 @@ select pg_temp.paastand('Admin A ser IKKE tenant B sin stasjon',
   (select count(*) = 0 from public.stasjoner where retailer_id = '22222222-2222-2222-2222-222222222222'));
 select pg_temp.paastand('Admin A ser kun egen retailer-rad',
   (select count(*) = 1 from public.retailers));
+-- KONTRASTEN. Eieren ser hele svinnrapporten for begge sine stasjoner,
+-- ogsaa poelsa. Uten denne paastanden kunne policyen fra 0127 vaert for
+-- SNEVER uten at noe sa fra - og en tom rapport ser ut som «ingen svinn».
+select pg_temp.paastand('Admin A ser hele svinnrapporten for begge stasjoner',
+  (select count(*) = 3 from public.regnskap_usynlig_svinn));
 
 -- === Butikksjef A (kun tildelt A-0001) ===
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-0000000000a2');
@@ -69,6 +91,27 @@ select pg_temp.paastand('Sjef A ser kun sin tildelte stasjon',
   (select count(*) = 1 from public.stasjoner));
 select pg_temp.paastand('Sjef A ser den RIKTIGE stasjonen',
   exists (select 1 from public.stasjoner where id = 'aaaaaaaa-0000-0000-0000-000000000001'));
+
+-- Kaffesvinn: kun EGEN stasjon, og kun kaffen.
+select pg_temp.paastand('Sjef A ser kaffesvinn for sin egen stasjon',
+  exists (select 1 from public.regnskap_usynlig_svinn
+          where stasjon_id = 'aaaaaaaa-0000-0000-0000-000000000001' and kode = '13010'));
+select pg_temp.paastand('Sjef A ser IKKE kaffesvinn for stasjonen hun ikke har',
+  (select count(*) = 0 from public.regnskap_usynlig_svinn
+   where stasjon_id = 'aaaaaaaa-0000-0000-0000-000000000002'));
+select pg_temp.paastand('Sjef A ser IKKE tenant B sitt kaffesvinn',
+  (select count(*) = 0 from public.regnskap_usynlig_svinn
+   where retailer_id = '22222222-2222-2222-2222-222222222222'));
+select pg_temp.paastand('Sjef A ser IKKE poelsesvinn - bare 130xx slipper gjennom',
+  (select count(*) = 0 from public.regnskap_usynlig_svinn where kode = '12011'));
+select pg_temp.paastand('Sjef A ser NOEYAKTIG én svinnrad totalt',
+  (select count(*) = 1 from public.regnskap_usynlig_svinn));
+
+-- Og det samme gjennom viewet AI-en spoer.
+select pg_temp.paastand('v_kaffe_svinn gir Sjef A kun hennes egen stasjon',
+  (select count(*) = 1 from public.v_kaffe_svinn)
+  and exists (select 1 from public.v_kaffe_svinn
+              where stasjon_id = 'aaaaaaaa-0000-0000-0000-000000000001'));
 
 -- === Admin B ===
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-0000000000b1');
