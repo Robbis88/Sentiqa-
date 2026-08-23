@@ -1,16 +1,36 @@
 import Link from 'next/link'
-import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { TabletHode } from '../tablet-hode'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { oversettMange } from '@/lib/oversett'
-import { leggTilAnvisning, slettAnvisning } from './handlinger'
+import { leggTilAnvisning } from './handlinger'
+import { OpplastSkjema } from './opplast-skjema'
+import { AnvisningListe, type Rad as Kortrad } from './anvisning-liste'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Knapp } from '@/components/ui/knapp'
 import { Felt } from '@/components/ui/felt'
 
-type Anvisning = { id: string; kategori: string; tittel: string; innhold: string }
+// SIGNERTE URL-ER MED 24 TIMERS LEVETID, aldri offentlige lenker.
+//
+// LEVETIDEN MÅ VÆRE LENGER ENN CACHE-VINDUET. Er sida cachet lenger enn
+// URL-en lever, får brukeren 403 på en lenke som så gyldig ut — og det
+// er umulig å feilsøke fra hennes side, for lenken virket i går. Derfor
+// `force-dynamic` her, og aldri en kortere levetid enn cachen.
+const TTL = 60 * 60 * 24
+
+export const dynamic = 'force-dynamic'
+
+type Rad = {
+  id: string
+  kategori: string
+  tittel: string
+  innhold: string | null
+  stikkord: string[] | null
+  fil_sti: string | null
+  dato: string | null
+  erstatter_dato: string | null
+}
 
 export default async function AnvisningerSide() {
   const bruker = await hentInnloggetBruker()
@@ -20,41 +40,81 @@ export default async function AnvisningerSide() {
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('anvisninger')
-    .select('id, kategori, tittel, innhold')
+    .select('id, kategori, tittel, innhold, stikkord, fil_sti, dato, erstatter_dato')
     .is('slettet_tid', null)
     .order('kategori')
     .order('sortering')
-    .overrideTypes<Anvisning[]>()
+    .overrideTypes<Rad[]>()
 
-  const grupper = new Map<string, Anvisning[]>()
-  for (const a of data ?? []) {
-    const l = grupper.get(a.kategori) ?? []
-    l.push(a)
-    grupper.set(a.kategori, l)
+  const rader = data ?? []
+
+  // BATCHET, OG DET ER DEN VIKTIGSTE YTELSESDETALJEN I HELE MODULEN.
+  // `createSignedUrl` i en løkke er ett nettverkskall per ark — 60
+  // anvisninger blir 60 rundturer, og forskjellen er sekunder på en
+  // tablet over butikk-wifi. Flertallsvarianten tar hele lista i ett.
+  const stier = rader.map((r) => r.fil_sti).filter((s): s is string => Boolean(s))
+  const url = new Map<string, string>()
+  if (stier.length > 0) {
+    const { data: signerte } = await supabase.storage
+      .from('anvisninger')
+      .createSignedUrls(stier, TTL)
+    for (const s of signerte ?? []) {
+      if (s.path && s.signedUrl) url.set(s.path, s.signedUrl)
+    }
   }
 
   // Oversettelse gjelder KUN tableten. Admin/butikksjef ser alltid norsk
-  // (selv om sprak-cookien er satt av en tablet-bruker i samme nettleser).
+  // (selv om språk-cookien er satt av en tablet-bruker i samme nettleser).
   const { cookies } = await import('next/headers')
-  const sprak = bruker.rolle === 'butikkbruker_tablet' ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
+  const sprak = bruker.rolle === 'butikkbruker_tablet'
+    ? ((await cookies()).get('sprak')?.value ?? 'no')
+    : 'no'
   const fast = [
     'Anvisninger', 'Prosedyrer og oppskrifter — slå opp når du trenger det.',
     'Ingen anvisninger ennå.', 'anvisning', 'anvisninger',
-    // Nettbrettets «Hjelp» og foten under den (bolge 5).
+    // Søket. Oversettes her fordi klientkomponenten ikke oversetter.
+    'Søk på ingrediens, tittel eller kategori', 'Ingen treff på', 'Søk i anvisningene',
+    // Nettbrettets «Hjelp» og foten under den (bølge 5).
     'Hjelp', 'Slå opp når du trenger det.', 'Mer hjelp',
     'Lenker', 'Hurtiglenker for å hjelpe kunder',
     'Nyheter', 'Oppdateringer og tips',
     'Slik måler vi', 'Hva systemet lagrer om deg',
   ]
-  const oversatt = await oversettMange([...fast, ...(data ?? []).flatMap((a) => [a.kategori, a.tittel, a.innhold])], sprak)
+  const oversatt = await oversettMange(
+    [...fast, ...rader.flatMap((a) => [a.kategori, a.tittel, a.innhold ?? ''])],
+    sprak,
+  )
   const o = (s: string) => oversatt.get(s) ?? s
 
-  const antall = [...grupper.values()].reduce((n, l) => n + l.length, 0)
+  const kort: Kortrad[] = rader.map((r) => ({
+    id: r.id,
+    tittel: r.tittel,
+    kategori: r.kategori,
+    stikkord: r.stikkord ?? [],
+    innhold: r.innhold,
+    fil_sti: r.fil_sti,
+    dato: r.dato,
+    erstatter_dato: r.erstatter_dato,
+    url: r.fil_sti ? (url.get(r.fil_sti) ?? null) : null,
+    vist: {
+      tittel: o(r.tittel),
+      kategori: o(r.kategori),
+      innhold: r.innhold ? o(r.innhold) : null,
+    },
+  }))
+
   const nyPanel = erLeder ? (
     <Sidepanel knapp="Ny anvisning" tittel="Ny anvisning">
+      {/* TO SKJEMAER, FORDI DET ER TO ÆRENDER. Et ark fra leverandøren
+          lastes opp; en prosedyre dere skriver selv, skrives inn. Ett
+          skjema som prøvde å være begge ville tvunget brukeren til å
+          gjette hvilke felter som gjaldt henne. */}
+      <h3>Last opp et ark (PDF)</h3>
+      <OpplastSkjema />
+
       <form action={leggTilAnvisning} className="sq-skjema">
-        <Felt etikett="Kategori" name="kategori" placeholder="Hurtigmat"
-          hjelp="Samler anvisninger folk leter etter sammen." />
+        <h3>Eller skriv den inn</h3>
+        <Felt etikett="Kategori" name="kategori" placeholder="Hurtigmat" />
         <Felt etikett="Tittel" name="tittel" placeholder="Slik lager du kaffe" required />
         <label className="felt"><span>Innhold</span>
           <textarea name="innhold" rows={8} required />
@@ -66,11 +126,11 @@ export default async function AnvisningerSide() {
     </Sidepanel>
   ) : undefined
 
-  // «HJELP» PAA NETTBRETTET, «Anvisninger» hos lederen.
+  // «HJELP» PÅ NETTBRETTET, «Anvisninger» hos lederen.
   //
-  // Samme innhold, to aerend. Lederen vedlikeholder et bibliotek; hun som
-  // staar i butikken har et problem og trenger svaret. Derfor heter fana
-  // det hun kommer for — og derfor staar Lenker, Nyheter og «Slik maaler
+  // Samme innhold, to ærender. Lederen vedlikeholder et bibliotek; hun som
+  // står i butikken har et problem og trenger svaret. Derfor heter fana
+  // det hun kommer for — og derfor står Lenker, Nyheter og «Slik måler
   // vi» i foten her, i stedet for som egne faner og fliser.
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
@@ -86,7 +146,7 @@ export default async function AnvisningerSide() {
         />
       )}
 
-      {grupper.size === 0 ? (
+      {kort.length === 0 ? (
         <Tomtilstand
           tittel={o('Ingen anvisninger ennå')}
           forklaring={o('Her legger dere prosedyrene folk må slå opp — hvordan '
@@ -94,33 +154,24 @@ export default async function AnvisningerSide() {
           handling={nyPanel}
         />
       ) : (
-        // Kategoriene er en EKTE gruppering — folk leter etter «Hurtigmat»,
-        // ikke etter den fjerde anvisningen. Derfor beholdes de.
-        [...grupper.entries()].map(([kat, liste]) => (
-          <section className="sq-anvkat" key={kat}>
-            <h2>{o(kat)} <span className="undertittel">· {liste.length}</span></h2>
-            {liste.map((a) => (
-              <details className="anvisning" key={a.id}>
-                <summary>{o(a.tittel)}</summary>
-                {/* Linjeskiftene i en oppskrift ER innholdet. Sto som
-                    inline-stil; er naa en klasse, som alt annet. */}
-                <p className="sq-brodtekst">{o(a.innhold)}</p>
-                {erLeder && (
-                  <div className="knapperad">
-                    <SlettKnapp hva={a.tittel} handling={slettAnvisning} id={a.id} bekreftelse="Anvisningen slettet" />
-                  </div>
-                )}
-              </details>
-            ))}
-          </section>
-        ))
+        <AnvisningListe
+          rader={kort}
+          erLeder={erLeder}
+          tekst={{
+            plassholder: o('Søk på ingrediens, tittel eller kategori'),
+            ingenTreff: o('Ingen treff på'),
+            merkelapp: o('Søk i anvisningene'),
+          }}
+        />
       )}
-      <p className="undertittel">{antall} {antall === 1 ? o('anvisning') : o('anvisninger')}</p>
+      <p className="undertittel">
+        {kort.length} {kort.length === 1 ? o('anvisning') : o('anvisninger')}
+      </p>
 
-      {/* FOTEN. Tre ruter som hver hadde en fane eller en flis paa hjem,
-          og som alle svarer paa det samme aerendet: «jeg trenger aa vite
+      {/* FOTEN. Tre ruter som hver hadde en fane eller en flis på hjem,
+          og som alle svarer på det samme ærendet: «jeg trenger å vite
           noe». De mistet ikke en vei — de mistet en dublett, og fikk et
-          sted der de hoerer sammen. */}
+          sted der de hører sammen. */}
       {paaNettbrett && (
         <nav className="tablet-fot" aria-label={o('Mer hjelp')}>
           <Link href="/lenker" className="tablet-videre">

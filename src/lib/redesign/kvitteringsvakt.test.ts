@@ -33,9 +33,21 @@ const UNNTAK = [
 
 const SKJEMA = /<form\s+action=\{(?:\w+ \? )?((?:slett|fjern)[A-ZÆØÅ]\w*)/g
 
+/**
+ * Alle .tsx-filer, OGSAA de som ikke er sjekket inn ennaa.
+ *
+ * `git ls-files` alene ser bare sporede filer. En ny side er usporet
+ * helt til den committes - saa vakten var groenn lokalt og roed i CI,
+ * paa nøyaktig den koden som nettopp ble skrevet. Det er verste
+ * tidspunkt aa faa vite det paa: etter at man trodde man var ferdig.
+ */
 function sider(): { fil: string; kilde: string }[] {
-  return execSync('git ls-files "src/**/*.tsx"', { encoding: 'utf8' })
-    .split('\n').filter(Boolean)
+  const sporede = execSync('git ls-files "src/**/*.tsx"', { encoding: 'utf8' })
+  const nye = execSync(
+    'git ls-files --others --exclude-standard "src/**/*.tsx"',
+    { encoding: 'utf8' },
+  )
+  return [...new Set(`${sporede}\n${nye}`.split('\n').filter(Boolean))]
     .map((fil) => ({ fil, kilde: utenKommentarer(readFileSync(fil, 'utf8')) }))
 }
 
@@ -55,6 +67,20 @@ describe('maalingen forstaar det den ser', () => {
       s.filter((x) => /<SlettKnapp/.test(x.kilde)).length,
       'fant ingen SlettKnapp - da maaler ikke denne vakten noe',
     ).toBeGreaterThan(15)
+  })
+
+  test('KANARIFUGL: flerlinje-JSX leses som ett element', () => {
+    // Denne feilet foer rettelsen, paa kode som var helt riktig.
+    const flerlinje = [
+      '<SlettKnapp',
+      '  hva={rad.tittel}',
+      '  handling={slett}',
+      '  id={rad.id}',
+      '/>',
+    ].join('\n')
+    const treff = [...flerlinje.matchAll(/<SlettKnapp\b[^>]*>/g)]
+    expect(treff, 'elementet skal finnes').toHaveLength(1)
+    expect(/\shva=\{/.test(treff[0][0]), 'hva skal sees').toBe(true)
   })
 
   test('KANARIFUGL: et skjema som ikke sletter telles ikke', () => {
@@ -86,11 +112,18 @@ describe('kvitteringsvakten', () => {
     // TJUE KNAPPER SOM ALLE HETER «Slett» er tjue like knapper for en
     // skjermleser. Samme feil som de tolv identiske maanedsvelgerne paa
     // bemanningssida: riktig paa skjermen, ubrukelig uten den.
+    //
+    // LESER HELE ELEMENTET, ikke linja. Foerste utgave sjekket
+    // `hva=` paa samme linje som `<SlettKnapp`, og meldte derfor to
+    // KORREKTE knapper som skrev propene sine over flere linjer. En
+    // vakt som melder falske funn paa kode som virker, er den
+    // sikreste maaten aa laere folk aa ignorere den paa.
     const uten: string[] = []
     for (const { fil, kilde } of sider()) {
-      for (const rad of kilde.split('\n')) {
-        if (!/<SlettKnapp/.test(rad)) continue
-        if (!/\shva=\{/.test(rad)) uten.push(`  ${fil}: ${rad.trim().slice(0, 80)}`)
+      for (const m of kilde.matchAll(/<SlettKnapp\b[^>]*>/g)) {
+        if (!/\shva=\{/.test(m[0])) {
+          uten.push(`  ${fil}: ${m[0].replace(/\s+/g, ' ').slice(0, 80)}`)
+        }
       }
     }
     expect(uten, `\nDisse slett-knappene mangler \`hva\`, og faar dermed `
