@@ -1,24 +1,36 @@
 -- =====================================================================
--- bp_brutto_fast: er budsjettmarginen maalt, eller er den en avtalesats?
+-- bp_brutto_fast: ett tall for hele aaret, eller en maanedskurve?
 --
--- Hele 0116 hviler paa at bruttobudsjettet betyr noe, og sida sier det
--- ordrett til brukeren: «Bruttobudsjettet er fjoraarets oppnaadde
--- margin, saa dette er ikke et budsjett satt for lavt.»
+-- IKKE ET FUNN. En tolkningsnote, og det er hele ambisjonen.
 --
--- MAALT MOT PRODUKSJON 2026-08-23 stemmer det for 38 av 57
--- avdelingslinjer: budsjettmarginen varierer med fire til tolv ulike
--- verdier over aaret. De 19 oevrige staar paa ett eneste tall, og de er
--- ikke tilfeldig valgt - Selvvask staar 78,4 % paa alle fire stasjoner,
--- til én desimal, og Bilvask 84,1-85,3 %. Varm drikke er flat overalt,
--- men paa 20,0 % (Bones) mot 70,4 % (Dale) for samme produkt.
+-- 15 avdelingslinjer har en budsjettmargin som staar paa samme tall
+-- alle tolv maanedene. Jeg leste det foerst som «avtalesatser, ikke
+-- maalt», og senere som «flat = mistenkelig». Begge deler var feil.
+-- Robert forklarte hver eneste av dem 2026-08-23:
 --
--- Det er kategoriene der marginen foelger av en AVTALE og ikke av
--- innkjoep. For dem avviser setningen over den ene forklaringen som
--- faktisk stemmer: at tallet er satt, ikke oppnaadd.
+--   VARM DRIKKE. En kaffeavtale koster 300 kr, og saa henter kunden
+--   saa mye han vil. Bystasjonene - Varden, Bones, Laguneparken - har
+--   avtalekunder innom flere ganger om dagen; Dale selger mye kaffe
+--   over disk og gir bort lite. Derav 20,0 % mot 70,4 % for samme
+--   produkt. Begge er riktige for sin stasjon.
+--
+--   SELVVASK. Bare stoevsugeren ligger inne. Kosten er polettene, og
+--   de hentes inn og brukes om igjen. Tar du 20 eller 30 kr, blir
+--   bruttoen ikke hoeyere - derfor noeyaktig 78,4 % paa alle fire.
+--   Det er en strukturell konstant, ikke et rundt tall.
+--
+-- OG GENERELT, som gjelder alle kategorier: brutto-forventningen
+-- settes av St1, og det er alltid en grunn. En stasjon som selger mye
+-- burger faar hoeyere forventning paa mat enn en som selger lite. Ny
+-- BP kommer hvert aar, og forventningen kan gaa BEGGE veier.
+--
+-- DET ENESTE KOLONNEN SIER er at et avvik paa en flat linje ikke kan
+-- leses som sesong. Den skal ikke farges, sorteres etter eller
+-- sammenliknes mellom stasjoner.
 --
 -- Denne migrasjonen legger til ÉN kolonne bakerst. Resten er 0116
--- uendret - fila er generert fra den, ikke skrevet av, saa de ikke kan
--- skli fra hverandre. Forklaringen paa selve maalingen staar i 0116.
+-- uendret - fila er GENERERT fra den, ikke skrevet av. Roeres 0116,
+-- maa denne genereres paa nytt, ellers sklir de fra hverandre.
 -- =====================================================================
 
 create or replace view public.v_bp_status_avdeling
@@ -147,27 +159,8 @@ ytd as (
   group by b.stasjon_id, b.gruppe_kode, date_trunc('year', b.maned)
 ),
 
--- ER BUDSJETTMARGINEN EN MAALING ELLER EN AVTALESATS?
---
--- Maalt 2026-08-23: 38 av 57 avdelingslinjer har en budsjettmargin som
--- VARIERER fra maaned til maaned - fire til tolv ulike verdier over
--- aaret. De er utledet av noe. De oevrige 19 staar paa ett tall hele
--- aaret, og de er ikke tilfeldig valgt:
---
---   Selvvask  78,4 % paa ALLE fire stasjoner, til én desimal
---   Bilvask   84,1-85,3 %
---   Varm drikke  20,0 / 32,7 / 34,0 / 46,1 / 70,4 %
---
--- Det er kategoriene der marginen foelger av en AVTALE, ikke av
--- innkjoep: en vaskehall har knapt varekost, og kaffeavtalene gjoer
--- resten. Varm drikke staar 3,5 ganger hoeyere paa Dale enn paa Bones
--- for samme produkt - det er ikke en forskjell i kaffeoekonomi.
---
--- HVORFOR DET MAA UT PAA SKJERMEN: sida sier ordrett at
--- «bruttobudsjettet er fjoraarets oppnaadde margin, saa dette er ikke
--- et budsjett satt for lavt». For de 19 er nettopp det utsagnet
--- usant, og setningen brukes til aa avvise den ene forklaringen som
--- faktisk stemmer.
+-- Staar budsjettmarginen paa samme tall hele aaret, eller foelger den
+-- aarets gang? Se hodet: flat betyr IKKE mistenkelig.
 fast_margin as (
   select b.stasjon_id,
          b.gruppe_kode,
@@ -381,18 +374,51 @@ select
   --    som maa dekkes.»
   --
   -- Dette er ikke en finesse. VARM DRIKKE selges paa kaffeavtaler: en
-  -- fast sum, og saa tar kunden saa mye han vil. Hver kopp etter den
-  -- foerste gaar ut UTEN et salg bak seg. Kassen ser bare de registrerte
-  -- koppene og sier 80 %; tellingen ser alt som faktisk er brukt og sier
-  -- 20 %. Andelen avtaler varierer sterkt mellom stasjoner.
+  -- fast sum, og saa tar kunden saa mye han vil.
   --
-  -- Foer dette maalte sida `kassen - regnskap` og farget den som om den
-  -- krevde handling. For varm drikke ville den alltid vaert stor, alltid
-  -- roed, og alltid uten et grep aa ta: differansen ER avtalene.
+  -- MAALT 2026-08-23, OG DET ENDRET BILDET. Utdelte kopper ligger i
+  -- `daglig_salg` som egne PAAFYLL-linjer med antall > 0, omsetning 0
+  -- og NEGATIV brutto - altsaa kaffens kost. Kassatallet inneholder
+  -- dermed allerede alt som ER slaatt inn som gitt bort:
   --
-  -- Budsjettet er derimot satt MED avtalene innbakt - regnskapet ligger
-  -- naer BP for varm drikke. Derfor er det den sammenligningen som
-  -- maaler drift, og den eneste som skal ha farge.
+  --   Uten utdelingene ligger kaffemarginen paa 82,2-83,7 % paa ALLE
+  --   fem stasjonene. Samme produkt, samme pris, samme margin. Hele
+  --   spennet i budsjettet - 20,0 % paa Bones mot 70,4 % paa Dale -
+  --   er utdeling, ingenting annet.
+  --
+  -- DENNE KOMMENTAREN SA FOER at differansen mellom kassa og
+  -- tellingen ER avtalene, og derfor ikke skal farges. Det er ikke
+  -- riktig. Den registrerte delen ligger inne i kassatallet. Det som
+  -- staar igjen er det som forsvant UTEN aa bli slaatt inn - Robert
+  -- 2026-08-23: «noen er ikke like flink, og da faar vi usynlig
+  -- svinn paa kaffen.» Over sju maaneder:
+  --
+  --   Lone          25,4 pp    72 824 kr    +19 200 kopper (90/dag)
+  --   Varden        11,3 pp    14 249 kr     +2 900 kopper
+  --   Bones         11,0 pp    11 998 kr     +2 100 kopper
+  --   Dale           6,4 pp    41 484 kr     +8 500 kopper (40/dag)
+  --   Laguneparken  -4,6 pp   -16 242 kr    funnet igjen ved telling
+  --
+  -- SISTE KOLONNE ER BEVISET. Slaar stasjonene inn saa mange kopper
+  -- til, havner alle bystasjonene paa 75-85 % utdelingsandel, og
+  -- Lone lander paa 279 kopper per kaffeavtale mot Laguneparkens
+  -- 280 - de to selger 95 og 94 avtaler. Foer justering sto Lone paa
+  -- 76 og Laguneparken paa 313. Tilfeldig svinn ville ikke landet
+  -- Lone noeyaktig paa naboens forhold.
+  --
+  -- Gapet inneholder ogsaa vanlig svinn - soel, kanner som toemmes,
+  -- feilslag - saa koppetallene er OEVRE grenser.
+  --
+  -- KOLONNENE ER LIKEVEL UENDRET. `brutto_mot_bp_pp` maaler fortsatt
+  -- mot budsjettet, som er det stasjonen skal styres mot. Om gapet
+  -- kassa-regnskap ogsaa skal farges er en produktbeslutning - den
+  -- ville gjort varm drikke roed paa fire av fem stasjoner, og det
+  -- er Roberts valg, ikke en foelge av maalingen.
+  -- Se `supabase/tests/usynlig_svinn_kaffe.sql`.
+  --
+  -- Budsjettet er satt MED avtalene innbakt - regnskapet ligger naer
+  -- BP for varm drikke. Derfor er det den sammenligningen som maaler
+  -- drift, og den eneste som har farge i dag.
   --
   -- HITTIL I AAR, ikke maaneden: regnskapsbrutto finnes bare for
   -- avlagte maaneder, og sida viser den inneveaerende.
@@ -427,9 +453,8 @@ select
        else round(((y.brutto_kr - y.ytd_bp_brutto_kr) / y.ytd_bp_brutto_kr) * 100, 1)
   end                                               as brutto_mot_bp_indeks,
 
-  -- Sant naar budsjettmarginen staar paa samme tall hele aaret. Da er
-  -- den en avtalesats, ikke fjoraarets maalte margin - og en positiv
-  -- `brutto_mot_bp_pp` betyr ikke at driften er blitt bedre.
+  -- Sant naar budsjettmarginen staar paa samme tall hele aaret. Da kan
+  -- et avvik ikke leses som sesong. Det er ALT kolonnen sier.
   coalesce(fm.fast, false)                          as bp_brutto_fast
 
 from med_status m
@@ -453,8 +478,9 @@ comment on view public.v_bp_status_avdeling is
   'BRUTTO: `brutto_mot_bp_pp` er dommen - regnskapets margin mot den '
   'budsjetterte, hittil i aar over de samme avlagte maanedene. '
   '`teoretisk_brutto_pst` (kassa) er taket paa en perfekt dag og skal '
-  'IKKE brukes som fasit: kaffeavtaler gir varm drikke en stor og helt '
-  'normal differanse mellom kassa og tellingen.';
+  'IKKE brukes som fasit. Differansen kassa-telling er IKKE avtalene: '
+  'utdelte kopper ligger allerede i kassatallet som PAAFYLL-linjer med '
+  'negativ brutto. Det som staar igjen er uregistrert svinn.';
 
 grant select on public.v_bp_status_avdeling to authenticated;
 

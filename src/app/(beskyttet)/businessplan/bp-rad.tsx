@@ -178,25 +178,35 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
             <dd>{prosent(rad.teoretisk_brutto_pst)}</dd>
           </div>
           <div>
-            {/* IKKE «planen lover». Bruttobudsjettet for 2026 ER margen
-                vi oppnaadde i 2025 - det er ikke en ambisjon, det er en
-                maaling av i fjor. (Omsetningsbudsjettet er derimot satt
-                med vekst; se `bp_vekst_pst` over.)
+            {/* «FJORAARETS OPPNAADDE MARGIN» STO HER, OG DET ER FEIL.
+                Robert 2026-08-23:
 
-                Derfor maaler siste trinn egentlig ETT spoersmaal:
-                har innkjoep og varemiks blitt bedre eller verre enn i
-                fjor? Sto det «planen lover», leste man et positivt tall
-                som «budsjettet var satt for lavt» - naar det i
-                virkeligheten er bedre innkjoepspriser. */}
-            {/* «FJORAARETS NIVAA» ER IKKE SANT FOR ALLE. 19 av 57
-                avdelingslinjer har en budsjettmargin som staar paa
-                samme tall alle tolv maanedene - Selvvask 78,4 % paa
-                alle fire stasjoner, til én desimal. Det er en
-                avtalesats, ikke en maaling, og da maa etiketten si
-                det. Se `0125`. */}
-            <dt>
-              {rad.bp_brutto_fast ? 'Planen, fast sats' : 'Planen, fjorårets nivå'}
-            </dt>
+                  «Brutto-forventningen settes av St1 og det er alltid en
+                   grunn for at den settes som den gjor. Vi far ny BP
+                   hvert aar, saa det kan variere fra aar til aar - og
+                   noen ganger kan forventningene paa brutto gaa NED.»
+
+                GRUNNEN ER VAREMIKS, ikke dyktighet. En stasjon som
+                selger mye burger faar hoyere forventning paa mat enn en
+                som selger lite. Varm drikke er det tydeligste
+                tilfellet: en kaffeavtale koster 300 kr og saa henter
+                kunden saa mye han vil, saa bystasjonene gir bort mye og
+                Dale lite. 20,0 % paa Bones og 70,4 % paa Dale er begge
+                riktige tall for sin stasjon.
+
+                TO TING FOELGER AV DET, og begge maatte inn i teksten:
+
+                  Tallet kan ikke sammenliknes mellom stasjoner. Det er
+                  ikke en maalestokk for drift, det er stasjonens egen
+                  varemiks.
+
+                  Et positivt avvik er IKKE bevis paa bedre innkjoep.
+                  Settes aarets forventning lavere enn i fjor, blir
+                  samme drift plutselig et pluss. Sida sa det motsatte
+                  - ordrett at «dette er ikke et budsjett satt for
+                  lavt» - og avviste dermed den ene forklaringen som
+                  ofte stemmer. */}
+            <dt>Planen forventer</dt>
             <dd>{prosent(rad.bp_brutto_ytd_pst)}</dd>
           </div>
           <div>
@@ -206,9 +216,7 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           {rad.brutto_mot_bp_pp != null && (
             <div className="bp-gap">
               <dt>
-                {rad.brutto_mot_bp_pp < 0
-                  ? 'Å dekke inn'
-                  : (rad.bp_brutto_fast ? 'Over satsen' : 'Bedre enn i fjor')}
+                {rad.brutto_mot_bp_pp < 0 ? 'Å dekke inn' : 'Over planen'}
               </dt>
               <dd>
                 <Status nivaa={bruttoAlvor(rad.brutto_mot_bp_indeks)}>
@@ -241,27 +249,27 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
         </p>
       )}
 
-      {/* EN FORBEDRING SKAL FORKLARES, IKKE BARE FEIRES. Bruttobudsjettet
-          er fjoraarets oppnaadde margin, saa et positivt tall betyr at
-          noe faktisk er blitt bedre - typisk innkjoepspriser eller
-          varemiks. Uten denne linja leses det som «vi slo budsjettet»,
-          og da leter ingen etter hva som virket. */}
+      {/* EN FORBEDRING SKAL FORKLARES, IKKE BARE FEIRES - men den skal
+          ikke forklares med noe som ikke er sant.
+
+          FOERSTE UTGAVE SKREV: «Bruttobudsjettet er fjoraarets oppnaadde
+          margin, saa dette er ikke et budsjett satt for lavt.» Robert
+          rettet det: BP kommer ny fra St1 hvert aar, og
+          bruttoforventningen kan settes BEGGE veier. Setningen avviste
+          altsaa den ene forklaringen som ofte stemmer, med en paastand
+          som ikke holder. */}
       {rad.brutto_mot_bp_pp != null && rad.brutto_mot_bp_pp >= 1 && (
-        rad.bp_brutto_fast ? (
-          <p className="bp-grunnlag">
-            Margen er {rad.brutto_mot_bp_pp.toFixed(1).replace('.', ',')} prosentpoeng
-            over budsjettet, men budsjettet står på samme sats alle tolv
-            månedene. Det er en avtalt margin, ikke fjorårets målte — så
-            dette sier mer om hvor satsen er lagt enn om driften.
-          </p>
-        ) : (
-          <p className="bp-grunnlag">
-            Margen er {rad.brutto_mot_bp_pp.toFixed(1).replace('.', ',')} prosentpoeng
-            bedre enn i fjor. Bruttobudsjettet er fjorårets oppnådde margin, så
-            dette er ikke et budsjett satt for lavt — det er bedre innkjøpspriser
-            eller endret varemiks. Verdt å vite hva som virket.
-          </p>
-        )
+        <p className="bp-grunnlag">
+          Margen er {rad.brutto_mot_bp_pp.toFixed(1).replace('.', ',')} prosentpoeng
+          over planen. Bruttoforventningen settes av St1 for hvert år og speiler
+          varemiksen på din stasjon — mye burgersalg gir høyere forventning på mat, og på selvvask er kosten
+          bare poletter som brukes om igjen.
+          Den kan settes både opp og ned, så et pluss kan være bedre innkjøp og
+          varemiks, men også at årets forventning ble lagt lavere enn i fjor.
+          {rad.bp_brutto_fast
+            && ' Forventningen står på samme tall alle tolv månedene, så avviket'
+              + ' er ikke en sesongeffekt.'}
+        </p>
       )}
 
       {/* Sier om forventningen er regnet fra fjoraarets EGEN kurve eller
