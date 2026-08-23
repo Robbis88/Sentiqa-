@@ -76,7 +76,22 @@
 -- PAAFYLL ble til `^PFYLL` og traff ingenting.
 -- =====================================================================
 
-create or replace view public.v_kaffe_svinn
+-- DROP FOERST, og det er ikke slurv. `create or replace view` kan legge
+-- til kolonner paa slutten, men ikke gi dem nye navn eller bytte
+-- rekkefoelge:
+--
+--   ERROR: 42P16: cannot change name of view column
+--          "kassa_omsetning_kr" to "kaffe_kr"
+--
+-- Foerste utgave av dette viewet leste kassa minus telling og hadde et
+-- helt annet kolonnesett. Omskrivingen til St1s tall bytter dem ut.
+--
+-- UTEN `cascade`, med vilje. Er det noe som avhenger av viewet, skal
+-- migrasjonen feile hoeyt her - ikke dra avhengigheten med seg i
+-- stillhet. Ingenting gjoer det i dag.
+drop view if exists public.v_kaffe_svinn;
+
+create view public.v_kaffe_svinn
 with (security_invoker = true) as
 
 with svinn as (
