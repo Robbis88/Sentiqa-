@@ -92,7 +92,6 @@ begin
   insert into paastander (nr, navn, ok)
     select coalesce(max(nr), 0) + 1, p_navn, coalesce(p_ok, false) from paastander;
 end $$;
-end $$;
 
 set local role authenticated;
 

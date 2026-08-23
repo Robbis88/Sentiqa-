@@ -116,3 +116,70 @@ describe('migrasjonene kan parses', () => {
     expect(funn, `\n${beskjed}\n`).toEqual([])
   })
 })
+
+
+// =====================================================================
+// Dollarsitater skal gaa opp.
+//
+// `create function ... as $$ ... end $$;` er par. Blir ett igjen etter
+// en redigering, sier Postgres:
+//
+//   ERROR: 42601: unterminated dollar-quoted string
+//
+// og peker paa et sted langt UNNA feilen — resten av fila blir slukt
+// inn i strengen. Det skjedde 2026-08-23 i `rls_isolasjon.sql`: en
+// splice byttet ut funksjonskroppen og lot den gamle `end $$;` staa
+// igjen. Fila saa riktig ut i diffen.
+//
+// SQL-FILENE HER KJOERES FOR HAAND, av et menneske som limer dem inn.
+// Det er den dyreste maaten aa oppdage en parsefeil paa: rundturen er
+// minutter, og den gaar gjennom noen andre.
+// =====================================================================
+
+const SQL_KATALOGER = ['migrations', 'tests']
+
+/** Antall `$$` utenfor linjekommentarer. */
+export function dollarPar(sql: string): number {
+  return sql
+    .split(/\r?\n/)
+    .map((r) => r.replace(/--.*$/, ''))
+    .join('\n')
+    .split('$$').length - 1
+}
+
+describe('dollarsitater gaar opp', () => {
+  const filer = SQL_KATALOGER.flatMap((k) => {
+    const katalog = join(process.cwd(), 'supabase', k)
+    return readdirSync(katalog).filter((n) => n.endsWith('.sql'))
+      .map((n) => ({ navn: `${k}/${n}`, sql: readFileSync(join(katalog, n), 'utf8') }))
+  })
+
+  test('den ser faktisk filene', () => {
+    expect(filer.length, 'fant nesten ingen .sql-filer').toBeGreaterThan(50)
+  })
+
+  test('KANARIFUGL: en ubalansert fil felles', () => {
+    // Den ekte feilen, forkortet. Feiler denne, maaler ikke vakten noe.
+    expect(dollarPar('as $$ begin end $$;\nend $$;') % 2).toBe(1)
+    expect(dollarPar('as $$ begin end $$;') % 2).toBe(0)
+  })
+
+  test('KANARIFUGL: $$ i en kommentar teller ikke', () => {
+    // Denne fila og migrasjonene forklarer seg selv i kommentarer.
+    // Telles de med, maaler vakten sine egne forklaringer.
+    expect(dollarPar('-- her staar $$ i en kommentar')).toBe(0)
+  })
+
+  test('ingen fil har et ubalansert dollarsitat', () => {
+    const skjeve = filer
+      .filter((f) => dollarPar(f.sql) % 2 !== 0)
+      .map((f) => `  ${f.navn}  (${dollarPar(f.sql)} stk)`)
+
+    expect(skjeve, `\nDisse SQL-filene har et ulikt antall \`$$\`:\n`
+      + `${skjeve.join('\n')}\n\n`
+      + 'Postgres svarer «unterminated dollar-quoted string» og peker '
+      + 'et sted langt unna feilen, fordi resten av fila slukes inn i '
+      + 'strengen.\n')
+      .toEqual([])
+  })
+})
