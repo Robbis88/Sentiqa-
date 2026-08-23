@@ -28,6 +28,31 @@
 -- Foerste utgave av denne fila gjettet paa `r.aar`/`r.omsetning_kr` og
 -- feilet i SQL Editor.
 --
+-- SVARET, kjort 2026-08-23. Ingen av de tre utfallene over.
+--
+--   des 2025  -20,7 %   |   jan  +44,4 %   feb   +1,6 %   mar  -3,9 %
+--                       |   apr  +30,5 %   mai  -16,5 %   jun +34,9 %
+--
+-- NEGATIV BRUTTO PAA KAFFE ER IKKE EN OEKONOMISK HENDELSE. Tallene
+-- svinger fra -20,7 % til +44,4 % fordi varekjoep bokfoeres i klumper
+-- mot loepende salg, uten beholdningsendring per varegruppe. Én maaneds
+-- margin per avdeling er derfor ikke maalbar - og det er nettopp derfor
+-- `0116` regner HITTIL I AAR og ikke per maaned.
+--
+-- HITTIL I 2026: 94 696 kr omsetning, 15 905 kr brutto = 16,8 % mot
+-- budsjettert 20,0 %. Det er -3,2 pp, altsaa ca. 3 000 kr.
+--
+-- DE 11,7 % JEG MELDTE FOER VAR MIN EGEN FEIL, ikke produktets: en
+-- ad hoc-spoerring som summerte desember 2025 inn i 2026. Med den
+-- maaneden med blir det 11,7 % og -9 000 kr. `v_bp_status_avdeling`
+-- gjoer det riktig - `ytd` grupperer paa `date_trunc('year', maned)`
+-- og koblingen krever `y.aar = date_trunc('year', m.maned)`. Sida har
+-- aldri vist 11,7 %.
+--
+-- DET SOM STAAR IGJEN som et ekte spoersmaal: budsjettet er 20,0 % i
+-- alle tolv maanedene. Skjermen sier at bruttobudsjettet er fjoraarets
+-- oppnaadde margin. Se `bp_brutto_flat.sql`.
+--
 -- LESER KUN. Trygg i produksjon.
 -- =====================================================================
 
