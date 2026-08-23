@@ -48,16 +48,40 @@ export type Kaffevarsel = {
   kopper: number | null
 }
 
-// Tersklene. PROVISORISKE, og satt for å bli flyttet: de er valgt av
-// syv måneders tall fra fem stasjoner, ikke av erfaring.
+// Tersklene. BEGGE MAA TIL: kronene alene ville meldt en stor stasjon
+// som ligger helt normalt an; andelen alene ville meldt en liten paa
+// noen hundre kroner.
 //
-// BEGGE MÅ TIL. Kronene alene ville meldt en stor stasjon som ligger
-// helt normalt an; andelen alene ville meldt en liten på noen hundre
-// kroner. Robert: «de har alltid litt svinn på kaffe hver mnd» — søl,
-// kanner som tømmes ved stengetid og feilslag ligger i det samme tallet
-// og er ikke noe butikksjefen kan slå inn.
+// ANDELEN STO FOERST PAA 15 %, SAA 10, OG ER NAA 3. Robert 2026-08-23:
+// «tror under 3 %.» Bones laa paa 14 % - 8 550
+// kr over sju maaneder - og slapp saavidt unna. Laguneparken er grunnen
+// til at den ikke skal gjoere det: de deler ut MEST av alle, 151 502 kr,
+// og lander paa -345. Naar én stasjon viser at naer null er oppnaaelig,
+// er 14 % ikke et gulv virkeligheten setter.
+//
+// PAA 3 % ER DET KRONEGRENSEN SOM ER DEN REELLE PORTEN, og det er
+// med vilje. En stasjon som slaar inn 97 % av utdelingen sin skal
+// fortsatt meldes hvis resten er over 5 000 kr; en liten stasjon med
+// noen hundre kroner skal ikke. Andelen er da mest et vern mot aa
+// melde stasjoner som knapt deler ut kaffe i det hele tatt.
+//
+// PAA 3 % ER DET KRONEGRENSEN SOM ER DEN REELLE PORTEN. Det er med
+// vilje: en stasjon som slaar inn 97 % av utdelingen sin skal fortsatt
+// meldes hvis resten er over 5 000 kr, mens en liten stasjon med noen
+// hundre kroner ikke skal det. Andelen er da mest et vern mot aa melde
+// stasjoner som knapt deler ut kaffe i det hele tatt.
+//
+// Robert: «de har alltid litt svinn paa kaffe hver mnd» - soel, kanner
+// som toemmes ved stengetid, feilslag. Det er hva kronegrensen er til
+// for. Andelsgrensen maaler noe annet: hvor mye av UTDELINGEN som ikke
+// er slaatt inn.
+//
+// Med disse tallene fyrer den paa fire av fem stasjoner. Det er mye,
+// men hver av dem har et konkret antall kopper aa slaa inn - og
+// Laguneparken faar ingenting, saa varselet er fortsatt et skille og
+// ikke stoey.
 const KR_GRENSE = 5_000
-const ANDEL_GRENSE = 15
+const ANDEL_GRENSE = 3
 
 const kr = (n: number) => `${Math.round(n).toLocaleString('nb-NO')} kr`
 
