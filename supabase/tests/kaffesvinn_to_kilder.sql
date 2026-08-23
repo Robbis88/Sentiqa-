@@ -1,110 +1,91 @@
 -- =====================================================================
--- St1 regner det ut selv. Stemmer det med det vi utledet?
+-- Kaffejusteringen: gaar 130xx i null?
 --
--- SVINNRAPPORTEN ER PAA VAREGRUPPE, ikke avdeling. Femsifrede koder,
--- der avdelingen er de tre foerste:
+-- REGELEN, fra Robert 2026-08-23:
 --
---   13010 KAFFE             35 rader   7 mnd   5 stasjoner
---   13011 KAFFELOJALITET    33 rader   7 mnd   5 stasjoner
---   13012 TE/KAKAO/ANNET     6 rader   5 mnd   4 stasjoner
+--   «Kaffelojalitet er der vi nedjusteres. Hvis kaffelojalitet er
+--    -2000 kr og kaffe/te er 2000, saa er det rett justert. Er kaffe/te
+--    1000 kr, mangler det justering paa 1000 kr.»
 --
--- KAFFEN TELLES HVER MAANED, OVERALT. 13010 har 35 av 35 mulige rader.
--- «Har de glemt aa telle» er ikke problemet paa varm drikke.
+-- Kaffen forsvinner fysisk fra lageret og gir MANKO paa `13010 KAFFE`.
+-- Slaas utdelingen inn, gir den et tilsvarende OVERSKUDD paa
+-- `13011 KAFFELOJALITET`. Balanserer de, er alt registrert. Det som
+-- staar igjen, er justeringen som mangler.
 --
--- TRE FEIL PAA RAD, ALLE AV SAMME SLAG. Jeg filtrerte paa merkelapper
--- jeg hadde gjettet:
+-- DETTE ER EKSAKT, ikke et anslag. St1 har regnet det ut i
+-- `regnskap_usynlig_svinn` (0049), + manko / - overskudd. Ingen
+-- antakelse om kaffepris, varemiks eller hvor mange kopper som gaar med.
+-- Utledningen «kassa minus telling» svarte paa det samme, men med tre
+-- mellomregninger som alle kunne baere en feil.
 --
---   `kode = '130'`      -> null rader. Koden er femsifret.
---   `navn ilike '%MAT%'` -> null rader. Mat heter BAKERI, POELSE,
---                          HAMBURGER, PIZZA, OPPVARMET, PAASMURT.
---   `navn ilike '%VARM%'` -> traff `12014 OPPVARMET`. Oppvarmet MAT.
+-- HELE KJEDEN, 2026:  481 994 - 325 161 - 8 405 = +148 428 kr ujustert.
 --
--- Den siste er den verste. De to foerste ga null, og null ser ut som
--- «ingen svinn» - ille nok. Den tredje ga FEIL RADER MED TROVERDIGE
--- TALL: «Lone har 26 006 kr usynlig svinn paa varm drikke» var poelser
--- og hamburgere. Et tall som er galt paa en plausibel maate blir ikke
--- oppdaget av noen.
+-- MATCH PAA KODEPREFIKS, ALDRI PAA NAVNET. Svinnrapporten er paa
+-- VAREGRUPPE - femsifrede koder der avdelingen er de tre foerste.
+-- `navn ilike (prosent)VARM(prosent)` traff `12014 OPPVARMET`, altsaa
+-- oppvarmet MAT, og ga et troverdig tall for feil avdeling.
 --
--- REGELEN SOM FOELGER: match paa KODEPREFIKS, aldri paa fritekstnavnet.
--- `left(kode, 3) = '130'` er avdelingen, og den er den samme noekkelen
--- `regnskapslinjer` og `daglig_salg` bruker. Navnet er til aa lese, ikke
--- til aa filtrere paa.
---
--- KUN INNEVAERENDE AAR, og samme maaneder paa begge sider av
--- sammenlikningen.
+-- KUN INNEVAERENDE AAR. Robert: «vi maa kun justere paa aaret. Neste aar
+-- kun 2027-tall.»
 --
 -- LESER KUN. Trygg i produksjon.
 -- =====================================================================
 
-with st1 as (
+with svinn as (
   select u.stasjon_id,
-         u.periode,
-         sum(u.usynlig_kr)                                          as kr,
-         sum(u.usynlig_kr) filter (where u.kode = '13010')          as kr_kaffe,
-         sum(u.usynlig_kr) filter (where u.kode = '13011')          as kr_lojalitet,
-         count(*)                                                   as rader
+         count(distinct u.periode)                                  as maaneder,
+         min(u.periode)                                             as fra,
+         max(u.periode)                                             as til,
+         sum(u.usynlig_kr) filter (where u.kode = '13010')          as kaffe_kr,
+         sum(u.usynlig_kr) filter (where u.kode = '13011')          as lojalitet_kr,
+         sum(u.usynlig_kr) filter (
+           where u.kode not in ('13010', '13011'))                  as annet_kr,
+         sum(u.usynlig_kr)                                          as rest_kr
   from public.regnskap_usynlig_svinn u
   where u.slettet_tid is null
     and u.stasjon_id is not null
     and u.periode >= date_trunc('year', current_date)
-    -- KODEPREFIKS, ikke navn. Avdeling 130 = varm drikke.
     and left(u.kode, 3) = '130'
-  group by u.stasjon_id, u.periode
+  group by u.stasjon_id
 ),
 
-regnskap as (
-  select r.stasjon_id,
-         r.periode,
-         sum(r.regnskap) filter (where r.seksjon = 'omsetning')         as oms,
-         sum(r.regnskap) filter (where r.seksjon = 'bruttofortjeneste') as bto
-  from public.regnskapslinjer r
-  where r.slettet_tid is null
-    and r.kode = '130'
-    and r.stasjon_id is not null
-    and r.periode >= date_trunc('year', current_date)
-    and r.seksjon in ('omsetning', 'bruttofortjeneste')
-  group by r.stasjon_id, r.periode
-  having sum(r.regnskap) filter (where r.seksjon = 'omsetning') is not null
-),
-
-kasse as (
-  select v.stasjon_id,
-         date_trunc('month', v.dato)::date        as periode,
-         sum(v.omsetning_eks_mva)                 as oms,
-         sum(v.bto_fortjeneste_kr)                as bto_med,
-         sum(v.antall) filter (where v.varenavn ilike '%FYLL%') as utdelte
+-- Den mest utdelte varen og hva lageret justeres med per kopp. Bare til
+-- aa gjoere kroner om til et antall - varselet skal si «slaa inn 2 100
+-- PAAFYLL CAFFE LATTE», ikke «11 998 kr mangler».
+vanligste as (
+  select distinct on (v.stasjon_id)
+         v.stasjon_id,
+         v.varenavn,
+         round(-sum(v.bto_fortjeneste_kr) / sum(v.antall), 2)  as kr_per_kopp,
+         sum(v.antall)                                         as antall
   from public.v_butikksalg v
   where v.avdeling_kode = '130'
+    and v.varenavn ilike '%FYLL%'
     and v.dato >= date_trunc('year', current_date)
-  group by v.stasjon_id, date_trunc('month', v.dato)
+  group by v.stasjon_id, v.varenavn
+  having sum(v.antall) > 0 and -sum(v.bto_fortjeneste_kr) > 0
+  order by v.stasjon_id, sum(v.antall) desc
 )
 
-select s.navn                                          as stasjon,
-       count(*)                                        as dekning,
-       min(t.periode)                                  as fra,
-       max(t.periode)                                  as til,
-       round(sum(t.kr_kaffe))                          as st1_kaffe_kr,
-       round(sum(t.kr_lojalitet))                      as st1_lojalitet_kr,
-       round(sum(t.kr))                                as st1_sum_kr,
-       -- Utledet over NOEYAKTIG de samme maanedene.
-       round(sum(k.bto_med) - sum(k.oms) * sum(r.bto) / nullif(sum(r.oms), 0))
-                                                       as utledet_kr,
-       round(sum(t.kr) - (sum(k.bto_med)
-             - sum(k.oms) * sum(r.bto) / nullif(sum(r.oms), 0)))
-                                                       as differanse_kr,
-       round(sum(k.utdelte))                           as utdelte_kopper,
-       v.vanligste_paafyll,
-       v.kr_per_kopp,
-       -- Koppene, regnet av ST1s tall. Fasit naar den finnes.
-       case when v.kr_per_kopp > 0 and sum(t.kr) > 0
-            then round(sum(t.kr) / v.kr_per_kopp)
-       end                                             as maa_slaas_inn
-from st1 t
-join regnskap r using (stasjon_id, periode)
-join kasse k using (stasjon_id, periode)
-join public.stasjoner s on s.id = t.stasjon_id
-left join public.v_kaffe_svinn v
-  on v.stasjon_id = t.stasjon_id
- and v.aar = date_trunc('year', current_date)::date
-group by s.navn, v.vanligste_paafyll, v.kr_per_kopp
-order by 7 desc nulls last;
+select s.navn                                    as stasjon,
+       v.maaneder,
+       v.fra,
+       v.til,
+       round(v.kaffe_kr)                         as kaffe_kr,
+       round(v.lojalitet_kr)                     as lojalitet_kr,
+       round(v.annet_kr)                         as annet_kr,
+       -- DOMMEN. Positiv = justering som mangler.
+       round(v.rest_kr)                          as mangler_kr,
+       -- Hvor stor del av utdelingen som ikke er slaatt inn.
+       case when v.lojalitet_kr < 0
+            then round(100 * v.rest_kr / -v.lojalitet_kr)
+       end                                       as andel_ujustert_pst,
+       p.varenavn                                as vanligste_paafyll,
+       p.kr_per_kopp,
+       case when p.kr_per_kopp > 0 and v.rest_kr > 0
+            then round(v.rest_kr / p.kr_per_kopp)
+       end                                       as maa_slaas_inn
+from svinn v
+join public.stasjoner s on s.id = v.stasjon_id
+left join vanligste p using (stasjon_id)
+order by v.rest_kr desc nulls last;

@@ -1,97 +1,94 @@
 import { describe, expect, test } from 'vitest'
-import { kopperPerAvtaleDag, lagKaffevarsel, type Kaffemaaling } from './kaffesvinn'
+import { andelUjustert, lagKaffevarsel, type Kaffemaaling } from './kaffesvinn'
 
-// Lone, desember 2025 – juni 2026, målt mot produksjon. Kassa sa 73,5 %
-// etter alle registrerte påfyll, tellingen sa 48,1 %.
-const LONE: Kaffemaaling = {
-  kassaOmsetningKr: 300_000,
-  kassaBruttoKr: 220_500, // 73,5 %
-  kassaBruttoUtenUtdelingKr: 249_300, // 83,1 %
-  regnskapOmsetningKr: 286_710,
-  regnskapBruttoKr: 137_908, // 48,1 %
+// `toLocaleString('nb-NO')` bruker U+00A0 mellom tusenene, ikke
+// mellomrom. Haandskrevne strenger ser identiske ut og feiler likevel.
+// Samme formatterer paa begge sider er eneste sikre maate.
+const kr = (n: number) => `${n.toLocaleString('nb-NO')} kr`
+
+// Roberts eget eksempel, 2026-08-23: «hvis kaffelojalitet er -2000 kr og
+// kaffe/te er 2000, så er det rett justert. Er kaffe/te 1000 kr, mangler
+// det justering på 1000 kr.»
+const RETT: Kaffemaaling = {
+  kaffeKr: 2000,
+  lojalitetKr: -2000,
+  manglerKr: 0,
   maaneder: 7,
-  vanligste: { varenavn: 'PÅFYLL KAFFE MEDIUM', krPerKopp: 3.82 },
+  vanligste: { varenavn: 'PÅFYLL KAFFE MEDIUM', krPerKopp: 3.6 },
 }
 
-const som = (endring: Partial<Kaffemaaling>): Kaffemaaling => ({ ...LONE, ...endring })
+const som = (endring: Partial<Kaffemaaling>): Kaffemaaling => ({ ...RETT, ...endring })
 
-describe('varselet fyrer på det som kan gjøres noe med', () => {
-  test('Lone får varsel, og det sier et antall kopper', () => {
-    const v = lagKaffevarsel(LONE)
+describe('regelen: 130xx skal gå i null', () => {
+  test('balanserer de, er alt registrert og ingenting meldes', () => {
+    expect(lagKaffevarsel(RETT)).toBeNull()
+  })
+
+  test('overskudd meldes ikke — da er det ikke kopper som mangler', () => {
+    // Mer talt enn ventet. Et varsel om aa slaa inn FLERE ville vaert
+    // direkte feil.
+    expect(lagKaffevarsel(som({ manglerKr: -8000, lojalitetKr: -20_000 }))).toBeNull()
+  })
+
+  test('mangler justering: teksten sier begge sidene av regnestykket', () => {
+    const v = lagKaffevarsel(som({
+      kaffeKr: 96_000, lojalitetKr: -65_000, manglerKr: 31_000,
+    }))
     expect(v).not.toBeNull()
-    expect(v!.type).toBe('kaffe_paafyll')
-    // «11 % av kaffemarginen mangler» er sant og ubrukelig.
-    expect(v!.kopper).toBeGreaterThan(15_000)
-    expect(v!.tekst).toContain('PÅFYLL KAFFE MEDIUM')
-    expect(v!.tekst).toMatch(/Slå inn [\d\s ]+ PÅFYLL/)
+    expect(v!.tekst, 'manko paa kaffen').toContain(kr(96_000))
+    expect(v!.tekst, 'det som ER slaatt inn').toContain(kr(65_000))
+    expect(v!.tekst, 'differansen').toContain(kr(31_000))
   })
 
-  test('teksten sier begge tallene, så anslaget kan etterprøves', () => {
-    const v = lagKaffevarsel(LONE)!
-    expect(v.tekst, 'kassa').toContain('73,5 %')
-    expect(v.tekst, 'tellingen').toContain('48,1 %')
-  })
-
-  test('en stasjon som har orden får ingenting', () => {
-    // KANARIFUGL: fyrer denne, staar det varsel paa hver stasjon hver
-    // maaned - og da leser ingen det naar det gjelder.
-    expect(lagKaffevarsel(som({
-      regnskapBruttoKr: 219_000, regnskapOmsetningKr: 300_000, // 73 % mot 73,5
-    }))).toBeNull()
-  })
-
-  test('Laguneparken FANT penger ved tellingen, og det er ikke et varsel', () => {
-    // Regnskapet bedre enn kassa. Da er det ikke kopper som mangler, og
-    // et varsel om aa slaa inn flere ville vaert direkte feil.
-    expect(lagKaffevarsel(som({
-      kassaBruttoKr: 113_700, kassaOmsetningKr: 300_000, // 37,9 %
-      regnskapBruttoKr: 127_500, regnskapOmsetningKr: 300_000, // 42,5 %
-    }))).toBeNull()
+  test('varselet sier et ANTALL, ikke bare en sum', () => {
+    // «31 000 kr mangler» er sant og ubrukelig.
+    const v = lagKaffevarsel(som({
+      kaffeKr: 96_000, lojalitetKr: -65_000, manglerKr: 31_000,
+    }))!
+    expect(v.kopper).toBe(Math.round(31_000 / 3.6))
+    expect(v.tekst).toContain('PÅFYLL KAFFE MEDIUM')
+    expect(v.tekst).toMatch(/Slå inn [\d\s ]+PÅFYLL/)
   })
 })
 
 describe('tersklene slipper vanlig svinn gjennom', () => {
-  test('smaa kroner paa stort avvik meldes ikke', () => {
-    // Soel, kanner som toemmes og feilslag ligger i det samme gapet, og
-    // de er ikke noe butikksjefen kan slaa inn.
-    const v = lagKaffevarsel(som({
-      kassaOmsetningKr: 10_000, kassaBruttoKr: 8_000, // 80 %
-      regnskapOmsetningKr: 10_000, regnskapBruttoKr: 7_000, // 70 %, altsaa 10 pp
-    }))
-    expect(v, '10 pp, men bare 1 000 kr').toBeNull()
+  test('smaa kroner meldes ikke, uansett andel', () => {
+    // Robert: «de har alltid litt svinn paa kaffe hver mnd.» Soel, kanner
+    // som toemmes og feilslag ligger i det samme tallet.
+    expect(lagKaffevarsel(som({
+      kaffeKr: 3000, lojalitetKr: -1000, manglerKr: 2000,
+    })), '200 % ujustert, men bare 2 000 kr').toBeNull()
   })
 
-  test('smaa avvik paa store kroner meldes heller ikke', () => {
-    const v = lagKaffevarsel(som({
-      kassaOmsetningKr: 1_000_000, kassaBruttoKr: 800_000, // 80 %
-      regnskapOmsetningKr: 1_000_000, regnskapBruttoKr: 780_000, // 78 %, 2 pp
-    }))
-    expect(v, '20 000 kr, men bare 2 pp').toBeNull()
+  test('stor sum paa liten andel meldes heller ikke', () => {
+    expect(lagKaffevarsel(som({
+      kaffeKr: 306_000, lojalitetKr: -300_000, manglerKr: 6000,
+    })), '6 000 kr, men bare 2 % ujustert').toBeNull()
   })
 
   test('begge over terskelen gir varsel', () => {
     expect(lagKaffevarsel(som({
-      kassaOmsetningKr: 200_000, kassaBruttoKr: 160_000, // 80 %
-      regnskapOmsetningKr: 200_000, regnskapBruttoKr: 148_000, // 74 %, 6 pp, 12 000 kr
-    }))).not.toBeNull()
+      kaffeKr: 56_000, lojalitetKr: -50_000, manglerKr: 6000,
+    })), '6 000 kr og 12 % — under andelsgrensen').toBeNull()
+    expect(lagKaffevarsel(som({
+      kaffeKr: 60_000, lojalitetKr: -50_000, manglerKr: 10_000,
+    })), '10 000 kr og 20 %').not.toBeNull()
+  })
+
+  test('ingen utdeling slaatt inn i det hele tatt: kronene alene avgjor', () => {
+    // Da finnes ingen andel aa maale mot, men manko paa kaffen staar der
+    // like fullt. Uten dette ville den verste stasjonen sluppet unna.
+    const v = lagKaffevarsel(som({ kaffeKr: 40_000, lojalitetKr: 0, manglerKr: 40_000 }))
+    expect(v).not.toBeNull()
+    expect(v!.kopper).toBeGreaterThan(10_000)
   })
 })
 
 describe('grunnlaget maa holde', () => {
-  test('ingen omsetning gir ingen margin, og dermed ingen dom', () => {
-    expect(lagKaffevarsel(som({ regnskapOmsetningKr: 0 }))).toBeNull()
-    expect(lagKaffevarsel(som({ kassaOmsetningKr: 0 }))).toBeNull()
-  })
-
-  test('brutto stoerre enn omsetningen er en feil i grunnlaget', () => {
-    // Samme vakt som `v_bp_status_avdeling`. DRIFT viste -3536 % foer den
-    // fantes.
-    expect(lagKaffevarsel(som({ regnskapBruttoKr: 999_999 }))).toBeNull()
-  })
-
   test('uten en vanligste vare staar varselet, men uten antall', () => {
-    // Teksten maa fortsatt vaere sann og handlingen fortsatt mulig.
-    const v = lagKaffevarsel(som({ vanligste: null }))
+    const v = lagKaffevarsel(som({
+      kaffeKr: 96_000, lojalitetKr: -65_000, manglerKr: 31_000, vanligste: null,
+    }))
     expect(v).not.toBeNull()
     expect(v!.kopper).toBeNull()
     expect(v!.tekst).toContain('Slå inn påfyllene som er gitt bort')
@@ -100,26 +97,26 @@ describe('grunnlaget maa holde', () => {
 
   test('kr per kopp paa null gir ikke deling paa null', () => {
     const v = lagKaffevarsel(som({
+      kaffeKr: 96_000, lojalitetKr: -65_000, manglerKr: 31_000,
       vanligste: { varenavn: 'PÅFYLL KAFFE MEDIUM', krPerKopp: 0 },
     }))
     expect(v!.kopper).toBeNull()
   })
 })
 
-describe('kopper per avtalekunde per dag', () => {
-  test('Lone laa paa 0,36 - det er ikke en kaffeavtale noen ville kjopt', () => {
-    expect(kopperPerAvtaleDag(7257, 95, 213)).toBe(0.36)
+describe('andelen som ikke er slaatt inn', () => {
+  test('halvparten av utdelingen ujustert', () => {
+    expect(andelUjustert(10_000, -20_000)).toBe(50)
   })
 
-  test('og lander paa 1,31 naar de manglende legges til', () => {
-    // Laguneparken laa paa 1,47 med like mange avtaler. Det er den
-    // kontrollen som gjor anslaget troverdig.
-    expect(kopperPerAvtaleDag(7257 + 19_068, 95, 213)).toBe(1.3)
-    expect(kopperPerAvtaleDag(29_398, 94, 213)).toBe(1.47)
+  test('KANARIFUGL: ingen registrert utdeling gir ingen andel', () => {
+    // «100 %» ville vaert et paafunn, ikke en maaling — og et paafunn
+    // som ser ut som et tall er verre enn ingen tall.
+    expect(andelUjustert(10_000, 0)).toBeNull()
+    expect(andelUjustert(10_000, 500)).toBeNull()
   })
 
-  test('null avtaler eller null dager gir ingen brok', () => {
-    expect(kopperPerAvtaleDag(100, 0, 213)).toBeNull()
-    expect(kopperPerAvtaleDag(100, 95, 0)).toBeNull()
+  test('én desimal, saa den kan sammenliknes maaned for maaned', () => {
+    expect(andelUjustert(1234, -10_000)).toBe(12.3)
   })
 })
