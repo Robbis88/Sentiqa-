@@ -24,6 +24,7 @@ import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
 import { vurderDublett } from './dublett'
+import { lagKaffevarsel } from '@/lib/kaffesvinn'
 
 // Behandlings-kjernen (§6). Tar imot en supabase-klient — UI-knappen bruker
 // brukersesjonen, e-post-webhooken bruker service-role. Ingen session/revalidate
@@ -223,6 +224,10 @@ export async function behandleJobbKjerne(
         // Bemanningsvarsler — også best effort.
         try {
           await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
+        } catch { /* varsler skal aldri velte en import */ }
+        // Kaffevarsler — samme kontrakt: best effort.
+        try {
+          await varsleKaffe(supabase, retailerId, oppslag.medNummer, perStasjon)
         } catch { /* varsler skal aldri velte en import */ }
         break
       }
@@ -780,6 +785,77 @@ async function lagreBp(
 }
 
 // ---------------------------------------------------------------------
+// ---------------------------------------------------------------------
+// Varsel etter regnskapsimport: er paafyllene slaatt inn?
+//
+// REGELEN, fra Robert 2026-08-23: «Kaffelojalitet er der vi
+// nedjusteres. Hvis kaffelojalitet er -2000 kr og kaffe/te er 2000, saa
+// er det rett justert. Er kaffe/te 1000 kr, mangler det justering paa
+// 1000 kr.»
+//
+// Kaffen forsvinner fra lageret og gir manko paa 13010; slaas
+// utdelingen inn, gir den overskudd paa 13011. Det som staar igjen er
+// justeringen som mangler. `v_kaffe_svinn` (0126) regner det ut.
+//
+// HELE AARET, IKKE MAANEDEN. Tallet er kumulativt og skal leses slik:
+// «hittil i aar mangler dere X». En enkelt maaned er for smaa tall til
+// aa skille rutine fra tilfeldighet - og det er aarets manko som skal
+// nullstilles, ikke julis.
+//
+// Best effort: et varsel som feiler skal aldri velte importen.
+// ---------------------------------------------------------------------
+async function varsleKaffe(
+  supabase: Klient,
+  retailerId: string,
+  medNummer: Map<string, string>,
+  perStasjon: Awaited<ReturnType<typeof parseRegnskapStasjoner>>,
+): Promise<void> {
+  // Bare stasjonene som var med i DENNE importen. Uten det ville hver
+  // opplasting varslet alle, ogsaa dem filen ikke naevner.
+  const ider = perStasjon
+    .map((st) => medNummer.get(st.butikknummer))
+    .filter((id): id is string => Boolean(id))
+  if (ider.length === 0) return
+
+  const aar = `${new Date().getUTCFullYear()}-01-01`
+  const { data } = await supabase
+    .from('v_kaffe_svinn')
+    .select('stasjon_id, kaffe_kr, lojalitet_kr, mangler_kr, maaneder, vanligste_paafyll, kr_per_kopp')
+    .eq('aar', aar)
+    .in('stasjon_id', ider)
+
+  for (const r of (data ?? []) as KaffeRad[]) {
+    const varsel = lagKaffevarsel({
+      kaffeKr: r.kaffe_kr ?? 0,
+      lojalitetKr: r.lojalitet_kr ?? 0,
+      manglerKr: r.mangler_kr ?? 0,
+      maaneder: r.maaneder ?? 0,
+      vanligste: r.vanligste_paafyll && r.kr_per_kopp
+        ? { varenavn: r.vanligste_paafyll, krPerKopp: r.kr_per_kopp }
+        : null,
+    })
+    if (!varsel) continue
+    await opprettVarsel(supabase, {
+      retailer_id: retailerId,
+      stasjon_id: r.stasjon_id,
+      type: varsel.type,
+      tittel: varsel.tittel,
+      tekst: varsel.tekst,
+      lenke: '/regnskap',
+    })
+  }
+}
+
+type KaffeRad = {
+  stasjon_id: string
+  kaffe_kr: number | null
+  lojalitet_kr: number | null
+  mangler_kr: number | null
+  maaneder: number | null
+  vanligste_paafyll: string | null
+  kr_per_kopp: number | null
+}
+
 // Varsler etter regnskapsimport: hvordan gikk bemanningen forrige måned?
 //
 // Alt vi trenger kom nettopp inn i samme fil — «Sammenstilling» gir timer,

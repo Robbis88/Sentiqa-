@@ -162,6 +162,81 @@ export const VERKTOY: Record<string, Verktoy> = {
     },
   },
 
+  // KAFFEN HAR EN MOTPOST, og det er derfor dette lar seg maale i det
+  // hele tatt. Kaffe som forsvinner fra lageret gir manko paa 13010;
+  // slaas utdelingen inn, gir den overskudd paa 13011. Balanserer de,
+  // er alt registrert.
+  //
+  // SPOERSMAALET BUTIKKSJEFEN STILLER er «har vi glemt aa slaa inn
+  // paafyll?», og svaret skal vaere et ANTALL KOPPER. «78 187 kr
+  // mangler» er sant og ubrukelig; «slaa inn 21 719 PAAFYLL KAFFE
+  // MEDIUM» er noe hun kan gi videre paa vaktskiftet.
+  //
+  // RLS SKOPER SVARET. `v_kaffe_svinn` er security_invoker, og 0127 gir
+  // butikksjefen kun 130xx paa egne stasjoner. Eier ser alle.
+  hent_kaffesvinn: {
+    schema: {
+      name: 'hent_kaffesvinn',
+      description:
+        'Er paafyll av kaffe slaatt inn? Kaffe gitt bort paa kaffeavtale '
+        + 'gir manko paa lageret; slaas utdelingen inn, motposteres den. '
+        + 'Svarer med hvor mye justering som mangler hittil i aar og hvor '
+        + 'mange kopper det tilsvarer. Positivt tall = justering mangler.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          aar: {
+            type: 'number',
+            description: 'Aarstall (valgfritt, standard inneverende aar)',
+          },
+        },
+      },
+    },
+    async kjor(input, { supabase }) {
+      const aar = Number(input.aar) || new Date().getUTCFullYear()
+      const navn = await stasjonsNavn(supabase)
+      const { data } = await supabase
+        .from('v_kaffe_svinn')
+        .select(
+          'stasjon_id, maaneder, fra, til, kaffe_kr, lojalitet_kr, '
+          + 'mangler_kr, andel_ujustert_pst, vanligste_paafyll, maa_slaas_inn',
+        )
+        .eq('aar', `${aar}-01-01`)
+        .overrideTypes<KaffesvinnRad[]>()
+
+      // TOMT ER IKKE «ALT ER BRA». Uten denne linja leser bade AI-en og
+      // brukeren fravaer av data som en godkjenning.
+      if (!data || data.length === 0) {
+        return {
+          feil:
+            `Ingen kaffetall for ${aar}. Enten er regnskapet ikke lastet `
+            + `opp ennaa, eller saa har du ikke tilgang til dem. Dette `
+            + `betyr IKKE at alt er i orden.`,
+        }
+      }
+
+      return {
+        aar,
+        forklaring:
+          'mangler_kr over 0 betyr at utdelt kaffe ikke er slaatt inn. '
+          + 'Negativt tall betyr mer talt enn ventet.',
+        per_stasjon: data.map((r) => ({
+          stasjon: navn.get(r.stasjon_id) ?? r.stasjon_id,
+          maaneder: r.maaneder,
+          fra: r.fra,
+          til: r.til,
+          manko_paa_kaffe_kr: r.kaffe_kr,
+          slaatt_inn_som_gitt_bort_kr: r.lojalitet_kr,
+          mangler_justering_kr: r.mangler_kr,
+          andel_ujustert_pst: r.andel_ujustert_pst,
+          slaa_inn: r.maa_slaas_inn != null && r.vanligste_paafyll
+            ? `${r.maa_slaas_inn} ${r.vanligste_paafyll}`
+            : null,
+        })),
+      }
+    },
+  },
+
   hent_timesalg: {
     schema: {
       name: 'hent_timesalg',
@@ -474,4 +549,18 @@ export function verktoyForRolle(erAdmin: boolean): Anthropic.Tool[] {
   return Object.values(VERKTOY)
     .filter((v) => erAdmin || !v.kunAdmin)
     .map((v) => v.schema)
+}
+
+
+type KaffesvinnRad = {
+  stasjon_id: string
+  maaneder: number | null
+  fra: string | null
+  til: string | null
+  kaffe_kr: number | null
+  lojalitet_kr: number | null
+  mangler_kr: number | null
+  andel_ujustert_pst: number | null
+  vanligste_paafyll: string | null
+  maa_slaas_inn: number | null
 }
