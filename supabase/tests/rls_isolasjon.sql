@@ -61,12 +61,36 @@ begin
     json_build_object('sub', p_uid::text, 'role', 'authenticated')::text, true);
 end $$;
 
--- Hjelper: påstand
+-- Hjelper: paastand
+--
+-- SAMLER I STEDET FOR AA KASTE, og det er en rettelse. Foerste utgave
+-- gjorde `raise notice` paa hver bestaatt paastand - og SQL Editor
+-- viser ikke notices. Resultatet var én tom celle, og en test som
+-- besto saa noeyaktig ut som en test som aldri kjoerte.
+--
+-- Kaster den paa foerste feil, forsvinner ogsaa alle paastandene
+-- ETTER den. Da vet man at noe er galt, men ikke hvor mye.
+--
+-- Naa fylles en temp-tabell, og siste setning i fila er et `select`
+-- som lister hver eneste paastand med status. Feil foerst.
+-- INGEN `serial`, og et eksplisitt grant. Tabellen opprettes som den
+-- rollen fila startes med, mens paastandene kjoerer som
+-- `authenticated` - uten grantet ville innsettingen blitt avvist, og
+-- testen feilet paa noe som ikke handler om RLS i det hele tatt.
+-- Sekvensen bak `serial` ville trengt sitt eget grant, saa nummeret
+-- regnes i stedet av tabellen selv.
+create temp table if not exists paastander (
+  nr    int,
+  navn  text,
+  ok    boolean
+);
+grant all on paastander to public;
+
 create or replace function pg_temp.paastand(p_navn text, p_ok boolean) returns void
 language plpgsql as $$
 begin
-  if p_ok then raise notice 'OK   %', p_navn;
-  else raise exception 'FEIL %', p_navn; end if;
+  insert into paastander (nr, navn, ok)
+    select coalesce(max(nr), 0) + 1, p_navn, coalesce(p_ok, false) from paastander;
 end $$;
 
 set local role authenticated;
@@ -126,7 +150,16 @@ select pg_temp.paastand('Redaktør ser INGEN retailers', (select count(*) = 0 fr
 select pg_temp.paastand('Redaktør ser INGEN stasjoner', (select count(*) = 0 from public.stasjoner));
 
 reset role;
-do $$ begin raise notice '--- Alle isolasjonspåstander bestått ---'; end $$;
 
--- Ruller tilbake all testdata. Bytt til COMMIT kun hvis du vil beholde seed.
+-- SVARET. Siste setning som gir rader, saa SQL Editor viser den.
+--
+-- Feil foerst: staar det «FEIL» oeverst, er det den raden som
+-- betyr noe. Er alt «ok», er testen bestaatt - og da SER man det,
+-- i stedet for aa slutte seg til det av at ingenting skjedde.
+select
+  case when ok then 'ok' else 'FEIL' end   as status,
+  navn                                     as paastand
+from paastander
+order by ok, nr;
+
 rollback;
