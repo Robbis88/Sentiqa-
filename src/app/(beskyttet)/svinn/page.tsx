@@ -84,6 +84,13 @@ function SvinnKr({ b }: { b: Maanedsbilde }) {
   return <Kroner v={b.totalKr} />
 }
 
+/** «(1 av 31 mot 2 av 28 dager)», eller ingenting naar tallene mangler. */
+function dekningsord(na: Maanedsbilde, for_: Maanedsbilde): string {
+  if (!na.dekning || !for_.dekning) return ''
+  return ` (${na.dekning.registrert} av ${na.dekning.mulige}`
+    + ` mot ${for_.dekning.registrert} av ${for_.dekning.mulige} dager)`
+}
+
 export default async function SvinnSide({ searchParams }: { searchParams: Promise<Sok> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return <p>Du har ikke tilgang til svinn.</p>
@@ -412,17 +419,22 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
           stedet for aa vise en pil. */}
       {forrigeBilde && (
         <Forklaring sporsmaal={`Hvordan ligger dette mot ${manedAar.format(new Date(forrigeBilde.maned))}?`}>
+          {/* DEKNINGSTALLENE STAAR I BEGGE GRENENE.
+              Foerst sto de bare i «ikke sammenlignbar»-grenen, og da
+              kunne sida si «grunnlaget er omtrent likt» om to maaneder
+              med én og to registrerte dager. Regelen maaler LIKHET, ikke
+              om grunnlaget er stort nok - og den forskjellen maa leseren
+              kunne se selv. */}
           {kanSammenlignes
             ? <>
-                {manedAar.format(new Date(forrigeBilde.maned))}: <Kroner v={forrigeBilde.totalKr} />
+                {manedAar.format(new Date(forrigeBilde.maned))}: <SvinnKr b={forrigeBilde} />
                 {' · '}<Prosent v={forrigeBilde.prosent} />.
-                {' '}Registreringsgrunnlaget er omtrent likt, så utviklingen kan leses.
+                {' '}Registreringsgrunnlaget er omtrent likt
+                {dekningsord(bilde, forrigeBilde)}, så utviklingen kan leses.
               </>
             : <>
                 Månedene har ulikt registreringsgrunnlag
-                {bilde.dekning && forrigeBilde.dekning && (
-                  <> ({bilde.dekning.registrert} av {bilde.dekning.mulige} mot {forrigeBilde.dekning.registrert} av {forrigeBilde.dekning.mulige} dager)</>
-                )}
+                {dekningsord(bilde, forrigeBilde)}
                 . En endring mellom dem kan like gjerne være tellevane som svinn, og vises derfor ikke som utvikling.
               </>}
         </Forklaring>

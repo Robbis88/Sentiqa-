@@ -37,9 +37,18 @@ import AxeBuilder from '@axe-core/playwright'
 //   Kjeden samlet    18 800 / 200 000 = 9,4 %   53 % kategorisert
 //   Overby           ingen varekost             ikke maalbart
 //
-// JANUAR OG FEBRUAR 2026 har salg med varegruppe og ikke en eneste
-// svinnlinje. De skal staa som «ikke registrert», ikke som 0 kr og
-// 0,0 %. Det er hele forskjellen mellom en maaling og et fravaer.
+// JANUAR OG FEBRUAR 2026 har sin egen svinn-baseline: fire tirsdager
+// med kjedesum 4 400 hver (2026-01-20, -01-27, -02-03, -02-10). To
+// tirsdager i hver maaned gir 8 800 kr per maaned, alle ukoblede.
+//
+// Nevneren i de to maanedene er produksjonsfixturen (1201/1216), som
+// gaar 5. januar til 1. februar med varekost 600 kr per dag:
+//
+//   januar   27 dager x 600 = 16 200   ->  8 800 / 16 200 =    54,3 %
+//   februar   1 dag  x 600  =    600   ->  8 800 /    600 = 1 466,7 %
+//
+// Februartallet ser vilt ut, og det er riktig av det: én dag med salg
+// er ikke en nevner man kan si noe om. Sida viser det den har.
 //
 // Endres fixturen, skal disse testene feile. Det er meningen.
 // =====================================================================
@@ -94,6 +103,12 @@ test.describe('/svinn uten data', () => {
     // Uten data finnes ingen nevner. En «0,0 %» her ville vaert en
     // paastand om at det ikke svinner noe - og den har systemet ikke
     // dekning for.
+    //
+    // VENT PAA TOMTILSTANDEN FOERST. Leses `main` mens den fortsatt
+    // sier «Laster …», bestaar paastanden fordi det ikke staar noe -
+    // og en test som maaler tomheten sin egen ventetid beviser
+    // ingenting.
+    await expect(page.locator('.sq-tom')).toBeVisible()
     const tekst = await page.locator('main').innerText()
     expect(tekst).not.toMatch(/\d[,.]\d\s*%/)
   })
@@ -101,6 +116,7 @@ test.describe('/svinn uten data', () => {
   test('ser ikke den andre kjedens tall', async ({ page }) => {
     // Fixturen ligger i en annen kjede. Kommer den til syne her, er det
     // ikke en testfeil - det er RLS som lekker mellom kunder.
+    await expect(page.locator('.sq-tom')).toBeVisible()
     const tekst = await page.locator('body').innerText()
     expect(tekst).not.toContain('Overby')
     expect(tekst).not.toContain('5103')
@@ -197,36 +213,46 @@ test.describe('/svinn med data - hele kjeden', () => {
     expect(sifre(await rader.nth(1).locator('td').nth(3).textContent())).toBe('4000')
   })
 
-  test('E - maaneder uten registrering staar som fravaer, ikke som null', async ({ page }) => {
-    // Januar og februar 2026 har salg med varegruppe og ikke en eneste
-    // svinnlinje. Viser sida «0 kr · 0,0 %» der, ligger to gode nyheter
-    // rett ved siden av en ekte maaling - og de er ikke maalinger.
+  test('E - maaned for maaned regner hver maaned mot sin egen nevner', async ({ page }) => {
+    // Hver rad har sin egen teller OG sin egen nevner. Deles alle
+    // maanedene paa den samme nevneren, blir bare én av dem riktig -
+    // og de to andre ser ut som utvikling.
     const t = tabell(page, 'Måned for måned')
-    const mars = t.locator('tbody tr').filter({ hasText: /mars 2026/i })
-    expect(sifre(await mars.locator('td').nth(1).textContent())).toBe('18800')
-    await expect(mars.locator('td').nth(2)).toHaveText('9,4 %')
+    await expect(t.locator('tbody tr')).toHaveCount(3)
 
-    for (const maaned of [/januar 2026/i, /februar 2026/i]) {
-      const rad = t.locator('tbody tr').filter({ hasText: maaned })
-      await expect(rad).toHaveCount(1)
-      await expect(rad.locator('td').nth(1)).toHaveText('ikke registrert')
-      await expect(rad.locator('td').nth(2)).toHaveText('ikke målbart')
-      await expect(rad.locator('td').nth(3)).toHaveText('—')
-    }
+    const rad = (m: RegExp) => t.locator('tbody tr').filter({ hasText: m })
+
+    expect(sifre(await rad(/mars 2026/i).locator('td').nth(1).textContent())).toBe('18800')
+    expect(sifre(await rad(/mars 2026/i).locator('td').nth(2).textContent())).toBe('94')
+    await expect(rad(/mars 2026/i).locator('td').nth(3)).toHaveText('1 av 31')
+
+    // 8 800 / 16 200. Samme kroner som februar, helt annen prosent -
+    // fordi nevneren er 27 salgsdager mot én.
+    expect(sifre(await rad(/januar 2026/i).locator('td').nth(1).textContent())).toBe('8800')
+    expect(sifre(await rad(/januar 2026/i).locator('td').nth(2).textContent())).toBe('543')
+    await expect(rad(/januar 2026/i).locator('td').nth(3)).toHaveText('2 av 31')
+
+    expect(sifre(await rad(/februar 2026/i).locator('td').nth(1).textContent())).toBe('8800')
+    expect(sifre(await rad(/februar 2026/i).locator('td').nth(2).textContent())).toBe('14667')
+    await expect(rad(/februar 2026/i).locator('td').nth(3)).toHaveText('2 av 28')
   })
 
-  test('F - sammenligningen nekter naar grunnlaget er ulikt', async ({ page }) => {
-    // Mars har registrering, februar har ingen. En pil mellom dem ville
-    // maalt tellevane, ikke svinn.
+  test('F - sammenligningen viser grunnlaget sitt, ogsaa naar den holder', async ({ page }) => {
+    // Mars har 1 registrert dag, februar 2. Regelen maaler LIKHET
+    // mellom grunnlagene, ikke om de er store nok - to daarlige
+    // grunnlag er like. Da maa tallene staa der, saa leseren kan se
+    // hva «omtrent likt» faktisk betyr her.
     const f = page.locator('details.sq-forklaring')
-      .filter({ hasText: /februar 2026/i })
-    await expect(f).toContainText(/ulikt registreringsgrunnlag/i)
-    await expect(f).toContainText(/tellevane/i)
+      .filter({ hasText: /Hvordan ligger dette mot/i })
+    await expect(f).toHaveCount(1)
+    await expect(f).toContainText(/1 av 31 mot 2 av 28 dager/)
+    await expect(f).toContainText(/utviklingen kan leses/i)
   })
 
   test('G - dekningen staar ved siden av tallet', async ({ page }) => {
     const f = page.locator('details.sq-forklaring')
-      .filter({ hasText: /registreringsgrunnlaget/i })
+      .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i })
+    await expect(f).toHaveCount(1)
     await expect(f).toContainText(/1 av 31 dager/)
     await expect(f).toContainText(/ikke.*null svinn|ikke ble talt/i)
 
@@ -308,8 +334,11 @@ test.describe('/svinn med data - én stasjon', () => {
     // uansett hva som staar i URL-en.
     await loggInn(page, DATA)
 
-    // Innsnevring virker: én stasjon, og de to andre er borte.
+    // VENT PAA INNHOLDET, IKKE PAA NAVIGASJONEN. Sida streamer, og
+    // `innerText` rett etter `goto` leser «Laster …» - en test som
+    // maaler tomheten sin egen ventetid beviser ingenting.
     await page.goto(`/svinn?stasjon=${UNDERBY}&maned=${MARS}`)
+    await expect(page.locator('.sq-nokkeltall').first()).toBeVisible()
     let tekst = await page.locator('main').innerText()
     expect(tekst).toContain('Underby')
     expect(tekst).not.toContain('Grenseby')
@@ -318,6 +347,7 @@ test.describe('/svinn med data - én stasjon', () => {
     // «alle» er hele hans egen kjede - og ikke ett tegn mer. Testkjedens
     // stasjoner heter Testby (4177) og Testvik (9145).
     await page.goto(`/svinn?stasjon=alle&maned=${MARS}`)
+    await expect(tabell(page, /Per stasjon/)).toBeVisible()
     tekst = await page.locator('main').innerText()
     expect(tekst).toContain('Grenseby')
     expect(tekst).not.toMatch(/Testby|Testvik|4177|9145/)
@@ -377,7 +407,7 @@ test.describe('/svinn - flata', () => {
     await page.selectOption('select[name="maned"]', '2026-01-01')
     await page.getByRole('button', { name: /Vis måneden/i }).click()
     await expect(page).toHaveURL(/maned=2026-01-01/)
-    await expect(nokkeltall(page, 'Svinn totalt')
-      .locator('.sq-nokkeltall-verdi')).toHaveText('ikke registrert')
+    expect(sifre(await nokkeltall(page, 'Svinn totalt')
+      .locator('.sq-nokkeltall-verdi').textContent())).toBe('8800')
   })
 })
