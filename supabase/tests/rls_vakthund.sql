@@ -103,6 +103,53 @@ declare
     -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:
     -- en tabell i lista uten policy gir falsk trygghet om dekning.
   ];
+
+  -- LAGRING. `storage.objects` er én tabell for alle bucketene, saa
+  -- varme/kalde-modellen passer ikke: her er det POLICYEN som er
+  -- enheten, ikke tabellen. Lista er fasit over hvem som skal ha en.
+  --
+  -- Tabellen vokser med drift - én rad per opplastet fil - saa de samme
+  -- tre reglene gjelder som paa daglig_salg.
+  lagring text[] := array[
+    'anvisninger_storage_les',
+    'anvisninger_storage_skriv',
+    'fakturaer_storage_eier',
+    'kontrakt_signert_ins',
+    'kontrakt_signert_les',
+    'kontraktmal_storage_les',
+    'raa_filer_storage_admin',
+    'rutinebilder_storage'
+  ];
+
+  -- `for all` PAA LAGRING SOM ER BESTEMT, IKKE GLEMT.
+  --
+  -- 0080 splittet de fleste storage-policyene og skrev ned hvorfor tre
+  -- ble staaende. Uten denne lista ville vakthunden lyst roedt paa dem
+  -- hver eneste kjoering - og en vakt som alltid er roed laerer folk aa
+  -- ignorere roedt. Det er den samme grunnen `kalde` finnes.
+  --
+  -- Ingen av de tre har per-rad-kall: predikatene er pakket i (select ...)
+  -- eller gaar via mine_stasjoner(). Det som staar igjen er at USING
+  -- gjelder ogsaa SELECT - en klarhetskostnad, ikke et hull, siden hver
+  -- policy sjekker bucket_id.
+  --
+  --   rutinebilder_storage  0080 punkt A: om en nettbrettbruker skal
+  --                         kunne slette bildebevis for IK-mat er en
+  --                         DRIFTSBESLUTNING, ikke en teknisk feil.
+  --                         Tas naar noen bestemmer seg, ikke her.
+  --   fakturaer_storage_eier
+  --   raa_filer_storage_admin
+  --                         Kun retailer_admin, og eieren skal kunne
+  --                         bade lese, laste opp og rydde. Splitting
+  --                         ville gitt fire identiske policyer.
+  --
+  -- Legger du en ny bucket, skal den IKKE inn her uten en grunn skrevet
+  -- ned paa samme maate.
+  lagring_for_all_ok text[] := array[
+    'fakturaer_storage_eier',
+    'raa_filer_storage_admin',
+    'rutinebilder_storage'
+  ];
   r record;
   feil int := 0;
 begin
@@ -334,10 +381,113 @@ begin
     end if;
   end;
 
+  -- --- 8) storage.objects ---
+  --
+  -- Lagt til 2026-08-24. HVER ENESTE SJEKK OVER ER SCOPET TIL
+  -- `schemaname = 'public'` - ogsaa dekningssjekken i punkt 4, den som
+  -- skulle gjoere utelatelse umulig. `storage.objects` ligger i skjemaet
+  -- `storage`, og har derfor aldri blitt sett paa av noen av dem.
+  --
+  -- Det er den samme feilen som punkt 4 og 5 ble skrevet for: en flate
+  -- som faller utenfor ser noeyaktig ut som en flate uten problemer.
+  -- Vakthunden meldte «alle tabeller med policy er dekket», og det var
+  -- sant - for public.
+  --
+  -- Da denne ble skrevet laa det tre `for all`-policyer der, og én av
+  -- dem med upakkede hjelpefunksjonskall. Filene vokser med drift.
+
+  -- KANARIFUGL FOERST. Finnes det ingen policyer, er de tre sjekkene
+  -- under tomme loekker - og en tom loekke er groenn. Da maaler
+  -- vakthunden ingenting og ser ut som om alt er i orden.
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects') then
+    raise warning 'LAGRINGSVAKT BLIND  ingen policyer paa storage.objects - enten er ingen migrasjon kjort, eller saa er vernet borte';
+    feil := feil + 1;
+  end if;
+
+  -- a) Upakkede hjelpefunksjonskall. Samme regel som punkt 1.
+  for r in
+    select policyname, cmd
+    from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and (
+        (coalesce(qual, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
+         and coalesce(qual, '') !~ '\( SELECT')
+        or
+        (coalesce(with_check, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
+         and coalesce(with_check, '') !~ '\( SELECT')
+      )
+    order by policyname
+  loop
+    raise warning 'PER-RAD-KALL  storage.objects.% (%) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.policyname, r.cmd;
+    feil := feil + 1;
+  end loop;
+
+  -- b) `for all`. Samme regel som punkt 2: USING gjelder ogsaa SELECT,
+  --    og permissive policyer OR-es sammen paa tvers av bucketer.
+  --    De tre i `lagring_for_all_ok` er bestemt, ikke glemt.
+  for r in
+    select policyname
+    from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and cmd = 'ALL'
+      and policyname <> all(lagring_for_all_ok)
+    order by policyname
+  loop
+    raise warning 'FOR ALL  storage.objects.% - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.policyname;
+    feil := feil + 1;
+  end loop;
+
+  -- e) UNNTAKET SKAL IKKE OVERLEVE GRUNNEN SIN. Blir en av de tre
+  --    splittet senere, staar den igjen som et unntak som dekker over
+  --    noe som ikke lenger finnes - og neste `for all` paa samme navn
+  --    ville sluppet gjennom i stillhet.
+  for r in
+    select t as policyname
+    from unnest(lagring_for_all_ok) as t
+    where not exists (
+      select 1 from pg_policies p
+      where p.schemaname = 'storage' and p.tablename = 'objects'
+        and p.policyname = t and p.cmd = 'ALL')
+    order by t
+  loop
+    raise warning 'UNNTAK UTEN GRUNN  storage.objects.%  - staar i lagring_for_all_ok, men er ikke lenger `for all`; fjern den derfra',
+      r.policyname;
+    feil := feil + 1;
+  end loop;
+
+  -- c) Dekning. En ny bucket uten en beslutning her er nettopp det
+  --    punkt 4 finnes for aa hindre.
+  for r in
+    select policyname
+    from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname <> all(lagring)
+    order by policyname
+  loop
+    raise warning 'UTEN TILSYN  storage.objects.%  - policy uten oppfoering i `lagring` i rls_vakthund.sql',
+      r.policyname;
+    feil := feil + 1;
+  end loop;
+
+  -- d) Motsatt vei: staar i lista, finnes ikke.
+  for r in
+    select t as policyname
+    from unnest(lagring) as t
+    where not exists (
+      select 1 from pg_policies p
+      where p.schemaname = 'storage' and p.tablename = 'objects' and p.policyname = t)
+    order by t
+  loop
+    raise warning 'STAAR I LISTA, FINNES IKKE  storage.objects.%  - fjern den fra `lagring`, eller kjor migrasjonen som lager den',
+      r.policyname;
+    feil := feil + 1;
+  end loop;
+
   if feil > 0 then
     raise exception 'RLS-vakthund: % funn. Se advarslene over.', feil;
   end if;
 
-  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, alle tabeller med policy er dekket ---',
-    array_length(varme, 1), array_length(kalde, 1);
+  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, alle tabeller med policy er dekket ---',
+    array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1);
 end $$;
