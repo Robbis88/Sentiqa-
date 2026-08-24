@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { VERKTOY, verktoyForRolle } from './verktoy'
 import type { Verktoysvar } from './svar'
@@ -622,5 +623,76 @@ describe('katalogvakt', () => {
   // alt over ville fortsatt vært grønt, fordi resten teller navn.
   it('kanarifugl: filteret faktisk filtrerer', () => {
     expect(verktoyForRolle(true).length - verktoyForRolle(false).length).toBe(2)
+  })
+})
+
+// =====================================================================
+// Ruting — funnet i smoke-testen 2026-08-24
+// =====================================================================
+//
+// «Hvordan ligger Bønes an mot businessplan i aug?» endte i
+// hent_regnskap, som er tom for en maaned som ikke er avlagt. Modellen
+// svarte at regnskapet var tomt og spurte brukeren hvilken kilde den
+// skulle prøve i stedet.
+//
+// To feil: feil verktøy vant paa ordlyd («regnskap mot budsjett og
+// avvik» tiltrakk seg «mot businessplan»), og modellen ba brukeren
+// gjøre rutingen for seg.
+//
+// Rettelsen ligger i beskrivelsene og i prompten. Disse paastandene er
+// det som holder den paa plass — de leser kilden, saa de merker det hvis
+// noen skriver om en beskrivelse uten aa vite hva den bar.
+describe('ruting mot riktig kilde', () => {
+  const bp = VERKTOY.hent_bp_status.schema.description ?? ''
+  const regnskap = VERKTOY.hent_regnskap.schema.description ?? ''
+
+  it('hent_bp_status eier ordene brukeren faktisk skriver', () => {
+    for (const ord of ['businessplan', 'BP', 'ligger bak', 'mot plan']) {
+      expect(bp.toLowerCase(), `mangler «${ord}»`).toContain(ord.toLowerCase())
+    }
+  })
+
+  it('hent_bp_status sier at den virker midt i maaneden', () => {
+    expect(bp).toContain('burde_naa_omsetning')
+    expect(bp.toLowerCase()).toContain('midt i maaneden')
+  })
+
+  it('hent_regnskap peker fra seg selv for BP-spoersmaal', () => {
+    expect(regnskap).toContain('hent_bp_status')
+    expect(regnskap.toLowerCase()).toContain('ikke bruk denne til businessplan')
+  })
+
+  it('hent_regnskap sier at den gjelder en AVLAGT maaned', () => {
+    expect(regnskap.toLowerCase()).toContain('avlagt')
+  })
+
+  // KANARIFUGL: uten denne kunne begge beskrivelsene endes til aa peke
+  // paa hverandre, og testene over ville fortsatt vaert groenne mens
+  // rutingen gikk i ring.
+  it('kanarifugl: bp_status peker ikke tilbake paa regnskap som BP-kilde', () => {
+    expect(bp).toContain('Ikke bruk hent_regnskap til BP')
+  })
+})
+
+describe('prompten forbyr aa skyve rutingen over paa brukeren', () => {
+  // Leser kilden, slik tilgang.test.ts gjoer. En regel som forsvinner
+  // ut av prompten ser ellers ut som en regel som aldri fantes.
+  const kilde = readFileSync(new URL('./assistent.ts', import.meta.url), 'utf8')
+
+  it('sier eksplisitt at den ikke skal spoerre hvilken kilde den skal prøve', () => {
+    expect(kilde).toContain('IKKE SPØR BRUKEREN HVILKEN KILDE')
+  })
+
+  it('forklarer at en uavsluttet maaned ikke er manglende data', () => {
+    expect(kilde).toContain('EN UAVSLUTTET MÅNED ER IKKE MANGLENDE DATA')
+    expect(kilde).toContain('hent_bp_status')
+  })
+
+  it('beholder regelen om aa lete videre ved blindvei', () => {
+    expect(kilde).toContain('IKKE STOPP VED FØRSTE BLINDVEI')
+  })
+
+  it('beholder tilgangsregelen for butikksjef', () => {
+    expect(kilde).toContain('INGEN relativ plassering')
   })
 })

@@ -97,6 +97,18 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     + 'trenger å vite om noe mangler fordi det ikke er importert eller fordi '
     + 'det ikke skjedde. Først når du har lett ferdig sier du at svaret ikke finnes.',
     '',
+    'IKKE SPØR BRUKEREN HVILKEN KILDE DU SKAL PRØVE. Å svare «regnskapet er '
+    + 'tomt, vil du at jeg ser på salg eller på forrige måned?» er å be henne '
+    + 'gjøre jobben din. Prøv kildene selv, og fortell etterpå hva du fant og '
+    + 'hva du måtte gå via. Spør bare når spørsmålet er genuint tvetydig — '
+    + 'hvilken stasjon, hvilken periode — aldri om hvor dataene ligger.',
+    '',
+    'EN UAVSLUTTET MÅNED ER IKKE MANGLENDE DATA. Regnskapet bokføres først '
+    + 'etter månedsslutt, så hent_regnskap er tom for inneværende måned — det '
+    + 'sier ingenting om driften. Spør noen hvordan det ligger an mot '
+    + 'businessplan denne måneden, er svaret hent_bp_status, som måler mot '
+    + 'hvor stasjonen burde ligget per i dag.',
+    '',
     'SI HVA SVARET BYGGER PÅ. Avslutt med hvilke kilder og hvilken periode du '
     + 'brukte, og nevn det eksplisitt hvis noe var ufullstendig eller manglet.',
     '',

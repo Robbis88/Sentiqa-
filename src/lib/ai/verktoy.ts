@@ -473,10 +473,16 @@ export const VERKTOY: Record<string, Verktoy> = {
 
   hent_bp_status: stasjonsverktoy(
     'hent_bp_status',
-    'Businessplan-status per avdeling: hva BP lovet, hva som faktisk kom, avvik i '
-    + 'kroner og prosent, og bruttofortjeneste mot budsjett (brutto_mot_bp_pp/_kr). '
-    + 'Dette er verktøyet for «hvordan ligger vi mot BP» og «hvor taper vi brutto». '
-    + 'Feltet periode_status sier om måneden er avlagt, inneværende eller kommende.',
+    'BUSINESSPLAN / BP. Bruk ALLTID denne naar spoersmaalet nevner '
+    + 'businessplan, BP, plan, «ligger bak», «ligger foran», «mot plan» '
+    + 'eller «hvor taper vi brutto» — uansett hvilken maaned det gjelder. '
+    + 'VIRKER MIDT I MAANEDEN: feltet burde_naa_omsetning sier hva stasjonen '
+    + 'skulle ligget paa per i dag, saa en inneveaerende maaned kan besvares '
+    + 'uten at regnskapet er avlagt. Gir BP mot faktisk i kroner og prosent '
+    + '(mot_bp_kr, mot_bp_pst) og brutto mot budsjett (brutto_mot_bp_pp/_kr). '
+    + 'periode_status sier om maaneden er avlagt, inneveaerende eller kommende. '
+    + 'Ikke bruk hent_regnskap til BP-spoersmaal — det leser bokfoerte tall og '
+    + 'er tomt for en maaned som ikke er avlagt.',
     {
       avdeling: {
         type: 'string',
@@ -537,9 +543,13 @@ export const VERKTOY: Record<string, Verktoy> = {
     schema: {
       name: 'hent_regnskap',
       description:
-        'Regnskap per stasjon eller for hele clusteret: omsetning, bruttofortjeneste '
-        + 'og kostnader med regnskap mot budsjett og avvik. Angi stasjoner for '
-        + 'per-stasjonslinjer, eller niva="cluster" for kjedetotalen (kun eier).',
+        'BOKFOERT REGNSKAP for en AVLAGT maaned: omsetning, bruttofortjeneste og '
+        + 'kostnader med regnskap mot budsjett og avvik. Angi stasjoner for '
+        + 'per-stasjonslinjer, eller niva="cluster" for kjedetotalen (kun eier). '
+        + 'IKKE bruk denne til businessplan/BP-spoersmaal, og ikke til en maaned '
+        + 'som ikke er avlagt — da er den tom, og tomheten betyr bare at '
+        + 'regnskapet ikke er ferdig. Bruk hent_bp_status til BP og til '
+        + 'inneveaerende maaned.',
       input_schema: {
         type: 'object',
         properties: {
