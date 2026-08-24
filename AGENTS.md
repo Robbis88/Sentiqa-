@@ -55,6 +55,15 @@ Vakthunden fant en ekte regresjon på sin første kjøring, etter tre runder med
 
 **Dekningssjekken (punkt 4) er den viktigste.** Hver tabell med policy skal stå i `varme` eller `kalde`. En tabell som faller mellom stolene blir ikke sjekket av de andre punktene, og det ser ut som en tabell uten problemer. 2026-08-18 fant den 47 slike — blant dem 49 partisjoner av `daglig_salg` der `anon` kunne lese alt, forbi forelderens RLS. **Partisjoner arver ikke RLS eller rettigheter:** oppretter du en, må du `revoke all ... from anon, authenticated` eksplisitt (se `0003` og `0105`).
 
+**Views har samme problem, av samme grunn.** Supabase-standarden `alter default privileges in schema public grant all on tables to anon, authenticated, service_role` treffer også hver nye view — `anon` er rollen bak den offentlige nøkkelen i hver sidelast. En ny view skal derfor ha begge linjer:
+
+```sql
+grant select on public.v_ny to authenticated;
+revoke all on public.v_ny from anon;
+```
+
+og alltid `with (security_invoker = true)` — uten den leser viewet som eieren, forbi RLS. **`create or replace view` uten klausulen nullstiller flagget i stillhet**, så en redefinering i en senere migrasjon kan slå av vernet uten at diffen ser farlig ut. Punkt 9 i vakthunden kaster på begge deler (se `0130`).
+
 # Arbeidsflyt: `main` er beskyttet
 
 Siden 2026-08-19 kan ingen pushe rett til `main` — heller ikke eieren, heller ikke en agent som bruker eierens rettigheter. Bypass-lista er tom med vilje.

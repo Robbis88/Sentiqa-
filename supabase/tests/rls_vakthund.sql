@@ -522,6 +522,76 @@ begin
     feil := feil + 1;
   end loop;
 
+  -- --- 9) Views: invoker paa, anon av ---
+  --
+  -- Lagt til 2026-08-24, etter at view_invoker_sonde.sql viste at alle
+  -- 21 views i public hadde SELECT for `anon`. Ingen skrev det - det kom
+  -- fra Supabase-standarden
+  --     alter default privileges in schema public
+  --       grant all on tables to anon, authenticated, service_role
+  -- altsaa den samme mekanismen som ga partisjonene rettigheter i 0105.
+  --
+  -- DE ATTE SJEKKENE OVER ER BLINDE FOR VIEWS. De leser pg_policies, og
+  -- en view har ingen policyer. En view er likevel en leseflate med
+  -- eget grant - og med `security_invoker` AV leser den som eieren,
+  -- forbi RLS, forbi retailer_id, forbi stasjonstildeling.
+  --
+  -- `create or replace view` UTEN `with (security_invoker = true)`
+  -- nullstiller flagget i stillhet. Diffen ser ufarlig ut.
+  declare
+    antall_views int;
+  begin
+    select count(*) into antall_views
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('v', 'm');
+
+    -- KANARIFUGL. Finner sjekken ingen views, maaler den ingenting - og
+    -- de to loekkene under ville da vaert stille uansett hvor galt det
+    -- sto til. Det er den samme feilen som punkt 4 og 5 ble laget for:
+    -- en flate som faller utenfor ser ut som en flate uten problemer.
+    if antall_views = 0 then
+      funnliste := funnliste || 'VIEWVAKT BLIND  ingen views funnet i public - maaler sjekken riktig skjema?';
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end if;
+
+    -- a) Uten security_invoker leser viewet som EIEREN.
+    for r in
+      select c.relname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind in ('v', 'm')
+        and coalesce(
+              (select option_value from pg_options_to_table(c.reloptions)
+               where option_name = 'security_invoker'), 'off') not in ('on', 'true')
+      order by c.relname
+    loop
+      funnliste := funnliste || format('DEFINER-VIEW  public.%s  - mangler `with (security_invoker = true)` og leser forbi RLS. En `create or replace view` uten klausulen nullstiller flagget i stillhet.',
+        r.relname);
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end loop;
+
+    -- b) anon er rollen bak den offentlige noekkelen i hver sidelast.
+    --    Ingen forretningsview skal vaere lesbar for den.
+    for r in
+      select c.relname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind in ('v', 'm')
+        and has_table_privilege('anon', c.oid, 'select')
+      order by c.relname
+    loop
+      funnliste := funnliste || format('ANON KAN LESE  public.%s  - `revoke all on public.%s from anon` (se 0130). Grantet kommer av seg selv fra default privileges.',
+        r.relname, r.relname);
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end loop;
+  end;
+
   -- FUNNENE HOERER HJEMME I FEILMELDINGEN.
   --
   -- Foer sto det bare «RLS-vakthund: 2 funn. Se advarslene over» - og
@@ -535,6 +605,8 @@ begin
              array_to_string(funnliste, chr(10)));
   end if;
 
-  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, alle tabeller med policy er dekket ---',
-    array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1);
+  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, % views, alle tabeller med policy er dekket ---',
+    array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1),
+    (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind in ('v', 'm'));
 end $$;

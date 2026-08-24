@@ -71,7 +71,13 @@ comment on view public.v_vare_gruppe is
   'EAN til varegruppe, en rad per EAN. antall_grupper > 1 betyr at '
   'koblingen ikke er entydig for den varen - sjekk foer du stoler paa den.';
 
+-- BEGGE LINJENE, HVER GANG. Supabase-standarden `alter default
+-- privileges in schema public grant all on tables to anon, ...` gir hver
+-- ny view et anon-grant av seg selv - den samme mekanismen som ga de 49
+-- partisjonene rettigheter i 0105. `anon` er rollen bak den offentlige
+-- noekkelen i hver sidelast. Se 0130 og AGENTS.md.
 grant select on public.v_vare_gruppe to authenticated;
+revoke all on public.v_vare_gruppe from anon;
 
 
 -- ---------------------------------------------------------------------
@@ -148,6 +154,7 @@ comment on view public.v_svinn_maaned is
   'maalbart, ikke null.';
 
 grant select on public.v_svinn_maaned to authenticated;
+revoke all on public.v_svinn_maaned from anon;
 
 
 -- ---------------------------------------------------------------------
@@ -223,6 +230,7 @@ comment on view public.v_svinn_dekning is
   'foert samlet, og de to kan ikke skilles fra hverandre i dato alene.';
 
 grant select on public.v_svinn_dekning to authenticated;
+revoke all on public.v_svinn_dekning from anon;
 
 
 -- ---------------------------------------------------------------------
@@ -262,3 +270,4 @@ comment on view public.v_svinn_vare_maaned is
   'Kronene er ekte uansett.';
 
 grant select on public.v_svinn_vare_maaned to authenticated;
+revoke all on public.v_svinn_vare_maaned from anon;
