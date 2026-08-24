@@ -78,7 +78,7 @@ export default async function RedaktorSide() {
                   <form action={settPublisert}>
                     <input type="hidden" name="id" value={i.id} />
                     <input type="hidden" name="til" value={i.publisert ? 'nei' : 'ja'} />
-                    <button type="submit" className="liten">{i.publisert ? 'Avpubliser' : 'Publiser'}</button>
+                    <button type="submit" className="liten primar">{i.publisert ? 'Avpubliser' : 'Publiser'}</button>
                   </form>
                   <SlettKnapp hva={i.tittel} handling={slettInnlegg} id={i.id} merke="Slett" />
                 </span>

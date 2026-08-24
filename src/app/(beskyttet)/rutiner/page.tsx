@@ -221,7 +221,7 @@ export default async function RutinerSide() {
                         <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
                         <input type="hidden" name="dato" value={vindu.vaktdato} />
                         <input type="file" name="bilde" accept="image/*" capture="environment" required aria-label="Ta bilde" />
-                        <button type="submit" className="sq-knapp" aria-label="Kryss av med bilde">{o('Lagre bilde')}</button>
+                        <button type="submit" className="sq-knapp primar" aria-label="Kryss av med bilde">{o('Lagre bilde')}</button>
                       </form>
                     ) : (
                       <form action={gjort ? fjernKryss : kryssAv}>

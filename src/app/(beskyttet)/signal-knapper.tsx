@@ -38,7 +38,7 @@ function Skjul({ signalId, stasjonId }: { signalId: string; stasjonId?: string }
     <form action={kjor} className="sq-knapp-form">
       <input type="hidden" name="signal_id" value={signalId} />
       {stasjonId ? <input type="hidden" name="stasjon_id" value={stasjonId} /> : null}
-      <button type="submit" className="sq-knapp sq-dempet" disabled={venter || Boolean(tilstand?.ok)}>
+      <button type="submit" className="sq-knapp sq-dempet primar" disabled={venter || Boolean(tilstand?.ok)}>
         {tilstand?.ok ?? (venter ? '…' : 'Skjul i 7 dager')}
       </button>
       {tilstand?.feil ? <span className="sq-feil" role="alert">{tilstand.feil}</span> : null}

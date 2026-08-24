@@ -64,7 +64,7 @@ export default async function KampanjerSide() {
             <label className="felt"><span>Til</span><input name="til_dato" type="date" required /></label>
           </div>
           <input name="eaner" placeholder="EAN (valgfritt, komma/mellomrom) — tomt = alle tilbudsvarer i perioden" />
-          <button type="submit" className="liten" style={{ alignSelf: 'flex-start' }}>Opprett + analyser</button>
+          <button type="submit" className="liten primar" style={{ alignSelf: 'flex-start' }}>Opprett + analyser</button>
         </form>
     </Sidepanel>
   )

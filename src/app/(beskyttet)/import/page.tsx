@@ -230,7 +230,7 @@ export default async function ImportSide() {
               placeholder="rapporter@st1.no"
             />
           </label>
-          <button type="submit" className="liten">Lagre avsendere</button>
+          <button type="submit" className="liten primar">Lagre avsendere</button>
         </form>
       </section>
 

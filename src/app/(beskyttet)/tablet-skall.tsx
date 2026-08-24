@@ -40,7 +40,7 @@ export function TabletSkall({
             {uleste > 0 && <span className="varsel-teller">{uleste}</span>}
           </Link>
           <form action={loggUt}>
-            <button type="submit" className="tablet-utlogg">{ord['Logg ut'] ?? 'Logg ut'}</button>
+            <button type="submit" className="tablet-utlogg primar">{ord['Logg ut'] ?? 'Logg ut'}</button>
           </form>
         </div>
       </header>

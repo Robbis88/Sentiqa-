@@ -52,7 +52,7 @@ export function NyAvvik({ stasjoner, idag }: { stasjoner: { id: string; navn: st
 
       {tilstand?.ok ? <p className="ok" role="status">Avvik registrert.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
-      <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Registrer avvik'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Registrer avvik'}</button>
     </form>
   )
 }

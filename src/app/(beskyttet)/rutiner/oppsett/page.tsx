@@ -112,7 +112,7 @@ export default async function OppsettSide() {
                 <label className="felt"><span>Til</span><input type="time" name="tid_slutt" defaultValue="14:00" required /></label>
               </div>
               <label className="felt"><span>Ukedager (ingen = alle)</span><UkedagVelger /></label>
-              <button type="submit" className="liten">Opprett skjema</button>
+              <button type="submit" className="liten primar">Opprett skjema</button>
             </form>
           </details>
         </section>

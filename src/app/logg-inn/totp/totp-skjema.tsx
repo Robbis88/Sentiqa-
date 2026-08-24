@@ -55,7 +55,7 @@ export function TotpSkjema({ retur }: { retur?: string }) {
 
       {feil ? <p role="alert" className="feil">{feil}</p> : null}
 
-      <button type="submit" disabled={venter || !factorId}>
+      <button type="submit" disabled={venter || !factorId} className="primar">
         {venter ? 'Bekrefter …' : 'Bekreft'}
       </button>
     </form>

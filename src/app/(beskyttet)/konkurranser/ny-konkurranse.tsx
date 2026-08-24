@@ -29,7 +29,7 @@ export function NyKonkurranse() {
       </div>
       {tilstand?.ok ? <p className="ok" role="status">Konkurranse opprettet.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
-      <button type="submit" disabled={venter}>{venter ? 'Oppretter …' : 'Opprett konkurranse'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Oppretter …' : 'Opprett konkurranse'}</button>
     </form>
   )
 }

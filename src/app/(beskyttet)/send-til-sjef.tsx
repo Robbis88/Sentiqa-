@@ -31,7 +31,7 @@ export function SendTilSjef() {
       <input name="involvert_beskrivelse" placeholder={oversett('Beskrivelse av involvert kunde (valgfri)')} />
       <div className="send-sjef-knapper">
         <button type="button" className="liten" onClick={() => setAapen(false)}>{oversett('Avbryt')}</button>
-        <button type="submit" disabled={venter}>{venter ? oversett('Sender …') : oversett('Send')}</button>
+        <button type="submit" disabled={venter} className="primar">{venter ? oversett('Sender …') : oversett('Send')}</button>
       </div>
       {tilstand?.feil ? <p className="feil">{tilstand.feil}</p> : null}
     </form>

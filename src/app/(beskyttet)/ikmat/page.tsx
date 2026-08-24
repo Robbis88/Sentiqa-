@@ -133,7 +133,7 @@ export default async function IkMatSide() {
                 <form action={settOppStandard}>
                   <input type="hidden" name="stasjon_id" value={s.id} />
                   <p className="undertittel">Ingen kontrollpunkter ennå.</p>
-                  <button type="submit">Sett opp St1-standard (27 punkter)</button>
+                  <button type="submit" className="primar">Sett opp St1-standard (27 punkter)</button>
                 </form>
               ) : (
                 <p className="undertittel">Ingen kontrollpunkter satt opp ennå.</p>
@@ -167,7 +167,7 @@ export default async function IkMatSide() {
                               <form action={registrerAvlesning} className="ik-form">
                                 <input type="hidden" name="kontrollpunkt_id" value={p.id} />
                                 <input name="temperatur" inputMode="decimal" placeholder="°C" aria-label={`Temperatur ${p.navn}`} required />
-                                <button type="submit" className="sq-knapp">Lagre</button>
+                                <button type="submit" className="sq-knapp primar">Lagre</button>
                               </form>
                             </td>
                           </tr>

@@ -94,7 +94,7 @@ export function PulsPopp({ runde }: { runde: { id: string; tekst: string } | nul
               </p>
               <div className="puls-popp-knapper">
                 <button type="button" className="liten" onClick={snooze}>{t('Ikke nå')}</button>
-                <button type="submit" disabled={!valgt || venter}>{venter ? t('Sender …') : t('Send')}</button>
+                <button type="submit" disabled={!valgt || venter} className="primar">{venter ? t('Sender …') : t('Send')}</button>
               </div>
               {tilstand?.feil ? <p className="feil">{tilstand.feil}</p> : null}
             </form>

@@ -24,7 +24,7 @@ export function Opplaster() {
           required
         />
       </label>
-      <button type="submit" disabled={venter}>
+      <button type="submit" disabled={venter} className="primar">
         {venter ? 'Laster opp …' : 'Last opp'}
       </button>
 

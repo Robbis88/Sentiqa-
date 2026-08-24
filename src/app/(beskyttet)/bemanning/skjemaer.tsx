@@ -245,7 +245,7 @@ export function StillingSkjema({
         aria-label={`Stillingsprosent for ${navn}`}
       />
       <span aria-hidden>%</span>
-      <button type="submit" className="liten" disabled={venter}>
+      <button type="submit" className="liten primar" disabled={venter}>
         {venter ? '…' : 'Lagre'}
       </button>
       <Svar tilstand={tilstand} />

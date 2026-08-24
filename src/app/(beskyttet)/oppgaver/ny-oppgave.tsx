@@ -37,7 +37,7 @@ export function NyOppgave({ stasjoner }: { stasjoner: { id: string; navn: string
         <span>Bilde-lenke (valgfri)</span>
         <input name="bilde_url" type="url" placeholder="https://…" />
       </label>
-      <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Legg til'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Legg til'}</button>
       {tilstand?.ok ? <p className="ok" role="status">Oppgave lagt til.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
     </form>

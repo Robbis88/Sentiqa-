@@ -214,7 +214,7 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
 
           <form className="ai-skriv" onSubmit={(e) => { e.preventDefault(); send(tekst) }}>
             <input ref={felt} value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Skriv en melding …" disabled={venter} />
-            <button type="submit" disabled={venter || strommer || !tekst.trim()} aria-label="Send">➤</button>
+            <button type="submit" disabled={venter || strommer || !tekst.trim()} aria-label="Send" className="primar">➤</button>
           </form>
         </div>
       )}

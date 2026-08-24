@@ -13,6 +13,16 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 // finest ut» framfor «den som betyr riktig».
 //
 //   primar      Det siden vil du skal gjøre. Én per skjerm.
+//
+//               REGELEN, fra PORT 3: primær = fullfører et skjema. Et
+//               felt og en knapp ved siden av hverandre skal ikke ha
+//               samme vekt — feltet er verdien, knappen er handlingen.
+//               «Dag [25.08.2026] [Vis dagen]» hadde to hvite bokser og
+//               ingenting som sa hvilken av dem som gjorde noe.
+//
+//               Unntaket er vekslere: `.kryss`, `.janei` og liknende
+//               fullfører teknisk et skjema, men har sitt eget visuelle
+//               språk og skal ikke rope.
 //   sekundaer   Alt annet som er trygt.
 //   ghost       Handling som ikke skal konkurrere — «Avbryt», «Rediger».
 //   destruktiv  Sletter eller opphever noe. Rød KANT, ikke rød flate:

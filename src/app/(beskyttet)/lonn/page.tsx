@@ -232,7 +232,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
               {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
             </select>
             <input name="ar" type="number" defaultValue={ar} className="sq-smalt-felt" aria-label="År" />
-            <button type="submit" className="sq-knapp">Vis</button>
+            <button type="submit" className="sq-knapp primar">Vis</button>
           </form>
         }
       />

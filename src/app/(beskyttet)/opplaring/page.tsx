@@ -155,7 +155,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                   <form action={fullforPeriode}>
                     <input type="hidden" name="id" value={valgt.id} />
                     <input type="hidden" name="til" value={valgt.fullfort_tid ? 'nei' : 'ja'} />
-                    <button type="submit" className="liten">{valgt.fullfort_tid ? 'Gjenåpne' : 'Marker fullført'}</button>
+                    <button type="submit" className="liten primar">{valgt.fullfort_tid ? 'Gjenåpne' : 'Marker fullført'}</button>
                   </form>
                 </div>
                 {kategorier.map((k) => (
@@ -191,7 +191,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                   <input type="hidden" name="periode_id" value={valgt.id} />
                   <input name="dato" type="date" required aria-label="Vaktdag" />
                   <input name="notater" placeholder="Notat (f.eks. opplærer / fokus)" />
-                  <button type="submit" className="liten">Legg til vakt</button>
+                  <button type="submit" className="liten primar">Legg til vakt</button>
                 </form>
                 {skift.length === 0 ? (
                   <p className="undertittel sq-luft-over-liten">Ingen planlagte vakter.</p>
@@ -224,7 +224,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                           <input type="hidden" name="id" value={o.id} />
                           <input name="kategori" defaultValue={o.kategori} aria-label="Kategori" />
                           <input name="tittel" defaultValue={o.tittel} aria-label="Tittel" />
-                          <button type="submit" className="liten">Lagre</button>
+                          <button type="submit" className="liten primar">Lagre</button>
                         </form>
                         <SlettKnapp hva={o.tittel} handling={slettOppgave} id={o.id} merke="Slett" />
                       </details>
@@ -237,7 +237,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
               <input name="kategori" placeholder="Kategori" className="sq-mellomfelt" />
               <input name="tittel" placeholder="Ny oppgave" required />
               <input name="estimert_min" type="number" min="1" placeholder="min" className="sq-smalt-felt" />
-              <button type="submit" className="liten">Legg til</button>
+              <button type="submit" className="liten primar">Legg til</button>
             </form>
           </section>
         </>

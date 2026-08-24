@@ -39,7 +39,7 @@ export function RegistrerSkjema() {
 
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
 
-      <button type="submit" disabled={venter}>{venter ? 'Oppretter …' : 'Opprett konto'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Oppretter …' : 'Opprett konto'}</button>
     </form>
   )
 }

@@ -67,7 +67,7 @@ export function AnsattkortSkjema({ stasjonId, kort }: { stasjonId: string; kort:
         </label>
       </div>
       <div className="knapperad">
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? 'Lagrer …' : 'Lagre ansattkort'}
         </button>
         <Svar tilstand={tilstand} />
@@ -107,7 +107,7 @@ export function MalSkjema() {
         <input type="file" name="fil" accept=".docx" required />
       </label>
       <div className="knapperad">
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? 'Laster opp …' : 'Last opp mal'}
         </button>
         <Svar tilstand={tilstand} />
@@ -136,7 +136,7 @@ export function StandardfeltSkjema(
         </label>
       ))}
       <div className="knapperad">
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? 'Lagrer …' : 'Lagre'}
         </button>
         <Svar tilstand={tilstand} />

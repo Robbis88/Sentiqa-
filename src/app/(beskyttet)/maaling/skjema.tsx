@@ -164,7 +164,7 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
       {tilstand?.feil ? <p role="alert" className="feil">{tilstand.feil}</p> : null}
       {tilstand?.ok ? <p className="ok-melding">✓ Målekort lagret.</p> : null}
 
-      <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Lagre målekort'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Lagre målekort'}</button>
     </form>
   )
 }

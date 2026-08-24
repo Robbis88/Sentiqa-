@@ -6,7 +6,7 @@ import { useFormStatus } from 'react-dom'
 export function BehandleKnapp({ tekst }: { tekst: string }) {
   const { pending } = useFormStatus()
   return (
-    <button type="submit" className="liten" disabled={pending}>
+    <button type="submit" className="liten primar" disabled={pending}>
       {pending ? <><span className="spinner" />Behandler …</> : tekst}
     </button>
   )

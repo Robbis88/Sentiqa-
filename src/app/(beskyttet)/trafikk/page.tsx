@@ -80,7 +80,7 @@ export default async function TrafikkSide() {
                 <td>{s.trafikk_aktiv ? <span className="status-pip gronn">på</span> : <span className="status-pip">av</span>}</td>
                 <td>
                   <div className="plattform-handlinger">
-                    <form action={finnTeller}><input type="hidden" name="id" value={s.id} /><button type="submit" className="liten" disabled={s.breddegrad == null}>Finn teller</button></form>
+                    <form action={finnTeller}><input type="hidden" name="id" value={s.id} /><button type="submit" className="liten primar" disabled={s.breddegrad == null}>Finn teller</button></form>
                     {s.trafikk_punkt_id ? (
                       <form action={settTrafikkAktiv}>
                         <input type="hidden" name="id" value={s.id} />

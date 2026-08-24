@@ -16,7 +16,7 @@ export function NyKunde() {
       </div>
       {tilstand?.feil && <p role="alert" className="feil">{tilstand.feil}</p>}
       {tilstand?.ok && <p className="status-pip gronn" style={{ alignSelf: 'flex-start' }}>{tilstand.ok}</p>}
-      <button type="submit" className="liten" disabled={venter} style={{ alignSelf: 'flex-start' }}>
+      <button type="submit" className="liten primar" disabled={venter} style={{ alignSelf: 'flex-start' }}>
         {venter ? 'Oppretter …' : 'Opprett kunde + send invitasjon'}
       </button>
     </form>

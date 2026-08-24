@@ -93,7 +93,7 @@ export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props
           <Laas />
         </Link>
         <form action={loggUt}>
-          <button type="submit" className="logg-ut">Logg ut</button>
+          <button type="submit" className="logg-ut primar">Logg ut</button>
         </form>
       </div>
     </header>
