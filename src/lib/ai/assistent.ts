@@ -121,6 +121,16 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     + 'stasjonsnavn eller butikknummer som ikke står i list_stasjoner for '
     + 'DENNE brukeren, uansett hva som står tidligere i samtalen.',
     '',
+    'SAMMENLIGNING ER PER STASJON. Spør noen om å sammenligne, rangere '
+    + 'eller summere på tvers av stasjoner, er svaret hent_salg eller '
+    + 'hent_bp_status — eller hent_regnskap med niva="stasjon". '
+    + 'niva="kjedetotal" gir ÉN samlet linje uten stasjonsfordeling og kan '
+    + 'aldri besvare et sammenligningsspørsmål. Si aldri at du «ikke kan '
+    + 'bryte ned per stasjon» før du har prøvd hent_salg.',
+    '',
+    'INGEN EMOJI. Dette er et driftsverktøy, ikke en chat. Bruk tabell og '
+    + 'tall; marker avvik med ord, ikke med farger eller symboler.',
+    '',
     'SI HVA SVARET BYGGER PÅ. Avslutt med hvilke kilder og hvilken periode du '
     + 'brukte, og nevn det eksplisitt hvis noe var ufullstendig eller manglet.',
     '',

@@ -864,3 +864,108 @@ describe('prompten vokter avslaget og historikken', () => {
     expect(kilde).toContain('som ikke står i list_stasjoner')
   })
 })
+
+// =====================================================================
+// Nivaa — funnet i smoke-testen 2026-08-24
+// =====================================================================
+//
+// «Sammenlign alle stasjonene paa salg og brutto hittil i aar» ga
+// kjedetotalen for juli, og konklusjonen «jeg kan dessverre ikke bryte
+// ned salg og bruttofortjeneste per stasjon».
+//
+// Det kunne den. `hent_regnskap` har niva="stasjon" som standard, og
+// `hent_salg` gir omsetning og brutto per stasjon uten avlagt maaned.
+// Modellen valgte niva="cluster" fordi ordet «cluster» er noeyaktig det
+// en modell griper etter naar spoersmaalet sier «alle stasjonene» -
+// mens det i praksis betyr «én samlet linje UTEN stasjonsfordeling».
+//
+// Navnet loekket den i groefta. Det heter kjedetotal naa.
+describe('nivaa i hent_regnskap', () => {
+  const felt = VERKTOY.hent_regnskap.schema.input_schema.properties as Record<
+    string, { enum?: string[]; description?: string }
+  >
+
+  it('heter kjedetotal, ikke cluster', () => {
+    expect(felt.niva.enum).toEqual(['stasjon', 'kjedetotal'])
+  })
+
+  it('sier at stasjon er standard og er det som sammenligner', () => {
+    expect(felt.niva.description).toContain('STANDARD')
+    expect(felt.niva.description).toContain('PER STASJON')
+    expect(felt.niva.description?.toLowerCase()).toContain('sammenligne')
+  })
+
+  it('advarer om at kjedetotal ikke kan sammenligne stasjoner', () => {
+    expect(felt.niva.description).toContain('UTEN stasjonsfordeling')
+  })
+
+  it('godtar fortsatt «cluster» som synonym, saa gamle kall ikke stille bytter nivaa', async () => {
+    const { ut } = await kjor(
+      'hent_regnskap',
+      { niva: 'cluster', maaned: '2026-07' },
+      { regnskapslinjer: { data: [{ seksjon: 'omsetning', post: 'Sum', regnskap: 1000 }] } },
+      'retailer_admin',
+    )
+    expect(ut.scope.forespurt).toEqual(['kjedetotal'])
+  })
+
+  it('skilter blindveien: kjedetotalen peker paa per-stasjon', async () => {
+    const { ut } = await kjor(
+      'hent_regnskap',
+      { niva: 'kjedetotal', maaned: '2026-07' },
+      { regnskapslinjer: { data: [{ seksjon: 'omsetning', post: 'Sum', regnskap: 1000 }] } },
+      'retailer_admin',
+    )
+    expect(ut.merknad.join(' ')).toContain('IKKE brukes til')
+    expect(ut.merknad.join(' ')).toContain('niva="stasjon"')
+    expect(ut.neste).toContain('hent_salg')
+  })
+
+  // KANARIFUGL: standarden er det som avgjoer hva modellen faar naar den
+  // ikke tenker paa nivaa i det hele tatt. Sklir den til kjedetotal, blir
+  // hvert sammenligningsspoersmaal feil igjen.
+  it('kanarifugl: uten niva faar man per stasjon', async () => {
+    const { ut } = await kjor(
+      'hent_regnskap',
+      { maaned: '2026-07' },
+      {
+        ...BEGGE,
+        regnskapslinjer: {
+          data: [
+            { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'omsetning', kode: '110', post: 'Dagligvarer', regnskap: 100 },
+            { stasjon_id: 'id-0143', periode: '2026-07-01', seksjon: 'omsetning', kode: '110', post: 'Dagligvarer', regnskap: 200 },
+          ],
+        },
+      },
+      'retailer_admin',
+    )
+    expect(ut.scope.forespurt).toEqual(['0142', '0143'])
+    expect(new Set((ut.data as Record<string, unknown>[]).map((d) => d.stasjon)).size).toBe(2)
+  })
+})
+
+describe('hent_salg eier sammenligningsspoersmaalet', () => {
+  const d = VERKTOY.hent_salg.schema.description ?? ''
+
+  it('navngir det modellen faktisk blir spurt om', () => {
+    expect(d.toLowerCase()).toContain('sammenlign stasjonene')
+    expect(d).toContain('PER STASJON')
+  })
+
+  it('sier at den ikke trenger en avlagt maaned', () => {
+    expect(d.toLowerCase()).toContain('avlagt')
+  })
+})
+
+describe('prompten om sammenligning og emoji', () => {
+  const kilde = readFileSync(new URL('./assistent.ts', import.meta.url), 'utf8')
+
+  it('sier at sammenligning er per stasjon', () => {
+    expect(kilde).toContain('SAMMENLIGNING ER PER STASJON')
+    expect(kilde).toContain('før du har prøvd hent_salg')
+  })
+
+  it('forbyr emoji — dette er et driftsverktoey', () => {
+    expect(kilde).toContain('INGEN EMOJI')
+  })
+})

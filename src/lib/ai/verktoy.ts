@@ -315,9 +315,12 @@ export const VERKTOY: Record<string, Verktoy> = {
 
   hent_salg: stasjonsverktoy(
     'hent_salg',
-    'Butikksalg (omsetning eks. mva, antall, bruttofortjeneste) per stasjon over '
-    + 'en periode, valgfritt brutt ned på avdeling eller varegruppe. Drivstoff er '
-    + 'holdt utenfor. Bruk fra/til for perioder som «hittil i år» eller «denne uka».',
+    'Butikksalg PER STASJON: omsetning eks. mva, antall og bruttofortjeneste '
+    + '(kroner og prosent) over en periode, valgfritt brutt ned paa avdeling '
+    + 'eller varegruppe. BRUK DENNE til «sammenlign stasjonene», «hvem selger '
+    + 'mest», «salg og brutto hittil i aar» — den gir én rad per stasjon og '
+    + 'trenger ingen avlagt maaned. Drivstoff er holdt utenfor. fra/til '
+    + 'dekker perioder som «hittil i aar» og «denne uka».',
     {
       grupper: {
         type: 'string',
@@ -584,8 +587,12 @@ export const VERKTOY: Record<string, Verktoy> = {
           ...PERIODE_FELT,
           niva: {
             type: 'string',
-            enum: ['stasjon', 'cluster'],
-            description: 'Standard: stasjon.',
+            enum: ['stasjon', 'kjedetotal'],
+            description:
+              'stasjon (STANDARD) gir én linje PER STASJON — bruk denne for aa '
+              + 'sammenligne, rangere eller summere paa tvers. kjedetotal gir ÉN '
+              + 'samlet linje for hele kjeden UTEN stasjonsfordeling, og kan '
+              + 'ikke brukes til aa sammenligne stasjoner.',
           },
           seksjon: {
             type: 'string',
@@ -599,7 +606,10 @@ export const VERKTOY: Record<string, Verktoy> = {
       const idag = idagOslo()
       const kilder = ['regnskapslinjer']
       const erButikksjef = bruker.rolle !== 'retailer_admin'
-      const niva = String(input.niva ?? 'stasjon')
+      // «cluster» godtas fortsatt, men betyr det samme som kjedetotal.
+      const niva = ['kjedetotal', 'cluster'].includes(String(input.niva ?? ''))
+        ? 'kjedetotal'
+        : 'stasjon'
 
       const p = lagPeriode(periodeInput(input), idag, { maaned: forrigeMaaned(idag) })
       if ('feil' in p) return byggSvar({ domene: 'regnskap', kilder, feil: p.feil })
@@ -607,7 +617,7 @@ export const VERKTOY: Record<string, Verktoy> = {
 
       // Cluster-linjene (stasjon_id null) er retailer_admin-only i RLS
       // (0067). Vi speiler det her for å kunne SI det, ikke for å vokte.
-      if (niva === 'cluster') {
+      if (niva === 'kjedetotal') {
         if (erButikksjef) {
           return byggSvar({
             domene: 'regnskap',
@@ -638,8 +648,17 @@ export const VERKTOY: Record<string, Verktoy> = {
           kilder,
           periode: p,
           data: res.rader,
-          scope: { forespurt: ['cluster'], besvart: res.rader.length ? ['cluster'] : [] },
-          merknad: ['Nivå: hele kjeden samlet (stasjon_id er null).'],
+          scope: {
+            forespurt: ['kjedetotal'],
+            besvart: res.rader.length ? ['kjedetotal'] : [],
+          },
+          neste: ['hent_regnskap', 'hent_salg', 'hent_bp_status'],
+          merknad: [
+            'Dette er ÉN samlet linje for hele kjeden. Den kan IKKE brukes til '
+            + 'aa sammenligne stasjoner. Trenger du tall per stasjon, kall '
+            + 'hent_regnskap igjen med niva="stasjon", eller hent_salg — '
+            + 'begge gir omsetning og bruttofortjeneste per stasjon.',
+          ],
         })
       }
 
