@@ -5,7 +5,7 @@
 -- gjoer det samme for HVERT domene AI-katalogen naa leser, fordi et
 -- spoerrelag er nettopp saa trygt som den svakeste kilden i katalogen.
 --
--- DEN VIKTIGE PAASTANDEN ER IKKE «sjefen ser ikke naboen». Den er
+-- DEN VIKTIGE PAASTANDEN ER IKKE "sjefen ser ikke naboen". Den er
 -- PARET: for hver kilde staar det en positiv paastand (sjefen ser sin
 -- EGEN rad) ved siden av den negative. Uten den positive ville en tabell
 -- der RLS ved et uhell nekter alt bestaatt hele fila - og en katalog
@@ -149,7 +149,7 @@ end $$;
 
 -- Paret. `p_egen` maa vaere sant OG `p_andres` usant. En kilde der alt
 -- er stengt gir p_egen = false og faller her, i stedet for aa gli
--- gjennom som «ingen lekkasje».
+-- gjennom som "ingen lekkasje".
 create or replace function pg_temp.par(p_kilde text, p_egen boolean, p_andres boolean)
 returns void language plpgsql as $$
 begin
@@ -164,7 +164,7 @@ set local role authenticated;
 -- =====================================================================
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000e502');
 
-select pg_temp.paastand('Scopet: sjefen ser NOEYAKTIG én stasjon',
+select pg_temp.paastand('Scopet: sjefen ser NOEYAKTIG EN stasjon',
   (select count(*) = 1 from public.stasjoner));
 select pg_temp.paastand('Scopet: og det er hennes egen',
   exists (select 1 from public.stasjoner where butikknummer = '9001'));
@@ -283,7 +283,7 @@ select pg_temp.paastand('Eier A ser INGEN stempling fra tenant B',
    where stasjon_id = 'b0000000-0000-0000-0000-000000000001'));
 
 -- =====================================================================
--- EIER B - speilvendt, saa isolasjonen ikke bare gjelder én vei
+-- EIER B - speilvendt, saa isolasjonen ikke bare gjelder en vei
 -- =====================================================================
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000eb01');
 
