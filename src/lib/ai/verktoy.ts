@@ -401,8 +401,11 @@ export const VERKTOY: Record<string, Verktoy> = {
 
   hent_timesalg: stasjonsverktoy(
     'hent_timesalg',
-    'Salg og kunder per klokketime, summert over perioden. Til bemanning og '
-    + 'åpningstider — viser når på døgnet omsetningen faktisk kommer.',
+    'SALG per klokketime (0-1, 1-2 …), summert over perioden — naar paa '
+    + 'doegnet omsetningen kommer. Dette er OMSETNING fordelt paa timer, '
+    + 'IKKE arbeidstimer. Spoer noen «hvordan ligger vi paa timer», om '
+    + 'lønnstimer, bemanning eller timeforbruk, bruk hent_timeregnskap, '
+    + 'hent_bemanning eller hent_stempling i stedet.',
     {},
     {
       domene: 'timesalg',

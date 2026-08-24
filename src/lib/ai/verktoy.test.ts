@@ -969,3 +969,26 @@ describe('prompten om sammenligning og emoji', () => {
     expect(kilde).toContain('INGEN EMOJI')
   })
 })
+
+// «Timer» paa norsk er to ting: klokketimer og arbeidstimer. Uten
+// skillet griper timesalg-verktoeyet spoersmaal om bemanning, fordi
+// ordet staar i navnet.
+describe('timer betyr to ting', () => {
+  const timesalg = VERKTOY.hent_timesalg.schema.description ?? ''
+
+  it('hent_timesalg sier at den handler om omsetning, ikke arbeidstimer', () => {
+    expect(timesalg).toContain('IKKE arbeidstimer')
+  })
+
+  it('hent_timesalg peker paa verktoeyene som faktisk har arbeidstimer', () => {
+    for (const v of ['hent_timeregnskap', 'hent_bemanning', 'hent_stempling']) {
+      expect(timesalg, `mangler ${v}`).toContain(v)
+    }
+  })
+
+  it('de tre timeverktoeyene finnes', () => {
+    for (const v of ['hent_timeregnskap', 'hent_bemanning', 'hent_stempling']) {
+      expect(VERKTOY[v]).toBeDefined()
+    }
+  })
+})
