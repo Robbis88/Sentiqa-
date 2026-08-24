@@ -21,6 +21,36 @@
 -- ingen testdata, ingen opprydding, trygt i produksjon.
 -- =====================================================================
 
+-- ---------------------------------------------------------------------
+-- SVARET SKAL VAERE EN TABELL, IKKE ET TALL.
+--
+-- Fila brukte `raise warning` for hvert funn og `raise exception` med
+-- antallet til slutt. SQL Editor viser ikke notices - saa den som
+-- kjorte fikk «RLS-vakthund: 2 funn» og ingen mulighet til aa se HVILKE.
+-- Og kastet den, forsvant transaksjonen og med den enhver sjanse til aa
+-- lese noe som helst.
+--
+-- Noeyaktig samme feil som `rls_isolasjon.sql` hadde, rettet i #56.
+-- Funnene samles naa i en temp-tabell, og siste setning i fila er et
+-- `select` som lister dem. Feil foerst.
+--
+-- Grantet trengs fordi tabellen opprettes som rollen fila startes med,
+-- mens innsettingen skjer inne i DO-blokka.
+-- ---------------------------------------------------------------------
+drop table if exists vakthund_funn;
+create temp table vakthund_funn (nr int, funn text);
+grant all on vakthund_funn to public;
+
+create or replace function pg_temp.funn(p_tekst text) returns void
+language plpgsql as $f$
+begin
+  insert into vakthund_funn (nr, funn)
+    select coalesce(max(nr), 0) + 1, p_tekst from vakthund_funn;
+  -- Beholdes: i psql og CI er en warning fortsatt det raskeste signalet.
+  -- (Denne ene skal IKKE gaa via pg_temp.funn - det ville vaert rekursjon.)
+  raise warning '%', p_tekst;
+end $f$;
+
 do $$
 declare
   -- Tabeller som vokser med drift. Nye transaksjonstabeller SKAL inn her.
@@ -111,9 +141,10 @@ declare
   -- Tabellen vokser med drift - én rad per opplastet fil - saa de samme
   -- tre reglene gjelder som paa daglig_salg.
   lagring text[] := array[
+    -- `fakturaer_storage_eier` staar med vilje IKKE her: 0106 droppet
+    -- baade policyen og boetta. Lista skal speile basen, ikke historikken.
     'anvisninger_storage_les',
     'anvisninger_storage_skriv',
-    'fakturaer_storage_eier',
     'kontrakt_signert_ins',
     'kontrakt_signert_les',
     'kontraktmal_storage_les',
@@ -137,7 +168,6 @@ declare
   --                         kunne slette bildebevis for IK-mat er en
   --                         DRIFTSBESLUTNING, ikke en teknisk feil.
   --                         Tas naar noen bestemmer seg, ikke her.
-  --   fakturaer_storage_eier
   --   raa_filer_storage_admin
   --                         Kun retailer_admin, og eieren skal kunne
   --                         bade lese, laste opp og rydde. Splitting
@@ -146,7 +176,6 @@ declare
   -- Legger du en ny bucket, skal den IKKE inn her uten en grunn skrevet
   -- ned paa samme maate.
   lagring_for_all_ok text[] := array[
-    'fakturaer_storage_eier',
     'raa_filer_storage_admin',
     'rutinebilder_storage'
   ];
@@ -171,8 +200,8 @@ begin
       )
     order by tablename, policyname
   loop
-    raise warning 'PER-RAD-KALL  %.% (%) - pakk i (select ...) eller bruk mine_stasjoner()',
-      r.tablename, r.policyname, r.cmd;
+    perform pg_temp.funn(format('PER-RAD-KALL  %s.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.tablename, r.policyname, r.cmd));
     feil := feil + 1;
   end loop;
 
@@ -183,8 +212,8 @@ begin
     where schemaname = 'public' and tablename = any(varme) and cmd = 'ALL'
     order by tablename, policyname
   loop
-    raise warning 'FOR ALL  %.% - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
-      r.tablename, r.policyname;
+    perform pg_temp.funn(format('FOR ALL  %s.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.tablename, r.policyname));
     feil := feil + 1;
   end loop;
 
@@ -196,8 +225,8 @@ begin
       and grantee = 'authenticated'
       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
   loop
-    raise warning 'PROFILER SKRIVBAR  authenticated har % - rolle/tenant kan PATCHes via PostgREST',
-      r.privilege_type;
+    perform pg_temp.funn(format('PROFILER SKRIVBAR  authenticated har %s - rolle/tenant kan PATCHes via PostgREST',
+      r.privilege_type));
     feil := feil + 1;
   end loop;
 
@@ -207,7 +236,7 @@ begin
     where table_schema = 'public' and table_name = 'profiler'
       and grantee = 'authenticated' and privilege_type = 'SELECT')
   then
-    raise warning 'PROFILER ULESELIG  authenticated mangler SELECT - innlogging vil brekke';
+    perform pg_temp.funn(format('PROFILER ULESELIG  authenticated mangler SELECT - innlogging vil brekke'));
     feil := feil + 1;
   end if;
 
@@ -229,8 +258,8 @@ begin
       and tablename <> all(kalde)
     order by tablename
   loop
-    raise warning 'UTEN TILSYN  %  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
-      r.tablename;
+    perform pg_temp.funn(format('UTEN TILSYN  %s  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
+      r.tablename));
     feil := feil + 1;
   end loop;
 
@@ -244,8 +273,8 @@ begin
       where p.schemaname = 'public' and p.tablename = t)
     order by t
   loop
-    raise warning 'STAAR I LISTA, FINNES IKKE  %  - ingen policy i public; fjern den fra rls_vakthund.sql',
-      r.tablename;
+    perform pg_temp.funn(format('STAAR I LISTA, FINNES IKKE  %s  - ingen policy i public; fjern den fra rls_vakthund.sql',
+      r.tablename));
     feil := feil + 1;
   end loop;
 
@@ -277,9 +306,9 @@ begin
            or has_table_privilege('authenticated', c.oid, 'SELECT'))
     order by c.relname
   loop
-    raise warning 'PARTISJON AAPEN  % (av %) - % kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
+    perform pg_temp.funn(format('PARTISJON AAPEN  %s (av %s) - %s kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
       r.relname, r.forelder,
-      case when r.anon_leser then 'anon' else 'authenticated' end;
+      case when r.anon_leser then 'anon' else 'authenticated' end));
     feil := feil + 1;
   end loop;
 
@@ -315,7 +344,7 @@ begin
       where table_schema = 'public' and table_name = 'ansatte'
         and column_name = 'pin_hash')
     then
-      raise warning 'KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?';
+      perform pg_temp.funn(format('KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?'));
       feil := feil + 1;
     end if;
 
@@ -326,13 +355,13 @@ begin
       and grantee = 'authenticated' and privilege_type = 'SELECT';
 
     if faktisk @> array['pin_hash'] then
-      raise warning 'HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline';
+      perform pg_temp.funn(format('HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline'));
       feil := feil + 1;
     end if;
 
     if not (faktisk <@ forventet and forventet <@ faktisk) then
-      raise warning 'KOLONNERETTER ENDRET  ansatte/authenticated SELECT er % - forventet %; ta stilling til hver nye kolonne',
-        faktisk, forventet;
+      perform pg_temp.funn(format('KOLONNERETTER ENDRET  ansatte/authenticated SELECT er %s - forventet %s; ta stilling til hver nye kolonne',
+        faktisk, forventet));
       feil := feil + 1;
     end if;
 
@@ -345,7 +374,7 @@ begin
         and grantee = 'authenticated' and column_name = 'pin_hash'
         and privilege_type = 'UPDATE')
     then
-      raise warning 'HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet';
+      perform pg_temp.funn(format('HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet'));
       feil := feil + 1;
     end if;
   end;
@@ -364,7 +393,7 @@ begin
       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.proname = 'verifiser_ansatt_pin')
     then
-      raise warning 'FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?';
+      perform pg_temp.funn(format('FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?'));
       feil := feil + 1;
     end if;
 
@@ -376,7 +405,7 @@ begin
       and grantee <> 'postgres';
 
     if kallere <> array['authenticated'] then
-      raise warning 'FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av % - forventet kun authenticated', kallere;
+      perform pg_temp.funn(format('FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av %s - forventet kun authenticated', kallere));
       feil := feil + 1;
     end if;
   end;
@@ -400,7 +429,7 @@ begin
   -- under tomme loekker - og en tom loekke er groenn. Da maaler
   -- vakthunden ingenting og ser ut som om alt er i orden.
   if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects') then
-    raise warning 'LAGRINGSVAKT BLIND  ingen policyer paa storage.objects - enten er ingen migrasjon kjort, eller saa er vernet borte';
+    perform pg_temp.funn(format('LAGRINGSVAKT BLIND  ingen policyer paa storage.objects - enten er ingen migrasjon kjort, eller saa er vernet borte'));
     feil := feil + 1;
   end if;
 
@@ -418,8 +447,8 @@ begin
       )
     order by policyname
   loop
-    raise warning 'PER-RAD-KALL  storage.objects.% (%) - pakk i (select ...) eller bruk mine_stasjoner()',
-      r.policyname, r.cmd;
+    perform pg_temp.funn(format('PER-RAD-KALL  storage.objects.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.policyname, r.cmd));
     feil := feil + 1;
   end loop;
 
@@ -433,8 +462,8 @@ begin
       and policyname <> all(lagring_for_all_ok)
     order by policyname
   loop
-    raise warning 'FOR ALL  storage.objects.% - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
-      r.policyname;
+    perform pg_temp.funn(format('FOR ALL  storage.objects.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.policyname));
     feil := feil + 1;
   end loop;
 
@@ -451,8 +480,8 @@ begin
         and p.policyname = t and p.cmd = 'ALL')
     order by t
   loop
-    raise warning 'UNNTAK UTEN GRUNN  storage.objects.%  - staar i lagring_for_all_ok, men er ikke lenger `for all`; fjern den derfra',
-      r.policyname;
+    perform pg_temp.funn(format('UNNTAK UTEN GRUNN  storage.objects.%s  - staar i lagring_for_all_ok, men er ikke lenger `for all`; fjern den derfra',
+      r.policyname));
     feil := feil + 1;
   end loop;
 
@@ -465,8 +494,8 @@ begin
       and policyname <> all(lagring)
     order by policyname
   loop
-    raise warning 'UTEN TILSYN  storage.objects.%  - policy uten oppfoering i `lagring` i rls_vakthund.sql',
-      r.policyname;
+    perform pg_temp.funn(format('UTEN TILSYN  storage.objects.%s  - policy uten oppfoering i `lagring` i rls_vakthund.sql',
+      r.policyname));
     feil := feil + 1;
   end loop;
 
@@ -479,15 +508,26 @@ begin
       where p.schemaname = 'storage' and p.tablename = 'objects' and p.policyname = t)
     order by t
   loop
-    raise warning 'STAAR I LISTA, FINNES IKKE  storage.objects.%  - fjern den fra `lagring`, eller kjor migrasjonen som lager den',
-      r.policyname;
+    perform pg_temp.funn(format('STAAR I LISTA, FINNES IKKE  storage.objects.%s  - fjern den fra `lagring`, eller kjor migrasjonen som lager den',
+      r.policyname));
     feil := feil + 1;
   end loop;
 
-  if feil > 0 then
-    raise exception 'RLS-vakthund: % funn. Se advarslene over.', feil;
+  -- Nr 0 sorterer foerst, saa «ok» staar oeverst naar det ikke er noe aa melde.
+  if feil = 0 then
+    insert into vakthund_funn (nr, funn)
+      values (0, format('%s varme, %s kalde, %s lagringspolicyer - alle tabeller med policy er dekket',
+        array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1)));
   end if;
-
-  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, alle tabeller med policy er dekket ---',
-    array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1);
 end $$;
+
+-- SVARET. Siste setning som gir rader, saa SQL Editor viser den.
+--
+-- Feil foerst: staar det «FUNN» oeverst, er det de radene som betyr noe.
+-- Er alt «ok», SER man det - i stedet for aa slutte seg til det av at
+-- ingenting skjedde.
+select
+  case when nr = 0 then 'ok' else 'FUNN' end as status,
+  funn                                       as beskrivelse
+from vakthund_funn
+order by nr;
