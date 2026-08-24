@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useFormStatus } from 'react-dom'
 import { settStasjon } from './stasjon-handlinger'
 import { stasjonsnavn, type Stasjon } from '@/lib/stasjonsvalg'
@@ -42,9 +43,23 @@ import { stasjonsnavn, type Stasjon } from '@/lib/stasjonsvalg'
 // Hard omlasting remonterte og skjulte avviket — derfor var hver
 // eksisterende e2e-test grønn gjennom hele feilen. De bruker `goto`.
 //
-// Nå er velgeren KONTROLLERT mot `valgt`. Da kan DOM og server ikke
-// divergere, og kvitteringen kan bli det den var ment som: en
-// forbigående beskjed, ikke en andre stasjonsvisning.
+// Nå er velgeren KONTROLLERT. Da kan DOM-en ikke bli stående på egen
+// hånd, og kvitteringen kan bli det den var ment som: en forbigående
+// beskjed, ikke en andre stasjonsvisning.
+//
+// MEN DET VAR IKKE NOK, og CI sa det (kjøring 32727545063, S6 fortsatt
+// rød). Feilen stikker dypere enn DOM-verdien:
+//
+//   LAYOUTS RE-RENDERES IKKE VED MYK NAVIGERING. Next.js gir ikke
+//   `searchParams` til en layout, og bytter man bare søkestrengen,
+//   beholdes hele layouten. `kontekst.valgt` — som skallet får fra
+//   serveren — er altså UTDATERT etter et klikk på `?stasjon=`.
+//   Siden under re-renderes med den nye stasjonen; skallet gjør ikke.
+//
+// Prop-en alene kan derfor aldri være riktig. Velgeren må lese URL-en
+// selv, på klienten, med NØYAKTIG samme forrang som `velgStasjon`
+// bruker på serveren: URL, så hukommelse. Gjør den noe annet, har vi
+// byttet én dobbel sannhet mot en ny.
 // =====================================================================
 
 /**
@@ -83,15 +98,30 @@ export function Stasjonskontekst({
   tillatAlle: boolean
 }) {
   const ref = useRef<HTMLFormElement>(null)
+  const sok = useSearchParams()
+
+  // URL-en, lest paa klienten. Speiler `velgStasjon` og `stasjonFraUrl`:
+  // begge parameternavnene godtas, ukjent verdi gir null (og da vinner
+  // hukommelsen), og «alle» teller bare der sida taaler aggregat.
+  const fraUrl = (() => {
+    const eksplisitt = sok.get('stasjon')
+    if (eksplisitt === 'alle') return tillatAlle ? 'alle' : null
+    if (eksplisitt && stasjoner.some((x) => x.id === eksplisitt)) return eksplisitt
+    const nr = sok.get('butikknummer')
+    return (nr ? stasjoner.find((x) => x.butikknummer === nr)?.id : null) ?? null
+  })()
   // Navnet vises fra det øyeblikket brukeren velger, ikke først når
   // serveren svarer. Ellers står det gamle navnet mens siden laster,
   // og det er nettopp da man lurer på om klikket gikk gjennom.
   const [nettoppValgt, settValgt] = useState<string | null>(null)
-  // Nullstilles naar serveren har levert et nytt valg: uten dette ville
-  // et bytte som ikke gikk gjennom staatt igjen som om det gjorde det.
-  const [sist, settSist] = useState(valgt)
-  if (sist !== valgt) {
-    settSist(valgt)
+  // Nullstilles naar konteksten har endret seg utenfra - enten fordi
+  // serveren leverte et nytt valg, ELLER fordi URL-en byttet stasjon.
+  // Bare `valgt` her ville betydd at et klikk paa en `?stasjon=`-lenke
+  // ikke naadde velgeren, siden layouten ikke re-renderes da.
+  const utenfra = `${valgt ?? ''}|${fraUrl ?? ''}`
+  const [sist, settSist] = useState(utenfra)
+  if (sist !== utenfra) {
+    settSist(utenfra)
     settValgt(null)
   }
 
@@ -113,7 +143,7 @@ export function Stasjonskontekst({
             stasjon mens siden regner paa en annen. */}
         <select
           name="stasjon"
-          value={nettoppValgt ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))}
+          value={nettoppValgt ?? fraUrl ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))}
           onChange={(e) => {
             settValgt(e.target.value)
             ref.current?.requestSubmit()
@@ -125,7 +155,7 @@ export function Stasjonskontekst({
           ))}
         </select>
       </label>
-      <Kvittering navn={navnFor(nettoppValgt ?? valgt)} />
+      <Kvittering navn={navnFor(nettoppValgt ?? fraUrl ?? valgt)} />
       {/* Uten JavaScript blir dette en vanlig knapp. Med, er den unødvendig. */}
       <noscript><button type="submit" className="liten">Bytt</button></noscript>
     </form>
