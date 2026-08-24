@@ -155,12 +155,13 @@ grant select on public.v_svinn_maaned to authenticated;
 --
 -- MANGLENDE REGISTRERING ER IKKE NULL SVINN, og forskjellen mellom
 -- stasjonene er stor nok til aa endre konklusjonen. Sonden maalte
--- dekning fra 34 % (Laguneparken) til 93 % (Lone) av dagene.
+-- foeringsdager fra 34 % (Laguneparken) til 93 % (Lone) av dagene.
 --
--- Laguneparken har MEST svinn i kroner og FAERREST registreringsdager.
--- Det er batch-telling, ikke daglig foering - og en daglig eller
--- ukentlig trend ville derfor vaert pigger, ikke utvikling. Derfor er
--- maaned minste normale analyseperiode for svinn.
+-- Laguneparken har MEST svinn i kroner og FAERREST foeringsdager. Faa
+-- dager betyr enten at noe ikke ble foert, eller at flere dager ble
+-- foert samlet - og de to ser like ut i `dato` alene. Uansett hvilken
+-- det er, blir en daglig eller ukentlig trend pigger og ikke utvikling.
+-- Derfor er maaned minste normale analyseperiode for svinn.
 --
 -- `dager_hittil` skiller inneveaerende maaned fra en avsluttet: en
 -- maaned som ikke er ferdig skal aldri se ut som en som er det.
@@ -180,10 +181,12 @@ with per_maaned as (
          count(distinct s.dato)            as dager_registrert,
          max(s.dato)                       as siste_registrering,
          min(s.dato)                       as forste_registrering,
-         -- SNITTAVSTANDEN MELLOM TELLINGER. Ikke alle stasjoner teller
-         -- hver dag - noen teller hver tredje, noen sjeldnere. Uten
-         -- dette tallet ser en fast rytme ut som et hull, og en rutine
-         -- blir lest som en forsoemmelse.
+         -- SNITTAVSTANDEN MELLOM FOERINGENE. Maten kastes hver dag ved
+         -- stengetid; det som varierer er naar det blir foert. De fleste
+         -- foerer foer de gaar hjem, noen skriver det ned og
+         -- butikksjefen foerer det dagen etter eller samler opp flere
+         -- dager. `dato` er transaksjonsdatoen fra rapport 0452 - naar
+         -- det ble slaatt inn, ikke naar maten ble kastet.
          case when count(distinct s.dato) > 1
               then round((max(s.dato) - min(s.dato))::numeric
                          / (count(distinct s.dato) - 1), 1)
@@ -215,8 +218,9 @@ from per_maaned p;
 comment on view public.v_svinn_dekning is
   'Hvor mange av maanedens dager svinn faktisk ble registrert, og hvor '
   'tett tellingene ligger. Manglende registrering er ikke null svinn. '
-  'snitt_intervall_dager skiller en TELLERYTME fra et hull: en stasjon '
-  'som teller hver tredje dag har 33 % av dagene og ingen mangel.';
+  'snitt_intervall_dager sier hvor tett foeringene ligger - ikke '
+  'hvorfor. Faa dager er enten manglende foering eller flere dager '
+  'foert samlet, og de to kan ikke skilles fra hverandre i dato alene.';
 
 grant select on public.v_svinn_dekning to authenticated;
 

@@ -185,15 +185,15 @@ select pg_temp.paastand('A-0001 har to registrerte svinndager',
 select pg_temp.paastand('dager_hittil overstiger aldri dager_i_maaned',
   (select bool_and(dager_hittil <= dager_i_maaned) from public.v_svinn_dekning));
 
--- TELLERYTMEN. Ikke alle stasjoner teller hver dag - noen hver tredje,
--- noen sjeldnere. Uten dette tallet ser en fast rutine ut som et hull.
--- Her ligger de to tellingene én dag fra hverandre.
-select pg_temp.paastand('Snittintervallet mellom tellingene er 1 dag',
+-- AVSTANDEN MELLOM FOERINGENE. Maten kastes hver dag; det som varierer
+-- er naar det blir foert. Her ligger de to foeringene én dag fra
+-- hverandre.
+select pg_temp.paastand('Snittintervallet mellom foeringene er 1 dag',
   (select snitt_intervall_dager = 1 from public.v_svinn_dekning
    where stasjon_id = '5eaa0000-0000-4000-8000-000000000001'));
 
--- A-0002 har bare én telling, og én telling har ingen avstand til noe.
-select pg_temp.paastand('Én telling gir NULL intervall, ikke 0',
+-- A-0002 har bare én foering, og én foering har ingen avstand til noe.
+select pg_temp.paastand('Én foering gir NULL intervall, ikke 0',
   (select snitt_intervall_dager is null from public.v_svinn_dekning
    where stasjon_id = '5eaa0000-0000-4000-8000-000000000002'));
 

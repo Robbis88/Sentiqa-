@@ -306,15 +306,25 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
               Svinn ble registrert <strong>{d.registrert} av {d.mulige} dager</strong>
               {d.komplett ? ' i måneden' : ' hittil i måneden'}
               {d.siste && <> · siste registrering {datoLang.format(new Date(`${d.siste}T12:00:00Z`))}</>}
-              {/* EN RYTME ER IKKE ET HULL. Stasjonene teller ulikt - noen
-                  daglig, noen hver tredje dag, noen sjeldnere. Sies det
-                  bare «10 av 31 dager», leses en fast rutine som en
-                  forsømmelse, og tallet får en dom det ikke fortjener. */}
-              {d.rytme
-                ? <> . Tellingene ligger jevnt, omtrent <strong>hver {d.intervall!.toLocaleString('nb-NO', { maximumFractionDigits: 1 })}. dag</strong> — det er en tellerytme, ikke et hull. Månedstallet er likevel hele måneden.</>
-                : d.andel < 1 && (
-                    <> . Dager uten registrering betyr <strong>ikke</strong> null svinn — de betyr at det ikke ble talt.</>
-                  )}
+              {/* SIDA VET IKKE HVORFOR DAGENE ER FÅ, og skal ikke late som.
+                  Maten kastes hver dag ved stengetid. Det som varierer er
+                  når det blir ført: de fleste fører før de går hjem, noen
+                  skriver det ned og butikksjefen fører det dagen etter
+                  eller samler opp flere dager. `dato` er transaksjons-
+                  datoen fra rapport 0452 — når det ble slått inn, ikke når
+                  maten ble kastet. De to årsakene ser like ut her, og
+                  forskjellen mellom dem avgjør om månedstallet holder. */}
+              {d.andel < 1 && (
+                <>
+                  {' '}. Maten kastes hver dag, så færre føringsdager betyr
+                  enten at noe <strong>ikke ble ført</strong>, eller at flere
+                  dager ble <strong>ført samlet</strong>
+                  {d.spredt && <> (i snitt {d.intervall!.toLocaleString('nb-NO', { maximumFractionDigits: 1 })} dager mellom føringene)</>}
+                  . I det andre tilfellet er månedens kroner de samme; i det
+                  første er de for lave. De to kan ikke skilles fra hverandre
+                  her.
+                </>
+              )}
             </>
           : <>Ingen registrerte svinndager denne måneden. Det betyr ikke at det ikke svant noe.</>}
       </Forklaring>
@@ -368,16 +378,16 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 <td><SvinnKr b={x.b} /></td>
                 <td><Prosent v={x.b.prosent} /></td>
                 <td><Kroner v={x.b.ikkeKobletKr} /></td>
-                {/* RYTMEN HOERER HJEMME HER. Det er i denne tabellen
-                    stasjoner settes ved siden av hverandre, og det er
-                    her «12 av 31» mot «29 av 31» ellers ville sett ut
-                    som at den ene slurver. */}
+                {/* AVSTANDEN HOERER HJEMME HER. Det er i denne tabellen
+                    stasjoner settes ved siden av hverandre, og «12 av 31»
+                    mot «29 av 31» sier ingenting om hvorfor. Snittet er
+                    beskrivende, ikke en dom. */}
                 <td>
                   {x.b.dekning
                     ? <>
                         {x.b.dekning.registrert} av {x.b.dekning.mulige}
-                        {x.b.dekning.rytme && (
-                          <span className="sq-dempet"> · hver {x.b.dekning.intervall!.toLocaleString('nb-NO', { maximumFractionDigits: 1 })}. dag</span>
+                        {x.b.dekning.spredt && (
+                          <span className="sq-dempet"> · {x.b.dekning.intervall!.toLocaleString('nb-NO', { maximumFractionDigits: 1 })} dager mellom</span>
                         )}
                       </>
                     : '—'}

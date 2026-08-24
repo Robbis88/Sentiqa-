@@ -70,15 +70,24 @@ export type Dekning = {
   komplett: boolean
   siste: string | null
   /**
-   * Snittavstand mellom tellinger, eller null.
+   * Snitt antall dager mellom foeringene, eller null.
    *
-   * IKKE ALLE STASJONER TELLER HVER DAG. Noen teller hver tredje, noen
-   * sjeldnere. `andel` alene gjoer en fast rytme om til et hull - og
-   * «10 av 31 dager» leses som en forsoemmelse naar det er en rutine.
+   * MATEN KASTES HVER DAG. Det som varierer er naar det blir foert:
+   * de fleste foerer foer de gaar hjem, noen skriver det ned og
+   * butikksjefen foerer det dagen etter eller samler opp flere dager.
+   * `dato` er transaksjonsdatoen fra rapport 0452 - altsaa naar det
+   * ble slaatt inn, ikke naar maten ble kastet.
    */
   intervall: number | null
-  /** Sant naar tellingene ligger jevnt og sjeldnere enn daglig. */
-  rytme: boolean
+  /**
+   * Ligger foeringene mer enn halvannen dag fra hverandre i snitt?
+   *
+   * SIER IKKE HVORFOR. Enten ble noe ikke foert, eller flere dager ble
+   * foert samlet - og de to ser like ut i `dato` alene. Forskjellen
+   * betyr alt: i det ene tilfellet er maanedens kroner de samme, i det
+   * andre er de for lave.
+   */
+  spredt: boolean
 }
 
 export type Maanedsbilde = {
@@ -150,10 +159,9 @@ export function byggDekning(rad: Dekningsrad | undefined): Dekning | null {
     komplett: rad.dager_hittil >= rad.dager_i_maaned,
     siste: rad.siste_registrering,
     intervall: rad.snitt_intervall_dager,
-    // TO TELLINGER ER IKKE EN RYTME. Under tre maalepunkter er
-    // snittavstanden bare avstanden mellom to datoer, og aa kalle den
-    // en rutine er aa lese moenster inn i to tall.
-    rytme: rad.dager_registrert >= 3
+    // TO FOERINGER ER EN AVSTAND, IKKE ET MOENSTER. Under tre
+    // maalepunkter er snittet bare avstanden mellom to datoer.
+    spredt: rad.dager_registrert >= 3
       && rad.snitt_intervall_dager != null
       && rad.snitt_intervall_dager >= 1.5,
   }

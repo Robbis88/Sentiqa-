@@ -254,7 +254,12 @@ test.describe('/svinn med data - hele kjeden', () => {
       .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i })
     await expect(f).toHaveCount(1)
     await expect(f).toContainText(/1 av 31 dager/)
-    await expect(f).toContainText(/ikke.*null svinn|ikke ble talt/i)
+    // Sida skal ikke paastaa HVORFOR dagene er faa. Maten kastes hver
+    // dag; faa foeringsdager er enten manglende foering eller flere
+    // dager foert samlet, og de to ser like ut i datoen alene.
+    await expect(f).toContainText(/ikke ble ført/i)
+    await expect(f).toContainText(/ført samlet/i)
+    await expect(f).not.toContainText(/tellerytme/i)
 
     // Nivaa 4: metoden skal vaere tilgjengelig, ikke i veien.
     expect(await f.first().evaluate((e: HTMLDetailsElement) => e.open),

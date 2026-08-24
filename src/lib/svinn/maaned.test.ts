@@ -209,38 +209,40 @@ describe('byggDekning', () => {
     expect(byggDekning(undefined)).toBeNull()
   })
 
-  // ROBERT, 2026-08-24: «det er ikke alle stasjonene som svinner hver
-  // dag, noen svinner hver 3. dag eller mer eller mindre». En fast
-  // rytme er ikke et hull, og maa kunne skilles fra et.
-  it('ti tellinger med tre dagers mellomrom er en rytme, ikke et hull', () => {
+  // ROBERT, 2026-08-24: maten kastes hver dag ved stengetid. Det som
+  // varierer er naar det foeres - de fleste foer de gaar hjem, noen
+  // skriver det ned og butikksjefen foerer det dagen etter eller
+  // samler opp flere dager. Faa foeringsdager er derfor et signal om
+  // FOERINGEN, ikke om svinnet.
+  it('ti foeringer med tre dagers mellomrom er spredt foering', () => {
     const d = byggDekning(dekning({
       dager_registrert: 10, dager_hittil: 31, dager_i_maaned: 31,
       snitt_intervall_dager: 3,
     }))!
-    expect(d.rytme).toBe(true)
+    expect(d.spredt).toBe(true)
     expect(d.intervall).toBe(3)
     // Andelen er fortsatt 32 % - tallet er riktig, tolkningen er det
     // som endrer seg.
     expect(d.andel).toBeCloseTo(10 / 31, 6)
   })
 
-  it('daglig telling er ingen rytme aa nevne', () => {
+  it('daglig foering er ingenting aa nevne', () => {
     const d = byggDekning(dekning({
       dager_registrert: 28, dager_hittil: 31, dager_i_maaned: 31,
       snitt_intervall_dager: 1.1,
     }))!
-    expect(d.rytme).toBe(false)
+    expect(d.spredt).toBe(false)
   })
 
   // TO PUNKTER ER EN AVSTAND, IKKE ET MOENSTER. Uten denne kunne to
-  // tellinger med 14 dagers mellomrom blitt presentert som «teller
-  // omtrent hver 14. dag» - en rutine lest inn i to tall.
-  it('to tellinger gir ingen rytme, uansett avstand', () => {
+  // foeringer med fjorten dagers mellomrom blitt presentert som et
+  // moenster - en rutine lest inn i to tall.
+  it('to foeringer gir ingen spredning, uansett avstand', () => {
     const d = byggDekning(dekning({
       dager_registrert: 2, dager_hittil: 31, dager_i_maaned: 31,
       snitt_intervall_dager: 14,
     }))!
-    expect(d.rytme).toBe(false)
+    expect(d.spredt).toBe(false)
   })
 })
 
