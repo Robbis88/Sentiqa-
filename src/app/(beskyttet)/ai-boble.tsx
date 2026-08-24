@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { spørAssistent } from './assistent/handlinger'
 import { slippStyringssignal } from '@/lib/styringssignal'
+import { blokker, type Bit } from '@/lib/ai-tekst'
 import type { Melding } from '@/lib/ai/assistent'
 
 type Visning = Melding & { kilder?: string[] }
@@ -24,6 +25,41 @@ const FORSLAG = [
 // de kom fra eierens samtale i samme fane. Ingen tall lekket, RLS holdt,
 // men avslaget bekreftet en stasjon hun ikke skal vite noe om.
 const LAGER_PREFIKS = 'sentiqa-ai-samtale'
+
+/** Biter av én linje: vanlig tekst og uthevet, aldri HTML. */
+function Biter({ biter }: { biter: Bit[] }) {
+  return (
+    <>
+      {biter.map((b, i) =>
+        b.type === 'uthevet' ? <strong key={i}>{b.verdi}</strong> : <span key={i}>{b.verdi}</span>,
+      )}
+    </>
+  )
+}
+
+/**
+ * Svaret, tegnet som avsnitt og lister.
+ *
+ * Sto som én `<p>` med rå markdown i. Se `ai-tekst.ts` for hvorfor det
+ * ikke ble loest i promptet alene.
+ */
+function Svartekst({ tekst }: { tekst: string }) {
+  const deler = blokker(tekst)
+  if (deler.length === 0) return <p />
+  return (
+    <>
+      {deler.map((b, i) =>
+        b.type === 'liste' ? (
+          <ul key={i} className="ai-liste">
+            {b.punkter.map((p, j) => <li key={j}><Biter biter={p} /></li>)}
+          </ul>
+        ) : (
+          <p key={i}><Biter biter={b.biter} /></p>
+        ),
+      )}
+    </>
+  )
+}
 
 export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string }) {
   const LAGER = `${LAGER_PREFIKS}:${brukerId}`
@@ -168,7 +204,7 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
             )}
             {meldinger.map((m, i) => (
               <div key={i} className={`boble ${m.rolle} ${strommer && i === meldinger.length - 1 ? 'strommer' : ''}`}>
-                <p>{m.tekst}</p>
+                <Svartekst tekst={m.tekst} />
                 {m.kilder && m.kilder.length > 0 && <p className="kilder">Kilder: {m.kilder.join(', ')}</p>}
               </div>
             ))}

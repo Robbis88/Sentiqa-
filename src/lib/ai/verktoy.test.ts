@@ -993,21 +993,31 @@ describe('timer betyr to ting', () => {
   })
 })
 
-// AI-boblen tegner svaret som ren tekst. Ba vi modellen bruke tabell,
-// kom det ut som «|---|---|» og «**Merk:**» midt i setningen - og
-// svaret ble mindre lesbart, ikke mer.
+// Boblen viste hele svaret i én <p>, saa markdown sto som tegn:
+// «**Merk:** ... ### Salg ... |---|---|». Foerste rettelse var aa be
+// modellen la vaere - altsaa aa tilpasse promptet til flata.
+//
+// Naa tegner flata avsnitt, punktliste og utheving (`ai-tekst.ts`), saa
+// promptet trenger bare aa holde igjen paa det som fortsatt ikke virker:
+// tabeller i en boble som er 320 piksler bred.
 describe('prompten passer til flaten svaret vises paa', () => {
   const kilde = readFileSync(new URL('./assistent.ts', import.meta.url), 'utf8')
 
-  it('ber om ren tekst', () => {
-    expect(kilde).toContain('SKRIV REN TEKST')
+  it('forbyr tabeller, og sier hvorfor', () => {
+    expect(kilde).toContain('INGEN TABELLER')
+    expect(kilde).toContain('320 piksler')
   })
 
   it('ber IKKE lenger om markdown-tabell', () => {
     expect(kilde).not.toContain('Bruk tabell når du sammenligner')
   })
 
-  it('gir en form som faktisk virker i ren tekst', () => {
+  it('gir en form som virker i en smal boble', () => {
     expect(kilde).toContain('én linje per stasjon')
+  })
+
+  it('tillater det flaten faktisk tegner', () => {
+    expect(kilde).toContain('Punktliste')
+    expect(kilde).toContain('utheving')
   })
 })
