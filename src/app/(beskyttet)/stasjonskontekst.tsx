@@ -131,6 +131,8 @@ export function Stasjonskontekst({
     return s ? stasjonsnavn(s) : ''
   }
 
+  const vist = nettoppValgt ?? fraUrl ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))
+
   return (
     <form action={settStasjon} ref={ref} className="sq-stasjonskontekst">
       <label>
@@ -141,7 +143,16 @@ export function Stasjonskontekst({
             ukontrollert select kan bli staaende paa gammel verdi naar
             konteksten endres uten omlasting, og da viser skjermen én
             stasjon mens siden regner paa en annen. */}
+        {/* KEY, IKKE BARE `value`.
+            CI leste ut at komponenten hadde riktig stasjon i BAADE
+            prop og URL - `kilde=url prop=5101 url=5101` - mens
+            DOM-verdien sto paa «alle» gjennom 34 pollinger. Verdien
+            naadde altsaa React, men ikke elementet.
+            En `key` som foelger konteksten bygger `<select>` paa nytt
+            naar stasjonen endres, og da finnes det ingen gammel
+            DOM-tilstand aa bli staaende i. */}
         <select
+          key={vist}
           name="stasjon"
           // HVEM AVGJORDE. Uten dette er en roed S6 bare «velgeren sto
           // stille», og det kan bety at URL-en ikke naadde klienten,
@@ -152,7 +163,7 @@ export function Stasjonskontekst({
           data-kilde={nettoppValgt ? 'valg' : fraUrl ? 'url' : valgt ? 'kapsel' : 'ingen'}
           data-prop={valgt ?? ''}
           data-url={fraUrl ?? ''}
-          value={nettoppValgt ?? fraUrl ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))}
+          value={vist}
           onChange={(e) => {
             settValgt(e.target.value)
             ref.current?.requestSubmit()
