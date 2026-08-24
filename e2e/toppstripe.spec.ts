@@ -131,8 +131,13 @@ test.describe('toppstripen', () => {
             && b.boks.y + b.boks.h >= a.boks.y + a.boks.h
           if (inni || inni2) continue
 
+          const vis = (x: typeof a) =>
+            `${x.velger} [x ${Math.round(x.boks.x)}–${Math.round(x.boks.x + x.boks.w)}, `
+            + `y ${Math.round(x.boks.y)}–${Math.round(x.boks.y + x.boks.h)}]`
           expect(overlapper(a.boks, b.boks),
-            `${a.velger} og ${b.velger} overlapper ved ${bredde} px`).toBe(false)
+            `Overlapp ved ${bredde} px:
+  ${vis(a)}
+  ${vis(b)}`).toBe(false)
         }
       }
     })
