@@ -72,6 +72,7 @@ export default async function BeskyttetLayout({
 
   return (
     <Appskall
+      brukerId={bruker.id}
       rolle={bruker.rolle}
       navn={bruker.fulltNavn ?? bruker.epost ?? ''}
       uleste={uleste ?? 0}

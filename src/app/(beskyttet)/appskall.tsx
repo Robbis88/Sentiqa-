@@ -23,6 +23,8 @@ import { AiBoble } from './ai-boble'
 type Seksjon = { tittel: string; punkter: { sti: string; tekst: string }[] }
 
 type Props = {
+  /** Nøkler den lagrede AI-samtalen, saa den ikke foelger med til neste bruker. */
+  brukerId: string
   rolle: Brukerrolle
   navn: string
   uleste: number
@@ -32,7 +34,7 @@ type Props = {
 }
 
 export function Appskall({
-  rolle, navn, uleste, kontekst, seksjoner, children,
+  brukerId, rolle, navn, uleste, kontekst, seksjoner, children,
 }: Props) {
   const menypunkter = seksjoner.flatMap((s) =>
     s.punkter.map((p) => ({ ...p, gruppe: s.tittel })))
@@ -58,7 +60,7 @@ export function Appskall({
         </main>
       </div>
 
-      {erLeder(rolle) && <AiBoble navn={navn.split(' ')[0]} />}
+      {erLeder(rolle) && <AiBoble navn={navn.split(' ')[0]} brukerId={brukerId} />}
     </div>
   )
 }
