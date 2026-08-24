@@ -134,7 +134,26 @@ export function Stasjonskontekst({
   const vist = nettoppValgt ?? fraUrl ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))
 
   return (
-    <form action={settStasjon} ref={ref} className="sq-stasjonskontekst">
+    // KEY PAA FORMEN, IKKE PAA SELECTEN.
+    //
+    // CI leste ut at komponenten hadde riktig stasjon i baade prop og
+    // URL - `kilde=url prop=5101 url=5101` - mens DOM-verdien sto paa
+    // «alle» gjennom 34 pollinger. Verken `value` eller en `key` paa
+    // `<select>` endret det.
+    //
+    // Selecten ligger i et `<form action={settStasjon}>`. React bevarer
+    // skjematilstand gjennom en serverhandling - det er meningen, saa et
+    // felt ikke nullstilles mens handlingen staar paa - og den
+    // bevaringen gjelder skjemaet, ikke det enkelte feltet. En `key` paa
+    // selecten roerer den derfor ikke.
+    //
+    // Naar konteksten endres utenfra, er det ikke lenger samme skjema.
+    <form
+      key={vist}
+      action={settStasjon}
+      ref={ref}
+      className="sq-stasjonskontekst"
+    >
       <label>
         {/* Etiketten er skjult visuelt, men ikke for skjermlesere: uten
             den er dette bare «kombinasjonsboks» i toppen av hver side. */}
@@ -152,7 +171,6 @@ export function Stasjonskontekst({
             naar stasjonen endres, og da finnes det ingen gammel
             DOM-tilstand aa bli staaende i. */}
         <select
-          key={vist}
           name="stasjon"
           // HVEM AVGJORDE. Uten dette er en roed S6 bare «velgeren sto
           // stille», og det kan bety at URL-en ikke naadde klienten,
