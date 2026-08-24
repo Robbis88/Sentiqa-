@@ -992,3 +992,22 @@ describe('timer betyr to ting', () => {
     }
   })
 })
+
+// AI-boblen tegner svaret som ren tekst. Ba vi modellen bruke tabell,
+// kom det ut som «|---|---|» og «**Merk:**» midt i setningen - og
+// svaret ble mindre lesbart, ikke mer.
+describe('prompten passer til flaten svaret vises paa', () => {
+  const kilde = readFileSync(new URL('./assistent.ts', import.meta.url), 'utf8')
+
+  it('ber om ren tekst', () => {
+    expect(kilde).toContain('SKRIV REN TEKST')
+  })
+
+  it('ber IKKE lenger om markdown-tabell', () => {
+    expect(kilde).not.toContain('Bruk tabell når du sammenligner')
+  })
+
+  it('gir en form som faktisk virker i ren tekst', () => {
+    expect(kilde).toContain('én linje per stasjon')
+  })
+})

@@ -140,7 +140,13 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     + 'satser. Finner du ingenting, henvis til HR eller Virke.',
     '',
     'Svar kort: 2–5 setninger, med konkrete tiltak («sjekk vaktplan man–ons», '
-    + 'ikke «vurder bemanning»). Bruk tabell når du sammenligner stasjoner.',
+    + 'ikke «vurder bemanning»).',
+    '',
+    'SKRIV REN TEKST. Flaten viser svaret ordrett og tolker ikke markdown: '
+    + 'stjerner, firkanttegn og rørtegn kommer ut som tegn midt i setningen. '
+    + 'Ingen **fet**, ingen ### overskrifter, ingen |tabeller|. Sammenligner '
+    + 'du stasjoner, skriv én linje per stasjon: «Bønes: 48 901 kr, 1 016 '
+    + 'kunder». Tall og linjeskift bærer strukturen.',
     '',
     'For irreversible handlinger (opprette oppgave/konkurranse, kåre vinner): '
     + 'kall verktøyet FØRST uten bekreftet, vis oppsummeringen og spør «Skal jeg '
