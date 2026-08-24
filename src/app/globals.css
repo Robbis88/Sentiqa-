@@ -421,12 +421,29 @@ button.logg-ut:hover { color: var(--tekst); }
 .topp-sone { display: flex; align-items: center; gap: var(--luft-3); min-width: 0; }
 .topp-venstre { justify-self: start; }
 .topp-midt { justify-self: center; }
-.topp-hoyre { justify-self: end; gap: var(--luft-4); }
+.topp-hoyre { justify-self: end; gap: var(--luft-4); max-width: 100%; }
+/* Ikonene og «Logg ut» krymper ikke - de er allerede saa smaa som de
+   skal bli, og en halv trykkflate er verre enn en avkortet tekst. */
+.topp-hoyre > .klokke-lenke, .topp-hoyre > form { flex: none; }
 
-.bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: var(--luft-2); min-width: 0; }
+.bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: var(--luft-2); min-width: 0; flex: 0 1 auto; }
 /* Navnet er det eneste som skal kunne kortes ned. Rollemerket er kort og
    maa staa helt - et halvt «Butikkssj» sier mindre enn ingenting. */
-.bruker .brukernavn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* `min-width: 0` ER det som faktisk avkorter.
+   `text-overflow: ellipsis` alene gjoer ingenting her: et flex-barn
+   nekter aa bli smalere enn innholdet sitt uten den. Maalt ved 1440 px
+   ble hoeyresonen 528 px mot 450 tilgjengelige, og siden den er
+   `justify-self: end` rant overskuddet MOT VENSTRE - inn i
+   stasjonssonen. Ikke fordi noe var feilplassert, men fordi navnet
+   nektet aa gi etter. */
+.bruker .brukernavn {
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .vakt { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .vakt-navn { font-size: 0.85rem; font-weight: 600; color: var(--primaer); }
 /* To felter nå: nummeret utpeker, PIN-en beviser. Nummeret er smalest —
