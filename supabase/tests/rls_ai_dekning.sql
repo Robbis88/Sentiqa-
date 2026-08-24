@@ -98,10 +98,13 @@ insert into public.stempling (stasjon_id, ansatt_nr, ansatt_navn, dato, fra_tid,
   ('a0000000-0000-0000-0000-000000000002', '22', 'Ansatt B', current_date - 1, '08:00', '16:00', 480, true),
   ('b0000000-0000-0000-0000-000000000001', '33', 'Ansatt C', current_date - 1, '08:00', '16:00', 480, true);
 
+-- `type` og `kategori` er check-constraints, ikke fritekst. Verdiene
+-- staar i 0023_ikmat.sql; oppfinner man egne, feiler fila paa
+-- testdataene i stedet for paa det den skal maale.
 insert into public.ik_kontrollpunkter (retailer_id, stasjon_id, navn, type) values
-  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001','Kjoel A','temp'),
-  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000002','Kjoel B','temp'),
-  ('b2222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','Kjoel C','temp');
+  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001','Kjoel A','kjol'),
+  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000002','Kjoel B','kjol'),
+  ('b2222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','Kjoel C','kjol');
 
 insert into public.rutiner (retailer_id, stasjon_id, tittel) values
   ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001','Rutine A'),
@@ -109,9 +112,9 @@ insert into public.rutiner (retailer_id, stasjon_id, tittel) values
   ('b2222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','Rutine C');
 
 insert into public.avvik (retailer_id, stasjon_id, kategori, dato, beskrivelse) values
-  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001','ikmat', current_date - 1, 'Avvik A'),
-  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000002','ikmat', current_date - 1, 'Avvik B'),
-  ('b2222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','ikmat', current_date - 1, 'Avvik C');
+  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001','produkt', current_date - 1, 'Avvik A'),
+  ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000002','produkt', current_date - 1, 'Avvik B'),
+  ('b2222222-2222-2222-2222-222222222222','b0000000-0000-0000-0000-000000000001','produkt', current_date - 1, 'Avvik C');
 
 insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn, planlagt) values
   ('a1111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001', current_date - 1, 'Bolle', 10),
