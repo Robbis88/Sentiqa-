@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { spørAssistent } from './assistent/handlinger'
+import { slippStyringssignal } from '@/lib/styringssignal'
 import type { Melding } from '@/lib/ai/assistent'
 
 type Visning = Melding & { kilder?: string[] }
@@ -113,9 +114,17 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
       const svar = await spørAssistent(historikk, m)
       setVenter(false)
       strømUt(svar.svar, svar.kilder)
-    } catch {
+    } catch (e) {
+      // En utloept sesjon gir `redirect('/logg-inn')`, som kaster. Uten
+      // denne linja ble innlogging til «Noe gikk galt», og brukeren satt
+      // fast i en loekke der alt feilet og ingenting sa hvorfor.
+      slippStyringssignal(e)
       setVenter(false)
-      setMeldinger((f) => [...f, { rolle: 'assistent', tekst: 'Noe gikk galt. Prøv igjen.' }])
+      setMeldinger((f) => [...f, {
+        rolle: 'assistent',
+        tekst: 'Fikk ikke svar fra assistenten. Er du fortsatt logget inn? '
+          + 'Last siden på nytt — spørsmålet ditt er i orden.',
+      }])
     }
   }
 

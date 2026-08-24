@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { spørAssistent } from './assistent/handlinger'
+import { slippStyringssignal } from '@/lib/styringssignal'
 
 // =====================================================================
 // AI der spørsmålet oppstår, i stedet for én boble som må fortelles hvor
@@ -20,8 +21,9 @@ export function AiKontekst({ tekst, sporsmal }: { tekst: string; sporsmal: strin
     try {
       const res = await spørAssistent([], sporsmal)
       setSvar(res.svar)
-    } catch {
-      setSvar('Fikk ikke svar akkurat nå. Prøv igjen om litt.')
+    } catch (e) {
+      slippStyringssignal(e)
+      setSvar('Fikk ikke svar akkurat nå. Er du fortsatt logget inn?')
     } finally {
       setVenter(false)
     }
