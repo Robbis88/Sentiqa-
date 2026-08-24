@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Merke } from '@/components/ui/merke'
 import { Meny } from './ikoner'
 
@@ -17,6 +17,18 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
   const [overstyrt, setOverstyrt] = useState<Record<string, boolean>>({})
   const sti = usePathname()
 
+  // ESCAPE LUKKER MENYEN.
+  //
+  // Overlayet var eneste vei ut, og et bakteppe kan ikke naas med
+  // tastatur. Kommandopaletten har hatt Escape hele tiden; menyen ble
+  // glemt. Den som navigerer med tastatur kom seg inn og ikke ut.
+  useEffect(() => {
+    if (!apen) return
+    const ned = (e: KeyboardEvent) => { if (e.key === 'Escape') setApen(false) }
+    window.addEventListener('keydown', ned)
+    return () => window.removeEventListener('keydown', ned)
+  }, [apen])
+
   const inneholderAktiv = (s: Seksjon) =>
     s.punkter.some((p) => sti === p.sti || sti.startsWith(`${p.sti}/`))
   const erApen = (s: Seksjon) => overstyrt[s.tittel] ?? inneholderAktiv(s)
@@ -25,7 +37,7 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
     <>
       <button
         className="meny-hamburger"
-        aria-label="Åpne meny"
+        aria-label={apen ? 'Lukk meny' : 'Åpne meny'}
         aria-expanded={apen}
         onClick={() => setApen(true)}
       >
