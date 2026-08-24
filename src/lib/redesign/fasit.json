@@ -460,7 +460,7 @@
       "Eller skriv den inn",
       "Last opp et ark (PDF)",
       "Ny anvisning",
-      "o('Hjelp')",
+      "o('Anvisninger')",
       "o('Ingen anvisninger ennå')",
       "{kat} <span className=\"undertittel\">· {liste.length}</span>"
     ],
