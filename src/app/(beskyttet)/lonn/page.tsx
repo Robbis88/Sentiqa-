@@ -52,6 +52,9 @@ const LONNSARTNAVN: Record<string, string> = {
   '1435': 'Tillegg søndag 18–24',
 }
 
+import { Maanedsvelger } from '@/components/ui/periode'
+import { lesMaaned, maanedNokkel, delMaaned, maanederRundt } from '@/lib/periode'
+
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string }>
 
 const tall = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -90,8 +93,13 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   const forrige = naa.getUTCMonth() === 0
     ? { ar: naa.getUTCFullYear() - 1, maned: 12 }
     : { ar: naa.getUTCFullYear(), maned: naa.getUTCMonth() }
-  const ar = Number(sok.ar) || forrige.ar
-  const maned = Number(sok.maned) || forrige.maned
+  // Samme kontrakt som /bemanning, /svinn og /kasserer. Se src/lib/periode.ts.
+  const valgtMaaned = lesMaaned(sok, maanedNokkel(forrige.ar, forrige.maned))
+  const { ar, maned } = delMaaned(valgtMaaned)
+
+  // LOENN SER BAKOVER. Man loenner en maaned som er gaatt; én maaned
+  // fram er med fordi den inneveaerende foeres underveis.
+  const maaneder = maanederRundt(valgtMaaned, 24, 1)
 
   const fra = `${ar}-${String(maned).padStart(2, '0')}-01`
   const til = `${ar}-${String(maned).padStart(2, '0')}-${new Date(Date.UTC(ar, maned, 0)).getUTCDate()}`
@@ -227,13 +235,11 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
         tittel="Lønnsgrunnlag"
         undertittel={`${svar}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
         handlinger={
-          <form className="rutine-form">
-            <select name="maned" defaultValue={maned} aria-label="Måned">
-              {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-            </select>
-            <input name="ar" type="number" defaultValue={ar} className="sq-smalt-felt" aria-label="År" />
-            <button type="submit" className="sq-knapp primar">Vis</button>
-          </form>
+          <Maanedsvelger
+            maaneder={maaneder}
+            valgt={valgtMaaned}
+            skjulte={{ stasjon: sok.stasjon }}
+          />
         }
       />
 

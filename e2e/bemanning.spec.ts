@@ -100,9 +100,16 @@ test.describe('/bemanning', () => {
     // Rollen skiller dem, og skjerper samtidig kontrollen: den sier nå
     // at det finnes en månedsVELGER, ikke bare noe som heter «Måned».
     await expect(page.getByRole('combobox', { name: 'Måned' })).toBeAttached()
-    // Aarsfeltet er et tallfelt, ikke en nedtrekksliste - `spinbutton`.
-    await expect(page.getByRole('spinbutton', { name: 'År' })).toBeAttached()
-    await expect(page.getByRole('button', { name: 'Vis' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Vis måneden' })).toBeVisible()
+
+    // ÅRSFELTET ER BORTE, og det er meningen. Måneden og året lå i to
+    // felt fordi `?maned=` var et tall fra 1 til 12 - og det samme
+    // parameternavnet betydde en ISO-dato på /svinn og /kasserer. Ett
+    // felt, én betydning. Se src/lib/periode.ts.
+    await expect(page.getByRole('spinbutton', { name: 'År' })).toHaveCount(0)
+    // Verdien er ISO nå, ikke «9».
+    await expect(page.getByRole('combobox', { name: 'Måned' }))
+      .toHaveValue(/^\d{4}-\d{2}-01$/)
   })
 
   test('F - nettbrettet naar ikke bemanningen', async ({ page, context }) => {

@@ -519,7 +519,28 @@ values
   --
   -- 500 av 1500 bonger paa Underby = 33 %, midt i det produksjon viser.
   ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
-   date '2026-03-17', '999999', null, 150000, 500, 0, 0, 0, 0, 0, 0)
+   date '2026-03-17', '999999', null, 150000, 500, 0, 0, 0, 0, 0, 0),
+
+  -- EN MAANED FOER, saa «mot eget snitt» har noe aa maale mot.
+  --
+  -- Uten februar sto hver kasserer med «ingen historikk», og selve
+  -- kjernen i sida - at en kasserer maales mot SEG SELV og ikke mot
+  -- kollegaene - hadde null dekning i nettleseren. Da er det bare en
+  -- paastand i en kommentar.
+  --
+  -- Kari, februar:  600 avvik / 600 bonger * 100 =  100 kr per 100
+  -- Kari, mars:   2 500 avvik / 600 bonger * 100 =  417 kr per 100
+  -- mot eget snitt                                = +317
+  --
+  -- Og stasjonen samlet: 60 i februar mot 250 i mars. Pila peker opp,
+  -- og opp er daarlig her - samme skille mellom retning og dom som paa
+  -- /salg og /svinn.
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-02-17', '101', 'Kari Kasserer', 60000, 600, 0, 0, 1, 400, 1, 200),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-02-17', '102', 'Ola Kasserer',  30000, 300, 0, 0, 0, 0, 0, 0),
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-02-17', '103', 'Nina Kasserer', 10000, 100, 0, 0, 0, 0, 0, 0)
 on conflict (retailer_id, stasjon_id, dato, kasserer_nr) do nothing;
 
 
