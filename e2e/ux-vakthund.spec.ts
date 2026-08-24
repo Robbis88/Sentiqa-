@@ -174,12 +174,24 @@ test.describe('ux-vakthund', () => {
     }
   })
 
-  test('fanerad markerer aktiv fane naar den finnes', async ({ page }) => {
-    await page.goto('/rutiner')
+  test('fanerad markerer aktiv fane naar man staar paa en av dem', async ({ page }) => {
+    // `/rutiner/min` er lederens egen rute. `/rutiner` er nettbrettets,
+    // og en leder som skriver den inn direkte faar en fanerad der INGEN
+    // fane er aktiv - fanene er soesken uten treff. Det er et ekte funn,
+    // men et annet: her maales invarianten «staar du PAA en fane, skal
+    // noeyaktig én vaere merket».
+    await page.goto('/rutiner/min')
     const faner = page.locator('.sq-faner a')
-    const antall = await faner.count()
-    test.skip(antall === 0, 'Ingen fanerad paa denne ruta')
+    test.skip(await faner.count() === 0, 'Ingen fanerad for denne rollen')
+
+    const stier = await faner.evaluateAll((a) =>
+      a.map((e) => (e as HTMLAnchorElement).getAttribute('href')))
+    expect(stier, 'Ruta er ikke blant fanene - da maaler testen feil ting')
+      .toContain('/rutiner/min')
+
     await expect(page.locator('.sq-faner a[aria-current="page"]')).toHaveCount(1)
+    await expect(page.locator('.sq-faner a[aria-current="page"]'))
+      .toHaveAttribute('href', '/rutiner/min')
   })
 
   // --- Bakteppene har en tastaturvei ----------------------------------
