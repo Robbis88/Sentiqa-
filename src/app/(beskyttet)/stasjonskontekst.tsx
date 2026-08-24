@@ -22,9 +22,29 @@ import { stasjonsnavn, type Stasjon } from '@/lib/stasjonsvalg'
 // et vellykket bytte så ut som ingenting. Et valg som ikke kvitterer er
 // et valg brukeren prøver på nytt, og til slutt slutter å stole på.
 //
-// Derfor to ting: en tilstand mens det står på, og navnet på stasjonen
-// etterpå. Begge i et `aria-live`-område, så en skjermleser hører det
-// samme som øyet ser.
+// Derfor en tilstand mens det står på, i et `aria-live`-område, så en
+// skjermleser hører det samme som øyet ser.
+//
+// NAVNET STO OGSÅ DER PERMANENT, OG DET VAR EN FEIL — ikke fordi det var
+// stygt, men fordi det kunne si noe annet enn velgeren.
+//
+// `<select>` hadde `defaultValue`, altså ukontrollert: verdien settes
+// ÉN gang, ved montering. Ved myk navigering blir komponenten stående
+// montert, og React rører aldri en ukontrollert select. Gikk brukeren
+// via en lenke med `?stasjon=` — de finnes i /salg, /rutiner og
+// nettbrettets IK-mat — vant URL-en i `velgStasjon`, siden hentet den
+// nye stasjonens data, kvitteringen fulgte etter, og velgeren ble
+// stående på det gamle valget.
+//
+// Skjermen viste Lone. Systemet mente Dale. Og velgeren, den som ser ut
+// som fasiten, var den som løy.
+//
+// Hard omlasting remonterte og skjulte avviket — derfor var hver
+// eksisterende e2e-test grønn gjennom hele feilen. De bruker `goto`.
+//
+// Nå er velgeren KONTROLLERT mot `valgt`. Da kan DOM og server ikke
+// divergere, og kvitteringen kan bli det den var ment som: en
+// forbigående beskjed, ikke en andre stasjonsvisning.
 // =====================================================================
 
 /**
@@ -38,7 +58,15 @@ import { stasjonsnavn, type Stasjon } from '@/lib/stasjonsvalg'
 function Kvittering({ navn }: { navn: string }) {
   const { pending } = useFormStatus()
   return (
-    <span className="sq-stasjonssvar" aria-live="polite">
+    <span
+      // Synlig KUN mens byttet står på. Er velgeren og konteksten
+      // synkronisert, sier velgeren allerede alt — og en tekst som
+      // gjentar den er i beste fall støy, i verste fall en andre
+      // sannhet. Navnet blir liggende for skjermlesere, som ikke ser
+      // at nedtrekkslisten endret seg.
+      className={pending ? 'sq-stasjonssvar' : 'sq-skjult'}
+      aria-live="polite"
+    >
       {pending ? 'Bytter …' : navn}
     </span>
   )
@@ -79,9 +107,13 @@ export function Stasjonskontekst({
         {/* Etiketten er skjult visuelt, men ikke for skjermlesere: uten
             den er dette bare «kombinasjonsboks» i toppen av hver side. */}
         <span className="sq-skjult">Stasjon</span>
+        {/* KONTROLLERT, ikke `defaultValue`. Se toppen av fila: en
+            ukontrollert select kan bli staaende paa gammel verdi naar
+            konteksten endres uten omlasting, og da viser skjermen én
+            stasjon mens siden regner paa en annen. */}
         <select
           name="stasjon"
-          defaultValue={valgt ?? 'alle'}
+          value={nettoppValgt ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))}
           onChange={(e) => {
             settValgt(e.target.value)
             ref.current?.requestSubmit()
