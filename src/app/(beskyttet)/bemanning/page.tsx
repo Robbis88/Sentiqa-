@@ -582,7 +582,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
               etikett="År" name="ar" type="number" defaultValue={ar}
               skjultEtikett className="sq-smalt-felt"
             />
-            <Knapp type="submit" variant="primar">Vis</Knapp>
+            <Knapp type="submit">Vis</Knapp>
           </form>
         }
       />

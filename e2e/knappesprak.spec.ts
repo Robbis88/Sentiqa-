@@ -112,26 +112,33 @@ test.describe('knappespraak', () => {
     }
   })
 
-  test('«Vis dagen» er tydeligere enn feltet den staar ved siden av', async ({ page }) => {
+  test('«Vis dagen» ser ut som en handling, ikke som feltet ved siden av', async ({ page }) => {
     await page.goto('/produksjonsplan?dato=2026-02-02')
 
     const knapp = page.getByRole('button', { name: 'Vis dagen' })
     await expect(knapp).toBeVisible()
 
-    const k = await knapp.evaluate((e) => {
-      const s = getComputedStyle(e)
-      return { bakgrunn: s.backgroundColor, farge: s.color }
-    })
-    const felt = await page.locator('input[name="dato"]').evaluate((e) => ({
-      bakgrunn: getComputedStyle(e).backgroundColor,
-    }))
+    const k = await knapp.evaluate((e) => getComputedStyle(e).backgroundColor)
+    const felt = await page.locator('input[name="dato"]')
+      .evaluate((e) => getComputedStyle(e).backgroundColor)
 
     // «Dag [25.08.2026] [Vis dagen]» var to hvite bokser ved siden av
-    // hverandre. Feltet er verdien, knappen er handlingen - og det skal
-    // ses uten aa proeve seg fram.
-    expect(k.bakgrunn, 'Handlingen har samme flate som verdifeltet')
-      .not.toBe(felt.bakgrunn)
-    expect(k.bakgrunn).toBe(PRIMAER)
+    // hverandre. Feltet er verdien, knappen er handlingen.
+    //
+    // OG DEN SKAL IKKE VAERE PRIMAER. Sida har allerede sitt neste steg
+    // - «Publiser til nettbrettet». To likeverdige primaerknapper betyr
+    // at ingen av dem er neste steg, og det er nettopp det
+    // produksjonsplan.spec.ts vokter. Forskjellen ligger i FLATA.
+    expect(k, 'Handlingen har samme flate som verdifeltet').not.toBe(felt)
+    expect(k, 'Filterknappen konkurrerer med sidas neste steg').not.toBe(PRIMAER)
+  })
+
+  test('sidas neste steg er fortsatt den ene primaere', async ({ page }) => {
+    await page.goto('/produksjonsplan?dato=2026-02-02')
+    // Speiler produksjonsplan.spec.ts. Staar her ogsaa fordi det er
+    // DENNE fila som endrer knappespraaket, og en regel som bare
+    // vaktes et annet sted er lett aa brekke uten aa merke det.
+    await expect(page.locator('.sq-knapp.primar')).toHaveCount(1)
   })
 
   // KANARIFUGL: uten denne kunne noen sette elementstilen tilbake til

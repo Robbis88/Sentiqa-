@@ -43,7 +43,7 @@ export default async function VarslerSide() {
           : `${uleste} ${uleste === 1 ? 'ulest' : 'uleste'}.`}
         handlinger={uleste > 0 ? (
           <form action={markerAlle}>
-            <Knapp type="submit" variant="primar">Marker alle som lest</Knapp>
+            <Knapp type="submit">Marker alle som lest</Knapp>
           </form>
         ) : undefined}
       />

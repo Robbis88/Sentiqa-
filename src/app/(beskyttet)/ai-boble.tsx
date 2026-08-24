@@ -221,7 +221,11 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
 
       <button
         type="button"
-        className={`ai-fab ${apen ? 'apen' : ''}`}
+        // `primar` fordi den ER hovedhandlingen paa flata, ikke fordi
+        // den fullfoerer et skjema. Merket er der for at regelen skal
+        // kunne leses av en maaling: primaerfarge uten merke betyr at
+        // noen glemte noe.
+        className={`ai-fab primar ${apen ? 'apen' : ''}`}
         aria-label={apen ? 'Lukk AI-assistent' : 'Åpne AI-assistent'}
         aria-expanded={apen}
         onClick={() => setApen((v) => !v)}

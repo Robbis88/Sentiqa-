@@ -357,8 +357,14 @@ h3 { letter-spacing: -0.01em; }
    Hoeyden er felles: 36 px paa skrivebord, 44 paa nettbrett. En knapp
    under det er vanskelig aa treffe, og en halv trykkflate er verre enn
    en avkortet tekst. */
+/* SEKUNDAERFLATA ER TONET, IKKE HVIT.
+   Feltene er hvite med `--kant-sterk`. Var knappene det ogsaa, sto
+   «Dag [25.08.2026] [Vis dagen]» som to like bokser, og ingenting sa
+   hvilken av dem som gjorde noe. Forskjellen maa ligge i FLATA, ikke i
+   at den ene er primaer - sida har allerede sitt neste steg, og to
+   likeverdige primaerknapper betyr at ingen av dem er det. */
 button {
-  background: var(--kort);
+  background: var(--bg);
   color: var(--tekst);
   border: 1px solid var(--kant-sterk);
   border-radius: 8px;
@@ -369,7 +375,7 @@ button {
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.05s;
 }
-button:hover:not(:disabled) { border-color: var(--tekst-svak); background: var(--bg); }
+button:hover:not(:disabled) { border-color: var(--tekst-svak); background: var(--kant); }
 
 /* Primaer. Alltid et valg noen har tatt. */
 button.primar {
@@ -1641,7 +1647,7 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-knapp {
   font-size: 0.85rem; padding: 0.35rem 0.75rem; border-radius: 6px;
   min-height: 36px;
-  border: 1px solid var(--kant-sterk); background: #fff; color: var(--tekst);
+  border: 1px solid var(--kant-sterk); background: var(--bg); color: var(--tekst);
 }
 .sq-knapp.primar { background: var(--primaer); border-color: var(--primaer); color: #fff; }
 .sq-knapp:hover { border-color: var(--tekst-svak); }

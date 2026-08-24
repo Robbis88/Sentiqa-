@@ -267,7 +267,7 @@ export default async function ProduksjonsplanSide({
       <form method="get" className="sq-listetopp">
         {valgtNr && <input type="hidden" name="butikknummer" value={valgtNr} />}
         <Felt etikett="Dag" name="dato" type="date" defaultValue={dato} />
-        <Knapp type="submit" variant="primar">Vis dagen</Knapp>
+        <Knapp type="submit">Vis dagen</Knapp>
       </form>
 
       {/* NIVAA 3: hva systemet foreslaar, og hvorfor det ser slik ut.
