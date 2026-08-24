@@ -131,6 +131,38 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
   ].join('\n')
 }
 
+/**
+ * Oversetter en feil fra Anthropic til noe brukeren kan handle paa.
+ *
+ * Ikke «noe gikk galt». Enten sier vi hva som skjedde, eller saa sier vi
+ * at vi ikke vet - men vi later aldri som om spoersmaalet ble besvart.
+ */
+function forklarModellfeil(e: unknown): string {
+  const m = (e instanceof Error ? e.message : String(e)).toLowerCase()
+  const status = typeof (e as { status?: number })?.status === 'number'
+    ? (e as { status: number }).status
+    : undefined
+
+  if (status === 429 || m.includes('rate_limit')) {
+    return 'AI-en er overbelastet akkurat naa. Prøv igjen om et minutt — '
+      + 'spørsmålet ditt er i orden.'
+  }
+  if (status === 413 || m.includes('too long') || m.includes('too large')
+      || m.includes('max_tokens') || m.includes('context')) {
+    return 'Spørsmålet traff for mye data til å behandles i én omgang. '
+      + 'Prøv å avgrense — én stasjon, eller en kortere periode.'
+  }
+  if (status === 401 || status === 403) {
+    return 'AI-en mangler gyldig API-nøkkel. Dette er en driftsfeil, ikke '
+      + 'noe du har gjort feil — si fra til Robert.'
+  }
+  if (status != null && status >= 500) {
+    return 'AI-tjenesten svarer ikke akkurat naa. Prøv igjen om litt.'
+  }
+  return 'Jeg fikk ikke kontakt med AI-tjenesten, og vet derfor ikke svaret '
+    + 'paa spørsmålet ditt. Det betyr IKKE at dataene mangler. Prøv igjen.'
+}
+
 export async function kjorAssistent(
   bruker: InnloggetBruker,
   historikk: Melding[],
@@ -160,13 +192,32 @@ export async function kjorAssistent(
   let svar = ''
 
   for (let i = 0; i < MAKS_ITERASJONER; i++) {
-    const resp = await anthropic.messages.create({
-      model: CHATBOT_MODELL,
-      max_tokens: 2048,
-      system: systemprompt(bruker, idag),
-      tools: tilgjengeligeVerktoy,
-      messages,
-    })
+    // KALLET MOT MODELLEN VAR IKKE PAKKET INN. Feilet det - for stor
+    // forespoersel, rate limit, nettverk - kastet serverhandlingen, og
+    // AI-boblen fanget det som «Noe gikk galt. Prøv igjen.» Brukeren
+    // fikk altsaa nøyaktig den stillheten resten av dette laget er
+    // bygget for aa fjerne: en feil uten aarsak, umulig aa handle paa.
+    //
+    // `skriv-svar.ts` sier at en pen kvittering er BEDRE enn aa kaste,
+    // naar handlingen kan svare med tekst. Det kan denne.
+    let resp: Anthropic.Message
+    try {
+      resp = await anthropic.messages.create({
+        model: CHATBOT_MODELL,
+        max_tokens: 2048,
+        system: systemprompt(bruker, idag),
+        tools: tilgjengeligeVerktoy,
+        messages,
+      })
+    } catch (e) {
+      // Logges saa den finnes i Vercel-loggen naar noen leter.
+      console.error('[assistent] kall mot Anthropic feilet', {
+        iterasjon: i,
+        rolle: bruker.rolle,
+        feil: e instanceof Error ? e.message : String(e),
+      })
+      return { svar: forklarModellfeil(e), kilder: [...kilder] }
+    }
 
     if (resp.stop_reason !== 'tool_use') {
       svar = resp.content

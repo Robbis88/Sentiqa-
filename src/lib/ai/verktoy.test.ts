@@ -696,3 +696,101 @@ describe('prompten forbyr aa skyve rutingen over paa brukeren', () => {
     expect(kilde).toContain('INGEN relativ plassering')
   })
 })
+
+// =====================================================================
+// Avkorting — funnet i smoke-testen 2026-08-24
+// =====================================================================
+//
+// «Noe gikk galt. Prøv igjen.» i AI-boblen. Serverhandlingen kastet
+// fordi kallet mot modellen feilet, og boblens catch gjorde feilen om
+// til en generisk setning uten aarsak.
+//
+// Den sannsynlige utloeseren: ingen verktoey hadde tak paa hvor mange
+// rader de sendte inn i samtalen. hent_salg har hittil-i-aar som
+// standard, og gruppert paa varegruppe blir det fort tusenvis.
+describe('avkorting', () => {
+  const mangeRader = Array.from({ length: 900 }, (_, i) => ({
+    stasjon_id: 'id-0142',
+    dato: '2026-07-01',
+    varegruppe_kode: `vg-${i}`,
+    varegruppe_navn: `Varegruppe ${i}`,
+    omsetning_eks_mva: 1000 - i,
+    antall: 1,
+    bto_fortjeneste_kr: 10,
+  }))
+
+  it('sender ikke inn ubegrenset antall rader', async () => {
+    const { ut } = await kjor(
+      'hent_salg',
+      { maaned: '2026-07', grupper: 'varegruppe' },
+      { ...BARE_DALE, v_butikksalg: { data: mangeRader } },
+    )
+    expect(ut.data.length).toBeLessThanOrEqual(200)
+  })
+
+  it('sier fra at listen er avkortet, i stedet for aa se komplett ut', async () => {
+    const { ut } = await kjor(
+      'hent_salg',
+      { maaned: '2026-07', grupper: 'varegruppe' },
+      { ...BARE_DALE, v_butikksalg: { data: mangeRader } },
+    )
+    expect(ut.komplett).toBe(false)
+    expect(ut.merknad.join(' ')).toContain('avkortet')
+    expect(ut.merknad.join(' ')).toContain('900')
+  })
+
+  it('beholder de VIKTIGSTE radene — halen er det som ryker', async () => {
+    const { ut } = await kjor(
+      'hent_salg',
+      { maaned: '2026-07', grupper: 'varegruppe' },
+      { ...BARE_DALE, v_butikksalg: { data: mangeRader } },
+    )
+    const forste = ut.data[0] as Record<string, unknown>
+    expect(forste.omsetning_eks_mva_kr).toBe(1000)
+  })
+
+  it('roerer ikke et svar som faar plass', async () => {
+    const { ut } = await kjor(
+      'hent_salg',
+      { maaned: '2026-07' },
+      {
+        ...BARE_DALE,
+        v_butikksalg: { data: [{ stasjon_id: 'id-0142', dato: '2026-07-01', omsetning_eks_mva: 100, antall: 1, bto_fortjeneste_kr: 10 }] },
+      },
+    )
+    expect(ut.komplett).toBe(true)
+    expect(ut.merknad.join(' ')).not.toContain('avkortet')
+  })
+
+  // KANARIFUGL: settes taket til noe absurd hoeyt, eller slaas
+  // avkortingen av, faller denne - i stedet for at alt ser groent ut
+  // mens forespoerselen vokser til den sprenger konteksten igjen.
+  it('kanarifugl: taket er faktisk i kraft', async () => {
+    const { ut } = await kjor(
+      'hent_salg',
+      { maaned: '2026-07', grupper: 'varegruppe' },
+      { ...BARE_DALE, v_butikksalg: { data: mangeRader } },
+    )
+    expect(ut.data.length).toBe(200)
+    expect(JSON.stringify(ut).length).toBeLessThan(60_000)
+  })
+})
+
+describe('en feil fra modellen forklares, ikke skjules', () => {
+  const kilde = readFileSync(new URL('./assistent.ts', import.meta.url), 'utf8')
+
+  it('kallet mot Anthropic er pakket inn', () => {
+    expect(kilde).toContain('forklarModellfeil')
+    expect(kilde).toContain('console.error')
+  })
+
+  it('navngir feilklassene i stedet for aa si «noe gikk galt»', () => {
+    for (const t of ['rate_limit', 'overbelastet', 'for mye data', 'API-nøkkel']) {
+      expect(kilde, `mangler ${t}`).toContain(t)
+    }
+  })
+
+  it('sier eksplisitt at en modellfeil ikke betyr at dataene mangler', () => {
+    expect(kilde).toContain('betyr IKKE at dataene mangler')
+  })
+})

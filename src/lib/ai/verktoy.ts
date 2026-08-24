@@ -165,10 +165,25 @@ async function kjorStasjonsverktoy<R>(
     .filter((s) => !medRad.has(s.id))
     .map((s) => `${s.butikknummer} ${s.navn}`)
 
+  const alle = o.form(res.rader, kart, periode)
+  const avkortet = alle.length > MAKS_RADER
+  const data = avkortet ? alle.slice(0, MAKS_RADER) : alle
+
   return byggSvar({
     domene: o.domene,
     kilder: o.kilder,
-    data: o.form(res.rader, kart, periode),
+    data,
+    avkortet,
+    merknad: [
+      ...(o.merknad ?? []),
+      ...(avkortet
+        ? [
+            `Viser de ${MAKS_RADER} viktigste av ${alle.length} rader. `
+            + 'Si fra til brukeren at listen er avkortet, og foreslå en '
+            + 'kortere periode eller færre stasjoner for hele bildet.',
+          ]
+        : []),
+    ],
     scope: {
       forespurt: valgte.map((s) => s.butikknummer),
       besvart: valgte.filter((s) => medRad.has(s.id)).map((s) => s.butikknummer),
@@ -178,7 +193,6 @@ async function kjorStasjonsverktoy<R>(
     periode: periode ?? undefined,
     maltNull: res.rader.length > 0 && (o.erMaltNull?.(res.rader) ?? false),
     neste: o.neste ?? [],
-    merknad: o.merknad ?? [],
   })
 }
 
@@ -205,6 +219,19 @@ function stasjonsverktoy<R>(
     kjor: (input, ktx) => kjorStasjonsverktoy(o, input, ktx),
   }
 }
+
+// TAK PAA HVA SOM SENDES INN I MODELLEN.
+//
+// `hent_salg` har hittil-i-aar som standardperiode, og gruppert paa
+// varegruppe kan det bli tusenvis av rader per stasjon. De gaar rett inn
+// i samtalen som JSON, og over nok iterasjoner sprenger det konteksten -
+// da feiler kallet mot modellen, og brukeren faar «noe gikk galt» paa et
+// spoersmaal som var helt rimelig.
+//
+// Radene er allerede sortert etter det som betyr noe (omsetning ned,
+// avvik mot BP opp), saa avkortingen tar halen. Og den SIER fra:
+// `avkortet` gjoer `komplett` usann, saa modellen vet at den ikke saa alt.
+const MAKS_RADER = 200
 
 const sum = (rader: { [k: string]: unknown }[], felt: string) =>
   rader.reduce((a, r) => a + (Number(r[felt]) || 0), 0)
