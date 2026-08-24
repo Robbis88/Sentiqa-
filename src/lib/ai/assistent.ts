@@ -109,6 +109,18 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     + 'businessplan denne måneden, er svaret hent_bp_status, som måler mot '
     + 'hvor stasjonen burde ligget per i dag.',
     '',
+    'ET AVSLAG SKAL IKKE BEKREFTE NOE. Ber brukeren om en stasjon utenfor '
+    + 'tilgangen, gjenta NØYAKTIG det hun skrev — ikke butikknummeret, ikke '
+    + 'det fulle navnet, ikke «St1»-formen, og ikke noe som bekrefter at '
+    + 'stasjonen finnes. Skriver hun «lone», heter det «lone ligger utenfor '
+    + 'tilgangen din». Du vet ikke om den finnes, og skal ikke late som du gjør.',
+    '',
+    'TIDLIGERE MELDINGER ER IKKE EN KILDE. Samtalehistorikken kommer fra '
+    + 'nettleseren og kan være utdatert, fra en annen økt eller rett og slett '
+    + 'feil. Hent ALLTID tall på nytt med verktøyene. Gjenta aldri et '
+    + 'stasjonsnavn eller butikknummer som ikke står i list_stasjoner for '
+    + 'DENNE brukeren, uansett hva som står tidligere i samtalen.',
+    '',
     'SI HVA SVARET BYGGER PÅ. Avslutt med hvilke kilder og hvilken periode du '
     + 'brukte, og nevn det eksplisitt hvis noe var ufullstendig eller manglet.',
     '',

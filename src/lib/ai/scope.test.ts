@@ -131,3 +131,19 @@ describe('etikett', () => {
     expect(etikettKart([DALE]).get('id-0143')).toBeUndefined()
   })
 })
+
+describe('utvalget bekrefter ikke stasjoner utenfor scopet', () => {
+  // Det som kommer tilbake er brukerens egen streng, ordrett. Ikke et
+  // oppslag, ikke et butikknummer, ikke en bekreftelse paa at den finnes.
+  it('speiler inndata uendret', () => {
+    expect(velgStasjoner(butikksjef, ['lone']).utenfor).toEqual(['lone'])
+    expect(velgStasjoner(butikksjef, ['LONE']).utenfor).toEqual(['LONE'])
+    expect(velgStasjoner(butikksjef, ['  lone  ']).utenfor).toEqual(['lone'])
+  })
+
+  it('oppgir ikke butikknummeret til en stasjon utenfor scopet', () => {
+    const u = velgStasjoner(butikksjef, ['Lone'])
+    expect(JSON.stringify(u)).not.toContain('0143')
+    expect(JSON.stringify(u)).not.toContain('id-0143')
+  })
+})

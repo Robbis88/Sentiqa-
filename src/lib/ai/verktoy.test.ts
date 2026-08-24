@@ -794,3 +794,73 @@ describe('en feil fra modellen forklares, ikke skjules', () => {
     expect(kilde).toContain('betyr IKKE at dataene mangler')
   })
 })
+
+// =====================================================================
+// Avslag som bekrefter — funnet i smoke-testen 2026-08-24
+// =====================================================================
+//
+// Butikksjefen skrev «hvordan ligger lone an mot businessplan?». Svaret:
+//
+//   «Beklager — stasjon 4177 (St1 Lone) ligger utenfor tilgangen din»
+//
+// Kontrakten holdt der det teller: ingen tall, ingen rangering, ingen
+// relativ plassering. Men butikknummeret og det fulle navnet sto ingen
+// steder i verktoeyssvaret - `utenfor_tilgang` inneholder bare strengen
+// brukeren selv skrev. De kom fra eierens samtale, som laa igjen i
+// sessionStorage under en noekkel som gjaldt hele domenet.
+//
+// Ingen tall lekket, og RLS holdt hele veien. Men et avslag som
+// navngir stasjonen bekrefter noe det ikke skal.
+describe('utenfor_scope speiler brukerens egne ord, ikke stasjonen', () => {
+  it('returnerer bare det brukeren skrev', async () => {
+    const { ut } = await kjor(
+      'hent_bp_status',
+      { stasjoner: ['lone'], maaned: '2026-07' },
+      { ...BARE_DALE, v_bp_status_avdeling: { data: [] } },
+    )
+    expect(ut.scope.utenfor_tilgang).toEqual(['lone'])
+  })
+
+  it('legger ikke ved butikknummer, navn eller «St1»-form', async () => {
+    const { ut } = await kjor(
+      'hent_bp_status',
+      { stasjoner: ['lone'], maaned: '2026-07' },
+      { ...BARE_DALE, v_bp_status_avdeling: { data: [] } },
+    )
+    const tekst = JSON.stringify(ut)
+    expect(tekst).not.toContain('4177')
+    expect(tekst).not.toContain('St1')
+    // Kun den lille bokstaven brukeren skrev — aldri katalogformen.
+    expect(tekst).not.toContain('Lone')
+  })
+
+  // KANARIFUGL: skulle noen la scopet slaa opp stasjonen for aa «hjelpe»
+  // modellen med et pent navn, faller denne. Et oppslag som lykkes er
+  // nettopp bekreftelsen vi ikke skal gi.
+  it('kanarifugl: stasjonen slaas ikke opp i det hele tatt', async () => {
+    const { kall } = await kjor(
+      'hent_bp_status',
+      { stasjoner: ['lone'], maaned: '2026-07' },
+      { ...BARE_DALE, v_bp_status_avdeling: { data: [{ stasjon_id: 'x' }] } },
+    )
+    expect(kall.map((k) => k.tabell)).toEqual(['stasjoner'])
+  })
+})
+
+describe('prompten vokter avslaget og historikken', () => {
+  const kilde = readFileSync(new URL('./assistent.ts', import.meta.url), 'utf8')
+
+  it('sier at et avslag ikke skal bekrefte at stasjonen finnes', () => {
+    expect(kilde).toContain('ET AVSLAG SKAL IKKE BEKREFTE NOE')
+    expect(kilde).toContain('ikke butikknummeret')
+  })
+
+  it('sier at samtalehistorikken ikke er en kilde', () => {
+    expect(kilde).toContain('TIDLIGERE MELDINGER ER IKKE EN KILDE')
+    expect(kilde).toContain('kommer fra ')
+  })
+
+  it('forbyr aa gjenta stasjoner utenfor list_stasjoner for denne brukeren', () => {
+    expect(kilde).toContain('som ikke står i list_stasjoner')
+  })
+})

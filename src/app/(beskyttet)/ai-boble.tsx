@@ -10,9 +10,22 @@ const FORSLAG = [
   'Hvordan ligger vi an mot budsjett?',
   'Hvilken stasjon har mest svinn?',
 ]
-const LAGER = 'sentiqa-ai-samtale'
+// SAMTALEN LAGRES PER BRUKER, IKKE PER DOMENE.
+//
+// Noekkelen var 'sentiqa-ai-samtale' for hele opprinnelsen. Logget man ut
+// og inn som en annen i samme fane, laa forrige samtale igjen - og de
+// siste ti meldingene sendes med hvert kall. En butikksjef fikk dermed
+// eierens tidligere svar inn som modellens egen kontekst.
+//
+// Fant det i smoke-testen 2026-08-24: hun spurte «hvordan ligger lone
+// an?», og avslaget kom tilbake som «4177 (St1 Lone) ligger utenfor
+// tilgangen din». Nummeret og navnet sto ingen steder i verktoeyssvaret -
+// de kom fra eierens samtale i samme fane. Ingen tall lekket, RLS holdt,
+// men avslaget bekreftet en stasjon hun ikke skal vite noe om.
+const LAGER_PREFIKS = 'sentiqa-ai-samtale'
 
-export function AiBoble({ navn }: { navn?: string }) {
+export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string }) {
+  const LAGER = `${LAGER_PREFIKS}:${brukerId}`
   const [apen, setApen] = useState(false)
   const [meldinger, setMeldinger] = useState<Visning[]>([])
   const [tekst, setTekst] = useState('')
@@ -25,7 +38,12 @@ export function AiBoble({ navn }: { navn?: string }) {
   // Hent lagret samtale (deferd, så vi ikke setter state synkront i effekt / bryter hydrering)
   useEffect(() => {
     let raw: string | null = null
-    try { raw = sessionStorage.getItem(LAGER) } catch { /* */ }
+    try {
+      // Rydd bort samtaler lagret under den gamle, brukeruavhengige
+      // noekkelen. Uten dette ligger de igjen til fanen lukkes.
+      sessionStorage.removeItem(LAGER_PREFIKS)
+      raw = sessionStorage.getItem(LAGER)
+    } catch { /* */ }
     if (!raw) return
     try {
       const data = JSON.parse(raw) as Visning[]
@@ -34,13 +52,13 @@ export function AiBoble({ navn }: { navn?: string }) {
         return () => clearTimeout(t)
       }
     } catch { /* */ }
-  }, [])
+  }, [LAGER])
 
   // Lagre samtalen (ikke midt i strømming)
   useEffect(() => {
     if (strommer) return
     try { sessionStorage.setItem(LAGER, JSON.stringify(meldinger)) } catch { /* */ }
-  }, [meldinger, strommer])
+  }, [meldinger, strommer, LAGER])
 
   useEffect(() => {
     if (apen) bunn.current?.scrollIntoView({ behavior: 'smooth' })
