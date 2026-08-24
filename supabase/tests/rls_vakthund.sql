@@ -22,35 +22,23 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- SVARET SKAL VAERE EN TABELL, IKKE ET TALL.
+-- ÉN SETNING. IKKE DEL DEN OPP.
 --
--- Fila brukte `raise warning` for hvert funn og `raise exception` med
--- antallet til slutt. SQL Editor viser ikke notices - saa den som
--- kjorte fikk «RLS-vakthund: 2 funn» og ingen mulighet til aa se HVILKE.
--- Og kastet den, forsvant transaksjonen og med den enhver sjanse til aa
--- lese noe som helst.
+-- CI kjorer denne fila med `supabase db query --local --file`, som
+-- sender innholdet som ÉN prepared statement. To setninger gir
+-- «cannot insert multiple commands into a prepared statement» og en
+-- roed jobb som ikke handler om RLS i det hele tatt.
 --
--- Noeyaktig samme feil som `rls_isolasjon.sql` hadde, rettet i #56.
--- Funnene samles naa i en temp-tabell, og siste setning i fila er et
--- `select` som lister dem. Feil foerst.
+-- Jeg proevde aa gjore den om til temp-tabell + avsluttende `select`,
+-- slik `rls_isolasjon.sql` ble i #56. Den fila er MANUELL og staar ikke
+-- i CI - derfor gikk det bra der. Denne staar i CI, og forsoket kostet
+-- to ting: en roed jobb, og naerved en vakt som alltid ville vaert
+-- groenn, fordi `raise exception` var det ENESTE som fikk CI til aa
+-- feile paa funn.
 --
--- Grantet trengs fordi tabellen opprettes som rollen fila startes med,
--- mens innsettingen skjer inne i DO-blokka.
+-- Trenger du funnene lesbare: de ligger i feilmeldingen, ikke i
+-- warnings. SQL Editor viser meldingen.
 -- ---------------------------------------------------------------------
-drop table if exists vakthund_funn;
-create temp table vakthund_funn (nr int, funn text);
-grant all on vakthund_funn to public;
-
-create or replace function pg_temp.funn(p_tekst text) returns void
-language plpgsql as $f$
-begin
-  insert into vakthund_funn (nr, funn)
-    select coalesce(max(nr), 0) + 1, p_tekst from vakthund_funn;
-  -- Beholdes: i psql og CI er en warning fortsatt det raskeste signalet.
-  -- (Denne ene skal IKKE gaa via pg_temp.funn - det ville vaert rekursjon.)
-  raise warning '%', p_tekst;
-end $f$;
-
 do $$
 declare
   -- Tabeller som vokser med drift. Nye transaksjonstabeller SKAL inn her.
@@ -181,6 +169,8 @@ declare
   ];
   r record;
   feil int := 0;
+  -- Funnene samles her og legges i selve feilmeldingen til slutt.
+  funnliste text[] := array[]::text[];
 begin
 
   -- --- 1) Upakkede hjelpefunksjonskall paa varme tabeller ---
@@ -200,8 +190,9 @@ begin
       )
     order by tablename, policyname
   loop
-    perform pg_temp.funn(format('PER-RAD-KALL  %s.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
-      r.tablename, r.policyname, r.cmd));
+    funnliste := funnliste || format('PER-RAD-KALL  %s.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.tablename, r.policyname, r.cmd);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -212,8 +203,9 @@ begin
     where schemaname = 'public' and tablename = any(varme) and cmd = 'ALL'
     order by tablename, policyname
   loop
-    perform pg_temp.funn(format('FOR ALL  %s.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
-      r.tablename, r.policyname));
+    funnliste := funnliste || format('FOR ALL  %s.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.tablename, r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -225,8 +217,9 @@ begin
       and grantee = 'authenticated'
       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
   loop
-    perform pg_temp.funn(format('PROFILER SKRIVBAR  authenticated har %s - rolle/tenant kan PATCHes via PostgREST',
-      r.privilege_type));
+    funnliste := funnliste || format('PROFILER SKRIVBAR  authenticated har %s - rolle/tenant kan PATCHes via PostgREST',
+      r.privilege_type);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -236,7 +229,8 @@ begin
     where table_schema = 'public' and table_name = 'profiler'
       and grantee = 'authenticated' and privilege_type = 'SELECT')
   then
-    perform pg_temp.funn(format('PROFILER ULESELIG  authenticated mangler SELECT - innlogging vil brekke'));
+    funnliste := funnliste || format('PROFILER ULESELIG  authenticated mangler SELECT - innlogging vil brekke');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end if;
 
@@ -258,8 +252,9 @@ begin
       and tablename <> all(kalde)
     order by tablename
   loop
-    perform pg_temp.funn(format('UTEN TILSYN  %s  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
-      r.tablename));
+    funnliste := funnliste || format('UTEN TILSYN  %s  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
+      r.tablename);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -273,8 +268,9 @@ begin
       where p.schemaname = 'public' and p.tablename = t)
     order by t
   loop
-    perform pg_temp.funn(format('STAAR I LISTA, FINNES IKKE  %s  - ingen policy i public; fjern den fra rls_vakthund.sql',
-      r.tablename));
+    funnliste := funnliste || format('STAAR I LISTA, FINNES IKKE  %s  - ingen policy i public; fjern den fra rls_vakthund.sql',
+      r.tablename);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -306,9 +302,10 @@ begin
            or has_table_privilege('authenticated', c.oid, 'SELECT'))
     order by c.relname
   loop
-    perform pg_temp.funn(format('PARTISJON AAPEN  %s (av %s) - %s kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
+    funnliste := funnliste || format('PARTISJON AAPEN  %s (av %s) - %s kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
       r.relname, r.forelder,
-      case when r.anon_leser then 'anon' else 'authenticated' end));
+      case when r.anon_leser then 'anon' else 'authenticated' end);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -344,7 +341,8 @@ begin
       where table_schema = 'public' and table_name = 'ansatte'
         and column_name = 'pin_hash')
     then
-      perform pg_temp.funn(format('KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?'));
+      funnliste := funnliste || format('KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
@@ -355,13 +353,15 @@ begin
       and grantee = 'authenticated' and privilege_type = 'SELECT';
 
     if faktisk @> array['pin_hash'] then
-      perform pg_temp.funn(format('HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline'));
+      funnliste := funnliste || format('HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
     if not (faktisk <@ forventet and forventet <@ faktisk) then
-      perform pg_temp.funn(format('KOLONNERETTER ENDRET  ansatte/authenticated SELECT er %s - forventet %s; ta stilling til hver nye kolonne',
-        faktisk, forventet));
+      funnliste := funnliste || format('KOLONNERETTER ENDRET  ansatte/authenticated SELECT er %s - forventet %s; ta stilling til hver nye kolonne',
+        faktisk, forventet);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
@@ -374,7 +374,8 @@ begin
         and grantee = 'authenticated' and column_name = 'pin_hash'
         and privilege_type = 'UPDATE')
     then
-      perform pg_temp.funn(format('HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet'));
+      funnliste := funnliste || format('HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
   end;
@@ -393,7 +394,8 @@ begin
       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.proname = 'verifiser_ansatt_pin')
     then
-      perform pg_temp.funn(format('FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?'));
+      funnliste := funnliste || format('FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
@@ -405,7 +407,8 @@ begin
       and grantee <> 'postgres';
 
     if kallere <> array['authenticated'] then
-      perform pg_temp.funn(format('FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av %s - forventet kun authenticated', kallere));
+      funnliste := funnliste || format('FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av %s - forventet kun authenticated', kallere);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
   end;
@@ -429,7 +432,8 @@ begin
   -- under tomme loekker - og en tom loekke er groenn. Da maaler
   -- vakthunden ingenting og ser ut som om alt er i orden.
   if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects') then
-    perform pg_temp.funn(format('LAGRINGSVAKT BLIND  ingen policyer paa storage.objects - enten er ingen migrasjon kjort, eller saa er vernet borte'));
+    funnliste := funnliste || format('LAGRINGSVAKT BLIND  ingen policyer paa storage.objects - enten er ingen migrasjon kjort, eller saa er vernet borte');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end if;
 
@@ -447,8 +451,9 @@ begin
       )
     order by policyname
   loop
-    perform pg_temp.funn(format('PER-RAD-KALL  storage.objects.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
-      r.policyname, r.cmd));
+    funnliste := funnliste || format('PER-RAD-KALL  storage.objects.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.policyname, r.cmd);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -462,8 +467,9 @@ begin
       and policyname <> all(lagring_for_all_ok)
     order by policyname
   loop
-    perform pg_temp.funn(format('FOR ALL  storage.objects.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
-      r.policyname));
+    funnliste := funnliste || format('FOR ALL  storage.objects.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -480,8 +486,9 @@ begin
         and p.policyname = t and p.cmd = 'ALL')
     order by t
   loop
-    perform pg_temp.funn(format('UNNTAK UTEN GRUNN  storage.objects.%s  - staar i lagring_for_all_ok, men er ikke lenger `for all`; fjern den derfra',
-      r.policyname));
+    funnliste := funnliste || format('UNNTAK UTEN GRUNN  storage.objects.%s  - staar i lagring_for_all_ok, men er ikke lenger `for all`; fjern den derfra',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -494,8 +501,9 @@ begin
       and policyname <> all(lagring)
     order by policyname
   loop
-    perform pg_temp.funn(format('UTEN TILSYN  storage.objects.%s  - policy uten oppfoering i `lagring` i rls_vakthund.sql',
-      r.policyname));
+    funnliste := funnliste || format('UTEN TILSYN  storage.objects.%s  - policy uten oppfoering i `lagring` i rls_vakthund.sql',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -508,26 +516,25 @@ begin
       where p.schemaname = 'storage' and p.tablename = 'objects' and p.policyname = t)
     order by t
   loop
-    perform pg_temp.funn(format('STAAR I LISTA, FINNES IKKE  storage.objects.%s  - fjern den fra `lagring`, eller kjor migrasjonen som lager den',
-      r.policyname));
+    funnliste := funnliste || format('STAAR I LISTA, FINNES IKKE  storage.objects.%s  - fjern den fra `lagring`, eller kjor migrasjonen som lager den',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
-  -- Nr 0 sorterer foerst, saa «ok» staar oeverst naar det ikke er noe aa melde.
-  if feil = 0 then
-    insert into vakthund_funn (nr, funn)
-      values (0, format('%s varme, %s kalde, %s lagringspolicyer - alle tabeller med policy er dekket',
-        array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1)));
+  -- FUNNENE HOERER HJEMME I FEILMELDINGEN.
+  --
+  -- Foer sto det bare «RLS-vakthund: 2 funn. Se advarslene over» - og
+  -- SQL Editor viser ikke warnings, saa det fantes ingen advarsler aa se.
+  -- Man fikk vite AT noe var galt, og ingenting mer.
+  --
+  -- Meldingen vises alltid. Derfor staar hele lista i den.
+  if feil > 0 then
+    raise exception '%',
+      format('RLS-vakthund: %s funn%s%s', feil, chr(10) || chr(10),
+             array_to_string(funnliste, chr(10)));
   end if;
-end $$;
 
--- SVARET. Siste setning som gir rader, saa SQL Editor viser den.
---
--- Feil foerst: staar det «FUNN» oeverst, er det de radene som betyr noe.
--- Er alt «ok», SER man det - i stedet for aa slutte seg til det av at
--- ingenting skjedde.
-select
-  case when nr = 0 then 'ok' else 'FUNN' end as status,
-  funn                                       as beskrivelse
-from vakthund_funn
-order by nr;
+  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, alle tabeller med policy er dekket ---',
+    array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1);
+end $$;
