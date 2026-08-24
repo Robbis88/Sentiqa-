@@ -21,6 +21,24 @@
 -- ingen testdata, ingen opprydding, trygt i produksjon.
 -- =====================================================================
 
+-- ---------------------------------------------------------------------
+-- ÉN SETNING. IKKE DEL DEN OPP.
+--
+-- CI kjorer denne fila med `supabase db query --local --file`, som
+-- sender innholdet som ÉN prepared statement. To setninger gir
+-- «cannot insert multiple commands into a prepared statement» og en
+-- roed jobb som ikke handler om RLS i det hele tatt.
+--
+-- Jeg proevde aa gjore den om til temp-tabell + avsluttende `select`,
+-- slik `rls_isolasjon.sql` ble i #56. Den fila er MANUELL og staar ikke
+-- i CI - derfor gikk det bra der. Denne staar i CI, og forsoket kostet
+-- to ting: en roed jobb, og naerved en vakt som alltid ville vaert
+-- groenn, fordi `raise exception` var det ENESTE som fikk CI til aa
+-- feile paa funn.
+--
+-- Trenger du funnene lesbare: de ligger i feilmeldingen, ikke i
+-- warnings. SQL Editor viser meldingen.
+-- ---------------------------------------------------------------------
 do $$
 declare
   -- Tabeller som vokser med drift. Nye transaksjonstabeller SKAL inn her.
@@ -103,8 +121,56 @@ declare
     -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:
     -- en tabell i lista uten policy gir falsk trygghet om dekning.
   ];
+
+  -- LAGRING. `storage.objects` er én tabell for alle bucketene, saa
+  -- varme/kalde-modellen passer ikke: her er det POLICYEN som er
+  -- enheten, ikke tabellen. Lista er fasit over hvem som skal ha en.
+  --
+  -- Tabellen vokser med drift - én rad per opplastet fil - saa de samme
+  -- tre reglene gjelder som paa daglig_salg.
+  lagring text[] := array[
+    -- `fakturaer_storage_eier` staar med vilje IKKE her: 0106 droppet
+    -- baade policyen og boetta. Lista skal speile basen, ikke historikken.
+    'anvisninger_storage_les',
+    'anvisninger_storage_skriv',
+    'kontrakt_signert_ins',
+    'kontrakt_signert_les',
+    'kontraktmal_storage_les',
+    'raa_filer_storage_admin',
+    'rutinebilder_storage'
+  ];
+
+  -- `for all` PAA LAGRING SOM ER BESTEMT, IKKE GLEMT.
+  --
+  -- 0080 splittet de fleste storage-policyene og skrev ned hvorfor tre
+  -- ble staaende. Uten denne lista ville vakthunden lyst roedt paa dem
+  -- hver eneste kjoering - og en vakt som alltid er roed laerer folk aa
+  -- ignorere roedt. Det er den samme grunnen `kalde` finnes.
+  --
+  -- Ingen av de tre har per-rad-kall: predikatene er pakket i (select ...)
+  -- eller gaar via mine_stasjoner(). Det som staar igjen er at USING
+  -- gjelder ogsaa SELECT - en klarhetskostnad, ikke et hull, siden hver
+  -- policy sjekker bucket_id.
+  --
+  --   rutinebilder_storage  0080 punkt A: om en nettbrettbruker skal
+  --                         kunne slette bildebevis for IK-mat er en
+  --                         DRIFTSBESLUTNING, ikke en teknisk feil.
+  --                         Tas naar noen bestemmer seg, ikke her.
+  --   raa_filer_storage_admin
+  --                         Kun retailer_admin, og eieren skal kunne
+  --                         bade lese, laste opp og rydde. Splitting
+  --                         ville gitt fire identiske policyer.
+  --
+  -- Legger du en ny bucket, skal den IKKE inn her uten en grunn skrevet
+  -- ned paa samme maate.
+  lagring_for_all_ok text[] := array[
+    'raa_filer_storage_admin',
+    'rutinebilder_storage'
+  ];
   r record;
   feil int := 0;
+  -- Funnene samles her og legges i selve feilmeldingen til slutt.
+  funnliste text[] := array[]::text[];
 begin
 
   -- --- 1) Upakkede hjelpefunksjonskall paa varme tabeller ---
@@ -124,8 +190,9 @@ begin
       )
     order by tablename, policyname
   loop
-    raise warning 'PER-RAD-KALL  %.% (%) - pakk i (select ...) eller bruk mine_stasjoner()',
-      r.tablename, r.policyname, r.cmd;
+    funnliste := funnliste || format('PER-RAD-KALL  %s.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.tablename, r.policyname, r.cmd);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -136,8 +203,9 @@ begin
     where schemaname = 'public' and tablename = any(varme) and cmd = 'ALL'
     order by tablename, policyname
   loop
-    raise warning 'FOR ALL  %.% - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
-      r.tablename, r.policyname;
+    funnliste := funnliste || format('FOR ALL  %s.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.tablename, r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -149,8 +217,9 @@ begin
       and grantee = 'authenticated'
       and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
   loop
-    raise warning 'PROFILER SKRIVBAR  authenticated har % - rolle/tenant kan PATCHes via PostgREST',
-      r.privilege_type;
+    funnliste := funnliste || format('PROFILER SKRIVBAR  authenticated har %s - rolle/tenant kan PATCHes via PostgREST',
+      r.privilege_type);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -160,7 +229,8 @@ begin
     where table_schema = 'public' and table_name = 'profiler'
       and grantee = 'authenticated' and privilege_type = 'SELECT')
   then
-    raise warning 'PROFILER ULESELIG  authenticated mangler SELECT - innlogging vil brekke';
+    funnliste := funnliste || format('PROFILER ULESELIG  authenticated mangler SELECT - innlogging vil brekke');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end if;
 
@@ -182,8 +252,9 @@ begin
       and tablename <> all(kalde)
     order by tablename
   loop
-    raise warning 'UTEN TILSYN  %  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
-      r.tablename;
+    funnliste := funnliste || format('UTEN TILSYN  %s  - har policy, men staar hverken i varme eller kalde i rls_vakthund.sql',
+      r.tablename);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -197,8 +268,9 @@ begin
       where p.schemaname = 'public' and p.tablename = t)
     order by t
   loop
-    raise warning 'STAAR I LISTA, FINNES IKKE  %  - ingen policy i public; fjern den fra rls_vakthund.sql',
-      r.tablename;
+    funnliste := funnliste || format('STAAR I LISTA, FINNES IKKE  %s  - ingen policy i public; fjern den fra rls_vakthund.sql',
+      r.tablename);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -230,9 +302,10 @@ begin
            or has_table_privilege('authenticated', c.oid, 'SELECT'))
     order by c.relname
   loop
-    raise warning 'PARTISJON AAPEN  % (av %) - % kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
+    funnliste := funnliste || format('PARTISJON AAPEN  %s (av %s) - %s kan leses direkte, forbi forelderens RLS; revoke all fra anon+authenticated',
       r.relname, r.forelder,
-      case when r.anon_leser then 'anon' else 'authenticated' end;
+      case when r.anon_leser then 'anon' else 'authenticated' end);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
 
@@ -268,7 +341,8 @@ begin
       where table_schema = 'public' and table_name = 'ansatte'
         and column_name = 'pin_hash')
     then
-      raise warning 'KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?';
+      funnliste := funnliste || format('KOLONNEVAKT BLIND  ansatte.pin_hash finnes ikke - maaler sjekken riktig tabell?');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
@@ -279,13 +353,15 @@ begin
       and grantee = 'authenticated' and privilege_type = 'SELECT';
 
     if faktisk @> array['pin_hash'] then
-      raise warning 'HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline';
+      funnliste := funnliste || format('HEMMELIGHET LESBAR  authenticated har SELECT paa ansatte.pin_hash - hashene kan hentes og knekkes offline');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
     if not (faktisk <@ forventet and forventet <@ faktisk) then
-      raise warning 'KOLONNERETTER ENDRET  ansatte/authenticated SELECT er % - forventet %; ta stilling til hver nye kolonne',
-        faktisk, forventet;
+      funnliste := funnliste || format('KOLONNERETTER ENDRET  ansatte/authenticated SELECT er %s - forventet %s; ta stilling til hver nye kolonne',
+        faktisk, forventet);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
@@ -298,7 +374,8 @@ begin
         and grantee = 'authenticated' and column_name = 'pin_hash'
         and privilege_type = 'UPDATE')
     then
-      raise warning 'HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet';
+      funnliste := funnliste || format('HEMMELIGHET SKRIVBAR  authenticated har UPDATE paa ansatte.pin_hash - en PIN kan settes direkte via PostgREST, utenom produktet');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
   end;
@@ -317,7 +394,8 @@ begin
       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.proname = 'verifiser_ansatt_pin')
     then
-      raise warning 'FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?';
+      funnliste := funnliste || format('FUNKSJONSVAKT BLIND  public.verifiser_ansatt_pin finnes ikke - er 0112 kjort?');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
 
@@ -329,15 +407,134 @@ begin
       and grantee <> 'postgres';
 
     if kallere <> array['authenticated'] then
-      raise warning 'FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av % - forventet kun authenticated', kallere;
+      funnliste := funnliste || format('FUNKSJON FOR AAPEN  verifiser_ansatt_pin kan kalles av %s - forventet kun authenticated', kallere);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
       feil := feil + 1;
     end if;
   end;
 
-  if feil > 0 then
-    raise exception 'RLS-vakthund: % funn. Se advarslene over.', feil;
+  -- --- 8) storage.objects ---
+  --
+  -- Lagt til 2026-08-24. HVER ENESTE SJEKK OVER ER SCOPET TIL
+  -- `schemaname = 'public'` - ogsaa dekningssjekken i punkt 4, den som
+  -- skulle gjoere utelatelse umulig. `storage.objects` ligger i skjemaet
+  -- `storage`, og har derfor aldri blitt sett paa av noen av dem.
+  --
+  -- Det er den samme feilen som punkt 4 og 5 ble skrevet for: en flate
+  -- som faller utenfor ser noeyaktig ut som en flate uten problemer.
+  -- Vakthunden meldte «alle tabeller med policy er dekket», og det var
+  -- sant - for public.
+  --
+  -- Da denne ble skrevet laa det tre `for all`-policyer der, og én av
+  -- dem med upakkede hjelpefunksjonskall. Filene vokser med drift.
+
+  -- KANARIFUGL FOERST. Finnes det ingen policyer, er de tre sjekkene
+  -- under tomme loekker - og en tom loekke er groenn. Da maaler
+  -- vakthunden ingenting og ser ut som om alt er i orden.
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects') then
+    funnliste := funnliste || format('LAGRINGSVAKT BLIND  ingen policyer paa storage.objects - enten er ingen migrasjon kjort, eller saa er vernet borte');
+    raise warning '%', funnliste[array_length(funnliste, 1)];
+    feil := feil + 1;
   end if;
 
-  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, alle tabeller med policy er dekket ---',
-    array_length(varme, 1), array_length(kalde, 1);
+  -- a) Upakkede hjelpefunksjonskall. Samme regel som punkt 1.
+  for r in
+    select policyname, cmd
+    from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and (
+        (coalesce(qual, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
+         and coalesce(qual, '') !~ '\( SELECT')
+        or
+        (coalesce(with_check, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
+         and coalesce(with_check, '') !~ '\( SELECT')
+      )
+    order by policyname
+  loop
+    funnliste := funnliste || format('PER-RAD-KALL  storage.objects.%s (%s) - pakk i (select ...) eller bruk mine_stasjoner()',
+      r.policyname, r.cmd);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
+    feil := feil + 1;
+  end loop;
+
+  -- b) `for all`. Samme regel som punkt 2: USING gjelder ogsaa SELECT,
+  --    og permissive policyer OR-es sammen paa tvers av bucketer.
+  --    De tre i `lagring_for_all_ok` er bestemt, ikke glemt.
+  for r in
+    select policyname
+    from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and cmd = 'ALL'
+      and policyname <> all(lagring_for_all_ok)
+    order by policyname
+  loop
+    funnliste := funnliste || format('FOR ALL  storage.objects.%s - USING gjelder ogsaa SELECT; splitt i insert/update/delete',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
+    feil := feil + 1;
+  end loop;
+
+  -- e) UNNTAKET SKAL IKKE OVERLEVE GRUNNEN SIN. Blir en av de tre
+  --    splittet senere, staar den igjen som et unntak som dekker over
+  --    noe som ikke lenger finnes - og neste `for all` paa samme navn
+  --    ville sluppet gjennom i stillhet.
+  for r in
+    select t as policyname
+    from unnest(lagring_for_all_ok) as t
+    where not exists (
+      select 1 from pg_policies p
+      where p.schemaname = 'storage' and p.tablename = 'objects'
+        and p.policyname = t and p.cmd = 'ALL')
+    order by t
+  loop
+    funnliste := funnliste || format('UNNTAK UTEN GRUNN  storage.objects.%s  - staar i lagring_for_all_ok, men er ikke lenger `for all`; fjern den derfra',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
+    feil := feil + 1;
+  end loop;
+
+  -- c) Dekning. En ny bucket uten en beslutning her er nettopp det
+  --    punkt 4 finnes for aa hindre.
+  for r in
+    select policyname
+    from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname <> all(lagring)
+    order by policyname
+  loop
+    funnliste := funnliste || format('UTEN TILSYN  storage.objects.%s  - policy uten oppfoering i `lagring` i rls_vakthund.sql',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
+    feil := feil + 1;
+  end loop;
+
+  -- d) Motsatt vei: staar i lista, finnes ikke.
+  for r in
+    select t as policyname
+    from unnest(lagring) as t
+    where not exists (
+      select 1 from pg_policies p
+      where p.schemaname = 'storage' and p.tablename = 'objects' and p.policyname = t)
+    order by t
+  loop
+    funnliste := funnliste || format('STAAR I LISTA, FINNES IKKE  storage.objects.%s  - fjern den fra `lagring`, eller kjor migrasjonen som lager den',
+      r.policyname);
+    raise warning '%', funnliste[array_length(funnliste, 1)];
+    feil := feil + 1;
+  end loop;
+
+  -- FUNNENE HOERER HJEMME I FEILMELDINGEN.
+  --
+  -- Foer sto det bare «RLS-vakthund: 2 funn. Se advarslene over» - og
+  -- SQL Editor viser ikke warnings, saa det fantes ingen advarsler aa se.
+  -- Man fikk vite AT noe var galt, og ingenting mer.
+  --
+  -- Meldingen vises alltid. Derfor staar hele lista i den.
+  if feil > 0 then
+    raise exception '%',
+      format('RLS-vakthund: %s funn%s%s', feil, chr(10) || chr(10),
+             array_to_string(funnliste, chr(10)));
+  end if;
+
+  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, alle tabeller med policy er dekket ---',
+    array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1);
 end $$;
