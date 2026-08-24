@@ -179,7 +179,15 @@ with per_maaned as (
          date_trunc('month', s.dato)::date as maned,
          count(distinct s.dato)            as dager_registrert,
          max(s.dato)                       as siste_registrering,
-         min(s.dato)                       as forste_registrering
+         min(s.dato)                       as forste_registrering,
+         -- SNITTAVSTANDEN MELLOM TELLINGER. Ikke alle stasjoner teller
+         -- hver dag - noen teller hver tredje, noen sjeldnere. Uten
+         -- dette tallet ser en fast rytme ut som et hull, og en rutine
+         -- blir lest som en forsoemmelse.
+         case when count(distinct s.dato) > 1
+              then round((max(s.dato) - min(s.dato))::numeric
+                         / (count(distinct s.dato) - 1), 1)
+         end                               as snitt_intervall_dager
   from public.synlig_svinn s
   where s.slettet_tid is null
     and s.dato is not null
@@ -200,13 +208,15 @@ select p.retailer_id,
             else extract(day from (p.maned + interval '1 month - 1 day'))::int
        end                                as dager_hittil,
        p.siste_registrering,
-       p.forste_registrering
+       p.forste_registrering,
+       p.snitt_intervall_dager
 from per_maaned p;
 
 comment on view public.v_svinn_dekning is
-  'Hvor mange av maanedens dager svinn faktisk ble registrert. '
-  'Manglende registrering er ikke null svinn - dekningen maa vises '
-  'sammen med tallet naar den paavirker hvor sikkert det kan tolkes.';
+  'Hvor mange av maanedens dager svinn faktisk ble registrert, og hvor '
+  'tett tellingene ligger. Manglende registrering er ikke null svinn. '
+  'snitt_intervall_dager skiller en TELLERYTME fra et hull: en stasjon '
+  'som teller hver tredje dag har 33 % av dagene og ingen mangel.';
 
 grant select on public.v_svinn_dekning to authenticated;
 

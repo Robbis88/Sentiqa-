@@ -48,6 +48,8 @@ export type Dekningsrad = {
   dager_i_maaned: number
   dager_hittil: number
   siste_registrering: string | null
+  /** Snitt antall dager mellom tellinger. Null naar det bare er én. */
+  snitt_intervall_dager: number | null
 }
 
 export type Kategori = {
@@ -67,6 +69,16 @@ export type Dekning = {
   andel: number
   komplett: boolean
   siste: string | null
+  /**
+   * Snittavstand mellom tellinger, eller null.
+   *
+   * IKKE ALLE STASJONER TELLER HVER DAG. Noen teller hver tredje, noen
+   * sjeldnere. `andel` alene gjoer en fast rytme om til et hull - og
+   * «10 av 31 dager» leses som en forsoemmelse naar det er en rutine.
+   */
+  intervall: number | null
+  /** Sant naar tellingene ligger jevnt og sjeldnere enn daglig. */
+  rytme: boolean
 }
 
 export type Maanedsbilde = {
@@ -137,6 +149,13 @@ export function byggDekning(rad: Dekningsrad | undefined): Dekning | null {
     andel: mulige > 0 ? rad.dager_registrert / mulige : 0,
     komplett: rad.dager_hittil >= rad.dager_i_maaned,
     siste: rad.siste_registrering,
+    intervall: rad.snitt_intervall_dager,
+    // TO TELLINGER ER IKKE EN RYTME. Under tre maalepunkter er
+    // snittavstanden bare avstanden mellom to datoer, og aa kalle den
+    // en rutine er aa lese moenster inn i to tall.
+    rytme: rad.dager_registrert >= 3
+      && rad.snitt_intervall_dager != null
+      && rad.snitt_intervall_dager >= 1.5,
   }
 }
 

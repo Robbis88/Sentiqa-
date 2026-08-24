@@ -126,7 +126,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     .select('stasjon_id, maned, gruppe_kode, gruppe_navn, koblet, svinn_kr, svinn_antall, svinn_linjer, varekost_kr, omsetning_kr, solgt_antall')
     .gte('maned', fra)
   let qd = supabase.from('v_svinn_dekning')
-    .select('stasjon_id, maned, dager_registrert, dager_i_maaned, dager_hittil, siste_registrering')
+    .select('stasjon_id, maned, dager_registrert, dager_i_maaned, dager_hittil, siste_registrering, snitt_intervall_dager')
     .gte('maned', fra)
   if (erStasjon) {
     q = q.eq('stasjon_id', valgtStasjon!)
@@ -306,9 +306,15 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
               Svinn ble registrert <strong>{d.registrert} av {d.mulige} dager</strong>
               {d.komplett ? ' i måneden' : ' hittil i måneden'}
               {d.siste && <> · siste registrering {datoLang.format(new Date(`${d.siste}T12:00:00Z`))}</>}
-              {d.andel < 1 && (
-                <> . Dager uten registrering betyr <strong>ikke</strong> null svinn — de betyr at det ikke ble talt.</>
-              )}
+              {/* EN RYTME ER IKKE ET HULL. Stasjonene teller ulikt - noen
+                  daglig, noen hver tredje dag, noen sjeldnere. Sies det
+                  bare «10 av 31 dager», leses en fast rutine som en
+                  forsømmelse, og tallet får en dom det ikke fortjener. */}
+              {d.rytme
+                ? <> . Tellingene ligger jevnt, omtrent <strong>hver {d.intervall!.toLocaleString('nb-NO', { maximumFractionDigits: 1 })}. dag</strong> — det er en tellerytme, ikke et hull. Månedstallet er likevel hele måneden.</>
+                : d.andel < 1 && (
+                    <> . Dager uten registrering betyr <strong>ikke</strong> null svinn — de betyr at det ikke ble talt.</>
+                  )}
             </>
           : <>Ingen registrerte svinndager denne måneden. Det betyr ikke at det ikke svant noe.</>}
       </Forklaring>
@@ -362,7 +368,20 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 <td><SvinnKr b={x.b} /></td>
                 <td><Prosent v={x.b.prosent} /></td>
                 <td><Kroner v={x.b.ikkeKobletKr} /></td>
-                <td>{x.b.dekning ? `${x.b.dekning.registrert} av ${x.b.dekning.mulige}` : '—'}</td>
+                {/* RYTMEN HOERER HJEMME HER. Det er i denne tabellen
+                    stasjoner settes ved siden av hverandre, og det er
+                    her «12 av 31» mot «29 av 31» ellers ville sett ut
+                    som at den ene slurver. */}
+                <td>
+                  {x.b.dekning
+                    ? <>
+                        {x.b.dekning.registrert} av {x.b.dekning.mulige}
+                        {x.b.dekning.rytme && (
+                          <span className="sq-dempet"> · hver {x.b.dekning.intervall!.toLocaleString('nb-NO', { maximumFractionDigits: 1 })}. dag</span>
+                        )}
+                      </>
+                    : '—'}
+                </td>
               </tr>
             ))}
           </tbody>

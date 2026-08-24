@@ -38,6 +38,7 @@ const dekning = (o: Partial<Dekningsrad>): Dekningsrad => ({
   dager_i_maaned: 31,
   dager_hittil: 24,
   siste_registrering: '2026-08-23',
+  snitt_intervall_dager: 1,
   ...o,
 })
 
@@ -206,6 +207,40 @@ describe('byggDekning', () => {
 
   it('ingen dekningsrad betyr ingen registrering - ikke full dekning', () => {
     expect(byggDekning(undefined)).toBeNull()
+  })
+
+  // ROBERT, 2026-08-24: «det er ikke alle stasjonene som svinner hver
+  // dag, noen svinner hver 3. dag eller mer eller mindre». En fast
+  // rytme er ikke et hull, og maa kunne skilles fra et.
+  it('ti tellinger med tre dagers mellomrom er en rytme, ikke et hull', () => {
+    const d = byggDekning(dekning({
+      dager_registrert: 10, dager_hittil: 31, dager_i_maaned: 31,
+      snitt_intervall_dager: 3,
+    }))!
+    expect(d.rytme).toBe(true)
+    expect(d.intervall).toBe(3)
+    // Andelen er fortsatt 32 % - tallet er riktig, tolkningen er det
+    // som endrer seg.
+    expect(d.andel).toBeCloseTo(10 / 31, 6)
+  })
+
+  it('daglig telling er ingen rytme aa nevne', () => {
+    const d = byggDekning(dekning({
+      dager_registrert: 28, dager_hittil: 31, dager_i_maaned: 31,
+      snitt_intervall_dager: 1.1,
+    }))!
+    expect(d.rytme).toBe(false)
+  })
+
+  // TO PUNKTER ER EN AVSTAND, IKKE ET MOENSTER. Uten denne kunne to
+  // tellinger med 14 dagers mellomrom blitt presentert som «teller
+  // omtrent hver 14. dag» - en rutine lest inn i to tall.
+  it('to tellinger gir ingen rytme, uansett avstand', () => {
+    const d = byggDekning(dekning({
+      dager_registrert: 2, dager_hittil: 31, dager_i_maaned: 31,
+      snitt_intervall_dager: 14,
+    }))!
+    expect(d.rytme).toBe(false)
   })
 })
 
