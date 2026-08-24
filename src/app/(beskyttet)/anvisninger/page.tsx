@@ -126,18 +126,26 @@ export default async function AnvisningerSide() {
     </Sidepanel>
   ) : undefined
 
-  // «HJELP» PÅ NETTBRETTET, «Anvisninger» hos lederen.
+  // FANA HETER «HJELP», SIDA HETER «ANVISNINGER».
   //
-  // Samme innhold, to ærender. Lederen vedlikeholder et bibliotek; hun som
-  // står i butikken har et problem og trenger svaret. Derfor heter fana
-  // det hun kommer for — og derfor står Lenker, Nyheter og «Slik måler
-  // vi» i foten her, i stedet for som egne faner og fliser.
+  // Fana dekker mer enn dette — Lenker, Nyheter og Mine opplysninger
+  // ligger i foten her, i stedet for som egne faner. «Hjelp» er derfor
+  // riktig navn på inngangen.
+  //
+  // Men sida het også «Hjelp», og da forsvant ordet personalet faktisk
+  // leter etter. Robert 2026-08-24, da han lette etter
+  // monteringsanvisningene og ikke fant dem: «du kan kalle den
+  // anvisninger på tablet også ja, men den kan ligge under hjelp.»
+  //
+  // Leter eieren etter «anvisninger» og ser «Hjelp», gjør antakelig hun
+  // som står i butikken det samme. Innholdet er det samme som lederen
+  // ser; bare hodet er kortere, og handlingene mangler.
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
   return (
     <>
       {paaNettbrett ? (
-        <TabletHode tittel={o('Hjelp')} undertittel={o('Slå opp når du trenger det.')} />
+        <TabletHode tittel={o('Anvisninger')} undertittel={o('Slå opp når du trenger det.')} />
       ) : (
         <Sidehode
           tittel={o('Anvisninger')}
