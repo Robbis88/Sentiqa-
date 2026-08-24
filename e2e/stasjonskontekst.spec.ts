@@ -230,6 +230,165 @@ ${tekst}`).toEqual([nr])
     })
   }
 
+
+  // =================================================================
+  // S1-S6 - VELGEREN SELV
+  //
+  // Testene over maaler at SKALLET og SIDA er enige. De var groenne
+  // gjennom hele feilen fra 2026-08-24, fordi de alle navigerer med
+  // `page.goto()` - hard omlasting, som remonterer komponenten og
+  // setter `defaultValue` paa nytt.
+  //
+  // Feilen levde i den MYKE veien: en lenke med `?stasjon=` inne i
+  // appen. Da blir klientkomponenten staaende montert, og en
+  // ukontrollert `<select>` beholder gammel verdi mens siden henter den
+  // nye stasjonens data.
+  //
+  // S6 er den ene som ville sett det. De fem andre er porten rundt den.
+  // =================================================================
+  test.describe('S1-S6 velgeren og konteksten', () => {
+    /**
+     * Butikknumre som staar SYNLIG i toppstripen, utenom velgeren selv.
+     *
+     * `innerText` paa en `<select>` gir opsjonslista - alle tre
+     * stasjonene - enten den er aapen eller ikke. Foerste utgave av
+     * denne testen leste dem som «tre stasjoner vises samtidig» og var
+     * roed uansett hva produktet gjorde.
+     *
+     * Velgeren maales for seg, med `selectedOptions`. Her maales alt
+     * ANNET: kvitteringen, sidehodefragmenter, hva som helst noen
+     * legger inn senere.
+     */
+    async function numreITopp(page: Page): Promise<string[]> {
+      const tekst = await page.locator('.toppstripe').evaluate((el) => {
+        const kopi = el.cloneNode(true) as HTMLElement
+        kopi.querySelectorAll('select, option').forEach((n) => n.remove())
+        return kopi.innerText ?? kopi.textContent ?? ''
+      })
+      return [...new Set(tekst.match(/(5101|5102|5103)/g) ?? [])]
+    }
+
+    /**
+     * Bytt stasjon, og vent til SIDA har fulgt etter.
+     *
+     * Uten ventingen maaler paastanden et oeyeblikk der velgeren har
+     * brukerens nye valg og sida fortsatt har det gamle - altsaa et
+     * avvik som er ekte, men forbigaaende og forventet. Det er ikke det
+     * denne suiten er ute etter.
+     */
+    async function byttTil(page: Page, etikett: string) {
+      const nr = etikett.match(/\d{4}/)![0]
+      await page.locator('.sq-stasjonskontekst select').selectOption({ label: etikett })
+      await expect(page.locator('.sq-sidehode').first()).toContainText(nr, { timeout: 15_000 })
+    }
+
+    // Bytt til en ANNEN stasjon enn den som allerede staar. Velger man
+    // den man er paa, er testen groenn uten aa ha maalt et bytte.
+    test('S1 - velg 5102, og bade velger og side bruker 5102', async ({ page }) => {
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      expect(await skallet(page)).toContain('5101')
+
+      await byttTil(page, '5102 Grenseby')
+      expect(await enigeOmStasjon(page)).toContain('5102')
+    })
+
+    test('S2 - velg 5103, og bade velger og side bruker 5103', async ({ page }) => {
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      await byttTil(page, '5103 Overby')
+      expect(await enigeOmStasjon(page)).toContain('5103')
+    })
+
+    test('S3 - omlasting gir samme stasjon', async ({ page }) => {
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      await byttTil(page, '5102 Grenseby')
+      expect(await enigeOmStasjon(page)).toContain('5102')
+
+      await page.reload()
+      expect(await enigeOmStasjon(page)).toContain('5102')
+    })
+
+    test('S4 - delt URL viser riktig stasjon ved FOERSTE visning', async ({ page }) => {
+      // Hukommelsen staar paa 5101 naar lenka aapnes.
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      expect(await skallet(page)).toContain('5101')
+
+      await page.goto('/produksjonsplan?butikknummer=5103&dato=2026-02-02')
+      // Ikke etter et klikk, ikke etter en omlasting - med en gang.
+      expect(await skallet(page)).toContain('5103')
+      expect(await enigeOmStasjon(page)).toContain('5103')
+    })
+
+    test('S5 - ingen annen stasjon kan vises samtidig i toppstripen', async ({ page }) => {
+      for (const sti of [
+        '/produksjonsplan?dato=2026-02-02',
+        '/produksjonsplan?butikknummer=5102&dato=2026-02-02',
+        '/salg',
+        '/svinn',
+      ]) {
+        await page.goto(sti)
+        const velger = page.locator('.sq-stasjonskontekst select')
+        if (await velger.count() === 0) continue
+
+        const vist = await skallet(page)
+        const nr = vist.match(/\d{4}/)?.[0]
+        const iTopp = await numreITopp(page)
+
+        // Staar det et butikknummer i toppstripen, skal det vaere DET
+        // velgeren viser. Ett tall, ikke to.
+        if (nr) {
+          expect(iTopp, `Toppstripen viser ${iTopp.join(' og ')}, velgeren viser ${vist}`)
+            .toEqual([nr])
+        } else {
+          expect(iTopp, `Velgeren summerer, men toppstripen navngir ${iTopp.join(' og ')}`)
+            .toEqual([])
+        }
+      }
+    })
+
+    // DEN SOM FANGER FEILEN.
+    //
+    // /salg viser en «Per stasjon»-tabell naar velgeren staar paa «Alle
+    // stasjoner», og hver rad lenker til `/salg?dato=...&stasjon=<id>`.
+    // Et klikk der er en MYK navigering: komponenten remonteres ikke.
+    test('S6 - myk navigering via ?stasjon= oppdaterer velgeren', async ({ page }) => {
+      await page.goto('/salg')
+      const velger = page.locator('.sq-stasjonskontekst select')
+      await velger.selectOption({ label: 'Alle stasjoner' })
+      await expect(velger).toHaveValue('alle')
+
+      // Foerste stasjonslenke i «Per stasjon»-tabellen.
+      const lenke = page.locator('a[href*="/salg?"][href*="stasjon="]').first()
+      await expect(lenke).toBeVisible()
+      const navn = (await lenke.innerText()).trim()
+      const maal = await lenke.getAttribute('href')
+      await lenke.click()
+
+      // SI HVILKET LEDD SOM SVIKTER. Uten dette er en roed S6 bare
+      // «velgeren sto stille», og det kan bety to helt ulike ting:
+      // navigeringen skjedde ikke, eller skallet fulgte ikke etter.
+      await expect(page, `Klikket navigerte ikke. Lenke: ${maal}`)
+        .toHaveURL(/stasjon=/, { timeout: 15_000 })
+      await expect(page.locator('.sq-sidehode').first(),
+        'Sida fulgte ikke URL-en - da er dette ikke en skall-feil')
+        .toContainText(navn.match(/\d{4}/)?.[0] ?? navn, { timeout: 15_000 })
+
+      // INGEN reload her. Er velgeren ukontrollert, staar den paa
+      // «alle» mens sida regner paa én stasjon - og det er nettopp den
+      // tilstanden skjermbildet fra 2026-08-24 viste.
+      const kilde = await velger.getAttribute('data-kilde')
+      const prop = await velger.getAttribute('data-prop')
+      const url = await velger.getAttribute('data-url')
+      await expect(velger,
+        `Velgeren ble staaende. kilde=${kilde} prop=${prop} url=${url}`)
+        .not.toHaveValue('alle', { timeout: 15_000 })
+      expect(await skallet(page)).toContain(navn.match(/\d{4}/)?.[0] ?? navn)
+
+      // Og ingen andre stasjoner i toppstripen samtidig.
+      const nr = (await skallet(page)).match(/\d{4}/)?.[0]
+      expect(await numreITopp(page)).toEqual([nr])
+    })
+  })
+
   test('G - skjemafeltene er urort payload, ikke kontekst', async ({ page }) => {
     // «Hvilken stasjon gjelder det jeg oppretter» er noe annet enn
     // «hvilken stasjon ser jeg paa». Konsolideringen skal ikke ha rort
