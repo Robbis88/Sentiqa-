@@ -165,31 +165,43 @@ grant select on public.v_svinn_maaned to authenticated;
 -- `dager_hittil` skiller inneveaerende maaned fra en avsluttet: en
 -- maaned som ikke er ferdig skal aldri se ut som en som er det.
 -- ---------------------------------------------------------------------
+-- GRUPPER FOERST, UTLED ETTERPAA. Foerste utgave regnet dager_i_maaned
+-- rett i select-lista med `s.dato` inni, mens bare
+-- `date_trunc('month', s.dato)` sto i group by. Postgres kan ikke se at
+-- de to er den samme verdien, og avviste hele viewet med «column s.dato
+-- must appear in the GROUP BY clause». Naa gjoer CTE-en grupperingen, og
+-- maaneden er en vanlig kolonne aa regne paa.
 create or replace view public.v_svinn_dekning
 with (security_invoker = true) as
-select s.retailer_id,
-       s.stasjon_id,
-       date_trunc('month', s.dato)::date as maned,
-       count(distinct s.dato)            as dager_registrert,
-       extract(day from (date_trunc('month', s.dato)
-                         + interval '1 month - 1 day'))::int as dager_i_maaned,
+with per_maaned as (
+  select s.retailer_id,
+         s.stasjon_id,
+         date_trunc('month', s.dato)::date as maned,
+         count(distinct s.dato)            as dager_registrert,
+         max(s.dato)                       as siste_registrering,
+         min(s.dato)                       as forste_registrering
+  from public.synlig_svinn s
+  where s.slettet_tid is null
+    and s.dato is not null
+  group by s.retailer_id, s.stasjon_id, date_trunc('month', s.dato)::date
+)
+select p.retailer_id,
+       p.stasjon_id,
+       p.maned,
+       p.dager_registrert,
+       extract(day from (p.maned + interval '1 month - 1 day'))::int
+                                          as dager_i_maaned,
        -- Hvor mange dager av maaneden som har PASSERT. For en avsluttet
        -- maaned er det hele maaneden; for den inneveaerende er det i dag.
-       least(
-         extract(day from (date_trunc('month', s.dato)
-                           + interval '1 month - 1 day'))::int,
-         case when date_trunc('month', s.dato) = date_trunc('month', current_date)
-              then extract(day from current_date)::int
-              else extract(day from (date_trunc('month', s.dato)
-                                     + interval '1 month - 1 day'))::int
-         end
-       )                                  as dager_hittil,
-       max(s.dato)                        as siste_registrering,
-       min(s.dato)                        as forste_registrering
-from public.synlig_svinn s
-where s.slettet_tid is null
-  and s.dato is not null
-group by s.retailer_id, s.stasjon_id, date_trunc('month', s.dato)::date;
+       case when p.maned = date_trunc('month', current_date)::date
+            then least(
+                   extract(day from (p.maned + interval '1 month - 1 day'))::int,
+                   extract(day from current_date)::int)
+            else extract(day from (p.maned + interval '1 month - 1 day'))::int
+       end                                as dager_hittil,
+       p.siste_registrering,
+       p.forste_registrering
+from per_maaned p;
 
 comment on view public.v_svinn_dekning is
   'Hvor mange av maanedens dager svinn faktisk ble registrert. '
