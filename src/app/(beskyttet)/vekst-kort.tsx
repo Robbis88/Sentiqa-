@@ -26,11 +26,13 @@ import { useT } from './oversett-kontekst'
 // onsdag, uten å vite hvorfor tallet ikke stemte med kassa.
 // =====================================================================
 
-type Valg = 'samlet' | 'mat' | 'kaldDrikke'
+type Valg = 'matOgDrikke' | 'mat' | 'kaldDrikke'
 const VALG: { key: Valg; navn: string }[] = [
-  // «Samlet» er alt butikksalg UTEN drivstoff — pumpa betjener seg selv
-  // og drukner alt annet. Se `v_butikksalg`.
-  { key: 'samlet', navn: 'Samlet' },
+  // HET «Samlet», OG DET VAR IKKE SANT. Tallet var alt butikksalg uten
+  // drivstoff — kiosk, tobakk, bilvask og pant inkludert. En fane som
+  // heter «Samlet» blir lest som «hele butikken», og var det nesten;
+  // den skulle vaere mat og drikke. Naa heter den det den maaler.
+  { key: 'matOgDrikke', navn: 'Mat og drikke' },
   { key: 'mat', navn: 'Mat' },
   { key: 'kaldDrikke', navn: 'Kald drikke' },
 ]
@@ -82,11 +84,11 @@ function Celle({ merke, s }: { merke: string; s: Sammenlikning }) {
 
 export function VekstKort(
   { metrikker, sisteDato }: {
-    metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk }
+    metrikker: { matOgDrikke: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk }
     sisteDato: string
   },
 ) {
-  const [valg, setValg] = useState<Valg>('samlet')
+  const [valg, setValg] = useState<Valg>('matOgDrikke')
   const t = useT()
   const m = metrikker[valg]
 

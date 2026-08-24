@@ -25,7 +25,7 @@ export type HjemData = {
   produksjon: { antall: number; plan: number; lagd: number } | null
   vekst: {
     sisteDato: string
-    metrikker: { samlet: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk }
+    metrikker: { matOgDrikke: VekstMetrikk; mat: VekstMetrikk; kaldDrikke: VekstMetrikk }
   } | null
 }
 
@@ -43,7 +43,7 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     supabase.from('skills_score').select('prosent').eq('stasjon_id', stasjonId).order('registrert_tid', { ascending: false }).limit(1).maybeSingle<{ prosent: number }>(),
     supabase.from('pengepremie').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('pengepremie_bruk').select('belop_kr').eq('stasjon_id', stasjonId),
-    supabase.from('v_salg_per_stasjon_dag').select('dato, omsetning, mat_omsetning, kald_drikke_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; omsetning: number | null; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]>(),
+    supabase.from('v_salg_per_stasjon_dag').select('dato, mat_omsetning, kald_drikke_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]>(),
     // Dagens publiserte produksjonsplan (kun hvis publisert) — fremdrift til tableten.
     (async (): Promise<HjemData['produksjon']> => {
       const { data: hode } = await supabase.from('produksjonsplan_hode').select('publisert_tid').eq('stasjon_id', stasjonId).eq('dato', idag).maybeSingle<{ publisert_tid: string | null }>()
@@ -61,8 +61,22 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
   const brukt = ((bruk ?? []) as { belop_kr: number | null }[]).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
   const premie = { vunnet, brukt, igjen: vunnet - brukt }
 
-  // Vekst mot fjoråret (−364 d): i dag, måneden hittil, og streak (dager på rad
-  // over fjoråret) — for Samlet og Mat. Engasjement på tableten.
+  // Vekst mot fjoråret (−364 d): siste salgsdag, måneden hittil, og streak
+  // (dager på rad over fjoråret). Engasjement på tableten.
+  //
+  // KORTET MAALER MAT OG KALD DRIKKE, IKKE HELE BUTIKKEN.
+  //
+  // «Mat og drikke» var summen av `omsetning` — alt butikksalg uten
+  // drivstoff. Da lå kiosk, tobakk, bilvask, bil, fritid og pant inne i
+  // tallet stasjonen skulle måles på, og en god uke på tobakk kunne
+  // dekke over en dårlig uke på mat.
+  //
+  // Robert 2026-08-24: «det skal kun være mat og drikke som måles her
+  // mot salget i fjor». Avdeling 120 + 140, som er nøyaktig de to
+  // fanene ved siden av.
+  //
+  // `omsetning` hentes derfor ikke lenger: ingenting her skal kunne
+  // summere hele butikken ved et uhell.
   let vekst: HjemData['vekst'] = null
   const rader = (salg ?? []) as { dato: string; omsetning: number | null; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]
   if (rader.length > 0) {
@@ -97,7 +111,7 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     vekst = {
       sisteDato,
       metrikker: {
-        samlet: beregn((r) => r.omsetning ?? 0),
+        matOgDrikke: beregn((r) => (r.mat_omsetning ?? 0) + (r.kald_drikke_omsetning ?? 0)),
         mat: beregn((r) => r.mat_omsetning ?? 0),
         kaldDrikke: beregn((r) => r.kald_drikke_omsetning ?? 0),
       },
