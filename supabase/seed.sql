@@ -854,3 +854,58 @@ values
    '22222222-2222-4222-8222-222222222222', 'Eir Annenkjede',
    '5755e52d07e8445add373b1b16ec561e6ffb61787eff3c57f9926fb04d216ae9', '2001', true, null)
 on conflict (id) do nothing;
+
+
+
+-- ---------------------------------------------------------------------
+-- KOST MOT KOST - fixturen som beviser den nye svinnprosenten.
+--
+-- INGEN AV DE SEKS SVINN-EAN-ENE OVER FINNES I `daglig_salg`. Det er
+-- riktig for det de maaler - alt blir «ikke koblet», og prosenten skal
+-- da staa som «ikke maalbart» - men det gjoer at selve regnestykket,
+-- svinn til kostpris delt paa varekost av solgte varer, ikke kunne
+-- bevises av noen test.
+--
+-- Her er én vare som finnes BEGGE steder, paa Underby 5101:
+--
+--   salg    omsetning 500 000 - brutto 300 000 = varekost 200 000
+--   svinn    10 000 kr
+--   svinn%   10 000 / 200 000 = 5,0 %  for varegruppe 1290
+--
+-- Underby samlet i mars blir da 2 000 (ikke koblet) + 10 000 = 12 000 kr
+-- mot 200 000 i varekost = 6,0 %, og 83 % kategorisert.
+--
+-- 2026-03-17 MED VILJE. Det er den samme maaledagen som resten av
+-- analysefixturen, saa /svinn-testen ikke raatner en maaned tidligere
+-- enn de andre naar det rullende 13-maaneders-vinduet flytter seg.
+--
+-- VAREGRUPPE 1290 BRUKES IKKE ANDRE STEDER. 1201 og 1216 hoerer til
+-- bemanningsfixturen i januar; laa denne i en av dem, ville to fixturer
+-- dratt i hverandre.
+--
+-- Alle andre mars-rader i `daglig_salg` har `varegruppe_kode = null` og
+-- teller derfor ikke i nevneren. Endres det, skal disse tallene feile.
+-- ---------------------------------------------------------------------
+insert into public.daglig_salg (
+  retailer_id, stasjon_id, dato, ean, varenavn,
+  avdeling_kode, avdeling_navn, varegruppe_kode, varegruppe_navn,
+  antall, omsetning_eks_mva, bto_fortjeneste_kr
+)
+values
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-17', '7090000000131', 'Grovbrod halv',
+   '120', 'MAT', '1290', 'FERSKVARER', 2000, 500000, 300000)
+on conflict (retailer_id, stasjon_id, dato, ean) do nothing;
+
+insert into public.synlig_svinn (
+  retailer_id, stasjon_id, dato, ean, varenavn, antall, nettopris_total
+)
+select v.* from (values
+  ('11111111-1111-4111-8111-222222222222'::uuid,
+   '44444444-4444-4444-8444-111111111111'::uuid,
+   date '2026-03-17', '7090000000131', 'Grovbrod halv', 40::numeric, 10000::numeric)
+) as v(retailer_id, stasjon_id, dato, ean, varenavn, antall, nettopris_total)
+where not exists (
+  select 1 from public.synlig_svinn s
+  where s.ean = '7090000000131' and s.dato = date '2026-03-17'
+);

@@ -764,12 +764,11 @@
       "Stemple inn og ut"
     ],
     "/svinn": [
-      "Ingen svinn registrert denne dagen",
       "Ingen svinndata ennå",
-      "Ingen varelinjer aa vise",
-      "Mest svinn (varer)${erStasjon ? ` · ${valgtNavn}` : ''}",
-      "Per stasjon · ${datoLang.format(new Date(siste.dato))}",
-      "Svinn mot terskel · siste 30 dager"
+      "Måned for måned",
+      "Per stasjon · ${manedAar.format(new Date(valgtMaaned))}",
+      "Svinn per varegruppe",
+      "valgtGruppe ? `Mest svinn (varer) · ${gruppeNavn}` : 'Mest svinn (varer)'"
     ],
     "/tilbakemeldinger": [
       "Ingen tilbakemeldinger ennå"
