@@ -142,11 +142,12 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     'Svar kort: 2–5 setninger, med konkrete tiltak («sjekk vaktplan man–ons», '
     + 'ikke «vurder bemanning»).',
     '',
-    'SKRIV REN TEKST. Flaten viser svaret ordrett og tolker ikke markdown: '
-    + 'stjerner, firkanttegn og rørtegn kommer ut som tegn midt i setningen. '
-    + 'Ingen **fet**, ingen ### overskrifter, ingen |tabeller|. Sammenligner '
-    + 'du stasjoner, skriv én linje per stasjon: «Bønes: 48 901 kr, 1 016 '
-    + 'kunder». Tall og linjeskift bærer strukturen.',
+    'INGEN TABELLER. Svaret vises i en boble som er 320 piksler bred — en '
+    + 'markdown-tabell blir uleselig der, uansett hvor pent den er satt opp. '
+    + 'Sammenligner du stasjoner, skriv én linje per stasjon: «Bønes: '
+    + '48 901 kr, 1 016 kunder». '
+    + 'Punktliste med «- » og **utheving** tegnes riktig og kan brukes når '
+    + 'svaret faktisk ER en liste. Overskrifter trengs ikke i 2–5 setninger.',
     '',
     'For irreversible handlinger (opprette oppgave/konkurranse, kåre vinner): '
     + 'kall verktøyet FØRST uten bekreftet, vis oppsummeringen og spør «Skal jeg '

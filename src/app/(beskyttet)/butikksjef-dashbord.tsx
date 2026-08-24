@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { slippStyringssignal } from '@/lib/styringssignal'
 import { kr, datoLang, iDag } from '@/lib/format'
 import { stasjonsnavn as stasjonsnavnFor } from '@/lib/stasjonsvalg'
 import { hentEllerLagUkerapport, type UkeRapport } from '@/lib/ukerapport'
@@ -53,12 +54,25 @@ type Data = {
   arr: Arr[]
   avvik: Avvik[]
   varsler: Varsel[]
+  /**
+   * Satt naar innhentingen feilet. Null naar alt gikk bra.
+   *
+   * ET TOMT DASHBORD OG ET DASHBORD SOM IKKE KUNNE LASTES SAA LIKE UT.
+   * `catch { return TOM }` ga null oppgaver, null avvik, null varsler -
+   * altsaa «alt er i orden» - uansett hva som gikk galt. Butikksjefen
+   * hadde ingen maate aa vite at hun saa paa et bilde av ingenting.
+   *
+   * Samme mønster som eierens dashbord allerede hadde (`feil`), og
+   * samme sykdom AI-laget ble ryddet for 2026-08-24: stillhet som
+   * likner et godkjent svar.
+   */
+  feil: string | null
 }
 
 const TOM: Data = {
   stasjonsnavn: 'Stasjonen', stasjoner: [], apneOppgaver: 0, forsinkede: [], uleste: 0, harKrenkelse: false,
   premieIgjen: 0, sisteDato: null, rutTot: 0, rutGjort: 0, sjekkTot: 0, sjekkSvart: 0,
-  fokus: [], ukerapport: null, konk: [], arr: [], avvik: [], varsler: [],
+  fokus: [], ukerapport: null, konk: [], arr: [], avvik: [], varsler: [], feil: null,
 }
 
 const dagerSiden = (iso: string, idag: string) =>
@@ -182,9 +196,15 @@ async function samle(
       arr: arr.data ?? [],
       avvik: avvikRes.data ?? [],
       varsler: varslerRes.data ?? [],
+      feil: null,
     }
-  } catch {
-    return TOM
+  } catch (e) {
+    // `redirect()` og `notFound()` kaster med vilje. Fanges de her, blir
+    // en utloept sesjon til et tomt dashbord i stedet for innlogging -
+    // samme feil som AI-boblen hadde.
+    slippStyringssignal(e)
+    console.error('Butikksjef-dashbord samle() feilet:', e)
+    return { ...TOM, feil: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }
   }
 }
 
@@ -268,9 +288,29 @@ export async function ButikksjefDashbord(
     utsolgtSignaler(supabase, d.stasjoner, idag).catch(() => []),
     treffSignaler(supabase, d.stasjoner, idag).catch(() => []),
   ])
-  const signaler = await filtrerLukkede(
-    supabase, byggSignaler(d, idag, [...utsolgt, ...treff]), idag,
-  ).catch(() => byggSignaler(d, idag, [...utsolgt, ...treff]))
+  // ET UFULLSTENDIG BILDE SKAL SI FRA SELV.
+  //
+  // Feilet innhentingen, er alt under bygget paa TOM: null oppgaver,
+  // null avvik, null varsler. Uten denne linja leser sida som «alt er i
+  // orden» - og det er den mest overbevisende maaten aa ta feil paa.
+  //
+  // Den gaar inn i oppmerksomhetslista hun allerede leser, ikke som et
+  // eget banner. Kritisk, saa den sorterer oeverst.
+  const feilsignal: RaaSignal[] = d.feil
+    ? [{
+        id: 'dashbord-feil',
+        merke: 'Systemet',
+        tittel: 'Oversikten er ikke komplett',
+        detalj: `Noen av tallene kunne ikke hentes, saa denne siden kan mangle `
+          + `oppgaver, avvik eller varsler. Det betyr IKKE at det ikke finnes `
+          + `noen. Teknisk: ${d.feil}`,
+        niva: 'kritisk',
+        lenke: '/oversikt',
+      }]
+    : []
+
+  const raaSignaler = () => byggSignaler(d, idag, [...feilsignal, ...utsolgt, ...treff])
+  const signaler = await filtrerLukkede(supabase, raaSignaler(), idag).catch(raaSignaler)
 
   const fornavn = bruker.fulltNavn?.split(' ')[0] ?? bruker.epost
   const time = Number(new Intl.DateTimeFormat('en-GB', {

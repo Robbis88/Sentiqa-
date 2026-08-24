@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { slippStyringssignal } from '@/lib/styringssignal'
 import { kr, manedAar, datoLang } from '@/lib/format'
 import {
   klyngebilde, pulsOverskrift, rangerSignaler,
@@ -192,6 +193,9 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
 
     return { stasjonsListe, navnFor, sistePeriode, rangRader, avdListe, tilbake, aapne, forsinkede, fullfort30, fokusGrupper, aktivKonk, ukerapporter, sisteSalg, kpiStrip, driftsstatus, feil: null }
   } catch (e) {
+    // `redirect()` kaster med vilje. Fanges den her, blir en utloept
+    // sesjon til et tomt dashbord i stedet for innlogging.
+    slippStyringssignal(e)
     console.error('AdminDashbord samleData feilet:', e)
     return { ...tomt, feil: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }
   }
