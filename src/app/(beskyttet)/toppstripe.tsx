@@ -23,6 +23,17 @@ import { Bjelle, Laas } from './ikoner'
 // Stasjonskonteksten vises kun når det finnes noe å velge mellom.
 // Butikksjefen med én stasjon får ingen velger — en nedtrekksliste med
 // ett valg ber om en beslutning som ikke finnes.
+//
+// TRE SONER, IKKE FIRE SØSKEN. Stripa var `display: flex` med
+// `space-between` og fire barn — og ingen `gap`. Hierarkiet oppstod
+// dermed av innholdets bredde: stasjonsteksten kunne støte rett inntil
+// brukernavnet, og på skjermbildet fra 2026-08-24 sto det «4185 St1
+// DaleRobert» som ett ord.
+//
+// Nå: søk til venstre, stasjonskontekst i midten, bruker og handlinger
+// til høyre. Sonene har faste roller uansett hva som er i dem — er
+// søket eller velgeren borte for denne rollen, blir høyre stående
+// høyre.
 // =====================================================================
 
 type Props = {
@@ -37,22 +48,28 @@ type Props = {
 export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props) {
   return (
     <header className="toppstripe">
-      {erLeder(rolle) && <Kommandopalett punkter={menypunkter} />}
+      <div className="topp-sone topp-venstre">
+        {erLeder(rolle) && <Kommandopalett punkter={menypunkter} />}
+      </div>
 
-      {visVelger(kontekst.stasjoner, kontekst.tillatAlle) && (
-        <Stasjonskontekst
-          stasjoner={kontekst.stasjoner}
-          valgt={kontekst.valgt}
-          tillatAlle={kontekst.tillatAlle}
-        />
-      )}
+      <div className="topp-sone topp-midt">
+        {visVelger(kontekst.stasjoner, kontekst.tillatAlle) && (
+          <Stasjonskontekst
+            stasjoner={kontekst.stasjoner}
+            valgt={kontekst.valgt}
+            tillatAlle={kontekst.tillatAlle}
+          />
+        )}
+      </div>
 
-      <span className="bruker">
-        {navn}
-        <span className="rolle-pip">{ROLLE_ETIKETT[rolle]}</span>
-      </span>
-
-      <div className="topp-hoyre">
+      <div className="topp-sone topp-hoyre">
+        <span className="bruker">
+          {/* Bare navnet kortes ned ved trangt vindu. Rollemerket er
+              kort og må stå helt — et halvt «Butikkssj» sier mindre enn
+              ingenting. */}
+          <span className="brukernavn">{navn}</span>
+          <span className="rolle-pip">{ROLLE_ETIKETT[rolle]}</span>
+        </span>
         {/* Tallet står i aria-label, ikke bare som et badge: en
             skjermleser som bare sier «Varsler» utelater akkurat det som
             gjør at man går dit. */}
@@ -60,6 +77,9 @@ export function Toppstripe({ rolle, navn, uleste, kontekst, menypunkter }: Props
           href="/varsler"
           className="klokke-lenke"
           aria-label={uleste > 0 ? `Varsler — ${uleste} uleste` : 'Varsler'}
+          // Laasen hadde `title`, bjella ikke. Med musa fikk man
+          // forklaring paa det ene ikonet og ikke det andre.
+          title={uleste > 0 ? `Varsler — ${uleste} uleste` : 'Varsler'}
         >
           <Bjelle />
           {uleste > 0 && <span className="varsel-teller">{uleste}</span>}
