@@ -511,7 +511,15 @@ values
   ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-222222222222',
    date '2026-03-17', '201', 'Per Kasserer',  50000, 500, 0, 0, 0, 0, 0, 0),
   ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-333333333333',
-   date '2026-03-17', '301', 'Siri Kasserer', 40000, 400, 1, 400, 0, 0, 0, 0)
+   date '2026-03-17', '301', 'Siri Kasserer', 40000, 400, 1, 400, 0, 0, 0, 0),
+  -- KASSA SELV. 999999 er ikke en medarbeider, og sonden mot produksjon
+  -- 2026-08-24 viste at den baerer 18-35 % av ALLE bonger. Uten en slik
+  -- rad i fixturen finnes «Kassa selv»-tabellen bare i koden, og en
+  -- seksjon ingen test ser er en seksjon som kan forsvinne i stillhet.
+  --
+  -- 500 av 1500 bonger paa Underby = 33 %, midt i det produksjon viser.
+  ('11111111-1111-4111-8111-222222222222', '44444444-4444-4444-8444-111111111111',
+   date '2026-03-17', '999999', null, 150000, 500, 0, 0, 0, 0, 0, 0)
 on conflict (retailer_id, stasjon_id, dato, kasserer_nr) do nothing;
 
 
