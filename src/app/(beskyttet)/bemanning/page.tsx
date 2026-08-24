@@ -24,14 +24,15 @@ import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Signal, Status } from '@/components/ui/status'
 import { Liste, Rad } from '@/components/ui/liste'
-import { Knapp } from '@/components/ui/knapp'
-import { Felt, Velg } from '@/components/ui/felt'
 import Link from 'next/link'
 
 const UKEDAG = ['', 'man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn']
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'desember']
 const kl = (t: number) => `${String(t).padStart(2, '0')}:00`
+
+import { Maanedsvelger } from '@/components/ui/periode'
+import { lesMaaned, maanedNokkel, delMaaned, maanederRundt } from '@/lib/periode'
 
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string; uke?: string }>
 
@@ -286,8 +287,18 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   const nesteNr = naa.getUTCMonth() + 2
   const nesteManed = nesteNr > 12 ? 1 : nesteNr
   const nesteAr = nesteNr > 12 ? naa.getUTCFullYear() + 1 : naa.getUTCFullYear()
-  const ar = Number(sok.ar) || nesteAr
-  const maned = Number(sok.maned) || nesteManed
+  // FELLES MAANEDSKONTRAKT. `?maned=2026-03-01`, med `?maned=3&ar=2026`
+  // fortsatt forstaatt - den formen ligger i bokmerker. Foer dette leste
+  // sida `Number(sok.maned)`, og en ISO-maaned fra /svinn eller
+  // /kasserer ble NaN og falt stille tilbake til neste maaned.
+  const valgtMaaned = lesMaaned(sok, maanedNokkel(nesteAr, nesteManed))
+  const { ar, maned } = delMaaned(valgtMaaned)
+
+  // BEMANNING PLANLEGGER FRAMOVER, saa utvalget kan ikke leses ut av
+  // data - maaneden man planlegger har per definisjon ingen rader ennaa.
+  // 24 bakover og 12 framover: rikelig for jobben, og ingenting som var
+  // naaelig med det gamle fritekstfeltet forsvinner i praksis.
+  const maaneder = maanederRundt(valgtMaaned, 24, 12)
 
   // Maaneden som ISO-datoer, for periodefiltrene under.
   const forsteDagIMnd = `${ar}-${String(maned).padStart(2, '0')}-01`
@@ -574,16 +585,11 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
         tittel="Bemanning"
         undertittel={`${steg.tittel}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
         handlinger={
-          <form className="sq-listetopp">
-            <Velg etikett="Måned" name="maned" defaultValue={maned} skjultEtikett>
-              {MND.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-            </Velg>
-            <Felt
-              etikett="År" name="ar" type="number" defaultValue={ar}
-              skjultEtikett className="sq-smalt-felt"
-            />
-            <Knapp type="submit">Vis</Knapp>
-          </form>
+          <Maanedsvelger
+            maaneder={maaneder}
+            valgt={valgtMaaned}
+            skjulte={{ stasjon: sok.stasjon, uke: sok.uke }}
+          />
         }
       />
 

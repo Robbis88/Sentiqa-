@@ -8,8 +8,10 @@ import { Status } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
+import { Maanedsvelger } from '@/components/ui/periode'
+import { lesMaaned, maanederI } from '@/lib/periode'
 import {
-  byggMaaned, sammenlignbare, maanederI,
+  byggMaaned, sammenlignbare,
   type Svinnrad, type Dekningsrad, type Maanedsbilde,
 } from '@/lib/svinn/maaned'
 
@@ -158,7 +160,12 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     )
   }
 
-  const valgtMaaned = sp.maned && maaneder.includes(sp.maned) ? sp.maned : maaneder[0]
+  // FELLES KONTRAKT: `?maned=2026-03-01`. `lesMaaned` tar imot den gamle
+  // formen `?maned=3&ar=2026` ogsaa, saa en bokmerket lenke fra /lonn
+  // eller /bemanning treffer riktig maaned i stedet for aa falle stille
+  // tilbake. Kilden avgjoer fortsatt hva som er GYLDIG.
+  const onsket = lesMaaned(sp, maaneder[0])
+  const valgtMaaned = maaneder.includes(onsket) ? onsket : maaneder[0]
 
   // ÉN DEKNINGSRAD PER STASJON PER MAANED. Ser eieren flere stasjoner,
   // summeres registrerte dager ikke - da ville fem stasjoner med 20
@@ -247,22 +254,13 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
         }
       />
 
-      {/* PERIODEVELGER, LOKAL OG BEVISST BEGRENSET.
-          Svinn taaler maaned, ikke uke - dekningen varierer for mye.
-          Kilden bestemmer hva som er gyldig, ikke en felles komponent
-          som tilbyr det samme overalt. */}
-      <form method="get" className="sq-listetopp">
-        {sp.stasjon && <input type="hidden" name="stasjon" value={sp.stasjon} />}
-        <label className="felt">
-          <span>Måned</span>
-          <select name="maned" defaultValue={valgtMaaned}>
-            {maaneder.map((m) => (
-              <option key={m} value={m}>{manedAar.format(new Date(m))}</option>
-            ))}
-          </select>
-        </label>
-        <Knapp type="submit">Vis måneden</Knapp>
-      </form>
+      {/* KILDEN BESTEMMER UTVALGET, velgeren bestemmer formen.
+          Svinn taaler maaned, ikke uke - dekningen svinger for mye. */}
+      <Maanedsvelger
+        maaneder={maaneder}
+        valgt={valgtMaaned}
+        skjulte={{ stasjon: sp.stasjon, gruppe: sp.gruppe }}
+      />
 
       {/* RETNING OG DOM PEKER HVER SIN VEI HER: svinn opp er ikke bra.
           Samme spraak som /salg, motsatt dom. */}

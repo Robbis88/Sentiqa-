@@ -131,6 +131,14 @@ test.describe('bolge 2 - analysefamilien', () => {
 
     const per100 = nokkeltall(page, 'Per 100 bonger')
     expect(sifre(await per100.locator('.sq-nokkeltall-verdi').textContent())).toBe('250')
+
+    // RETNING OG DOM PEKER HVER SIN VEI. Februar var 60, mars er 250:
+    // pila peker opp, og opp er daarlig her. En komponent som antar
+    // boerslogikk ville vist dette som en god nyhet.
+    const mot = per100.locator('.sq-nokkeltall-mot')
+    await expect(mot).toContainText('↑')
+    await expect(mot).toHaveClass(/darlig/)
+    await expect(mot).not.toHaveClass(/god/)
   })
 
   test('/kasserer - ingen rangering, og siden sier hvorfor', async ({ page }) => {
@@ -150,9 +158,15 @@ test.describe('bolge 2 - analysefamilien', () => {
 
     // Kari: 2 500 / 600 * 100 = 417 kr per 100 bonger.
     expect(sifre(await rader.nth(0).locator('td').nth(6).textContent())).toBe('417')
-    // Uten historikk finnes ingen sammenligning - og «0» ville vaert et
-    // svar systemet ikke har.
-    await expect(rader.nth(0).locator('td').nth(7)).toHaveText('ingen historikk')
+    // KJERNEN I SIDA, MAALT: Kari maales mot SEG SELV, ikke mot Ola og
+    // Nina. Februar: 600 avvik / 600 bonger = 100. Mars: 417.
+    // 417 - 100 = +317.
+    expect(sifre(await rader.nth(0).locator('td').nth(7).textContent())).toBe('317')
+    await expect(rader.nth(0).locator('td').nth(7)).toContainText('+')
+
+    // Ola og Nina hadde null avvik begge maaneder - da er 0 et svar, og
+    // «ingen historikk» ville vaert feil.
+    expect(sifre(await rader.nth(1).locator('td').nth(7).textContent())).toBe('0')
 
     // Begrunnelsen skal staa paa sida, ikke bare i en commit-melding.
     const hvorfor = page.locator('details.sq-forklaring')
@@ -189,9 +203,15 @@ test.describe('bolge 2 - analysefamilien', () => {
       .filter({ hasText: /Hva er .kassa selv/i })).toContainText('33 %')
   })
 
-  test('/kasserer - maanedsvelgeren finnes, og den gamle grensa er borte', async ({ page }) => {
+  test('/kasserer - maanedsvelgeren er felles, og den gamle grensa er borte', async ({ page }) => {
     await page.goto(`/kasserer?stasjon=${UNDERBY}`)
-    await expect(page.locator('select[name="maned"]')).toBeVisible()
+
+    // SAMME KONTROLL SOM PAA /svinn, /bemanning og /lonn: synlig
+    // etikett «Maaned», ISO-verdi, knappen heter «Vis maaneden».
+    await expect(page.getByRole('combobox', { name: 'Måned' })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Måned' }))
+      .toHaveValue('2026-03-01')
+    await expect(page.getByRole('button', { name: 'Vis måneden' })).toBeVisible()
 
     const tekst = await page.locator('main').innerText()
     expect(tekst).not.toMatch(/% av omsetningen/)

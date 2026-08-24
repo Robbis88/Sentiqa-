@@ -8,8 +8,10 @@ import { Sidehode, Tomtilstand, Nokkeltall, Forklaring, Datatabell } from '@/com
 import { Knapp } from '@/components/ui/knapp'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
+import { Maanedsvelger } from '@/components/ui/periode'
+import { lesMaaned, maanederI } from '@/lib/periode'
 import {
-  byggAlle, totaltFor, maanederI, nokGrunnlag, MIN_BONGER,
+  byggAlle, totaltFor, nokGrunnlag, MIN_BONGER,
   type Kassererrad, type Kassererbilde,
 } from '@/lib/kasserer/rate'
 
@@ -105,7 +107,8 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
     )
   }
 
-  const valgtMaaned = sp.maned && maaneder.includes(sp.maned) ? sp.maned : maaneder[0]
+  const onsket = lesMaaned(sp, maaneder[0])
+  const valgtMaaned = maaneder.includes(onsket) ? onsket : maaneder[0]
   const iMaaneden = rader.filter((r) => r.maned === valgtMaaned)
   const { folk, system } = byggAlle(rader, valgtMaaned)
   const total = totaltFor(rader, valgtMaaned)
@@ -139,21 +142,9 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
         undertittel={`${erStasjon ? navnFor.get(valgtStasjon!) : 'Alle stasjoner'} · ${manedAar.format(new Date(valgtMaaned))}`}
       />
 
-      {/* PERIODEVELGER, LOKAL OG BEGRENSET TIL MÅNED. Kilden bestemmer:
-          en dag er for lite til at en rate betyr noe, og et år skjuler
-          når noe endret seg. Samme form som /svinn. */}
-      <form method="get" className="sq-listetopp">
-        {sp.stasjon && <input type="hidden" name="stasjon" value={sp.stasjon} />}
-        <label className="felt">
-          <span>Måned</span>
-          <select name="maned" defaultValue={valgtMaaned}>
-            {maaneder.map((m) => (
-              <option key={m} value={m}>{manedAar.format(new Date(m))}</option>
-            ))}
-          </select>
-        </label>
-        <Knapp type="submit">Vis måneden</Knapp>
-      </form>
+      {/* KILDEN BESTEMMER UTVALGET: bare maaneder det finnes kassetall
+          i. En dag er for lite til at en rate betyr noe. */}
+      <Maanedsvelger maaneder={maaneder} valgt={valgtMaaned} skjulte={{ stasjon: sp.stasjon }} />
 
       {/* MAKULERT FØRST, fordi det ER først: 71–83 % av avvikskronene.
           Sto de tre summert i ett tall, ville det store skjult at de to
