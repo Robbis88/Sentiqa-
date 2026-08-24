@@ -158,7 +158,10 @@ test.describe('bolge 2 - analysefamilien', () => {
     const hvorfor = page.locator('details.sq-forklaring')
       .filter({ hasText: /Hvorfor rangeres ikke/i })
     await expect(hvorfor).toHaveCount(1)
-    await expect(hvorfor).toContainText(/svinger mer fra måned til måned/i)
+    // Selve funnet, ikke bare overskriften: uten denne kunne teksten
+    // blitt til en unnskyldning for at siden mangler noe.
+    await expect(hvorfor).toContainText(/fra måned til måned/i)
+    await expect(hvorfor).toContainText(/sortert på kassanummer/i)
   })
 
   test('/kasserer - kassa selv staar for seg, hverken slettet eller blandet inn', async ({ page }) => {
