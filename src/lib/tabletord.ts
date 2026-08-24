@@ -30,7 +30,7 @@ export const TABLET_ORD: string[] = [
   'Klart til morgen', 'Lagd', 'Produksjonsplan', 'produkter', 'lagd',
   'Produksjon', 'Dagens plan',
   // Vekst
-  'Vekst mot i fjor', 'Samlet', 'Mat', 'Kald drikke', 'I dag', 'Måneden hittil',
+  'Vekst mot i fjor', 'Mat og drikke', 'Mat', 'Kald drikke', 'I dag', 'Måneden hittil',
   'på rad over fjoråret!', 'dag', 'dager', 'mot i fjor',
   // Premie + skills
   'Vår premiesaldo', 'Vunnet', 'Brukt', 'Igjen', 'Skills-score',
