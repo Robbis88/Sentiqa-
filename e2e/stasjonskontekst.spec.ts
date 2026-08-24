@@ -375,7 +375,11 @@ ${tekst}`).toEqual([nr])
       // INGEN reload her. Er velgeren ukontrollert, staar den paa
       // «alle» mens sida regner paa én stasjon - og det er nettopp den
       // tilstanden skjermbildet fra 2026-08-24 viste.
-      await expect(velger, 'Velgeren ble staaende mens sida byttet stasjon')
+      const kilde = await velger.getAttribute('data-kilde')
+      const prop = await velger.getAttribute('data-prop')
+      const url = await velger.getAttribute('data-url')
+      await expect(velger,
+        `Velgeren ble staaende. kilde=${kilde} prop=${prop} url=${url}`)
         .not.toHaveValue('alle', { timeout: 15_000 })
       expect(await skallet(page)).toContain(navn.match(/\d{4}/)?.[0] ?? navn)
 

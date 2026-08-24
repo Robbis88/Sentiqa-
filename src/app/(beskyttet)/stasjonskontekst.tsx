@@ -143,6 +143,15 @@ export function Stasjonskontekst({
             stasjon mens siden regner paa en annen. */}
         <select
           name="stasjon"
+          // HVEM AVGJORDE. Uten dette er en roed S6 bare «velgeren sto
+          // stille», og det kan bety at URL-en ikke naadde klienten,
+          // at prop-en var utdatert, eller at et optimistisk valg
+          // hang igjen. Attributtet blir staaende: det er tre linjer,
+          // og det er forskjellen paa en test som peker og en som
+          // gjetter.
+          data-kilde={nettoppValgt ? 'valg' : fraUrl ? 'url' : valgt ? 'kapsel' : 'ingen'}
+          data-prop={valgt ?? ''}
+          data-url={fraUrl ?? ''}
           value={nettoppValgt ?? fraUrl ?? valgt ?? (tillatAlle ? 'alle' : (stasjoner[0]?.id ?? ''))}
           onChange={(e) => {
             settValgt(e.target.value)
