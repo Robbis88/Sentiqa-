@@ -247,28 +247,60 @@ ${tekst}`).toEqual([nr])
   // S6 er den ene som ville sett det. De fem andre er porten rundt den.
   // =================================================================
   test.describe('S1-S6 velgeren og konteksten', () => {
-    /** Alle butikknumre som staar synlig i toppstripen. */
+    /**
+     * Butikknumre som staar SYNLIG i toppstripen, utenom velgeren selv.
+     *
+     * `innerText` paa en `<select>` gir opsjonslista - alle tre
+     * stasjonene - enten den er aapen eller ikke. Foerste utgave av
+     * denne testen leste dem som «tre stasjoner vises samtidig» og var
+     * roed uansett hva produktet gjorde.
+     *
+     * Velgeren maales for seg, med `selectedOptions`. Her maales alt
+     * ANNET: kvitteringen, sidehodefragmenter, hva som helst noen
+     * legger inn senere.
+     */
     async function numreITopp(page: Page): Promise<string[]> {
-      const tekst = await page.locator('.toppstripe').innerText()
+      const tekst = await page.locator('.toppstripe').evaluate((el) => {
+        const kopi = el.cloneNode(true) as HTMLElement
+        kopi.querySelectorAll('select, option').forEach((n) => n.remove())
+        return kopi.innerText ?? kopi.textContent ?? ''
+      })
       return [...new Set(tekst.match(/(5101|5102|5103)/g) ?? [])]
     }
 
-    test('S1 - velg 5101, og bade velger og side bruker 5101', async ({ page }) => {
-      await page.goto('/produksjonsplan?dato=2026-02-02')
-      await page.locator('.sq-stasjonskontekst select').selectOption({ label: '5101 Underby' })
-      await expect(page.locator('.sq-stasjonskontekst select')).not.toHaveValue('alle')
-      expect(await enigeOmStasjon(page)).toContain('5101')
+    /**
+     * Bytt stasjon, og vent til SIDA har fulgt etter.
+     *
+     * Uten ventingen maaler paastanden et oeyeblikk der velgeren har
+     * brukerens nye valg og sida fortsatt har det gamle - altsaa et
+     * avvik som er ekte, men forbigaaende og forventet. Det er ikke det
+     * denne suiten er ute etter.
+     */
+    async function byttTil(page: Page, etikett: string) {
+      const nr = etikett.match(/\d{4}/)![0]
+      await page.locator('.sq-stasjonskontekst select').selectOption({ label: etikett })
+      await expect(page.locator('.sq-sidehode').first()).toContainText(nr, { timeout: 15_000 })
+    }
+
+    // Bytt til en ANNEN stasjon enn den som allerede staar. Velger man
+    // den man er paa, er testen groenn uten aa ha maalt et bytte.
+    test('S1 - velg 5102, og bade velger og side bruker 5102', async ({ page }) => {
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      expect(await skallet(page)).toContain('5101')
+
+      await byttTil(page, '5102 Grenseby')
+      expect(await enigeOmStasjon(page)).toContain('5102')
     })
 
     test('S2 - velg 5103, og bade velger og side bruker 5103', async ({ page }) => {
-      await page.goto('/produksjonsplan?dato=2026-02-02')
-      await page.locator('.sq-stasjonskontekst select').selectOption({ label: '5103 Overby' })
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      await byttTil(page, '5103 Overby')
       expect(await enigeOmStasjon(page)).toContain('5103')
     })
 
     test('S3 - omlasting gir samme stasjon', async ({ page }) => {
-      await page.goto('/produksjonsplan?dato=2026-02-02')
-      await page.locator('.sq-stasjonskontekst select').selectOption({ label: '5102 Grenseby' })
+      await page.goto('/produksjonsplan?butikknummer=5101&dato=2026-02-02')
+      await byttTil(page, '5102 Grenseby')
       expect(await enigeOmStasjon(page)).toContain('5102')
 
       await page.reload()
