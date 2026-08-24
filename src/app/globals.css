@@ -495,13 +495,16 @@ button.logg-ut:hover { color: var(--tekst); }
    samme ikonet virker både her og på nettbrettets mørke topp uten en
    eneste ekstra regel. Trykkflaten er satt eksplisitt; emojien fikk sin
    av tilfeldig linjehøyde. */
+/* 36 px, ikke 32. Samme grense som knappene fikk i PORT 3 - et ikon
+   uten tekst er allerede vanskeligere aa treffe enn en knapp med, og
+   da skal det ikke ogsaa vaere mindre. */
 .klokke-lenke {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   text-decoration: none;
   color: var(--tekst-svak);
