@@ -37,6 +37,7 @@
   --primaer-lys: #7dc3ae;
   --radius: 10px;
   --radius-stor: 14px;
+
   /* Positiv status deler familie med merkevaren — «i orden» og «Sentiqa»
      skal ikke se ut som to ulike grønnfarger. Verdien er mørkere enn
      --primaer fordi den brukes som TEKST på lys flate, der --primaer så
@@ -399,16 +400,33 @@ button.logg-ut:hover { color: var(--tekst); }
 .meny-hamburger, .meny-overlay { display: none; }
 
 .hoved { display: flex; flex-direction: column; }
+/* TRE SONER, IKKE FIRE SOESKEN.
+   Var `display: flex` med `space-between` og fire barn og INGEN gap. Da
+   oppstod hierarkiet av innholdets bredde: stasjonsteksten kunne stoete
+   rett inntil brukernavnet, og «4185 St1 DaleRobert» sto som ett ord.
+   Grid gir sonene faste roller uansett hva som er i dem - er soeket
+   eller velgeren borte, blir hoeyre staaende hoeyre. */
 .toppstripe {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.5rem;
+  gap: var(--luft-5);
+  padding: var(--luft-3) var(--luft-5);
   background: #fff;
   border-bottom: 1px solid var(--kant);
 }
-.bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.6rem; }
-.topp-hoyre { display: flex; align-items: center; gap: 1rem; }
+/* `min-width: 0` paa hver sone: uten den nekter et grid-barn aa bli
+   smalere enn innholdet sitt, og et langt stasjonsnavn dytter i stedet
+   for aa gi etter. Det er den vanligste kilden til vannrett overflyt. */
+.topp-sone { display: flex; align-items: center; gap: var(--luft-3); min-width: 0; }
+.topp-venstre { justify-self: start; }
+.topp-midt { justify-self: center; }
+.topp-hoyre { justify-self: end; gap: var(--luft-4); }
+
+.bruker { font-size: 0.9rem; display: inline-flex; align-items: center; gap: var(--luft-2); min-width: 0; }
+/* Navnet er det eneste som skal kunne kortes ned. Rollemerket er kort og
+   maa staa helt - et halvt «Butikkssj» sier mindre enn ingenting. */
+.bruker .brukernavn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vakt { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .vakt-navn { font-size: 0.85rem; font-weight: 600; color: var(--primaer); }
 /* To felter nå: nummeret utpeker, PIN-en beviser. Nummeret er smalest —
@@ -446,6 +464,8 @@ button.logg-ut:hover { color: var(--tekst); }
 .varsel-liste li.lest { opacity: 0.55; }
 .varsel-tekst { font-size: 0.95rem; }
 .rolle-pip {
+  flex: none;
+  white-space: nowrap;
   font-size: 0.72rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
