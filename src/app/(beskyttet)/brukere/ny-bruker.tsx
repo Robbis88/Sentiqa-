@@ -31,7 +31,7 @@ export function NyBruker({ stasjoner }: { stasjoner: { id: string; navn: string 
 
       {tilstand?.ok ? <p className="ok" role="status">Bruker opprettet.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
-      <button type="submit" disabled={venter}>{venter ? 'Oppretter …' : 'Opprett bruker'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Oppretter …' : 'Opprett bruker'}</button>
     </form>
   )
 }

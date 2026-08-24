@@ -79,7 +79,7 @@ export function Sok({
           Klientsøk trenger den ikke — uten JavaScript finnes det ingen
           filtrering å be om. */}
       {!klientside && (
-        <noscript><button type="submit" className="sq-knapp liten">Søk</button></noscript>
+        <noscript><button type="submit" className="sq-knapp liten primar">Søk</button></noscript>
       )}
     </form>
   )

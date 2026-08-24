@@ -29,7 +29,7 @@ export function NyttSjekkpunkt({ stasjoner }: { stasjoner: { id: string; navn: s
         <input type="checkbox" name="kritisk" />
         <span>Kritisk</span>
       </label>
-      <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Legg til'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Legg til'}</button>
       {tilstand?.ok ? <p className="ok" role="status">Sjekkpunkt lagt til.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
     </form>

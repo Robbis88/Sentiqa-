@@ -56,7 +56,7 @@ export function NyttInnlegg() {
       <label className="felt avkryss"><input type="checkbox" name="publiser" defaultChecked /> <span>Publiser med en gang</span></label>
       {tilstand?.ok ? <p className="ok" role="status">Lagret.</p> : null}
       {tilstand?.feil ? <p className="feil" role="alert">{tilstand.feil}</p> : null}
-      <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Lagre innlegg'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Lagre innlegg'}</button>
     </form>
   )
 }

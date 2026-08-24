@@ -35,7 +35,7 @@ export function InnloggingSkjema({ retur }: { retur?: string }) {
         </p>
       ) : null}
 
-      <button type="submit" disabled={venter}>
+      <button type="submit" disabled={venter} className="primar">
         {venter ? 'Logger inn …' : 'Logg inn'}
       </button>
     </form>

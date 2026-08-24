@@ -15,7 +15,7 @@ export function SettPassordSkjema() {
         <input name="passord2" type="password" autoComplete="new-password" required minLength={8} />
       </label>
       {tilstand?.feil ? <p role="alert" className="feil">{tilstand.feil}</p> : null}
-      <button type="submit" disabled={venter}>{venter ? 'Lagrer …' : 'Sett passord og logg inn'}</button>
+      <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Sett passord og logg inn'}</button>
     </form>
   )
 }

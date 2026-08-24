@@ -128,7 +128,7 @@ export function MfaOppsett({ tvunget, rollenKrever }: { tvunget: boolean; rollen
           />
         </label>
         {feil ? <p role="alert" className="feil">{feil}</p> : null}
-        <button type="submit" disabled={venter}>{venter ? 'Bekrefter …' : 'Aktiver to-faktor'}</button>
+        <button type="submit" disabled={venter} className="primar">{venter ? 'Bekrefter …' : 'Aktiver to-faktor'}</button>
       </form>
     )
   }

@@ -60,7 +60,7 @@ export function StemplingSkjema() {
           />
         </label>
 
-        <button type="submit" className="stempling-knapp" disabled={venter}>
+        <button type="submit" className="stempling-knapp primar" disabled={venter}>
           {venter ? 'Registrerer …' : 'Stemple'}
         </button>
 

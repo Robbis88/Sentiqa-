@@ -66,7 +66,7 @@ export function IkPunktListe({ stasjonId, punkter }: { stasjonId: string; punkte
                 <input name="min_temp" inputMode="decimal" defaultValue={p.min_temp ?? ''} placeholder="min °C" aria-label="Min" />
                 <input name="max_temp" inputMode="decimal" defaultValue={p.max_temp ?? ''} placeholder="maks °C" aria-label="Maks" />
               </div>
-              <div className="rutine-kort-knapper"><button type="submit" className="liten">Lagre</button></div>
+              <div className="rutine-kort-knapper"><button type="submit" className="liten primar">Lagre</button></div>
             </form>
             <SlettKnapp hva={p.navn} handling={slettKontrollpunkt} id={p.id} merke="Slett punkt" />
           </div>

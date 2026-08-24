@@ -17,7 +17,7 @@ export function FristSkjema({ naa }: { naa: number }) {
         <input type="number" name="maaneder" defaultValue={naa} min={12} max={240} required />
       </label>
       <div className="knapperad">
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? 'Lagrer …' : 'Lagre'}
         </button>
         <Svar tilstand={tilstand} />
@@ -50,7 +50,7 @@ export function SlettSkjema(
           disabled={venter}
           required
         />
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? 'Sletter …' : 'Slett'}
         </button>
       </div>

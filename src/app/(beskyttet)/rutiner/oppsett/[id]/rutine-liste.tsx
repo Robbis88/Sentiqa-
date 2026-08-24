@@ -70,7 +70,7 @@ export function RutineListe({ skjemaId, rutiner }: { skjemaId: string; rutiner: 
               <label className="avkryss bilde-krav"><input type="checkbox" name="paakrevd_bilde" defaultChecked={r.paakrevd_bilde} /> <span>📷 Krev bilde</span></label>
               <span className="undertittel">Ukedager (tom = alle skjema-dager)</span>
               <Ukedager valgt={r.ukedager} />
-              <div className="rutine-kort-knapper"><button type="submit" className="liten">Lagre</button></div>
+              <div className="rutine-kort-knapper"><button type="submit" className="liten primar">Lagre</button></div>
             </form>
             <SlettKnapp hva={r.tittel} handling={slettRutine} id={r.id} merke="Slett rutine" />
           </div>

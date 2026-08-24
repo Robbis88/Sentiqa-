@@ -214,14 +214,18 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
 
           <form className="ai-skriv" onSubmit={(e) => { e.preventDefault(); send(tekst) }}>
             <input ref={felt} value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Skriv en melding …" disabled={venter} />
-            <button type="submit" disabled={venter || strommer || !tekst.trim()} aria-label="Send">➤</button>
+            <button type="submit" disabled={venter || strommer || !tekst.trim()} aria-label="Send" className="primar">➤</button>
           </form>
         </div>
       )}
 
       <button
         type="button"
-        className={`ai-fab ${apen ? 'apen' : ''}`}
+        // `primar` fordi den ER hovedhandlingen paa flata, ikke fordi
+        // den fullfoerer et skjema. Merket er der for at regelen skal
+        // kunne leses av en maaling: primaerfarge uten merke betyr at
+        // noen glemte noe.
+        className={`ai-fab primar ${apen ? 'apen' : ''}`}
         aria-label={apen ? 'Lukk AI-assistent' : 'Åpne AI-assistent'}
         aria-expanded={apen}
         onClick={() => setApen((v) => !v)}

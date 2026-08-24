@@ -123,7 +123,7 @@ export default async function MerkerSide() {
               <input name="emoji" placeholder="🏅" maxLength={4} className="sq-smalt-felt" aria-label="Merkesymbol" />
               <input name="navn" placeholder="Merkenavn" required />
               <input name="beskrivelse" placeholder="Beskrivelse (valgfri)" />
-              <button type="submit" className="liten">Legg til</button>
+              <button type="submit" className="liten primar">Legg til</button>
             </form>
           </div>
         </details>

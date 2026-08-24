@@ -96,7 +96,7 @@ export function LukkVakt({ innId, navn, siden, dato }: Props) {
             Innstemplingen blir stående med en merknad om at den ikke teller.
             Ingenting slettes.
           </p>
-          <button type="submit" className="sq-knapp" disabled={annVenter}>
+          <button type="submit" className="sq-knapp primar" disabled={annVenter}>
             {annVenter ? 'Lagrer …' : 'Annuller innstemplingen'}
           </button>
           {annSvar?.feil ? <span className="feil">{annSvar.feil}</span> : null}

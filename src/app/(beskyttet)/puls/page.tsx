@@ -105,7 +105,7 @@ export default async function PulsSide() {
                   <span className="knapperad">
                     <Link href={`/puls/${r.id}`} className="liten">Resultater</Link>
                     {r.status === 'aktiv' && (
-                      <form action={avsluttRunde}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten">Avslutt</button></form>
+                      <form action={avsluttRunde}><input type="hidden" name="id" value={r.id} /><button type="submit" className="liten primar">Avslutt</button></form>
                     )}
                     <SlettKnapp hva={r.start_dato} handling={slettRunde} id={r.id} merke="Slett" />
                   </span>

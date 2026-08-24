@@ -37,7 +37,7 @@ export function AnsattnummerFelt(
         className={nummer ? undefined : 'mangler'}
       />
       {endret && (
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? '…' : 'Lagre'}
         </button>
       )}

@@ -104,13 +104,13 @@ export default async function KonkurranserSide() {
                   {k.status === 'aktiv' && (
                     <form action={kaarVinner}>
                       <input type="hidden" name="id" value={k.id} />
-                      <button type="submit" className="liten">Kår vinner</button>
+                      <button type="submit" className="liten primar">Kår vinner</button>
                     </form>
                   )}
                   {k.status === 'avsluttet' && k.vinner_stasjon_id && harPremie && !k.premie_utbetalt && (
                     <form action={markerUtbetalt}>
                       <input type="hidden" name="id" value={k.id} />
-                      <button type="submit" className="liten">Marker premie utbetalt</button>
+                      <button type="submit" className="liten primar">Marker premie utbetalt</button>
                     </form>
                   )}
                   <SlettKnapp hva={k.navn} handling={slettKonkurranse} id={k.id} merke="Slett" />

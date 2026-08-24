@@ -195,7 +195,7 @@ export function Stasjonskontekst({
       </label>
       <Kvittering navn={navnFor(nettoppValgt ?? fraUrl ?? valgt)} />
       {/* Uten JavaScript blir dette en vanlig knapp. Med, er den unødvendig. */}
-      <noscript><button type="submit" className="liten">Bytt</button></noscript>
+      <noscript><button type="submit" className="liten primar">Bytt</button></noscript>
     </form>
   )
 }

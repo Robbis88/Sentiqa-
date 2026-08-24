@@ -11,7 +11,7 @@ export default function IngenTilgangSide() {
           eieren din, eller logg inn med en annen konto.
         </p>
         <form action={loggUt}>
-          <button type="submit">Logg ut</button>
+          <button type="submit" className="primar">Logg ut</button>
         </form>
       </div>
     </main>

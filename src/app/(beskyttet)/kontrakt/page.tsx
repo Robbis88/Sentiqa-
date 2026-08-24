@@ -172,7 +172,7 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
             <select name="rolle" defaultValue={rolle} aria-label="Rolle">
               {ROLLER.map((r) => <option key={r.verdi} value={r.verdi}>{r.navn}</option>)}
             </select>
-            <button type="submit" className="sq-knapp">Vis</button>
+            <button type="submit" className="sq-knapp primar">Vis</button>
           </form>
         }
       />

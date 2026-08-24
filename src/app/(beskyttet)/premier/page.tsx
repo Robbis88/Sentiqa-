@@ -56,7 +56,7 @@ export default async function PremierSide() {
             <label className="felt sq-smalt"><span>Dato</span>
               <input name="dato" type="date" />
             </label>
-            <button type="submit" className="liten">Tildel</button>
+            <button type="submit" className="liten primar">Tildel</button>
           </form>
     </Sidepanel>
   )
@@ -84,7 +84,7 @@ export default async function PremierSide() {
           <label className="felt sq-smalt"><span>Dato</span>
             <input name="dato" type="date" />
           </label>
-          <button type="submit" className="liten">Lagre</button>
+          <button type="submit" className="liten primar">Lagre</button>
         </form>
     </Sidepanel>
   )

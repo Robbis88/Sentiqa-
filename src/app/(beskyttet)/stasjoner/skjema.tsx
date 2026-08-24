@@ -38,7 +38,7 @@ export function StasjonSkjema() {
         <span>Svinnterskel %</span>
         <input name="svinnterskel" inputMode="decimal" placeholder="2,8" />
       </label>
-      <button type="submit" disabled={venter}>
+      <button type="submit" disabled={venter} className="primar">
         {venter ? 'Lagrer …' : 'Legg til'}
       </button>
 

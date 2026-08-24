@@ -30,7 +30,7 @@ export function SigneringSkjema(
         </label>
       </div>
       <div className="knapperad">
-        <button type="submit" className="liten" disabled={venter}>
+        <button type="submit" className="liten primar" disabled={venter}>
           {venter ? 'Laster opp …'
             : alleredeSignert ? 'Erstatt signert eksemplar' : 'Marker som signert'}
         </button>

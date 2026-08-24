@@ -106,9 +106,9 @@ export default async function ArrangementerSide() {
                 <form action={bekreftArrangement} className="arr-form">
                   <input type="hidden" name="id" value={f.id} />
                   <input name="faktor" type="number" step="0.05" min="0.1" max="5" defaultValue={f.faktor} aria-label="Faktor" className="sq-smalt-felt" />
-                  <button type="submit" className="liten">Bekreft</button>
+                  <button type="submit" className="liten primar">Bekreft</button>
                 </form>
-                <form action={forkastArrangement}><input type="hidden" name="id" value={f.id} /><button type="submit" className="liten slett">Forkast</button></form>
+                <form action={forkastArrangement}><input type="hidden" name="id" value={f.id} /><button type="submit" className="liten slett primar">Forkast</button></form>
               </li>
             ))}
           </ul>
@@ -122,7 +122,7 @@ export default async function ArrangementerSide() {
             {bekreftet.map((a) => (
               <li key={a.id}>
                 <span>{dag(a.dato)} · {a.navn} <span className="undertittel">×{a.faktor} · {stasjonTekst(a.stasjon_id)}</span></span>
-                <form action={forkastArrangement}><input type="hidden" name="id" value={a.id} /><button type="submit" className="liten slett">Fjern</button></form>
+                <form action={forkastArrangement}><input type="hidden" name="id" value={a.id} /><button type="submit" className="liten slett primar">Fjern</button></form>
               </li>
             ))}
           </ul>

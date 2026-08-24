@@ -55,7 +55,7 @@ export async function AvvikDel() {
       <form action={settGjennomfort}>
         <input type="hidden" name="id" value={a.id} />
         <input type="hidden" name="til" value={a.gjennomfort ? 'nei' : 'ja'} />
-        <button type="submit" className="liten">{a.gjennomfort ? 'Gjenåpne' : 'Marker gjennomført'}</button>
+        <button type="submit" className="liten primar">{a.gjennomfort ? 'Gjenåpne' : 'Marker gjennomført'}</button>
       </form>
     </div>
   )

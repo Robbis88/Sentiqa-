@@ -24,7 +24,7 @@ export function Vakt({ aktiv }: { aktiv: { id: string; navn: string } | null }) 
     return (
       <div className="vakt">
         <span className="vakt-navn">{aktiv.navn}</span>
-        <form action={checkUt}><button type="submit" className="liten">Logg av</button></form>
+        <form action={checkUt}><button type="submit" className="liten primar">Logg av</button></form>
       </div>
     )
   }
@@ -49,7 +49,7 @@ export function Vakt({ aktiv }: { aktiv: { id: string; navn: string } | null }) 
         aria-label="PIN"
         className="vakt-pin"
       />
-      <button type="submit" className="liten" disabled={venter}>{venter ? '…' : 'Vakt'}</button>
+      <button type="submit" className="liten primar" disabled={venter}>{venter ? '…' : 'Vakt'}</button>
       {tilstand?.feil ? <span className="vakt-feil" role="alert">{tilstand.feil}</span> : null}
     </form>
   )
