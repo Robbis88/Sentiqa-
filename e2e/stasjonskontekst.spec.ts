@@ -360,7 +360,17 @@ ${tekst}`).toEqual([nr])
       const lenke = page.locator('a[href*="/salg?"][href*="stasjon="]').first()
       await expect(lenke).toBeVisible()
       const navn = (await lenke.innerText()).trim()
+      const maal = await lenke.getAttribute('href')
       await lenke.click()
+
+      // SI HVILKET LEDD SOM SVIKTER. Uten dette er en roed S6 bare
+      // «velgeren sto stille», og det kan bety to helt ulike ting:
+      // navigeringen skjedde ikke, eller skallet fulgte ikke etter.
+      await expect(page, `Klikket navigerte ikke. Lenke: ${maal}`)
+        .toHaveURL(/stasjon=/, { timeout: 15_000 })
+      await expect(page.locator('.sq-sidehode').first(),
+        'Sida fulgte ikke URL-en - da er dette ikke en skall-feil')
+        .toContainText(navn.match(/\d{4}/)?.[0] ?? navn, { timeout: 15_000 })
 
       // INGEN reload her. Er velgeren ukontrollert, staar den paa
       // «alle» mens sida regner paa én stasjon - og det er nettopp den
