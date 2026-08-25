@@ -168,7 +168,9 @@ describe('genererte filer', () => {
     expect(avvisninger.length).toBeGreaterThan(0)
     const utenMaal = avvisninger
       .filter((l) => /'(update|delete) /.test(l))
-      .filter((l) => !/, '[a-z_]+', '[0-9a-f-]+'\);$/.test(l.trim()))
+      // tabell, målrad og kolonnen den identifiseres på — den siste
+      // fordi ikke alle tabeller har en `id` (`bemanning_stasjon`).
+      .filter((l) => !/, '[a-z_]+', '[0-9a-f-]+', '[a-z_]+'\);$/.test(l.trim()))
     expect(utenMaal, `avvisning uten maalrad:\n${utenMaal.slice(0, 3).join('\n')}`).toEqual([])
   })
 

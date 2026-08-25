@@ -85,6 +85,22 @@ function fyll(mal: string, ctx: Record<string, string>): string {
   })
 }
 
+/** Kolonnen som identifiserer en rad. `id` naar ikke annet er sagt. */
+function idKol(r: Ressurs): string {
+  return r.id_kolonne ?? 'id'
+}
+
+/**
+ * Uttrykket som peker paa den faste proberaden for en stasjon.
+ *
+ * Har tabellen en surrogatnokkel, er det den seedede uuid-en. Har den
+ * ikke det - `bemanning_stasjon` har `stasjon_id` som primaernokkel og
+ * INGEN `id` - peker vi paa stasjonen selv.
+ */
+function fastVerdi(r: Ressurs, s: Stasjon): string {
+  return idKol(r) === 'id' ? seedId(`${r.tabell}:fast:${s}`) : S[s]
+}
+
 /** Deterministisk UUID for en seedet rad. Ingen Math.random. */
 function seedId(nokkel: string): string {
   let h = 0
@@ -435,8 +451,11 @@ function genererRessursSeed(r: Ressurs): string {
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {
     const { kolonner, verdier } = proberadSql(r, kjede, s, `fast${s}`)
-    const id = seedId(`${r.tabell}:fast:${s}`)
-    linjer.push(`insert into public.${r.tabell} (id, ${kolonner.join(', ')}) values (${sitat(id)}, ${verdier.join(', ')});`)
+    linjer.push(idKol(r) === 'id'
+      ? `insert into public.${r.tabell} (id, ${kolonner.join(', ')}) `
+        + `values (${sitat(seedId(`${r.tabell}:fast:${s}`))}, ${verdier.join(', ')});`
+      // Noekkelen staar allerede blant tenantkolonnene.
+      : `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')});`)
   }
 
   // `nyrad_*` lager en fersk rad rett før en update/delete-test, saa en
@@ -578,17 +597,17 @@ end $$;
 -- om tenantvernet. Slike svar er FEIL her, ikke ok.
 -- KONTROLLKONTEKST. Definer, saa den ser forbi RLS og svarer paa om
 -- raden i det hele tatt finnes. Uten den er "0 rader" tvetydig.
-create or replace function pg_temp.finnes(p_tabell text, p_id uuid) returns boolean
-language plpgsql security definer as $$
+create or replace function pg_temp.finnes(p_tabell text, p_id uuid, p_kol text default 'id')
+returns boolean language plpgsql security definer as $$
 declare n int;
 begin
-  execute format('select count(*) from public.%I where id = $1', p_tabell) into n using p_id;
+  execute format('select count(*) from public.%I where %I = $1', p_tabell, p_kol) into n using p_id;
   return n > 0;
 end $$;
 
 create or replace function pg_temp.skriv_avvist(
   p_navn text, p_sql text,
-  p_maal_tabell text default null, p_maal_id uuid default null
+  p_maal_tabell text default null, p_maal_id uuid default null, p_maal_kol text default 'id'
 ) returns void
 language plpgsql as $$
 declare n bigint;
@@ -621,7 +640,7 @@ begin
   if p_maal_tabell is null then
     perform pg_temp.logg('FEIL', p_navn,
       '0 rader, men ingen maalrad oppgitt - kan ikke skille RLS fra feil fixture', 'negativ');
-  elsif not pg_temp.finnes(p_maal_tabell, p_maal_id) then
+  elsif not pg_temp.finnes(p_maal_tabell, p_maal_id, p_maal_kol) then
     perform pg_temp.logg('FEIL', p_navn,
       '0 rader, men maalraden ' || p_maal_id || ' finnes ikke i ' || p_maal_tabell
       || ' - testen beviser ingenting', 'negativ');
@@ -668,11 +687,11 @@ function genererRessurs(r: Ressurs): string {
         const ok = tillatt(r, i, op, s)
         const kjede = kjedenFor(s)
         const navn = `${r.tabell} ${i.navn} ${op.toUpperCase()} ${stasjonsbasert ? s : kjede}`
-        const fastId = seedId(`${r.tabell}:fast:${s}`)
+        const fastId = fastVerdi(r, s)
 
         if (op === 'select') {
           linjer.push(`select pg_temp.paastand(${sitat(`${navn} -> ${ok ? 'ser' : 'ser ikke'}`)}, ${
-            ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where id = ${sitat(fastId)}), ${
+            ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where ${idKol(r)} = ${sitat(fastId)}), ${
             sitat(ok ? 'positiv' : 'negativ')});`)
           continue
         }
@@ -699,11 +718,11 @@ function genererRessurs(r: Ressurs): string {
         }
 
         const sql = op === 'update'
-          ? `update public.${r.tabell} set ${settbartFelt(r)} where id = ${sitat(fastId)}`
-          : `delete from public.${r.tabell} where id = ${sitat(fastId)}`
+          ? `update public.${r.tabell} set ${settbartFelt(r)} where ${idKol(r)} = ${sitat(fastId)}`
+          : `delete from public.${r.tabell} where ${idKol(r)} = ${sitat(fastId)}`
         // Maalraden foelger med paa avvisninger: "0 rader" godtas bare
         // naar kontrollkonteksten bekrefter at raden faktisk finnes.
-        const maalrad = `, ${sitat(r.tabell)}, ${sitat(fastId)}`
+        const maalrad = `, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))}`
         linjer.push(ok
           ? `select pg_temp.skriv_tillatt(${sitat(navn)}, ${sitat(sql)});`
           : `select pg_temp.skriv_avvist(${sitat(navn)}, ${sitat(sql)}${maalrad});`)
@@ -742,17 +761,17 @@ function genererRessurs(r: Ressurs): string {
     if (r.operasjoner.includes('update')) {
       const egen = i.stasjoner.find((s) => tillatt(r, i, 'update', s))
       if (egen) {
-        const fastId = seedId(`${r.tabell}:fast:${egen}`)
+        const fastId = fastVerdi(r, egen)
         const forbudtISammeKjede = KJEDENS_STASJONER[i.kjede].find((s) => !tillatt(r, i, 'update', s))
         const annenKjede = ANNEN_KJEDE[i.kjede]
 
         if (stasjonsbasert && forbudtISammeKjede && !r.tenant_kolonne) {
           linjer.push(`select pg_temp.skriv_avvist(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad ${egen} -> ${forbudtISammeKjede}`)}, ${
-            sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where id = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)});`)
+            sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where ${idKol(r)} = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))});`)
         }
         if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station') {
           linjer.push(`select pg_temp.skriv_avvist(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad -> kjede ${annenKjede}`)}, ${
-            sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where id = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)});`)
+            sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where ${idKol(r)} = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))});`)
         }
       }
     }

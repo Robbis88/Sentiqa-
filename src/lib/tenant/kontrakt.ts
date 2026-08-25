@@ -108,6 +108,15 @@ export type Ressurs = {
    */
   en_rad_per_stasjon?: boolean
   /**
+   * Kolonnen som identifiserer én rad. `id` når ikke annet er sagt.
+   *
+   * Ikke alle tabeller har en surrogatnøkkel: `bemanning_stasjon` har
+   * `stasjon_id` som primærnøkkel og *ingen* `id`. Generatoren antok
+   * `id` overalt og produserte `insert into ... (id, ...)` mot en
+   * tabell uten den kolonnen.
+   */
+  id_kolonne?: string
+  /**
    * Dagens tilgang er bredere eller annerledes enn produktkontrakten:
    *
    *   tablet      ingen lederdata

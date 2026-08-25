@@ -125,6 +125,7 @@
       "manager": "assigned_stations",
       "owner": "retailer",
       "en_rad_per_stasjon": true,
+      "id_kolonne": "stasjon_id",
       "avvik_fra_intensjon": "DAGENS TILSTAND, IKKE OENSKET. bemanning_stasjon_les har ikke rollepredikat, saa nettbrettkontoen leser maks_bemanning paa egen stasjon. Ingen nettbrettrute bruker tabellen - den leses fra /bemanning, som er lederflaten. Produktkontrakten sier 'tablet: ingen lederdata', og bemanningstaket er lederdata. Anbefaling: stram. Ikke gjort her - policyendringer hoerer ikke til samme pulje som klassifiseringen.",
       "business_unik": [
         "stasjon_id"
