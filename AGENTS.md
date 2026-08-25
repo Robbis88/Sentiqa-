@@ -70,6 +70,35 @@ og alltid `with (security_invoker = true)` — uten den leser viewet som eieren,
 
 **Et flagg i en kolonne er ikke en grense før RLS leser det.** `malekort.vis_tablet` sto i basen fra `0073` og ble bare brukt som visningsvilkår i appen; nettbrettet kunne lese kortet direkte over PostgREST. Rettet i `0134`. Legger du til et slikt flagg, hører det hjemme i policyen — ikke bare i spørringen.
 
+# Tenant-kontrakten og fixture-kontrakten
+
+`supabase/tenant-kontrakt.json` er eneste håndholdte kilde for hvem som når hva. Dekningskontrollen, atferdsmatrisen og varme/kalde genereres derfra — `OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant`. Rediger aldri de genererte filene.
+
+**To kontrakter, og de blandes ikke:**
+
+- **Tenant-kontrakten beskriver autorisasjon.** Hvem som når hva, per rolle og operasjon.
+- **Fixture-kontrakten beskriver gyldige testdata.** `proberad`, `seed_ekstra` og `business_unik` — det som ikke kan utledes av autorisasjonen.
+
+**Generatoren skal aldri gjette en forretningsnøkkel.** Den kjenner tre: tenantnøkkelen skiller kjeder og stasjoner, primærnøkkelen er en uuid ingen kolliderer på, og `business_unik` er den som gjør at samme identitet to ganger — eller to identiteter på samme stasjon — kolliderer. Står en kolonne i `business_unik`, krever `valider()` at den varierer per forsøk eller kommer fra en fersk forutsetningsrad. Unntak krever en skrevet begrunnelse (`avvik.lopenr` settes av trigger `sett_avvik_lopenr()`).
+
+**`OPPDATER_KONTRAKT` regenererer konsekvenser, aldri klassifiseringer.** En ny tabell må føres inn for hånd av noen som har tatt stilling. En gjettet rad ville gjort dekningssjekken til en formalitet.
+
+## Hva som teller som en tenant-avvisning
+
+```
+42501                        godkjent sikkerhetsavvisning
+0 rader + målrad bevist      godkjent — `using` utelukket raden
+23505 / 23503 / 23514 / …    FAIL. Domenefeil, ikke sikkerhet.
+```
+
+En blokkert `UPDATE` gir 0 rader og *ingen* exception. Det gjør også en feil id, en fixture som aldri ble seedet, og en tom tabell. Derfor godtas 0 rader bare når `pg_temp.finnes()` — security definer, ser forbi RLS — bekrefter at målraden er der.
+
+**En positiv kontroll må lykkes før de negative i samme gruppe er gyldige.** Lykkes ingen tillatt operasjon på en ressurs, vet vi ikke om proberaden er gyldig i domenet — og da beviser ingen av avvisningene noe. Uten den regelen ville en suite der alt er ødelagt sett ut som en suite der alt er trygt.
+
+**`skriv_avvist` og `skriv_tillatt` må være `security invoker`.** Blir de definer, kjører den dynamiske setningen som eier, forbi RLS, og fila blir grønn uansett hva policyen sier.
+
+**Multi-setningsfiler kjøres med `psql -v ON_ERROR_STOP=1`,** ikke `supabase db query --file` — den sender fila som én prepared statement. Uten `ON_ERROR_STOP` returnerer psql 0 selv om en setning feilet.
+
 # Arbeidsflyt: `main` er beskyttet
 
 Siden 2026-08-19 kan ingen pushe rett til `main` — heller ikke eieren, heller ikke en agent som bruker eierens rettigheter. Bypass-lista er tom med vilje.

@@ -311,6 +311,37 @@ begin;
   ut.push(`
 select pg_temp.som_eier();
 
+-- =====================================================================
+-- EN NEGATIV TENANT-TEST TELLER IKKE FOER DEN POSITIVE HAR LYKTES.
+--
+-- Fixturen er ressursens. Lykkes ingen tillatt operasjon paa en
+-- ressurs, vet vi ikke om proberaden i det hele tatt er gyldig i
+-- domenet - og da beviser ingen av avvisningene noe om tenantgrensen.
+-- De kan like gjerne ha feilet paa en skranke, en fremmednokkel eller
+-- en manglende forutsetning.
+--
+-- Uten denne blokka ville en suite der ALT er oedelagt sett ut som en
+-- suite der alt er trygt.
+-- =====================================================================
+do $$
+declare r record;
+begin
+  for r in
+    select distinct f.gruppe
+    from pg_temp.funn f
+    where f.art = 'negativ'
+      and not exists (
+        select 1 from pg_temp.funn p
+        where p.gruppe = f.gruppe and p.art = 'positiv' and p.status = 'ok')
+    order by 1
+  loop
+    insert into pg_temp.funn (status, navn, detalj, gruppe, art)
+    values ('FEIL', r.gruppe || ': ingen positiv kontroll lyktes',
+            'Avvisningene i denne gruppa er derfor ikke gyldige tenant-bevis - fixturen kan vaere ugyldig i domenet.',
+            r.gruppe, 'kontroll');
+  end loop;
+end $$;
+
 select status, navn, detalj
 from pg_temp.funn
 order by (status = 'FEIL') desc, nr;
@@ -426,13 +457,29 @@ end $fn$;`)
 const HJELPERE = `
 -- --- Hjelpere --------------------------------------------------------
 create temp table funn (
-  nr serial primary key, status text not null, navn text not null, detalj text
+  nr serial primary key, status text not null, navn text not null, detalj text,
+  gruppe text, art text
 ) on commit drop;
 
-create or replace function pg_temp.logg(p_status text, p_navn text, p_detalj text default null)
+-- Gruppa er ressurs + identitet. Arten er positiv, negativ eller lesing.
+-- Sammen er de det som gjor regelen under maalbar: en negativ
+-- tenant-test teller ikke foer den positive i samme gruppe har lykkes.
+create temp table gjeldende (gruppe text, art text) on commit drop;
+insert into gjeldende values (null, null);
+
+create or replace function pg_temp.sett_gruppe(p_gruppe text) returns void
+language plpgsql security definer as $$
+begin
+  update pg_temp.gjeldende set gruppe = p_gruppe;
+end $$;
+
+create or replace function pg_temp.logg(p_status text, p_navn text, p_detalj text default null,
+  p_art text default null)
 returns void language plpgsql security definer as $$
 begin
-  insert into pg_temp.funn (status, navn, detalj) values (p_status, p_navn, p_detalj);
+  insert into pg_temp.funn (status, navn, detalj, gruppe, art)
+  values (p_status, p_navn, p_detalj,
+          (select gruppe from pg_temp.gjeldende limit 1), p_art);
 end $$;
 
 create or replace function pg_temp.logg_inn_som(p_uid uuid) returns void
@@ -450,10 +497,10 @@ begin
   perform set_config('request.jwt.claims', '', true);
 end $$;
 
-create or replace function pg_temp.paastand(p_navn text, p_ok boolean) returns void
-language plpgsql security definer as $$
+create or replace function pg_temp.paastand(p_navn text, p_ok boolean, p_art text default 'lesing')
+returns void language plpgsql security definer as $$
 begin
-  perform pg_temp.logg(case when p_ok is true then 'ok' else 'FEIL' end, p_navn);
+  perform pg_temp.logg(case when p_ok is true then 'ok' else 'FEIL' end, p_navn, null, p_art);
 end $$;
 
 -- SECURITY INVOKER, og det er ikke valgfritt: den dynamiske setningen
@@ -485,15 +532,15 @@ begin
     get diagnostics n = row_count;
   exception when others then
     if sqlstate = '42501' then
-      perform pg_temp.logg('ok', p_navn, 'avvist med 42501');
+      perform pg_temp.logg('ok', p_navn, 'avvist med 42501', 'negativ');
     else
       perform pg_temp.logg('FEIL', p_navn,
-        'avvist av FEIL grunn: ' || sqlstate || ' - beviser ikke tenantvern');
+        'avvist av FEIL grunn: ' || sqlstate || ' - beviser ikke tenantvern', 'negativ');
     end if;
     return;
   end;
   if n > 0 then
-    perform pg_temp.logg('FEIL', p_navn, 'skrivingen gikk gjennom, ' || n || ' rad(er)');
+    perform pg_temp.logg('FEIL', p_navn, 'skrivingen gikk gjennom, ' || n || ' rad(er)', 'negativ');
     return;
   end if;
 
@@ -507,13 +554,13 @@ begin
   -- rader godtas. Da - og bare da - er det RLS som stoppet skrivingen.
   if p_maal_tabell is null then
     perform pg_temp.logg('FEIL', p_navn,
-      '0 rader, men ingen maalrad oppgitt - kan ikke skille RLS fra feil fixture');
+      '0 rader, men ingen maalrad oppgitt - kan ikke skille RLS fra feil fixture', 'negativ');
   elsif not pg_temp.finnes(p_maal_tabell, p_maal_id) then
     perform pg_temp.logg('FEIL', p_navn,
       '0 rader, men maalraden ' || p_maal_id || ' finnes ikke i ' || p_maal_tabell
-      || ' - testen beviser ingenting');
+      || ' - testen beviser ingenting', 'negativ');
   else
-    perform pg_temp.logg('ok', p_navn, '0 rader, maalrad bekreftet');
+    perform pg_temp.logg('ok', p_navn, '0 rader, maalrad bekreftet', 'negativ');
   end if;
 end $$;
 
@@ -525,13 +572,13 @@ begin
     execute p_sql;
     get diagnostics n = row_count;
   exception when others then
-    perform pg_temp.logg('FEIL', p_navn, 'ble blokkert: ' || sqlstate);
+    perform pg_temp.logg('FEIL', p_navn, 'ble blokkert: ' || sqlstate, 'positiv');
     return;
   end;
   if n = 0 then
-    perform pg_temp.logg('FEIL', p_navn, 'traff 0 rader - blokkert i stillhet');
+    perform pg_temp.logg('FEIL', p_navn, 'traff 0 rader - blokkert i stillhet', 'positiv');
   else
-    perform pg_temp.logg('ok', p_navn, n || ' rad');
+    perform pg_temp.logg('ok', p_navn, n || ' rad', 'positiv');
   end if;
 end $$;
 `
@@ -539,7 +586,8 @@ end $$;
 function genererRessurs(r: Ressurs): string {
   const linjer: string[] = ['', `-- =====================================================================`,
     `-- ${r.tabell}  (${r.tenant_scope}, ${r.data_class})`,
-    `-- =====================================================================`]
+    `-- =====================================================================`,
+    `select pg_temp.sett_gruppe(${sitat(r.tabell)});`]
 
   const stasjonsbasert = r.tenant_scope !== 'retailer'
 
@@ -558,7 +606,8 @@ function genererRessurs(r: Ressurs): string {
 
         if (op === 'select') {
           linjer.push(`select pg_temp.paastand(${sitat(`${navn} -> ${ok ? 'ser' : 'ser ikke'}`)}, ${
-            ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where id = ${sitat(fastId)}));`)
+            ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where id = ${sitat(fastId)}), ${
+            sitat(ok ? 'positiv' : 'negativ')});`)
           continue
         }
 
