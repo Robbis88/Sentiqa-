@@ -238,21 +238,6 @@ jobs:
       - name: Nettlesertester
         run: npx playwright test
 
-      # MIDLERTIDIG. Fjernes foer merge.
-      #
-      # `stoerste enkeltlinje` flaket fordi den leste innerText paa en
-      # kollapset <details>. Fem isolerte kjoringer er beviset paa at
-      # rettingen holder - ett groent kast beviser ingenting naar feilen
-      # ER et kast.
-      #
-      # ETTER full suite, og med --no-deps. Foerste forsoek la steget
-      # FOER, og da kjorte `oppsett`-prosjektet to ganger: eieren ble
-      # rullet inn i to-faktor av flakejakten, og da var hun ikke lenger
-      # TVUNGET til innrullering naar full suite kjorte oppsettet paa
-      # nytt. Maalingen endret systemet den maalte.
-      - name: Flakejakt - stoerste enkeltlinje x5
-        run: npx playwright test e2e/svinn.spec.ts -g "stoerste enkeltlinje" --repeat-each=5 --no-deps
-
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
