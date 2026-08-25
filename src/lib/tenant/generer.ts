@@ -699,7 +699,31 @@ function genererRessurs(r: Ressurs): string {
         if (op === 'insert') {
           const { kolonner, verdier } = proberadSql(r, kjede, s, `${i.navn}${s}`)
           const sql = `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')})`
+
+          // EN RAD PER STASJON: PLASSEN MAA VAERE LEDIG.
+          //
+          // Stasjonen har alt sin faste rad, saa et innslag nummer to
+          // kolliderer med primaernokkelen. Den positive kontrollen ble
+          // "ble blokkert: 23505" - en domenefeil, ikke en avvisning -
+          // og den negative ville vaert "avvist av FEIL grunn".
+          //
+          // Raden fjernes som eier foer forsoeket, og tilstanden
+          // normaliseres etterpaa uansett utfall.
+          if (r.en_rad_per_stasjon) {
+            linjer.push(`select pg_temp.som_eier();`)
+            linjer.push(`delete from public.${r.tabell} where ${idKol(r)} = ${sitat(fastVerdi(r, s))};`)
+            linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
+          }
+
           linjer.push(`select pg_temp.${ok ? 'skriv_tillatt' : 'skriv_avvist'}(${sitat(navn)}, ${sitat(sql)});`)
+
+          if (r.en_rad_per_stasjon) {
+            const gjen = proberadSql(r, kjede, s, `gjeninn${i.navn}${s}`)
+            linjer.push(`select pg_temp.som_eier();`)
+            linjer.push(`delete from public.${r.tabell} where ${idKol(r)} = ${sitat(fastVerdi(r, s))};`)
+            linjer.push(`insert into public.${r.tabell} (${gjen.kolonner.join(', ')}) values (${gjen.verdier.join(', ')});`)
+            linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
+          }
           continue
         }
 

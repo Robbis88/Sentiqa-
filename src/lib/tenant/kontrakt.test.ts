@@ -202,6 +202,33 @@ describe('genererte filer', () => {
       .toBeGreaterThan(0)
   })
 
+  it('en_rad_per_stasjon frigjoer plassen foer hvert INSERT-forsoek', () => {
+    // Metaregelen: test antakelsen, ikke symptomet.
+    //
+    // Stasjonen har alt sin faste rad, saa et innslag nummer to
+    // kolliderer med primaernokkelen. Uten frigjoering ble den positive
+    // kontrollen "ble blokkert: 23505" og den negative "avvist av FEIL
+    // grunn" - to feil av samme aarsak, funnet i CI etter fire minutter.
+    const sql = genererMatrise(kontrakt)
+    const linjer = sql.split('\n')
+    const enRad = kontrakt.ressurser.filter((r) => r.en_rad_per_stasjon)
+
+    for (const r of enRad) {
+      const idk = r.id_kolonne ?? 'id'
+      linjer.forEach((l, nr) => {
+        if (!l.includes(`skriv_tillatt('${r.tabell} `) && !l.includes(`skriv_avvist('${r.tabell} `)) return
+        if (!/ INSERT /.test(l)) return
+        const foran = linjer.slice(Math.max(0, nr - 3), nr).join(' ')
+        expect(foran, `${r.tabell}: INSERT-forsoek uten frigjoering foran (linje ${nr + 1})`)
+          .toContain(`delete from public.${r.tabell} where ${idk} =`)
+      })
+    }
+
+    // KANARIFUGL: uten en slik ressurs maaler testen ingenting.
+    expect(enRad.length, 'ingen en_rad_per_stasjon-ressurs - maaler testen noe?')
+      .toBeGreaterThan(0)
+  })
+
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
     // AGENTS.md: innlimingskjeden legger ellers av og til på et
     // stray-tegn foran linje 1.
