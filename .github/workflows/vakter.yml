@@ -131,6 +131,43 @@ jobs:
       - name: RLS-vakthund mot fersk base
         run: npx supabase db query --local --file supabase/tests/rls_vakthund.sql
 
+      # PORT 2: tenant-kontrakten.
+      #
+      # Dekningen foerst - en ny tabell som ingen har klassifisert skal
+      # aldri komme forbi her.
+      - name: Tenant-dekning
+        run: npx supabase db query --local --file supabase/tests/tenant_dekning.sql
+
+      # KANARIFUGLEN FOR DEKNINGEN. Tre kall, og alle tre betyr noe:
+      # groenn, saa ROED paa en uklassifisert tabell, saa groenn igjen.
+      # Uten det siste ville en sjekk som ALLTID feiler ogsaa bestaatt.
+      - name: Uklassifisert tabell feller dekningen
+        run: |
+          npx supabase db query --local --file supabase/tests/kanari_uklassifisert.sql
+          if npx supabase db query --local --file supabase/tests/tenant_dekning.sql; then
+            echo "::error::Dekningskontrollen godtok en uklassifisert tabell - den maaler ingenting"
+            npx supabase db query --local --file supabase/tests/kanari_uklassifisert_rydd.sql
+            exit 1
+          fi
+          echo "Dekningen felte den uklassifiserte tabellen, som den skal."
+          npx supabase db query --local --file supabase/tests/kanari_uklassifisert_rydd.sql
+          npx supabase db query --local --file supabase/tests/tenant_dekning.sql
+
+      # Atferdsmatrisen. Generert fra kontrakten - se
+      # src/lib/tenant/generer.ts. Tiden logges med vilje: dekning skal
+      # ikke kuttes for ytelse foer kjoretiden faktisk er maalt.
+      - name: Tenant-atferdsmatrise
+        run: |
+          start=$(date +%s)
+          npx supabase db query --local --file supabase/tests/rls_kanarifugl_generert.sql
+          echo "Atferdsmatrisen brukte $(( $(date +%s) - start )) sekunder."
+
+      # Haandskrevet kanarifugl fra PORT 1. Blir staaende til kontrakten
+      # dekker alle varme tabeller - den maaler dagens tilstand paa
+      # nettbrettet, som matrisen ennaa ikke uttaler seg om.
+      - name: Tenant-kanarifugl (PORT 1)
+        run: npx supabase db query --local --file supabase/tests/rls_kanarifugl.sql
+
       # Hemmeligheten: at pin_hash faktisk er lukket for klientrollen, at
       # verifiseringen virker, at rate limitingen bremser og at
       # revisjonssporet ikke baerer noe hemmelig.
