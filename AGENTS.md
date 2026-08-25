@@ -64,6 +64,10 @@ revoke all on public.v_ny from anon;
 
 og alltid `with (security_invoker = true)` — uten den leser viewet som eieren, forbi RLS. **`create or replace view` uten klausulen nullstiller flagget i stillhet**, så en redefinering i en senere migrasjon kan slå av vernet uten at diffen ser farlig ut. Punkt 9 i vakthunden kaster på begge deler (se `0130`).
 
+**Og tabeller, av nøyaktig samme grunn.** En ny tabell skal ha `revoke all on public.ny_tabell from anon;` ved siden av sine grants til `authenticated`. PostgREST-sonden fant 2026-08-25 at 77 tabeller svarte `200 []` for `anon` — ingen lekkasje, men granten lå der og RLS var eneste lag. `0134` tok dem, og punkt 10 i vakthunden holder dem lukket. Kjør `supabase/tests/postgrest_sonde.mjs` når du vil se det gjennom klientflaten i stedet for katalogen.
+
+**Et flagg i en kolonne er ikke en grense før RLS leser det.** `malekort.vis_tablet` sto i basen fra `0073` og ble bare brukt som visningsvilkår i appen; nettbrettet kunne lese kortet direkte over PostgREST. Rettet i `0134`. Legger du til et slikt flagg, hører det hjemme i policyen — ikke bare i spørringen.
+
 # Arbeidsflyt: `main` er beskyttet
 
 Siden 2026-08-19 kan ingen pushe rett til `main` — heller ikke eieren, heller ikke en agent som bruker eierens rettigheter. Bypass-lista er tom med vilje.
