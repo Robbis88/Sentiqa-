@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 import type { Kontrakt } from './kontrakt'
 import { rekkevidde, valider } from './kontrakt'
 import { genererDekning, genererMatrise, IDENTITETER, maal, tillatt } from './generer'
+import { forretningsnokler } from './skjema'
 
 const ROT = new URL('../../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
 const KONTRAKT_STI = `${ROT}supabase/tenant-kontrakt.json`
@@ -49,7 +50,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 70
+  const UKLASSIFISERT_NA = 67
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -64,6 +65,44 @@ describe('tenant-kontrakten', () => {
     const klassifisert = new Set(kontrakt.ressurser.map((r) => r.tabell))
     const begge = kontrakt.uklassifisert_tillatt.tabeller.filter((t) => klassifisert.has(t))
     expect(begge).toEqual([])
+  })
+})
+
+describe('forretningsnokler mot skjemaet', () => {
+  const noekler = forretningsnokler(`${ROT}supabase/migrations`)
+
+  it('finner noekler i det hele tatt', () => {
+    // KANARIFUGL. Parser den ingenting, blir hele sjekken under stille.
+    expect(Object.keys(noekler).length).toBeGreaterThan(20)
+    expect(noekler.ansatte?.length, 'ansatte har to unike indekser').toBeGreaterThanOrEqual(2)
+  })
+
+  it('hver klassifisert ressurs kjenner alle sine forretningsnokler', () => {
+    // Jeg overså `ansatte_pin_unik` da jeg skrev kontrakten for hånd.
+    // CI fant den etter fire minutter, med 23505. Denne finner den før
+    // pushen — og finner den neste jeg overser.
+    const feil: string[] = []
+    for (const r of kontrakt.ressurser) {
+      // Ingen operasjoner = ingen fixture = ingen kollisjon mulig.
+      // `oversettelse_cache` naas ikke av noen rolle.
+      if (r.operasjoner.length === 0) continue
+      const kjent = new Set([
+        ...(r.business_unik ?? []),
+        ...Object.keys(r.business_unik_unntak ?? {}),
+        // Tenantkolonnene varierer med målet og trenger ingen erklæring.
+        'retailer_id', 'stasjon_id',
+        // Primærnøkkelen er ikke en forretningsnøkkel.
+        r.id_kolonne ?? 'id',
+      ])
+      for (const n of noekler[r.tabell] ?? []) {
+        const mangler = n.kolonner.filter((k) => !kjent.has(k))
+        if (mangler.length > 0) {
+          feil.push(`${r.tabell}: ${n.navn ?? 'unique'} (${n.kolonner.join(', ')}) `
+            + `- mangler i business_unik: ${mangler.join(', ')}`)
+        }
+      }
+    }
+    expect(feil, feil.join('\n')).toEqual([])
   })
 })
 
