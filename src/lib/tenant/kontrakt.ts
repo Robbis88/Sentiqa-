@@ -90,8 +90,6 @@ export function valider(k: Kontrakt): string[] {
     if (sett.has(r.tabell)) feil.push(`${r.tabell}: står to ganger`)
     sett.add(r.tabell)
 
-    if (r.operasjoner.length === 0) feil.push(`${r.tabell}: ingen operasjoner`)
-
     // En stasjonsrolle på en ressurs uten stasjonsbegrep er meningsløs,
     // og ville gitt en generert test som ikke kan skrives.
     if (r.tenant_scope === 'retailer') {
@@ -112,8 +110,18 @@ export function valider(k: Kontrakt): string[] {
     // Proberaden er den eneste håndholdte biten per tabell. Mangler den,
     // kan ingen positiv kontroll genereres — og en suite uten positive
     // kontroller kan være grønn fordi alt er ødelagt.
-    if (Object.keys(r.proberad).length === 0) {
+    // En ressurs uten operasjoner er en som ingen rolle når — den har
+    // ingen positiv kontroll å ha, og skal ikke kreve en proberad.
+    const relevante = Object.keys(r.proberad).filter((k) => !k.startsWith('$'))
+    if (r.operasjoner.length > 0 && relevante.length === 0) {
       feil.push(`${r.tabell}: tom proberad — ingen positiv kontroll mulig`)
+    }
+    if (r.operasjoner.length === 0) {
+      for (const rolle of ['tablet', 'manager', 'owner'] as const) {
+        if (r[rolle] !== 'none') {
+          feil.push(`${r.tabell}: ingen operasjoner, men ${rolle} er «${String(r[rolle])}»`)
+        }
+      }
     }
 
     for (const t of k.uklassifisert_tillatt.tabeller) {

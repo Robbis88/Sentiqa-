@@ -37,7 +37,7 @@
     ],
     "tabeller": [
       "ai_tool_log", "ansatt_avtale", "ansatt_kontrakt", "ansatte", "anvisninger",
-      "arrangementer", "avvik_ikke_brukt", "bemanning_aar", "bemanning_budsjett",
+      "arrangementer", "bemanning_aar", "bemanning_budsjett",
       "bemanning_fast_vakt", "bemanning_fravaer", "bemanning_krav", "bemanning_maned",
       "bemanning_stasjon", "bemanning_vindu", "butikksjef_stasjoner", "daglig_salg",
       "fokuspunkter", "ik_avlesninger", "ik_kontrollpunkter", "import_jobber",
@@ -129,6 +129,17 @@
       },
       "$oppdaterbart_hvorfor": "proberaden er bare fremmednokler.",
       "oppdaterbart": "notater = 'endret av sonden'" 
+    },
+    {
+      "tabell": "oversettelse_cache",
+      "$hvorfor": "Funnet av dekningskontrollen paa dens foerste kjoering. RLS er PAA og det finnes INGEN policy - tabellen er laast for alt annet enn service_role, med vilje (0037). Den er innholdsadressert cache uten tenantkolonner, saa den hoerer ingen kjede til. Den falt utenfor hver liste fordi vakthundens dekningssjekk bare ser tabeller SOM HAR policy.",
+      "tenant_scope": "global",
+      "data_class": "cold",
+      "operasjoner": [],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "none",
+      "proberad": { "$ikke_relevant": "ingen rolle naar tabellen" }
     },
     {
       "tabell": "stempling_hendelse",

@@ -121,6 +121,7 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string): {
   const kolonner: string[] = []
   const verdier: string[] = []
   for (const [k, v] of Object.entries(felt)) {
+    if (k.startsWith('$')) continue
     kolonner.push(k)
     verdier.push(fyll(v, ctx))
   }
@@ -376,7 +377,20 @@ end $$;
 -- 42501 ELLER NULL RADER, INGENTING ANNET. En unique-skranke (23505)
 -- eller en fremmednokkel (23503) avviser ogsaa, men beviser ingenting
 -- om tenantvernet. Slike svar er FEIL her, ikke ok.
-create or replace function pg_temp.skriv_avvist(p_navn text, p_sql text) returns void
+-- KONTROLLKONTEKST. Definer, saa den ser forbi RLS og svarer paa om
+-- raden i det hele tatt finnes. Uten den er "0 rader" tvetydig.
+create or replace function pg_temp.finnes(p_tabell text, p_id uuid) returns boolean
+language plpgsql security definer as $$
+declare n int;
+begin
+  execute format('select count(*) from public.%I where id = $1', p_tabell) into n using p_id;
+  return n > 0;
+end $$;
+
+create or replace function pg_temp.skriv_avvist(
+  p_navn text, p_sql text,
+  p_maal_tabell text default null, p_maal_id uuid default null
+) returns void
 language plpgsql as $$
 declare n bigint;
 begin
@@ -394,8 +408,26 @@ begin
   end;
   if n > 0 then
     perform pg_temp.logg('FEIL', p_navn, 'skrivingen gikk gjennom, ' || n || ' rad(er)');
+    return;
+  end if;
+
+  -- NULL RADER ER IKKE ET BEVIS I SEG SELV.
+  --
+  -- \`using\` som utelukker raden gir 0 rader. Men det gjor OGSAA en feil
+  -- id, en fixture som aldri ble seedet, eller en tabell som er tom.
+  -- Alle tre ser identiske ut herfra, og alle tre ville vaert groenne.
+  --
+  -- Derfor: raden maa bevises aa finnes i kontrollkonteksten foer 0
+  -- rader godtas. Da - og bare da - er det RLS som stoppet skrivingen.
+  if p_maal_tabell is null then
+    perform pg_temp.logg('FEIL', p_navn,
+      '0 rader, men ingen maalrad oppgitt - kan ikke skille RLS fra feil fixture');
+  elsif not pg_temp.finnes(p_maal_tabell, p_maal_id) then
+    perform pg_temp.logg('FEIL', p_navn,
+      '0 rader, men maalraden ' || p_maal_id || ' finnes ikke i ' || p_maal_tabell
+      || ' - testen beviser ingenting');
   else
-    perform pg_temp.logg('ok', p_navn, '0 rader');
+    perform pg_temp.logg('ok', p_navn, '0 rader, maalrad bekreftet');
   end if;
 end $$;
 
@@ -460,7 +492,12 @@ function genererRessurs(r: Ressurs): string {
         const sql = op === 'update'
           ? `update public.${r.tabell} set ${settbartFelt(r)} where id = ${sitat(fastId)}`
           : `delete from public.${r.tabell} where id = ${sitat(fastId)}`
-        linjer.push(`select pg_temp.${ok ? 'skriv_tillatt' : 'skriv_avvist'}(${sitat(navn)}, ${sitat(sql)});`)
+        // Maalraden foelger med paa avvisninger: "0 rader" godtas bare
+        // naar kontrollkonteksten bekrefter at raden faktisk finnes.
+        const maalrad = `, ${sitat(r.tabell)}, ${sitat(fastId)}`
+        linjer.push(ok
+          ? `select pg_temp.skriv_tillatt(${sitat(navn)}, ${sitat(sql)});`
+          : `select pg_temp.skriv_avvist(${sitat(navn)}, ${sitat(sql)}${maalrad});`)
 
         // Etter en tillatt sletting maa den faste raden tilbake.
         if (op === 'delete' && ok) {
@@ -485,11 +522,11 @@ function genererRessurs(r: Ressurs): string {
 
         if (stasjonsbasert && forbudtISammeKjede && !r.tenant_kolonne) {
           linjer.push(`select pg_temp.skriv_avvist(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad ${egen} -> ${forbudtISammeKjede}`)}, ${
-            sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where id = ${sitat(fastId)}`)});`)
+            sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where id = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)});`)
         }
         if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station') {
           linjer.push(`select pg_temp.skriv_avvist(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad -> kjede ${annenKjede}`)}, ${
-            sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where id = ${sitat(fastId)}`)});`)
+            sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where id = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)});`)
         }
       }
     }

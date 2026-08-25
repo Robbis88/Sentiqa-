@@ -39,6 +39,27 @@ describe('tenant-kontrakten', () => {
     expect(kontrakt.ressurser.filter((r) => r.data_class === 'warm').length).toBeGreaterThan(0)
   })
 
+  // FERDIG PORT 2 = 0 UKLASSIFISERTE.
+  //
+  // Tallet står her, ikke i en kommentar, fordi et krav som ikke måles
+  // er en intensjon. Hver gang lista krymper skal dette tallet ned —
+  // og den dagen det er 0, byttes hele listemekanismen mot en tom
+  // liste og `uklassifisert_tillatt` kan slettes.
+  //
+  // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
+  // klassifisert, og da skal denne si fra før dekningssjekken i CI
+  // rekker det.
+  const UKLASSIFISERT_NA = 74
+
+  it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
+    expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
+  })
+
+  it('ingen uklassifisert tabell står oppført to ganger', () => {
+    const t = kontrakt.uklassifisert_tillatt.tabeller
+    expect(t.length).toBe(new Set(t).size)
+  })
+
   it('en tabell står aldri både klassifisert og uklassifisert', () => {
     const klassifisert = new Set(kontrakt.ressurser.map((r) => r.tabell))
     const begge = kontrakt.uklassifisert_tillatt.tabeller.filter((t) => klassifisert.has(t))
@@ -135,6 +156,20 @@ describe('genererte filer', () => {
     expect(sql).toContain('pg_temp.skriv_tillatt')
     expect(sql).toContain('pg_temp.skriv_avvist')
     expect(sql).toContain('FLYTTER egen rad')
+  })
+
+  it('hver avvist UPDATE/DELETE sender med maalraden', () => {
+    // «0 rader» er tvetydig: det er svaret baade naar RLS stopper
+    // skrivingen OG naar id-en er feil eller fixturen aldri ble seedet.
+    // Uten maalraden ville en oedelagt fixture blitt en gronn
+    // sikkerhetstest.
+    const sql = genererMatrise(kontrakt)
+    const avvisninger = sql.split('\n').filter((l) => l.includes('pg_temp.skriv_avvist('))
+    expect(avvisninger.length).toBeGreaterThan(0)
+    const utenMaal = avvisninger
+      .filter((l) => /'(update|delete) /.test(l))
+      .filter((l) => !/, '[a-z_]+', '[0-9a-f-]+'\);$/.test(l.trim()))
+    expect(utenMaal, `avvisning uten maalrad:\n${utenMaal.slice(0, 3).join('\n')}`).toEqual([])
   })
 
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
