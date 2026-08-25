@@ -29,12 +29,20 @@
   ],
   "uklassifisert_tillatt": {
     "$kommentar": [
-      "PROTOTYPEN DEKKER FEM TABELLER. Resten staar her til de er",
+      "PROTOTYPEN DEKKET FEM TABELLER. Resten staar her til de er",
       "klassifisert, og lista skal krympe til null. En tabell som",
       "hverken staar her eller i `ressurser` feller dekningssjekken -",
-      "det er slik en NY tabell feiler lukket allerede i dag."
+      "det er slik en NY tabell feiler lukket allerede i dag.",
+      "",
+      "REKKEFOELGE: detektorens kandidater staar foerst.",
+      "supabase/tests/kandidater_with_check.sql fant 2026-08-26 to",
+      "uklassifiserte tabeller med 0135-formen - opplaering_periode og",
+      "tilbakemelding. De klassifiseres foerst, saa atferdsmatrisen kan",
+      "bekrefte eller avkrefte foer noen policy roeres."
     ],
     "tabeller": [
+      "opplaering_periode",
+      "tilbakemelding",
       "ai_tool_log",
       "ansatt_avtale",
       "ansatt_kontrakt",
@@ -50,7 +58,6 @@
       "butikksjef_stasjoner",
       "daglig_salg",
       "fokuspunkter",
-      "ik_avlesninger",
       "ik_kontrollpunkter",
       "import_jobber",
       "kalender_kilder",
@@ -65,9 +72,7 @@
       "lenker",
       "malekort_scope",
       "merker",
-      "oppgaver",
       "opplaering_oppgave",
-      "opplaering_periode",
       "opplaering_skift",
       "pengepremie",
       "persondata_logg",
@@ -87,16 +92,12 @@
       "regnskapsanalyser",
       "regnskapslinjer",
       "retailers",
-      "rutiner",
       "rutineskjemaer",
       "signal_lukket",
-      "sjekkpunkt_svar",
       "sjekkpunkter",
       "stasjoner",
       "stempling",
       "synlig_svinn",
-      "tilbakemelding",
-      "tildelte_merker",
       "timesalg",
       "trafikk",
       "uke_rapport",
@@ -105,6 +106,135 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "rutiner",
+      "$hvorfor": "Rutinene nettbrettet haker av paa vakt. Lesing er aapen (ingen rollepredikat), skriving er lederens. RETAILER_AND_STATION uten retailer_id i with check - samme form som de fire lekkasjene 0135 og 0138 rettet. Klassifisert som dagens sannhet; matrisen faar si om formen biter her ogsaa.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tittel": "'Sonderutine {{unik}}'"
+      },
+      "oppdaterbart": "beskrivelse = 'endret av sonden'"
+    },
+    {
+      "tabell": "oppgaver",
+      "$hvorfor": "Oppgaver paa forsiden. Samme form som rutiner: aapen lesing, leder-skriving, og retailer_and_station uten retailer_id i with check.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tittel": "'Sondeoppgave {{unik}}'"
+      },
+      "oppdaterbart": "status = 'fullfort'"
+    },
+    {
+      "tabell": "sjekkpunkt_svar",
+      "$hvorfor": "Sjekkpunktene nettbrettet svarer paa. INGEN retailer_id-kolonne - rent stasjonsscope. Alle fire operasjonene er aapne uten rollepredikat, saa nettbrettet har full CRUD. Det er arbeidsflaten, men DELETE er verdt et blikk i en senere pulje.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "read_write",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "sjekkpunkt_id",
+        "dato"
+      ],
+      "seed_ekstra": [
+        "insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values ('{{seed:sjekkpunkt}}', '{{retailer}}', '{{stasjon}}', 'Sondesporsmaal')"
+      ],
+      "proberad": {
+        "sjekkpunkt_id": "'{{seed:sjekkpunkt}}'",
+        "dato": "{{unik_dato}}",
+        "svar": "true"
+      },
+      "$oppdaterbart_hvorfor": "dato inngaar i business_unik.",
+      "oppdaterbart": "svar = false"
+    },
+    {
+      "tabell": "tildelte_merker",
+      "$hvorfor": "Merker tildelt en ansatt. Stasjonsscopet uten retailer_id. Lesing aapen - nettbrettet viser dem paa /merker - skriving er lederens. Forutsetter BAADE et merke og en ansatt, og ansatte har egen forretningsnokkel paa pin_hash.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "merke_id",
+        "ansatt_id"
+      ],
+      "seed_ekstra": [
+        "insert into public.merker (id, retailer_id, navn) values ('{{seed:merke}}', '{{retailer}}', 'Sondemerke {{n}}')",
+        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'pin-merke-{{n}}')"
+      ],
+      "proberad": {
+        "merke_id": "'{{seed:merke}}'",
+        "ansatt_id": "'{{seed:ansatt}}'",
+        "tildelt_dato": "{{unik_dato}}"
+      },
+      "$oppdaterbart_hvorfor": "merke_id og ansatt_id inngaar begge i business_unik.",
+      "oppdaterbart": "tildelt_dato = date '2029-01-01'"
+    },
+    {
+      "tabell": "ik_avlesninger",
+      "$hvorfor": "Temperaturavlesninger. Stasjonsscopet uten retailer_id. Bare SELECT og INSERT finnes som policy - ingen UPDATE, ingen DELETE. En avlesning er en registrering, ikke noe man retter. Nettbrettet skriver dem paa /ikmat/maaling.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('{{seed:kontrollpunkt}}', '{{retailer}}', '{{stasjon}}', 'Sondepunkt')"
+      ],
+      "proberad": {
+        "kontrollpunkt_id": "'{{seed:kontrollpunkt}}'",
+        "dato": "{{unik_dato}}",
+        "temperatur": "4.0",
+        "innenfor": "true"
+      },
+      "oppdaterbart": "tiltak = 'ikke relevant'"
+    },
     {
       "tabell": "ansatte",
       "$hvorfor": "Ansattregisteret. Naas fra aatte nettbrettruter, fordi navnet trengs overalt for aa vise hvem som gjorde hva - og fordi PIN-innlogging paa nettbrettet slaar opp ansatt_nr og navn. GRANTEN ER SMALERE ENN POLICYEN, og det er granten som gjelder: 0112 gjorde `revoke select ... from authenticated` og delte ut ni av ti kolonner. `pin_hash` er ikke blant dem. Klassifiseringen beskriver derfor en tilgang som allerede er kolonnegjerdet.",

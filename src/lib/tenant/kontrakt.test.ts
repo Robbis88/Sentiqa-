@@ -50,7 +50,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 67
+  const UKLASSIFISERT_NA = 62
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -266,6 +266,48 @@ describe('genererte filer', () => {
     // KANARIFUGL: uten en slik ressurs maaler testen ingenting.
     expect(enRad.length, 'ingen en_rad_per_stasjon-ressurs - maaler testen noe?')
       .toBeGreaterThan(0)
+  })
+
+  it('ingen plassholder overlever generatoren', () => {
+    // Metaregelen igjen, og denne fanger HELE klassen.
+    //
+    // `{{n}}` ble erstattet i seedingen, men ikke inne i `nyrad_*` - der
+    // sto den igjen som literal tekst, saa hver seedet ansatt fikk samme
+    // pin_hash og kolliderte med ansatte_pin_unik. Fire minutter i CI.
+    //
+    // En uerstattet plassholder er ALLTID en feil, uansett hvilken.
+    for (const [sti, gen] of FILER) {
+      const rester = gen(kontrakt).split('\n')
+        .map((l, nr) => [nr + 1, l] as const)
+        .filter(([, l]) => l.includes('{{'))
+      expect(rester.map(([nr, l]) => `${sti}:${nr}  ${l.trim().slice(0, 90)}`))
+        .toEqual([])
+    }
+  })
+
+  it('hver kjoretidsteller staar i sitt eget verdirom', () => {
+    // TO TELLERE, ETT ROM = KOLLISJON. Generatorens teller lager verdier
+    // ved GENERERING (`pin-merke-5`, `2026-01-01 + 5`); sekvensen lager
+    // dem ved KJORING. Deler de basis, kolliderer de med hverandre i
+    // stedet for med seg selv - og en forretningsnokkel gir 23505.
+    //
+    // Datoene ble skilt med 2030 som base. Tekst skilles med 'rt'.
+    const sql = genererMatrise(kontrakt)
+    const uskilt = sql.split('\n')
+      .filter((l) => l.includes('nextval('))
+      // Tre lovlige separatorer, og alle tre er ekte:
+      //
+      //   date '2030-01-01'  datoer, mot generatorens 2026-basis
+      //   'rt'               tekst fra {{n}}, mot generatorens rå tall
+      //   p_merke            «identitet-operasjon», en form generatorens
+      //                      {{unik}} aldri produserer (den gir `fastA1`,
+      //                      `manager_A1A2` — aldri med bindestrek)
+      .filter((l) => !l.includes(`'rt'`)
+        && !l.includes(`date '2030-01-01'`)
+        && !l.includes('p_merke'))
+    expect(uskilt.map((l) => l.trim().slice(0, 90)), 'kjoeretidsteller uten eget verdirom')
+      .toEqual([])
+    expect(sql.includes('nextval('), 'ingen kjoeretidsteller - maaler testen noe?').toBe(true)
   })
 
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
