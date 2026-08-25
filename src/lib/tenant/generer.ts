@@ -144,10 +144,10 @@ const ADVARSEL = `-- GENERERT FIL - IKKE REDIGER.
 
 export function genererDekning(k: Kontrakt): string {
   const rader = [
-    ...k.ressurser.map((r) => [r.tabell, true] as const),
-    ...k.uklassifisert_tillatt.tabeller.map((t) => [t, false] as const),
+    ...k.ressurser.map((r) => [r.tabell, true, Boolean(r.ingen_policy)] as const),
+    ...k.uklassifisert_tillatt.tabeller.map((t) => [t, false, false] as const),
   ].sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([t, kl]) => `    (${sitat(t)}, ${kl})`).join(',\n')
+    .map(([t, kl, up]) => `    (${sitat(t)}, ${kl}, ${up})`).join(',\n')
 
   return `${ADVARSEL}
 --

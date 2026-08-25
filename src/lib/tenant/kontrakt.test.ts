@@ -172,6 +172,20 @@ describe('genererte filer', () => {
     expect(utenMaal, `avvisning uten maalrad:\n${utenMaal.slice(0, 3).join('\n')}`).toEqual([])
   })
 
+  it('dekningens insert har like mange verdier som kolonner', () => {
+    // Denne finnes fordi jeg brakk den: kolonnelista fikk et felt til,
+    // men verdiradene ble stående på to. Postgres sa «INSERT has more
+    // target columns than expressions» — i CI, etter fire minutter.
+    // Her tar det millisekunder.
+    const sql = genererDekning(kontrakt)
+    const kolonner = /insert into kontrakt_tabeller \(([^)]+)\) values/.exec(sql)
+    expect(kolonner, 'fant ikke insert-setningen').not.toBeNull()
+    const antall = kolonner![1].split(',').length
+    const forsteRad = /\n {4}\('[^']+'([^)]*)\),/.exec(sql)
+    expect(forsteRad, 'fant ingen verdirad').not.toBeNull()
+    expect(forsteRad![1].split(',').length).toBe(antall)
+  })
+
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
     // AGENTS.md: innlimingskjeden legger ellers av og til på et
     // stray-tegn foran linje 1.
