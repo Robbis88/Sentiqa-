@@ -38,7 +38,6 @@
       "ai_tool_log",
       "ansatt_avtale",
       "ansatt_kontrakt",
-      "ansatte",
       "anvisninger",
       "arrangementer",
       "bemanning_aar",
@@ -71,7 +70,6 @@
       "opplaering_periode",
       "opplaering_skift",
       "pengepremie",
-      "pengepremie_bruk",
       "persondata_logg",
       "personlig_kryss",
       "personlig_punkt",
@@ -94,7 +92,6 @@
       "signal_lukket",
       "sjekkpunkt_svar",
       "sjekkpunkter",
-      "skills_score",
       "stasjoner",
       "stempling",
       "synlig_svinn",
@@ -108,6 +105,80 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "ansatte",
+      "$hvorfor": "Ansattregisteret. Naas fra aatte nettbrettruter, fordi navnet trengs overalt for aa vise hvem som gjorde hva - og fordi PIN-innlogging paa nettbrettet slaar opp ansatt_nr og navn. GRANTEN ER SMALERE ENN POLICYEN, og det er granten som gjelder: 0112 gjorde `revoke select ... from authenticated` og delte ut ni av ti kolonner. `pin_hash` er ikke blant dem. Klassifiseringen beskriver derfor en tilgang som allerede er kolonnegjerdet.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "retailer_id",
+        "ansatt_nr"
+      ],
+      "$business_unik_hvorfor": "Partiell unique index (0110): where ansatt_nr is not null and slettet_tid is null.",
+      "avvik_fra_intensjon": "DAGENS TILSTAND. ansatte_les har ikke rollepredikat, saa nettbrettkontoen leser hele stasjonens ansattliste - navn, ansatt_nr, aktiv. Det verste er allerede ute: pin_hash er lukket av kolonnegrant i 0112, og sonden bekreftet at anon ikke naar tabellen i det hele tatt. Spoersmaalet er derfor ikke OM nettbrettet skal lese, men HVILKE kolonner - det trenger navn og nummer for PIN-oppslaget. Krever produktvalg, ikke en innstramming: et rollepredikat ville tatt bort PIN-innlogging paa nettbrettet.",
+      "proberad": {
+        "navn": "'Sonde Sondesen'",
+        "ansatt_nr": "'{{unik}}'",
+        "pin_hash": "'x'"
+      },
+      "oppdaterbart": "navn = 'Endret av sonden'"
+    },
+    {
+      "tabell": "skills_score",
+      "$hvorfor": "Stasjonens skills-score. Ingen ansatt_id - scoren er paa STASJONEN, ikke personen. /skills er lederflate (retailer_admin, butikksjef). Nettbrettet leser den via hentHjemData, og bare feltet `prosent`.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "capability_gjeld": "KOLONNENIVAA, IKKE RAD. Nettbrettet trenger `prosent` og faar hele raden - ogsaa `kommentar` og `registrert_av`, altsaa lederens skriftlige vurdering og hvem som skrev den. Et rollepredikat duger ikke: det ville tatt bort nettbrettets legitime lesing av prosent. Et kolonnegrant duger heller ikke - butikksjefen skal se kommentaren, og granten treffer hele authenticated. Utvei: en security_invoker-view med stasjon_id og prosent til nettbrettet, og rollepredikat paa tabellen. Godkjent av Robert i PORT 1, ikke bygget.",
+      "proberad": {
+        "prosent": "88"
+      },
+      "oppdaterbart": "prosent = 91"
+    },
+    {
+      "tabell": "pengepremie_bruk",
+      "$hvorfor": "Brukt pengepremie per stasjon. Nettbrettet leser den via hentHjemData, og bare feltet `belop_kr` - for aa vise hvor mye som er igjen.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "capability_gjeld": "KOLONNENIVAA, SAMME FORM SOM skills_score. Nettbrettet trenger `belop_kr` og faar ogsaa `beskrivelse` og `opprettet_av` - hva pengene gikk til, og hvem som foerte det. Utvei: security_invoker-view med stasjon_id og belop_kr. Ikke bygget.",
+      "proberad": {
+        "beskrivelse": "'Sondepremie {{unik}}'",
+        "belop_kr": "500"
+      },
+      "oppdaterbart": "belop_kr = 750"
+    },
     {
       "tabell": "bemanning_stasjon",
       "$hvorfor": "Bemanningstaket per stasjon. Skjemaet har stasjon_id som PRIMAERNOEKKEL - en rad per stasjon, og ingen id-kolonne. Foer 0137 leste nettbrettkontoen maks_bemanning paa egen stasjon uten at noen nettbrettrute brukte tabellen; avviket sto her som avvik_fra_intensjon, og ble strammet i 0137. Naa beskriver raden den nye sannheten.",
