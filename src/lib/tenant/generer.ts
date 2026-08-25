@@ -496,6 +496,11 @@ function genererRessursSeed(r: Ressurs): string {
       .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass)`)
       .split(`{{unik_dato}}`).join(`date '2030-01-01' + nextval('tenant_teller'::regclass)::int`)
       .split(`{{unik}}`).join(`' || p_merke || '-' || nextval('tenant_teller'::regclass) || '`)
+      // `{{n}}` er generatorens teller og hoerer til seedingen. Naar den
+      // samme linja bakes inn i nyrad_*, maa den bli en KJORETIDSverdi -
+      // ellers faar hvert kall samme verdi, og en forretningsnokkel som
+      // pin_hash kolliderer med 23505.
+      .split(`{{n}}`).join(`' || nextval('tenant_teller'::regclass) || '`)
   }
 
   const proberadFelt = Object.entries(r.proberad).filter(([k]) => !k.startsWith('$'))

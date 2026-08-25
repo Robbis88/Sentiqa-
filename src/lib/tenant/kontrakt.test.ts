@@ -268,6 +268,23 @@ describe('genererte filer', () => {
       .toBeGreaterThan(0)
   })
 
+  it('ingen plassholder overlever generatoren', () => {
+    // Metaregelen igjen, og denne fanger HELE klassen.
+    //
+    // `{{n}}` ble erstattet i seedingen, men ikke inne i `nyrad_*` - der
+    // sto den igjen som literal tekst, saa hver seedet ansatt fikk samme
+    // pin_hash og kolliderte med ansatte_pin_unik. Fire minutter i CI.
+    //
+    // En uerstattet plassholder er ALLTID en feil, uansett hvilken.
+    for (const [sti, gen] of FILER) {
+      const rester = gen(kontrakt).split('\n')
+        .map((l, nr) => [nr + 1, l] as const)
+        .filter(([, l]) => l.includes('{{'))
+      expect(rester.map(([nr, l]) => `${sti}:${nr}  ${l.trim().slice(0, 90)}`))
+        .toEqual([])
+    }
+  })
+
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
     // AGENTS.md: innlimingskjeden legger ellers av og til på et
     // stray-tegn foran linje 1.

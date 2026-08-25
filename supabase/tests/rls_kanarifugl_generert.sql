@@ -545,8 +545,8 @@ declare
   v_merke uuid := gen_random_uuid();
   v_ansatt uuid := gen_random_uuid();
 begin
-  insert into public.merker (id, retailer_id, navn) values (v_merke, p_retailer, 'Sondemerke {{n}}');
-  insert into public.ansatte (id, retailer_id, stasjon_id, navn, pin_hash) values (v_ansatt, p_retailer, p_stasjon, 'Sondeansatt', 'pin-merke-{{n}}');
+  insert into public.merker (id, retailer_id, navn) values (v_merke, p_retailer, 'Sondemerke ' || nextval('tenant_teller'::regclass) || '');
+  insert into public.ansatte (id, retailer_id, stasjon_id, navn, pin_hash) values (v_ansatt, p_retailer, p_stasjon, 'Sondeansatt', 'pin-merke-' || nextval('tenant_teller'::regclass) || '');
   insert into public.tildelte_merker (stasjon_id, merke_id, ansatt_id, tildelt_dato)
   values (p_stasjon, v_merke, v_ansatt, date '2030-01-01' + nextval('tenant_teller'::regclass)::int)
   returning id into ny;
