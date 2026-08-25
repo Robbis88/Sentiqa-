@@ -105,17 +105,38 @@ function tenantKolonner(r: Ressurs, kjede: Kjede, s: Stasjon): Record<string, st
   return ut
 }
 
+/**
+ * Forutsetninger som maa seedes, samlet mens matrisen genereres.
+ *
+ * TO PASS, og det er ikke elegant for elegansens skyld. `opplaering_utfort`
+ * har `unique (periode_id, oppgave_id)` og `rutine_utforinger` har
+ * `unique (rutine_id, dato)`. Seedes forutsetningene én gang per stasjon,
+ * kolliderer hvert forsoek nummer to med det foerste - og en kollisjon er
+ * 23505, ikke 42501. Den skjerpede `skriv_avvist` ville meldt det som
+ * "avvist av FEIL grunn", altsaa roedt. Riktig, men unoedvendig.
+ *
+ * Derfor: hvert forsoek faar sine egne forutsetningsrader, og telleren
+ * gjor dem unike. Foerst genereres kroppen, saa vet vi hva som maa seedes.
+ */
+let seedbehov: string[] = []
+let teller = 0
+
 function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string): {
   kolonner: string[]; verdier: string[]
 } {
+  const n = teller++
   const ctx: Record<string, string> = {
     retailer: R[kjede], stasjon: S[s], unik,
-    unik_dato: `date '2026-08-01' + ${parseInt(unik, 36) % 300}`,
+    unik_dato: `date '2026-01-01' + ${n}`,
   }
   for (const linje of r.seed_ekstra ?? []) {
+    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n) }
     for (const m of linje.matchAll(/\{\{seed:([a-z_]+)\}\}/g)) {
-      ctx[`seed:${m[1]}`] = seedId(`${r.tabell}:${m[1]}:${s}`)
+      const id = seedId(`${r.tabell}:${m[1]}:${s}:${n}`)
+      ctx[`seed:${m[1]}`] = id
+      seedCtx[`seed:${m[1]}`] = id
     }
+    seedbehov.push(`${fyll(linje, seedCtx)};`)
   }
   const felt = { ...tenantKolonner(r, kjede, s), ...r.proberad }
   const kolonner: string[] = []
@@ -269,10 +290,23 @@ export function genererMatrise(k: Kontrakt): string {
 begin;
 `)
 
+  // PASS 1: generer kroppene. Underveis samler proberadSql opp hvilke
+  // forutsetningsrader hvert enkelt forsoek trenger.
+  seedbehov = []
+  teller = 0
+  const ressursSeed = varme.map((r) => genererRessursSeed(r))
+  const kropper = varme.map((r) => genererRessurs(r))
+
+  // PASS 2: skriv fila. Forutsetningene foerst - de er det proberadene
+  // peker paa.
   ut.push(genererSeed())
   ut.push(HJELPERE)
-  for (const r of varme) ut.push(genererRessursSeed(r))
-  for (const r of varme) ut.push(genererRessurs(r))
+  if (seedbehov.length > 0) {
+    ut.push('-- --- Forutsetninger, en per forsoek ---')
+    ut.push([...new Set(seedbehov)].join('\n'))
+  }
+  ut.push(...ressursSeed)
+  ut.push(...kropper)
 
   ut.push(`
 select pg_temp.som_eier();
@@ -325,16 +359,6 @@ function genererRessursSeed(r: Ressurs): string {
   const alle: Array<[Kjede, Stasjon]> = [
     ['A', 'A1'], ['A', 'A2'], ['A', 'A3'], ['B', 'B1'], ['B', 'B2'],
   ]
-
-  for (const [kjede, s] of alle) {
-    for (const linje of r.seed_ekstra ?? []) {
-      const ctx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik: s, unik_dato: `current_date` }
-      for (const m of linje.matchAll(/\{\{seed:([a-z_]+)\}\}/g)) {
-        ctx[`seed:${m[1]}`] = seedId(`${r.tabell}:${m[1]}:${s}`)
-      }
-      linjer.push(`${fyll(linje, ctx)};`)
-    }
-  }
 
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {

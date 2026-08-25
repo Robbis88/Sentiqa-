@@ -151,12 +151,13 @@
       "tablet": { "select": "own_station", "insert": "own_station" },
       "manager": "assigned_stations",
       "owner": "retailer",
+      "$proberad_hvorfor": "kilde er skrankelagt til tablet/import/korreksjon. Og tidspunkt maa vaere clock_timestamp(), ikke now(): now() er konstant gjennom en transaksjon, saa unique (stasjon_id, ansatt_nr, tidspunkt, type) ville kollidert mellom identitetene og gitt 23505 - som den skjerpede skriv_avvist ville meldt som avvist av feil grunn.",
       "proberad": {
         "ansatt_nr": "'4501'",
         "ansatt_navn": "'Kim Hansen'",
         "type": "'inn'",
-        "tidspunkt": "now()",
-        "kilde": "'sonde'"
+        "tidspunkt": "clock_timestamp()",
+        "kilde": "'tablet'"
       }
     }
   ]
