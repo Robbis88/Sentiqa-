@@ -29,6 +29,20 @@ import { expect, type Page } from '@playwright/test'
 export async function treffomraadeneHolder(
   page: Page, velger: string, minstHoyde = 48,
 ): Promise<void> {
+  // VENT TIL NOE ER SYNLIG FØR DU MÅLER. `page.evaluate` spør DOM-en i
+  // det øyeblikket den kalles, og under strømming er plassholderkopien
+  // ofte det eneste som finnes ennå. Da hoppes alt over, ingenting måles,
+  // og kanarifuglen fyrer på et kappløp i stedet for på en ekte feil.
+  //
+  // Det var nøyaktig det som gjorde `main` rød etter #72: grønn på PR-en,
+  // rød på neste kast. Ett grønt kast er ikke et bevis.
+  //
+  // `waitFor` gjør målingen deterministisk - Playwright prøver igjen til
+  // en treffer faktisk er lagt ut. Kanarifuglen nederst blir stående, men
+  // svarer nå på «traff velgeren noe i det hele tatt» i stedet for på
+  // «kom vi for tidlig».
+  await page.locator(velger).first().waitFor({ state: 'visible' })
+
   const funn = await page.evaluate(
     ({ velger, minstHoyde }: { velger: string; minstHoyde: number }) => {
       const lave: string[] = []
