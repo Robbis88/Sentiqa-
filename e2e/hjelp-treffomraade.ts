@@ -3,14 +3,22 @@ import { expect, type Page } from '@playwright/test'
 // =====================================================================
 // Er trykkflatene store nok — og er de i det hele tatt lagt ut?
 //
-// TO ULIKE PROBLEMER SOM SER LIKE UT I ETT TALL. Første utgave av
-// opplæringstesten leste `getBoundingClientRect().height` og fikk 0 px
-// på en knapp. Det er ikke et for lite treffområde; det er et element
-// uten layout — og rapportert som «for lav» sender det feilsøkingen mot
-// CSS-en for høyde, der det ikke er noe å finne.
+// TRE TILFELLER SOM SER LIKE UT I ETT TALL. Første utgave leste
+// `getBoundingClientRect().height` og fikk 0 px på en knapp, og
+// rapporterte det som «for lav». Det sendte feilsøkingen mot CSS-en for
+// høyde, der det ikke var noe å finne.
 //
-// Derfor skilles de her, med hver sin beskjed, og den skjulte får
-// nærmeste forfar som faktisk skjuler den navngitt.
+// Da testen ble bedt om å si HVEM som skjulte den, svarte den:
+// `div. → none/visible` — en klasseløs `<div>` med `display: none`.
+// Det er Reacts streaming-plassholder: under strømming legges innholdet
+// først i en skjult div og flyttes så på plass. Kopien blir liggende.
+//
+//   skjult av en forfar med display:none   ikke på siden — hoppes over
+//   nullhøyde uten en slik forfar          ekte layoutfeil — feiler
+//   lagt ut, men under kravet              for lite treffområde — feiler
+//
+// Å slå de to første sammen ville gjort testen enten blind (hopper over
+// ekte feil) eller uskikket (feiler på en plassholder som ikke er der).
 //
 // KRAVET ER 48 PX, ikke WCAG 2.2 sine 24. Prosjektet har allerede 44 som
 // sin egen grense for skjemafelt (se globals.css, «Trykkflater og
@@ -24,36 +32,37 @@ export async function treffomraadeneHolder(
   const funn = await page.evaluate(
     ({ velger, minstHoyde }: { velger: string; minstHoyde: number }) => {
       const lave: string[] = []
-      const skjulte: string[] = []
+      const uforklart: string[] = []
       let maalt = 0
+      let hoppet = 0
       for (const el of document.querySelectorAll(velger)) {
         const r = el.getBoundingClientRect()
         const navn = (el.textContent ?? '').trim().slice(0, 30)
         if (r.height === 0) {
-          // Nærmeste forfar som faktisk skjuler den. Uten dette sier
-          // meldingen bare at noe er borte, ikke hvor det ble borte.
+          // Er den skjult av en forfar, er den ikke på siden — typisk
+          // Reacts streaming-plassholder. Er den IKKE det, er nullhøyde
+          // en ekte layoutfeil, og da skal den si fra.
           let p: Element | null = el
-          let skyldig = '(ingen forfar skjuler den — nullhøyde av andre grunner)'
+          let skjult = false
           while (p) {
             const ps = getComputedStyle(p)
-            if (ps.display === 'none' || ps.visibility === 'hidden') {
-              skyldig = `${p.tagName.toLowerCase()}.${p.className} → ${ps.display}/${ps.visibility}`
-              break
-            }
+            if (ps.display === 'none' || ps.visibility === 'hidden') { skjult = true; break }
             p = p.parentElement
           }
-          skjulte.push(`${navn}: ${Math.round(r.width)}x${Math.round(r.height)}, skjult av ${skyldig}`)
+          if (skjult) { hoppet++; continue }
+          uforklart.push(`${navn}: ${Math.round(r.width)}x${Math.round(r.height)}, ingen forfar skjuler den`)
           continue
         }
         maalt++
         if (r.height < minstHoyde) lave.push(`${navn} ${Math.round(r.height)}px`)
       }
-      return { lave, skjulte, maalt }
+      return { lave, uforklart, maalt, hoppet }
     },
     { velger, minstHoyde },
   )
 
-  expect(funn.skjulte, `Knapper uten layout (${velger}):\n  ${funn.skjulte.join('\n  ')}\n`)
+  expect(funn.uforklart,
+    `Nullhøyde uten at noe skjuler dem (${velger}):\n  ${funn.uforklart.join('\n  ')}\n`)
     .toEqual([])
   expect(funn.lave, `For lave (${velger}):\n  ${funn.lave.join('\n  ')}\n`)
     .toEqual([])
@@ -61,5 +70,8 @@ export async function treffomraadeneHolder(
   // KANARIFUGL. Uten denne ville hjelperen bestått om velgeren ikke
   // traff noe — og «ingen for lave» ser nøyaktig ut som «alle er store
   // nok». Det er den samme feilen som en vakt som slutter å se.
-  expect(funn.maalt, `Ingen elementer ble målt for ${velger}`).toBeGreaterThan(0)
+  expect(funn.maalt,
+    `Ingen elementer ble målt for ${velger}`
+    + ` (${funn.hoppet} ble hoppet over fordi en forfar skjuler dem)`,
+  ).toBeGreaterThan(0)
 }
