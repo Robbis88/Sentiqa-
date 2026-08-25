@@ -21,9 +21,11 @@ declare
   funn text[] := array[]::text[];
   antall_klassifisert int;
 begin
-  create temp table kontrakt_tabeller (tabell text primary key, klassifisert boolean) on commit drop;
+  create temp table kontrakt_tabeller (
+    tabell text primary key, klassifisert boolean, uten_policy_ok boolean
+  ) on commit drop;
 
-  insert into kontrakt_tabeller (tabell, klassifisert) values
+  insert into kontrakt_tabeller (tabell, klassifisert, uten_policy_ok) values
     ('ai_tool_log', false),
     ('ansatt_avtale', false),
     ('ansatt_kontrakt', false),
@@ -125,6 +127,34 @@ begin
     order by c.relname
   loop
     funn := funn || format('UKLASSIFISERT  public.%s  - foer den opp i supabase/tenant-kontrakt.json. Gjett aldri klassifiseringen; den skal settes av noen som har tatt stilling.', r.relname);
+  end loop;
+
+  -- TABELLER UTEN POLICY SKAL VAERE ET FUNN, IKKE USYNLIGE.
+  --
+  -- Vakthundens dekningssjekk (punkt 4) starter fra pg_policies og ser
+  -- derfor bare tabeller SOM HAR policy. En tabell uten policy faller
+  -- utenfor den - og ser da noeyaktig ut som en tabell uten problemer.
+  -- Slik havnet oversettelse_cache utenfor hver liste i to aar.
+  --
+  -- Denne starter fra pg_class: alle faktiske databaseobjekter. Er
+  -- fravaeret av policy bevisst, skal det staa som ingen_policy i
+  -- kontrakten - da er den sett og begrunnet.
+  for r in
+    select c.relname
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'r'
+      and not c.relispartition
+      and not exists (
+        select 1 from pg_policies p
+        where p.schemaname = 'public' and p.tablename = c.relname)
+      and not exists (
+        select 1 from kontrakt_tabeller kt
+        where kt.tabell = c.relname and kt.uten_policy_ok)
+    order by c.relname
+  loop
+    funn := funn || format('UTEN POLICY  public.%s  - har ingen policy i det hele tatt. Er det med vilje, sett ingen_policy med begrunnelse i kontrakten. RLS uten policy nekter alt, men det skal staa at noen har bestemt det.', r.relname);
   end loop;
 
   -- Motsatt vei: en kontraktrad uten tabell er en fasit som har raatnet.

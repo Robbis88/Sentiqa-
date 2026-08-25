@@ -44,6 +44,14 @@ export type Ressurs = {
    * sett ut som en RLS-avvisning (`rutine_utforinger`).
    */
   oppdaterbart?: string
+  /**
+   * Kvittering for at ressursen bevisst er uten policy.
+   *
+   * En tabell uten policy er ikke automatisk trygg og ikke automatisk
+   * feil — men den skal aldri være usynlig. Står den her, er den sett
+   * og begrunnet; står den ikke, er den et funn.
+   */
+  ingen_policy?: string
 }
 
 export type Kontrakt = {

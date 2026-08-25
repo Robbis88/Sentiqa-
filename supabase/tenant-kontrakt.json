@@ -139,6 +139,7 @@
       "tablet": "none",
       "manager": "none",
       "owner": "none",
+      "ingen_policy": "Med vilje siden 0037: RLS er paa og det finnes INGEN policy, saa alt annet enn service_role nektes. Kvitteringen staar her fordi en tabell uten policy aldri skal vaere usynlig - den skal vaere sett.",
       "proberad": { "$ikke_relevant": "ingen rolle naar tabellen" }
     },
     {

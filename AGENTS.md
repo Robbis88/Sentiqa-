@@ -66,6 +66,8 @@ og alltid `with (security_invoker = true)` — uten den leser viewet som eieren,
 
 **Og tabeller, av nøyaktig samme grunn.** En ny tabell skal ha `revoke all on public.ny_tabell from anon;` ved siden av sine grants til `authenticated`. PostgREST-sonden fant 2026-08-25 at 77 tabeller svarte `200 []` for `anon` — ingen lekkasje, men granten lå der og RLS var eneste lag. `0134` tok dem, og punkt 10 i vakthunden holder dem lukket. Kjør `supabase/tests/postgrest_sonde.mjs` når du vil se det gjennom klientflaten i stedet for katalogen.
 
+**Dekningsvakten skal starte fra alle faktiske databaseobjekter, ikke bare de som har policy.** Vakthundens punkt 4 leser `pg_policies` og ser derfor bare tabeller *med* policy — en tabell helt uten policy faller utenfor og ser ut som en tabell uten problemer. `oversettelse_cache` lå slik i to år: RLS på, ingen policy, låst med vilje siden `0037`, men usett av hver liste. `tenant_dekning.sql` starter fra `pg_class`, og **en tabell uten policy er et funn** til noen har kvittert for det med `ingen_policy` i `supabase/tenant-kontrakt.json`. Trygg og sett er to forskjellige ting.
+
 **Et flagg i en kolonne er ikke en grense før RLS leser det.** `malekort.vis_tablet` sto i basen fra `0073` og ble bare brukt som visningsvilkår i appen; nettbrettet kunne lese kortet direkte over PostgREST. Rettet i `0134`. Legger du til et slikt flagg, hører det hjemme i policyen — ikke bare i spørringen.
 
 # Arbeidsflyt: `main` er beskyttet
