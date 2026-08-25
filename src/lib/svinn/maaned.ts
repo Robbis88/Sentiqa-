@@ -50,6 +50,12 @@ export type Dekningsrad = {
   siste_registrering: string | null
   /** Snitt antall dager mellom tellinger. Null naar det bare er én. */
   snitt_intervall_dager: number | null
+  storste_linje_kr: number | null
+  storste_linje_varenavn: string | null
+  storste_linje_dato: string | null
+  storste_linje_antall: number | null
+  /** 0-1. Null naar maaneden ikke har kroner aa dele paa. */
+  storste_linje_andel: number | null
 }
 
 export type Kategori = {
@@ -88,6 +94,26 @@ export type Dekning = {
    * andre er de for lave.
    */
   spredt: boolean
+  /**
+   * Største enkeltlinje i måneden.
+   *
+   * ÉN FEILFØRING ER ALLTID ÉN RAD, og den kan eie hele måneden. Lone
+   * mai 2026: én linje strøssel til 36 016 kr var 52 % av stasjonens
+   * svinn — 186,61 kr per enhet. Uten den lå stasjonen midt i flokken;
+   * med den så den ut til å ha et problem den ikke hadde.
+   *
+   * ALLTID SATT, ikke bare når andelen er stor. Et felt som dukker opp
+   * når systemet mener det er verdt det, er en skjult terskel med en
+   * annen frakk — og en feilføring er ikke noe systemet kan kjenne
+   * igjen. 193 stk av noe kan være en ekte bulkavskriving.
+   */
+  storsteLinje: {
+    kr: number
+    andel: number | null
+    varenavn: string | null
+    dato: string | null
+    antall: number | null
+  } | null
 }
 
 export type Maanedsbilde = {
@@ -164,6 +190,13 @@ export function byggDekning(rad: Dekningsrad | undefined): Dekning | null {
     spredt: rad.dager_registrert >= 3
       && rad.snitt_intervall_dager != null
       && rad.snitt_intervall_dager >= 1.5,
+    storsteLinje: rad.storste_linje_kr == null ? null : {
+      kr: rad.storste_linje_kr,
+      andel: rad.storste_linje_andel,
+      varenavn: rad.storste_linje_varenavn,
+      dato: rad.storste_linje_dato,
+      antall: rad.storste_linje_antall,
+    },
   }
 }
 

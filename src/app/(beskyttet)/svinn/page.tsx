@@ -128,7 +128,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     .select('stasjon_id, maned, gruppe_kode, gruppe_navn, koblet, svinn_kr, svinn_antall, svinn_linjer, varekost_kr, omsetning_kr, solgt_antall')
     .gte('maned', fra)
   let qd = supabase.from('v_svinn_dekning')
-    .select('stasjon_id, maned, dager_registrert, dager_i_maaned, dager_hittil, siste_registrering, snitt_intervall_dager')
+    .select('stasjon_id, maned, dager_registrert, dager_i_maaned, dager_hittil, siste_registrering, snitt_intervall_dager, storste_linje_kr, storste_linje_varenavn, storste_linje_dato, storste_linje_antall, storste_linje_andel')
     .gte('maned', fra)
   if (erStasjon) {
     q = q.eq('stasjon_id', valgtStasjon!)
@@ -325,6 +325,36 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
               )}
             </>
           : <>Ingen registrerte svinndager denne måneden. Det betyr ikke at det ikke svant noe.</>}
+
+        {/* ÉN LINJE KAN EIE HELE MÅNEDEN, og da måler ikke tallet
+            driften. Lone i mai 2026: én linje strøssel til 36 016 kr var
+            52 % av stasjonens svinn — 186,61 kr per enhet. Uten den lå
+            stasjonen midt i flokken; med den så den ut til å ha et
+            problem den ikke hadde.
+
+            INGEN TERSKEL, OG ALLTID SYNLIG. En feilføring er ikke noe
+            systemet kan kjenne igjen — 193 stk av noe kan være en ekte
+            bulkavskriving, og et filter ville fjernet begge deler i
+            stillhet. Er andelen 3 %, er setningen beroligende; er den
+            52 %, skriver advarselen seg selv. Leseren avgjør, ikke en
+            grense noen fant på. */}
+        {d?.storsteLinje && (
+          <>
+            {' '}Største enkeltlinje er{' '}
+            <strong><Kroner v={d.storsteLinje.kr} /></strong>
+            {d.storsteLinje.andel != null && (
+              <> — {Math.round(d.storsteLinje.andel * 100)} % av måneden</>
+            )}
+            {d.storsteLinje.varenavn && <> ({d.storsteLinje.varenavn}</>}
+            {d.storsteLinje.varenavn && d.storsteLinje.antall != null && (
+              <>, {tall.format(Math.round(d.storsteLinje.antall))} stk</>
+            )}
+            {d.storsteLinje.varenavn && d.storsteLinje.dato && (
+              <>, {datoLang.format(new Date(`${d.storsteLinje.dato}T12:00:00Z`))}</>
+            )}
+            {d.storsteLinje.varenavn && <>)</>}.
+          </>
+        )}
       </Forklaring>
 
       {bilde.ikkeKobletKr !== 0 && (

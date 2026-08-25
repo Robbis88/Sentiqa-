@@ -197,6 +197,24 @@ select pg_temp.paastand('Én foering gir NULL intervall, ikke 0',
   (select snitt_intervall_dager is null from public.v_svinn_dekning
    where stasjon_id = '5eaa0000-0000-4000-8000-000000000002'));
 
+-- STOERSTE ENKELTLINJE. A-0001 har tre foeringer: 1000, 1000 og 500.
+-- Den stoerste er 1000 av 2500 = 40 %.
+select pg_temp.paastand('Stoerste enkeltlinje er 1000 kr',
+  (select storste_linje_kr = 1000 from public.v_svinn_dekning
+   where stasjon_id = '5eaa0000-0000-4000-8000-000000000001'));
+
+select pg_temp.paastand('...og det er 40 % av maaneden',
+  (select storste_linje_andel = 0.4000 from public.v_svinn_dekning
+   where stasjon_id = '5eaa0000-0000-4000-8000-000000000001'));
+
+-- ANDELEN ER ALLTID SATT, ogsaa naar den er liten. Et felt som bare
+-- dukker opp naar systemet mener det er verdt det, er en skjult
+-- terskel med en annen frakk.
+select pg_temp.paastand('A-0002 har ogsaa en stoerste linje, med andel 1',
+  (select storste_linje_kr = 700 and storste_linje_andel = 1.0000
+   from public.v_svinn_dekning
+   where stasjon_id = '5eaa0000-0000-4000-8000-000000000002'));
+
 -- =====================================================================
 -- VARENIVAA
 -- =====================================================================

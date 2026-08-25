@@ -39,6 +39,11 @@ const dekning = (o: Partial<Dekningsrad>): Dekningsrad => ({
   dager_hittil: 24,
   siste_registrering: '2026-08-23',
   snitt_intervall_dager: 1,
+  storste_linje_kr: 100,
+  storste_linje_varenavn: 'Grovbrod',
+  storste_linje_dato: '2026-08-12',
+  storste_linje_antall: 2,
+  storste_linje_andel: 0.05,
   ...o,
 })
 
@@ -243,6 +248,57 @@ describe('byggDekning', () => {
       snitt_intervall_dager: 14,
     }))!
     expect(d.spredt).toBe(false)
+  })
+})
+
+// =====================================================================
+// ÉN LINJE KAN EIE EN HEL MAANED
+//
+// Lone, mai 2026: én linje stroessel til 36 016 kr var 52 % av
+// stasjonens svinn. Uten den laa Lone midt i flokken. Robert: «det er
+// nok en feilfoering som av og til skjer.»
+// =====================================================================
+
+describe('storste linje', () => {
+  it('baerer beloepet, andelen og hvilken vare det var', () => {
+    const d = byggDekning(dekning({
+      storste_linje_kr: 36_015.73,
+      storste_linje_andel: 0.5147,
+      storste_linje_varenavn: 'STROESSEL KARAMELLFUDGE',
+      storste_linje_antall: 193,
+    }))!
+    expect(d.storsteLinje!.kr).toBeCloseTo(36_015.73, 2)
+    expect(d.storsteLinje!.andel).toBeCloseTo(0.5147, 4)
+    expect(d.storsteLinje!.varenavn).toBe('STROESSEL KARAMELLFUDGE')
+    expect(d.storsteLinje!.antall).toBe(193)
+  })
+
+  // KANARIFUGL. Fristelsen er aa vise feltet bare naar andelen er stor.
+  // Det ville vaert en skjult terskel med en annen frakk - og en
+  // feilfoering er ikke noe systemet kan kjenne igjen. 193 stk av noe
+  // kan vaere en ekte bulkavskriving.
+  it('er satt ogsaa naar andelen er liten', () => {
+    const d = byggDekning(dekning({
+      storste_linje_kr: 12, storste_linje_andel: 0.002,
+    }))!
+    expect(d.storsteLinje).not.toBeNull()
+    expect(d.storsteLinje!.andel).toBe(0.002)
+  })
+
+  it('mangler linja, finnes den ikke - og andelen blir ikke 0', () => {
+    const d = byggDekning(dekning({
+      storste_linje_kr: null, storste_linje_andel: null,
+    }))!
+    expect(d.storsteLinje).toBeNull()
+  })
+
+  // En maaned uten kroner har ingen andel aa gi. Null prosent ville
+  // vaert et svar; det finnes ikke her.
+  it('null kroner i maaneden gir ingen andel, ikke 0 %', () => {
+    const d = byggDekning(dekning({
+      storste_linje_kr: 0, storste_linje_andel: null,
+    }))!
+    expect(d.storsteLinje!.andel).toBeNull()
   })
 })
 

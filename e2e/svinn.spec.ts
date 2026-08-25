@@ -296,6 +296,34 @@ test.describe('/svinn med data - én stasjon', () => {
     await expect(tabell(page, /Per stasjon/)).toHaveCount(0)
   })
 
+  // ÉN LINJE KAN EIE HELE MAANEDEN. Lone i mai 2026: én linje stroessel
+  // til 36 016 kr var 52 % av stasjonens svinn - 186,61 kr per enhet.
+  // Robert: «det er nok en feilfoering som av og til skjer.» Uten den
+  // laa Lone midt i flokken; med den saa stasjonen ut til aa ha et
+  // problem den ikke hadde.
+  //
+  // Underby i fixturen: 1 200 + 800 + 10 000 = 12 000, saa den stoerste
+  // linja er 83 % av maaneden.
+  test('stoerste enkeltlinje staar ved siden av maanedstallet', async ({ page }) => {
+    await loggInn(page, DATA)
+    await page.goto(`/svinn?stasjon=${UNDERBY}&maned=${MARS}`)
+
+    const f = page.locator('details.sq-forklaring')
+      .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i })
+    await expect(f).toContainText(/Største enkeltlinje/i)
+    expect(sifre(await f.innerText())).toContain('10000')
+    await expect(f).toContainText('83 %')
+    await expect(f).toContainText('Grovbrod halv')
+
+    // INGEN TERSKEL: setningen staar uansett hvor stor andelen er. Et
+    // felt som bare dukker opp naar systemet mener det er verdt det, er
+    // en skjult grense med en annen frakk.
+    await page.goto(`/svinn?stasjon=${OVERBY}&maned=${MARS}`)
+    await expect(page.locator('details.sq-forklaring')
+      .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i }))
+      .toContainText(/Største enkeltlinje/i)
+  })
+
   test('Overby alene: kroner uten prosent', async ({ page }) => {
     await loggInn(page, DATA)
     await page.goto(`/svinn?stasjon=${OVERBY}&maned=${MARS}`)
