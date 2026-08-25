@@ -10,7 +10,21 @@
 // krever at databasen avviser det. Fravær skal bevises.
 // =====================================================================
 
-export type TenantScope = 'retailer' | 'station' | 'retailer_and_station' | 'global'
+export type TenantScope =
+  | 'retailer'
+  | 'station'
+  | 'retailer_and_station'
+  /**
+   * `stasjon_id` er nullbar, og null betyr HELE den autentiserte
+   * kjeden — aldri global. `tablet_meldinger` er formen: en melding
+   * kan gjelde én stasjon eller alle stasjonene i kjeden.
+   *
+   * Scopet må derfor alltid kreve riktig `retailer_id` i tillegg. En
+   * policy som bare sier `stasjon_id is null or stasjon_id in (...)`
+   * uten retailer-predikatet ville gjort null til global.
+   */
+  | 'retailer_or_station'
+  | 'global'
 export type Dataklasse = 'warm' | 'cold'
 export type Operasjon = 'select' | 'insert' | 'update' | 'delete'
 
@@ -83,6 +97,40 @@ export type Ressurs = {
    * et navn og en plass, i stedet for å bo i en commit-melding.
    */
   capability_gjeld?: string
+  /**
+   * Skjemaet håndhever én rad per stasjon — typisk fordi `stasjon_id`
+   * *er* primærnøkkelen (`bemanning_stasjon`).
+   *
+   * Styrer bare hvordan generatoren lager gyldige fixtures: den kan
+   * ikke lage en fersk rad før hver update/delete-test, for den andre
+   * ville kollidert med primærnøkkelen. Sier ingenting om
+   * autorisasjon.
+   */
+  en_rad_per_stasjon?: boolean
+  /**
+   * Kolonnen som identifiserer én rad. `id` når ikke annet er sagt.
+   *
+   * Ikke alle tabeller har en surrogatnøkkel: `bemanning_stasjon` har
+   * `stasjon_id` som primærnøkkel og *ingen* `id`. Generatoren antok
+   * `id` overalt og produserte `insert into ... (id, ...)` mot en
+   * tabell uten den kolonnen.
+   */
+  id_kolonne?: string
+  /**
+   * Dagens tilgang er bredere eller annerledes enn produktkontrakten:
+   *
+   *   tablet      ingen lederdata
+   *   butikksjef  kun tildelte stasjoner
+   *   owner       egen retailer
+   *
+   * Kontrakten beskriver DAGENS SANNHET. Ønsket verdi skal aldri skrives
+   * inn som om databasen allerede håndhevet den — da forsvinner avviket,
+   * og matrisen ville bevist en tilstand som ikke finnes.
+   *
+   * Rekkefølgen er: dagens sannhet → avviksliste → produktbeslutning →
+   * policyendring → ny sannhet.
+   */
+  avvik_fra_intensjon?: string
 }
 
 export type Kontrakt = {
@@ -189,6 +237,10 @@ export function valider(k: Kontrakt): string[] {
           + 'To forsøk ville kollidert med 23505, som ikke er en sikkerhetsavvisning. '
           + 'Bruk {{seed:...}} for en fersk forutsetning, {{unik}}/{{unik_dato}}, eller clock_timestamp().')
       }
+    }
+
+    if (r.avvik_fra_intensjon !== undefined && r.avvik_fra_intensjon.trim().length < 30) {
+      feil.push(`${r.tabell}: avvik_fra_intensjon mangler en reell beskrivelse`)
     }
 
     // Gjeld uten beskrivelse er ikke gjeld, det er en TODO.

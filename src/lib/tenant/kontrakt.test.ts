@@ -49,7 +49,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 72
+  const UKLASSIFISERT_NA = 70
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -168,7 +168,9 @@ describe('genererte filer', () => {
     expect(avvisninger.length).toBeGreaterThan(0)
     const utenMaal = avvisninger
       .filter((l) => /'(update|delete) /.test(l))
-      .filter((l) => !/, '[a-z_]+', '[0-9a-f-]+'\);$/.test(l.trim()))
+      // tabell, målrad og kolonnen den identifiseres på — den siste
+      // fordi ikke alle tabeller har en `id` (`bemanning_stasjon`).
+      .filter((l) => !/, '[a-z_]+', '[0-9a-f-]+', '[a-z_]+'\);$/.test(l.trim()))
     expect(utenMaal, `avvisning uten maalrad:\n${utenMaal.slice(0, 3).join('\n')}`).toEqual([])
   })
 
@@ -184,6 +186,47 @@ describe('genererte filer', () => {
     const forsteRad = /\n {4}\('[^']+'([^)]*)\),/.exec(sql)
     expect(forsteRad, 'fant ingen verdirad').not.toBeNull()
     expect(forsteRad![1].split(',').length).toBe(antall)
+  })
+
+  it('ingen insert antar en id-kolonne som ikke finnes', () => {
+    // Id-antakelsen satt på FIRE steder, og jeg fant tre av dem én om
+    // gangen gjennom CI. Denne finner den fjerde på millisekunder.
+    const sql = genererMatrise(kontrakt)
+    const utenId = kontrakt.ressurser.filter((r) => (r.id_kolonne ?? 'id') !== 'id')
+    for (const r of utenId) {
+      const feil = sql.split('\n')
+        .filter((l) => l.includes(`into public.${r.tabell} (id,`))
+      expect(feil, `${r.tabell} har ingen id-kolonne, men matrisen setter en`).toEqual([])
+    }
+    expect(utenId.length, 'ingen ressurs uten surrogatnokkel - maaler testen noe?')
+      .toBeGreaterThan(0)
+  })
+
+  it('en_rad_per_stasjon frigjoer plassen foer hvert INSERT-forsoek', () => {
+    // Metaregelen: test antakelsen, ikke symptomet.
+    //
+    // Stasjonen har alt sin faste rad, saa et innslag nummer to
+    // kolliderer med primaernokkelen. Uten frigjoering ble den positive
+    // kontrollen "ble blokkert: 23505" og den negative "avvist av FEIL
+    // grunn" - to feil av samme aarsak, funnet i CI etter fire minutter.
+    const sql = genererMatrise(kontrakt)
+    const linjer = sql.split('\n')
+    const enRad = kontrakt.ressurser.filter((r) => r.en_rad_per_stasjon)
+
+    for (const r of enRad) {
+      const idk = r.id_kolonne ?? 'id'
+      linjer.forEach((l, nr) => {
+        if (!l.includes(`skriv_tillatt('${r.tabell} `) && !l.includes(`skriv_avvist('${r.tabell} `)) return
+        if (!/ INSERT /.test(l)) return
+        const foran = linjer.slice(Math.max(0, nr - 3), nr).join(' ')
+        expect(foran, `${r.tabell}: INSERT-forsoek uten frigjoering foran (linje ${nr + 1})`)
+          .toContain(`delete from public.${r.tabell} where ${idk} =`)
+      })
+    }
+
+    // KANARIFUGL: uten en slik ressurs maaler testen ingenting.
+    expect(enRad.length, 'ingen en_rad_per_stasjon-ressurs - maaler testen noe?')
+      .toBeGreaterThan(0)
   })
 
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
