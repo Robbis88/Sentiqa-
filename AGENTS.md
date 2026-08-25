@@ -66,7 +66,38 @@ og alltid `with (security_invoker = true)` — uten den leser viewet som eieren,
 
 **Og tabeller, av nøyaktig samme grunn.** En ny tabell skal ha `revoke all on public.ny_tabell from anon;` ved siden av sine grants til `authenticated`. PostgREST-sonden fant 2026-08-25 at 77 tabeller svarte `200 []` for `anon` — ingen lekkasje, men granten lå der og RLS var eneste lag. `0134` tok dem, og punkt 10 i vakthunden holder dem lukket. Kjør `supabase/tests/postgrest_sonde.mjs` når du vil se det gjennom klientflaten i stedet for katalogen.
 
+**Dekningsvakten skal starte fra alle faktiske databaseobjekter, ikke bare de som har policy.** Vakthundens punkt 4 leser `pg_policies` og ser derfor bare tabeller *med* policy — en tabell helt uten policy faller utenfor og ser ut som en tabell uten problemer. `oversettelse_cache` lå slik i to år: RLS på, ingen policy, låst med vilje siden `0037`, men usett av hver liste. `tenant_dekning.sql` starter fra `pg_class`, og **en tabell uten policy er et funn** til noen har kvittert for det med `ingen_policy` i `supabase/tenant-kontrakt.json`. Trygg og sett er to forskjellige ting.
+
 **Et flagg i en kolonne er ikke en grense før RLS leser det.** `malekort.vis_tablet` sto i basen fra `0073` og ble bare brukt som visningsvilkår i appen; nettbrettet kunne lese kortet direkte over PostgREST. Rettet i `0134`. Legger du til et slikt flagg, hører det hjemme i policyen — ikke bare i spørringen.
+
+# Tenant-kontrakten og fixture-kontrakten
+
+`supabase/tenant-kontrakt.json` er eneste håndholdte kilde for hvem som når hva. Dekningskontrollen, atferdsmatrisen og varme/kalde genereres derfra — `OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant`. Rediger aldri de genererte filene.
+
+**To kontrakter, og de blandes ikke:**
+
+- **Tenant-kontrakten beskriver autorisasjon.** Hvem som når hva, per rolle og operasjon.
+- **Fixture-kontrakten beskriver gyldige testdata.** `proberad`, `seed_ekstra` og `business_unik` — det som ikke kan utledes av autorisasjonen.
+
+**Generatoren skal aldri gjette en forretningsnøkkel.** Den kjenner tre: tenantnøkkelen skiller kjeder og stasjoner, primærnøkkelen er en uuid ingen kolliderer på, og `business_unik` er den som gjør at samme identitet to ganger — eller to identiteter på samme stasjon — kolliderer. Står en kolonne i `business_unik`, krever `valider()` at den varierer per forsøk eller kommer fra en fersk forutsetningsrad. Unntak krever en skrevet begrunnelse (`avvik.lopenr` settes av trigger `sett_avvik_lopenr()`).
+
+**`OPPDATER_KONTRAKT` regenererer konsekvenser, aldri klassifiseringer.** En ny tabell må føres inn for hånd av noen som har tatt stilling. En gjettet rad ville gjort dekningssjekken til en formalitet.
+
+## Hva som teller som en tenant-avvisning
+
+```
+42501                        godkjent sikkerhetsavvisning
+0 rader + målrad bevist      godkjent — `using` utelukket raden
+23505 / 23503 / 23514 / …    FAIL. Domenefeil, ikke sikkerhet.
+```
+
+En blokkert `UPDATE` gir 0 rader og *ingen* exception. Det gjør også en feil id, en fixture som aldri ble seedet, og en tom tabell. Derfor godtas 0 rader bare når `pg_temp.finnes()` — security definer, ser forbi RLS — bekrefter at målraden er der.
+
+**En positiv kontroll må lykkes før de negative i samme gruppe er gyldige.** Lykkes ingen tillatt operasjon på en ressurs, vet vi ikke om proberaden er gyldig i domenet — og da beviser ingen av avvisningene noe. Uten den regelen ville en suite der alt er ødelagt sett ut som en suite der alt er trygt.
+
+**`skriv_avvist` og `skriv_tillatt` må være `security invoker`.** Blir de definer, kjører den dynamiske setningen som eier, forbi RLS, og fila blir grønn uansett hva policyen sier.
+
+**Multi-setningsfiler kjøres med `psql -v ON_ERROR_STOP=1`,** ikke `supabase db query --file` — den sender fila som én prepared statement. Uten `ON_ERROR_STOP` returnerer psql 0 selv om en setning feilet.
 
 # Arbeidsflyt: `main` er beskyttet
 
@@ -95,5 +126,15 @@ Kjører i vitest, tar 200 ms til sammen. `npx vitest run src/lib/redesign` etter
 - **`monstre.ts`** — hver rute må ha et mønster. Passer ikke mønsteret siden, endre *mønsteret* og skriv hvorfor.
 
 Skal noe faktisk endres: `OPPDATER_FASIT=1 npx vitest run src/lib/redesign`. Da viser git nøyaktig hva som ble gitt slipp på.
+
+## `innerText` og sammenleggbart innhold
+
+**Les aldri `innerText` på en kollapset `<details>`.** `innerText` gir *rendret* tekst når elementet er lagt ut, og faller tilbake til `textContent` når det ikke er det. En påstand som leser den kollapsede delen består altså når siden **ikke** er ferdig, og feiler når den er det. `svinn.spec.ts` flaket slik i ukevis; en lengre timeout ville gjort den rødere, ikke grønnere.
+
+Åpne detaljen først, `toBeVisible()`, og les så. Det er også et sterkere bevis: at tallet er til *å lese*, ikke bare til å finne i DOM-en.
+
+`toContainText` leser `textContent` og ser aldri forskjellen — derfor flaker den ikke, og derfor er det vanskelig å se hvor feilen ligger når bare én linje i en test er rammet.
+
+**Testgjeld, ikke rettet:** `bolge2-analyse.spec.ts:216` bruker `.not.toMatch` mot `main.innerText()`. **En negativ påstand på `innerText` over sammenleggbart innhold kan gi falsk trygghet** — den kan ikke skille «finnes ikke» fra «er skjult i en `<details>`». Den er ikke feil i dag, men den beviser mindre enn den ser ut til.
 
 **Hver vakt har en kanarifugl, og det er ikke pynt.** To av dem har vært grønne mens de var i stykker — RLS-vakthunden i månedsvis fordi den forutsatte at det fantes policyer å vurdere, rollevakten fordi regexen ikke tålte parenteser og dermed var blind for `!erLeder(bruker.rolle)`. **En vakt som slutter å se, ser nøyaktig ut som en vakt som ikke finner noe.** Legger du til en ny kontroll, legg til noe som feiler når den slutter å måle.

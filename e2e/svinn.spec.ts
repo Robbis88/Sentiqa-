@@ -308,20 +308,50 @@ test.describe('/svinn med data - én stasjon', () => {
     await loggInn(page, DATA)
     await page.goto(`/svinn?stasjon=${UNDERBY}&maned=${MARS}`)
 
+    // FORKLARINGEN ER EN <details>, OG DEN MAA AAPNES.
+    //
+    // Foerste utgave leste `innerText` paa den kollapsede detaljen. Det
+    // flaket, og maaten den flaket paa var invertert: `innerText` gir
+    // RENDRET tekst naar elementet er lagt ut, og faller tilbake til
+    // `textContent` naar det ikke er det. Rakk testen aa lese foer
+    // layouten var ferdig, fikk den hele teksten og BESTO. Var siden
+    // ferdig, fikk den bare sammendraget - ingen sifre - og feilet med
+    //
+    //     Expected substring: "10000"
+    //     Received string:    ""
+    //
+    // Altsaa: den bestod naar sida IKKE var klar. Det er ikke en test
+    // man kan gjore mer taalmodig; en lengre timeout ville gjort den
+    // roedere, ikke groennere.
+    //
+    // `toContainText` leser textContent og saa aldri forskjellen - det
+    // er derfor de tre andre paastandene aldri flaket.
+    //
+    // Aa aapne detaljen fjerner ikke bare flaket, den beviser mer: at
+    // tallet er til AA LESE, ikke bare til aa finne i DOM-en. Det er
+    // kontrakten sida selv erklaerer - «ingen terskel, og alltid
+    // synlig».
     const f = page.locator('details.sq-forklaring')
       .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i })
-    await expect(f).toContainText(/Største enkeltlinje/i)
-    expect(sifre(await f.innerText())).toContain('10000')
-    await expect(f).toContainText('83 %')
-    await expect(f).toContainText('Grovbrod halv')
+    await f.locator('summary').click()
+
+    const innhold = f.locator('.sq-forklaring-innhold')
+    await expect(innhold).toBeVisible()
+    await expect(innhold).toContainText(/Største enkeltlinje/i)
+    await expect(innhold).toContainText('83 %')
+    await expect(innhold).toContainText('Grovbrod halv')
+    // Naa er elementet synlig, saa `innerText` er entydig.
+    expect(sifre(await innhold.innerText())).toContain('10000')
 
     // INGEN TERSKEL: setningen staar uansett hvor stor andelen er. Et
     // felt som bare dukker opp naar systemet mener det er verdt det, er
     // en skjult grense med en annen frakk.
     await page.goto(`/svinn?stasjon=${OVERBY}&maned=${MARS}`)
-    await expect(page.locator('details.sq-forklaring')
-      .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i }))
-      .toContainText(/Største enkeltlinje/i)
+    const fo = page.locator('details.sq-forklaring')
+      .filter({ hasText: /Hvor godt er registreringsgrunnlaget/i })
+    await fo.locator('summary').click()
+    await expect(fo.locator('.sq-forklaring-innhold')).toBeVisible()
+    await expect(fo.locator('.sq-forklaring-innhold')).toContainText(/Største enkeltlinje/i)
   })
 
   test('Overby alene: kroner uten prosent', async ({ page }) => {

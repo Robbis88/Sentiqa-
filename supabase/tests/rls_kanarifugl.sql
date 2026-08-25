@@ -379,8 +379,12 @@ values ('a4440000-0000-4000-8000-000000000001', 'aaaa0000-0000-4000-8000-0000000
         'Skjult for nettbrett', 'omsetning', 'maaned', 'hoy', false, false);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 
-select pg_temp.paastand('DAGENS TILSTAND: nettbrett A1 leser malekort med vis_tablet = false',
-  exists (select 1 from public.malekort where id = 'a4440000-0000-4000-8000-000000000001'));
+-- SNUDD 2026-08-25, etter 0134. Paastanden sto som DAGENS TILSTAND og
+-- maalte at nettbrettet naadde et kort merket vis_tablet = false. 0134
+-- lot malekort_les lese flagget, og da sa paastanden fra - som den var
+-- skrevet for aa gjore. Naa maaler den den nye tilstanden.
+select pg_temp.paastand('Nettbrett A1 leser IKKE malekort med vis_tablet = false (0134)',
+  not exists (select 1 from public.malekort where id = 'a4440000-0000-4000-8000-000000000001'));
 
 -- Men aldri B sitt.
 select pg_temp.paastand('Nettbrett A1 ser INGEN malekort fra B',
@@ -414,5 +418,24 @@ select pg_temp.som_eier();
 select status, navn, detalj
 from pg_temp.funn
 order by (status = 'FEIL') desc, nr;
+
+-- EXIT-KODEN MAA FOELGE TABELLEN.
+--
+-- Paastandene er RADER, ikke unntak - det er derfor resultatet er
+-- lesbart. Men da gaar psql ut med 0 selv naar tabellen er full av
+-- FEIL, og CI-jobben blir groenn. Det skjedde 2026-08-25 i den
+-- genererte matrisen: elleve FEIL, groenn jobb.
+--
+-- Selecten over kjorer foerst, saa tabellen staar i loggen.
+do $$
+declare n int;
+begin
+  select count(*) into n from pg_temp.funn where status = 'FEIL';
+  if n > 0 then
+    raise exception 'KANARIFUGLEN: % funn. Se tabellen over.', n;
+  end if;
+  raise notice '--- Kanarifuglen: ingen funn. % paastander ---',
+    (select count(*) from pg_temp.funn);
+end $$;
 
 rollback;

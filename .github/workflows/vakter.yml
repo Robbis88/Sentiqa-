@@ -114,6 +114,10 @@ jobs:
       #
       # `db`, `kong` og `rest` er selve basen, og gotrue kan ikke tas
       # ut - det er den innloggede testene lever av.
+      # Lokal base fra `supabase start`. Porten staar i supabase/config.toml.
+      - name: Sett PGURL
+        run: echo "PGURL=postgresql://postgres:postgres@127.0.0.1:54322/postgres" >> "$GITHUB_ENV"
+
       - name: Start Supabase lokalt
         run: >
           npx supabase start
@@ -130,6 +134,51 @@ jobs:
       # noen har gjort for haand i produksjon.
       - name: RLS-vakthund mot fersk base
         run: npx supabase db query --local --file supabase/tests/rls_vakthund.sql
+
+      # PORT 2: tenant-kontrakten.
+      #
+      # Dekningen foerst - en ny tabell som ingen har klassifisert skal
+      # aldri komme forbi her.
+      # PSQL, IKKE `supabase db query`. CLI-en sender fila som EN prepared
+      # statement, og en fil med flere setninger gir da
+      # «cannot insert multiple commands into a prepared statement».
+      # Det er den samme grunnen rls_vakthund.sql maa vaere én setning.
+      # Matrisen er 457 setninger og kan ikke kjores den veien.
+      #
+      # ON_ERROR_STOP=1 er ikke pynt: uten den returnerer psql 0 selv om
+      # en setning feilet, og et roedt bevis ville blitt en groenn jobb.
+      - name: Tenant-dekning
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/tenant_dekning.sql
+
+      # KANARIFUGLEN FOR DEKNINGEN. Tre kall, og alle tre betyr noe:
+      # groenn, saa ROED paa en uklassifisert tabell, saa groenn igjen.
+      # Uten det siste ville en sjekk som ALLTID feiler ogsaa bestaatt.
+      - name: Uklassifisert tabell feller dekningen
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/kanari_uklassifisert.sql
+          if psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/tenant_dekning.sql; then
+            echo "::error::Dekningskontrollen godtok en uklassifisert tabell - den maaler ingenting"
+            psql "$PGURL" -f supabase/tests/kanari_uklassifisert_rydd.sql
+            exit 1
+          fi
+          echo "Dekningen felte den uklassifiserte tabellen, som den skal."
+          psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/kanari_uklassifisert_rydd.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/tenant_dekning.sql
+
+      # Atferdsmatrisen. Generert fra kontrakten - se
+      # src/lib/tenant/generer.ts. Tiden logges med vilje: dekning skal
+      # ikke kuttes for ytelse foer kjoretiden faktisk er maalt.
+      - name: Tenant-atferdsmatrise
+        run: |
+          start=$(date +%s)
+          psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_kanarifugl_generert.sql
+          echo "Atferdsmatrisen brukte $(( $(date +%s) - start )) sekunder."
+
+      # Haandskrevet kanarifugl fra PORT 1. Blir staaende til kontrakten
+      # dekker alle varme tabeller - den maaler dagens tilstand paa
+      # nettbrettet, som matrisen ennaa ikke uttaler seg om.
+      - name: Tenant-kanarifugl (PORT 1)
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_kanarifugl.sql
 
       # Hemmeligheten: at pin_hash faktisk er lukket for klientrollen, at
       # verifiseringen virker, at rate limitingen bremser og at
