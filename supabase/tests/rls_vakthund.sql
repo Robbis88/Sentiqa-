@@ -592,6 +592,55 @@ begin
     end loop;
   end;
 
+  -- --- 10) Tabeller: anon av ---
+  --
+  -- Lagt til 2026-08-25, etter at postgrest_sonde.mjs sonderte 103
+  -- ressurser som anon over ekte HTTPS og fant:
+  --
+  --     sperret 26  |  tomt 77  |  LEKKASJE 0
+  --
+  -- Ingen lekkasje - men 77 tabeller svarte `200 []`. Granten fantes,
+  -- RLS returnerte ingenting. Ett lag.
+  --
+  -- PUNKT 9 ER BLINDT FOR TABELLER, av samme grunn som de aatte foer
+  -- den er blinde for views: den spor `relkind in ('v','m')`. En tabell
+  -- med anon-grant falt mellom punkt 9 og resten.
+  --
+  -- 0134 tok grantene. Denne vakten er det som gjor det til noe annet
+  -- enn en opprydding: default privileges gir grantet paa nytt til hver
+  -- NY tabell, og til hver ny partisjon (0105).
+  declare
+    antall_tabeller int;
+  begin
+    select count(*) into antall_tabeller
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p');
+
+    -- KANARIFUGL. Samme grunn som i punkt 9: en sjekk som ikke finner
+    -- noen tabeller ser noyaktig ut som en base uten problemer.
+    if antall_tabeller = 0 then
+      funnliste := funnliste || 'TABELLVAKT BLIND  ingen tabeller funnet i public - maaler sjekken riktig skjema?';
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end if;
+
+    for r in
+      select c.relname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind in ('r', 'p')
+        and has_table_privilege('anon', c.oid, 'select')
+      order by c.relname
+    loop
+      funnliste := funnliste || format('ANON KAN LESE  public.%s  - `revoke all on public.%s from anon` (se 0134). Grantet kommer av seg selv fra default privileges, ogsaa til nye partisjoner.',
+        r.relname, r.relname);
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end loop;
+  end;
+
   -- FUNNENE HOERER HJEMME I FEILMELDINGEN.
   --
   -- Foer sto det bare «RLS-vakthund: 2 funn. Se advarslene over» - og
@@ -605,8 +654,10 @@ begin
              array_to_string(funnliste, chr(10)));
   end if;
 
-  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, % views, alle tabeller med policy er dekket ---',
+  raise notice '--- RLS-vakthund: ingen funn. % varme, % kalde, % lagringspolicyer, % views, % tabeller uten anon-grant, alle tabeller med policy er dekket ---',
     array_length(varme, 1), array_length(kalde, 1), array_length(lagring, 1),
     (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'public' and c.relkind in ('v', 'm'));
+     where n.nspname = 'public' and c.relkind in ('v', 'm')),
+    (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind in ('r', 'p'));
 end $$;
