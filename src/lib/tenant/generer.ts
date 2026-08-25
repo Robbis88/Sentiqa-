@@ -369,21 +369,53 @@ function genererRessursSeed(r: Ressurs): string {
 
   // `nyrad_*` lager en fersk rad rett før en update/delete-test, saa en
   // tillatt sletting ikke river grunnlaget for neste paastand.
-  const { kolonner, verdier } = proberadSql(r, 'A', 'A1', 'ny')
-  const kolonnerUtenTenant = kolonner.filter((c) => c !== 'stasjon_id' && c !== 'retailer_id')
-  const verdierUtenTenant = verdier.filter((_, idx) => kolonner[idx] !== 'stasjon_id' && kolonner[idx] !== 'retailer_id')
-  const tenantParam = r.tenant_scope === 'retailer'
-    ? ['retailer_id']
-    : r.tenant_scope === 'retailer_and_station' ? ['retailer_id', 'stasjon_id'] : ['stasjon_id']
+  //
+  // DEN MAA LAGE SINE EGNE FORUTSETNINGER. Foerste utgave bakte inn ETT
+  // sett - A1 sitt - og ble kalt ~60 ganger. `rutine_utforinger` har
+  // unique (rutine_id, dato), saa kall nummer to kolliderte:
+  //
+  //   duplicate key value violates unique constraint
+  //   "rutine_utforinger_rutine_id_dato_key"
+  //
+  // Her er `gen_random_uuid()` riktig, og det motsier ikke regelen om at
+  // GENERATOREN skal vaere deterministisk: tilfeldigheten skjer i basen,
+  // ved kjoretid, og fila som ligger i repoet er den samme hver gang.
+  // TENANTNOEKKEL, IKKE STASJONSKOLONNE. `opplaering_utfort` er
+  // stasjonsscopet, men BAERER ingen stasjon_id - nokkelen er indirekte
+  // via periode_id. tenantKolonner() vet det; dette maa vite det samme.
+  const tenantParam = Object.keys(tenantKolonner(r, 'A', 'A1'))
   const tenantVerdi = tenantParam.map((c) => c === 'retailer_id' ? 'p_retailer' : 'p_stasjon')
+
+  // Forutsetningene lages INNE i funksjonen, med fersk uuid per kall.
+  // Da er `business_unik` oppfylt uten at noe varieres på slump: en ny
+  // rutine gjør (rutine_id, dato) unik, en ny periode og oppgave gjør
+  // (periode_id, oppgave_id) unik.
+  const seedNavn = [...new Set((r.seed_ekstra ?? [])
+    .flatMap((l) => [...l.matchAll(/\{\{seed:([a-z_]+)\}\}/g)].map((m) => m[1])))]
+
+  // I plpgsql er variablene identifikatorer, ikke tekst — derfor byttes
+  // det SITERTE plassholderuttrykket mot det bare variabelnavnet.
+  const somVariabel = (mal: string) => {
+    let ut = mal
+    for (const n of seedNavn) ut = ut.split(`'{{seed:${n}}}'`).join(`v_${n}`)
+    return ut
+      .split(`'{{retailer}}'`).join('p_retailer')
+      .split(`'{{stasjon}}'`).join('p_stasjon')
+      .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke`)
+      .split(`{{unik_dato}}`).join('current_date')
+      .split(`{{unik}}`).join(`' || p_merke || '`)
+  }
+
+  const proberadFelt = Object.entries(r.proberad).filter(([k]) => !k.startsWith('$'))
 
   linjer.push(`
 create or replace function pg_temp.nyrad_${r.tabell}(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
-declare ny uuid;
-begin
-  insert into public.${r.tabell} (${[...tenantParam, ...kolonnerUtenTenant].join(', ')})
-  values (${[...tenantVerdi, ...verdierUtenTenant.map((v) => v.replace(/'sonde [^']*'/, "'sonde ' || p_merke"))].join(', ')})
+declare
+  ny uuid;${seedNavn.map((n) => `\n  v_${n} uuid := gen_random_uuid();`).join('')}
+begin${(r.seed_ekstra ?? []).map((l) => `\n  ${somVariabel(l)};`).join('')}
+  insert into public.${r.tabell} (${[...tenantParam, ...proberadFelt.map(([k]) => k)].join(', ')})
+  values (${[...tenantVerdi, ...proberadFelt.map(([, v]) => somVariabel(v))].join(', ')})
   returning id into ny;
   return ny;
 end $fn$;`)

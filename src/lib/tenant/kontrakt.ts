@@ -52,6 +52,28 @@ export type Ressurs = {
    * og begrunnet; står den ikke, er den et funn.
    */
   ingen_policy?: string
+  /**
+   * Forretningsnøkkelen — `unique (...)` som IKKE er primærnøkkelen og
+   * IKKE tenantnøkkelen.
+   *
+   * Generatoren må kjenne forskjellen på de tre. Tenantnøkkelen skiller
+   * kjeder og stasjoner; primærnøkkelen er en uuid ingen kolliderer på;
+   * forretningsnøkkelen er den som gjør at *samme identitet to ganger*
+   * eller *to identiteter på samme stasjon* kolliderer med 23505.
+   *
+   * En 23505 er ikke en sikkerhetsavvisning. Står nøkkelen her, krever
+   * `valider()` at hver kolonne i den enten varierer per forsøk eller
+   * kommer fra en fersk forutsetningsrad.
+   */
+  business_unik?: string[]
+  /**
+   * Kolonner i `business_unik` som IKKE settes av fixturen, med
+   * begrunnelse. Typisk et løpenummer en trigger tildeler.
+   *
+   * Unntaket krever en grunn. En tom unntaksliste ville gjort
+   * `business_unik` til dekorasjon.
+   */
+  business_unik_unntak?: Record<string, string>
 }
 
 export type Kontrakt = {
@@ -129,6 +151,34 @@ export function valider(k: Kontrakt): string[] {
         if (r[rolle] !== 'none') {
           feil.push(`${r.tabell}: ingen operasjoner, men ${rolle} er «${String(r[rolle])}»`)
         }
+      }
+    }
+
+    // FORRETNINGSNØKKELEN MÅ VARIERE PER FORSØK.
+    //
+    // Gjør den ikke det, kolliderer forsøk nummer to med 23505 — og en
+    // 23505 er ikke et bevis på noe som helst om tenantgrensen. Den
+    // strenge SQLSTATE-regelen gjør en slik fixture rød, ikke grønn,
+    // men den skal helst ikke oppstå i det hele tatt.
+    for (const kol of r.business_unik ?? []) {
+      if (kol === 'stasjon_id' || kol === 'retailer_id') continue // varierer med målet
+      const unntak = r.business_unik_unntak?.[kol]
+      if (unntak) {
+        if (unntak.trim().length < 10) {
+          feil.push(`${r.tabell}: unntaket for «${kol}» mangler en reell begrunnelse`)
+        }
+        continue
+      }
+      const verdi = r.proberad[kol]
+      if (verdi === undefined) {
+        feil.push(`${r.tabell}: business_unik nevner «${kol}», men proberaden setter den ikke`)
+        continue
+      }
+      const varierer = /\{\{seed:|\{\{unik/.test(verdi) || /clock_timestamp\(\)/.test(verdi)
+      if (!varierer) {
+        feil.push(`${r.tabell}: business_unik-kolonnen «${kol}» er konstant (${verdi}). `
+          + 'To forsøk ville kollidert med 23505, som ikke er en sikkerhetsavvisning. '
+          + 'Bruk {{seed:...}} for en fersk forutsetning, {{unik}}/{{unik_dato}}, eller clock_timestamp().')
       }
     }
 

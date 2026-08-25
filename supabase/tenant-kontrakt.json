@@ -66,6 +66,10 @@
       "tablet": { "select": "own_station", "insert": "own_station" },
       "manager": "assigned_stations",
       "owner": "retailer",
+      "business_unik": ["retailer_id", "lopenr"],
+      "business_unik_unntak": {
+        "lopenr": "Tildeles av trigger sett_avvik_lopenr() (0079). Indeksen er partiell - where slettet_tid is null - og fixturen skal derfor ikke sette den."
+      },
       "proberad": {
         "dato": "date '2026-08-01'",
         "beskrivelse": "'sonde {{unik}}'"
@@ -83,6 +87,7 @@
       "seed_ekstra": [
         "insert into public.rutiner (id, retailer_id, stasjon_id, tittel) values ('{{seed:rutine}}', '{{retailer}}', '{{stasjon}}', 'Sonderutine')"
       ],
+      "business_unik": ["rutine_id", "dato"],
       "proberad": {
         "rutine_id": "'{{seed:rutine}}'",
         "dato": "{{unik_dato}}"
@@ -123,6 +128,7 @@
         "insert into public.opplaering_oppgave (id, retailer_id, tittel, kategori) values ('{{seed:oppgave}}', '{{retailer}}', 'Sondeoppgave', 'Kasse')",
         "insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('{{seed:periode}}', '{{retailer}}', '{{stasjon}}', 'Sonde Sondesen', current_date)"
       ],
+      "business_unik": ["periode_id", "oppgave_id"],
       "proberad": {
         "periode_id": "'{{seed:periode}}'",
         "oppgave_id": "'{{seed:oppgave}}'"
@@ -152,6 +158,11 @@
       "manager": "assigned_stations",
       "owner": "retailer",
       "$proberad_hvorfor": "kilde er skrankelagt til tablet/import/korreksjon. Og tidspunkt maa vaere clock_timestamp(), ikke now(): now() er konstant gjennom en transaksjon, saa unique (stasjon_id, ansatt_nr, tidspunkt, type) ville kollidert mellom identitetene og gitt 23505 - som den skjerpede skriv_avvist ville meldt som avvist av feil grunn.",
+      "business_unik": ["stasjon_id", "ansatt_nr", "tidspunkt", "type"],
+      "business_unik_unntak": {
+        "ansatt_nr": "Kolliderende med vilje - samme 4501 i begge kjeder er hele poenget med fixturen. Unikheten baeres av tidspunkt.",
+        "type": "Konstant 'inn'. Unikheten baeres av tidspunkt."
+      },
       "proberad": {
         "ansatt_nr": "'4501'",
         "ansatt_navn": "'Kim Hansen'",
