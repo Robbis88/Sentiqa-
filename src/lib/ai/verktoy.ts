@@ -933,6 +933,20 @@ export const VERKTOY: Record<string, Verktoy> = {
       merknad: [
         'mangler_justering_kr over 0 betyr at utdelt kaffe ikke er slått inn. '
         + 'Negativt tall betyr mer talt enn ventet.',
+        // VINDUET STÅR I RADEN, IKKE I KONVOLUTTEN. Uten denne fikk
+        // modellen to periodefakta som ikke stemte overens, og valgte
+        // ulikt fra svar til svar: samme kall ga «perioden august er
+        // ikke ferdig» på ett spørsmål og «januar–juli» på det neste.
+        // Tallene var riktige begge gangene. Det var rammen rundt dem
+        // som gjorde at de ble mistrodd.
+        'DATAVINDUET STÅR I RADEN: `fra`, `til` og `maaneder` sier hvilke '
+        + 'måneder St1 faktisk har levert regnskapstall for. Oppgi perioden '
+        + 'fra DEM. Konvoluttens `periode` er året det ble spurt om, og den '
+        + 'er alltid uferdig før nyttår — merknaden om at den «ikke er '
+        + 'ferdig» sier ingenting om hvor langt dataene rekker. Nevn aldri '
+        + 'inneværende måned som periode her; regnskapstallene kommer '
+        + 'etterskuddsvis, så raden dekker som regel færre måneder enn '
+        + 'året som har gått.',
       ],
       hent: ({ supabase, stasjoner, periode }) =>
         les<KaffesvinnRad>(

@@ -438,6 +438,44 @@ describe('ufullstendig periode', () => {
     expect(ut.periode?.komplett).toBe(true)
   })
 
+  // KONVOLUTTENS PERIODE OG DATAVINDUET ER TO ULIKE TING, og kaffesvinn
+  // er stedet der de spriker mest: det spørres om året, mens St1s
+  // regnskapstall kommer etterskuddsvis og raden dekker januar-juli.
+  //
+  // Da assistenten hadde begge fakta uten å få vite hvilket som gjaldt,
+  // svarte den «perioden august er ikke ferdig» på ett spørsmål og
+  // «januar-juli» på det neste - av samme kall. Tallene var riktige
+  // begge gangene; det var rammen som gjorde at de ble mistrodd.
+  //
+  // KANARIFUGL: testen krever at BEGGE merknadene står der. Forsvinner
+  // den generiske, måler ikke testen lenger konflikten den ble skrevet
+  // for - da er den grønn av feil grunn.
+  it('kaffesvinn sier hvilket av de to periodefaktaene som gjelder', async () => {
+    const { ut } = await kjor(
+      'hent_kaffesvinn',
+      { aar: 2026 },
+      {
+        ...BARE_DALE,
+        v_kaffe_svinn: { data: [{
+          stasjon_id: 'id-0142', aar: '2026-01-01', maaneder: 7,
+          fra: '2026-01-01', til: '2026-07-01',
+          kaffe_kr: 91978, lojalitet_kr: -38962, mangler_kr: 49687,
+          andel_ujustert_pst: 127.5, vanligste_paafyll: 'PAAFYLL OBLAT KAFFEAVTALE',
+          maa_slaas_inn: 10161,
+        }] },
+      },
+    )
+    const m = ut.merknad.join(' ')
+    // Den generiske står fortsatt - året ER uferdig.
+    expect(m).toContain('ikke ferdig')
+    // ...men raden er den som bestemmer hva som faktisk er dekket.
+    expect(m).toContain('fra')
+    expect(m).toContain('maaneder')
+    expect(m).toContain('Nevn aldri inneværende måned')
+    // Vinduet skal nå fram til modellen, ikke bare bli omtalt.
+    expect(ut.data[0]).toMatchObject({ fra: '2026-01-01', til: '2026-07-01', maaneder: 7 })
+  })
+
   it('avviser en ugyldig periode framfor å gjette', async () => {
     const { ut } = await kjor('hent_salg', { maaned: 'i fjor' }, BARE_DALE)
     expect(ut.status).toBe('feil')
