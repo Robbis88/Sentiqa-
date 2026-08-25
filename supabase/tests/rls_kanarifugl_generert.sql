@@ -1688,4 +1688,29 @@ select status, navn, detalj
 from pg_temp.funn
 order by (status = 'FEIL') desc, nr;
 
+-- =====================================================================
+-- EXIT-KODEN MAA FOELGE TABELLEN.
+--
+-- Paastandene er RADER, ikke unntak - det er hele grunnen til at
+-- resultatet er lesbart. Men da gaar psql ut med 0 selv naar tabellen
+-- er full av FEIL, og CI-jobben blir groenn.
+--
+-- Det skjedde 2026-08-25: elleve FEIL, groenn jobb. En roed suite som
+-- rapporteres som groenn er verre enn ingen suite - det er slik man
+-- laerer seg aa se bort fra roedt.
+--
+-- Selecten over kjorer FOERST, saa tabellen staar i loggen. Denne
+-- kaster etterpaa.
+-- =====================================================================
+do $$
+declare n int;
+begin
+  select count(*) into n from pg_temp.funn where status = 'FEIL';
+  if n > 0 then
+    raise exception 'TENANT-MATRISEN: % funn. Se tabellen over.', n;
+  end if;
+  raise notice '--- Tenant-matrisen: ingen funn. % paastander ---',
+    (select count(*) from pg_temp.funn);
+end $$;
+
 rollback;
