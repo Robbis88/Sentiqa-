@@ -459,7 +459,7 @@ function genererRessursSeed(r: Ressurs): string {
       .split(`'{{stasjon}}'`).join('p_stasjon')
       // Forretningsnoekkelen maa variere per KALL, ikke per call site.
       .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass)`)
-      .split(`{{unik_dato}}`).join(`date '2026-01-01' + nextval('tenant_teller'::regclass)::int`)
+      .split(`{{unik_dato}}`).join(`date '2030-01-01' + nextval('tenant_teller'::regclass)::int`)
       .split(`{{unik}}`).join(`' || p_merke || '-' || nextval('tenant_teller'::regclass) || '`)
   }
 
@@ -495,6 +495,12 @@ const HJELPERE = `
 -- Generatorens egen teller loeser det ikke - den teller ved
 -- GENERERING, og funksjonskroppen skrives en gang. Denne teller ved
 -- KJORING.
+--
+-- EGET DATOROM. Foerste forsoek lot begge tellerne lage datoer fra
+-- 2026-01-01, og da kolliderte de med hverandre i stedet for med seg
+-- selv. De seedede radene bruker 2026 + generatorens teller (0-700);
+-- nyrad_* bruker 2030 + denne. To tellere som teller riktig hver for
+-- seg, men i samme rom, er fortsatt en kollisjon.
 create temp sequence tenant_teller;
 
 create temp table funn (

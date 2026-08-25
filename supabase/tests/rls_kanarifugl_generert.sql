@@ -75,6 +75,12 @@ insert into public.butikksjef_stasjoner (profil_id, stasjon_id) values
 -- Generatorens egen teller loeser det ikke - den teller ved
 -- GENERERING, og funksjonskroppen skrives en gang. Denne teller ved
 -- KJORING.
+--
+-- EGET DATOROM. Foerste forsoek lot begge tellerne lage datoer fra
+-- 2026-01-01, og da kolliderte de med hverandre i stedet for med seg
+-- selv. De seedede radene bruker 2026 + generatorens teller (0-700);
+-- nyrad_* bruker 2030 + denne. To tellere som teller riktig hver for
+-- seg, men i samme rom, er fortsatt en kollisjon.
 create temp sequence tenant_teller;
 
 create temp table funn (
@@ -336,7 +342,7 @@ declare
   ny uuid;
 begin
   insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato)
-  values (p_retailer, p_stasjon, date '2026-01-01' + nextval('tenant_teller'::regclass)::int)
+  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int)
   returning id into ny;
   return ny;
 end $fn$;
@@ -353,7 +359,7 @@ declare
   ny uuid;
 begin
   insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn)
-  values (p_retailer, p_stasjon, date '2026-01-01' + nextval('tenant_teller'::regclass)::int, 'Sondevare ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
+  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, 'Sondevare ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
   returning id into ny;
   return ny;
 end $fn$;
@@ -389,7 +395,7 @@ declare
 begin
   insert into public.rutiner (id, retailer_id, stasjon_id, tittel) values (v_rutine, p_retailer, p_stasjon, 'Sonderutine');
   insert into public.rutine_utforinger (stasjon_id, rutine_id, dato)
-  values (p_stasjon, v_rutine, date '2026-01-01' + nextval('tenant_teller'::regclass)::int)
+  values (p_stasjon, v_rutine, date '2030-01-01' + nextval('tenant_teller'::regclass)::int)
   returning id into ny;
   return ny;
 end $fn$;
