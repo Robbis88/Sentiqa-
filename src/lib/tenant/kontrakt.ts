@@ -74,6 +74,15 @@ export type Ressurs = {
    * `business_unik` til dekorasjon.
    */
   business_unik_unntak?: Record<string, string>
+  /**
+   * Navngitt capability-gjeld: dagens tilgang er bredere enn
+   * produktbehovet, og lukkingen krever noe mer enn et predikat.
+   *
+   * Dette er ikke et avvik fra intensjonen som kan strammes med RLS —
+   * det er et sted RLS ikke rekker. Feltet finnes for at gjelden skal ha
+   * et navn og en plass, i stedet for å bo i en commit-melding.
+   */
+  capability_gjeld?: string
 }
 
 export type Kontrakt = {
@@ -180,6 +189,11 @@ export function valider(k: Kontrakt): string[] {
           + 'To forsøk ville kollidert med 23505, som ikke er en sikkerhetsavvisning. '
           + 'Bruk {{seed:...}} for en fersk forutsetning, {{unik}}/{{unik_dato}}, eller clock_timestamp().')
       }
+    }
+
+    // Gjeld uten beskrivelse er ikke gjeld, det er en TODO.
+    if (r.capability_gjeld !== undefined && r.capability_gjeld.trim().length < 30) {
+      feil.push(`${r.tabell}: capability_gjeld mangler en reell beskrivelse`)
     }
 
     for (const t of k.uklassifisert_tillatt.tabeller) {
