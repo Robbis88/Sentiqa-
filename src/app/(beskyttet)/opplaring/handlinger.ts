@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { STANDARD_OPPLAERING } from '@/lib/opplaering/standard'
+import { lesAktivAnsatt } from '@/lib/ansatt'
 import { maaLykkes } from '@/lib/skriv-svar'
 import { kvitter, type Kvittering } from '@/lib/kvittering'
 
@@ -114,7 +115,8 @@ export async function vekslUtfort(formData: FormData) {
   if (!periodeId || !oppgaveId) return
   const supabase = await lagSupabaseServerKlient()
   if (til) {
-    maaLykkes(await supabase.from('opplaering_utfort').upsert({ periode_id: periodeId, oppgave_id: oppgaveId, bekreftet_av: bruker.id }, { onConflict: 'periode_id,oppgave_id', ignoreDuplicates: true }), 'lagre opplaering utfort')
+    const ansatt = await lesAktivAnsatt(supabase)
+    maaLykkes(await supabase.from('opplaering_utfort').upsert({ periode_id: periodeId, oppgave_id: oppgaveId, bekreftet_av: bruker.id, bekreftet_ansatt_id: ansatt?.id ?? null }, { onConflict: 'periode_id,oppgave_id', ignoreDuplicates: true }), 'lagre opplaering utfort')
   } else {
     maaLykkes(await supabase.from('opplaering_utfort').delete().eq('periode_id', periodeId).eq('oppgave_id', oppgaveId), 'slette opplaering utfort')
   }
@@ -129,8 +131,22 @@ export async function leggTilSkift(formData: FormData) {
   const dato = String(formData.get('dato') ?? '')
   const notater = String(formData.get('notater') ?? '').trim() || null
   if (!periodeId || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return
+
+  // BEGGE ELLER INGEN. Et skift med starttid og uten slutt er ikke et
+  // halvt svar - det er et ubesvart spoersmaal, og visningen maatte da
+  // gjettet paa den andre enden. Databasen har samme skranke (0133);
+  // dette stopper det foer det blir en feilmelding brukeren maa tyde.
+  const tid = (n: string) => {
+    const v = String(formData.get(n) ?? '').trim()
+    return /^\d{2}:\d{2}$/.test(v) ? v : null
+  }
+  const start = tid('start_tid')
+  const slutt = tid('slutt_tid')
+  if ((start == null) !== (slutt == null)) return
+  if (start && slutt && slutt <= start) return
+
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('opplaering_skift').upsert({ periode_id: periodeId, dato, ansvarlig_bruker_id: bruker.id, notater }, { onConflict: 'periode_id,dato' }), 'lagre opplaering skift')
+  maaLykkes(await supabase.from('opplaering_skift').upsert({ periode_id: periodeId, dato, start_tid: start, slutt_tid: slutt, ansvarlig_bruker_id: bruker.id, notater }, { onConflict: 'periode_id,dato' }), 'lagre opplaering skift')
   revalidatePath('/opplaring')
 }
 
@@ -146,4 +162,51 @@ export async function slettSkift(_t: Kvittering, fd: FormData,
     ok: 'Skift slettet',
     oppfrisk: ['/opplaring'],
   })
+}
+
+
+// ---------------------------------------------------------------------
+// NETTBRETTET HAKER AV
+//
+// TO IDENTITETER, BEGGE LAGRET. `bekreftet_av` er auth-kontoen — på
+// nettbrettet er det stasjonens DELTE konto, og den sier hvilken enhet,
+// ikke hvilket menneske. `bekreftet_ansatt_id` er personen bak PIN-en.
+// Samme kontrakt som `sjekkpunkt_svar` allerede har.
+//
+// For ranerutiner og drivstoffsøl er dette en opplæringskvittering noen
+// kan komme til å lene seg på. Da må den kunne peke på et menneske.
+//
+// AUTORISASJONEN LIGGER I RLS, IKKE HER. `opp2_utfort_ins` (0133)
+// slipper `butikkbruker_tablet` gjennom kun for perioder på stasjoner
+// `mine_stasjoner()` gir. Denne funksjonen kan derfor ikke skrive til
+// nabostasjonen selv om noen sender inn en fremmed `periode_id` — det
+// er databasen som avviser, ikke en if-setning i app-laget.
+//
+// KAN IKKE FJERNE EN HAKE. Å ta bort en hake er å si at noe likevel
+// ikke er lært bort, og det er en vurdering — ikke en registrering.
+// `opp2_utfort_del` er fortsatt leder-only.
+export async function hakAvPaaNettbrett(
+  periodeId: string, oppgaveId: string,
+): Promise<{ ok: boolean }> {
+  const bruker = await hentInnloggetBruker()
+  if (!periodeId || !oppgaveId) return { ok: false }
+  const supabase = await lagSupabaseServerKlient()
+  const ansatt = await lesAktivAnsatt(supabase)
+  const svar = await supabase.from('opplaering_utfort').upsert(
+    {
+      periode_id: periodeId,
+      oppgave_id: oppgaveId,
+      bekreftet_av: bruker.id,
+      bekreftet_ansatt_id: ansatt?.id ?? null,
+      utfort_tid: new Date().toISOString(),
+    },
+    { onConflict: 'periode_id,oppgave_id', ignoreDuplicates: true },
+  )
+  // EN HANDLING SOM SVELGER FEILEN SIN ER VERRE ENN EN SOM KASTER.
+  // Nettbrettet oppdaterer optimistisk, så et stille avslag ville vist
+  // en hake som ikke finnes i basen.
+  if (svar.error) return { ok: false }
+  revalidatePath('/opplaring')
+  revalidatePath('/oversikt')
+  return { ok: true }
 }

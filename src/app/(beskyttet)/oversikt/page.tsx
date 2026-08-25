@@ -9,6 +9,8 @@ import type { Stemplingstilstand } from '../stempling-rad'
 import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
 import { iDag } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
+import { dagensOpplaering } from '@/lib/opplaering/dagens'
+import type { Opplaering } from '../opplaring/tablet-opplaering'
 import { AdminDashbord } from '../admin-dashbord'
 import { ButikksjefDashbord } from '../butikksjef-dashbord'
 import { husketStasjon } from '@/lib/stasjonskontekst'
@@ -42,6 +44,48 @@ export default async function OversiktSide(
     const sjekkpunkter = (sjekkAlle ?? [])
       .filter((p) => !besvart.has(p.id) && (!p.klokkeslett || p.klokkeslett <= naaTid))
       .map((p) => ({ id: p.id, sporsmaal: p.sporsmaal, kritisk: p.kritisk, stasjon_id: p.stasjon_id }))
+    // OPPLAERING: skift-kalenderen er utloeseren.
+    //
+    // Nettbrettet spoer ikke «finnes det opplaering?» - det spoer
+    // «finnes det et skift i dag, paa min stasjon, i en periode som
+    // ikke er fullfoert?». RLS har alt snevret radene til egen stasjon;
+    // `dagensOpplaering` gjor de tre siste leddene og er testet for seg.
+    const [{ data: oplSkift }, { data: oplPerioder }, { data: oplOppgaver }] = await Promise.all([
+      supabase.from('opplaering_skift')
+        .select('id, periode_id, dato, start_tid, slutt_tid').eq('dato', idag)
+        .overrideTypes<{ id: string; periode_id: string; dato: string; start_tid: string | null; slutt_tid: string | null }[]>(),
+      supabase.from('opplaering_periode')
+        .select('id, stasjon_id, ansatt_navn, start_dato, fullfort_tid').is('fullfort_tid', null)
+        .overrideTypes<{ id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; fullfort_tid: string | null }[]>(),
+      supabase.from('opplaering_oppgave')
+        .select('id, kategori, tittel').eq('aktiv', true).is('slettet_tid', null).order('rekkefolge')
+        .overrideTypes<{ id: string; kategori: string; tittel: string }[]>(),
+    ])
+    const dagens = dagensOpplaering(oplSkift ?? [], oplPerioder ?? [], st?.id ?? null, idag)
+    let opplaeringer: Opplaering[] = []
+    if (dagens.length > 0) {
+      const { data: oplUtfort } = await supabase.from('opplaering_utfort')
+        .select('periode_id, oppgave_id')
+        .in('periode_id', dagens.map((d) => d.periodeId))
+        .limit(5000)
+        .overrideTypes<{ periode_id: string; oppgave_id: string }[]>()
+      const gjortPer = new Map<string, Set<string>>()
+      for (const u of oplUtfort ?? []) {
+        const sett = gjortPer.get(u.periode_id) ?? new Set<string>()
+        sett.add(u.oppgave_id)
+        gjortPer.set(u.periode_id, sett)
+      }
+      opplaeringer = dagens.map((d) => ({
+        periodeId: d.periodeId,
+        ansattNavn: d.ansattNavn,
+        tidsrom: d.tidsrom,
+        oppgaver: (oplOppgaver ?? []).map((o) => ({
+          id: o.id, kategori: o.kategori, tittel: o.tittel,
+          gjort: gjortPer.get(d.periodeId)?.has(o.id) ?? false,
+        })),
+      }))
+    }
+
     const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag) : null
     // Det som faktisk gjenstaar i dag - grunnlaget for skiftlista.
     const rutinerIgjen = Math.max(0, (rutinestat?.forventet ?? 0) - (rutinestat?.utfort ?? 0))
@@ -118,7 +162,7 @@ export default async function OversiktSide(
     const sjefMeldingerO = sjefMeldinger.map((m) => ({ ...m, tittel: o(m.tittel), beskrivelse: m.beskrivelse ? o(m.beskrivelse) : null }))
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
-    return <TabletHjem navn={aktiv?.navn} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} rutinerIgjen={rutinerIgjen} stempling={stempling} ord={ord} />
+    return <TabletHjem navn={aktiv?.navn} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} rutinerIgjen={rutinerIgjen} stempling={stempling} ord={ord} opplaeringer={opplaeringer} />
   }
 
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.

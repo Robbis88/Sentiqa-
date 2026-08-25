@@ -938,3 +938,58 @@ where not exists (
   select 1 from public.synlig_svinn s
   where s.ean = '7090000000131' and s.dato = date '2026-03-17'
 );
+
+
+-- =====================================================================
+-- OPPLAERING SOM NAAR NETTBRETTET
+--
+-- Skift-kalenderen er utloeseren: nettbrettet spoer ikke «finnes det
+-- opplaering?», men «finnes det et skift i dag, paa min stasjon, i en
+-- periode som ikke er fullfoert?».
+--
+-- DERFOR `current_date`, IKKE EN FAST DATO. En fixture med 2026-08-29
+-- ville vaert usynlig alle andre dager enn den ene, og testen ville
+-- bestaatt fordi den ikke fant noe - ikke fordi det ikke var noe galt.
+-- Det er den samme feilen som en vakt som slutter aa se.
+--
+-- Testkjeden, Testby (4177), som `nettbrett@test.sentiqa.no` staar paa.
+-- =====================================================================
+insert into public.opplaering_oppgave
+  (id, retailer_id, tittel, kategori, rekkefolge)
+values
+  ('0bbb0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+   'Kassaoppgjoer',      'Kasse', 1),
+  ('0bbb0000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111',
+   'Aldersgrense tobakk', 'Kasse', 2),
+  ('0bbb0000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
+   'Steke boller',        'Bake',  3)
+on conflict (id) do nothing;
+
+insert into public.opplaering_periode
+  (id, retailer_id, stasjon_id, ansatt_navn, start_dato)
+values
+  ('0ccc0000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-222222222222', 'Nora Nyansatt', current_date)
+on conflict (id) do nothing;
+
+-- 16-23 med vilje: det er tidsrommet Robert beskrev. Tidene VISES paa
+-- nettbrettet, men de skjuler ikke lista - man haker av etter at noe er
+-- laert bort, og en liste som forsvinner 23:00 forsvinner midt i jobben.
+insert into public.opplaering_skift
+  (id, periode_id, dato, start_tid, slutt_tid)
+values
+  ('0ddd0000-0000-4000-8000-000000000001',
+   '0ccc0000-0000-4000-8000-000000000001', current_date, '16:00', '23:00')
+on conflict (id) do nothing;
+
+-- ÉN OPPGAVE ER ALT GJORT, saa testen kan skille de to tilstandene fra
+-- hverandre. Er alt ugjort, ville en visning som aldri merker noe som
+-- ferdig bestaatt like godt.
+insert into public.opplaering_utfort (periode_id, oppgave_id)
+select '0ccc0000-0000-4000-8000-000000000001'::uuid,
+       '0bbb0000-0000-4000-8000-000000000003'::uuid
+where not exists (
+  select 1 from public.opplaering_utfort
+  where periode_id = '0ccc0000-0000-4000-8000-000000000001'
+    and oppgave_id = '0bbb0000-0000-4000-8000-000000000003'
+);

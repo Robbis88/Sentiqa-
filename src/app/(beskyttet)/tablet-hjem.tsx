@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { HjemData } from '@/lib/tablethjem'
+import { TabletOpplaering, type Opplaering } from './opplaring/tablet-opplaering'
 import { TabletHero } from './tablet-hero'
 import { TabletSkiftet } from './tablet-skiftet'
 import { PulsPopp } from './puls-popp'
@@ -67,6 +68,7 @@ export function TabletHjem({
   rutinerIgjen = 0,
   stempling = { slag: 'ukjent' },
   ord = {},
+  opplaeringer = [],
 }: {
   navn?: string
   meldinger?: Melding[]
@@ -78,6 +80,7 @@ export function TabletHjem({
   rutinerIgjen?: number
   stempling?: Stemplingstilstand
   ord?: Record<string, string>
+  opplaeringer?: Opplaering[]
 }) {
   const t = (s: string) => ord[s] ?? s
 
@@ -117,6 +120,12 @@ export function TabletHjem({
       {/* DAGENS FREMDRIFT. Koen sier hva som gjenstaar; denne sier hvor
           langt vi er kommet. Den staar bare naar det finnes en publisert
           plan — en tom fremdriftslinje er stoy. */}
+      {/* OPPLAERING STAAR FOER PRODUKSJONSPLANEN, og bare paa de dagene
+          den er planlagt. En som laerer bort i dag har det som sin
+          viktigste oppgave; en tom seksjon resten av uka ville vaert
+          stoey. Skift-kalenderen avgjoer - den finnes ikke her. */}
+      <TabletOpplaering opplaeringer={opplaeringer} />
+
       {hjem.produksjon && hjem.produksjon.plan > 0 && (() => {
         const pst = Math.min(100, Math.round((hjem.produksjon.lagd / hjem.produksjon.plan) * 100))
         return (
