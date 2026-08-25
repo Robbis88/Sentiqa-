@@ -94,6 +94,22 @@ Slike steder er ikke avvik som kan strammes med et predikat; de er steder RLS ik
 - **`tablet UPDATE produksjonsplan_linjer er bredere enn produktbehovet`** (`0136`). Nettbrettet trenger `lagd_hittil`; raden slipper også `planlagt`. En klient med tablet-sesjon kan i prinsippet forsøke å endre mer enn UI-et tilbyr. Utvei: egen RPC for `loggLagd`, eller en kontrollert server-side skrivevei som bare tillater `lagd_hittil` og `oppdatert_tid`. Eget sikkerhetstrinn.
 - Samme form på `skills_score.kommentar` og `pengepremie_bruk.beskrivelse` — ikke klassifisert ennå.
 
+## Generatorantakelser skal testes direkte
+
+**Når generatoren har en strukturell antakelse som påvirker flere kallsteder, skal antakelsen ha en rask direkte test. Ikke bruk full CI som første detector.**
+
+Tre slike antakelser har dukket opp, og alle satt på flere steder samtidig:
+
+| antakelse | felt | hva den handler om |
+|---|---|---|
+| `id_kolonne` | hva som identifiserer én rad | `bemanning_stasjon` har ingen `id` |
+| `business_unik` | hva som gjør to rader forskjellige | `unique (rutine_id, dato)` o.l. |
+| `en_rad_per_stasjon` | hvor mange rader som kan finnes | `stasjon_id` som primærnøkkel |
+
+Alle tre er antakelser om **skjemaets form**, ikke om autorisasjon — og det er nettopp derfor de gjemmer seg. En autorisasjonsfeil gir `42501` og roper. En formfeil gir `23505` og *later som* den er en avvisning.
+
+`id_kolonne` satt fire steder; jeg fant tre gjennom CI, ett symptom per kjøring, fire minutter hver. Den fjerde ble funnet på millisekunder av en vitest som beviser regelen i stedet for symptomet. Hver slik vakt skal ha en kanarifugl — finnes det ingen ressurs som utløser regelen, måler testen ingenting.
+
 ## Hva som teller som en tenant-avvisning
 
 ```

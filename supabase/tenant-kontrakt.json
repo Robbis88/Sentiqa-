@@ -110,7 +110,7 @@
   "ressurser": [
     {
       "tabell": "bemanning_stasjon",
-      "$hvorfor": "Bemanningstaket per stasjon. Skjemaet har stasjon_id som PRIMAERNOEKKEL - en rad per stasjon. Foerste bruk av en_rad_per_stasjon: generatoren kan ikke lage en fersk rad foer hver update/delete-test, for den andre ville kollidert med primaernoekkelen (23505), altsaa en domenefeil og ikke en tenant-avvisning.",
+      "$hvorfor": "Bemanningstaket per stasjon. Skjemaet har stasjon_id som PRIMAERNOEKKEL - en rad per stasjon, og ingen id-kolonne. Foer 0137 leste nettbrettkontoen maks_bemanning paa egen stasjon uten at noen nettbrettrute brukte tabellen; avviket sto her som avvik_fra_intensjon, og ble strammet i 0137. Naa beskriver raden den nye sannheten.",
       "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
@@ -119,14 +119,11 @@
         "update",
         "delete"
       ],
-      "tablet": {
-        "select": "own_station"
-      },
+      "tablet": "none",
       "manager": "assigned_stations",
       "owner": "retailer",
       "en_rad_per_stasjon": true,
       "id_kolonne": "stasjon_id",
-      "avvik_fra_intensjon": "DAGENS TILSTAND, IKKE OENSKET. bemanning_stasjon_les har ikke rollepredikat, saa nettbrettkontoen leser maks_bemanning paa egen stasjon. Ingen nettbrettrute bruker tabellen - den leses fra /bemanning, som er lederflaten. Produktkontrakten sier 'tablet: ingen lederdata', og bemanningstaket er lederdata. Anbefaling: stram. Ikke gjort her - policyendringer hoerer ikke til samme pulje som klassifiseringen.",
       "business_unik": [
         "stasjon_id"
       ],
