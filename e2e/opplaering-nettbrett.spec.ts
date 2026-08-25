@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { treffomraadeneHolder } from './hjelp-treffomraade'
 
 // =====================================================================
 // Opplæringen skal nå fram til stasjonen der den skjer.
@@ -104,61 +105,10 @@ test.describe('opplæring på nettbrettet', () => {
   })
 
   test('E - treffområdene tåler en benk, ikke en mus', async ({ page }) => {
-    // WCAG 2.2 AA krever 24 px. Dette er et nettbrett betjent av noen
-    // med hendene fulle, og kravet her er 48.
-    //
-    // MAALER LAGT-UT-HOEYDE, OG SIER FRA OM DET IKKE ER LAGT UT.
-    // Foerste utgave leste bare `getBoundingClientRect().height` og fikk
-    // 0 px paa en knapp - hverken 40 eller 44, men null, altsaa et
-    // element uten layout. Da maalte testen noe annet enn den trodde.
-    //
-    // Naa skilles de to tilfellene: en knapp som ER lagt ut maa vaere
-    // 48 px, og en knapp som IKKE er lagt ut er sin egen feil med
-    // beskjeden som forklarer hva som skjulte den. En test som slaar
-    // dem sammen kan ikke si hvilket problem den fant.
-    const funn = await page.evaluate(() => {
-      const lave: string[] = []
-      const skjulte: string[] = []
-      let maalt = 0
-      for (const el of document.querySelectorAll('.topl-rad button')) {
-        const r = el.getBoundingClientRect()
-        const s = getComputedStyle(el)
-        const navn = (el.textContent ?? '').trim().slice(0, 30)
-        if (r.height === 0) {
-          // Finn den naermeste forfaren som faktisk skjuler den.
-          let p: Element | null = el
-          let skyldig = '(ukjent)'
-          while (p) {
-            const ps = getComputedStyle(p)
-            if (ps.display === 'none' || ps.visibility === 'hidden') {
-              skyldig = `${p.tagName.toLowerCase()}.${p.className} → ${ps.display}/${ps.visibility}`
-              break
-            }
-            p = p.parentElement
-          }
-          skjulte.push(`${navn}: ${s.display}, ${r.width}x${r.height}, skjult av ${skyldig}`)
-          continue
-        }
-        maalt++
-        if (r.height < 48) lave.push(`${navn} ${Math.round(r.height)}px`)
-      }
-      return { lave, skjulte, maalt }
-    })
-
-    expect(funn.skjulte,
-      `Knapper uten layout:
-  ${funn.skjulte.join('
-  ')}
-`).toEqual([])
-    expect(funn.lave, `For lave:
-  ${funn.lave.join('
-  ')}
-`).toEqual([])
-
-    // KANARIFUGL. Uten denne ville testen bestaatt om ingen knapper
-    // fantes i det hele tatt - og «ingen for lave» ser noeyaktig ut som
-    // «alle er store nok».
-    expect(funn.maalt, 'Ingen knapper ble maalt').toBeGreaterThan(0)
+    // Hjelperen skiller «for lav» fra «ikke lagt ut» og har sin egen
+    // kanarifugl. Se e2e/hjelp-treffomraade.ts for hvorfor de to ikke
+    // kan slaas sammen til ett tall.
+    await treffomraadeneHolder(page, '.topl-rad button')
   })
 })
 
