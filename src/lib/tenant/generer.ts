@@ -96,10 +96,12 @@ function seedId(nokkel: string): string {
 /** Kolonnene som bærer tenant, gitt scope. */
 function tenantKolonner(r: Ressurs, kjede: Kjede, s: Stasjon): Record<string, string> {
   const ut: Record<string, string> = {}
-  if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station') {
+  if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station'
+      || r.tenant_scope === 'retailer_or_station') {
     ut.retailer_id = sitat(R[kjede])
   }
-  if (r.tenant_scope === 'station' || r.tenant_scope === 'retailer_and_station') {
+  if (r.tenant_scope === 'station' || r.tenant_scope === 'retailer_and_station'
+      || r.tenant_scope === 'retailer_or_station') {
     if (!r.tenant_kolonne) ut.stasjon_id = sitat(S[s])
   }
   return ut
@@ -416,6 +418,20 @@ function genererRessursSeed(r: Ressurs): string {
     ['A', 'A1'], ['A', 'A2'], ['A', 'A3'], ['B', 'B1'], ['B', 'B2'],
   ]
 
+  // NULL-STASJONSRADEN. `retailer_or_station` betyr at stasjon_id kan
+  // vaere null - og at null da gjelder HELE den autentiserte kjeden.
+  // Én slik rad per kjede, saa hver identitet kan proeves mot den.
+  if (r.tenant_scope === 'retailer_or_station') {
+    for (const kjede of ['A', 'B'] as Kjede[]) {
+      const { kolonner, verdier } = proberadSql(r, kjede, KJEDENS_STASJONER[kjede][0], `null${kjede}`)
+      const utenStasjon = kolonner
+        .map((k, idx) => [k, verdier[idx]] as const)
+        .map(([k, v]) => [k, k === 'stasjon_id' ? 'null' : v] as const)
+      linjer.push(`insert into public.${r.tabell} (id, ${utenStasjon.map(([k]) => k).join(', ')}) `
+        + `values (${sitat(seedId(`${r.tabell}:nullrad:${kjede}`))}, ${utenStasjon.map(([, v]) => v).join(', ')});`)
+    }
+  }
+
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {
     const { kolonner, verdier } = proberadSql(r, kjede, s, `fast${s}`)
@@ -464,6 +480,9 @@ function genererRessursSeed(r: Ressurs): string {
   }
 
   const proberadFelt = Object.entries(r.proberad).filter(([k]) => !k.startsWith('$'))
+
+  // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon.
+  if (r.en_rad_per_stasjon) return linjer.join('\n')
 
   linjer.push(`
 create or replace function pg_temp.nyrad_${r.tabell}(p_retailer uuid, p_stasjon uuid, p_merke text)
@@ -667,9 +686,17 @@ function genererRessurs(r: Ressurs): string {
 
         // update og delete far en fersk rad, saa en tillatt sletting
         // ikke river grunnlaget for neste paastand.
-        linjer.push(`select pg_temp.som_eier();`)
-        linjer.push(`select pg_temp.nyrad_${r.tabell}(${sitat(R[kjede])}, ${sitat(S[s])}, ${sitat(`${i.navn}-${op}`)}) as _;`)
-        linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
+        //
+        // MEN IKKE NAAR SKJEMAET HAANDHEVER EN RAD PER STASJON. Der ER
+        // stasjon_id primaernokkelen, og et nytt innslag ville kollidert
+        // med 23505 - altsaa en domenefeil, ikke en tenant-avvisning.
+        // Da brukes den faste raden, og den gjeninnsettes etter en
+        // tillatt sletting slik den gjor ellers.
+        if (!r.en_rad_per_stasjon) {
+          linjer.push(`select pg_temp.som_eier();`)
+          linjer.push(`select pg_temp.nyrad_${r.tabell}(${sitat(R[kjede])}, ${sitat(S[s])}, ${sitat(`${i.navn}-${op}`)}) as _;`)
+          linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
+        }
 
         const sql = op === 'update'
           ? `update public.${r.tabell} set ${settbartFelt(r)} where id = ${sitat(fastId)}`
@@ -689,6 +716,23 @@ function genererRessurs(r: Ressurs): string {
           linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
         }
       }
+    }
+
+    // --- NULL BETYR KJEDEN, ALDRI GLOBALT ----------------------------
+    //
+    // To tilstander, og begge maa bevises: raden med konkret stasjon
+    // foelger stasjonstildelingen, raden med null foelger KJEDEN.
+    //
+    // Den negative er den viktigste. Uten retailer-predikatet ville en
+    // null-rad vaert synlig for alle - og en policy som bare sier
+    // `stasjon_id is null or stasjon_id in (...)` gjor nettopp det.
+    if (r.tenant_scope === 'retailer_or_station' && r.operasjoner.includes('select')) {
+      const egen = seedId(`${r.tabell}:nullrad:${i.kjede}`)
+      const fremmed = seedId(`${r.tabell}:nullrad:${ANNEN_KJEDE[i.kjede]}`)
+      linjer.push(`select pg_temp.paastand(${sitat(`${r.tabell} ${i.navn} ser kjedens null-stasjonsrad`)}, `
+        + `exists (select 1 from public.${r.tabell} where id = ${sitat(egen)}), 'positiv');`)
+      linjer.push(`select pg_temp.paastand(${sitat(`${r.tabell} ${i.navn} ser IKKE den andre kjedens null-rad`)}, `
+        + `not exists (select 1 from public.${r.tabell} where id = ${sitat(fremmed)}), 'negativ');`)
     }
 
     // --- TENANT-FLYTTING ---------------------------------------------

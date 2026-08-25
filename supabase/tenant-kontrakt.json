@@ -47,7 +47,6 @@
       "bemanning_fravaer",
       "bemanning_krav",
       "bemanning_maned",
-      "bemanning_stasjon",
       "bemanning_vindu",
       "butikksjef_stasjoner",
       "daglig_salg",
@@ -99,7 +98,6 @@
       "stasjoner",
       "stempling",
       "synlig_svinn",
-      "tablet_meldinger",
       "tilbakemelding",
       "tildelte_merker",
       "timesalg",
@@ -110,6 +108,56 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "bemanning_stasjon",
+      "$hvorfor": "Bemanningstaket per stasjon. Skjemaet har stasjon_id som PRIMAERNOEKKEL - en rad per stasjon. Foerste bruk av en_rad_per_stasjon: generatoren kan ikke lage en fersk rad foer hver update/delete-test, for den andre ville kollidert med primaernoekkelen (23505), altsaa en domenefeil og ikke en tenant-avvisning.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "en_rad_per_stasjon": true,
+      "avvik_fra_intensjon": "DAGENS TILSTAND, IKKE OENSKET. bemanning_stasjon_les har ikke rollepredikat, saa nettbrettkontoen leser maks_bemanning paa egen stasjon. Ingen nettbrettrute bruker tabellen - den leses fra /bemanning, som er lederflaten. Produktkontrakten sier 'tablet: ingen lederdata', og bemanningstaket er lederdata. Anbefaling: stram. Ikke gjort her - policyendringer hoerer ikke til samme pulje som klassifiseringen.",
+      "business_unik": [
+        "stasjon_id"
+      ],
+      "business_unik_unntak": {
+        "stasjon_id": "Er primaernoekkelen selv, og varierer med maalet. Se en_rad_per_stasjon."
+      },
+      "proberad": {
+        "maks_bemanning": "7"
+      },
+      "oppdaterbart": "maks_bemanning = 9"
+    },
+    {
+      "tabell": "tablet_meldinger",
+      "$hvorfor": "Meldinger til nettbrettet. stasjon_id er NULLBAR, og null betyr hele kjeden - foerste bruk av retailer_or_station. Policyene er allerede forbilledlige: de navngir retailer_id, rollen OG haandterer null-tilfellet med (stasjon_id is null or stasjon_id in (...)). Det er modellen som manglet scopet, ikke policyen.",
+      "tenant_scope": "retailer_or_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tekst": "'Sondemelding {{unik}}'"
+      },
+      "oppdaterbart": "viktig = true"
+    },
     {
       "tabell": "produksjonsplan_hode",
       "$hvorfor": "Nettbrettet LESER planen, det administrerer den ikke. Kartlagt fra serverhandlingene: TabletPlan importerer bare loggLagd, som roerer linjene - aldri hodet. setNotat og publiser er lederflaten (PlanTabell). Strammet i 0136.",
