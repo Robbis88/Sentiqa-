@@ -62,6 +62,21 @@ insert into public.butikksjef_stasjoner (profil_id, stasjon_id) values
 
 
 -- --- Hjelpere --------------------------------------------------------
+--
+-- EN TELLER SOM VIRKER I BASEN, ikke bare i generatoren.
+--
+-- nyrad_* kalles flere ganger for SAMME identitet og SAMME stasjon -
+-- en gang foer update, en gang foer delete. Bakes forretningsnokkelen
+-- inn med en fast verdi, kolliderer det andre kallet med 23505:
+--
+--   duplicate key value violates unique constraint
+--   "produksjonsplan_hode_stasjon_id_dato_key"
+--
+-- Generatorens egen teller loeser det ikke - den teller ved
+-- GENERERING, og funksjonskroppen skrives en gang. Denne teller ved
+-- KJORING.
+create temp sequence tenant_teller;
+
 create temp table funn (
   nr serial primary key, status text not null, navn text not null, detalj text,
   gruppe text, art text
@@ -321,7 +336,7 @@ declare
   ny uuid;
 begin
   insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato)
-  values (p_retailer, p_stasjon, current_date)
+  values (p_retailer, p_stasjon, date '2026-01-01' + nextval('tenant_teller'::regclass)::int)
   returning id into ny;
   return ny;
 end $fn$;
@@ -338,7 +353,7 @@ declare
   ny uuid;
 begin
   insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn)
-  values (p_retailer, p_stasjon, current_date, 'Sondevare ' || p_merke || '')
+  values (p_retailer, p_stasjon, date '2026-01-01' + nextval('tenant_teller'::regclass)::int, 'Sondevare ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
   returning id into ny;
   return ny;
 end $fn$;
@@ -355,7 +370,7 @@ declare
   ny uuid;
 begin
   insert into public.avvik (retailer_id, stasjon_id, dato, beskrivelse)
-  values (p_retailer, p_stasjon, date '2026-08-01', 'sonde ' || p_merke)
+  values (p_retailer, p_stasjon, date '2026-08-01', 'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass))
   returning id into ny;
   return ny;
 end $fn$;
@@ -374,7 +389,7 @@ declare
 begin
   insert into public.rutiner (id, retailer_id, stasjon_id, tittel) values (v_rutine, p_retailer, p_stasjon, 'Sonderutine');
   insert into public.rutine_utforinger (stasjon_id, rutine_id, dato)
-  values (p_stasjon, v_rutine, current_date)
+  values (p_stasjon, v_rutine, date '2026-01-01' + nextval('tenant_teller'::regclass)::int)
   returning id into ny;
   return ny;
 end $fn$;
@@ -391,7 +406,7 @@ declare
   ny uuid;
 begin
   insert into public.malekort (retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef)
-  values (p_retailer, 'Sondekort ' || p_merke || '', 'omsetning', 'maaned', 'hoy', true, true)
+  values (p_retailer, 'Sondekort ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 'omsetning', 'maaned', 'hoy', true, true)
   returning id into ny;
   return ny;
 end $fn$;
