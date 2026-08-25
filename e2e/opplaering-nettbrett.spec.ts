@@ -91,7 +91,11 @@ test.describe('opplæring på nettbrettet', () => {
     // bare finnes i nettleseren bestått testen.
     await page.reload()
     await expect(kortet(page)).toContainText('2/3')
-    await expect(kortet(page).locator('.topl-rad.topl-gjort')).toContainText('Kassaoppgjoer')
+    // PEK PAA DEN ENE RADEN. `.topl-gjort` treffer naa to elementer, og
+    // en `toContainText` over flere er ikke bare strict-mode-brudd - den
+    // ville ogsaa bestaatt om FEIL rad var haket av.
+    await expect(kortet(page).locator('.topl-rad.topl-gjort')
+      .filter({ hasText: 'Kassaoppgjoer' })).toHaveCount(1)
   })
 
   test('D - oppgavene står gruppert på kategori', async ({ page }) => {
@@ -132,8 +136,8 @@ test.describe('opplæring hos butikksjefen', () => {
     // INGEN ABSOLUTT TELLING HER. Test C har alt satt en hake, saa
     // totalen avhenger av rekkefoelgen. Det denne testen maaler er at
     // NETTBRETTETS hake naar butikksjefen - ikke hvor mange det er.
-    await expect(kortet(page).locator('.topl-rad.topl-gjort'))
-      .toContainText('Aldersgrense tobakk')
+    await expect(kortet(page).locator('.topl-rad.topl-gjort')
+      .filter({ hasText: 'Aldersgrense tobakk' })).toHaveCount(1)
 
     await page.context().clearCookies()
     await loggInn(page, SJEF)
