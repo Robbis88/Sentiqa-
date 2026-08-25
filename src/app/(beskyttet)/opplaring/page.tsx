@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
+import { tidsrom } from '@/lib/opplaering/dagens'
 import {
   settOppStandard, leggTilOppgave, redigerOppgave, slettOppgave,
   leggTilPeriode, fullforPeriode, slettPeriode, vekslUtfort, leggTilSkift, slettSkift,
@@ -14,7 +15,7 @@ import { SlettKnapp } from '@/components/ui/slett-knapp'
 type Oppgave = { id: string; kategori: string; tittel: string; beskrivelse: string | null; estimert_min: number | null }
 type Periode = { id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; forventet_slutt: string | null; fullfort_tid: string | null }
 type Utfort = { periode_id: string; oppgave_id: string }
-type Skift = { id: string; dato: string; notater: string | null }
+type Skift = { id: string; dato: string; start_tid: string | null; slutt_tid: string | null; notater: string | null }
 
 export default async function OpplaringSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const bruker = await hentInnloggetBruker()
@@ -53,7 +54,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
   const valgt = (perioder ?? []).find((p) => p.id === sp.periode)
   let skift: Skift[] = []
   if (valgt) {
-    const { data } = await supabase.from('opplaering_skift').select('id, dato, notater').eq('periode_id', valgt.id).order('dato').overrideTypes<Skift[]>()
+    const { data } = await supabase.from('opplaering_skift').select('id, dato, start_tid, slutt_tid, notater').eq('periode_id', valgt.id).order('dato').overrideTypes<Skift[]>()
     skift = data ?? []
   }
 
@@ -190,6 +191,13 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                 <form action={leggTilSkift} className="rutine-form">
                   <input type="hidden" name="periode_id" value={valgt.id} />
                   <input name="dato" type="date" required aria-label="Vaktdag" />
+                  {/* KLOKKESLETT ER VALGFRITT, men begge eller ingen.
+                      Står de tomme, gjelder vakten hele dagen. Tidene
+                      forteller når opplæringen er — de styrer ikke om
+                      sjekklista vises, for man haker av etter at noe er
+                      lært bort. */}
+                  <input name="start_tid" type="time" aria-label="Fra klokken" className="sq-smalt-felt" />
+                  <input name="slutt_tid" type="time" aria-label="Til klokken" className="sq-smalt-felt" />
                   <input name="notater" placeholder="Notat (f.eks. opplærer / fokus)" />
                   <button type="submit" className="liten primar">Legg til vakt</button>
                 </form>
@@ -199,7 +207,13 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
                   <ul className="person-liste">
                     {skift.map((s) => (
                       <li key={s.id}>
-                        <span><strong>{datoLang.format(new Date(s.dato))}</strong>{s.notater ? <span className="undertittel"> · {s.notater}</span> : null}</span>
+                        <span>
+                          <strong>{datoLang.format(new Date(s.dato))}</strong>
+                          {tidsrom(s.start_tid, s.slutt_tid)
+                            ? <span className="undertittel"> · kl. {tidsrom(s.start_tid, s.slutt_tid)}</span>
+                            : <span className="undertittel"> · hele dagen</span>}
+                          {s.notater ? <span className="undertittel"> · {s.notater}</span> : null}
+                        </span>
                         <SlettKnapp hva={s.dato} handling={slettSkift} id={s.id} merke="Fjern" />
                       </li>
                     ))}

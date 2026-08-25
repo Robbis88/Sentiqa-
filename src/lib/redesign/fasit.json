@@ -308,6 +308,7 @@
     ],
     "/opplaring": [
       "fullforPeriode",
+      "hakAvPaaNettbrett",
       "leggTilOppgave",
       "leggTilPeriode",
       "leggTilSkift",
@@ -543,7 +544,9 @@
     ],
     "/kasserer": [
       "${s.butikknummer} ${s.navn}",
-      "Ingen kassererdata ennå"
+      "Ingen kassererdata ennå",
+      "Kassa selv",
+      "Måned for måned"
     ],
     "/konkurranser": [
       "Ingen konkurranser ennå",
@@ -640,6 +643,7 @@
       "Svakest",
       "Venter på en komplett uke",
       "dynamisk:g.navn",
+      "dynamisk:k.navn",
       "dynamisk:overskrift(signaler)",
       "dynamisk:pulsOverskrift(d.stasjonsnavn,vekst)",
       "dynamisk:s.tittel",

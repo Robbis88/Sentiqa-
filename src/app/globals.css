@@ -1105,6 +1105,58 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-hjem-pst { font-weight: 800; color: #e0b000; background: rgba(224,176,0,0.15); padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.9rem; white-space: nowrap; }
 .pp-hjem-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; margin-top: 0.6rem; overflow: hidden; }
 .pp-hjem-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
+
+/* --- Opplæring på nettbrettet -------------------------------------
+   Samme form som produksjonsplanens kort, fordi det er den samme slags
+   ting: en jobb med fremdrift som gjelder i dag. To ulike utseender for
+   to like ting er en kontroll som må læres to ganger.
+
+   BARE TOKENS. Nabokortet bruker rgba(255,255,255,0.1) direkte, men
+   nattpaletten har allerede flatene: --natt-flate for en rad,
+   --natt-flate-lys når den berøres, og --natt-flate-ferdig som er laget
+   nettopp for «gjort». Fargeskrallen fanget de fem literalene jeg først
+   skrev, og den hadde rett — de fantes fra før, med navn.
+
+   Treffområdene er 48 px, ikke 24. WCAG-minstekravet gjelder en
+   musepeker; dette er et nettbrett på en benk, betjent av noen som har
+   hendene fulle. */
+.topl-topp { display: flex; align-items: center; gap: var(--luft-3); }
+.topl-tekst { display: flex; flex-direction: column; flex: 1; gap: 0.1rem; min-width: 0; }
+.topl-tekst strong { color: var(--natt-tekst); font-size: 1.05rem; }
+.topl-tekst > span { color: var(--natt-tekst-svakere); font-size: 0.88rem; }
+.topl-pst {
+  font-weight: 800; color: var(--gronn); background: var(--natt-flate-ferdig);
+  padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.9rem; white-space: nowrap;
+}
+.topl-bar { height: 6px; background: var(--natt-flate); border-radius: 999px; margin-top: 0.6rem; overflow: hidden; }
+.topl-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
+
+.topl-gruppe { margin-top: var(--luft-4); }
+.topl-kategori {
+  color: var(--natt-tekst-svakere); font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 var(--luft-2);
+}
+.topl-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--luft-2); }
+
+.topl-rad > button {
+  display: block; width: 100%; min-height: 48px; text-align: left;
+  padding: var(--luft-3); border-radius: 10px;
+  border: 1px solid var(--natt-flate-lys); background: var(--natt-flate);
+  color: var(--natt-tekst); font-size: 1rem; cursor: pointer;
+}
+.topl-rad > button:hover { background: var(--natt-flate-lys); }
+.topl-rad > button:active { transform: scale(0.995); }
+.topl-rad > button:disabled { opacity: 0.6; cursor: default; }
+
+/* GJORT ER IKKE EN KNAPP. Nettbrettet kan ikke fjerne haken, og en
+   knapp som blir avvist av databasen er verre enn ingen knapp. */
+.topl-ferdig {
+  display: flex; align-items: center; gap: var(--luft-2);
+  min-height: 48px; padding: var(--luft-3); border-radius: 10px;
+  background: var(--natt-flate-ferdig); color: var(--natt-tekst-svakere); font-size: 1rem;
+}
+.topl-ferdig > span { color: var(--gronn); font-weight: 700; }
+.topl-angre { margin-top: var(--luft-3); color: var(--natt-tekst-svakere); }
 .stepper.liten input { width: 2.6rem; }
 .stepper.liten button { width: 1.7rem; height: 1.7rem; font-size: 1rem; }
 .stepper { display: inline-flex; align-items: center; gap: 0.3rem; }
