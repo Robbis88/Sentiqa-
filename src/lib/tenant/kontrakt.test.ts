@@ -188,6 +188,20 @@ describe('genererte filer', () => {
     expect(forsteRad![1].split(',').length).toBe(antall)
   })
 
+  it('ingen insert antar en id-kolonne som ikke finnes', () => {
+    // Id-antakelsen satt på FIRE steder, og jeg fant tre av dem én om
+    // gangen gjennom CI. Denne finner den fjerde på millisekunder.
+    const sql = genererMatrise(kontrakt)
+    const utenId = kontrakt.ressurser.filter((r) => (r.id_kolonne ?? 'id') !== 'id')
+    for (const r of utenId) {
+      const feil = sql.split('\n')
+        .filter((l) => l.includes(`into public.${r.tabell} (id,`))
+      expect(feil, `${r.tabell} har ingen id-kolonne, men matrisen setter en`).toEqual([])
+    }
+    expect(utenId.length, 'ingen ressurs uten surrogatnokkel - maaler testen noe?')
+      .toBeGreaterThan(0)
+  })
+
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
     // AGENTS.md: innlimingskjeden legger ellers av og til på et
     // stray-tegn foran linje 1.

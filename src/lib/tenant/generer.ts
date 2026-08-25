@@ -731,7 +731,10 @@ function genererRessurs(r: Ressurs): string {
         if (op === 'delete' && ok) {
           linjer.push(`select pg_temp.som_eier();`)
           const { kolonner, verdier } = proberadSql(r, kjede, s, `gjen${i.navn}${s}`)
-          linjer.push(`insert into public.${r.tabell} (id, ${kolonner.join(', ')}) values (${sitat(fastId)}, ${verdier.join(', ')});`)
+          // Fjerde stedet id-antakelsen satt. Se `idKol`.
+          linjer.push(idKol(r) === 'id'
+            ? `insert into public.${r.tabell} (id, ${kolonner.join(', ')}) values (${sitat(fastId)}, ${verdier.join(', ')});`
+            : `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')});`)
           linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
         }
       }
