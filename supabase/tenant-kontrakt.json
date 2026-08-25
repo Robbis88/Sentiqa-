@@ -27,7 +27,6 @@
     "per tabell. Plassholdere: {{retailer}} {{stasjon}} {{unik}}",
     "{{unik_dato}} - og navngitte fra `seed_ekstra`."
   ],
-
   "uklassifisert_tillatt": {
     "$kommentar": [
       "PROTOTYPEN DEKKER FEM TABELLER. Resten staar her til de er",
@@ -36,37 +35,158 @@
       "det er slik en NY tabell feiler lukket allerede i dag."
     ],
     "tabeller": [
-      "ai_tool_log", "ansatt_avtale", "ansatt_kontrakt", "ansatte", "anvisninger",
-      "arrangementer", "bemanning_aar", "bemanning_budsjett",
-      "bemanning_fast_vakt", "bemanning_fravaer", "bemanning_krav", "bemanning_maned",
-      "bemanning_stasjon", "bemanning_vindu", "butikksjef_stasjoner", "daglig_salg",
-      "fokuspunkter", "ik_avlesninger", "ik_kontrollpunkter", "import_jobber",
-      "kalender_kilder", "kampanjer", "kassererstatistikk", "kategori_vaerprofil",
-      "konkurranser", "kontraktmal", "kontrolltiltak_bekreftelse", "kunnskap",
-      "lederstotte_rapporter", "lenker", "malekort_scope", "merker", "oppgaver",
-      "opplaering_oppgave", "opplaering_periode", "opplaering_skift", "pengepremie",
-      "pengepremie_bruk", "persondata_logg", "personlig_kryss", "personlig_punkt",
-      "pin_forsok", "plattform_innlegg", "produksjonsplan_hode", "produksjonsplan_linjer",
-      "profiler", "prognose_kalibrering", "prognose_treff", "puls_runde",
-      "puls_sporsmal", "puls_svar", "push_abonnementer", "raa_filer", "regnskap_usynlig_svinn",
-      "regnskapsanalyser", "regnskapslinjer", "retailers", "rutiner", "rutineskjemaer",
-      "signal_lukket", "sjekkpunkt_svar", "sjekkpunkter", "skills_score", "stasjoner",
-      "stempling", "synlig_svinn", "tablet_meldinger", "tilbakemelding", "tildelte_merker",
-      "timesalg", "trafikk", "uke_rapport", "vaer", "varsler"
+      "ai_tool_log",
+      "ansatt_avtale",
+      "ansatt_kontrakt",
+      "ansatte",
+      "anvisninger",
+      "arrangementer",
+      "bemanning_aar",
+      "bemanning_budsjett",
+      "bemanning_fast_vakt",
+      "bemanning_fravaer",
+      "bemanning_krav",
+      "bemanning_maned",
+      "bemanning_stasjon",
+      "bemanning_vindu",
+      "butikksjef_stasjoner",
+      "daglig_salg",
+      "fokuspunkter",
+      "ik_avlesninger",
+      "ik_kontrollpunkter",
+      "import_jobber",
+      "kalender_kilder",
+      "kampanjer",
+      "kassererstatistikk",
+      "kategori_vaerprofil",
+      "konkurranser",
+      "kontraktmal",
+      "kontrolltiltak_bekreftelse",
+      "kunnskap",
+      "lederstotte_rapporter",
+      "lenker",
+      "malekort_scope",
+      "merker",
+      "oppgaver",
+      "opplaering_oppgave",
+      "opplaering_periode",
+      "opplaering_skift",
+      "pengepremie",
+      "pengepremie_bruk",
+      "persondata_logg",
+      "personlig_kryss",
+      "personlig_punkt",
+      "pin_forsok",
+      "plattform_innlegg",
+      "profiler",
+      "prognose_kalibrering",
+      "prognose_treff",
+      "puls_runde",
+      "puls_sporsmal",
+      "puls_svar",
+      "push_abonnementer",
+      "raa_filer",
+      "regnskap_usynlig_svinn",
+      "regnskapsanalyser",
+      "regnskapslinjer",
+      "retailers",
+      "rutiner",
+      "rutineskjemaer",
+      "signal_lukket",
+      "sjekkpunkt_svar",
+      "sjekkpunkter",
+      "skills_score",
+      "stasjoner",
+      "stempling",
+      "synlig_svinn",
+      "tablet_meldinger",
+      "tilbakemelding",
+      "tildelte_merker",
+      "timesalg",
+      "trafikk",
+      "uke_rapport",
+      "vaer",
+      "varsler"
     ]
   },
-
   "ressurser": [
+    {
+      "tabell": "produksjonsplan_hode",
+      "$hvorfor": "Nettbrettet LESER planen, det administrerer den ikke. Kartlagt fra serverhandlingene: TabletPlan importerer bare loggLagd, som roerer linjene - aldri hodet. setNotat og publiser er lederflaten (PlanTabell). Strammet i 0136.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "dato"
+      ],
+      "proberad": {
+        "dato": "{{unik_dato}}"
+      },
+      "$oppdaterbart_hvorfor": "dato inngaar i business_unik.",
+      "oppdaterbart": "notat = 'endret av sonden'"
+    },
+    {
+      "tabell": "produksjonsplan_linjer",
+      "$hvorfor": "Nettbrettets ENE operative handling: loggLagd skriver lagd_hittil. INSERT og DELETE er lederens - ingen flate i src/ sletter i det hele tatt. Strammet i 0136.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "update": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "dato",
+        "varenavn"
+      ],
+      "capability_gjeld": "Nettbrettet har RADNIVAA-UPDATE, og RLS kan ikke skille lagd_hittil fra planlagt. En klient med tablet-sesjon kan i prinsippet forsoke aa endre mer enn UI-et tilbyr. Kolonnegrant duger ikke - det ville truffet butikksjefen, som skal kunne sette planlagt via setLinje. Lukkes med egen RPC for loggLagd, eller en kontrollert serverside skrivevei som bare tillater lagd_hittil og oppdatert_tid. Eget sikkerhetstrinn, ikke 0136.",
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "varenavn": "'Sondevare {{unik}}'"
+      },
+      "$oppdaterbart_hvorfor": "dato og varenavn inngaar begge i business_unik. lagd_hittil er dessuten noeyaktig det nettbrettet faktisk skriver.",
+      "oppdaterbart": "lagd_hittil = 1"
+    },
     {
       "tabell": "avvik",
       "$hvorfor": "Full CRUD, stasjonsscopet lesing, men leder-rolle paa update/delete. Nettbrettet melder avvik og leser dem, men retter dem ikke.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
-      "operasjoner": ["select", "insert", "update", "delete"],
-      "tablet": { "select": "own_station", "insert": "own_station" },
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
       "manager": "assigned_stations",
       "owner": "retailer",
-      "business_unik": ["retailer_id", "lopenr"],
+      "business_unik": [
+        "retailer_id",
+        "lopenr"
+      ],
       "business_unik_unntak": {
         "lopenr": "Tildeles av trigger sett_avvik_lopenr() (0079). Indeksen er partiell - where slettet_tid is null - og fixturen skal derfor ikke sette den."
       },
@@ -80,29 +200,46 @@
       "$hvorfor": "Alle fire operasjonene er rene stasjonsscop uten rollepredikat. Nettbrettets arbeidsflate: haker av paa vakt.",
       "tenant_scope": "station",
       "data_class": "warm",
-      "operasjoner": ["select", "insert", "update", "delete"],
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
       "tablet": "read_write",
       "manager": "assigned_stations",
       "owner": "retailer",
       "seed_ekstra": [
         "insert into public.rutiner (id, retailer_id, stasjon_id, tittel) values ('{{seed:rutine}}', '{{retailer}}', '{{stasjon}}', 'Sonderutine')"
       ],
-      "business_unik": ["rutine_id", "dato"],
+      "business_unik": [
+        "rutine_id",
+        "dato"
+      ],
       "proberad": {
         "rutine_id": "'{{seed:rutine}}'",
         "dato": "{{unik_dato}}"
       },
       "$oppdaterbart_hvorfor": "dato inngaar i unique (rutine_id, dato). En kollisjon der ville gitt 23505 og sett ut som en avvisning.",
-      "oppdaterbart": "utfort_tid = now()" 
+      "oppdaterbart": "utfort_tid = now()"
     },
     {
       "tabell": "malekort",
       "$hvorfor": "INGEN stasjonskolonne - rent retailer-scope. Beviser at generatoren ikke lager kryss-stasjon-tester der begrepet ikke finnes. Lesing er rollestyrt via vis_tablet siden 0134.",
       "tenant_scope": "retailer",
       "data_class": "warm",
-      "operasjoner": ["select", "insert", "update", "delete"],
-      "tablet": { "select": "retailer" },
-      "manager": { "select": "retailer" },
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
       "owner": "retailer",
       "proberad": {
         "navn": "'Sondekort {{unik}}'",
@@ -120,21 +257,33 @@
       "tenant_kolonne": "periode_id",
       "tenant_join": "periode_id in (select p.id from public.opplaering_periode p where p.stasjon_id = {{stasjon_uttrykk}})",
       "data_class": "warm",
-      "operasjoner": ["select", "insert", "update", "delete"],
-      "tablet": { "select": "own_station", "insert": "own_station", "update": "own_station" },
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station",
+        "update": "own_station"
+      },
       "manager": "assigned_stations",
       "owner": "retailer",
       "seed_ekstra": [
         "insert into public.opplaering_oppgave (id, retailer_id, tittel, kategori) values ('{{seed:oppgave}}', '{{retailer}}', 'Sondeoppgave', 'Kasse')",
         "insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('{{seed:periode}}', '{{retailer}}', '{{stasjon}}', 'Sonde Sondesen', current_date)"
       ],
-      "business_unik": ["periode_id", "oppgave_id"],
+      "business_unik": [
+        "periode_id",
+        "oppgave_id"
+      ],
       "proberad": {
         "periode_id": "'{{seed:periode}}'",
         "oppgave_id": "'{{seed:oppgave}}'"
       },
       "$oppdaterbart_hvorfor": "proberaden er bare fremmednokler.",
-      "oppdaterbart": "notater = 'endret av sonden'" 
+      "oppdaterbart": "notater = 'endret av sonden'"
     },
     {
       "tabell": "oversettelse_cache",
@@ -146,19 +295,33 @@
       "manager": "none",
       "owner": "none",
       "ingen_policy": "Med vilje siden 0037: RLS er paa og det finnes INGEN policy, saa alt annet enn service_role nektes. Kvitteringen staar her fordi en tabell uten policy aldri skal vaere usynlig - den skal vaere sett.",
-      "proberad": { "$ikke_relevant": "ingen rolle naar tabellen" }
+      "proberad": {
+        "$ikke_relevant": "ingen rolle naar tabellen"
+      }
     },
     {
       "tabell": "stempling_hendelse",
       "$hvorfor": "DELETE finnes ikke som policy i det hele tatt. Generatoren skal ikke kreve en operasjon tabellen ikke stotter - men fravaeret er en paastand, ikke en stillhet.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
-      "operasjoner": ["select", "insert", "update"],
-      "tablet": { "select": "own_station", "insert": "own_station" },
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
       "manager": "assigned_stations",
       "owner": "retailer",
       "$proberad_hvorfor": "kilde er skrankelagt til tablet/import/korreksjon. Og tidspunkt maa vaere clock_timestamp(), ikke now(): now() er konstant gjennom en transaksjon, saa unique (stasjon_id, ansatt_nr, tidspunkt, type) ville kollidert mellom identitetene og gitt 23505 - som den skjerpede skriv_avvist ville meldt som avvist av feil grunn.",
-      "business_unik": ["stasjon_id", "ansatt_nr", "tidspunkt", "type"],
+      "business_unik": [
+        "stasjon_id",
+        "ansatt_nr",
+        "tidspunkt",
+        "type"
+      ],
       "business_unik_unntak": {
         "ansatt_nr": "Kolliderende med vilje - samme 4501 i begge kjeder er hele poenget med fixturen. Unikheten baeres av tidspunkt.",
         "type": "Konstant 'inn'. Unikheten baeres av tidspunkt."

@@ -457,9 +457,10 @@ function genererRessursSeed(r: Ressurs): string {
     return ut
       .split(`'{{retailer}}'`).join('p_retailer')
       .split(`'{{stasjon}}'`).join('p_stasjon')
-      .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke`)
-      .split(`{{unik_dato}}`).join('current_date')
-      .split(`{{unik}}`).join(`' || p_merke || '`)
+      // Forretningsnoekkelen maa variere per KALL, ikke per call site.
+      .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass)`)
+      .split(`{{unik_dato}}`).join(`date '2030-01-01' + nextval('tenant_teller'::regclass)::int`)
+      .split(`{{unik}}`).join(`' || p_merke || '-' || nextval('tenant_teller'::regclass) || '`)
   }
 
   const proberadFelt = Object.entries(r.proberad).filter(([k]) => !k.startsWith('$'))
@@ -481,6 +482,27 @@ end $fn$;`)
 
 const HJELPERE = `
 -- --- Hjelpere --------------------------------------------------------
+--
+-- EN TELLER SOM VIRKER I BASEN, ikke bare i generatoren.
+--
+-- nyrad_* kalles flere ganger for SAMME identitet og SAMME stasjon -
+-- en gang foer update, en gang foer delete. Bakes forretningsnokkelen
+-- inn med en fast verdi, kolliderer det andre kallet med 23505:
+--
+--   duplicate key value violates unique constraint
+--   "produksjonsplan_hode_stasjon_id_dato_key"
+--
+-- Generatorens egen teller loeser det ikke - den teller ved
+-- GENERERING, og funksjonskroppen skrives en gang. Denne teller ved
+-- KJORING.
+--
+-- EGET DATOROM. Foerste forsoek lot begge tellerne lage datoer fra
+-- 2026-01-01, og da kolliderte de med hverandre i stedet for med seg
+-- selv. De seedede radene bruker 2026 + generatorens teller (0-700);
+-- nyrad_* bruker 2030 + denne. To tellere som teller riktig hver for
+-- seg, men i samme rom, er fortsatt en kollisjon.
+create temp sequence tenant_teller;
+
 create temp table funn (
   nr serial primary key, status text not null, navn text not null, detalj text,
   gruppe text, art text

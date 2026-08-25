@@ -83,6 +83,17 @@ og alltid `with (security_invoker = true)` — uten den leser viewet som eieren,
 
 **`OPPDATER_KONTRAKT` regenererer konsekvenser, aldri klassifiseringer.** En ny tabell må føres inn for hånd av noen som har tatt stilling. En gjettet rad ville gjort dekningssjekken til en formalitet.
 
+## Capability-gjeld
+
+**RLS er radnivå.** Trenger en rolle å skrive én kolonne, får den hele raden. Kolonnegrant hjelper ikke når en annen rolle i samme Postgres-rolle (`authenticated`) skal skrive de øvrige kolonnene — grantet treffer begge.
+
+Slike steder er ikke avvik som kan strammes med et predikat; de er steder RLS ikke rekker. De føres som `capability_gjeld` på ressursen i `supabase/tenant-kontrakt.json`, med navn og utvei, i stedet for å bo i en commit-melding.
+
+**Åpen gjeld:**
+
+- **`tablet UPDATE produksjonsplan_linjer er bredere enn produktbehovet`** (`0136`). Nettbrettet trenger `lagd_hittil`; raden slipper også `planlagt`. En klient med tablet-sesjon kan i prinsippet forsøke å endre mer enn UI-et tilbyr. Utvei: egen RPC for `loggLagd`, eller en kontrollert server-side skrivevei som bare tillater `lagd_hittil` og `oppdatert_tid`. Eget sikkerhetstrinn.
+- Samme form på `skills_score.kommentar` og `pengepremie_bruk.beskrivelse` — ikke klassifisert ennå.
+
 ## Hva som teller som en tenant-avvisning
 
 ```
