@@ -165,6 +165,19 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/kanari_uklassifisert_rydd.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/tenant_dekning.sql
 
+      # KANDIDATVAKT, RAPPORT - kaster ikke.
+      #
+      # Finner UPDATE-policyer med formen som har lekket seks ganger:
+      # `with check` slipper via stasjon_id uten aa binde den nye raden
+      # til kjeden. Den sier "ser ut som kjent lekkasjemoenster", ikke
+      # "dette er en lekkasje" - `ansatte` har samme form og lekker ikke,
+      # fordi kolonnegranten fra 0112 stopper den.
+      #
+      # En rapport som feller CI paa falske positive laerer folk aa se
+      # bort fra roedt. Derfor `|| true`: lista skal leses, ikke adlydes.
+      - name: Kandidater - with check uten retailer_id (rapport)
+        run: psql "$PGURL" -f supabase/tests/kandidater_with_check.sql || true
+
       # Atferdsmatrisen. Generert fra kontrakten - se
       # src/lib/tenant/generer.ts. Tiden logges med vilje: dekning skal
       # ikke kuttes for ytelse foer kjoretiden faktisk er maalt.
