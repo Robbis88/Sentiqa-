@@ -285,6 +285,31 @@ describe('genererte filer', () => {
     }
   })
 
+  it('hver kjoretidsteller staar i sitt eget verdirom', () => {
+    // TO TELLERE, ETT ROM = KOLLISJON. Generatorens teller lager verdier
+    // ved GENERERING (`pin-merke-5`, `2026-01-01 + 5`); sekvensen lager
+    // dem ved KJORING. Deler de basis, kolliderer de med hverandre i
+    // stedet for med seg selv - og en forretningsnokkel gir 23505.
+    //
+    // Datoene ble skilt med 2030 som base. Tekst skilles med 'rt'.
+    const sql = genererMatrise(kontrakt)
+    const uskilt = sql.split('\n')
+      .filter((l) => l.includes('nextval('))
+      // Tre lovlige separatorer, og alle tre er ekte:
+      //
+      //   date '2030-01-01'  datoer, mot generatorens 2026-basis
+      //   'rt'               tekst fra {{n}}, mot generatorens rå tall
+      //   p_merke            «identitet-operasjon», en form generatorens
+      //                      {{unik}} aldri produserer (den gir `fastA1`,
+      //                      `manager_A1A2` — aldri med bindestrek)
+      .filter((l) => !l.includes(`'rt'`)
+        && !l.includes(`date '2030-01-01'`)
+        && !l.includes('p_merke'))
+    expect(uskilt.map((l) => l.trim().slice(0, 90)), 'kjoeretidsteller uten eget verdirom')
+      .toEqual([])
+    expect(sql.includes('nextval('), 'ingen kjoeretidsteller - maaler testen noe?').toBe(true)
+  })
+
   it('ingen SQL-fil inneholder ikke-ASCII', () => {
     // AGENTS.md: innlimingskjeden legger ellers av og til på et
     // stray-tegn foran linje 1.
