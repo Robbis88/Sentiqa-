@@ -123,14 +123,15 @@
       "owner": "retailer",
       "business_unik": [
         "retailer_id",
-        "ansatt_nr"
+        "ansatt_nr",
+        "pin_hash"
       ],
-      "$business_unik_hvorfor": "Partiell unique index (0110): where ansatt_nr is not null and slettet_tid is null.",
+      "$business_unik_hvorfor": "TO partielle unike indekser, ikke en: (retailer_id, ansatt_nr) where ansatt_nr is not null and slettet_tid is null (0110), og (retailer_id, pin_hash) where aktiv and slettet_tid is null (0025). Jeg fant den foerste og antok at det var alle - den andre felte matrisen i CI. src/lib/tenant/skjema.ts leser naa begge ut av migrasjonene.",
       "avvik_fra_intensjon": "DAGENS TILSTAND. ansatte_les har ikke rollepredikat, saa nettbrettkontoen leser hele stasjonens ansattliste - navn, ansatt_nr, aktiv. Det verste er allerede ute: pin_hash er lukket av kolonnegrant i 0112, og sonden bekreftet at anon ikke naar tabellen i det hele tatt. Spoersmaalet er derfor ikke OM nettbrettet skal lese, men HVILKE kolonner - det trenger navn og nummer for PIN-oppslaget. Krever produktvalg, ikke en innstramming: et rollepredikat ville tatt bort PIN-innlogging paa nettbrettet.",
       "proberad": {
         "navn": "'Sonde Sondesen'",
         "ansatt_nr": "'{{unik}}'",
-        "pin_hash": "'x'"
+        "pin_hash": "'pin {{unik}}'"
       },
       "oppdaterbart": "navn = 'Endret av sonden'"
     },
