@@ -29,12 +29,20 @@
   ],
   "uklassifisert_tillatt": {
     "$kommentar": [
-      "PROTOTYPEN DEKKER FEM TABELLER. Resten staar her til de er",
+      "PROTOTYPEN DEKKET FEM TABELLER. Resten staar her til de er",
       "klassifisert, og lista skal krympe til null. En tabell som",
       "hverken staar her eller i `ressurser` feller dekningssjekken -",
-      "det er slik en NY tabell feiler lukket allerede i dag."
+      "det er slik en NY tabell feiler lukket allerede i dag.",
+      "",
+      "REKKEFOELGE: detektorens kandidater staar foerst.",
+      "supabase/tests/kandidater_with_check.sql fant 2026-08-26 to",
+      "uklassifiserte tabeller med 0135-formen - opplaering_periode og",
+      "tilbakemelding. De klassifiseres foerst, saa atferdsmatrisen kan",
+      "bekrefte eller avkrefte foer noen policy roeres."
     ],
     "tabeller": [
+      "opplaering_periode",
+      "tilbakemelding",
       "ai_tool_log",
       "ansatt_avtale",
       "ansatt_kontrakt",
@@ -65,7 +73,6 @@
       "malekort_scope",
       "merker",
       "opplaering_oppgave",
-      "opplaering_periode",
       "opplaering_skift",
       "pengepremie",
       "persondata_logg",
@@ -91,7 +98,6 @@
       "stasjoner",
       "stempling",
       "synlig_svinn",
-      "tilbakemelding",
       "timesalg",
       "trafikk",
       "uke_rapport",
