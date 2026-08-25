@@ -127,4 +127,14 @@ Kjører i vitest, tar 200 ms til sammen. `npx vitest run src/lib/redesign` etter
 
 Skal noe faktisk endres: `OPPDATER_FASIT=1 npx vitest run src/lib/redesign`. Da viser git nøyaktig hva som ble gitt slipp på.
 
+## `innerText` og sammenleggbart innhold
+
+**Les aldri `innerText` på en kollapset `<details>`.** `innerText` gir *rendret* tekst når elementet er lagt ut, og faller tilbake til `textContent` når det ikke er det. En påstand som leser den kollapsede delen består altså når siden **ikke** er ferdig, og feiler når den er det. `svinn.spec.ts` flaket slik i ukevis; en lengre timeout ville gjort den rødere, ikke grønnere.
+
+Åpne detaljen først, `toBeVisible()`, og les så. Det er også et sterkere bevis: at tallet er til *å lese*, ikke bare til å finne i DOM-en.
+
+`toContainText` leser `textContent` og ser aldri forskjellen — derfor flaker den ikke, og derfor er det vanskelig å se hvor feilen ligger når bare én linje i en test er rammet.
+
+**Testgjeld, ikke rettet:** `bolge2-analyse.spec.ts:216` bruker `.not.toMatch` mot `main.innerText()`. **En negativ påstand på `innerText` over sammenleggbart innhold kan gi falsk trygghet** — den kan ikke skille «finnes ikke» fra «er skjult i en `<details>`». Den er ikke feil i dag, men den beviser mindre enn den ser ut til.
+
 **Hver vakt har en kanarifugl, og det er ikke pynt.** To av dem har vært grønne mens de var i stykker — RLS-vakthunden i månedsvis fordi den forutsatte at det fantes policyer å vurdere, rollevakten fordi regexen ikke tålte parenteser og dermed var blind for `!erLeder(bruker.rolle)`. **En vakt som slutter å se, ser nøyaktig ut som en vakt som ikke finner noe.** Legger du til en ny kontroll, legg til noe som feiler når den slutter å måle.
