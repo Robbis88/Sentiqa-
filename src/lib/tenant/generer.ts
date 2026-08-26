@@ -825,6 +825,22 @@ begin
 end $$;
 `
 
+/**
+ * Frigjør stasjonens plass før et INSERT-forsøk.
+ *
+ * SLETT PÅ STASJONEN, IKKE PÅ ID-EN. `bemanning_stasjon` har
+ * `stasjon_id` som primærnøkkel, så der var de to det samme — men
+ * `bemanning_budsjett` har `id` og nøkkelen `(stasjon_id, ar, maned)`.
+ * Et tillatt insert lager da en rad med en NY uuid, og en opprydding som
+ * sletter på den faste id-en lot den ligge. Gjeninnsettingen kolliderte
+ * med 23505 og felte hele fila.
+ *
+ * Flagget betyr «én rad per stasjon». Da er stasjonen plassen.
+ */
+function frigjorPlassen(r: Ressurs, s: Stasjon): string {
+  return `delete from public.${r.tabell} where stasjon_id = ${sitat(S[s])};`
+}
+
 function genererRessurs(r: Ressurs): string {
   const linjer: string[] = ['', `-- =====================================================================`,
     `-- ${r.tabell}  (${r.tenant_scope}, ${r.data_class})`,
@@ -871,7 +887,7 @@ function genererRessurs(r: Ressurs): string {
           // normaliseres etterpaa uansett utfall.
           if (r.en_rad_per_stasjon) {
             linjer.push(`select pg_temp.som_eier();`)
-            linjer.push(`delete from public.${r.tabell} where ${idKol(r)} = ${sitat(fastVerdi(r, s))};`)
+            linjer.push(frigjorPlassen(r, s))
             linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
           }
 
@@ -880,8 +896,13 @@ function genererRessurs(r: Ressurs): string {
           if (r.en_rad_per_stasjon) {
             const gjen = proberadSql(r, kjede, s, `gjeninn${i.navn}${s}`)
             linjer.push(`select pg_temp.som_eier();`)
-            linjer.push(`delete from public.${r.tabell} where ${idKol(r)} = ${sitat(fastVerdi(r, s))};`)
-            linjer.push(`insert into public.${r.tabell} (${gjen.kolonner.join(', ')}) values (${gjen.verdier.join(', ')});`)
+            linjer.push(frigjorPlassen(r, s))
+            // Den faste raden skal tilbake MED SIN EGEN ID: hver senere
+            // paastand peker paa den. En ny uuid her ville gjort resten
+            // av gruppa til "ser ikke" - uten at noen policy var roert.
+            linjer.push(idKol(r) === 'id'
+              ? `insert into public.${r.tabell} (id, ${gjen.kolonner.join(', ')}) values (${sitat(fastVerdi(r, s))}, ${gjen.verdier.join(', ')});`
+              : `insert into public.${r.tabell} (${gjen.kolonner.join(', ')}) values (${gjen.verdier.join(', ')});`)
             linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
           }
           continue

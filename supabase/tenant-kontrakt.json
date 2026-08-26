@@ -49,12 +49,6 @@
       "ai_tool_log",
       "anvisninger",
       "arrangementer",
-      "bemanning_aar",
-      "bemanning_budsjett",
-      "bemanning_fast_vakt",
-      "bemanning_krav",
-      "bemanning_maned",
-      "bemanning_vindu",
       "butikksjef_stasjoner",
       "fokuspunkter",
       "ik_kontrollpunkter",
@@ -91,6 +85,196 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "bemanning_vindu",
+      "$hvorfor": "Naar det faktisk staar folk i butikken, per stasjon og ukedag - ikke aapningstiden. Gulvet legges over hele vinduet, saa et for bredt vindu spiser timer fra ettermiddagen der kundene er. 0082 la til gjelder_fra og utvidet noekkelen: et vindu som endres skal ikke skrive om hvordan det var i fjor. Lesing er aapen for stasjonen (nettbrettet ser sin egen plan), skriving er lederens.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ukedag",
+        "gjelder_fra"
+      ],
+      "business_unik_unntak": {
+        "ukedag": "Domenet er sju verdier, saa ukedagen kan ikke variere per forsoek - matrisen lager flere rader per stasjon enn en uke har dager. gjelder_fra varierer i stedet, og gjor den sammensatte noekkelen unik. Det er nettopp derfor 0082 utvidet noekkelen med den: et vindu kan endres, og historikken skal staa."
+      },
+      "proberad": {
+        "ukedag": "1",
+        "gjelder_fra": "{{unik_dato}}",
+        "fra_time": "6",
+        "til_time": "22",
+        "min_bemanning": "1"
+      },
+      "oppdaterbart": "min_bemanning = 2"
+    },
+    {
+      "tabell": "bemanning_krav",
+      "$hvorfor": "Timer som krever flere enn gulvet - varemottak, sikkerhet, opplaering. Ingen unik skranke: flere rader kan overlappe, og hoeyeste antall vinner. Samme rollebilde som vinduet.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "ukedag": "2",
+        "fra_time": "8",
+        "til_time": "10",
+        "antall": "2",
+        "begrunnelse": "'Sonde {{unik}}'"
+      },
+      "oppdaterbart": "antall = 3"
+    },
+    {
+      "tabell": "bemanning_fast_vakt",
+      "$hvorfor": "Bindinger som alltid ligger i grunn - butikksjef 07-15 man-fre gir fem rader. De trekkes fra budsjettet foer fordelingen og teller med i dekningen. 0123 ga dem perioder: en endring i dag skriver ikke om hvordan det var i mars, og noekkelen ble utvidet med gjelder_fra.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "navn",
+        "ukedag",
+        "gjelder_fra"
+      ],
+      "business_unik_unntak": {
+        "ukedag": "Navnet OG gjelder_fra varierer per forsoek; ukedagen er pinnet fordi domenet er sju verdier."
+      },
+      "proberad": {
+        "navn": "'Sonde {{unik}}'",
+        "ukedag": "3",
+        "gjelder_fra": "{{unik_dato}}",
+        "fra_time": "7",
+        "til_time": "15"
+      },
+      "$oppdaterbart_hvorfor": "navn inngaar i business_unik, og timene har en check (til > fra).",
+      "oppdaterbart": "til_time = 16"
+    },
+    {
+      "tabell": "bemanning_budsjett",
+      "$hvorfor": "Time- og lonnsbudsjettet fra kjeden, per stasjon og maaned. lonn_kr er ALL-IN, saa lonn_kr / timer gir snittsatsen direkte. EIERENS ALENE i alle fire operasjonene - ogsaa lesing. 0082 redefinerte policyene fra 0081 og strammet lesingen fra stasjonstilgang til retailer_admin; siste treff vinner.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "en_rad_per_stasjon": true,
+      "business_unik": [
+        "stasjon_id",
+        "ar",
+        "maned"
+      ],
+      "business_unik_unntak": {
+        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning.",
+        "maned": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
+      },
+      "proberad": {
+        "ar": "2026",
+        "maned": "8",
+        "timer": "1000",
+        "lonn_kr": "400000",
+        "brutto_bp_kr": "900000"
+      },
+      "oppdaterbart": "timer = 1100"
+    },
+    {
+      "tabell": "bemanning_aar",
+      "$hvorfor": "Aarsrammen bak maanedsfordelingen: timer for hele aaret, faste aarsverk, reserve og sikkerhetsmargin. Eierens alene, som budsjettet - det er kjedens tall, ikke stasjonens.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "en_rad_per_stasjon": true,
+      "business_unik": [
+        "stasjon_id",
+        "ar"
+      ],
+      "business_unik_unntak": {
+        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
+      },
+      "proberad": {
+        "ar": "2026",
+        "timer_aar": "12000",
+        "fast_arsverk_timer": "1800"
+      },
+      "oppdaterbart": "timer_aar = 12500"
+    },
+    {
+      "tabell": "bemanning_maned",
+      "$hvorfor": "Disponible timer per maaned, BEREGNET av aarsrammen - ikke skrevet av et menneske. Derfor eierens alene aa skrive, men lesbar for hele stasjonen: butikksjefen og nettbrettet skal se hvor mange timer de har igjen, uten aa kunne endre tallet.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "en_rad_per_stasjon": true,
+      "business_unik": [
+        "stasjon_id",
+        "ar",
+        "maned"
+      ],
+      "business_unik_unntak": {
+        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning.",
+        "maned": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
+      },
+      "proberad": {
+        "ar": "2026",
+        "maned": "8",
+        "disponible_timer": "950"
+      },
+      "oppdaterbart": "disponible_timer = 900"
+    },
     {
       "tabell": "ansatt_avtale",
       "$hvorfor": "Kontraktsfestet stilling per ansatt, noekklet paa stemplingsnummeret fra easy@work. 0101 tok lesingen fra nettbrettet: stasjonstilgang alene holdt ikke for et felt som sier hva folk tjener i prosent av full stilling. Skrivingen har vaert lederens hele tiden.",

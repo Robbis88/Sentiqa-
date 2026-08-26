@@ -98,13 +98,22 @@ export type Ressurs = {
    */
   capability_gjeld?: string
   /**
-   * Skjemaet håndhever én rad per stasjon — typisk fordi `stasjon_id`
-   * *er* primærnøkkelen (`bemanning_stasjon`).
+   * Fixturen har ÉN plass per stasjon, og den må frigjøres før hvert
+   * forsøk.
+   *
+   * To grunner, og de er begge om skjemaet:
+   *
+   *   1. `stasjon_id` *er* primærnøkkelen (`bemanning_stasjon`). Da
+   *      finnes det bokstavelig talt bare én rad per stasjon.
+   *   2. Forretningsnøkkelen har et LITE DOMENE. `bemanning_vindu` har
+   *      `unique (stasjon_id, ukedag)`, og ukedag er 1–7. Matrisen
+   *      trenger flere rader per stasjon enn sju — nyrad_* alene lager
+   *      fjorten — så ingen fordeling av ukedager kan unngå 23505.
+   *      Fixturen pinner ukedagen og gjenbruker plassen i stedet.
    *
    * Styrer bare hvordan generatoren lager gyldige fixtures: den kan
    * ikke lage en fersk rad før hver update/delete-test, for den andre
-   * ville kollidert med primærnøkkelen. Sier ingenting om
-   * autorisasjon.
+   * ville kollidert. Sier ingenting om autorisasjon.
    */
   en_rad_per_stasjon?: boolean
   /**

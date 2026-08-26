@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 42
+  const UKLASSIFISERT_NA = 36
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -398,14 +398,28 @@ describe('genererte filer', () => {
     const linjer = sql.split('\n')
     const enRad = kontrakt.ressurser.filter((r) => r.en_rad_per_stasjon)
 
+    // PLASSEN ER STASJONEN, IKKE ID-EN. `bemanning_stasjon` har
+    // `stasjon_id` som primærnøkkel, så der var de to det samme. På
+    // `bemanning_budsjett` er nøkkelen `(stasjon_id, ar, maned)` og id-en
+    // en uuid: et tillatt insert lager en rad med NY id, og en opprydding
+    // på den faste id-en lot den ligge. Gjeninnsettingen kolliderte med
+    // 23505 og felte hele fila — funnet i CI, ikke her.
     for (const r of enRad) {
-      const idk = r.id_kolonne ?? 'id'
       linjer.forEach((l, nr) => {
         if (!l.includes(`skriv_tillatt('${r.tabell} `) && !l.includes(`skriv_avvist('${r.tabell} `)) return
         if (!/ INSERT /.test(l)) return
         const foran = linjer.slice(Math.max(0, nr - 3), nr).join(' ')
         expect(foran, `${r.tabell}: INSERT-forsoek uten frigjoering foran (linje ${nr + 1})`)
-          .toContain(`delete from public.${r.tabell} where ${idk} =`)
+          .toContain(`delete from public.${r.tabell} where stasjon_id =`)
+
+        // Og plassen skal fylles igjen MED SAMME ID. En fersk uuid ville
+        // gjort hver senere påstand i gruppa til «ser ikke» — uten at
+        // noen policy var rørt.
+        const etter = linjer.slice(nr + 1, nr + 4).join(' ')
+        if ((r.id_kolonne ?? 'id') === 'id') {
+          expect(etter, `${r.tabell}: gjeninnsettingen mangler den faste id-en (linje ${nr + 1})`)
+            .toContain(`insert into public.${r.tabell} (id,`)
+        }
       })
     }
 
