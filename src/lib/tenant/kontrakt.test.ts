@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 36
+  const UKLASSIFISERT_NA = 31
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -77,6 +77,23 @@ describe('forretningsnokler mot skjemaet', () => {
     // KANARIFUGL. Parser den ingenting, blir hele sjekken under stille.
     expect(Object.keys(noekler).length).toBeGreaterThan(20)
     expect(noekler.ansatte?.length, 'ansatte har to unike indekser').toBeGreaterThanOrEqual(2)
+  })
+
+  it('et uttrykk i en indeks er ikke en kolonne — og skjuler ingen', () => {
+    // `signal_lukket_unik` er
+    //   (retailer_id, coalesce(stasjon_id, '000…'::uuid), signal_id)
+    // fordi null-stasjonen ellers gjør nøkkelen flertydig.
+    //
+    // TO FEIL PÅ RAD LÅ HER. Regexen stoppet ved den første `)` — altså
+    // midt inne i `coalesce(...)` — så `signal_id` forsvant i stillhet,
+    // og en nøkkelkolonne vakten ikke ser, er en kolonne kontrakten
+    // aldri blir bedt om å kjenne. Splittingen delte i tillegg midt i
+    // uttrykket og krevde «coalesce(stasjon_id» som forretningsnøkkel.
+    const kol = (noekler.signal_lukket ?? []).find((n) => n.navn === 'signal_lukket_unik')?.kolonner
+    expect(kol, 'signal_lukket_unik må være lest').toBeTruthy()
+    expect(kol, 'siste kolonne skal ikke falle ut av parentesen').toContain('signal_id')
+    expect(kol).toContain('retailer_id')
+    expect(kol!.some((k) => k.includes('(')), 'uttrykk skal ikke stå som kolonnenavn').toBe(false)
   })
 
   it('en droppet kolonne tar med seg noekkelen sin', () => {

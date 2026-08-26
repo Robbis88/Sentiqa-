@@ -58,7 +58,7 @@ begin
     ('lederstotte_rapporter', false, false),
     ('lenker', false, false),
     ('malekort', true, false),
-    ('malekort_scope', false, false),
+    ('malekort_scope', true, false),
     ('merker', false, false),
     ('oppgaver', true, false),
     ('opplaering_oppgave', false, false),
@@ -77,7 +77,7 @@ begin
     ('produksjonsplan_linjer', true, false),
     ('profiler', false, false),
     ('prognose_kalibrering', true, false),
-    ('prognose_treff', false, false),
+    ('prognose_treff', true, false),
     ('puls_runde', true, false),
     ('puls_sporsmal', true, false),
     ('puls_svar', true, false),
@@ -90,7 +90,7 @@ begin
     ('rutine_utforinger', true, false),
     ('rutiner', true, false),
     ('rutineskjemaer', false, false),
-    ('signal_lukket', false, false),
+    ('signal_lukket', true, false),
     ('sjekkpunkt_svar', true, false),
     ('sjekkpunkter', false, false),
     ('skills_score', true, false),
@@ -103,9 +103,9 @@ begin
     ('tildelte_merker', true, false),
     ('timesalg', true, false),
     ('trafikk', true, false),
-    ('uke_rapport', false, false),
+    ('uke_rapport', true, false),
     ('vaer', false, false),
-    ('varsler', false, false);
+    ('varsler', true, false);
 
   select count(*) into antall_klassifisert from kontrakt_tabeller where klassifisert;
 
