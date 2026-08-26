@@ -129,6 +129,10 @@ function radPredikat(r: Ressurs, s: Stasjon): string {
  * INGEN `id` - peker vi paa stasjonen selv.
  */
 function fastVerdi(r: Ressurs, s: Stasjon): string {
+  // RADEN FINNES ALLEREDE. `retailers` er sin egen tenantnokkel, saa en
+  // fersk proberad ville tilhort ingen - og «owner_A ser sin egen rad»
+  // kunne ikke uttrykkes. Da peker vi paa kjederaden i fasitverdenen.
+  if (r.fast_rad) return fyll(r.fast_rad, { retailer: R[kjedenFor(s)], stasjon: S[s] })
   return idKol(r) === 'id' ? seedId(`${r.tabell}:fast:${s}`) : S[s]
 }
 
@@ -143,6 +147,11 @@ function seedId(nokkel: string): string {
 /** Kolonnene som bærer tenant, gitt scope. */
 function tenantKolonner(r: Ressurs, kjede: Kjede, s: Stasjon): Record<string, string> {
   const ut: Record<string, string> = {}
+  // RADEN ER TENANTEN. `retailers` har ingen `retailer_id` - noekkelen er
+  // `id`, og den staar allerede i fasitverdenen. Fyller vi noe her, ville
+  // INSERT-forsoeket kollidert med den eksisterende raden (23505) i
+  // stedet for aa bli avvist av policyen (42501).
+  if (r.fast_rad) return ut
   if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station'
       || r.tenant_scope === 'retailer_or_station') {
     ut.retailer_id = sitat(R[kjede])
@@ -579,6 +588,16 @@ function genererRessursSeed(r: Ressurs): string {
     }
   }
 
+  // INGEN SEEDING NAAR RADEN ALLEREDE FINNES. Fasitverdenen har laget
+  // den, og en `insert` her ville kollidert med den.
+  if (r.fast_rad) {
+    // Plassholderen skrives IKKE ut her. Vakten «ingen plassholder
+    // overlever generatoren» leser hver linje, og en {{...}} i en
+    // kommentar ser ut som en som slapp gjennom substitusjonen.
+    linjer.push('-- Proberaden er en rad fasitverdenen alt har skrevet. Ingen seeding.')
+    return linjer.join('\n')
+  }
+
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {
     const { kolonner, verdier } = proberadSql(r, kjede, s, `fast${s}`)
@@ -952,7 +971,10 @@ function genererRessurs(r: Ressurs): string {
         // med 23505 - altsaa en domenefeil, ikke en tenant-avvisning.
         // Da brukes den faste raden, og den gjeninnsettes etter en
         // tillatt sletting slik den gjor ellers.
-        if (!r.en_rad_per_stasjon) {
+        // OG INGEN FERSK RAD NAAR DEN FASTE ER FASITVERDENEN SELV.
+        // `nyrad_retailers` ville laget en kjede nummer tre, og
+        // paastandene peker uansett paa kjederaden.
+        if (!r.en_rad_per_stasjon && !r.fast_rad) {
           linjer.push(`select pg_temp.som_eier();`)
           linjer.push(`select pg_temp.nyrad_${r.tabell}(${sitat(R[kjede])}, ${sitat(S[s])}, ${sitat(`${i.navn}-${op}`)}) as _;`)
           linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
@@ -1043,7 +1065,11 @@ function genererRessurs(r: Ressurs): string {
           linjer.push(`select pg_temp.${avvist}(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad ${egen} -> ${forbudtISammeKjede}`)}, ${
             sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where ${pred}`)}${maalrad});`)
         }
-        if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station') {
+        // Flyttetesten forutsetter en retailer_id AA FLYTTE. Er raden
+        // selv tenanten, finnes ikke kolonnen - og setningen ville gitt
+        // 42703, altsaa en generatorfeil forkledd som et funn.
+        if (!r.fast_rad
+            && (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station')) {
           linjer.push(`select pg_temp.${avvist}(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad -> kjede ${annenKjede}`)}, ${
             sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where ${pred}`)}${maalrad});`)
         }

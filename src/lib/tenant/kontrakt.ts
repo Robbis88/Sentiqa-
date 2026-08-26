@@ -65,6 +65,25 @@ export type Ressurs = {
   manager: Rollefelt
   owner: Rollefelt
   /** Indirekte tenantnøkkel, f.eks. `periode_id` på opplaering_utfort. */
+  /**
+   * Proberaden ER en rad som fasitverdenen allerede har skrevet.
+   *
+   * `retailers` er sin egen tenantnøkkel: policyen sier
+   * `id = gjeldende_retailer_id()`. En fersk proberad tilhører da INGEN,
+   * og påstanden «owner_A ser sin egen rad» kan ikke uttrykkes — den må
+   * måle kjederaden som finnes, ikke en ny.
+   *
+   * Verdien er et uttrykk med `{{retailer}}`/`{{stasjon}}`, og den blir
+   * radens identitet. Generatoren seeder da ingenting, lager ingen
+   * `nyrad_*`, fyller ingen tenantkolonner, og hopper over flyttetesten
+   * — det finnes ingen `retailer_id` å flytte.
+   *
+   * EN SLIK RAD MÅ VÆRE UDØDELIG. Blir en `delete` tillatt for noen
+   * rolle, river matrisen sin egen fasitverden midt i kjøringen, og alt
+   * etterpå leser «ser ikke» uten at noen policy er rørt. `valider()`
+   * krever derfor at ingen rolle når `insert` eller `delete`.
+   */
+  fast_rad?: string
   tenant_kolonne?: string
   tenant_join?: string
   /** Rader som må finnes før proberaden kan settes inn. */
@@ -279,6 +298,22 @@ export function valider(k: Kontrakt): string[] {
           + 'bruk {{unik}}, {{unik_dato}} eller en konstant.')
       }
     }
+    // EN FASITVERDEN-RAD MÅ IKKE KUNNE SLETTES ELLER DUPLISERES.
+    // Se `fast_rad`: en tillatt delete ville revet grunnlaget for hver
+    // senere påstand i kjøringen, og en tillatt insert ville kollidert
+    // med raden som alt står der (23505, ikke 42501).
+    if (r.fast_rad) {
+      for (const rolle of ['tablet', 'manager', 'owner'] as const) {
+        for (const op of ['insert', 'delete'] as const) {
+          if (!r.operasjoner.includes(op)) continue
+          if (rekkevidde(r[rolle], op, r.operasjoner) !== 'none') {
+            feil.push(`${r.tabell}: fast_rad, men ${rolle} når «${op}» — `
+              + 'en rad fasitverdenen eier kan verken slettes eller settes inn på nytt')
+          }
+        }
+      }
+    }
+
     if (r.id_kolonner && r.id_kolonne) {
       feil.push(`${r.tabell}: både id_kolonne og id_kolonner — velg én`)
     }
