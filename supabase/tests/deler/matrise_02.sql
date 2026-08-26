@@ -6,7 +6,7 @@
 -- En haandredigering her ville overlevd til neste generering og saa
 -- forsvunnet i stillhet. Skal noe endres, endre kontrakten.
 --
--- DEL 2 AV 7. Hele matrisen er for stor for Supabase SQL
+-- DEL 2 AV 8. Hele matrisen er for stor for Supabase SQL
 -- Editor. Denne fila er en komplett kjoering av 8 ressurs(er):
 -- egen fasitverden, egne forutsetninger, egen oppsummering, egen
 -- rollback. Delene deler ingen tilstand og kan kjoeres i hvilken som
@@ -259,11 +259,6 @@ insert into auth.users (id, email) values ('58088989-0000-4000-8000-000058088989
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('58088989-0000-4000-8000-000058088989', 'bbbb0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 28');
 insert into auth.users (id, email) values ('5808fde9-0000-4000-8000-00005808fde9', 'sonde-29@kanari.local') on conflict (id) do nothing;
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('5808fde9-0000-4000-8000-00005808fde9', 'bbbb0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 29');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('1a99e48c-0000-4000-8000-00001a99e48c', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('1a9a58ec-0000-4000-8000-00001a9a58ec', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('1a9acd4c-0000-4000-8000-00001a9acd4c', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('1aa7fc10-0000-4000-8000-00001aa7fc10', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('1aa87070-0000-4000-8000-00001aa87070', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sondepunkt');
 insert into auth.users (id, email) values ('a753ced1-0000-4000-8000-0000a753ced1', 'sonde-256@kanari.local') on conflict (id) do nothing;
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('a753ced1-0000-4000-8000-0000a753ced1', 'aaaa0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 256');
 insert into auth.users (id, email) values ('a761e653-0000-4000-8000-0000a761e653', 'sonde-257@kanari.local') on conflict (id) do nothing;
@@ -314,31 +309,6 @@ insert into auth.users (id, email) values ('a916bf32-0000-4000-8000-0000a916bf32
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('a916bf32-0000-4000-8000-0000a916bf32', 'bbbb0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 279');
 insert into auth.users (id, email) values ('a753cf28-0000-4000-8000-0000a753cf28', 'sonde-280@kanari.local') on conflict (id) do nothing;
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('a753cf28-0000-4000-8000-0000a753cf28', 'aaaa0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 280');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2aca9-0000-4000-8000-000038a2aca9', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38b0c42b-0000-4000-8000-000038b0c42b', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38bedbad-0000-4000-8000-000038bedbad', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a57854b-0000-4000-8000-00003a57854b', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2acad-0000-4000-8000-000038a2acad', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38b0c42f-0000-4000-8000-000038b0c42f', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38bedbb1-0000-4000-8000-000038bedbb1', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a57854f-0000-4000-8000-00003a57854f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2acb1-0000-4000-8000-000038a2acb1', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38b0c448-0000-4000-8000-000038b0c448', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38bedbca-0000-4000-8000-000038bedbca', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a578568-0000-4000-8000-00003a578568', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2acca-0000-4000-8000-000038a2acca', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38b0c44c-0000-4000-8000-000038b0c44c', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38bedbce-0000-4000-8000-000038bedbce', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a57856c-0000-4000-8000-00003a57856c', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a57856d-0000-4000-8000-00003a57856d', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a659cef-0000-4000-8000-00003a659cef', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2acd0-0000-4000-8000-000038a2acd0', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a578585-0000-4000-8000-00003a578585', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a659d07-0000-4000-8000-00003a659d07', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2ace8-0000-4000-8000-000038a2ace8', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a578588-0000-4000-8000-00003a578588', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('3a659d0a-0000-4000-8000-00003a659d0a', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sondepunkt');
-insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('38a2aceb-0000-4000-8000-000038a2aceb', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondepunkt');
 -- --- bemanning_fravaer: forutsetninger og proberader ---
 insert into public.bemanning_fravaer (id, stasjon_id, navn, fra_dato, til_dato, arsak) values ('ebd5f3cd-0000-4000-8000-0000ebd5f3cd', 'a1110000-0000-4000-8000-000000000001', 'Sonde Sondesen', date '2026-01-01' + 0, date '2026-01-01' + 0, 'Sonde');
 insert into public.bemanning_fravaer (id, stasjon_id, navn, fra_dato, til_dato, arsak) values ('ebd5f3ce-0000-4000-8000-0000ebd5f3ce', 'a1110000-0000-4000-8000-000000000002', 'Sonde Sondesen', date '2026-01-01' + 1, date '2026-01-01' + 1, 'Sonde');
@@ -436,12 +406,23 @@ begin
   returning id into ny;
   return ny;
 end $fn$;
--- --- ik_avlesninger: forutsetninger og proberader ---
-insert into public.ik_avlesninger (id, stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values ('1a11443d-0000-4000-8000-00001a11443d', 'a1110000-0000-4000-8000-000000000001', '1a99e48c-0000-4000-8000-00001a99e48c', date '2026-01-01' + 35, 4.0, true);
-insert into public.ik_avlesninger (id, stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values ('1a11443e-0000-4000-8000-00001a11443e', 'a1110000-0000-4000-8000-000000000002', '1a9a58ec-0000-4000-8000-00001a9a58ec', date '2026-01-01' + 36, 4.0, true);
-insert into public.ik_avlesninger (id, stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values ('1a11443f-0000-4000-8000-00001a11443f', 'a1110000-0000-4000-8000-000000000003', '1a9acd4c-0000-4000-8000-00001a9acd4c', date '2026-01-01' + 37, 4.0, true);
-insert into public.ik_avlesninger (id, stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values ('1a11445c-0000-4000-8000-00001a11445c', 'b1110000-0000-4000-8000-000000000001', '1aa7fc10-0000-4000-8000-00001aa7fc10', date '2026-01-01' + 38, 4.0, true);
-insert into public.ik_avlesninger (id, stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values ('1a11445d-0000-4000-8000-00001a11445d', 'b1110000-0000-4000-8000-000000000002', '1aa87070-0000-4000-8000-00001aa87070', date '2026-01-01' + 39, 4.0, true);
+-- --- fokuspunkter: forutsetninger og proberader ---
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b12f3-0000-4000-8000-0000384b12f3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 35, 'forbedring', 'Sondepunkt fastA1');
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b12f4-0000-4000-8000-0000384b12f4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 36, 'forbedring', 'Sondepunkt fastA2');
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b12f5-0000-4000-8000-0000384b12f5', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 37, 'forbedring', 'Sondepunkt fastA3');
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b1312-0000-4000-8000-0000384b1312', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 38, 'forbedring', 'Sondepunkt fastB1');
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b1313-0000-4000-8000-0000384b1313', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 39, 'forbedring', 'Sondepunkt fastB2');
+
+create or replace function pg_temp.nyrad_fokuspunkter(p_retailer uuid, p_stasjon uuid, p_merke text)
+returns uuid language plpgsql security definer as $fn$
+declare
+  ny uuid;
+begin
+  insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst)
+  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, 'forbedring', 'Sondepunkt ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
+  returning id into ny;
+  return ny;
+end $fn$;
 
 -- =====================================================================
 -- bemanning_fravaer  (station, warm)
@@ -2544,73 +2525,290 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('daglig_salg tablet_B1 DELETE A1', 'delete from public.daglig_salg where id = ''8c5a54dc-0000-4000-8000-00008c5a54dc''', 'daglig_salg', '8c5a54dc-0000-4000-8000-00008c5a54dc', 'id');
 
 -- =====================================================================
--- ik_avlesninger  (station, warm)
+-- fokuspunkter  (retailer_and_station, warm)
 -- =====================================================================
-select pg_temp.sett_gruppe('ik_avlesninger');
+select pg_temp.sett_gruppe('fokuspunkter');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
-select pg_temp.paastand('ik_avlesninger owner_A SELECT A1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'positiv');
-select pg_temp.paastand('ik_avlesninger owner_A SELECT A2 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443e-0000-4000-8000-00001a11443e'), 'positiv');
-select pg_temp.paastand('ik_avlesninger owner_A SELECT A3 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443f-0000-4000-8000-00001a11443f'), 'positiv');
-select pg_temp.paastand('ik_avlesninger owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger owner_A INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2aca9-0000-4000-8000-000038a2aca9'', date ''2026-01-01'' + 311, 4.0, true)');
-select pg_temp.skriv_tillatt('ik_avlesninger owner_A INSERT A2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000002'', ''38b0c42b-0000-4000-8000-000038b0c42b'', date ''2026-01-01'' + 312, 4.0, true)');
-select pg_temp.skriv_tillatt('ik_avlesninger owner_A INSERT A3', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000003'', ''38bedbad-0000-4000-8000-000038bedbad'', date ''2026-01-01'' + 313, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger owner_A INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a57854b-0000-4000-8000-00003a57854b'', date ''2026-01-01'' + 314, 4.0, true)');
+select pg_temp.paastand('fokuspunkter owner_A SELECT A1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'positiv');
+select pg_temp.paastand('fokuspunkter owner_A SELECT A2 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f4-0000-4000-8000-0000384b12f4'), 'positiv');
+select pg_temp.paastand('fokuspunkter owner_A SELECT A3 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f5-0000-4000-8000-0000384b12f5'), 'positiv');
+select pg_temp.paastand('fokuspunkter owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'negativ');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 311, ''forbedring'', ''Sondepunkt owner_AA1'')');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A INSERT A2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 312, ''forbedring'', ''Sondepunkt owner_AA2'')');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A INSERT A3', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 313, ''forbedring'', ''Sondepunkt owner_AA3'')');
+select pg_temp.skriv_avvist('fokuspunkter owner_A INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 314, ''forbedring'', ''Sondepunkt owner_AB1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A UPDATE A2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f4-0000-4000-8000-0000384b12f4''');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A UPDATE A3', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f5-0000-4000-8000-0000384b12f5''');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_avvist('fokuspunkter owner_A UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''');
+select pg_temp.som_eier();
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b12f3-0000-4000-8000-0000384b12f3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 315, 'forbedring', 'Sondepunkt gjenowner_AA1');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A DELETE A2', 'delete from public.fokuspunkter where id = ''384b12f4-0000-4000-8000-0000384b12f4''');
+select pg_temp.som_eier();
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b12f4-0000-4000-8000-0000384b12f4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 316, 'forbedring', 'Sondepunkt gjenowner_AA2');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_A DELETE A3', 'delete from public.fokuspunkter where id = ''384b12f5-0000-4000-8000-0000384b12f5''');
+select pg_temp.som_eier();
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b12f5-0000-4000-8000-0000384b12f5', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 317, 'forbedring', 'Sondepunkt gjenowner_AA3');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_avvist('fokuspunkter owner_A DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.skriv_avvist('fokuspunkter owner_A FLYTTER egen rad -> kjede B', 'update public.fokuspunkter set retailer_id = ''bbbb0000-0000-4000-8000-000000000000'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
-select pg_temp.paastand('ik_avlesninger manager_A1 SELECT A1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'positiv');
-select pg_temp.paastand('ik_avlesninger manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443e-0000-4000-8000-00001a11443e'), 'negativ');
-select pg_temp.paastand('ik_avlesninger manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443f-0000-4000-8000-00001a11443f'), 'negativ');
-select pg_temp.paastand('ik_avlesninger manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger manager_A1 INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2acad-0000-4000-8000-000038a2acad'', date ''2026-01-01'' + 315, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_A1 INSERT A2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000002'', ''38b0c42f-0000-4000-8000-000038b0c42f'', date ''2026-01-01'' + 316, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_A1 INSERT A3', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000003'', ''38bedbb1-0000-4000-8000-000038bedbb1'', date ''2026-01-01'' + 317, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_A1 INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a57854f-0000-4000-8000-00003a57854f'', date ''2026-01-01'' + 318, 4.0, true)');
+select pg_temp.paastand('fokuspunkter manager_A1 SELECT A1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'positiv');
+select pg_temp.paastand('fokuspunkter manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f4-0000-4000-8000-0000384b12f4'), 'negativ');
+select pg_temp.paastand('fokuspunkter manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f5-0000-4000-8000-0000384b12f5'), 'negativ');
+select pg_temp.paastand('fokuspunkter manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'negativ');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 318, ''forbedring'', ''Sondepunkt manager_A1A1'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 INSERT A2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 319, ''forbedring'', ''Sondepunkt manager_A1A2'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 INSERT A3', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 320, ''forbedring'', ''Sondepunkt manager_A1A3'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 321, ''forbedring'', ''Sondepunkt manager_A1B1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 UPDATE A2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f4-0000-4000-8000-0000384b12f4''', 'fokuspunkter', '384b12f4-0000-4000-8000-0000384b12f4', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 UPDATE A3', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f5-0000-4000-8000-0000384b12f5''', 'fokuspunkter', '384b12f5-0000-4000-8000-0000384b12f5', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 DELETE A2', 'delete from public.fokuspunkter where id = ''384b12f4-0000-4000-8000-0000384b12f4''', 'fokuspunkter', '384b12f4-0000-4000-8000-0000384b12f4', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 DELETE A3', 'delete from public.fokuspunkter where id = ''384b12f5-0000-4000-8000-0000384b12f5''', 'fokuspunkter', '384b12f5-0000-4000-8000-0000384b12f5', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
+select pg_temp.skriv_avvist('fokuspunkter manager_A1 DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
-select pg_temp.paastand('ik_avlesninger manager_A12 SELECT A1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'positiv');
-select pg_temp.paastand('ik_avlesninger manager_A12 SELECT A2 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443e-0000-4000-8000-00001a11443e'), 'positiv');
-select pg_temp.paastand('ik_avlesninger manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443f-0000-4000-8000-00001a11443f'), 'negativ');
-select pg_temp.paastand('ik_avlesninger manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger manager_A12 INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2acb1-0000-4000-8000-000038a2acb1'', date ''2026-01-01'' + 319, 4.0, true)');
-select pg_temp.skriv_tillatt('ik_avlesninger manager_A12 INSERT A2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000002'', ''38b0c448-0000-4000-8000-000038b0c448'', date ''2026-01-01'' + 320, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_A12 INSERT A3', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000003'', ''38bedbca-0000-4000-8000-000038bedbca'', date ''2026-01-01'' + 321, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_A12 INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a578568-0000-4000-8000-00003a578568'', date ''2026-01-01'' + 322, 4.0, true)');
+select pg_temp.paastand('fokuspunkter manager_A12 SELECT A1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'positiv');
+select pg_temp.paastand('fokuspunkter manager_A12 SELECT A2 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f4-0000-4000-8000-0000384b12f4'), 'positiv');
+select pg_temp.paastand('fokuspunkter manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f5-0000-4000-8000-0000384b12f5'), 'negativ');
+select pg_temp.paastand('fokuspunkter manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'negativ');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 322, ''forbedring'', ''Sondepunkt manager_A12A1'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 INSERT A2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 323, ''forbedring'', ''Sondepunkt manager_A12A2'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 INSERT A3', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 324, ''forbedring'', ''Sondepunkt manager_A12A3'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 325, ''forbedring'', ''Sondepunkt manager_A12B1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 UPDATE A2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f4-0000-4000-8000-0000384b12f4''', 'fokuspunkter', '384b12f4-0000-4000-8000-0000384b12f4', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 UPDATE A3', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f5-0000-4000-8000-0000384b12f5''', 'fokuspunkter', '384b12f5-0000-4000-8000-0000384b12f5', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 DELETE A2', 'delete from public.fokuspunkter where id = ''384b12f4-0000-4000-8000-0000384b12f4''', 'fokuspunkter', '384b12f4-0000-4000-8000-0000384b12f4', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 DELETE A3', 'delete from public.fokuspunkter where id = ''384b12f5-0000-4000-8000-0000384b12f5''', 'fokuspunkter', '384b12f5-0000-4000-8000-0000384b12f5', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
+select pg_temp.skriv_avvist('fokuspunkter manager_A12 DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
-select pg_temp.paastand('ik_avlesninger tablet_A1 SELECT A1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'positiv');
-select pg_temp.paastand('ik_avlesninger tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443e-0000-4000-8000-00001a11443e'), 'negativ');
-select pg_temp.paastand('ik_avlesninger tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443f-0000-4000-8000-00001a11443f'), 'negativ');
-select pg_temp.paastand('ik_avlesninger tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger tablet_A1 INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2acca-0000-4000-8000-000038a2acca'', date ''2026-01-01'' + 323, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger tablet_A1 INSERT A2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000002'', ''38b0c44c-0000-4000-8000-000038b0c44c'', date ''2026-01-01'' + 324, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger tablet_A1 INSERT A3', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000003'', ''38bedbce-0000-4000-8000-000038bedbce'', date ''2026-01-01'' + 325, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger tablet_A1 INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a57856c-0000-4000-8000-00003a57856c'', date ''2026-01-01'' + 326, 4.0, true)');
+select pg_temp.paastand('fokuspunkter tablet_A1 SELECT A1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'positiv');
+select pg_temp.paastand('fokuspunkter tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f4-0000-4000-8000-0000384b12f4'), 'negativ');
+select pg_temp.paastand('fokuspunkter tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f5-0000-4000-8000-0000384b12f5'), 'negativ');
+select pg_temp.paastand('fokuspunkter tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'negativ');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 326, ''forbedring'', ''Sondepunkt tablet_A1A1'')');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 INSERT A2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 327, ''forbedring'', ''Sondepunkt tablet_A1A2'')');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 INSERT A3', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 328, ''forbedring'', ''Sondepunkt tablet_A1A3'')');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 329, ''forbedring'', ''Sondepunkt tablet_A1B1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'tablet_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 UPDATE A2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f4-0000-4000-8000-0000384b12f4''', 'fokuspunkter', '384b12f4-0000-4000-8000-0000384b12f4', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'tablet_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 UPDATE A3', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f5-0000-4000-8000-0000384b12f5''', 'fokuspunkter', '384b12f5-0000-4000-8000-0000384b12f5', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'tablet_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 DELETE A2', 'delete from public.fokuspunkter where id = ''384b12f4-0000-4000-8000-0000384b12f4''', 'fokuspunkter', '384b12f4-0000-4000-8000-0000384b12f4', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'tablet_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 DELETE A3', 'delete from public.fokuspunkter where id = ''384b12f5-0000-4000-8000-0000384b12f5''', 'fokuspunkter', '384b12f5-0000-4000-8000-0000384b12f5', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_A1 DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
-select pg_temp.paastand('ik_avlesninger owner_B SELECT B1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'positiv');
-select pg_temp.paastand('ik_avlesninger owner_B SELECT B2 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11445d-0000-4000-8000-00001a11445d'), 'positiv');
-select pg_temp.paastand('ik_avlesninger owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger owner_B INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a57856d-0000-4000-8000-00003a57856d'', date ''2026-01-01'' + 327, 4.0, true)');
-select pg_temp.skriv_tillatt('ik_avlesninger owner_B INSERT B2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000002'', ''3a659cef-0000-4000-8000-00003a659cef'', date ''2026-01-01'' + 328, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger owner_B INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2acd0-0000-4000-8000-000038a2acd0'', date ''2026-01-01'' + 329, 4.0, true)');
+select pg_temp.paastand('fokuspunkter owner_B SELECT B1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'positiv');
+select pg_temp.paastand('fokuspunkter owner_B SELECT B2 -> ser', exists (select 1 from public.fokuspunkter where id = '384b1313-0000-4000-8000-0000384b1313'), 'positiv');
+select pg_temp.paastand('fokuspunkter owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'negativ');
+select pg_temp.skriv_tillatt('fokuspunkter owner_B INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 330, ''forbedring'', ''Sondepunkt owner_BB1'')');
+select pg_temp.skriv_tillatt('fokuspunkter owner_B INSERT B2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 331, ''forbedring'', ''Sondepunkt owner_BB2'')');
+select pg_temp.skriv_avvist('fokuspunkter owner_B INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 332, ''forbedring'', ''Sondepunkt owner_BA1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_B UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_B UPDATE B2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1313-0000-4000-8000-0000384b1313''');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_avvist('fokuspunkter owner_B UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_B DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''');
+select pg_temp.som_eier();
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b1312-0000-4000-8000-0000384b1312', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 333, 'forbedring', 'Sondepunkt gjenowner_BB1');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_tillatt('fokuspunkter owner_B DELETE B2', 'delete from public.fokuspunkter where id = ''384b1313-0000-4000-8000-0000384b1313''');
+select pg_temp.som_eier();
+insert into public.fokuspunkter (id, retailer_id, stasjon_id, periode, type, tekst) values ('384b1313-0000-4000-8000-0000384b1313', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 334, 'forbedring', 'Sondepunkt gjenowner_BB2');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_avvist('fokuspunkter owner_B DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.skriv_avvist('fokuspunkter owner_B FLYTTER egen rad -> kjede A', 'update public.fokuspunkter set retailer_id = ''aaaa0000-0000-4000-8000-000000000000'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
-select pg_temp.paastand('ik_avlesninger manager_B1 SELECT B1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'positiv');
-select pg_temp.paastand('ik_avlesninger manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11445d-0000-4000-8000-00001a11445d'), 'negativ');
-select pg_temp.paastand('ik_avlesninger manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger manager_B1 INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a578585-0000-4000-8000-00003a578585'', date ''2026-01-01'' + 330, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_B1 INSERT B2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000002'', ''3a659d07-0000-4000-8000-00003a659d07'', date ''2026-01-01'' + 331, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger manager_B1 INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2ace8-0000-4000-8000-000038a2ace8'', date ''2026-01-01'' + 332, 4.0, true)');
+select pg_temp.paastand('fokuspunkter manager_B1 SELECT B1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'positiv');
+select pg_temp.paastand('fokuspunkter manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b1313-0000-4000-8000-0000384b1313'), 'negativ');
+select pg_temp.paastand('fokuspunkter manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'negativ');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 335, ''forbedring'', ''Sondepunkt manager_B1B1'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 INSERT B2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 336, ''forbedring'', ''Sondepunkt manager_B1B2'')');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 337, ''forbedring'', ''Sondepunkt manager_B1A1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 UPDATE B2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1313-0000-4000-8000-0000384b1313''', 'fokuspunkter', '384b1313-0000-4000-8000-0000384b1313', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 DELETE B2', 'delete from public.fokuspunkter where id = ''384b1313-0000-4000-8000-0000384b1313''', 'fokuspunkter', '384b1313-0000-4000-8000-0000384b1313', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
+select pg_temp.skriv_avvist('fokuspunkter manager_B1 DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
-select pg_temp.paastand('ik_avlesninger tablet_B1 SELECT B1 -> ser', exists (select 1 from public.ik_avlesninger where id = '1a11445c-0000-4000-8000-00001a11445c'), 'positiv');
-select pg_temp.paastand('ik_avlesninger tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11445d-0000-4000-8000-00001a11445d'), 'negativ');
-select pg_temp.paastand('ik_avlesninger tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.ik_avlesninger where id = '1a11443d-0000-4000-8000-00001a11443d'), 'negativ');
-select pg_temp.skriv_tillatt('ik_avlesninger tablet_B1 INSERT B1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000001'', ''3a578588-0000-4000-8000-00003a578588'', date ''2026-01-01'' + 333, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger tablet_B1 INSERT B2', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''b1110000-0000-4000-8000-000000000002'', ''3a659d0a-0000-4000-8000-00003a659d0a'', date ''2026-01-01'' + 334, 4.0, true)');
-select pg_temp.skriv_avvist('ik_avlesninger tablet_B1 INSERT A1', 'insert into public.ik_avlesninger (stasjon_id, kontrollpunkt_id, dato, temperatur, innenfor) values (''a1110000-0000-4000-8000-000000000001'', ''38a2aceb-0000-4000-8000-000038a2aceb'', date ''2026-01-01'' + 335, 4.0, true)');
+select pg_temp.paastand('fokuspunkter tablet_B1 SELECT B1 -> ser', exists (select 1 from public.fokuspunkter where id = '384b1312-0000-4000-8000-0000384b1312'), 'positiv');
+select pg_temp.paastand('fokuspunkter tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b1313-0000-4000-8000-0000384b1313'), 'negativ');
+select pg_temp.paastand('fokuspunkter tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.fokuspunkter where id = '384b12f3-0000-4000-8000-0000384b12f3'), 'negativ');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 INSERT B1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 338, ''forbedring'', ''Sondepunkt tablet_B1B1'')');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 INSERT B2', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 339, ''forbedring'', ''Sondepunkt tablet_B1B2'')');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 INSERT A1', 'insert into public.fokuspunkter (retailer_id, stasjon_id, periode, type, tekst) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 340, ''forbedring'', ''Sondepunkt tablet_B1A1'')');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 UPDATE B1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'tablet_B1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 UPDATE B2', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b1313-0000-4000-8000-0000384b1313''', 'fokuspunkter', '384b1313-0000-4000-8000-0000384b1313', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 UPDATE A1', 'update public.fokuspunkter set tekst = ''endret av sonden'' where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 DELETE B1', 'delete from public.fokuspunkter where id = ''384b1312-0000-4000-8000-0000384b1312''', 'fokuspunkter', '384b1312-0000-4000-8000-0000384b1312', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'tablet_B1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 DELETE B2', 'delete from public.fokuspunkter where id = ''384b1313-0000-4000-8000-0000384b1313''', 'fokuspunkter', '384b1313-0000-4000-8000-0000384b1313', 'id');
+select pg_temp.som_eier();
+select pg_temp.nyrad_fokuspunkter('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
+select pg_temp.skriv_avvist('fokuspunkter tablet_B1 DELETE A1', 'delete from public.fokuspunkter where id = ''384b12f3-0000-4000-8000-0000384b12f3''', 'fokuspunkter', '384b12f3-0000-4000-8000-0000384b12f3', 'id');
 
 select pg_temp.som_eier();
 
@@ -2668,9 +2866,9 @@ declare n int;
 begin
   select count(*) into n from pg_temp.funn where status = 'FEIL';
   if n > 0 then
-    raise exception 'TENANT-MATRISEN DEL 2/7: % funn. Se tabellen over.', n;
+    raise exception 'TENANT-MATRISEN DEL 2/8: % funn. Se tabellen over.', n;
   end if;
-  raise notice '--- Tenant-matrisen DEL 2/7: ingen funn. % paastander ---',
+  raise notice '--- Tenant-matrisen DEL 2/8: ingen funn. % paastander ---',
     (select count(*) from pg_temp.funn);
 end $$;
 

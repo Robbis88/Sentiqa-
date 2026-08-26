@@ -129,6 +129,10 @@ function radPredikat(r: Ressurs, s: Stasjon): string {
  * INGEN `id` - peker vi paa stasjonen selv.
  */
 function fastVerdi(r: Ressurs, s: Stasjon): string {
+  // RADEN FINNES ALLEREDE. `retailers` er sin egen tenantnokkel, saa en
+  // fersk proberad ville tilhort ingen - og «owner_A ser sin egen rad»
+  // kunne ikke uttrykkes. Da peker vi paa kjederaden i fasitverdenen.
+  if (r.fast_rad) return fyll(r.fast_rad, { retailer: R[kjedenFor(s)], stasjon: S[s] })
   return idKol(r) === 'id' ? seedId(`${r.tabell}:fast:${s}`) : S[s]
 }
 
@@ -143,6 +147,11 @@ function seedId(nokkel: string): string {
 /** Kolonnene som bærer tenant, gitt scope. */
 function tenantKolonner(r: Ressurs, kjede: Kjede, s: Stasjon): Record<string, string> {
   const ut: Record<string, string> = {}
+  // RADEN ER TENANTEN. `retailers` har ingen `retailer_id` - noekkelen er
+  // `id`, og den staar allerede i fasitverdenen. Fyller vi noe her, ville
+  // INSERT-forsoeket kollidert med den eksisterende raden (23505) i
+  // stedet for aa bli avvist av policyen (42501).
+  if (r.fast_rad) return ut
   if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station'
       || r.tenant_scope === 'retailer_or_station') {
     ut.retailer_id = sitat(R[kjede])
@@ -175,6 +184,24 @@ function kjedensEier(kjede: Kjede): string {
   return IDENTITETER.find((i) => i.rolle === 'owner' && i.kjede === kjede)!.uid
 }
 
+/**
+ * Firesifret, unikt per forsøk — og det SKAL smelle om det ikke er det.
+ *
+ * Uten taket ville forsøk nummer 10 000 gitt «10000» (fem siffer, altså
+ * 23514) og forsøk 10 001 gitt «0001» om igjen (altså 23505). Begge er
+ * domenefeil forkledd som noe annet, og de ville dukket opp først når
+ * matrisen hadde vokst nok til at ingen lette der.
+ */
+function unikNr(n: number): string {
+  if (n >= 10_000) {
+    throw new Error(
+      `{{unik_nr}} har bare fire siffer, og forsoek ${n} sprenger det. `
+      + 'Matrisen har vokst forbi taket: gi plassholderen flere siffer, '
+      + 'eller gi stasjoner en egen teller.')
+  }
+  return String(n).padStart(4, '0')
+}
+
 function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: string): {
   kolonner: string[]; verdier: string[]
 } {
@@ -182,6 +209,17 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
   const ctx: Record<string, string> = {
     retailer: R[kjede], stasjon: S[s], unik,
     unik_dato: `date '2026-01-01' + ${n}`,
+    // ET FIRESIFRET NUMMER SOM VARIERER PER FORSØK.
+    //
+    // `stasjoner.butikknummer` har `check (butikknummer ~ '^[0-9]{4}$')`
+    // og er unik per kjede. `{{unik}}` er tekst («fastA1»), så den kan
+    // ikke brukes — og en fixture som bryter et domene-check gir 23514,
+    // som ikke beviser noe om noen tenantgrense.
+    //
+    // Telleren er en GENERERINGSTID-teller, ikke en sekvens i basen:
+    // verdien står som en literal i fila, så to kjøringer av samme fil
+    // gir samme nummer. Det er nettopp det man vil ha av en fasit.
+    unik_nr: unikNr(n),
     // HVEM SOM HANDLER, ikke bare hvor. `persondata_logg` og
     // `kontrolltiltak_bekreftelse` binder raden til den innloggede med
     // `bruker_id = (select auth.uid())`. Uten dette maatte proberaden
@@ -191,7 +229,7 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
     bruker: uid ?? kjedensEier(kjede),
   }
   for (const linje of r.seed_ekstra ?? []) {
-    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n) }
+    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n), unik_nr: unikNr(n) }
     for (const m of linje.matchAll(/\{\{seed:([a-z_]+)\}\}/g)) {
       const id = seedId(`${r.tabell}:${m[1]}:${s}:${n}`)
       ctx[`seed:${m[1]}`] = id
@@ -550,6 +588,16 @@ function genererRessursSeed(r: Ressurs): string {
     }
   }
 
+  // INGEN SEEDING NAAR RADEN ALLEREDE FINNES. Fasitverdenen har laget
+  // den, og en `insert` her ville kollidert med den.
+  if (r.fast_rad) {
+    // Plassholderen skrives IKKE ut her. Vakten «ingen plassholder
+    // overlever generatoren» leser hver linje, og en {{...}} i en
+    // kommentar ser ut som en som slapp gjennom substitusjonen.
+    linjer.push('-- Proberaden er en rad fasitverdenen alt har skrevet. Ingen seeding.')
+    return linjer.join('\n')
+  }
+
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {
     const { kolonner, verdier } = proberadSql(r, kjede, s, `fast${s}`)
@@ -600,6 +648,13 @@ function genererRessursSeed(r: Ressurs): string {
       // Forretningsnoekkelen maa variere per KALL, ikke per call site.
       .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass)`)
       .split(`{{unik_dato}}`).join(`date '2030-01-01' + nextval('tenant_teller'::regclass)::int`)
+      // FIRE SIFRE OGSAA HER, og de maa vaere andre enn seedingens.
+      // `stasjoner.butikknummer` er unik per kjede, saa et kall som
+      // gjenbrukte generatorens nummer ville kollidert med proberaden
+      // det nettopp ble laget ved siden av. Telleren i basen starter i
+      // sitt eget rom - to sifre fra 90 og opp - og lpad holder formen
+      // `^[0-9]{4}$` uansett hvor hoeyt den kommer.
+      .split(`'{{unik_nr}}'`).join(`lpad((9000 + nextval('tenant_teller'::regclass) % 1000)::text, 4, '0')`)
       .split(`{{unik}}`).join(`' || p_merke || '-' || nextval('tenant_teller'::regclass) || '`)
       // `{{n}}` er generatorens teller og hoerer til seedingen. Naar den
       // samme linja bakes inn i nyrad_*, maa den bli en KJORETIDSverdi -
@@ -916,7 +971,10 @@ function genererRessurs(r: Ressurs): string {
         // med 23505 - altsaa en domenefeil, ikke en tenant-avvisning.
         // Da brukes den faste raden, og den gjeninnsettes etter en
         // tillatt sletting slik den gjor ellers.
-        if (!r.en_rad_per_stasjon) {
+        // OG INGEN FERSK RAD NAAR DEN FASTE ER FASITVERDENEN SELV.
+        // `nyrad_retailers` ville laget en kjede nummer tre, og
+        // paastandene peker uansett paa kjederaden.
+        if (!r.en_rad_per_stasjon && !r.fast_rad) {
           linjer.push(`select pg_temp.som_eier();`)
           linjer.push(`select pg_temp.nyrad_${r.tabell}(${sitat(R[kjede])}, ${sitat(S[s])}, ${sitat(`${i.navn}-${op}`)}) as _;`)
           linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
@@ -1007,7 +1065,11 @@ function genererRessurs(r: Ressurs): string {
           linjer.push(`select pg_temp.${avvist}(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad ${egen} -> ${forbudtISammeKjede}`)}, ${
             sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where ${pred}`)}${maalrad});`)
         }
-        if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station') {
+        // Flyttetesten forutsetter en retailer_id AA FLYTTE. Er raden
+        // selv tenanten, finnes ikke kolonnen - og setningen ville gitt
+        // 42703, altsaa en generatorfeil forkledd som et funn.
+        if (!r.fast_rad
+            && (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station')) {
           linjer.push(`select pg_temp.${avvist}(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad -> kjede ${annenKjede}`)}, ${
             sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where ${pred}`)}${maalrad});`)
         }

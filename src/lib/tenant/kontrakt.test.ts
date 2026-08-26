@@ -19,7 +19,7 @@ import { rekkevidde, valider } from './kontrakt'
 import {
   genererDekning, genererMatrise, genererMatriseDeler, IDENTITETER, maal, tillatt,
 } from './generer'
-import { forretningsnokler } from './skjema'
+import { forretningsnokler, fratattAuthenticated } from './skjema'
 
 const ROT = new URL('../../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
 const KONTRAKT_STI = `${ROT}supabase/tenant-kontrakt.json`
@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 21
+  const UKLASSIFISERT_NA = 13
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -133,6 +133,47 @@ describe('forretningsnokler mot skjemaet', () => {
         if (mangler.length > 0) {
           feil.push(`${r.tabell}: ${n.navn ?? 'unique'} (${n.kolonner.join(', ')}) `
             + `- mangler i business_unik: ${mangler.join(', ')}`)
+        }
+      }
+    }
+    expect(feil, feil.join('\n')).toEqual([])
+  })
+})
+
+describe('rettigheter mot skjemaet', () => {
+  const fratatt = fratattAuthenticated(`${ROT}supabase/migrations`)
+
+  it('finner de tabellene rettigheten faktisk er tatt fra', () => {
+    // KANARIFUGL. Ser leseren ingen `revoke`, er regelen under stille —
+    // og en stille regel ser ut som en regel uten funn.
+    expect(fratatt.profiler, '0078 tok skriveretten på profiler').toBeTruthy()
+    expect([...(fratatt.profiler ?? [])].sort()).toEqual(['delete', 'insert', 'update'])
+
+    // OG EN KOMMENTAR ER IKKE EN SETNING. `0138` siterer `0112` sin
+    // `revoke update on public.ansatte` i en forklarende kommentar. Uten
+    // kommentarfjerning konkluderte leseren med at retten fortsatt var
+    // borte — lenge etter at `0112` ga den tilbake kolonne for kolonne.
+    expect(fratatt.ansatte, 'sitatet i 0138 er ikke en revoke').toBeUndefined()
+  })
+
+  it('ingen rolle når en operasjon rettigheten er tatt fra', () => {
+    // EN POLICY UTEN GRANT ER VIRKNINGSLØS, og kontrakten beskrev
+    // policyen. `profiler_admin_alt` står fortsatt i basen og ser ut som
+    // om eieren kan skrive; `0078` stengte privilegie-eskaleringen med
+    // `revoke insert, update, delete ... from authenticated` i stedet.
+    //
+    // Klassifiserte som skrivende ga matrisen 42501 fra grantet der den
+    // ventet et tillatt skriv — og etterpå kolliderte gjeninnsettingen
+    // med raden som aldri ble slettet. Fire minutter i CI. Her: ett ms.
+    const feil: string[] = []
+    for (const r of kontrakt.ressurser) {
+      for (const op of [...(fratatt[r.tabell] ?? [])]) {
+        if (!r.operasjoner.includes(op)) continue
+        for (const rolle of ['tablet', 'manager', 'owner'] as const) {
+          if (rekkevidde(r[rolle], op, r.operasjoner) !== 'none') {
+            feil.push(`${r.tabell}: ${rolle} når «${op}», men authenticated `
+              + 'har ikke den rettigheten — policyen er virkningsløs')
+          }
         }
       }
     }
@@ -363,6 +404,77 @@ describe('genererte filer', () => {
     expect(valider(brutt).join(' ')).toContain('«metrikk»')
   })
 
+  it('{{unik_nr}} er fire siffer, og aldri to like i samme kjede', () => {
+    // `stasjoner.butikknummer` har `check (butikknummer ~ '^[0-9]{4}$')`
+    // OG `unique (retailer_id, butikknummer) where slettet_tid is null`.
+    // En fixture som bommer på det ene gir 23514, på det andre 23505 —
+    // og begge ser ut som en avvisning uten å være det.
+    const sql = genererMatrise(kontrakt)
+    const linjer = [...sql.matchAll(
+      /insert into public\.stasjoner \(([^)]*)\) values \(([^;]*)\);/g)]
+    // KANARIFUGL: uten stasjonsrader måler resten av testen ingenting.
+    expect(linjer.length, 'ingen stasjoner-innsettinger i matrisen').toBeGreaterThan(5)
+
+    const perKjede: Record<string, string[]> = {}
+    for (const m of linjer) {
+      const kol = m[1].split(',').map((k) => k.trim())
+      // Verdiene står både bart og inne i en SQL-streng (der hver
+      // apostrof er doblet), så begge former må skrelles.
+      const verdi = m[2].split(',').map((v) => v.trim().replace(/^'+|'+$/g, ''))
+      const nr = verdi[kol.indexOf('butikknummer')]
+      const kjede = verdi[kol.indexOf('retailer_id')]
+      if (nr === undefined || nr.includes('lpad')) continue // kjøretidsverdi, sjekkes av basen
+      expect(nr, `butikknummer «${nr}» bryter ^[0-9]{4}$`).toMatch(/^[0-9]{4}$/)
+      ;(perKjede[kjede] ??= []).push(nr)
+    }
+    for (const [kjede, nr] of Object.entries(perKjede)) {
+      expect(new Set(nr).size, `to like butikknummer i ${kjede}`).toBe(nr.length)
+    }
+  })
+
+  it('en fast_rad seedes ikke, flyttes ikke, og kan ikke slettes', () => {
+    // `retailers` er sin egen tenantnøkkel: `id = gjeldende_retailer_id()`.
+    // En fersk proberad ville tilhørt ingen, så matrisen må måle
+    // kjederaden fasitverdenen alt har skrevet.
+    const medFast = kontrakt.ressurser.filter((r) => r.fast_rad)
+    // KANARIFUGL: uten en eneste fast_rad måler resten av testen ingenting.
+    expect(medFast.length, 'ingen ressurs bruker fast_rad — måler testen noe?')
+      .toBeGreaterThan(0)
+
+    const sql = genererMatrise(kontrakt)
+    for (const r of medFast) {
+      // Ressursens EGEN seksjon. Fasitverdenen skriver `retailers` med
+      // `(id, navn)` — det er nettopp raden vi vil måle, ikke en
+      // seeding generatoren har funnet på.
+      const merke = `-- --- ${r.tabell}: forutsetninger og proberader ---`
+      const start = sql.indexOf(merke)
+      expect(start, `fant ingen seksjon for ${r.tabell}`).toBeGreaterThan(0)
+      const rest = sql.slice(start + merke.length)
+      const slutt = rest.indexOf('\n-- --- ')
+      const seksjon = slutt < 0 ? rest : rest.slice(0, slutt)
+
+      expect(seksjon, `${r.tabell} seedes, men raden finnes fra før`)
+        .not.toContain(`insert into public.${r.tabell} (`)
+      expect(sql, `nyrad_${r.tabell} ville laget en tenant nummer tre`)
+        .not.toContain(`nyrad_${r.tabell}`)
+      // Flyttetesten setter `retailer_id`, og den kolonnen finnes ikke
+      // på en tabell som ER tenanten. Setningen ville gitt 42703 — en
+      // generatorfeil forkledd som et funn.
+      expect(sql, `${r.tabell} har ingen retailer_id å flytte`)
+        .not.toContain(`${r.tabell} owner_A FLYTTER`)
+    }
+
+    // EN SLIK RAD MÅ VÆRE UDØDELIG. Blir delete tillatt for noen rolle,
+    // river matrisen sin egen fasitverden midt i kjøringen — og alt
+    // etterpå leser «ser ikke» uten at noen policy er rørt.
+    const base = medFast[0]
+    const doedelig = {
+      ...kontrakt,
+      ressurser: [{ ...base, owner: { select: 'retailer', delete: 'retailer' } }],
+    } as typeof kontrakt
+    expect(valider(doedelig).join(' ')).toContain('verken slettes')
+  })
+
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
     // Kanarifugl på generatoren selv: emitterer den bare negative
     // påstander, er den ødelagt på en måte som ser trygg ut.
@@ -406,10 +518,36 @@ describe('genererte filer', () => {
     // Id-antakelsen satt på FIRE steder, og jeg fant tre av dem én om
     // gangen gjennom CI. Denne finner den fjerde på millisekunder.
     const sql = genererMatrise(kontrakt)
+
+    // BARE RESSURSENS EGEN SEKSJON. To andre steder i fila setter `id`
+    // med full rett, og begge kjenner verdien:
+    //
+    //   fasitverdenen  skriver de sju identitetene inn i `profiler` med
+    //                  id-er den selv har bestemt.
+    //   seed_ekstra    skriver forutsetningsrader der `{{seed:…}}` ER
+    //                  id-en generatoren nettopp delte ut.
+    //
+    // Antakelsen vakten finnes for, er en annen: at GENERATOREN ikke
+    // finner på en id-kolonne den ikke kan kjenne verdien av, i den
+    // proberaden den bygger selv.
+    const seksjon = (tabell: string) => {
+      const merke = `-- --- ${tabell}: forutsetninger og proberader ---`
+      const start = sql.indexOf(merke)
+      if (start < 0) return ''
+      const rest = sql.slice(start + merke.length)
+      const slutt = rest.indexOf('\n-- --- ')
+      return slutt < 0 ? rest : rest.slice(0, slutt)
+    }
+
     const utenId = kontrakt.ressurser
       .filter((r) => (r.id_kolonne ?? 'id') !== 'id' || r.id_kolonner)
     for (const r of utenId) {
-      const feil = sql.split('\n')
+      // KANARIFUGL på avgrensningen: finner den ingen seksjon, leter
+      // resten av testen i tom tekst og består uansett hva generatoren
+      // skriver.
+      expect(seksjon(r.tabell).length, `fant ingen seksjon for ${r.tabell}`)
+        .toBeGreaterThan(100)
+      const feil = seksjon(r.tabell).split('\n')
         .filter((l) => l.includes(`into public.${r.tabell} (id,`))
       expect(feil, `${r.tabell} har ingen id-kolonne, men matrisen setter en`).toEqual([])
     }
