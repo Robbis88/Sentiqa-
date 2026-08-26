@@ -50,7 +50,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 62
+  const UKLASSIFISERT_NA = 56
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -75,6 +75,21 @@ describe('forretningsnokler mot skjemaet', () => {
     // KANARIFUGL. Parser den ingenting, blir hele sjekken under stille.
     expect(Object.keys(noekler).length).toBeGreaterThan(20)
     expect(noekler.ansatte?.length, 'ansatte har to unike indekser').toBeGreaterThanOrEqual(2)
+  })
+
+  it('en droppet kolonne tar med seg noekkelen sin', () => {
+    // `puls_svar_ansatt_dag (ansatt_id, dato)` ble laget i 0026 og
+    // forsvant i 0044, da kolonnen `dato` ble droppet — uten et
+    // `drop index` noe sted. Postgres gjør det selv.
+    //
+    // Uten denne regelen krevde sjekken under at kontrakten oppga en
+    // forretningsnøkkel over `dato`, og eneste vei til grønt ville vært
+    // å skrive en kolonne som ikke finnes inn i kontrakten.
+    const kolonner = new Set((noekler.puls_svar ?? []).flatMap((n) => n.kolonner))
+    expect(kolonner.has('dato'), 'dato ble droppet i 0044').toBe(false)
+    // KANARIFUGL. Uten denne ville «ingen nøkkel med dato» også vært
+    // sant om parseren sluttet å se puls_svar i det hele tatt.
+    expect(kolonner.has('runde_id'), 'puls_svar_runde_ansatt lever').toBe(true)
   })
 
   it('hver klassifisert ressurs kjenner alle sine forretningsnokler', () => {

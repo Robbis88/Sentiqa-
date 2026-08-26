@@ -37,12 +37,15 @@
       "REKKEFOELGE: detektorens kandidater staar foerst.",
       "supabase/tests/kandidater_with_check.sql fant 2026-08-26 to",
       "uklassifiserte tabeller med 0135-formen - opplaering_periode og",
-      "tilbakemelding. De klassifiseres foerst, saa atferdsmatrisen kan",
-      "bekrefte eller avkrefte foer noen policy roeres."
+      "tilbakemelding. Begge er klassifisert i pulje 5, og detektoren har",
+      "ingen uklassifiserte kandidater igjen.",
+      "",
+      "NESTE: de varme foer de kalde. En kald tabell faar ingen rader i",
+      "atferdsmatrisen - den genereres bare for varme - saa en kald",
+      "klassifisering flytter en tabell fra usett til sett, ikke til",
+      "bevist. De varme som staar igjen er der bevisene mangler."
     ],
     "tabeller": [
-      "opplaering_periode",
-      "tilbakemelding",
       "ai_tool_log",
       "ansatt_avtale",
       "ansatt_kontrakt",
@@ -73,7 +76,6 @@
       "malekort_scope",
       "merker",
       "opplaering_oppgave",
-      "opplaering_skift",
       "pengepremie",
       "persondata_logg",
       "personlig_kryss",
@@ -83,9 +85,6 @@
       "profiler",
       "prognose_kalibrering",
       "prognose_treff",
-      "puls_runde",
-      "puls_sporsmal",
-      "puls_svar",
       "push_abonnementer",
       "raa_filer",
       "regnskap_usynlig_svinn",
@@ -106,6 +105,167 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "opplaering_periode",
+      "$hvorfor": "Perioden en ansatt gaar opplaering i - roten i opplaeringstreet, og tenantnokkelen bade opplaering_skift og opplaering_utfort henger etter. Lesing er aapen for alle med stasjonstilgang (nettbrettet trenger den), skriving er lederens. DETEKTORENS FOERSTE KANDIDAT: retailer_and_station, men with check i opp2_periode_upd ser bare stasjon_id - noeyaktig formen 0135, 0138 og 0139 rettet paa seks andre tabeller. Ingen kolonnerett stopper flyttingen her slik den gjor paa ansatte. Klassifisert som dagens sannhet; matrisen faar si om den biter.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "ansatt_navn": "'Sonde Sondesen {{unik}}'",
+        "start_dato": "date '2026-08-01'"
+      },
+      "oppdaterbart": "notater = 'endret av sonden'"
+    },
+    {
+      "tabell": "tilbakemelding",
+      "$hvorfor": "Melding fra nettbrettet til butikksjefen - uhell, nestenuhell, krenkelse. DETEKTORENS ANDRE KANDIDAT, samme form som opplaering_periode. INGEN DELETE-POLICY finnes: grantet fra 0040 gir authenticated delete, men uten policy nektes den. En melding om et uhell er ikke noe mottakeren skal kunne fjerne, og fravaeret av policy er derfor riktig - men det er RLS som holder, ikke grantet.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tekst": "'Sondemelding {{unik}}'"
+      },
+      "$oppdaterbart_hvorfor": "lest_tid er det update-en faktisk brukes til - aa markere en melding lest.",
+      "oppdaterbart": "lest_tid = now()"
+    },
+    {
+      "tabell": "opplaering_skift",
+      "$hvorfor": "Skiftkalenderen i en opplaeringsperiode. Samme indirekte tenantnokkel som opplaering_utfort - periode_id peker paa perioden som peker paa stasjonen - og derfor ingen egen retailer_id. 0078 splittet den gamle for all-policyen i ins/upd/del, saa formen er allerede i orden. Nettbrettet leser skiftet (0133 la til klokkeslettene), men planlegger det ikke: aa sette opp et skift er lederens.",
+      "tenant_scope": "station",
+      "tenant_kolonne": "periode_id",
+      "tenant_join": "periode_id in (select p.id from public.opplaering_periode p where p.stasjon_id = {{stasjon_uttrykk}})",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('{{seed:periode}}', '{{retailer}}', '{{stasjon}}', 'Sonde Sondesen', date '2026-08-01')"
+      ],
+      "business_unik": [
+        "periode_id",
+        "dato"
+      ],
+      "proberad": {
+        "periode_id": "'{{seed:periode}}'",
+        "dato": "{{unik_dato}}"
+      },
+      "$oppdaterbart_hvorfor": "dato inngaar i business_unik, og periode_id er en fremmednokkel.",
+      "oppdaterbart": "notater = 'endret av sonden'"
+    },
+    {
+      "tabell": "puls_sporsmal",
+      "$hvorfor": "Sporsmaalsbiblioteket for pulsmaalingen. Rent kjedescope - ingen stasjon_id finnes. Lesing er aapen for hele kjeden fordi nettbrettet trenger sporsmaalet; skriving er lederens. Kald: et oppsett som endres naar noe settes opp, ikke i drift, og den staar allerede i kalde i rls_vakthund.sql.",
+      "tenant_scope": "retailer",
+      "data_class": "cold",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "En butikksjef med EN tildelt stasjon kan skrive og slette sporsmaal for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning her - policyen kan bare skille paa rolle og kjede. Produktbeslutningen mangler: skal biblioteket vaere eierens alene, maa rollelista i puls_sporsmal_skriv snevres til retailer_admin. I tillegg er policyen en for all-policy fra 0038 med upakkede funksjonskall; 0078 lot den staa med vilje fordi tabellen er kald.",
+      "proberad": {
+        "tekst": "'Sondesporsmaal {{unik}}'"
+      },
+      "oppdaterbart": "kategori = 'Endret av sonden'"
+    },
+    {
+      "tabell": "puls_runde",
+      "$hvorfor": "En pulsrunde: ett sporsmaal i en periode. Kjedescope som sporsmaalet, og samme rollebilde. Kald av samme grunn - en rad per runde, ikke per hendelse.",
+      "tenant_scope": "retailer",
+      "data_class": "cold",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Samme som puls_sporsmal: butikksjefen naar hele kjedens runder, fordi tabellen ikke har noe stasjonsbegrep aa snevre paa. Ogsaa denne har en for all-policy fra 0038.",
+      "seed_ekstra": [
+        "insert into public.puls_sporsmal (id, retailer_id, tekst) values ('{{seed:sporsmal}}', '{{retailer}}', 'Sondesporsmaal')"
+      ],
+      "proberad": {
+        "sporsmal_id": "'{{seed:sporsmal}}'",
+        "start_dato": "date '2026-08-01'",
+        "slutt_dato": "date '2026-08-31'"
+      },
+      "oppdaterbart": "notat = 'endret av sonden'"
+    },
+    {
+      "tabell": "puls_svar",
+      "$hvorfor": "Svarene. Leses BARE av leder - nettbrettet kan ikke se andres svar, og det er hele poenget med maalingen. Skriving skjer ikke paa tabellen i det hele tatt: 0104 tok insert- og update-grantet fra authenticated og la veien inn i lagre_puls_svar() (security definer), fordi ansatt_id ikke er lesbar og en upsert fra appen da ikke kan avduplisere selv. Kolonnen ansatt_id er ogsaa borte fra select-grantet - koblingen finnes, men ingen kan lese den.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": {
+        "select": "retailer"
+      },
+      "avvik_fra_intensjon": "0104 droppet puls_insert og puls_update med vilje. 0107 - en ren ytelsesmigrasjon - gjenopprettet begge fra 0026 uten aa vite det, saa policyene staar i katalogen igjen i dag. INSERT og UPDATE staar derfor i operasjoner med INGEN rolle: det som faktisk stenger dem er at grantet aldri kom tilbake. Grantet er eneste lag, akkurat som paa ansatte for pin_hash. En senere migrasjon som gir authenticated insert eller update her ville aapnet skriveveien i stillhet, uten at noen policy ble roert.",
+      "seed_ekstra": [
+        "insert into public.puls_sporsmal (id, retailer_id, tekst) values ('{{seed:sporsmal}}', '{{retailer}}', 'Sondesporsmaal')",
+        "insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('{{seed:runde}}', '{{retailer}}', '{{seed:sporsmal}}', date '2026-08-01', date '2026-08-31')"
+      ],
+      "business_unik": [
+        "runde_id",
+        "ansatt_id"
+      ],
+      "business_unik_unntak": {
+        "ansatt_id": "Settes ikke av fixturen. Indeksen puls_svar_runde_ansatt er full og ikke partiell, og null regnes som distinkt - flere anonyme svar i samme runde kolliderer derfor ikke. Kolonnen er dessuten ikke lesbar for authenticated (0104), saa en fixture som satte den ville testet noe ingen rolle kan se."
+      },
+      "proberad": {
+        "runde_id": "'{{seed:runde}}'",
+        "skala": "3",
+        "kommentar": "'Sondesvar {{unik}}'"
+      },
+      "oppdaterbart": "kommentar = 'endret av sonden'"
+    },
     {
       "tabell": "rutiner",
       "$hvorfor": "Rutinene nettbrettet haker av paa vakt. Lesing er aapen (ingen rollepredikat), skriving er lederens. RETAILER_AND_STATION uten retailer_id i with check - samme form som de fire lekkasjene 0135 og 0138 rettet. Klassifisert som dagens sannhet; matrisen faar si om formen biter her ogsaa.",
