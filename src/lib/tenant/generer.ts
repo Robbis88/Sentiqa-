@@ -229,7 +229,11 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
     bruker: uid ?? kjedensEier(kjede),
   }
   for (const linje of r.seed_ekstra ?? []) {
-    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n), unik_nr: unikNr(n) }
+    // `{{bruker}}` OGSAA I SEEDEN. `personlig_kryss` seeder sitt eget
+    // punkt, og punktet maa tilhoere SAMME bruker som krysset - ellers
+    // ville forutsetningen selv vaert et brudd paa brukergrensen.
+    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik,
+      n: String(n), unik_nr: unikNr(n), bruker: uid ?? kjedensEier(kjede) }
     for (const m of linje.matchAll(/\{\{seed:([a-z_]+)\}\}/g)) {
       const id = seedId(`${r.tabell}:${m[1]}:${s}:${n}`)
       ctx[`seed:${m[1]}`] = id
@@ -568,8 +572,39 @@ ${tildelinger};
 `
 }
 
+/**
+ * Den andre identiteten — den som gjor beviset skarpt.
+ *
+ * Helst noen i SAMME kjede, og helst paa samme stasjon: `manager_A1` og
+ * `manager_A12` deler stasjon A1. Ser den ene den andres private rad, er
+ * det ikke tenantgrensen som svikter - den holder - det er at tabellen
+ * ikke har noen brukergrense i det hele tatt. En negativ mot den andre
+ * kjeden ville bestaatt paa tenantgrensen alene og bevist ingenting.
+ */
+function denAndre(i: Identitet): Identitet {
+  return IDENTITETER.find((x) => x.navn !== i.navn && x.kjede === i.kjede)
+    ?? IDENTITETER.find((x) => x.navn !== i.navn)!
+}
+
 function genererRessursSeed(r: Ressurs): string {
   const linjer: string[] = [`-- --- ${r.tabell}: forutsetninger og proberader ---`]
+
+  // BRUKERSCOPE: en rad per IDENTITET, ikke per stasjon.
+  //
+  // `personlig_punkt` er `user_id = (select auth.uid())`. Da er stasjonen
+  // uten betydning, og en fast rad per stasjon ville maalt feil ting:
+  // spoersmaalet er om Ada ser Bos private liste.
+  if (r.bruker_kolonne) {
+    for (const i of IDENTITETER) {
+      const { kolonner, verdier } = proberadSql(
+        r, i.kjede, i.stasjoner[0], `bruker${i.navn}`, i.uid)
+      const kol = [r.bruker_kolonne, ...kolonner]
+      const ver = [sitat(i.uid), ...verdier]
+      linjer.push(`insert into public.${r.tabell} (id, ${kol.join(', ')}) `
+        + `values (${sitat(seedId(`${r.tabell}:bruker:${i.navn}`))}, ${ver.join(', ')});`)
+    }
+    return linjer.join('\n')
+  }
   const alle: Array<[Kjede, Stasjon]> = [
     ['A', 'A1'], ['A', 'A2'], ['A', 'A3'], ['B', 'B1'], ['B', 'B2'],
   ]
@@ -896,7 +931,82 @@ function frigjorPlassen(r: Ressurs, s: Stasjon): string {
   return `delete from public.${r.tabell} where stasjon_id = ${sitat(S[s])};`
 }
 
+/**
+ * Matrisen for en brukerscopet ressurs.
+ *
+ * En helt annen form enn resten: identiteten er maalet, ikke stasjonen.
+ * Hver identitet proeves mot SIN EGEN rad (positiv) og mot hver av de
+ * seks andres (negativ) - inkludert den som deler stasjon med den.
+ */
+function genererBrukerRessurs(r: Ressurs): string {
+  const linjer: string[] = ['', '-- =====================================================================',
+    `-- ${r.tabell}  (brukerscope paa ${r.bruker_kolonne}, ${r.data_class})`,
+    '-- =====================================================================',
+    `select pg_temp.sett_gruppe(${sitat(r.tabell)});`]
+
+  const radFor = (i: Identitet) => seedId(`${r.tabell}:bruker:${i.navn}`)
+  const pred = (i: Identitet) => `id = ${sitat(radFor(i))}`
+
+  for (const i of IDENTITETER) {
+    linjer.push(`
+select pg_temp.logg_inn_som(${sitat(i.uid)});   -- ${i.navn}`)
+    const annen = denAndre(i)
+
+    if (r.operasjoner.includes('select')) {
+      linjer.push(`select pg_temp.paastand(${sitat(`${r.tabell} ${i.navn} SELECT egen rad -> ser`)}, `
+        + `exists (select 1 from public.${r.tabell} where ${pred(i)}), 'positiv');`)
+      for (const j of IDENTITETER.filter((x) => x.navn !== i.navn)) {
+        linjer.push(`select pg_temp.paastand(${sitat(
+          `${r.tabell} ${i.navn} SELECT ${j.navn} sin rad -> ser ikke`)}, `
+          + `not exists (select 1 from public.${r.tabell} where ${pred(j)}), 'negativ');`)
+      }
+    }
+
+    if (r.operasjoner.includes('insert')) {
+      const egen = proberadSql(r, i.kjede, i.stasjoner[0], `ins${i.navn}`, i.uid)
+      linjer.push(`select pg_temp.skriv_tillatt(${sitat(`${r.tabell} ${i.navn} INSERT paa seg selv`)}, ${
+        sitat(`insert into public.${r.tabell} (${r.bruker_kolonne}, ${egen.kolonner.join(', ')}) `
+          + `values (${sitat(i.uid)}, ${egen.verdier.join(', ')})`)});`)
+
+      // KAN JEG LEGGE NOE PAA EN ANNENS LISTE? Den viktigste negativen:
+      // `with check` er det eneste som stopper den.
+      const fremmed = proberadSql(r, annen.kjede, annen.stasjoner[0], `insf${i.navn}`, annen.uid)
+      linjer.push(`select pg_temp.skriv_avvist(${sitat(
+        `${r.tabell} ${i.navn} INSERT paa ${annen.navn} sin liste`)}, ${
+        sitat(`insert into public.${r.tabell} (${r.bruker_kolonne}, ${fremmed.kolonner.join(', ')}) `
+          + `values (${sitat(annen.uid)}, ${fremmed.verdier.join(', ')})`)});`)
+    }
+
+    if (r.operasjoner.includes('update')) {
+      linjer.push(`select pg_temp.skriv_tillatt(${sitat(`${r.tabell} ${i.navn} UPDATE egen rad`)}, ${
+        sitat(`update public.${r.tabell} set ${settbartFelt(r)} where ${pred(i)}`)});`)
+      linjer.push(`select pg_temp.skriv_avvist(${sitat(
+        `${r.tabell} ${i.navn} UPDATE ${annen.navn} sin rad`)}, ${
+        sitat(`update public.${r.tabell} set ${settbartFelt(r)} where ${pred(annen)}`)}, ${
+        sitat(r.tabell)}, ${sitat(radFor(annen))}, 'id');`)
+    }
+
+    if (r.operasjoner.includes('delete')) {
+      linjer.push(`select pg_temp.skriv_avvist(${sitat(
+        `${r.tabell} ${i.navn} DELETE ${annen.navn} sin rad`)}, ${
+        sitat(`delete from public.${r.tabell} where ${pred(annen)}`)}, ${
+        sitat(r.tabell)}, ${sitat(radFor(annen))}, 'id');`)
+      linjer.push(`select pg_temp.skriv_tillatt(${sitat(`${r.tabell} ${i.navn} DELETE egen rad`)}, ${
+        sitat(`delete from public.${r.tabell} where ${pred(i)}`)});`)
+      // Raden tilbake MED SIN EGEN ID: de andre identitetene peker paa
+      // den etterpaa, og en ny uuid ville gjort resten til "ser ikke".
+      const gjen = proberadSql(r, i.kjede, i.stasjoner[0], `gjen${i.navn}`, i.uid)
+      linjer.push('select pg_temp.som_eier();')
+      linjer.push(`insert into public.${r.tabell} (id, ${r.bruker_kolonne}, ${gjen.kolonner.join(', ')}) `
+        + `values (${sitat(radFor(i))}, ${sitat(i.uid)}, ${gjen.verdier.join(', ')});`)
+      linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
+    }
+  }
+  return linjer.join('\n')
+}
+
 function genererRessurs(r: Ressurs): string {
+  if (r.bruker_kolonne) return genererBrukerRessurs(r)
   const linjer: string[] = ['', `-- =====================================================================`,
     `-- ${r.tabell}  (${r.tenant_scope}, ${r.data_class})`,
     `-- =====================================================================`,

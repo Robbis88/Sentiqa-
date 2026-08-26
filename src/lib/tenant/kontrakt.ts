@@ -83,6 +83,24 @@ export type Ressurs = {
    * etterpå leser «ser ikke» uten at noen policy er rørt. `valider()`
    * krever derfor at ingen rolle når `insert` eller `delete`.
    */
+  /**
+   * Kolonnen som holder eierens uid. Grensen er BRUKEREN, ikke kjeden.
+   *
+   * `personlig_punkt` er `user_id = (select auth.uid())` på alle fire
+   * operasjonene. Da måler den vanlige formen feil ting: den seeder en
+   * rad per stasjon og spør om kjede B ser kjede A. Spørsmålet her er om
+   * Ada ser Bos private liste — og det skarpeste beviset er to brukere
+   * på SAMME stasjon, `manager_A1` og `manager_A12`. En negativ mot den
+   * andre kjeden ville bestått på tenantgrensen alene.
+   *
+   * Matrisen seeder da én rad per identitet og prøver hver identitet mot
+   * sin egen rad og mot hver av de seks andres.
+   *
+   * ROLLEFELTENE ER `none` PÅ EN SLIK RESSURS. De beskriver hvor langt
+   * en ROLLE rekker inn i andres rader, og svaret er: ingensteds. At
+   * hver bruker når sin egen rad, er ikke en rolleegenskap.
+   */
+  bruker_kolonne?: string
   fast_rad?: string
   tenant_kolonne?: string
   tenant_join?: string
@@ -298,6 +316,25 @@ export function valider(k: Kontrakt): string[] {
           + 'bruk {{unik}}, {{unik_dato}} eller en konstant.')
       }
     }
+    // BRUKERSCOPE ER IKKE ROLLESCOPE. Rollefeltene beskriver hvor langt
+    // en rolle rekker inn i ANDRES rader; på en brukerscopet ressurs er
+    // svaret ingensteds. Sto det noe annet der, ville matrisen påstått
+    // at en butikksjef ser sine ansattes private lister.
+    if (r.bruker_kolonne) {
+      for (const rolle of ['tablet', 'manager', 'owner'] as const) {
+        for (const op of r.operasjoner) {
+          if (rekkevidde(r[rolle], op, r.operasjoner) !== 'none') {
+            feil.push(`${r.tabell}: bruker_kolonne, men ${rolle} når «${op}» — `
+              + 'rollefeltene gjelder andres rader, og der rekker ingen rolle')
+          }
+        }
+      }
+      if (r.proberad[r.bruker_kolonne] !== undefined) {
+        feil.push(`${r.tabell}: proberaden setter «${r.bruker_kolonne}» selv — `
+          + 'generatoren eier den kolonnen, én verdi per identitet')
+      }
+    }
+
     // EN FASITVERDEN-RAD MÅ IKKE KUNNE SLETTES ELLER DUPLISERES.
     // Se `fast_rad`: en tillatt delete ville revet grunnlaget for hver
     // senere påstand i kjøringen, og en tillatt insert ville kollidert
