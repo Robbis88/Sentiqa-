@@ -39,11 +39,13 @@
       "klassifisering flytter en tabell fra usett til sett, ikke til",
       "bevist.",
       "",
-      "INGEN TABELL ER LENGER SPERRET AV GENERATOREN. De fem fra pulje 6",
-      "er klassifisert i pulje 7: `id_kolonner` gir sammensatt radidentitet,",
-      "`null_stasjon` skiller \"null = kjeden\" fra \"null = kun eieren\".",
-      "Det som staar igjen, staar igjen fordi ingen har tatt stilling -",
-      "ikke fordi verktoeyet mangler."
+      "TO TABELLER TRENGER EN NY MATRISEFORM: personlig_punkt og",
+      "personlig_kryss er BRUKERSCOPET - `user_id = (select auth.uid())`,",
+      "ingen stasjon, ingen kjede. Matrisen seeder en fast rad per STASJON",
+      "og maaler rolle mot stasjon; her er spoersmaalet i stedet om Ada ser",
+      "Bos private liste. Det krever en fixture per identitet og en negativ",
+      "paastand mot en annen brukers rad - ikke en ny kolonne, men en ny",
+      "form. Klassifiseres naar formen finnes, ikke foer."
     ],
     "tabeller": [
       "ai_tool_log",
@@ -61,7 +63,6 @@
       "kunnskap",
       "lederstotte_rapporter",
       "lenker",
-      "malekort_scope",
       "merker",
       "opplaering_oppgave",
       "pengepremie",
@@ -70,21 +71,160 @@
       "pin_forsok",
       "plattform_innlegg",
       "profiler",
-      "prognose_treff",
       "push_abonnementer",
       "raa_filer",
       "regnskapsanalyser",
       "retailers",
       "rutineskjemaer",
-      "signal_lukket",
       "sjekkpunkter",
       "stasjoner",
-      "uke_rapport",
-      "vaer",
-      "varsler"
+      "vaer"
     ]
   },
   "ressurser": [
+    {
+      "tabell": "varsler",
+      "$hvorfor": "Varsler i feeden. Lesingen har TRE grener: ditt eget varsel (mottaker_id = deg), stasjonens (mottaker null + stasjon), og kjedens (mottaker null + stasjon null, kun eier). Proberaden er stasjonens variant - den vanligste - saa matrisen maaler stasjonsgrensen. Ingen delete-policy finnes; et varsel skjules med slettet_tid, ikke ved aa forsvinne.",
+      "tenant_scope": "retailer_or_station",
+      "null_stasjon": "kun_eier",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "retailer",
+        "update": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "retailer",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan lage et varsel til en hvilken som helst stasjon, med hvilken som helst tekst og lenke. Samme form som kontrolltiltak_bekreftelse. For en feed som skal styre oppmerksomhet er det verdt en beslutning: et varsel ingen kan spore opphavet til, er lettere aa se bort fra.",
+      "proberad": {
+        "type": "'sonde'",
+        "tittel": "'Sondevarsel {{unik}}'",
+        "tekst": "'Sonde'"
+      },
+      "oppdaterbart": "lest = true"
+    },
+    {
+      "tabell": "signal_lukket",
+      "$hvorfor": "Midlertidig skjulte funn i oppmerksomhetsfeeden - et funn som kan skjules for alltid er et funn ingen fikser, derfor gjelder_til. Lesingen er aapen for hele stasjonen (nettbrettet skal ikke se et funn lederen har skjult), mens skjulingen selv er lederens. Kjede-brede funn (stasjon null) leses av alle i kjeden.",
+      "tenant_scope": "retailer_or_station",
+      "null_stasjon": "kjeden",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "signal_id": "'sonde-{{unik}}'",
+        "gjelder_til": "{{unik_dato}}",
+        "notat": "'Sonde'"
+      },
+      "oppdaterbart": "notat = 'endret av sonden'",
+      "business_unik": [
+        "retailer_id",
+        "signal_id"
+      ]
+    },
+    {
+      "tabell": "uke_rapport",
+      "$hvorfor": "Den ferdige ukerapporten per stasjon. Alle fire operasjonene har samme predikat: eieren paa hele kjeden, eller hvem som helst med stasjonstilgang. Ingen rollesjekk i stasjonsgrenen.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "read_write",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Nettbrettet kan SLETTE ukerapporten for sin egen stasjon. Stasjonsgrenen i uke_rapport_del har ingen rollesjekk, saa den delte kontoen i butikken har samme rett som butikksjefen. Rapporten kan riktignok genereres paa nytt, men den som ser at tallene er borte vet ikke det. Utvei: legg rollen til i ins/upd/del slik resten av tabellene gjor, og la lesingen staa som den er.",
+      "proberad": {
+        "uke_mandag": "{{unik_dato}}"
+      },
+      "$oppdaterbart_hvorfor": "proberaden er bare noekkelkolonner; avdelinger har en default.",
+      "oppdaterbart": "avdelinger = '[]'::jsonb",
+      "business_unik": [
+        "stasjon_id",
+        "uke_mandag"
+      ]
+    },
+    {
+      "tabell": "malekort_scope",
+      "$hvorfor": "Hvilke varegrupper et maalekort gjelder for - avdeling, vareomraade, varegruppe eller ean. Rent kjedescope, ingen stasjon. Lesing er aapen for hele kjeden uten rollesjekk (nettbrettet trenger scopet for aa vise kortet), skriving er eierens.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('{{seed:malekort}}', '{{retailer}}', 'Sondekort {{unik}}', 'omsetning', 'maaned', 'hoy', true, true)"
+      ],
+      "proberad": {
+        "malekort_id": "'{{seed:malekort}}'",
+        "nivaa": "'avdeling'",
+        "kode": "'{{unik}}'"
+      },
+      "oppdaterbart": "kode = 'endret'"
+    },
+    {
+      "tabell": "prognose_treff",
+      "$hvorfor": "Treffsikkerheten til prognosen: forventet mot faktisk, per stasjon og kategori. Bare SELECT finnes som policy - jobben skriver som service_role, og ingen menneskerolle skal kunne rette et treff i ettertid. Samme lesemoenster som prognose_kalibrering.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "type": "'produksjonsplan'",
+        "dato": "{{unik_dato}}",
+        "kategori": "'{{unik}}'",
+        "forventet": "100",
+        "faktisk": "95"
+      },
+      "business_unik": [
+        "stasjon_id",
+        "type",
+        "dato",
+        "kategori"
+      ],
+      "business_unik_unntak": {
+        "type": "En check-skranke tillater bare produksjonsplan og salgsprognose. Dato og kategori varierer per forsoek, saa den sammensatte noekkelen er unik uansett."
+      }
+    },
     {
       "tabell": "bemanning_vindu",
       "$hvorfor": "Naar det faktisk staar folk i butikken, per stasjon og ukedag - ikke aapningstiden. Gulvet legges over hele vinduet, saa et for bredt vindu spiser timer fra ettermiddagen der kundene er. 0082 la til gjelder_fra og utvidet noekkelen: et vindu som endres skal ikke skrive om hvordan det var i fjor. Lesing er aapen for stasjonen (nettbrettet ser sin egen plan), skriving er lederens.",
@@ -954,7 +1094,7 @@
       ],
       "seed_ekstra": [
         "insert into public.merker (id, retailer_id, navn) values ('{{seed:merke}}', '{{retailer}}', 'Sondemerke {{n}}')",
-        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'pin-merke-{{n}}')"
+        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'merke-{{n}}', 'pin-merke-{{n}}')"
       ],
       "proberad": {
         "merke_id": "'{{seed:merke}}'",

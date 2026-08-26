@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 36
+  const UKLASSIFISERT_NA = 31
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -77,6 +77,23 @@ describe('forretningsnokler mot skjemaet', () => {
     // KANARIFUGL. Parser den ingenting, blir hele sjekken under stille.
     expect(Object.keys(noekler).length).toBeGreaterThan(20)
     expect(noekler.ansatte?.length, 'ansatte har to unike indekser').toBeGreaterThanOrEqual(2)
+  })
+
+  it('et uttrykk i en indeks er ikke en kolonne — og skjuler ingen', () => {
+    // `signal_lukket_unik` er
+    //   (retailer_id, coalesce(stasjon_id, '000…'::uuid), signal_id)
+    // fordi null-stasjonen ellers gjør nøkkelen flertydig.
+    //
+    // TO FEIL PÅ RAD LÅ HER. Regexen stoppet ved den første `)` — altså
+    // midt inne i `coalesce(...)` — så `signal_id` forsvant i stillhet,
+    // og en nøkkelkolonne vakten ikke ser, er en kolonne kontrakten
+    // aldri blir bedt om å kjenne. Splittingen delte i tillegg midt i
+    // uttrykket og krevde «coalesce(stasjon_id» som forretningsnøkkel.
+    const kol = (noekler.signal_lukket ?? []).find((n) => n.navn === 'signal_lukket_unik')?.kolonner
+    expect(kol, 'signal_lukket_unik må være lest').toBeTruthy()
+    expect(kol, 'siste kolonne skal ikke falle ut av parentesen').toContain('signal_id')
+    expect(kol).toContain('retailer_id')
+    expect(kol!.some((k) => k.includes('(')), 'uttrykk skal ikke stå som kolonnenavn').toBe(false)
   })
 
   it('en droppet kolonne tar med seg noekkelen sin', () => {
@@ -311,6 +328,39 @@ describe('genererte filer', () => {
       ressurser: [{ ...base, id_kolonner: [...base.id_kolonner!, 'finnes_ikke'] }],
     }
     expect(valider(uskrevet).join(' ')).toContain('proberaden setter den ikke')
+  })
+
+  it('en seed_ekstra dekker proberaden til tabellen den seeder', () => {
+    // TO HÅNDHOLDTE BESKRIVELSER AV SAMME RAD, og bare én får korrektur.
+    //
+    // `malekort_scope` seedet sitt eget målekort med (id, retailer_id,
+    // navn). `metrikk` er not-null, så CI stoppet på 23502 etter to
+    // minutter — en feil som ikke sier noe om noen policy. Samme form,
+    // stillere: seeden for `tildelte_merker` lot `ansatte.ansatt_nr`
+    // stå null, altså en forretningsnøkkel, og var grønn bare fordi
+    // kolonnen tåler null i dag.
+    const seeder = kontrakt.ressurser.filter((r) =>
+      (r.seed_ekstra ?? []).some((l) => {
+        const m = /insert\s+into\s+public\.([a-z0-9_]+)/i.exec(l)
+        return m && kontrakt.ressurser.some((x) => x.tabell === m[1])
+      }))
+
+    // KANARIFUGL: uten en seed som peker på en klassifisert tabell
+    // måler regelen ingenting, og ser nøyaktig ut som en regel uten funn.
+    expect(seeder.length, 'ingen seed_ekstra peker på en klassifisert tabell — regelen er blind')
+      .toBeGreaterThan(0)
+
+    const mal = kontrakt.ressurser.find((r) => r.tabell === 'malekort')!
+    const scope = kontrakt.ressurser.find((r) => r.tabell === 'malekort_scope')!
+    expect(Object.keys(mal.proberad)).toContain('metrikk')
+    const brutt = {
+      ...kontrakt,
+      ressurser: [mal, {
+        ...scope,
+        seed_ekstra: scope.seed_ekstra!.map((l) => l.replace(', metrikk', '').replace(", 'omsetning'", '')),
+      }],
+    }
+    expect(valider(brutt).join(' ')).toContain('«metrikk»')
   })
 
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
