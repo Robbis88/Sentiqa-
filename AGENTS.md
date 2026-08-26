@@ -68,6 +68,17 @@ og alltid `with (security_invoker = true)` — uten den leser viewet som eieren,
 
 **Dekningsvakten skal starte fra alle faktiske databaseobjekter, ikke bare de som har policy.** Vakthundens punkt 4 leser `pg_policies` og ser derfor bare tabeller *med* policy — en tabell helt uten policy faller utenfor og ser ut som en tabell uten problemer. `oversettelse_cache` lå slik i to år: RLS på, ingen policy, låst med vilje siden `0037`, men usett av hver liste. `tenant_dekning.sql` starter fra `pg_class`, og **en tabell uten policy er et funn** til noen har kvittert for det med `ingen_policy` i `supabase/tenant-kontrakt.json`. Trygg og sett er to forskjellige ting.
 
+**Å nevne tenantkolonnen er ikke å binde den.** `with check` på
+`uke_rapport` inneholdt `retailer_id` — men bare i den ene armen av et
+`or`, ved siden av en fri `stasjon_id in (mine_stasjoner())`. Den armen
+alene godtar hvilken som helst kjede så lenge stasjonen er min, så raden
+kunne flyttes til en annen kjede med stasjonen i behold. Detektoren
+`kandidater_with_check.sql` så den aldri: den leter etter *fravær*.
+Rettet i `0141`; **punkt 11** i vakthunden krever nå at hver arm på
+øverste nivå nevner `retailer_id`. Kun i `with check` — i `using` er en
+fri stasjonsarm riktig, siden en rad hvis stasjon er min per definisjon
+er min kjedes når den ikke lenger kan flyttes.
+
 **Et flagg i en kolonne er ikke en grense før RLS leser det.** `malekort.vis_tablet` sto i basen fra `0073` og ble bare brukt som visningsvilkår i appen; nettbrettet kunne lese kortet direkte over PostgREST. Rettet i `0134`. Legger du til et slikt flagg, hører det hjemme i policyen — ikke bare i spørringen.
 
 # Tenant-kontrakten og fixture-kontrakten
