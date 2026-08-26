@@ -605,16 +605,20 @@ function genererRessursSeed(r: Ressurs): string {
   // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon.
   if (r.en_rad_per_stasjon) return linjer.join('\n')
 
+  // FEMTE STEDET ID-ANTAKELSEN SATT. `returning id into ny` feiler med
+  // 42703 paa en tabell uten id-kolonne - ikke ved generering, men naar
+  // funksjonen KALLES, midt i en ellers gyldig kjoering. Uten en
+  // id-kolonne er det heller ingenting fornuftig aa returnere: raden
+  // pekes paa med predikatet sitt.
+  const uidRad = !r.id_kolonner
   linjer.push(`
 create or replace function pg_temp.nyrad_${r.tabell}(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
-declare
-  ny uuid;${seedNavn.map((n) => `\n  v_${n} uuid := gen_random_uuid();`).join('')}
+returns ${uidRad ? 'uuid' : 'void'} language plpgsql security definer as $fn$
+declare${uidRad ? '\n  ny uuid;' : ''}${seedNavn.map((n) => `\n  v_${n} uuid := gen_random_uuid();`).join('')}
 begin${(r.seed_ekstra ?? []).map((l) => `\n  ${somVariabel(l)};`).join('')}
   insert into public.${r.tabell} (${[...tenantParam, ...proberadFelt.map(([k]) => k)].join(', ')})
-  values (${[...tenantVerdi, ...proberadFelt.map(([, v]) => somVariabel(v))].join(', ')})
-  returning id into ny;
-  return ny;
+  values (${[...tenantVerdi, ...proberadFelt.map(([, v]) => somVariabel(v))].join(', ')})${
+    uidRad ? '\n  returning id into ny;' : ';'}${uidRad ? '\n  return ny;' : ''}
 end $fn$;`)
 
   return linjer.join('\n')

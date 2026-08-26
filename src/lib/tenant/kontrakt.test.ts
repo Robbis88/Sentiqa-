@@ -356,13 +356,34 @@ describe('genererte filer', () => {
     // Id-antakelsen satt på FIRE steder, og jeg fant tre av dem én om
     // gangen gjennom CI. Denne finner den fjerde på millisekunder.
     const sql = genererMatrise(kontrakt)
-    const utenId = kontrakt.ressurser.filter((r) => (r.id_kolonne ?? 'id') !== 'id')
+    const utenId = kontrakt.ressurser
+      .filter((r) => (r.id_kolonne ?? 'id') !== 'id' || r.id_kolonner)
     for (const r of utenId) {
       const feil = sql.split('\n')
         .filter((l) => l.includes(`into public.${r.tabell} (id,`))
       expect(feil, `${r.tabell} har ingen id-kolonne, men matrisen setter en`).toEqual([])
     }
     expect(utenId.length, 'ingen ressurs uten surrogatnokkel - maaler testen noe?')
+      .toBeGreaterThan(0)
+  })
+
+  it('ingen nyrad_* returnerer en id som ikke finnes', () => {
+    // FEMTE STEDET, funnet i CI 2026-08-26 — ikke ved generering, men
+    // ved KALL: `returning id into ny` mot en tabell uten id-kolonne gir
+    // 42703 midt i en ellers gyldig kjøring.
+    //
+    // Den forrige testen ser bare på insert-linjer, og
+    // funksjonskroppens `returning` er ikke en av dem.
+    const sql = genererMatrise(kontrakt)
+    const sammensatt = kontrakt.ressurser.filter((r) => r.id_kolonner)
+    for (const r of sammensatt) {
+      const kropp = sql.split(`create or replace function pg_temp.nyrad_${r.tabell}(`)[1]
+      if (kropp === undefined) continue // en_rad_per_stasjon lager ingen
+      const tilSlutt = kropp.split('end $fn$;')[0]
+      expect(tilSlutt, `nyrad_${r.tabell} returnerer en id tabellen ikke har`)
+        .not.toContain('returning id')
+    }
+    expect(sammensatt.length, 'ingen sammensatt identitet - maaler testen noe?')
       .toBeGreaterThan(0)
   })
 

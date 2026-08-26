@@ -256,14 +256,11 @@ insert into public.timesalg (retailer_id, stasjon_id, dato, time, salg, antall_k
 insert into public.timesalg (retailer_id, stasjon_id, dato, time, salg, antall_kunder) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 4, '8-9', 1000, 10);
 
 create or replace function pg_temp.nyrad_timesalg(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
+returns void language plpgsql security definer as $fn$
 declare
-  ny uuid;
 begin
   insert into public.timesalg (retailer_id, stasjon_id, dato, time, salg, antall_kunder)
-  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, '8-9', 1000, 10)
-  returning id into ny;
-  return ny;
+  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, '8-9', 1000, 10);
 end $fn$;
 -- --- kassererstatistikk: forutsetninger og proberader ---
 insert into public.kassererstatistikk (retailer_id, stasjon_id, dato, kasserer_nr, kasserer_navn, omsetning_ink_mva, bonger) values ('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 5, 'fastA1', 'Sonde Sondesen', 1000, 10);
@@ -273,14 +270,11 @@ insert into public.kassererstatistikk (retailer_id, stasjon_id, dato, kasserer_n
 insert into public.kassererstatistikk (retailer_id, stasjon_id, dato, kasserer_nr, kasserer_navn, omsetning_ink_mva, bonger) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 9, 'fastB2', 'Sonde Sondesen', 1000, 10);
 
 create or replace function pg_temp.nyrad_kassererstatistikk(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
+returns void language plpgsql security definer as $fn$
 declare
-  ny uuid;
 begin
   insert into public.kassererstatistikk (retailer_id, stasjon_id, dato, kasserer_nr, kasserer_navn, omsetning_ink_mva, bonger)
-  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 'Sonde Sondesen', 1000, 10)
-  returning id into ny;
-  return ny;
+  values (p_retailer, p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 'Sonde Sondesen', 1000, 10);
 end $fn$;
 -- --- trafikk: forutsetninger og proberader ---
 insert into public.trafikk (stasjon_id, dato, antall_kjoretoy, dekning_pst) values ('a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 10, 1000, 80);
@@ -290,14 +284,11 @@ insert into public.trafikk (stasjon_id, dato, antall_kjoretoy, dekning_pst) valu
 insert into public.trafikk (stasjon_id, dato, antall_kjoretoy, dekning_pst) values ('b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 14, 1000, 80);
 
 create or replace function pg_temp.nyrad_trafikk(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
+returns void language plpgsql security definer as $fn$
 declare
-  ny uuid;
 begin
   insert into public.trafikk (stasjon_id, dato, antall_kjoretoy, dekning_pst)
-  values (p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, 1000, 80)
-  returning id into ny;
-  return ny;
+  values (p_stasjon, date '2030-01-01' + nextval('tenant_teller'::regclass)::int, 1000, 80);
 end $fn$;
 -- --- prognose_kalibrering: forutsetninger og proberader ---
 insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori, korreksjon, n) values ('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'produksjonsplan', 'fastA1', 1.05, 30);
@@ -307,14 +298,11 @@ insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori
 insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori, korreksjon, n) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'produksjonsplan', 'fastB2', 1.05, 30);
 
 create or replace function pg_temp.nyrad_prognose_kalibrering(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
+returns void language plpgsql security definer as $fn$
 declare
-  ny uuid;
 begin
   insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori, korreksjon, n)
-  values (p_retailer, p_stasjon, 'produksjonsplan', '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 1.05, 30)
-  returning id into ny;
-  return ny;
+  values (p_retailer, p_stasjon, 'produksjonsplan', '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 1.05, 30);
 end $fn$;
 -- --- regnskapslinjer: forutsetninger og proberader ---
 insert into public.regnskapslinjer (id, retailer_id, stasjon_id, periode, seksjon, post, regnskap) values ('576eb793-0000-4000-8000-0000576eb793', 'aaaa0000-0000-4000-8000-000000000000', null, date '2026-08-01', 'omsetning', 'Sondepost nullA', 1000);
