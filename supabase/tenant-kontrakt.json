@@ -34,16 +34,20 @@
       "hverken staar her eller i `ressurser` feller dekningssjekken -",
       "det er slik en NY tabell feiler lukket allerede i dag.",
       "",
-      "REKKEFOELGE: detektorens kandidater staar foerst.",
-      "supabase/tests/kandidater_with_check.sql fant 2026-08-26 to",
-      "uklassifiserte tabeller med 0135-formen - opplaering_periode og",
-      "tilbakemelding. Begge er klassifisert i pulje 5, og detektoren har",
-      "ingen uklassifiserte kandidater igjen.",
-      "",
-      "NESTE: de varme foer de kalde. En kald tabell faar ingen rader i",
+      "REKKEFOELGE: varme foer kalde. En kald tabell faar ingen rader i",
       "atferdsmatrisen - den genereres bare for varme - saa en kald",
       "klassifisering flytter en tabell fra usett til sett, ikke til",
-      "bevist. De varme som staar igjen er der bevisene mangler."
+      "bevist. Detektoren (kandidater_with_check.sql) har ingen",
+      "uklassifiserte kandidater igjen etter pulje 5.",
+      "",
+      "FEM VARME TABELLER ER SPERRET AV GENERATOREN, ikke av tvil om hvem",
+      "som skal naa dem: timesalg, kassererstatistikk, trafikk og",
+      "prognose_kalibrering har SAMMENSATT primaernokkel og ingen",
+      "id-kolonne, saa `where id = ...` peker ikke paa noen rad.",
+      "regnskapslinjer har stasjon_id null for klyngelinjer, som bare",
+      "eieren ser - det er ikke retailer_or_station, der null betyr hele",
+      "kjeden. Begge trenger et generatorbegrep foer de kan klassifiseres",
+      "aerlig; de skal ikke klassifiseres med en loegn om formen."
     ],
     "tabeller": [
       "ai_tool_log",
@@ -59,7 +63,6 @@
       "bemanning_maned",
       "bemanning_vindu",
       "butikksjef_stasjoner",
-      "daglig_salg",
       "fokuspunkter",
       "ik_kontrollpunkter",
       "import_jobber",
@@ -87,7 +90,6 @@
       "prognose_treff",
       "push_abonnementer",
       "raa_filer",
-      "regnskap_usynlig_svinn",
       "regnskapsanalyser",
       "regnskapslinjer",
       "retailers",
@@ -95,8 +97,6 @@
       "signal_lukket",
       "sjekkpunkter",
       "stasjoner",
-      "stempling",
-      "synlig_svinn",
       "timesalg",
       "trafikk",
       "uke_rapport",
@@ -105,6 +105,126 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "daglig_salg",
+      "$hvorfor": "Den store. ~400k rader, partisjonert paa dato i 49 maanedspartisjoner som IKKE arver forelderens RLS - det var lekkasjen 0105 lukket. Alt som viser kroner leser den (gjennom v_butikksalg, som filtrerer bort drivstoff). Lesing: eieren hele kjeden, butikksjef og nettbrett sine egne stasjoner. Skriving: KUN retailer_admin, og for hele kjeden - det er importen, ikke et menneske. with check navngir retailer_id (0077), saa formen fra 0135 finnes ikke her.",
+      "$les_uten_mine_stasjoner": "Lesepolicyen fra 0067 slaar opp butikksjef_stasjoner direkte i stedet for aa kalle mine_stasjoner(). Settet er det samme for butikksjef og nettbrett - mine_stasjoner() henter dem fra samme tabell - men rollesjekken mangler i den innebygde varianten. Matrisen maaler foelgene, ikke teksten.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "$business_unik_hvorfor": "Primaernokkelen er sammensatt og er ogsaa upsert-nokkelen (0003). Den staar ikke som en unique-linje, saa skjemavakten ser den ikke - den foeres for haand her.",
+      "business_unik": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "ean"
+      ],
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "ean": "'{{unik}}'",
+        "varenavn": "'Sondevare'",
+        "omsetning_eks_mva": "100"
+      },
+      "oppdaterbart": "varenavn = 'endret av sonden'"
+    },
+    {
+      "tabell": "synlig_svinn",
+      "$hvorfor": "Varetransaksjonene bak svinnprosenten - det som ble slaatt inn som kast. Samme rollebilde som daglig_salg: stasjonsscopet lesing, admin-skriving for hele kjeden. Har surrogat-id fordi en transaksjon ikke har noen naturlig noekkel; idempotens loeses ved aa slette (stasjon, dato) foer innsetting, ikke med en unique-skranke.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "ean": "'{{unik}}'",
+        "varenavn": "'Sondevare'",
+        "antall": "1",
+        "nettopris_total": "25"
+      },
+      "oppdaterbart": "varenavn = 'endret av sonden'"
+    },
+    {
+      "tabell": "regnskap_usynlig_svinn",
+      "$hvorfor": "Usynlig svinn per periode - manko og overskudd fra regnskapet. Den eneste av de fire som er EIERENS ALENE: usynlig_svinn_les krever rolle retailer_admin, uten stasjonsledd. stasjon_id er nullbar (klyngelinjer), men null betyr ikke kjeden slik det gjor i tablet_meldinger - det betyr bare at ingen stasjonsrolle naar raden, for ingen stasjonsrolle naar noen rad her.",
+      "$kaffeunntaket": "usynlig_svinn_les_kaffe (0127) gir butikksjefen ETT smalt vindu: linjer med kodeprefiks 130 paa egne stasjoner. Proberaden er med vilje en vanlig linje (kode 20010), saa matrisen beviser hovedregelen - at butikksjefen ikke ser usynlig svinn. Den positive siden av kaffeunntaket er derfor IKKE dekket her; en betingelse paa en kolonneverdi kan kontrakten ikke uttrykke i dag. Samme form som malekort.vis_tablet hadde foer 0134.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "proberad": {
+        "periode": "date '2026-08-01'",
+        "kode": "'20010'",
+        "navn": "'Sondelinje {{unik}}'",
+        "usynlig_kr": "100"
+      },
+      "oppdaterbart": "navn = 'endret av sonden'"
+    },
+    {
+      "tabell": "stempling",
+      "$hvorfor": "Timene, avledet fra stemplingene. INGEN retailer_id - rent stasjonsscope, og kjeden naas bare gjennom stasjonen. 0101 stengte nettbrettet ute fra aa LESE den: rader med navn, dato og klokkeslett er personopplysninger, og den delte nettbrettkontoen er ikke en person. Sletting er eierens alene (0088) - en time som forsvinner er en time noen ikke faar betalt for.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "assigned_stations",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ansatt_nr",
+        "dato",
+        "fra_tid"
+      ],
+      "proberad": {
+        "ansatt_nr": "'{{unik}}'",
+        "ansatt_navn": "'Sonde Sondesen'",
+        "dato": "{{unik_dato}}",
+        "fra_tid": "clock_timestamp()::time",
+        "til_tid": "time '16:00'",
+        "minutter": "480"
+      },
+      "$oppdaterbart_hvorfor": "ansatt_nr inngaar i business_unik, og resten av proberaden er tid.",
+      "oppdaterbart": "minutter = 470",
+      "$fra_tid_hvorfor": "business_unik er en flat liste over kolonnene i ALLE noeklene paa tabellen (se ansatte, som har to), saa valider() kan ikke se hvilke som hoerer sammen - og krever derfor at hver enkelt varierer. Klokkeslettet er det eneste feltet uten et naturlig varierende uttrykk; clock_timestamp() er baade sant og tilstrekkelig."
+    },
     {
       "tabell": "opplaering_periode",
       "$hvorfor": "Perioden en ansatt gaar opplaering i - roten i opplaeringstreet, og tenantnokkelen bade opplaering_skift og opplaering_utfort henger etter. Lesing er aapen for alle med stasjonstilgang (nettbrettet trenger den), skriving er lederens. DETEKTORENS FOERSTE KANDIDAT: retailer_and_station, men with check i opp2_periode_upd ser bare stasjon_id - noeyaktig formen 0135, 0138 og 0139 rettet paa seks andre tabeller. Ingen kolonnerett stopper flyttingen her slik den gjor paa ansatte. Klassifisert som dagens sannhet; matrisen faar si om den biter.",
