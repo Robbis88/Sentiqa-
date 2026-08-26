@@ -117,6 +117,38 @@ export type Ressurs = {
    */
   id_kolonne?: string
   /**
+   * Kolonnene som TIL SAMMEN identifiserer én rad, når ingen enkelt
+   * kolonne gjør det.
+   *
+   * `timesalg` har primærnøkkel `(retailer_id, stasjon_id, dato, time)`
+   * og ingen `id` i det hele tatt. `where id = …` peker da ikke på noen
+   * rad — den feiler med 42703, og en feil som ikke er 42501 blir
+   * rapportert som «avvist av FEIL grunn». Rødt, men av feil årsak.
+   *
+   * Verdiene kan ikke utledes av kontrakten: `dato` varierer per forsøk
+   * fordi forretningsnøkkelen krever det. Generatoren leser dem derfor
+   * av den faste proberaden den nettopp skrev.
+   *
+   * Fire varme tabeller sto uklassifisert i pulje 6 utelukkende på
+   * grunn av dette — ikke fordi noen var i tvil om hvem som skulle nå
+   * dem.
+   */
+  id_kolonner?: string[]
+  /**
+   * Hva `stasjon_id is null` BETYR, når scopet er `retailer_or_station`.
+   *
+   *   kjeden     null gjelder hele den autentiserte kjeden, og alle i
+   *              kjeden ser raden. `tablet_meldinger` er formen.
+   *   kun_eier   null er en klyngelinje som bare `retailer_admin` ser.
+   *              `regnskapslinjer` er formen: policyen krever
+   *              `stasjon_id is not null` i stasjonsgrenen, så
+   *              butikksjefen faller ut.
+   *
+   * Uten skillet ville generatoren påstått at butikksjefen ser
+   * klyngelinjene — og en helt riktig base ville blitt rød.
+   */
+  null_stasjon?: 'kjeden' | 'kun_eier'
+  /**
    * Dagens tilgang er bredere eller annerledes enn produktkontrakten:
    *
    *   tablet      ingen lederdata
@@ -192,6 +224,40 @@ export function valider(k: Kontrakt): string[] {
 
     if (r.tenant_kolonne && !r.tenant_join) {
       feil.push(`${r.tabell}: tenant_kolonne uten tenant_join`)
+    }
+
+    // EN SAMMENSATT IDENTITET MÅ VÆRE SKRIVBAR. Nevner den en kolonne
+    // proberaden ikke setter — og som ikke er en tenantkolonne
+    // generatoren fyller selv — finnes det ingen verdi å peke med.
+    for (const k of r.id_kolonner ?? []) {
+      if (k === 'retailer_id' || k === 'stasjon_id') continue
+      const verdi = r.proberad[k]
+      if (verdi === undefined) {
+        feil.push(`${r.tabell}: id_kolonner nevner «${k}», men proberaden setter den ikke`)
+        continue
+      }
+      // EN IDENTITET KAN IKKE VÆRE FLYKTIG.
+      //
+      // Predikatet som peker på raden er det samme UTTRYKKET som skrev
+      // den. `clock_timestamp()` gir én verdi ved innsetting og en annen
+      // ved oppslag — raden ville aldri blitt funnet igjen, og hver
+      // avvisning ville blitt meldt som «målraden finnes ikke».
+      //
+      // Rødt, og av en grunn ingen ville lett etter i policyen.
+      if (/clock_timestamp\(|now\(|gen_random_uuid\(|random\(/.test(verdi)) {
+        feil.push(`${r.tabell}: id_kolonner-kolonnen «${k}» er flyktig (${verdi}). `
+          + 'Identiteten må være det samme uttrykket hver gang det evalueres — '
+          + 'bruk {{unik}}, {{unik_dato}} eller en konstant.')
+      }
+    }
+    if (r.id_kolonner && r.id_kolonne) {
+      feil.push(`${r.tabell}: både id_kolonne og id_kolonner — velg én`)
+    }
+
+    // `null_stasjon` sier hva null BETYR. Uten et null-tilfelle i
+    // scopet er feltet en påstand om noe som ikke finnes.
+    if (r.null_stasjon && r.tenant_scope !== 'retailer_or_station') {
+      feil.push(`${r.tabell}: null_stasjon krever tenant_scope retailer_or_station`)
     }
 
     // Proberaden er den eneste håndholdte biten per tabell. Mangler den,
