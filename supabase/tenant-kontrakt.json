@@ -1016,7 +1016,7 @@
     },
     {
       "tabell": "pengepremie",
-      "$hvorfor": "Pengepremier stasjonen deler ut (0043). Hele stasjonen leser - ogsaa nettbrettet, som viser dem - og lederen skriver. FORVENTET FUNN: pengepremie_skriv er en for all-policy fra 0043 der with check ser stasjonen og ikke kjeden, altsaa samme form som 0135. Klassifisert som dagens sannhet; matrisen faar si det.",
+      "$hvorfor": "Pengepremier stasjonen deler ut (0043). Hele stasjonen leser - ogsaa nettbrettet, som viser dem - og lederen skriver. Matrisen fant 0135-formen her: pengepremie_skriv (for all, 0043) hadde with check som saa stasjonen og ikke kjeden. Rettet i 0143 - trettende forekomst.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
