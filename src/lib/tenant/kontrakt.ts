@@ -25,6 +25,26 @@ export type TenantScope =
    */
   | 'retailer_or_station'
   | 'global'
+/**
+ * Om ressursen dekkes av ATFERDSMATRISEN.
+ *
+ * `warm` gir rader i matrisen — hver rolle × operasjon × stasjon blir
+ * en påstand. `cold` gir ingen: tabellen er *sett* av
+ * dekningskontrollen, men grensen er ikke *bevist*.
+ *
+ * **DETTE ER IKKE `varme`/`kalde` I `rls_vakthund.sql.`** De arrayene er
+ * håndholdte og handler om YTELSE: en tabell som vokser med drift tåler
+ * ikke et per-rad-funksjonskall i policyen. Det er et helt annet
+ * spørsmål enn om kjede B ser kjede A.
+ *
+ * `puls_sporsmal` sto `cold` med den begrunnelsen — «den står allerede i
+ * kalde i rls_vakthund.sql» — og var dermed klassifisert uten at en
+ * eneste påstand rørte den. Få rader er ingen grunn til å la være å
+ * bevise noe.
+ *
+ * `cold` er derfor for tabeller uten tenantgrense å bevise:
+ * `oversettelse_cache` har RLS på og ingen policy, med vilje.
+ */
 export type Dataklasse = 'warm' | 'cold'
 export type Operasjon = 'select' | 'insert' | 'update' | 'delete'
 

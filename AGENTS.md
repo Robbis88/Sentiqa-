@@ -83,7 +83,7 @@ er min kjedes når den ikke lenger kan flyttes.
 
 # Tenant-kontrakten og fixture-kontrakten
 
-`supabase/tenant-kontrakt.json` er eneste håndholdte kilde for hvem som når hva. Dekningskontrollen, atferdsmatrisen og varme/kalde genereres derfra — `OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant`. Rediger aldri de genererte filene.
+`supabase/tenant-kontrakt.json` er eneste håndholdte kilde for hvem som når hva. Dekningskontrollen og atferdsmatrisen genereres derfra — `OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant`. Rediger aldri de genererte filene.
 
 **To kontrakter, og de blandes ikke:**
 

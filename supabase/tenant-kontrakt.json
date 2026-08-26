@@ -2,8 +2,8 @@
   "$kommentar": [
     "TENANT-KONTRAKTEN. Eneste haandholdte kilde for hvem som naar hva.",
     "",
-    "Genererer: tenant_dekning.sql, rls_kanarifugl_generert.sql, og",
-    "varme/kalde i rls_vakthund.sql. Ikke rediger de filene - kjor",
+    "Genererer: tenant_dekning.sql og rls_kanarifugl_generert.sql",
+    "(med delene under tests/deler/). Ikke rediger de filene - kjor",
     "OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant",
     "",
     "OPPDATER_KONTRAKT REGENERERER KONSEKVENSER. Den gjetter aldri en",
@@ -17,7 +17,9 @@
     "bevises, ikke forutsettes.",
     "",
     "  tenant_scope  retailer | station | retailer_and_station | global",
-    "  data_class    warm | cold",
+    "  data_class    warm | cold  - warm gir rader i atferdsmatrisen.",
+    "                Ikke det samme som varme/kalde i rls_vakthund.sql,",
+    "                som er en ytelsesvurdering. Se Dataklasse i kontrakt.ts.",
     "  tablet        none | read | write | read_write | {per operasjon}",
     "  manager       none | own_station | assigned_stations | retailer",
     "  owner         none | retailer",
@@ -51,9 +53,7 @@
       "ai_tool_log",
       "anvisninger",
       "arrangementer",
-      "butikksjef_stasjoner",
       "fokuspunkter",
-      "ik_kontrollpunkter",
       "import_jobber",
       "kalender_kilder",
       "kampanjer",
@@ -64,7 +64,6 @@
       "lederstotte_rapporter",
       "lenker",
       "merker",
-      "opplaering_oppgave",
       "pengepremie",
       "personlig_kryss",
       "personlig_punkt",
@@ -75,48 +74,66 @@
       "raa_filer",
       "regnskapsanalyser",
       "retailers",
-      "rutineskjemaer",
-      "sjekkpunkter",
       "stasjoner",
       "vaer"
     ]
   },
   "ressurser": [
     {
-      "tabell": "varsler",
-      "$hvorfor": "Varsler i feeden. Lesingen har TRE grener: ditt eget varsel (mottaker_id = deg), stasjonens (mottaker null + stasjon), og kjedens (mottaker null + stasjon null, kun eier). Proberaden er stasjonens variant - den vanligste - saa matrisen maaler stasjonsgrensen. Ingen delete-policy finnes; et varsel skjules med slettet_tid, ikke ved aa forsvinne.",
-      "tenant_scope": "retailer_or_station",
-      "null_stasjon": "kun_eier",
+      "tabell": "ansatt_avtale",
+      "$hvorfor": "Kontraktsfestet stilling per ansatt, noekklet paa stemplingsnummeret fra easy@work. 0101 tok lesingen fra nettbrettet: stasjonstilgang alene holdt ikke for et felt som sier hva folk tjener i prosent av full stilling. Skrivingen har vaert lederens hele tiden.",
+      "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
         "select",
         "insert",
-        "update"
+        "update",
+        "delete"
       ],
-      "tablet": {
-        "select": "own_station",
-        "insert": "retailer",
-        "update": "own_station"
+      "tablet": "none",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ansatt_nr"
+      ],
+      "proberad": {
+        "ansatt_nr": "'{{unik}}'",
+        "navn": "'Sonde Sondesen'",
+        "stillingsprosent": "80"
       },
+      "oppdaterbart": "stillingsprosent = 90"
+    },
+    {
+      "tabell": "ansatt_kontrakt",
+      "$hvorfor": "Arbeidsavtalen, med hele verdier-objektet som skal til for aa gjenskape dokumentet - altsaa lonna. 0101 tok lesingen fra nettbrettet. Sletting er eierens alene OG bare av det som ikke er signert; en signert kontrakt kan ikke fjernes av noen gjennom klienten.",
+      "$signert_hvorfor": "ansatt_kontrakt_del krever `signert_tid is null` i tillegg til rollen. Det er et vilkaar paa en KOLONNEVERDI, som kontrakten ikke kan uttrykke - samme form som kaffeunntaket paa regnskap_usynlig_svinn. Proberaden er usignert, saa matrisen beviser at eieren kan slette et utkast. At en SIGNERT kontrakt ikke lar seg slette staar udekket.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
       "manager": {
         "select": "assigned_stations",
-        "insert": "retailer",
+        "insert": "assigned_stations",
         "update": "assigned_stations"
       },
       "owner": "retailer",
-      "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan lage et varsel til en hvilken som helst stasjon, med hvilken som helst tekst og lenke. Samme form som kontrolltiltak_bekreftelse. For en feed som skal styre oppmerksomhet er det verdt en beslutning: et varsel ingen kan spore opphavet til, er lettere aa se bort fra.",
       "proberad": {
-        "type": "'sonde'",
-        "tittel": "'Sondevarsel {{unik}}'",
-        "tekst": "'Sonde'"
+        "ansatt_nr": "'{{unik}}'",
+        "ansatt_navn": "'Sonde Sondesen'",
+        "status": "'utkast'"
       },
-      "oppdaterbart": "lest = true"
+      "oppdaterbart": "status = 'sendt'"
     },
     {
-      "tabell": "signal_lukket",
-      "$hvorfor": "Midlertidig skjulte funn i oppmerksomhetsfeeden - et funn som kan skjules for alltid er et funn ingen fikser, derfor gjelder_til. Lesingen er aapen for hele stasjonen (nettbrettet skal ikke se et funn lederen har skjult), mens skjulingen selv er lederens. Kjede-brede funn (stasjon null) leses av alle i kjeden.",
-      "tenant_scope": "retailer_or_station",
-      "null_stasjon": "kjeden",
+      "tabell": "ansatte",
+      "$hvorfor": "Ansattregisteret. Naas fra aatte nettbrettruter, fordi navnet trengs overalt for aa vise hvem som gjorde hva - og fordi PIN-innlogging paa nettbrettet slaar opp ansatt_nr og navn. GRANTEN ER SMALERE ENN POLICYEN, og det er granten som gjelder: 0112 gjorde `revoke select ... from authenticated` og delte ut ni av ti kolonner. `pin_hash` er ikke blant dem. Klassifiseringen beskriver derfor en tilgang som allerede er kolonnegjerdet.",
+      "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
         "select",
@@ -129,20 +146,23 @@
       },
       "manager": "assigned_stations",
       "owner": "retailer",
-      "proberad": {
-        "signal_id": "'sonde-{{unik}}'",
-        "gjelder_til": "{{unik_dato}}",
-        "notat": "'Sonde'"
-      },
-      "oppdaterbart": "notat = 'endret av sonden'",
       "business_unik": [
         "retailer_id",
-        "signal_id"
-      ]
+        "ansatt_nr",
+        "pin_hash"
+      ],
+      "$business_unik_hvorfor": "TO partielle unike indekser, ikke en: (retailer_id, ansatt_nr) where ansatt_nr is not null and slettet_tid is null (0110), og (retailer_id, pin_hash) where aktiv and slettet_tid is null (0025). Jeg fant den foerste og antok at det var alle - den andre felte matrisen i CI. src/lib/tenant/skjema.ts leser naa begge ut av migrasjonene.",
+      "avvik_fra_intensjon": "DAGENS TILSTAND. ansatte_les har ikke rollepredikat, saa nettbrettkontoen leser hele stasjonens ansattliste - navn, ansatt_nr, aktiv. Det verste er allerede ute: pin_hash er lukket av kolonnegrant i 0112, og sonden bekreftet at anon ikke naar tabellen i det hele tatt. Spoersmaalet er derfor ikke OM nettbrettet skal lese, men HVILKE kolonner - det trenger navn og nummer for PIN-oppslaget. Krever produktvalg, ikke en innstramming: et rollepredikat ville tatt bort PIN-innlogging paa nettbrettet.",
+      "proberad": {
+        "navn": "'Sonde Sondesen'",
+        "ansatt_nr": "'{{unik}}'",
+        "pin_hash": "'pin {{unik}}'"
+      },
+      "oppdaterbart": "navn = 'Endret av sonden'"
     },
     {
-      "tabell": "uke_rapport",
-      "$hvorfor": "Den ferdige ukerapporten per stasjon. Alle fire operasjonene har samme predikat: eieren paa hele kjeden, eller hvem som helst med stasjonstilgang. Ingen rollesjekk i stasjonsgrenen.",
+      "tabell": "avvik",
+      "$hvorfor": "Full CRUD, stasjonsscopet lesing, men leder-rolle paa update/delete. Nettbrettet melder avvik og leser dem, men retter dem ikke.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
@@ -151,83 +171,27 @@
         "update",
         "delete"
       ],
-      "tablet": "read_write",
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
       "manager": "assigned_stations",
       "owner": "retailer",
-      "avvik_fra_intensjon": "Nettbrettet kan SLETTE ukerapporten for sin egen stasjon. Stasjonsgrenen i uke_rapport_del har ingen rollesjekk, saa den delte kontoen i butikken har samme rett som butikksjefen. Rapporten kan riktignok genereres paa nytt, men den som ser at tallene er borte vet ikke det. Utvei: legg rollen til i ins/upd/del slik resten av tabellene gjor, og la lesingen staa som den er.",
-      "proberad": {
-        "uke_mandag": "{{unik_dato}}"
-      },
-      "$oppdaterbart_hvorfor": "proberaden er bare noekkelkolonner; avdelinger har en default.",
-      "oppdaterbart": "avdelinger = '[]'::jsonb",
       "business_unik": [
-        "stasjon_id",
-        "uke_mandag"
-      ]
-    },
-    {
-      "tabell": "malekort_scope",
-      "$hvorfor": "Hvilke varegrupper et maalekort gjelder for - avdeling, vareomraade, varegruppe eller ean. Rent kjedescope, ingen stasjon. Lesing er aapen for hele kjeden uten rollesjekk (nettbrettet trenger scopet for aa vise kortet), skriving er eierens.",
-      "tenant_scope": "retailer",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "retailer"
-      },
-      "manager": {
-        "select": "retailer"
-      },
-      "owner": "retailer",
-      "seed_ekstra": [
-        "insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('{{seed:malekort}}', '{{retailer}}', 'Sondekort {{unik}}', 'omsetning', 'maaned', 'hoy', true, true)"
-      ],
-      "proberad": {
-        "malekort_id": "'{{seed:malekort}}'",
-        "nivaa": "'avdeling'",
-        "kode": "'{{unik}}'"
-      },
-      "oppdaterbart": "kode = 'endret'"
-    },
-    {
-      "tabell": "prognose_treff",
-      "$hvorfor": "Treffsikkerheten til prognosen: forventet mot faktisk, per stasjon og kategori. Bare SELECT finnes som policy - jobben skriver som service_role, og ingen menneskerolle skal kunne rette et treff i ettertid. Samme lesemoenster som prognose_kalibrering.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": "retailer",
-      "proberad": {
-        "type": "'produksjonsplan'",
-        "dato": "{{unik_dato}}",
-        "kategori": "'{{unik}}'",
-        "forventet": "100",
-        "faktisk": "95"
-      },
-      "business_unik": [
-        "stasjon_id",
-        "type",
-        "dato",
-        "kategori"
+        "retailer_id",
+        "lopenr"
       ],
       "business_unik_unntak": {
-        "type": "En check-skranke tillater bare produksjonsplan og salgsprognose. Dato og kategori varierer per forsoek, saa den sammensatte noekkelen er unik uansett."
+        "lopenr": "Tildeles av trigger sett_avvik_lopenr() (0079). Indeksen er partiell - where slettet_tid is null - og fixturen skal derfor ikke sette den."
+      },
+      "proberad": {
+        "dato": "date '2026-08-01'",
+        "beskrivelse": "'sonde {{unik}}'"
       }
     },
     {
-      "tabell": "bemanning_vindu",
-      "$hvorfor": "Naar det faktisk staar folk i butikken, per stasjon og ukedag - ikke aapningstiden. Gulvet legges over hele vinduet, saa et for bredt vindu spiser timer fra ettermiddagen der kundene er. 0082 la til gjelder_fra og utvidet noekkelen: et vindu som endres skal ikke skrive om hvordan det var i fjor. Lesing er aapen for stasjonen (nettbrettet ser sin egen plan), skriving er lederens.",
+      "tabell": "bemanning_aar",
+      "$hvorfor": "Aarsrammen bak maanedsfordelingen: timer for hele aaret, faste aarsverk, reserve og sikkerhetsmargin. Eierens alene, som budsjettet - det er kjedens tall, ikke stasjonens.",
       "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
@@ -236,31 +200,27 @@
         "update",
         "delete"
       ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
+      "tablet": "none",
+      "manager": "none",
       "owner": "retailer",
+      "en_rad_per_stasjon": true,
       "business_unik": [
         "stasjon_id",
-        "ukedag",
-        "gjelder_fra"
+        "ar"
       ],
       "business_unik_unntak": {
-        "ukedag": "Domenet er sju verdier, saa ukedagen kan ikke variere per forsoek - matrisen lager flere rader per stasjon enn en uke har dager. gjelder_fra varierer i stedet, og gjor den sammensatte noekkelen unik. Det er nettopp derfor 0082 utvidet noekkelen med den: et vindu kan endres, og historikken skal staa."
+        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
       },
       "proberad": {
-        "ukedag": "1",
-        "gjelder_fra": "{{unik_dato}}",
-        "fra_time": "6",
-        "til_time": "22",
-        "min_bemanning": "1"
+        "ar": "2026",
+        "timer_aar": "12000",
+        "fast_arsverk_timer": "1800"
       },
-      "oppdaterbart": "min_bemanning = 2"
+      "oppdaterbart": "timer_aar = 12500"
     },
     {
-      "tabell": "bemanning_krav",
-      "$hvorfor": "Timer som krever flere enn gulvet - varemottak, sikkerhet, opplaering. Ingen unik skranke: flere rader kan overlappe, og hoeyeste antall vinner. Samme rollebilde som vinduet.",
+      "tabell": "bemanning_budsjett",
+      "$hvorfor": "Time- og lonnsbudsjettet fra kjeden, per stasjon og maaned. lonn_kr er ALL-IN, saa lonn_kr / timer gir snittsatsen direkte. EIERENS ALENE i alle fire operasjonene - ogsaa lesing. 0082 redefinerte policyene fra 0081 og strammet lesingen fra stasjonstilgang til retailer_admin; siste treff vinner.",
       "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
@@ -269,19 +229,27 @@
         "update",
         "delete"
       ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
+      "tablet": "none",
+      "manager": "none",
       "owner": "retailer",
-      "proberad": {
-        "ukedag": "2",
-        "fra_time": "8",
-        "til_time": "10",
-        "antall": "2",
-        "begrunnelse": "'Sonde {{unik}}'"
+      "en_rad_per_stasjon": true,
+      "business_unik": [
+        "stasjon_id",
+        "ar",
+        "maned"
+      ],
+      "business_unik_unntak": {
+        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning.",
+        "maned": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
       },
-      "oppdaterbart": "antall = 3"
+      "proberad": {
+        "ar": "2026",
+        "maned": "8",
+        "timer": "1000",
+        "lonn_kr": "400000",
+        "brutto_bp_kr": "900000"
+      },
+      "oppdaterbart": "timer = 1100"
     },
     {
       "tabell": "bemanning_fast_vakt",
@@ -319,8 +287,8 @@
       "oppdaterbart": "til_time = 16"
     },
     {
-      "tabell": "bemanning_budsjett",
-      "$hvorfor": "Time- og lonnsbudsjettet fra kjeden, per stasjon og maaned. lonn_kr er ALL-IN, saa lonn_kr / timer gir snittsatsen direkte. EIERENS ALENE i alle fire operasjonene - ogsaa lesing. 0082 redefinerte policyene fra 0081 og strammet lesingen fra stasjonstilgang til retailer_admin; siste treff vinner.",
+      "tabell": "bemanning_fravaer",
+      "$hvorfor": "Fravaer per ansatt i bemanningsplanen. Aarsaken kan vaere sykdom, altsaa en helseopplysning - og det er grunnen til at 0101 stengte nettbrettet ute fra lesingen sammen med ansatt_avtale, ansatt_kontrakt og stempling.",
       "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
@@ -330,30 +298,20 @@
         "delete"
       ],
       "tablet": "none",
-      "manager": "none",
+      "manager": "assigned_stations",
       "owner": "retailer",
-      "en_rad_per_stasjon": true,
-      "business_unik": [
-        "stasjon_id",
-        "ar",
-        "maned"
-      ],
-      "business_unik_unntak": {
-        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning.",
-        "maned": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
-      },
       "proberad": {
-        "ar": "2026",
-        "maned": "8",
-        "timer": "1000",
-        "lonn_kr": "400000",
-        "brutto_bp_kr": "900000"
+        "navn": "'Sonde Sondesen'",
+        "fra_dato": "{{unik_dato}}",
+        "til_dato": "{{unik_dato}}",
+        "arsak": "'Sonde'"
       },
-      "oppdaterbart": "timer = 1100"
+      "$oppdaterbart_hvorfor": "datoene har en check (til >= fra); aarsaken er trygg aa endre.",
+      "oppdaterbart": "arsak = 'endret av sonden'"
     },
     {
-      "tabell": "bemanning_aar",
-      "$hvorfor": "Aarsrammen bak maanedsfordelingen: timer for hele aaret, faste aarsverk, reserve og sikkerhetsmargin. Eierens alene, som budsjettet - det er kjedens tall, ikke stasjonens.",
+      "tabell": "bemanning_krav",
+      "$hvorfor": "Timer som krever flere enn gulvet - varemottak, sikkerhet, opplaering. Ingen unik skranke: flere rader kan overlappe, og hoeyeste antall vinner. Samme rollebilde som vinduet.",
       "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
@@ -362,23 +320,19 @@
         "update",
         "delete"
       ],
-      "tablet": "none",
-      "manager": "none",
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
       "owner": "retailer",
-      "en_rad_per_stasjon": true,
-      "business_unik": [
-        "stasjon_id",
-        "ar"
-      ],
-      "business_unik_unntak": {
-        "ar": "Aar og maaned er tall med bundet domene, og ingen av dem kan varieres per forsoek uten aa finne paa aritmetikk som ville kollidert likevel. Fixturen pinner dem og bruker en_rad_per_stasjon i stedet: plassen frigjoeres foer hvert forsoek. Uten det ville forsoek nummer to gitt 23505 - en domenefeil som ser ut som en avvisning."
-      },
       "proberad": {
-        "ar": "2026",
-        "timer_aar": "12000",
-        "fast_arsverk_timer": "1800"
+        "ukedag": "2",
+        "fra_time": "8",
+        "til_time": "10",
+        "antall": "2",
+        "begrunnelse": "'Sonde {{unik}}'"
       },
-      "oppdaterbart": "timer_aar = 12500"
+      "oppdaterbart": "antall = 3"
     },
     {
       "tabell": "bemanning_maned",
@@ -416,8 +370,8 @@
       "oppdaterbart": "disponible_timer = 900"
     },
     {
-      "tabell": "ansatt_avtale",
-      "$hvorfor": "Kontraktsfestet stilling per ansatt, noekklet paa stemplingsnummeret fra easy@work. 0101 tok lesingen fra nettbrettet: stasjonstilgang alene holdt ikke for et felt som sier hva folk tjener i prosent av full stilling. Skrivingen har vaert lederens hele tiden.",
+      "tabell": "bemanning_stasjon",
+      "$hvorfor": "Bemanningstaket per stasjon. Skjemaet har stasjon_id som PRIMAERNOEKKEL - en rad per stasjon, og ingen id-kolonne. Foer 0137 leste nettbrettkontoen maks_bemanning paa egen stasjon uten at noen nettbrettrute brukte tabellen; avviket sto her som avvik_fra_intensjon, og ble strammet i 0137. Naa beskriver raden den nye sannheten.",
       "tenant_scope": "station",
       "data_class": "warm",
       "operasjoner": [
@@ -427,130 +381,89 @@
         "delete"
       ],
       "tablet": "none",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "en_rad_per_stasjon": true,
+      "id_kolonne": "stasjon_id",
+      "business_unik": [
+        "stasjon_id"
+      ],
+      "business_unik_unntak": {
+        "stasjon_id": "Er primaernoekkelen selv, og varierer med maalet. Se en_rad_per_stasjon."
+      },
+      "proberad": {
+        "maks_bemanning": "7"
+      },
+      "oppdaterbart": "maks_bemanning = 9"
+    },
+    {
+      "tabell": "bemanning_vindu",
+      "$hvorfor": "Naar det faktisk staar folk i butikken, per stasjon og ukedag - ikke aapningstiden. Gulvet legges over hele vinduet, saa et for bredt vindu spiser timer fra ettermiddagen der kundene er. 0082 la til gjelder_fra og utvidet noekkelen: et vindu som endres skal ikke skrive om hvordan det var i fjor. Lesing er aapen for stasjonen (nettbrettet ser sin egen plan), skriving er lederens.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
       "manager": "assigned_stations",
       "owner": "retailer",
       "business_unik": [
         "stasjon_id",
-        "ansatt_nr"
-      ],
-      "proberad": {
-        "ansatt_nr": "'{{unik}}'",
-        "navn": "'Sonde Sondesen'",
-        "stillingsprosent": "80"
-      },
-      "oppdaterbart": "stillingsprosent = 90"
-    },
-    {
-      "tabell": "bemanning_fravaer",
-      "$hvorfor": "Fravaer per ansatt i bemanningsplanen. Aarsaken kan vaere sykdom, altsaa en helseopplysning - og det er grunnen til at 0101 stengte nettbrettet ute fra lesingen sammen med ansatt_avtale, ansatt_kontrakt og stempling.",
-      "tenant_scope": "station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": "none",
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "proberad": {
-        "navn": "'Sonde Sondesen'",
-        "fra_dato": "{{unik_dato}}",
-        "til_dato": "{{unik_dato}}",
-        "arsak": "'Sonde'"
-      },
-      "$oppdaterbart_hvorfor": "datoene har en check (til >= fra); aarsaken er trygg aa endre.",
-      "oppdaterbart": "arsak = 'endret av sonden'"
-    },
-    {
-      "tabell": "ansatt_kontrakt",
-      "$hvorfor": "Arbeidsavtalen, med hele verdier-objektet som skal til for aa gjenskape dokumentet - altsaa lonna. 0101 tok lesingen fra nettbrettet. Sletting er eierens alene OG bare av det som ikke er signert; en signert kontrakt kan ikke fjernes av noen gjennom klienten.",
-      "$signert_hvorfor": "ansatt_kontrakt_del krever `signert_tid is null` i tillegg til rollen. Det er et vilkaar paa en KOLONNEVERDI, som kontrakten ikke kan uttrykke - samme form som kaffeunntaket paa regnskap_usynlig_svinn. Proberaden er usignert, saa matrisen beviser at eieren kan slette et utkast. At en SIGNERT kontrakt ikke lar seg slette staar udekket.",
-      "tenant_scope": "station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": "none",
-      "manager": {
-        "select": "assigned_stations",
-        "insert": "assigned_stations",
-        "update": "assigned_stations"
-      },
-      "owner": "retailer",
-      "proberad": {
-        "ansatt_nr": "'{{unik}}'",
-        "ansatt_navn": "'Sonde Sondesen'",
-        "status": "'utkast'"
-      },
-      "oppdaterbart": "status = 'sendt'"
-    },
-    {
-      "tabell": "persondata_logg",
-      "$hvorfor": "Hvem har sett hva om hvem (GDPR art. 32). Vokser raskest av alle - en rad per oppslag paa persondata - og kan aldri endres eller slettes: ingen update- eller delete-policy finnes, med vilje. En logg som lar seg redigere av den som er logget, dokumenterer ingenting.",
-      "$bruker_hvorfor": "Innsettingspolicyen krever `bruker_id = (select auth.uid())`. Proberaden bruker derfor {{bruker}}, som er identiteten som faktisk proever - ellers ville hvert forsoek fra en annen enn eieren blitt avvist av FIXTUREN, og kontrakten ville sagt at rollen ikke naar noe den faktisk faar lov til.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert"
-      ],
-      "tablet": {
-        "insert": "retailer"
-      },
-      "manager": {
-        "select": "retailer",
-        "insert": "retailer"
-      },
-      "owner": "retailer",
-      "avvik_fra_intensjon": "Butikksjefen ser HELE kjedens logg, ikke bare sine egne stasjoner: lesepolicyen scoper paa retailer_id og rolle, aldri paa stasjon. For en tilgangslogg kan det vaere riktig - den som er ansvarlig skal kunne se hvem som har sett hva - men det er en beslutning ingen har tatt eksplisitt, og det staar i kontrast til alle andre butikksjef-regler i basen. Nettbrettet kan SKRIVE i loggen for hele kjeden av samme grunn; det er mindre alvorlig, siden raden maa baere nettbrettets egen bruker_id.",
-      "proberad": {
-        "handling": "'sonde_oppslag'",
-        "ansatt_nr": "'{{unik}}'",
-        "bruker_id": "'{{bruker}}'",
-        "bruker_navn": "'Sonde Sondesen'"
-      }
-    },
-    {
-      "tabell": "kontrolltiltak_bekreftelse",
-      "$hvorfor": "Dokumentasjon paa at informasjonsplikten om kontrolltiltak (aml. § 9-2) er oppfylt - IKKE et samtykke. Ingen update- eller delete-policy: en bekreftelse skal staa. Lesingen har to grener: din egen (bruker_id = auth.uid()) eller lederens paa egne stasjoner.",
-      "$tre_identiteter": "Nettbrettet kan ikke lese sin egen bekreftelse. Den delte kontoen bekrefter som ANSATT (ansatt_id, via PIN), mens egen-grenen i policyen matcher paa bruker_id. To av de tre identitetene i systemet moetes ikke her. Se [[sentiqa-tre-identiteter]].",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert"
-      ],
-      "tablet": {
-        "insert": "retailer"
-      },
-      "manager": {
-        "select": "assigned_stations",
-        "insert": "retailer"
-      },
-      "owner": "retailer",
-      "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan skrive en bekreftelse for en hvilken som helst stasjon i kjeden, og for en hvilken som helst ansatt_id. For et dokument som skal bevise at informasjonsplikten er oppfylt, er det for lite: raden sier at noen bekreftet, ikke at DEN som bekreftet var den det gjaldt. Utvei: bind ansatt_id/bruker_id til den innloggede slik persondata_logg gjor, og legg til stasjonsleddet.",
-      "business_unik": [
-        "bruker_id",
-        "versjon",
-        "ansatt_id"
+        "ukedag",
+        "gjelder_fra"
       ],
       "business_unik_unntak": {
-        "ansatt_id": "Settes ikke av fixturen. Check-skranken krever ansatt_id ELLER bruker_id, og fixturen bruker bruker_id - som er den grenen policyens egen-lesing faktisk matcher paa. Den unike indeksen over ansatt_id er partiell (where ansatt_id is not null) og gjelder derfor ikke disse radene.",
-        "bruker_id": "Varierer ikke per forsoek, men per IDENTITET - den er hele poenget: raden bindes til den som bekreftet. Kollisjon er likevel umulig, for versjon varierer per forsoek, og den unike indeksen er (bruker_id, versjon)."
+        "ukedag": "Domenet er sju verdier, saa ukedagen kan ikke variere per forsoek - matrisen lager flere rader per stasjon enn en uke har dager. gjelder_fra varierer i stedet, og gjor den sammensatte noekkelen unik. Det er nettopp derfor 0082 utvidet noekkelen med den: et vindu kan endres, og historikken skal staa."
       },
       "proberad": {
-        "versjon": "'{{unik}}'",
-        "bruker_id": "'{{bruker}}'"
-      }
+        "ukedag": "1",
+        "gjelder_fra": "{{unik_dato}}",
+        "fra_time": "6",
+        "til_time": "22",
+        "min_bemanning": "1"
+      },
+      "oppdaterbart": "min_bemanning = 2"
     },
     {
-      "tabell": "timesalg",
-      "$hvorfor": "Salg per time (St1 0758) - grunnlaget for heatmapet og hele bemanningsplanleggeren. Samme rollebilde som daglig_salg: stasjonsscopet lesing for butikksjef og nettbrett, admin-skriving for hele kjeden. INGEN ID-KOLONNE: raden er (retailer_id, stasjon_id, dato, time), og det var den eneste grunnen til at den sto uklassifisert etter pulje 6.",
+      "tabell": "butikksjef_stasjoner",
+      "$hvorfor": "TILDELINGEN SELV. Denne tabellen er det mine_stasjoner() og har_stasjonstilgang() leser, saa hver av de andre 4259 paastandene hviler paa at ingen kan skrive seg inn her. Bare retailer_admin skriver, og bare til stasjoner i egen kjede. INGEN retailer_id: kjeden naas gjennom stasjonen, saa scopet er station. Identiteten er (profil_id, stasjon_id) - ingen id-kolonne finnes. UDEKKET MED VILJE: bs_select har en egen-rad-gren (profil_id = auth.uid()), saa en butikksjef ser den raden som gir DEM tilgang. Proberaden peker paa en frisk sondeprofil, aldri paa en av de sju identitetene - hadde den pekt paa en av dem, ville en tillatt innsetting endret hvem som naar hva midt i kjoeringen. Derfor staar manager og tablet som none: det er sant om proberaden, og egen-rad-grenen maa bevises av den brukerscopede formen sammen med personlig_punkt.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "id_kolonner": [
+        "profil_id",
+        "stasjon_id"
+      ],
+      "business_unik": [
+        "profil_id",
+        "stasjon_id"
+      ],
+      "seed_ekstra": [
+        "insert into auth.users (id, email) values ('{{seed:profil}}', 'sonde-{{n}}@kanari.local') on conflict (id) do nothing",
+        "insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('{{seed:profil}}', '{{retailer}}', 'butikksjef', 'Sondesjef {{n}}')"
+      ],
+      "proberad": {
+        "profil_id": "'{{seed:profil}}'"
+      },
+      "oppdaterbart": "opprettet_tid = now()"
+    },
+    {
+      "tabell": "daglig_salg",
+      "$hvorfor": "Den store. ~400k rader, partisjonert paa dato i 49 maanedspartisjoner som IKKE arver forelderens RLS - det var lekkasjen 0105 lukket. Alt som viser kroner leser den (gjennom v_butikksalg, som filtrerer bort drivstoff). Lesing: eieren hele kjeden, butikksjef og nettbrett sine egne stasjoner. Skriving: KUN retailer_admin, og for hele kjeden - det er importen, ikke et menneske. with check navngir retailer_id (0077), saa formen fra 0135 finnes ikke her.",
+      "$les_uten_mine_stasjoner": "Lesepolicyen fra 0067 slaar opp butikksjef_stasjoner direkte i stedet for aa kalle mine_stasjoner(). Settet er det samme for butikksjef og nettbrett - mine_stasjoner() henter dem fra samme tabell - men rollesjekken mangler i den innebygde varianten. Matrisen maaler foelgene, ikke teksten.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
@@ -566,28 +479,67 @@
         "select": "assigned_stations"
       },
       "owner": "retailer",
-      "id_kolonner": [
-        "retailer_id",
-        "stasjon_id",
-        "dato",
-        "time"
-      ],
+      "$business_unik_hvorfor": "Primaernokkelen er sammensatt og er ogsaa upsert-nokkelen (0003). Den staar ikke som en unique-linje, saa skjemavakten ser den ikke - den foeres for haand her.",
       "business_unik": [
         "retailer_id",
         "stasjon_id",
         "dato",
-        "time"
+        "ean"
       ],
-      "business_unik_unntak": {
-        "time": "Klokketimen er en del av radens IDENTITET (id_kolonner), og maa derfor vaere det samme uttrykket hver gang predikatet evalueres - ellers peker det paa ingenting. Dato varierer per forsoek, saa den sammensatte noekkelen kan ikke kollidere uansett."
-      },
       "proberad": {
         "dato": "{{unik_dato}}",
-        "time": "'8-9'",
-        "salg": "1000",
-        "antall_kunder": "10"
+        "ean": "'{{unik}}'",
+        "varenavn": "'Sondevare'",
+        "omsetning_eks_mva": "100"
       },
-      "oppdaterbart": "antall_kunder = 11"
+      "oppdaterbart": "varenavn = 'endret av sonden'"
+    },
+    {
+      "tabell": "ik_avlesninger",
+      "$hvorfor": "Temperaturavlesninger. Stasjonsscopet uten retailer_id. Bare SELECT og INSERT finnes som policy - ingen UPDATE, ingen DELETE. En avlesning er en registrering, ikke noe man retter. Nettbrettet skriver dem paa /ikmat/maaling.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('{{seed:kontrollpunkt}}', '{{retailer}}', '{{stasjon}}', 'Sondepunkt')"
+      ],
+      "proberad": {
+        "kontrollpunkt_id": "'{{seed:kontrollpunkt}}'",
+        "dato": "{{unik_dato}}",
+        "temperatur": "4.0",
+        "innenfor": "true"
+      },
+      "oppdaterbart": "tiltak = 'ikke relevant'"
+    },
+    {
+      "tabell": "ik_kontrollpunkter",
+      "$hvorfor": "Maalepunktene bak ik_avlesninger (0023) - kjoel, frys, oppvarming. Temperaturkravene er stasjonens IK-mat-dokumentasjon, og de skal ikke kunne leses eller endres av en annen kjede. Samme form som sjekkpunkter.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "navn": "'Sondekjoel {{unik}}'"
+      },
+      "oppdaterbart": "sortering = 1"
     },
     {
       "tabell": "kassererstatistikk",
@@ -629,216 +581,135 @@
       "oppdaterbart": "bonger = 11"
     },
     {
-      "tabell": "trafikk",
-      "$hvorfor": "Kjoeretoey forbi stasjonen per dag - grunnlaget for vaer- og trafikkjusteringen i prognosen. INGEN retailer_id og ingen id: raden er (stasjon_id, dato). Bare SELECT finnes som policy, og grantet gir bare select - dataene hentes av jobben som service_role. Alle tre rollene leser sine egne stasjoner; her er det ingen rolleskille i det hele tatt.",
-      "tenant_scope": "station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": "retailer",
-      "id_kolonner": [
-        "stasjon_id",
-        "dato"
-      ],
-      "business_unik": [
-        "stasjon_id",
-        "dato"
-      ],
-      "proberad": {
-        "dato": "{{unik_dato}}",
-        "antall_kjoretoy": "1000",
-        "dekning_pst": "80"
-      }
-    },
-    {
-      "tabell": "prognose_kalibrering",
-      "$hvorfor": "Korreksjonsfaktoren prognosen ganges med, per stasjon og kategori. Raden er (stasjon_id, type, kategori) - ingen id. Bare SELECT finnes som policy; skrivingen skjer i kalibreringsjobben, som service_role. Leses av alle tre rollene paa egne stasjoner, som trafikk.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": "retailer",
-      "id_kolonner": [
-        "stasjon_id",
-        "type",
-        "kategori"
-      ],
-      "business_unik": [
-        "stasjon_id",
-        "type",
-        "kategori"
-      ],
-      "business_unik_unntak": {
-        "type": "En check-skranke tillater bare produksjonsplan og salgsprognose, saa kolonnen kan ikke varieres fritt - og den er en del av identiteten, som maa vaere stabil. Kategori varierer per forsoek i stedet."
-      },
-      "proberad": {
-        "type": "'produksjonsplan'",
-        "kategori": "'{{unik}}'",
-        "korreksjon": "1.05",
-        "n": "30"
-      }
-    },
-    {
-      "tabell": "regnskapslinjer",
-      "$hvorfor": "Regnskapet per maaned, linje for linje. stasjon_id er NULLBAR, og en null-rad er en klyngelinje - tall for kjeden samlet, ikke for en stasjon. Skriving er admin alene (0077); lesing foelger stasjonen, med klyngelinjene forbeholdt eieren.",
-      "$null_stasjon_hvorfor": "Lesepolicyen krever `stasjon_id is not null` i stasjonsgrenen (0067). Null betyr derfor IKKE hele kjeden slik det gjor i tablet_meldinger - det betyr at bare retailer_admin-grenen kan slippe raden gjennom. Det skillet er hele grunnen til at tabellen ikke kunne klassifiseres i pulje 6.",
-      "tenant_scope": "retailer_or_station",
-      "null_stasjon": "kun_eier",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": "retailer",
-      "proberad": {
-        "periode": "date '2026-08-01'",
-        "seksjon": "'omsetning'",
-        "post": "'Sondepost {{unik}}'",
-        "regnskap": "1000"
-      },
-      "oppdaterbart": "post = 'endret av sonden'"
-    },
-    {
-      "tabell": "daglig_salg",
-      "$hvorfor": "Den store. ~400k rader, partisjonert paa dato i 49 maanedspartisjoner som IKKE arver forelderens RLS - det var lekkasjen 0105 lukket. Alt som viser kroner leser den (gjennom v_butikksalg, som filtrerer bort drivstoff). Lesing: eieren hele kjeden, butikksjef og nettbrett sine egne stasjoner. Skriving: KUN retailer_admin, og for hele kjeden - det er importen, ikke et menneske. with check navngir retailer_id (0077), saa formen fra 0135 finnes ikke her.",
-      "$les_uten_mine_stasjoner": "Lesepolicyen fra 0067 slaar opp butikksjef_stasjoner direkte i stedet for aa kalle mine_stasjoner(). Settet er det samme for butikksjef og nettbrett - mine_stasjoner() henter dem fra samme tabell - men rollesjekken mangler i den innebygde varianten. Matrisen maaler foelgene, ikke teksten.",
+      "tabell": "kontrolltiltak_bekreftelse",
+      "$hvorfor": "Dokumentasjon paa at informasjonsplikten om kontrolltiltak (aml. § 9-2) er oppfylt - IKKE et samtykke. Ingen update- eller delete-policy: en bekreftelse skal staa. Lesingen har to grener: din egen (bruker_id = auth.uid()) eller lederens paa egne stasjoner.",
+      "$tre_identiteter": "Nettbrettet kan ikke lese sin egen bekreftelse. Den delte kontoen bekrefter som ANSATT (ansatt_id, via PIN), mens egen-grenen i policyen matcher paa bruker_id. To av de tre identitetene i systemet moetes ikke her. Se [[sentiqa-tre-identiteter]].",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
         "select",
-        "insert",
-        "update",
-        "delete"
+        "insert"
       ],
       "tablet": {
-        "select": "own_station"
+        "insert": "retailer"
       },
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": "retailer",
-      "$business_unik_hvorfor": "Primaernokkelen er sammensatt og er ogsaa upsert-nokkelen (0003). Den staar ikke som en unique-linje, saa skjemavakten ser den ikke - den foeres for haand her.",
-      "business_unik": [
-        "retailer_id",
-        "stasjon_id",
-        "dato",
-        "ean"
-      ],
-      "proberad": {
-        "dato": "{{unik_dato}}",
-        "ean": "'{{unik}}'",
-        "varenavn": "'Sondevare'",
-        "omsetning_eks_mva": "100"
-      },
-      "oppdaterbart": "varenavn = 'endret av sonden'"
-    },
-    {
-      "tabell": "synlig_svinn",
-      "$hvorfor": "Varetransaksjonene bak svinnprosenten - det som ble slaatt inn som kast. Samme rollebilde som daglig_salg: stasjonsscopet lesing, admin-skriving for hele kjeden. Har surrogat-id fordi en transaksjon ikke har noen naturlig noekkel; idempotens loeses ved aa slette (stasjon, dato) foer innsetting, ikke med en unique-skranke.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": "retailer",
-      "proberad": {
-        "dato": "{{unik_dato}}",
-        "ean": "'{{unik}}'",
-        "varenavn": "'Sondevare'",
-        "antall": "1",
-        "nettopris_total": "25"
-      },
-      "oppdaterbart": "varenavn = 'endret av sonden'"
-    },
-    {
-      "tabell": "regnskap_usynlig_svinn",
-      "$hvorfor": "Usynlig svinn per periode - manko og overskudd fra regnskapet. Den eneste av de fire som er EIERENS ALENE: usynlig_svinn_les krever rolle retailer_admin, uten stasjonsledd. stasjon_id er nullbar (klyngelinjer), men null betyr ikke kjeden slik det gjor i tablet_meldinger - det betyr bare at ingen stasjonsrolle naar raden, for ingen stasjonsrolle naar noen rad her.",
-      "$kaffeunntaket": "usynlig_svinn_les_kaffe (0127) gir butikksjefen ETT smalt vindu: linjer med kodeprefiks 130 paa egne stasjoner. Proberaden er med vilje en vanlig linje (kode 20010), saa matrisen beviser hovedregelen - at butikksjefen ikke ser usynlig svinn. Den positive siden av kaffeunntaket er derfor IKKE dekket her; en betingelse paa en kolonneverdi kan kontrakten ikke uttrykke i dag. Samme form som malekort.vis_tablet hadde foer 0134.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": "none",
-      "manager": "none",
-      "owner": "retailer",
-      "proberad": {
-        "periode": "date '2026-08-01'",
-        "kode": "'20010'",
-        "navn": "'Sondelinje {{unik}}'",
-        "usynlig_kr": "100"
-      },
-      "oppdaterbart": "navn = 'endret av sonden'"
-    },
-    {
-      "tabell": "stempling",
-      "$hvorfor": "Timene, avledet fra stemplingene. INGEN retailer_id - rent stasjonsscope, og kjeden naas bare gjennom stasjonen. 0101 stengte nettbrettet ute fra aa LESE den: rader med navn, dato og klokkeslett er personopplysninger, og den delte nettbrettkontoen er ikke en person. Sletting er eierens alene (0088) - en time som forsvinner er en time noen ikke faar betalt for.",
-      "tenant_scope": "station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": "none",
       "manager": {
         "select": "assigned_stations",
-        "insert": "assigned_stations",
-        "update": "assigned_stations"
+        "insert": "retailer"
       },
       "owner": "retailer",
+      "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan skrive en bekreftelse for en hvilken som helst stasjon i kjeden, og for en hvilken som helst ansatt_id. For et dokument som skal bevise at informasjonsplikten er oppfylt, er det for lite: raden sier at noen bekreftet, ikke at DEN som bekreftet var den det gjaldt. Utvei: bind ansatt_id/bruker_id til den innloggede slik persondata_logg gjor, og legg til stasjonsleddet.",
       "business_unik": [
-        "stasjon_id",
-        "ansatt_nr",
-        "dato",
-        "fra_tid"
+        "bruker_id",
+        "versjon",
+        "ansatt_id"
+      ],
+      "business_unik_unntak": {
+        "ansatt_id": "Settes ikke av fixturen. Check-skranken krever ansatt_id ELLER bruker_id, og fixturen bruker bruker_id - som er den grenen policyens egen-lesing faktisk matcher paa. Den unike indeksen over ansatt_id er partiell (where ansatt_id is not null) og gjelder derfor ikke disse radene.",
+        "bruker_id": "Varierer ikke per forsoek, men per IDENTITET - den er hele poenget: raden bindes til den som bekreftet. Kollisjon er likevel umulig, for versjon varierer per forsoek, og den unike indeksen er (bruker_id, versjon)."
+      },
+      "proberad": {
+        "versjon": "'{{unik}}'",
+        "bruker_id": "'{{bruker}}'"
+      }
+    },
+    {
+      "tabell": "malekort",
+      "$hvorfor": "INGEN stasjonskolonne - rent retailer-scope. Beviser at generatoren ikke lager kryss-stasjon-tester der begrepet ikke finnes. Lesing er rollestyrt via vis_tablet siden 0134.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "navn": "'Sondekort {{unik}}'",
+        "metrikk": "'omsetning'",
+        "periode": "'maaned'",
+        "retning": "'hoy'",
+        "vis_tablet": "true",
+        "vis_butikksjef": "true"
+      }
+    },
+    {
+      "tabell": "malekort_scope",
+      "$hvorfor": "Hvilke varegrupper et maalekort gjelder for - avdeling, vareomraade, varegruppe eller ean. Rent kjedescope, ingen stasjon. Lesing er aapen for hele kjeden uten rollesjekk (nettbrettet trenger scopet for aa vise kortet), skriving er eierens.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('{{seed:malekort}}', '{{retailer}}', 'Sondekort {{unik}}', 'omsetning', 'maaned', 'hoy', true, true)"
       ],
       "proberad": {
-        "ansatt_nr": "'{{unik}}'",
-        "ansatt_navn": "'Sonde Sondesen'",
-        "dato": "{{unik_dato}}",
-        "fra_tid": "clock_timestamp()::time",
-        "til_tid": "time '16:00'",
-        "minutter": "480"
+        "malekort_id": "'{{seed:malekort}}'",
+        "nivaa": "'avdeling'",
+        "kode": "'{{unik}}'"
       },
-      "$oppdaterbart_hvorfor": "ansatt_nr inngaar i business_unik, og resten av proberaden er tid.",
-      "oppdaterbart": "minutter = 470",
-      "$fra_tid_hvorfor": "business_unik er en flat liste over kolonnene i ALLE noeklene paa tabellen (se ansatte, som har to), saa valider() kan ikke se hvilke som hoerer sammen - og krever derfor at hver enkelt varierer. Klokkeslettet er det eneste feltet uten et naturlig varierende uttrykk; clock_timestamp() er baade sant og tilstrekkelig."
+      "oppdaterbart": "kode = 'endret'"
+    },
+    {
+      "tabell": "oppgaver",
+      "$hvorfor": "Oppgaver paa forsiden. Samme form som rutiner: aapen lesing, leder-skriving, og retailer_and_station uten retailer_id i with check.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tittel": "'Sondeoppgave {{unik}}'"
+      },
+      "oppdaterbart": "status = 'fullfort'"
+    },
+    {
+      "tabell": "opplaering_oppgave",
+      "$hvorfor": "Oppgavebiblioteket opplaering_utfort haker av mot. Rent kjedescope - ingen stasjon_id - og lesing er aapen for hele kjeden fordi nettbrettet viser oppgavene. Skriving er lederens.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Samme form som puls_sporsmal: en butikksjef med EN tildelt stasjon kan skrive og slette oppgaver for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning - policyen kan bare skille paa rolle og kjede. Produktbeslutningen mangler: skal biblioteket vaere eierens alene, maa rollelista i opp2_oppgave_skriv snevres til retailer_admin.",
+      "proberad": {
+        "tittel": "'Sondeoppgave {{unik}}'"
+      },
+      "oppdaterbart": "rekkefolge = 1"
     },
     {
       "tabell": "opplaering_periode",
@@ -861,28 +732,6 @@
         "start_dato": "date '2026-08-01'"
       },
       "oppdaterbart": "notater = 'endret av sonden'"
-    },
-    {
-      "tabell": "tilbakemelding",
-      "$hvorfor": "Melding fra nettbrettet til butikksjefen - uhell, nestenuhell, krenkelse. DETEKTORENS ANDRE KANDIDAT, samme form som opplaering_periode. INGEN DELETE-POLICY finnes: grantet fra 0040 gir authenticated delete, men uten policy nektes den. En melding om et uhell er ikke noe mottakeren skal kunne fjerne, og fravaeret av policy er derfor riktig - men det er RLS som holder, ikke grantet.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update"
-      ],
-      "tablet": {
-        "select": "own_station",
-        "insert": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "proberad": {
-        "tekst": "'Sondemelding {{unik}}'"
-      },
-      "$oppdaterbart_hvorfor": "lest_tid er det update-en faktisk brukes til - aa markere en melding lest.",
-      "oppdaterbart": "lest_tid = now()"
     },
     {
       "tabell": "opplaering_skift",
@@ -917,270 +766,53 @@
       "oppdaterbart": "notater = 'endret av sonden'"
     },
     {
-      "tabell": "puls_sporsmal",
-      "$hvorfor": "Sporsmaalsbiblioteket for pulsmaalingen. Rent kjedescope - ingen stasjon_id finnes. Lesing er aapen for hele kjeden fordi nettbrettet trenger sporsmaalet; skriving er lederens. Kald: et oppsett som endres naar noe settes opp, ikke i drift, og den staar allerede i kalde i rls_vakthund.sql.",
-      "tenant_scope": "retailer",
-      "data_class": "cold",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "retailer"
-      },
-      "manager": "retailer",
-      "owner": "retailer",
-      "avvik_fra_intensjon": "En butikksjef med EN tildelt stasjon kan skrive og slette sporsmaal for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning her - policyen kan bare skille paa rolle og kjede. Produktbeslutningen mangler: skal biblioteket vaere eierens alene, maa rollelista i puls_sporsmal_skriv snevres til retailer_admin. I tillegg er policyen en for all-policy fra 0038 med upakkede funksjonskall; 0078 lot den staa med vilje fordi tabellen er kald.",
-      "proberad": {
-        "tekst": "'Sondesporsmaal {{unik}}'"
-      },
-      "oppdaterbart": "kategori = 'Endret av sonden'"
-    },
-    {
-      "tabell": "puls_runde",
-      "$hvorfor": "En pulsrunde: ett sporsmaal i en periode. Kjedescope som sporsmaalet, og samme rollebilde. Kald av samme grunn - en rad per runde, ikke per hendelse.",
-      "tenant_scope": "retailer",
-      "data_class": "cold",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "retailer"
-      },
-      "manager": "retailer",
-      "owner": "retailer",
-      "avvik_fra_intensjon": "Samme som puls_sporsmal: butikksjefen naar hele kjedens runder, fordi tabellen ikke har noe stasjonsbegrep aa snevre paa. Ogsaa denne har en for all-policy fra 0038.",
-      "seed_ekstra": [
-        "insert into public.puls_sporsmal (id, retailer_id, tekst) values ('{{seed:sporsmal}}', '{{retailer}}', 'Sondesporsmaal')"
-      ],
-      "proberad": {
-        "sporsmal_id": "'{{seed:sporsmal}}'",
-        "start_dato": "date '2026-08-01'",
-        "slutt_dato": "date '2026-08-31'"
-      },
-      "oppdaterbart": "notat = 'endret av sonden'"
-    },
-    {
-      "tabell": "puls_svar",
-      "$hvorfor": "Svarene. Leses BARE av leder - nettbrettet kan ikke se andres svar, og det er hele poenget med maalingen. Skriving skjer ikke paa tabellen i det hele tatt: 0104 tok insert- og update-grantet fra authenticated og la veien inn i lagre_puls_svar() (security definer), fordi ansatt_id ikke er lesbar og en upsert fra appen da ikke kan avduplisere selv. Kolonnen ansatt_id er ogsaa borte fra select-grantet - koblingen finnes, men ingen kan lese den.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update"
-      ],
-      "tablet": "none",
-      "manager": {
-        "select": "assigned_stations"
-      },
-      "owner": {
-        "select": "retailer"
-      },
-      "avvik_fra_intensjon": "0104 droppet puls_insert og puls_update med vilje. 0107 - en ren ytelsesmigrasjon - gjenopprettet begge fra 0026 uten aa vite det, saa policyene staar i katalogen igjen i dag. INSERT og UPDATE staar derfor i operasjoner med INGEN rolle: det som faktisk stenger dem er at grantet aldri kom tilbake. Grantet er eneste lag, akkurat som paa ansatte for pin_hash. En senere migrasjon som gir authenticated insert eller update her ville aapnet skriveveien i stillhet, uten at noen policy ble roert.",
-      "seed_ekstra": [
-        "insert into public.puls_sporsmal (id, retailer_id, tekst) values ('{{seed:sporsmal}}', '{{retailer}}', 'Sondesporsmaal')",
-        "insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('{{seed:runde}}', '{{retailer}}', '{{seed:sporsmal}}', date '2026-08-01', date '2026-08-31')"
-      ],
-      "business_unik": [
-        "runde_id",
-        "ansatt_id"
-      ],
-      "business_unik_unntak": {
-        "ansatt_id": "Settes ikke av fixturen. Indeksen puls_svar_runde_ansatt er full og ikke partiell, og null regnes som distinkt - flere anonyme svar i samme runde kolliderer derfor ikke. Kolonnen er dessuten ikke lesbar for authenticated (0104), saa en fixture som satte den ville testet noe ingen rolle kan se."
-      },
-      "proberad": {
-        "runde_id": "'{{seed:runde}}'",
-        "skala": "3",
-        "kommentar": "'Sondesvar {{unik}}'"
-      },
-      "oppdaterbart": "kommentar = 'endret av sonden'"
-    },
-    {
-      "tabell": "rutiner",
-      "$hvorfor": "Rutinene nettbrettet haker av paa vakt. Lesing er aapen (ingen rollepredikat), skriving er lederens. RETAILER_AND_STATION uten retailer_id i with check - samme form som de fire lekkasjene 0135 og 0138 rettet. Klassifisert som dagens sannhet; matrisen faar si om formen biter her ogsaa.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "proberad": {
-        "tittel": "'Sonderutine {{unik}}'"
-      },
-      "oppdaterbart": "beskrivelse = 'endret av sonden'"
-    },
-    {
-      "tabell": "oppgaver",
-      "$hvorfor": "Oppgaver paa forsiden. Samme form som rutiner: aapen lesing, leder-skriving, og retailer_and_station uten retailer_id i with check.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "proberad": {
-        "tittel": "'Sondeoppgave {{unik}}'"
-      },
-      "oppdaterbart": "status = 'fullfort'"
-    },
-    {
-      "tabell": "sjekkpunkt_svar",
-      "$hvorfor": "Sjekkpunktene nettbrettet svarer paa. INGEN retailer_id-kolonne - rent stasjonsscope. Alle fire operasjonene er aapne uten rollepredikat, saa nettbrettet har full CRUD. Det er arbeidsflaten, men DELETE er verdt et blikk i en senere pulje.",
+      "tabell": "opplaering_utfort",
+      "$hvorfor": "Tenantnokkelen er INDIREKTE - periode_id peker paa en periode som peker paa stasjonen. Nettbrettet kan sette en hake og endre den, men aldri fjerne den (0133).",
       "tenant_scope": "station",
+      "tenant_kolonne": "periode_id",
+      "tenant_join": "periode_id in (select p.id from public.opplaering_periode p where p.stasjon_id = {{stasjon_uttrykk}})",
       "data_class": "warm",
       "operasjoner": [
         "select",
         "insert",
         "update",
         "delete"
-      ],
-      "tablet": "read_write",
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "business_unik": [
-        "sjekkpunkt_id",
-        "dato"
-      ],
-      "seed_ekstra": [
-        "insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values ('{{seed:sjekkpunkt}}', '{{retailer}}', '{{stasjon}}', 'Sondesporsmaal')"
-      ],
-      "proberad": {
-        "sjekkpunkt_id": "'{{seed:sjekkpunkt}}'",
-        "dato": "{{unik_dato}}",
-        "svar": "true"
-      },
-      "$oppdaterbart_hvorfor": "dato inngaar i business_unik.",
-      "oppdaterbart": "svar = false"
-    },
-    {
-      "tabell": "tildelte_merker",
-      "$hvorfor": "Merker tildelt en ansatt. Stasjonsscopet uten retailer_id. Lesing aapen - nettbrettet viser dem paa /merker - skriving er lederens. Forutsetter BAADE et merke og en ansatt, og ansatte har egen forretningsnokkel paa pin_hash.",
-      "tenant_scope": "station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "business_unik": [
-        "merke_id",
-        "ansatt_id"
-      ],
-      "seed_ekstra": [
-        "insert into public.merker (id, retailer_id, navn) values ('{{seed:merke}}', '{{retailer}}', 'Sondemerke {{n}}')",
-        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'merke-{{n}}', 'pin-merke-{{n}}')"
-      ],
-      "proberad": {
-        "merke_id": "'{{seed:merke}}'",
-        "ansatt_id": "'{{seed:ansatt}}'",
-        "tildelt_dato": "{{unik_dato}}"
-      },
-      "$oppdaterbart_hvorfor": "merke_id og ansatt_id inngaar begge i business_unik.",
-      "oppdaterbart": "tildelt_dato = date '2029-01-01'"
-    },
-    {
-      "tabell": "ik_avlesninger",
-      "$hvorfor": "Temperaturavlesninger. Stasjonsscopet uten retailer_id. Bare SELECT og INSERT finnes som policy - ingen UPDATE, ingen DELETE. En avlesning er en registrering, ikke noe man retter. Nettbrettet skriver dem paa /ikmat/maaling.",
-      "tenant_scope": "station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert"
       ],
       "tablet": {
         "select": "own_station",
-        "insert": "own_station"
+        "insert": "own_station",
+        "update": "own_station"
       },
       "manager": "assigned_stations",
       "owner": "retailer",
       "seed_ekstra": [
-        "insert into public.ik_kontrollpunkter (id, retailer_id, stasjon_id, navn) values ('{{seed:kontrollpunkt}}', '{{retailer}}', '{{stasjon}}', 'Sondepunkt')"
+        "insert into public.opplaering_oppgave (id, retailer_id, tittel, kategori) values ('{{seed:oppgave}}', '{{retailer}}', 'Sondeoppgave', 'Kasse')",
+        "insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('{{seed:periode}}', '{{retailer}}', '{{stasjon}}', 'Sonde Sondesen', current_date)"
       ],
-      "proberad": {
-        "kontrollpunkt_id": "'{{seed:kontrollpunkt}}'",
-        "dato": "{{unik_dato}}",
-        "temperatur": "4.0",
-        "innenfor": "true"
-      },
-      "oppdaterbart": "tiltak = 'ikke relevant'"
-    },
-    {
-      "tabell": "ansatte",
-      "$hvorfor": "Ansattregisteret. Naas fra aatte nettbrettruter, fordi navnet trengs overalt for aa vise hvem som gjorde hva - og fordi PIN-innlogging paa nettbrettet slaar opp ansatt_nr og navn. GRANTEN ER SMALERE ENN POLICYEN, og det er granten som gjelder: 0112 gjorde `revoke select ... from authenticated` og delte ut ni av ti kolonner. `pin_hash` er ikke blant dem. Klassifiseringen beskriver derfor en tilgang som allerede er kolonnegjerdet.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
       "business_unik": [
-        "retailer_id",
-        "ansatt_nr",
-        "pin_hash"
+        "periode_id",
+        "oppgave_id"
       ],
-      "$business_unik_hvorfor": "TO partielle unike indekser, ikke en: (retailer_id, ansatt_nr) where ansatt_nr is not null and slettet_tid is null (0110), og (retailer_id, pin_hash) where aktiv and slettet_tid is null (0025). Jeg fant den foerste og antok at det var alle - den andre felte matrisen i CI. src/lib/tenant/skjema.ts leser naa begge ut av migrasjonene.",
-      "avvik_fra_intensjon": "DAGENS TILSTAND. ansatte_les har ikke rollepredikat, saa nettbrettkontoen leser hele stasjonens ansattliste - navn, ansatt_nr, aktiv. Det verste er allerede ute: pin_hash er lukket av kolonnegrant i 0112, og sonden bekreftet at anon ikke naar tabellen i det hele tatt. Spoersmaalet er derfor ikke OM nettbrettet skal lese, men HVILKE kolonner - det trenger navn og nummer for PIN-oppslaget. Krever produktvalg, ikke en innstramming: et rollepredikat ville tatt bort PIN-innlogging paa nettbrettet.",
       "proberad": {
-        "navn": "'Sonde Sondesen'",
-        "ansatt_nr": "'{{unik}}'",
-        "pin_hash": "'pin {{unik}}'"
+        "periode_id": "'{{seed:periode}}'",
+        "oppgave_id": "'{{seed:oppgave}}'"
       },
-      "oppdaterbart": "navn = 'Endret av sonden'"
+      "$oppdaterbart_hvorfor": "proberaden er bare fremmednokler.",
+      "oppdaterbart": "notater = 'endret av sonden'"
     },
     {
-      "tabell": "skills_score",
-      "$hvorfor": "Stasjonens skills-score. Ingen ansatt_id - scoren er paa STASJONEN, ikke personen. /skills er lederflate (retailer_admin, butikksjef). Nettbrettet leser den via hentHjemData, og bare feltet `prosent`.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "capability_gjeld": "KOLONNENIVAA, IKKE RAD. Nettbrettet trenger `prosent` og faar hele raden - ogsaa `kommentar` og `registrert_av`, altsaa lederens skriftlige vurdering og hvem som skrev den. Et rollepredikat duger ikke: det ville tatt bort nettbrettets legitime lesing av prosent. Et kolonnegrant duger heller ikke - butikksjefen skal se kommentaren, og granten treffer hele authenticated. Utvei: en security_invoker-view med stasjon_id og prosent til nettbrettet, og rollepredikat paa tabellen. Godkjent av Robert i PORT 1, ikke bygget.",
+      "tabell": "oversettelse_cache",
+      "$hvorfor": "Funnet av dekningskontrollen paa dens foerste kjoering. RLS er PAA og det finnes INGEN policy - tabellen er laast for alt annet enn service_role, med vilje (0037). Den er innholdsadressert cache uten tenantkolonner, saa den hoerer ingen kjede til. Den falt utenfor hver liste fordi vakthundens dekningssjekk bare ser tabeller SOM HAR policy.",
+      "tenant_scope": "global",
+      "data_class": "cold",
+      "operasjoner": [],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "none",
+      "ingen_policy": "Med vilje siden 0037: RLS er paa og det finnes INGEN policy, saa alt annet enn service_role nektes. Kvitteringen staar her fordi en tabell uten policy aldri skal vaere usynlig - den skal vaere sett.",
       "proberad": {
-        "prosent": "88"
-      },
-      "oppdaterbart": "prosent = 91"
+        "$ikke_relevant": "ingen rolle naar tabellen"
+      }
     },
     {
       "tabell": "pengepremie_bruk",
@@ -1206,52 +838,30 @@
       "oppdaterbart": "belop_kr = 750"
     },
     {
-      "tabell": "bemanning_stasjon",
-      "$hvorfor": "Bemanningstaket per stasjon. Skjemaet har stasjon_id som PRIMAERNOEKKEL - en rad per stasjon, og ingen id-kolonne. Foer 0137 leste nettbrettkontoen maks_bemanning paa egen stasjon uten at noen nettbrettrute brukte tabellen; avviket sto her som avvik_fra_intensjon, og ble strammet i 0137. Naa beskriver raden den nye sannheten.",
-      "tenant_scope": "station",
+      "tabell": "persondata_logg",
+      "$hvorfor": "Hvem har sett hva om hvem (GDPR art. 32). Vokser raskest av alle - en rad per oppslag paa persondata - og kan aldri endres eller slettes: ingen update- eller delete-policy finnes, med vilje. En logg som lar seg redigere av den som er logget, dokumenterer ingenting.",
+      "$bruker_hvorfor": "Innsettingspolicyen krever `bruker_id = (select auth.uid())`. Proberaden bruker derfor {{bruker}}, som er identiteten som faktisk proever - ellers ville hvert forsoek fra en annen enn eieren blitt avvist av FIXTUREN, og kontrakten ville sagt at rollen ikke naar noe den faktisk faar lov til.",
+      "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
         "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": "none",
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "en_rad_per_stasjon": true,
-      "id_kolonne": "stasjon_id",
-      "business_unik": [
-        "stasjon_id"
-      ],
-      "business_unik_unntak": {
-        "stasjon_id": "Er primaernoekkelen selv, og varierer med maalet. Se en_rad_per_stasjon."
-      },
-      "proberad": {
-        "maks_bemanning": "7"
-      },
-      "oppdaterbart": "maks_bemanning = 9"
-    },
-    {
-      "tabell": "tablet_meldinger",
-      "$hvorfor": "Meldinger til nettbrettet. stasjon_id er NULLBAR, og null betyr hele kjeden - foerste bruk av retailer_or_station. Policyene er allerede forbilledlige: de navngir retailer_id, rollen OG haandterer null-tilfellet med (stasjon_id is null or stasjon_id in (...)). Det er modellen som manglet scopet, ikke policyen.",
-      "tenant_scope": "retailer_or_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
+        "insert"
       ],
       "tablet": {
-        "select": "own_station"
+        "insert": "retailer"
       },
-      "manager": "assigned_stations",
+      "manager": {
+        "select": "retailer",
+        "insert": "retailer"
+      },
       "owner": "retailer",
+      "avvik_fra_intensjon": "Butikksjefen ser HELE kjedens logg, ikke bare sine egne stasjoner: lesepolicyen scoper paa retailer_id og rolle, aldri paa stasjon. For en tilgangslogg kan det vaere riktig - den som er ansvarlig skal kunne se hvem som har sett hva - men det er en beslutning ingen har tatt eksplisitt, og det staar i kontrast til alle andre butikksjef-regler i basen. Nettbrettet kan SKRIVE i loggen for hele kjeden av samme grunn; det er mindre alvorlig, siden raden maa baere nettbrettets egen bruker_id.",
       "proberad": {
-        "tekst": "'Sondemelding {{unik}}'"
-      },
-      "oppdaterbart": "viktig = true"
+        "handling": "'sonde_oppslag'",
+        "ansatt_nr": "'{{unik}}'",
+        "bruker_id": "'{{bruker}}'",
+        "bruker_navn": "'Sonde Sondesen'"
+      }
     },
     {
       "tabell": "produksjonsplan_hode",
@@ -1310,9 +920,76 @@
       "oppdaterbart": "lagd_hittil = 1"
     },
     {
-      "tabell": "avvik",
-      "$hvorfor": "Full CRUD, stasjonsscopet lesing, men leder-rolle paa update/delete. Nettbrettet melder avvik og leser dem, men retter dem ikke.",
+      "tabell": "prognose_kalibrering",
+      "$hvorfor": "Korreksjonsfaktoren prognosen ganges med, per stasjon og kategori. Raden er (stasjon_id, type, kategori) - ingen id. Bare SELECT finnes som policy; skrivingen skjer i kalibreringsjobben, som service_role. Leses av alle tre rollene paa egne stasjoner, som trafikk.",
       "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "stasjon_id",
+        "type",
+        "kategori"
+      ],
+      "business_unik": [
+        "stasjon_id",
+        "type",
+        "kategori"
+      ],
+      "business_unik_unntak": {
+        "type": "En check-skranke tillater bare produksjonsplan og salgsprognose, saa kolonnen kan ikke varieres fritt - og den er en del av identiteten, som maa vaere stabil. Kategori varierer per forsoek i stedet."
+      },
+      "proberad": {
+        "type": "'produksjonsplan'",
+        "kategori": "'{{unik}}'",
+        "korreksjon": "1.05",
+        "n": "30"
+      }
+    },
+    {
+      "tabell": "prognose_treff",
+      "$hvorfor": "Treffsikkerheten til prognosen: forventet mot faktisk, per stasjon og kategori. Bare SELECT finnes som policy - jobben skriver som service_role, og ingen menneskerolle skal kunne rette et treff i ettertid. Samme lesemoenster som prognose_kalibrering.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "type": "'produksjonsplan'",
+        "dato": "{{unik_dato}}",
+        "kategori": "'{{unik}}'",
+        "forventet": "100",
+        "faktisk": "95"
+      },
+      "business_unik": [
+        "stasjon_id",
+        "type",
+        "dato",
+        "kategori"
+      ],
+      "business_unik_unntak": {
+        "type": "En check-skranke tillater bare produksjonsplan og salgsprognose. Dato og kategori varierer per forsoek, saa den sammensatte noekkelen er unik uansett."
+      }
+    },
+    {
+      "tabell": "puls_runde",
+      "$hvorfor": "En pulsrunde: ett sporsmaal i en periode. Kjedescope som sporsmaalet, og samme rollebilde. Kald av samme grunn - en rad per runde, ikke per hendelse.",
+      "tenant_scope": "retailer",
       "data_class": "warm",
       "operasjoner": [
         "select",
@@ -1321,22 +998,129 @@
         "delete"
       ],
       "tablet": {
-        "select": "own_station",
-        "insert": "own_station"
+        "select": "retailer"
       },
-      "manager": "assigned_stations",
+      "manager": "retailer",
       "owner": "retailer",
+      "avvik_fra_intensjon": "Samme som puls_sporsmal: butikksjefen naar hele kjedens runder, fordi tabellen ikke har noe stasjonsbegrep aa snevre paa. Ogsaa denne har en for all-policy fra 0038.",
+      "seed_ekstra": [
+        "insert into public.puls_sporsmal (id, retailer_id, tekst) values ('{{seed:sporsmal}}', '{{retailer}}', 'Sondesporsmaal')"
+      ],
+      "proberad": {
+        "sporsmal_id": "'{{seed:sporsmal}}'",
+        "start_dato": "date '2026-08-01'",
+        "slutt_dato": "date '2026-08-31'"
+      },
+      "oppdaterbart": "notat = 'endret av sonden'"
+    },
+    {
+      "tabell": "puls_sporsmal",
+      "$hvorfor": "Sporsmaalsbiblioteket for pulsmaalingen. Rent kjedescope - ingen stasjon_id finnes. Lesing er aapen for hele kjeden fordi nettbrettet trenger sporsmaalet; skriving er lederens. Staar i kalde i rls_vakthund.sql - det er en YTELSESvurdering (faa rader), ikke en isolasjonsvurdering, og den hoerer ikke hjemme i data_class.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "En butikksjef med EN tildelt stasjon kan skrive og slette sporsmaal for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning her - policyen kan bare skille paa rolle og kjede. Produktbeslutningen mangler: skal biblioteket vaere eierens alene, maa rollelista i puls_sporsmal_skriv snevres til retailer_admin. I tillegg er policyen en for all-policy fra 0038 med upakkede funksjonskall; 0078 lot den staa med vilje fordi tabellen er kald.",
+      "proberad": {
+        "tekst": "'Sondesporsmaal {{unik}}'"
+      },
+      "oppdaterbart": "kategori = 'Endret av sonden'"
+    },
+    {
+      "tabell": "puls_svar",
+      "$hvorfor": "Svarene. Leses BARE av leder - nettbrettet kan ikke se andres svar, og det er hele poenget med maalingen. Skriving skjer ikke paa tabellen i det hele tatt: 0104 tok insert- og update-grantet fra authenticated og la veien inn i lagre_puls_svar() (security definer), fordi ansatt_id ikke er lesbar og en upsert fra appen da ikke kan avduplisere selv. Kolonnen ansatt_id er ogsaa borte fra select-grantet - koblingen finnes, men ingen kan lese den.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": {
+        "select": "retailer"
+      },
+      "avvik_fra_intensjon": "0104 droppet puls_insert og puls_update med vilje. 0107 - en ren ytelsesmigrasjon - gjenopprettet begge fra 0026 uten aa vite det, saa policyene staar i katalogen igjen i dag. INSERT og UPDATE staar derfor i operasjoner med INGEN rolle: det som faktisk stenger dem er at grantet aldri kom tilbake. Grantet er eneste lag, akkurat som paa ansatte for pin_hash. En senere migrasjon som gir authenticated insert eller update her ville aapnet skriveveien i stillhet, uten at noen policy ble roert.",
+      "seed_ekstra": [
+        "insert into public.puls_sporsmal (id, retailer_id, tekst) values ('{{seed:sporsmal}}', '{{retailer}}', 'Sondesporsmaal')",
+        "insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('{{seed:runde}}', '{{retailer}}', '{{seed:sporsmal}}', date '2026-08-01', date '2026-08-31')"
+      ],
       "business_unik": [
-        "retailer_id",
-        "lopenr"
+        "runde_id",
+        "ansatt_id"
       ],
       "business_unik_unntak": {
-        "lopenr": "Tildeles av trigger sett_avvik_lopenr() (0079). Indeksen er partiell - where slettet_tid is null - og fixturen skal derfor ikke sette den."
+        "ansatt_id": "Settes ikke av fixturen. Indeksen puls_svar_runde_ansatt er full og ikke partiell, og null regnes som distinkt - flere anonyme svar i samme runde kolliderer derfor ikke. Kolonnen er dessuten ikke lesbar for authenticated (0104), saa en fixture som satte den ville testet noe ingen rolle kan se."
       },
       "proberad": {
-        "dato": "date '2026-08-01'",
-        "beskrivelse": "'sonde {{unik}}'"
-      }
+        "runde_id": "'{{seed:runde}}'",
+        "skala": "3",
+        "kommentar": "'Sondesvar {{unik}}'"
+      },
+      "oppdaterbart": "kommentar = 'endret av sonden'"
+    },
+    {
+      "tabell": "regnskap_usynlig_svinn",
+      "$hvorfor": "Usynlig svinn per periode - manko og overskudd fra regnskapet. Den eneste av de fire som er EIERENS ALENE: usynlig_svinn_les krever rolle retailer_admin, uten stasjonsledd. stasjon_id er nullbar (klyngelinjer), men null betyr ikke kjeden slik det gjor i tablet_meldinger - det betyr bare at ingen stasjonsrolle naar raden, for ingen stasjonsrolle naar noen rad her.",
+      "$kaffeunntaket": "usynlig_svinn_les_kaffe (0127) gir butikksjefen ETT smalt vindu: linjer med kodeprefiks 130 paa egne stasjoner. Proberaden er med vilje en vanlig linje (kode 20010), saa matrisen beviser hovedregelen - at butikksjefen ikke ser usynlig svinn. Den positive siden av kaffeunntaket er derfor IKKE dekket her; en betingelse paa en kolonneverdi kan kontrakten ikke uttrykke i dag. Samme form som malekort.vis_tablet hadde foer 0134.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "proberad": {
+        "periode": "date '2026-08-01'",
+        "kode": "'20010'",
+        "navn": "'Sondelinje {{unik}}'",
+        "usynlig_kr": "100"
+      },
+      "oppdaterbart": "navn = 'endret av sonden'"
+    },
+    {
+      "tabell": "regnskapslinjer",
+      "$hvorfor": "Regnskapet per maaned, linje for linje. stasjon_id er NULLBAR, og en null-rad er en klyngelinje - tall for kjeden samlet, ikke for en stasjon. Skriving er admin alene (0077); lesing foelger stasjonen, med klyngelinjene forbeholdt eieren.",
+      "$null_stasjon_hvorfor": "Lesepolicyen krever `stasjon_id is not null` i stasjonsgrenen (0067). Null betyr derfor IKKE hele kjeden slik det gjor i tablet_meldinger - det betyr at bare retailer_admin-grenen kan slippe raden gjennom. Det skillet er hele grunnen til at tabellen ikke kunne klassifiseres i pulje 6.",
+      "tenant_scope": "retailer_or_station",
+      "null_stasjon": "kun_eier",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "periode": "date '2026-08-01'",
+        "seksjon": "'omsetning'",
+        "post": "'Sondepost {{unik}}'",
+        "regnskap": "1000"
+      },
+      "oppdaterbart": "post = 'endret av sonden'"
     },
     {
       "tabell": "rutine_utforinger",
@@ -1367,9 +1151,9 @@
       "oppdaterbart": "utfort_tid = now()"
     },
     {
-      "tabell": "malekort",
-      "$hvorfor": "INGEN stasjonskolonne - rent retailer-scope. Beviser at generatoren ikke lager kryss-stasjon-tester der begrepet ikke finnes. Lesing er rollestyrt via vis_tablet siden 0134.",
-      "tenant_scope": "retailer",
+      "tabell": "rutiner",
+      "$hvorfor": "Rutinene nettbrettet haker av paa vakt. Lesing er aapen (ingen rollepredikat), skriving er lederens. RETAILER_AND_STATION uten retailer_id i with check - samme form som de fire lekkasjene 0135 og 0138 rettet. Klassifisert som dagens sannhet; matrisen faar si om formen biter her ogsaa.",
+      "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
         "select",
@@ -1378,69 +1162,174 @@
         "delete"
       ],
       "tablet": {
-        "select": "retailer"
-      },
-      "manager": {
-        "select": "retailer"
-      },
-      "owner": "retailer",
-      "proberad": {
-        "navn": "'Sondekort {{unik}}'",
-        "metrikk": "'omsetning'",
-        "periode": "'maaned'",
-        "retning": "'hoy'",
-        "vis_tablet": "true",
-        "vis_butikksjef": "true"
-      }
-    },
-    {
-      "tabell": "opplaering_utfort",
-      "$hvorfor": "Tenantnokkelen er INDIREKTE - periode_id peker paa en periode som peker paa stasjonen. Nettbrettet kan sette en hake og endre den, men aldri fjerne den (0133).",
-      "tenant_scope": "station",
-      "tenant_kolonne": "periode_id",
-      "tenant_join": "periode_id in (select p.id from public.opplaering_periode p where p.stasjon_id = {{stasjon_uttrykk}})",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station",
-        "insert": "own_station",
-        "update": "own_station"
+        "select": "own_station"
       },
       "manager": "assigned_stations",
       "owner": "retailer",
-      "seed_ekstra": [
-        "insert into public.opplaering_oppgave (id, retailer_id, tittel, kategori) values ('{{seed:oppgave}}', '{{retailer}}', 'Sondeoppgave', 'Kasse')",
-        "insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('{{seed:periode}}', '{{retailer}}', '{{stasjon}}', 'Sonde Sondesen', current_date)"
-      ],
-      "business_unik": [
-        "periode_id",
-        "oppgave_id"
-      ],
       "proberad": {
-        "periode_id": "'{{seed:periode}}'",
-        "oppgave_id": "'{{seed:oppgave}}'"
+        "tittel": "'Sonderutine {{unik}}'"
       },
-      "$oppdaterbart_hvorfor": "proberaden er bare fremmednokler.",
-      "oppdaterbart": "notater = 'endret av sonden'"
+      "oppdaterbart": "beskrivelse = 'endret av sonden'"
     },
     {
-      "tabell": "oversettelse_cache",
-      "$hvorfor": "Funnet av dekningskontrollen paa dens foerste kjoering. RLS er PAA og det finnes INGEN policy - tabellen er laast for alt annet enn service_role, med vilje (0037). Den er innholdsadressert cache uten tenantkolonner, saa den hoerer ingen kjede til. Den falt utenfor hver liste fordi vakthundens dekningssjekk bare ser tabeller SOM HAR policy.",
-      "tenant_scope": "global",
-      "data_class": "cold",
-      "operasjoner": [],
-      "tablet": "none",
-      "manager": "none",
-      "owner": "none",
-      "ingen_policy": "Med vilje siden 0037: RLS er paa og det finnes INGEN policy, saa alt annet enn service_role nektes. Kvitteringen staar her fordi en tabell uten policy aldri skal vaere usynlig - den skal vaere sett.",
+      "tabell": "rutineskjemaer",
+      "$hvorfor": "Vaktskjemaene rutinene henger under (0032). Lesing er aapen for stasjonen - nettbrettet trenger aa vite hvilken vakt som gjelder naa - skriving er lederens. Kald i rls_vakthund.sql fordi den har faa rader; det er en YTELSESvurdering og sier ingenting om isolasjon, saa den er warm her. Policyene er fortsatt for all med upakkede kall fra 0032 - ikke rettet, fordi tabellen ikke vokser med drift.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
       "proberad": {
-        "$ikke_relevant": "ingen rolle naar tabellen"
-      }
+        "vakttype": "'morgen'",
+        "navn": "'Sondeskjema {{unik}}'",
+        "tid_start": "'06:00'",
+        "tid_slutt": "'14:00'"
+      },
+      "oppdaterbart": "navn = 'endret av sonden'"
+    },
+    {
+      "tabell": "signal_lukket",
+      "$hvorfor": "Midlertidig skjulte funn i oppmerksomhetsfeeden - et funn som kan skjules for alltid er et funn ingen fikser, derfor gjelder_til. Lesingen er aapen for hele stasjonen (nettbrettet skal ikke se et funn lederen har skjult), mens skjulingen selv er lederens. Kjede-brede funn (stasjon null) leses av alle i kjeden.",
+      "tenant_scope": "retailer_or_station",
+      "null_stasjon": "kjeden",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "signal_id": "'sonde-{{unik}}'",
+        "gjelder_til": "{{unik_dato}}",
+        "notat": "'Sonde'"
+      },
+      "oppdaterbart": "notat = 'endret av sonden'",
+      "business_unik": [
+        "retailer_id",
+        "signal_id"
+      ]
+    },
+    {
+      "tabell": "sjekkpunkt_svar",
+      "$hvorfor": "Sjekkpunktene nettbrettet svarer paa. INGEN retailer_id-kolonne - rent stasjonsscope. Alle fire operasjonene er aapne uten rollepredikat, saa nettbrettet har full CRUD. Det er arbeidsflaten, men DELETE er verdt et blikk i en senere pulje.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "read_write",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "sjekkpunkt_id",
+        "dato"
+      ],
+      "seed_ekstra": [
+        "insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values ('{{seed:sjekkpunkt}}', '{{retailer}}', '{{stasjon}}', 'Sondesporsmaal')"
+      ],
+      "proberad": {
+        "sjekkpunkt_id": "'{{seed:sjekkpunkt}}'",
+        "dato": "{{unik_dato}}",
+        "svar": "true"
+      },
+      "$oppdaterbart_hvorfor": "dato inngaar i business_unik.",
+      "oppdaterbart": "svar = false"
+    },
+    {
+      "tabell": "sjekkpunkter",
+      "$hvorfor": "Sporsmaalene bak sjekkpunkt_svar, som alt er bevist. Samme form som rutineskjemaer: aapen lesing paa stasjonen, lederskriving. Malen og svaret hoerer sammen - er svaret bevist og malen ikke, er halve kjeden usett.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "sporsmaal": "'Er kjoelen sjekket? {{unik}}'"
+      },
+      "oppdaterbart": "kritisk = true"
+    },
+    {
+      "tabell": "skills_score",
+      "$hvorfor": "Stasjonens skills-score. Ingen ansatt_id - scoren er paa STASJONEN, ikke personen. /skills er lederflate (retailer_admin, butikksjef). Nettbrettet leser den via hentHjemData, og bare feltet `prosent`.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "capability_gjeld": "KOLONNENIVAA, IKKE RAD. Nettbrettet trenger `prosent` og faar hele raden - ogsaa `kommentar` og `registrert_av`, altsaa lederens skriftlige vurdering og hvem som skrev den. Et rollepredikat duger ikke: det ville tatt bort nettbrettets legitime lesing av prosent. Et kolonnegrant duger heller ikke - butikksjefen skal se kommentaren, og granten treffer hele authenticated. Utvei: en security_invoker-view med stasjon_id og prosent til nettbrettet, og rollepredikat paa tabellen. Godkjent av Robert i PORT 1, ikke bygget.",
+      "proberad": {
+        "prosent": "88"
+      },
+      "oppdaterbart": "prosent = 91"
+    },
+    {
+      "tabell": "stempling",
+      "$hvorfor": "Timene, avledet fra stemplingene. INGEN retailer_id - rent stasjonsscope, og kjeden naas bare gjennom stasjonen. 0101 stengte nettbrettet ute fra aa LESE den: rader med navn, dato og klokkeslett er personopplysninger, og den delte nettbrettkontoen er ikke en person. Sletting er eierens alene (0088) - en time som forsvinner er en time noen ikke faar betalt for.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "assigned_stations",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ansatt_nr",
+        "dato",
+        "fra_tid"
+      ],
+      "proberad": {
+        "ansatt_nr": "'{{unik}}'",
+        "ansatt_navn": "'Sonde Sondesen'",
+        "dato": "{{unik_dato}}",
+        "fra_tid": "clock_timestamp()::time",
+        "til_tid": "time '16:00'",
+        "minutter": "480"
+      },
+      "$oppdaterbart_hvorfor": "ansatt_nr inngaar i business_unik, og resten av proberaden er tid.",
+      "oppdaterbart": "minutter = 470",
+      "$fra_tid_hvorfor": "business_unik er en flat liste over kolonnene i ALLE noeklene paa tabellen (se ansatte, som har to), saa valider() kan ikke se hvilke som hoerer sammen - og krever derfor at hver enkelt varierer. Klokkeslettet er det eneste feltet uten et naturlig varierende uttrykk; clock_timestamp() er baade sant og tilstrekkelig."
     },
     {
       "tabell": "stempling_hendelse",
@@ -1476,6 +1365,233 @@
         "tidspunkt": "clock_timestamp()",
         "kilde": "'tablet'"
       }
+    },
+    {
+      "tabell": "synlig_svinn",
+      "$hvorfor": "Varetransaksjonene bak svinnprosenten - det som ble slaatt inn som kast. Samme rollebilde som daglig_salg: stasjonsscopet lesing, admin-skriving for hele kjeden. Har surrogat-id fordi en transaksjon ikke har noen naturlig noekkel; idempotens loeses ved aa slette (stasjon, dato) foer innsetting, ikke med en unique-skranke.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "ean": "'{{unik}}'",
+        "varenavn": "'Sondevare'",
+        "antall": "1",
+        "nettopris_total": "25"
+      },
+      "oppdaterbart": "varenavn = 'endret av sonden'"
+    },
+    {
+      "tabell": "tablet_meldinger",
+      "$hvorfor": "Meldinger til nettbrettet. stasjon_id er NULLBAR, og null betyr hele kjeden - foerste bruk av retailer_or_station. Policyene er allerede forbilledlige: de navngir retailer_id, rollen OG haandterer null-tilfellet med (stasjon_id is null or stasjon_id in (...)). Det er modellen som manglet scopet, ikke policyen.",
+      "tenant_scope": "retailer_or_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tekst": "'Sondemelding {{unik}}'"
+      },
+      "oppdaterbart": "viktig = true"
+    },
+    {
+      "tabell": "tilbakemelding",
+      "$hvorfor": "Melding fra nettbrettet til butikksjefen - uhell, nestenuhell, krenkelse. DETEKTORENS ANDRE KANDIDAT, samme form som opplaering_periode. INGEN DELETE-POLICY finnes: grantet fra 0040 gir authenticated delete, men uten policy nektes den. En melding om et uhell er ikke noe mottakeren skal kunne fjerne, og fravaeret av policy er derfor riktig - men det er RLS som holder, ikke grantet.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "tekst": "'Sondemelding {{unik}}'"
+      },
+      "$oppdaterbart_hvorfor": "lest_tid er det update-en faktisk brukes til - aa markere en melding lest.",
+      "oppdaterbart": "lest_tid = now()"
+    },
+    {
+      "tabell": "tildelte_merker",
+      "$hvorfor": "Merker tildelt en ansatt. Stasjonsscopet uten retailer_id. Lesing aapen - nettbrettet viser dem paa /merker - skriving er lederens. Forutsetter BAADE et merke og en ansatt, og ansatte har egen forretningsnokkel paa pin_hash.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "merke_id",
+        "ansatt_id"
+      ],
+      "seed_ekstra": [
+        "insert into public.merker (id, retailer_id, navn) values ('{{seed:merke}}', '{{retailer}}', 'Sondemerke {{n}}')",
+        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'merke-{{n}}', 'pin-merke-{{n}}')"
+      ],
+      "proberad": {
+        "merke_id": "'{{seed:merke}}'",
+        "ansatt_id": "'{{seed:ansatt}}'",
+        "tildelt_dato": "{{unik_dato}}"
+      },
+      "$oppdaterbart_hvorfor": "merke_id og ansatt_id inngaar begge i business_unik.",
+      "oppdaterbart": "tildelt_dato = date '2029-01-01'"
+    },
+    {
+      "tabell": "timesalg",
+      "$hvorfor": "Salg per time (St1 0758) - grunnlaget for heatmapet og hele bemanningsplanleggeren. Samme rollebilde som daglig_salg: stasjonsscopet lesing for butikksjef og nettbrett, admin-skriving for hele kjeden. INGEN ID-KOLONNE: raden er (retailer_id, stasjon_id, dato, time), og det var den eneste grunnen til at den sto uklassifisert etter pulje 6.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "time"
+      ],
+      "business_unik": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "time"
+      ],
+      "business_unik_unntak": {
+        "time": "Klokketimen er en del av radens IDENTITET (id_kolonner), og maa derfor vaere det samme uttrykket hver gang predikatet evalueres - ellers peker det paa ingenting. Dato varierer per forsoek, saa den sammensatte noekkelen kan ikke kollidere uansett."
+      },
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "time": "'8-9'",
+        "salg": "1000",
+        "antall_kunder": "10"
+      },
+      "oppdaterbart": "antall_kunder = 11"
+    },
+    {
+      "tabell": "trafikk",
+      "$hvorfor": "Kjoeretoey forbi stasjonen per dag - grunnlaget for vaer- og trafikkjusteringen i prognosen. INGEN retailer_id og ingen id: raden er (stasjon_id, dato). Bare SELECT finnes som policy, og grantet gir bare select - dataene hentes av jobben som service_role. Alle tre rollene leser sine egne stasjoner; her er det ingen rolleskille i det hele tatt.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "stasjon_id",
+        "dato"
+      ],
+      "business_unik": [
+        "stasjon_id",
+        "dato"
+      ],
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "antall_kjoretoy": "1000",
+        "dekning_pst": "80"
+      }
+    },
+    {
+      "tabell": "uke_rapport",
+      "$hvorfor": "Den ferdige ukerapporten per stasjon. Alle fire operasjonene har samme predikat: eieren paa hele kjeden, eller hvem som helst med stasjonstilgang. Ingen rollesjekk i stasjonsgrenen.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "read_write",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Nettbrettet kan SLETTE ukerapporten for sin egen stasjon. Stasjonsgrenen i uke_rapport_del har ingen rollesjekk, saa den delte kontoen i butikken har samme rett som butikksjefen. Rapporten kan riktignok genereres paa nytt, men den som ser at tallene er borte vet ikke det. Utvei: legg rollen til i ins/upd/del slik resten av tabellene gjor, og la lesingen staa som den er.",
+      "proberad": {
+        "uke_mandag": "{{unik_dato}}"
+      },
+      "$oppdaterbart_hvorfor": "proberaden er bare noekkelkolonner; avdelinger har en default.",
+      "oppdaterbart": "avdelinger = '[]'::jsonb",
+      "business_unik": [
+        "stasjon_id",
+        "uke_mandag"
+      ]
+    },
+    {
+      "tabell": "varsler",
+      "$hvorfor": "Varsler i feeden. Lesingen har TRE grener: ditt eget varsel (mottaker_id = deg), stasjonens (mottaker null + stasjon), og kjedens (mottaker null + stasjon null, kun eier). Proberaden er stasjonens variant - den vanligste - saa matrisen maaler stasjonsgrensen. Ingen delete-policy finnes; et varsel skjules med slettet_tid, ikke ved aa forsvinne.",
+      "tenant_scope": "retailer_or_station",
+      "null_stasjon": "kun_eier",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update"
+      ],
+      "tablet": {
+        "select": "own_station",
+        "insert": "retailer",
+        "update": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "retailer",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan lage et varsel til en hvilken som helst stasjon, med hvilken som helst tekst og lenke. Samme form som kontrolltiltak_bekreftelse. For en feed som skal styre oppmerksomhet er det verdt en beslutning: et varsel ingen kan spore opphavet til, er lettere aa se bort fra.",
+      "proberad": {
+        "type": "'sonde'",
+        "tittel": "'Sondevarsel {{unik}}'",
+        "tekst": "'Sonde'"
+      },
+      "oppdaterbart": "lest = true"
     }
   ]
 }
