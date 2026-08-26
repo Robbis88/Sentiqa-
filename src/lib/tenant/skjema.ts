@@ -24,6 +24,21 @@ const INDEKS = /create\s+unique\s+index\s+(?:concurrently\s+)?(?:if\s+not\s+exis
 const DROPPET_INDEKS = /drop\s+index\s+(?:if\s+exists\s+)?(?:public\.)?([a-z0-9_]+)/gi
 const DROPPET_TABELL = /drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?([a-z0-9_]+)/gi
 
+/**
+ * `alter table t drop column c`.
+ *
+ * EN DROPPET KOLONNE TAR MED SEG NØKLENE SINE. Postgres dropper hver
+ * indeks kolonnen inngår i — uten et `drop index` å lese noe sted.
+ *
+ * `puls_svar_ansatt_dag (ansatt_id, dato)` ble laget i `0026` og
+ * forsvant i `0044`, da `dato` ble droppet. En parser som bare leser
+ * `drop index` krever da at kontrakten oppgir en forretningsnøkkel over
+ * en kolonne som ikke finnes — og den eneste måten å bli grønn på ville
+ * vært å lyve i kontrakten.
+ */
+const DROPPET_KOLONNE =
+  /alter\s+table\s+(?:if\s+exists\s+)?(?:public\.)?([a-z0-9_]+)\s+drop\s+column\s+(?:if\s+exists\s+)?([a-z0-9_]+)/gi
+
 export type Noekkel = { kolonner: string[]; navn?: string }
 
 /**
@@ -44,6 +59,11 @@ export function forretningsnokler(mappe: string): Record<string, Noekkel[]> {
     for (const m of sql.matchAll(DROPPET_INDEKS)) {
       const tabell = indeksEier[m[1]]
       if (tabell) ut[tabell] = (ut[tabell] ?? []).filter((n) => n.navn !== m[1])
+    }
+
+    for (const m of sql.matchAll(DROPPET_KOLONNE)) {
+      const [, tabell, kolonne] = m
+      ut[tabell] = (ut[tabell] ?? []).filter((n) => !n.kolonner.includes(kolonne))
     }
 
     for (const m of sql.matchAll(I_TABELL)) {
