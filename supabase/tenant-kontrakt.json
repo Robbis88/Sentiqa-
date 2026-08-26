@@ -41,8 +41,6 @@
       "klassifisering flytter en tabell fra usett til sett, ikke til",
       "bevist.",
       "",
-      "TO TABELLER TRENGER EN NY MATRISEFORM: personlig_punkt og",
-      "personlig_kryss er BRUKERSCOPET - `user_id = (select auth.uid())`,",
       "ingen stasjon, ingen kjede. Matrisen seeder en fast rad per STASJON",
       "og maaler rolle mot stasjon; her er spoersmaalet i stedet om Ada ser",
       "Bos private liste. Det krever en fixture per identitet og en negativ",
@@ -94,8 +92,6 @@
       "kontraktmal",
       "kunnskap",
       "lederstotte_rapporter",
-      "personlig_kryss",
-      "personlig_punkt",
       "plattform_innlegg",
       "push_abonnementer",
       "raa_filer",
@@ -1091,6 +1087,54 @@
         "bruker_id": "'{{bruker}}'",
         "bruker_navn": "'Sonde Sondesen'"
       }
+    },
+    {
+      "tabell": "personlig_kryss",
+      "$hvorfor": "Avkryssingene paa den private sjekklista. Samme brukerscope som personlig_punkt (0107), og INGEN tenantkolonner i det hele tatt - kjeden naas bare gjennom punktet. Forretningsnokkelen (punkt_id, dato) er per punkt, ikke per bruker: et punkt hoerer alt til en bruker, saa to brukere kan aldri konkurrere om samme rad.",
+      "tenant_scope": "global",
+      "data_class": "warm",
+      "bruker_kolonne": "user_id",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "none",
+      "business_unik": [
+        "punkt_id",
+        "dato"
+      ],
+      "seed_ekstra": [
+        "insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('{{seed:punkt}}', '{{bruker}}', '{{retailer}}', 'Sondepunkt {{n}}')"
+      ],
+      "proberad": {
+        "punkt_id": "'{{seed:punkt}}'",
+        "dato": "{{unik_dato}}"
+      },
+      "oppdaterbart": "opprettet_tid = now()"
+    },
+    {
+      "tabell": "personlig_punkt",
+      "$hvorfor": "Den private sjekklista til en innlogget bruker (0034, RLS strammet i 0108). BRUKERSCOPE: alle fire policyene er `user_id = (select auth.uid())`, uten rolle og uten stasjon. Kolonnen retailer_id finnes, men policyen ser den ikke - den er data om hvem brukeren jobber for, ikke en grense. Rollefeltene staar som none fordi de beskriver hvor langt en ROLLE rekker inn i ANDRES rader; at hver bruker naar sin egen, er ikke en rolleegenskap.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "bruker_kolonne": "user_id",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "none",
+      "proberad": {
+        "tittel": "'Sondepunkt {{unik}}'"
+      },
+      "oppdaterbart": "tittel = 'endret av sonden'"
     },
     {
       "tabell": "pin_forsok",

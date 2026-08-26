@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 13
+  const UKLASSIFISERT_NA = 11
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -232,7 +232,20 @@ describe('matrisen som genereres', () => {
     // En suite som bare beviser «avvist» kan være grønn fordi alt er
     // ødelagt. Hver varm ressurs skal ha minst én tillatt operasjon
     // for minst én identitet.
+    const sql = genererMatrise(kontrakt)
     for (const r of kontrakt.ressurser.filter((x) => x.data_class === 'warm')) {
+      // BRUKERSCOPE TELLES ANNERLEDES, og det er ikke et smutthull.
+      // Rollefeltene er `none` med rette — de beskriver hvor langt en
+      // rolle rekker inn i ANDRES rader. Den positive kontrollen er at
+      // hver identitet når SIN EGEN rad, og den kravet er strengere:
+      // det skal finnes én per identitet, ikke bare én i alt.
+      if (r.bruker_kolonne) {
+        for (const i of IDENTITETER) {
+          expect(sql, `${r.tabell} mangler positiv kontroll for ${i.navn}`)
+            .toContain(`${r.tabell} ${i.navn} SELECT egen rad -> ser`)
+        }
+        continue
+      }
       const positive = IDENTITETER.flatMap((i) =>
         r.operasjoner.flatMap((op) => maal(i).map((s) => tillatt(r, i, op, s))))
         .filter(Boolean).length
@@ -473,6 +486,44 @@ describe('genererte filer', () => {
       ressurser: [{ ...base, owner: { select: 'retailer', delete: 'retailer' } }],
     } as typeof kontrakt
     expect(valider(doedelig).join(' ')).toContain('verken slettes')
+  })
+
+  it('brukerscope prøves mot naboen, ikke bare mot den andre kjeden', () => {
+    // `personlig_punkt` er `user_id = (select auth.uid())`. En negativ
+    // mot den andre kjeden ville bestått på TENANTGRENSEN alene og
+    // bevist ingenting om brukergrensen.
+    //
+    // Det skarpe beviset er to brukere på SAMME STASJON: `manager_A1` og
+    // `manager_A12` deler A1. Og over dem begge: kjedeeieren, som når
+    // alt annet i kjeden sin, skal ikke se en butikksjefs private liste.
+    const brukerscopet = kontrakt.ressurser.filter((r) => r.bruker_kolonne)
+    // KANARIFUGL: uten en brukerscopet ressurs måler resten ingenting.
+    expect(brukerscopet.length, 'ingen ressurs er brukerscopet').toBeGreaterThan(0)
+
+    const sql = genererMatrise(kontrakt)
+    for (const r of brukerscopet) {
+      expect(sql, `${r.tabell}: naboen på samme stasjon må prøves`)
+        .toContain(`${r.tabell} manager_A1 SELECT manager_A12 sin rad -> ser ikke`)
+      expect(sql, `${r.tabell}: eieren må prøves mot sin egen butikksjef`)
+        .toContain(`${r.tabell} owner_A SELECT manager_A1 sin rad -> ser ikke`)
+      if (r.operasjoner.includes('insert')) {
+        // HVEM «den andre» er, avgjør generatoren — den velger noen i
+        // samme kjede. Testen måler regelen, ikke rekkefølgen i
+        // identitetslista: hver identitet skal ha prøvd å skrive på en
+        // annens liste, for det er `with check` alene som stopper det.
+        for (const i of IDENTITETER) {
+          expect(sql, `${r.tabell}: ${i.navn} prøver aldri å skrive på en annens liste`)
+            .toContain(`${r.tabell} ${i.navn} INSERT paa `)
+        }
+      }
+    }
+
+    // ROLLEFELTENE GJELDER ANDRES RADER. Sto det noe annet enn `none`
+    // der, ville kontrakten påstått at en butikksjef ser sine ansattes
+    // private lister — og matrisen ville krevd at basen gjorde det.
+    const base = brukerscopet[0]
+    const feil = { ...kontrakt, ressurser: [{ ...base, manager: 'retailer' }] } as typeof kontrakt
+    expect(valider(feil).join(' ')).toContain('der rekker ingen rolle')
   })
 
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
