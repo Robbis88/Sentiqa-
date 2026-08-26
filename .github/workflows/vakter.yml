@@ -187,6 +187,21 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_kanarifugl_generert.sql
           echo "Atferdsmatrisen brukte $(( $(date +%s) - start )) sekunder."
 
+      # DELENE ER DET SOM FAKTISK KJORES MOT PRODUKSJON. Hele fila er for
+      # stor for Supabase SQL Editor (1,0 MB ble avvist 2026-08-26), saa
+      # prod-kjoringen limes inn som deler. Kjores de aldri i CI, er det
+      # bare den fulle fila som er bevist - og en del som er ugyldig SQL
+      # ville blitt oppdaget av Robert, i nettleseren, midt i en kjoring.
+      #
+      # vitest beviser at delene DEKKER hver varm ressurs. Denne beviser
+      # at de KJORER. Det er to forskjellige ting.
+      - name: Tenant-atferdsmatrise, delt
+        run: |
+          for f in supabase/tests/deler/matrise_*.sql; do
+            psql "$PGURL" -v ON_ERROR_STOP=1 -f "$f" > /dev/null
+            echo "OK  $f"
+          done
+
       # Haandskrevet kanarifugl fra PORT 1. Blir staaende til kontrakten
       # dekker alle varme tabeller - den maaler dagens tilstand paa
       # nettbrettet, som matrisen ennaa ikke uttaler seg om.

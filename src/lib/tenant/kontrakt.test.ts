@@ -11,12 +11,14 @@
 // som har tatt stilling. En gjettet rad ville gjort dekningssjekken til
 // en formalitet.
 // =====================================================================
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import type { Kontrakt } from './kontrakt'
 import { rekkevidde, valider } from './kontrakt'
-import { genererDekning, genererMatrise, IDENTITETER, maal, tillatt } from './generer'
+import {
+  genererDekning, genererMatrise, genererMatriseDeler, IDENTITETER, maal, tillatt,
+} from './generer'
 import { forretningsnokler } from './skjema'
 
 const ROT = new URL('../../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
@@ -202,6 +204,62 @@ describe('genererte filer', () => {
         + 'Kjør: OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant').toBe(ventet)
     })
   }
+
+  // -------------------------------------------------------------------
+  // DELENE. Hele matrisen er for stor for Supabase SQL Editor (1,0 MB
+  // ble avvist 2026-08-26), og prod-kjøringen er hele poenget med den.
+  // -------------------------------------------------------------------
+  const deler = genererMatriseDeler(kontrakt)
+  const DELMAPPE = `${ROT}supabase/tests/deler`
+
+  it('hver del er i takt med kontrakten, og ingen gammel del blir liggende', () => {
+    if (process.env.OPPDATER_KONTRAKT) {
+      mkdirSync(DELMAPPE, { recursive: true })
+      for (const d of deler) writeFileSync(`${ROT}${d.fil}`, d.sql, 'utf8')
+      // EN FORELDET DEL ER FARLIGERE ENN EN MANGLENDE. Krymper settet,
+      // ville del 07 fra forrige generering blitt liggende igjen med
+      // gamle påstander — og sett helt gyldig ut når den limes inn.
+      const skalFinnes = new Set(deler.map((d) => d.fil.split('/').pop()))
+      for (const f of readdirSync(DELMAPPE)) {
+        if (f.endsWith('.sql') && !skalFinnes.has(f)) rmSync(`${DELMAPPE}/${f}`)
+      }
+      return
+    }
+
+    for (const d of deler) {
+      let faktisk: string
+      try {
+        faktisk = readFileSync(`${ROT}${d.fil}`, 'utf8')
+      } catch {
+        throw new Error(`${d.fil} finnes ikke. Kjør: OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant`)
+      }
+      expect(faktisk.replace(/\r\n/g, '\n'), `${d.fil} er ute av takt med kontrakten.`).toBe(d.sql)
+    }
+
+    const skalFinnes = new Set(deler.map((d) => d.fil.split('/').pop()))
+    const paaDisk = readdirSync(DELMAPPE).filter((f) => f.endsWith('.sql'))
+    expect(paaDisk.filter((f) => !skalFinnes.has(f)), 'foreldede delfiler').toEqual([])
+  })
+
+  it('delene dekker hver varm ressurs nøyaktig én gang', () => {
+    // DEN VIKTIGSTE AV DE TRE. En splitt som mister en ressurs ser
+    // nøyaktig ut som en splitt der alt er med: hver del sier «ingen
+    // funn», og ingen av dem sier hva de ikke prøvde.
+    const varme = kontrakt.ressurser.filter((r) => r.data_class === 'warm').map((r) => r.tabell)
+    const sett = deler.flatMap((d) =>
+      varme.filter((t) => d.sql.includes(`select pg_temp.sett_gruppe('${t}');`)))
+    expect([...sett].sort()).toEqual([...varme].sort())
+  })
+
+  it('hver del får plass i SQL-editoren', () => {
+    // KANARIFUGL PÅ SELVE GRUNNEN TIL AT DELENE FINNES. Blir én del for
+    // stor igjen, er splitten tilbake der den startet — og det skal
+    // oppdages her, ikke av en feilmelding i nettleseren.
+    for (const d of deler) {
+      expect(d.sql.length, `${d.fil} er ${Math.round(d.sql.length / 1000)} kB`).toBeLessThan(800_000)
+    }
+    expect(deler.length, 'én del er ingen splitt').toBeGreaterThan(1)
+  })
 
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
     // Kanarifugl på generatoren selv: emitterer den bare negative

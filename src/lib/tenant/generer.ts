@@ -288,10 +288,69 @@ end $$;
 // =====================================================================
 
 export function genererMatrise(k: Kontrakt): string {
-  const ut: string[] = []
+  return bygg(k.ressurser.filter((r) => r.data_class === 'warm'))
+}
+
+/**
+ * Matrisen delt i biter som får plass i Supabase SQL Editor.
+ *
+ * DEN FULLE FILA SPRENGTE EDITOREN 2026-08-26, på 1,0 MB: «Query is too
+ * large to be run via the SQL Editor». 874 KB gikk gjennom på andre
+ * forsøk; 1,0 MB blir avvist før den prøver. Med 52 tabeller igjen å
+ * klassifisere er den grensen passert for godt.
+ *
+ * Hver del er en HEL kjøring: fasitverden, hjelpere, egne
+ * forutsetninger, egne ressurser, egen oppsummering — og sin egen
+ * `rollback`. Delene deler ingen tilstand, så de kan limes inn i hvilken
+ * som helst rekkefølge, og en del som feiler sier hva den fant uten å
+ * gjøre de andre ugyldige.
+ *
+ * En ressurs deles ALDRI over to filer: den positive kontrollen og
+ * avvisningene den gjør gyldige må ligge i samme kjøring.
+ */
+export function genererMatriseDeler(
+  k: Kontrakt, maksTegn = 450_000,
+): Array<{ fil: string; sql: string }> {
   const varme = k.ressurser.filter((r) => r.data_class === 'warm')
 
-  ut.push(`${ADVARSEL}
+  // Størrelsen på en ressurs måles på ressursen selv, ikke på fila den
+  // havner i: fellesdelen (fasitverden + hjelpere, ~25 KB) følger med i
+  // hver del uansett, og skal ikke telle mot skillet.
+  const grupper: Ressurs[][] = []
+  let denne: Ressurs[] = []
+  let brukt = 0
+  for (const r of varme) {
+    const vekt = bygg([r]).length
+    if (denne.length > 0 && brukt + vekt > maksTegn) {
+      grupper.push(denne)
+      denne = []
+      brukt = 0
+    }
+    denne.push(r)
+    brukt += vekt
+  }
+  if (denne.length > 0) grupper.push(denne)
+
+  return grupper.map((gruppe, i) => ({
+    fil: `supabase/tests/deler/matrise_${String(i + 1).padStart(2, '0')}.sql`,
+    sql: bygg(gruppe, { nr: i + 1, av: grupper.length }),
+  }))
+}
+
+function bygg(varme: Ressurs[], del?: { nr: number; av: number }): string {
+  const ut: string[] = []
+  const merke = del ? ` DEL ${del.nr}/${del.av}` : ''
+
+  ut.push(`${ADVARSEL}${del ? `
+--
+-- DEL ${del.nr} AV ${del.av}. Hele matrisen er for stor for Supabase SQL
+-- Editor. Denne fila er en komplett kjoering av ${varme.length} ressurs(er):
+-- egen fasitverden, egne forutsetninger, egen oppsummering, egen
+-- rollback. Delene deler ingen tilstand og kan kjoeres i hvilken som
+-- helst rekkefoelge. Rekkefoelgen i tallet er bare lesbarhet.
+--
+-- INGEN FUNN I EN DEL BETYR INGEN FUNN I DEN DELEN. Hele beviset er
+-- alle delene, og hver av dem maa si "ingen funn".` : ''}
 --
 -- ATFERDSMATRISEN. For hver varm ressurs, hver identitet og hver
 -- operasjon kontrakten beskriver: naar den, eller naar den ikke?
@@ -383,9 +442,9 @@ declare n int;
 begin
   select count(*) into n from pg_temp.funn where status = 'FEIL';
   if n > 0 then
-    raise exception 'TENANT-MATRISEN: % funn. Se tabellen over.', n;
+    raise exception 'TENANT-MATRISEN${merke}: % funn. Se tabellen over.', n;
   end if;
-  raise notice '--- Tenant-matrisen: ingen funn. % paastander ---',
+  raise notice '--- Tenant-matrisen${merke}: ingen funn. % paastander ---',
     (select count(*) from pg_temp.funn);
 end $$;
 

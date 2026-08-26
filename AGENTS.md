@@ -126,6 +126,8 @@ En blokkert `UPDATE` gir 0 rader og *ingen* exception. Det gjør også en feil i
 
 **Multi-setningsfiler kjøres med `psql -v ON_ERROR_STOP=1`,** ikke `supabase db query --file` — den sender fila som én prepared statement. Uten `ON_ERROR_STOP` returnerer psql 0 selv om en setning feilet.
 
+**Mot produksjon limes matrisen inn i deler.** Hele `rls_kanarifugl_generert.sql` er for stor for Supabase SQL Editor — 1,0 MB ble avvist 2026-08-26 med «Query is too large to be run via the SQL Editor», og fila vokser med hver pulje. `supabase/tests/deler/matrise_NN.sql` genereres i samme slengen: hver del er en komplett kjøring med egen fasitverden, egne forutsetninger, egen oppsummering og egen `rollback`. Delene deler ingen tilstand og kan kjøres i hvilken som helst rekkefølge — men **hele beviset er alle delene**, og hver av dem må si «ingen funn». CI kjører både den fulle fila og delene: vitest beviser at delene *dekker* hver varm ressurs, CI beviser at de *kjører*.
+
 # Arbeidsflyt: `main` er beskyttet
 
 Siden 2026-08-19 kan ingen pushe rett til `main` — heller ikke eieren, heller ikke en agent som bruker eierens rettigheter. Bypass-lista er tom med vilje.
