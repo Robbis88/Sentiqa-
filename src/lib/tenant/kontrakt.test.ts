@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 26
+  const UKLASSIFISERT_NA = 21
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)

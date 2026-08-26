@@ -47,23 +47,30 @@
       "og maaler rolle mot stasjon; her er spoersmaalet i stedet om Ada ser",
       "Bos private liste. Det krever en fixture per identitet og en negativ",
       "paastand mot en annen brukers rad - ikke en ny kolonne, men en ny",
-      "form. Klassifiseres naar formen finnes, ikke foer."
+      "form. Klassifiseres naar formen finnes, ikke foer.",
+      "",
+      "KUNNSKAP TRENGER GLOBAL-FORMEN, og fant noe paa veien. kunnskap_les",
+      "er `using (slettet_tid is null)` - INGEN tenantgrense i det hele",
+      "tatt. I dag er det ufarlig fordi kunnskap_skriv bare slipper",
+      "plattform_redaktor til, og bare med retailer_id is null. Men",
+      "kolonnen finnes og er nullbar («null = global»), saa en",
+      "kjedespesifikk rad skrevet av service_role ville vaert lesbar for",
+      "HVER kjede. Skjemaet tillater det policyen ikke vokter.",
+      "Klassifiseres naar matrisen kan uttrykke global: i dag seeder den en",
+      "rad per stasjon og paastaar at kjede B ikke ser kjede As - for en",
+      "global tabell er begge deler feil. oversettelse_cache er global den",
+      "ogsaa, men kald og uten operasjoner, saa den stien er aldri kjort."
     ],
     "tabeller": [
       "ai_tool_log",
-      "anvisninger",
       "arrangementer",
       "fokuspunkter",
       "import_jobber",
       "kalender_kilder",
-      "kampanjer",
       "kategori_vaerprofil",
-      "konkurranser",
       "kontraktmal",
       "kunnskap",
       "lederstotte_rapporter",
-      "lenker",
-      "merker",
       "pengepremie",
       "personlig_kryss",
       "personlig_punkt",
@@ -159,6 +166,29 @@
         "pin_hash": "'pin {{unik}}'"
       },
       "oppdaterbart": "navn = 'Endret av sonden'"
+    },
+    {
+      "tabell": "anvisninger",
+      "$hvorfor": "Arbeidsanvisninger med PDF-ark (0035/0128). Lesing er hele kjedens - ogsaa nettbrettets, som er der de faktisk leses - og skriving er lederens. Rent kjedescope: en anvisning gjelder kjeden, ikke stasjonen.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Samme form som puls_sporsmal og opplaering_oppgave: en butikksjef med EN tildelt stasjon kan skrive og slette for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning - policyen kan bare skille paa rolle og kjede. Produktbeslutningen mangler: skal innholdet vaere eierens alene, maa rollelista i skrivepolicyen snevres til retailer_admin.",
+      "proberad": {
+        "tittel": "'Sondeanvisning {{unik}}'",
+        "innhold": "'Sondetekst'"
+      },
+      "oppdaterbart": "sortering = 1"
     },
     {
       "tabell": "avvik",
@@ -542,6 +572,33 @@
       "oppdaterbart": "sortering = 1"
     },
     {
+      "tabell": "kampanjer",
+      "$hvorfor": "Kampanjeperioder (0064). LESING ER DET ENESTE SOM FINNES: tabellen har bare kampanjer_les, og bare `grant select` - ingen skrivepolicy og ingen skriverettighet. Radene kommer fra service_role ved import. Alle fire operasjonene staar likevel her, slik at matrisen BEVISER at ingen rolle kan skrive - fravaer skal bevises, ikke forutsettes.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": {
+        "select": "retailer"
+      },
+      "proberad": {
+        "navn": "'Sondekampanje {{unik}}'",
+        "fra_dato": "{{unik_dato}}",
+        "til_dato": "{{unik_dato}} + 7"
+      },
+      "oppdaterbart": "navn = 'endret av sonden'"
+    },
+    {
       "tabell": "kassererstatistikk",
       "$hvorfor": "Per kasserer per dag (St1 0018) - bonger, retur, makulert. Tallet kan ikke skille personer (kasserer 9 er delt paa Varden), men raden er likevel persondata i praksis. Samme rollebilde og samme manglende id-kolonne som timesalg: raden er (retailer_id, stasjon_id, dato, kasserer_nr).",
       "tenant_scope": "retailer_and_station",
@@ -581,6 +638,32 @@
       "oppdaterbart": "bonger = 11"
     },
     {
+      "tabell": "konkurranser",
+      "$hvorfor": "Salgskonkurranser (0012). Hele kjeden leser - konkurransen vises paa nettbrettet - og bare eieren skriver. Merk at stasjon_ids er en uuid[]-kolonne, ikke en tenantgrense: tom betyr alle stasjoner i kjeden, og RLS ser den ikke. Avgrensningen er en visningsregel, ikke en grense.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "navn": "'Sondekonkurranse {{unik}}'",
+        "kpi": "'omsetning sonde'",
+        "periode_start": "{{unik_dato}}",
+        "periode_slutt": "{{unik_dato}} + 30"
+      },
+      "oppdaterbart": "status = 'avsluttet'"
+    },
+    {
       "tabell": "kontrolltiltak_bekreftelse",
       "$hvorfor": "Dokumentasjon paa at informasjonsplikten om kontrolltiltak (aml. § 9-2) er oppfylt - IKKE et samtykke. Ingen update- eller delete-policy: en bekreftelse skal staa. Lesingen har to grener: din egen (bruker_id = auth.uid()) eller lederens paa egne stasjoner.",
       "$tre_identiteter": "Nettbrettet kan ikke lese sin egen bekreftelse. Den delte kontoen bekrefter som ANSATT (ansatt_id, via PIN), mens egen-grenen i policyen matcher paa bruker_id. To av de tre identitetene i systemet moetes ikke her. Se [[sentiqa-tre-identiteter]].",
@@ -612,6 +695,27 @@
         "versjon": "'{{unik}}'",
         "bruker_id": "'{{bruker}}'"
       }
+    },
+    {
+      "tabell": "lenker",
+      "$hvorfor": "Hurtiglenker nettbrettet bruker for aa hjelpe kunder (0035, utvidet i 0047). ALLE i kjeden skriver, ogsaa nettbrettet - det var uttrykt hensikt i 0047, ikke en forglemmelse: lenkene styres fra tableten der de brukes.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "retailer",
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Nettbrettet kan SLETTE hele kjedens lenker. 0047 ville det slik, men det staar i spenn med linja systemet ellers foelger - nettbrettet utfoerer planen, det administrerer den ikke (se 0136 og uke_rapport i pulje 10). Den delte kontoen i butikken har her samme rett som eieren, paa tvers av alle stasjoner. Produktbeslutning, ikke en feil: skal lenkene vaere lederens, maa lenker_skriv faa en rollesjekk.",
+      "proberad": {
+        "tittel": "'Sondelenke {{unik}}'",
+        "url": "'https://sonde.local/{{unik}}'"
+      },
+      "oppdaterbart": "sortering = 1"
     },
     {
       "tabell": "malekort",
@@ -667,6 +771,28 @@
         "kode": "'{{unik}}'"
       },
       "oppdaterbart": "kode = 'endret'"
+    },
+    {
+      "tabell": "merker",
+      "$hvorfor": "Merkene som deles ut i tildelte_merker, som alt er bevist. Malen og tildelingen hoerer sammen - samme grunn som sjekkpunkter og sjekkpunkt_svar i pulje 11. Kjedescope, lederskriving.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Samme form som puls_sporsmal og opplaering_oppgave: en butikksjef med EN tildelt stasjon kan skrive og slette for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning - policyen kan bare skille paa rolle og kjede. Produktbeslutningen mangler: skal innholdet vaere eierens alene, maa rollelista i skrivepolicyen snevres til retailer_admin.",
+      "proberad": {
+        "navn": "'Sondemerke {{unik}}'"
+      },
+      "oppdaterbart": "sortering = 1"
     },
     {
       "tabell": "oppgaver",
