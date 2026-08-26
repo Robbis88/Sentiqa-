@@ -47,7 +47,6 @@
       "paastand mot en annen brukers rad - ikke en ny kolonne, men en ny",
       "form. Klassifiseres naar formen finnes, ikke foer.",
       "",
-      "KUNNSKAP TRENGER GLOBAL-FORMEN, og fant noe paa veien. kunnskap_les",
       "er `using (slettet_tid is null)` - INGEN tenantgrense i det hele",
       "tatt. I dag er det ufarlig fordi kunnskap_skriv bare slipper",
       "plattform_redaktor til, og bare med retailer_id is null. Men",
@@ -80,9 +79,7 @@
       "  pin_forsok     `bigserial` primaernoekkel. Generatoren bygger faste",
       "                 id-er som uuid-er, saa `id = '...'` blir aldri en",
       "                 gyldig sammenligning.",
-      "",
-      "PLATTFORM_INNLEGG er global paa samme maate som kunnskap - ingen",
-      "retailer_id i det hele tatt - og venter paa samme form."
+      ""
     ],
     "tabeller": [
       "ai_tool_log",
@@ -90,9 +87,7 @@
       "kalender_kilder",
       "kategori_vaerprofil",
       "kontraktmal",
-      "kunnskap",
       "lederstotte_rapporter",
-      "plattform_innlegg",
       "push_abonnementer",
       "raa_filer",
       "regnskapsanalyser"
@@ -767,6 +762,33 @@
       }
     },
     {
+      "tabell": "kunnskap",
+      "$hvorfor": "Kunnskapsbasen - tariff, lonn, arbeidsrett, HMS. GLOBAL: kunnskap_les er `using (slettet_tid is null)`, uten noen tenantgrense, og det er riktig for innhold som er likt for alle kjeder. Skriving er plattform_redaktor sin alene, og den rollen finnes ikke blant de sju identitetene - derfor er hver eneste skriving en negativ paastand, som den skal vaere.",
+      "tenant_scope": "global",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": {
+        "select": "retailer"
+      },
+      "avvik_fra_intensjon": "KOLONNEN retailer_id FINNES OG ER NULLBAR («null = global»), men kunnskap_les ser den ikke. En kjedespesifikk artikkel - skrevet av service_role, som er den eneste veien inn dit i dag - ville vaert lesbar for HVER kjede. Ufarlig naa fordi kunnskap_skriv bare slipper plattform_redaktor til og bare med retailer_id is null, saa alle radene ER globale. Men skjemaet tillater det policyen ikke vokter, og et fremtidig «kjedens egne rutiner» ville lekket paa foerste rad. Utvei: enten dropp kolonnen, eller legg `(retailer_id is null or retailer_id = (select gjeldende_retailer_id()))` i lesepolicyen foer den tas i bruk.",
+      "proberad": {
+        "tittel": "'Sondeartikkel {{unik}}'",
+        "innhold": "'Sondetekst'"
+      },
+      "oppdaterbart": "kategori = 'endret'"
+    },
+    {
       "tabell": "lenker",
       "$hvorfor": "Hurtiglenker nettbrettet bruker for aa hjelpe kunder (0035, utvidet i 0047). ALLE i kjeden skriver, ogsaa nettbrettet - det var uttrykt hensikt i 0047, ikke en forglemmelse: lenkene styres fra tableten der de brukes.",
       "tenant_scope": "retailer",
@@ -1165,6 +1187,36 @@
         "ok": "false"
       },
       "oppdaterbart": "ok = true"
+    },
+    {
+      "tabell": "plattform_innlegg",
+      "$hvorfor": "Meldinger fra plattformredaksjonen til alle kjeder. GLOBAL i skjemaet ogsaa - tabellen har ingen retailer_id i det hele tatt. Lesing krever at innlegget er PUBLISERT: `slettet_tid is null and (publisert or rolle = 'plattform_redaktor')`. Skriving er redaksjonens, og den rollen finnes ikke blant de sju.",
+      "tenant_scope": "global",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": {
+        "select": "retailer"
+      },
+      "usynlig_rad": {
+        "publisert": "false"
+      },
+      "proberad": {
+        "tittel": "'Sondeinnlegg {{unik}}'",
+        "innhold": "'Sondetekst'",
+        "publisert": "true"
+      },
+      "oppdaterbart": "tittel = 'endret av sonden'"
     },
     {
       "tabell": "produksjonsplan_hode",

@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 11
+  const UKLASSIFISERT_NA = 9
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -524,6 +524,51 @@ describe('genererte filer', () => {
     const base = brukerscopet[0]
     const feil = { ...kontrakt, ressurser: [{ ...base, manager: 'retailer' }] } as typeof kontrakt
     expect(valider(feil).join(' ')).toContain('der rekker ingen rolle')
+  })
+
+  it('en global rad er alles, og en usynlig rad er ingens', () => {
+    // `kunnskap` og `plattform_innlegg` hører ingen kjede til. Den
+    // vanlige formen ville seedet en rad per stasjon og påstått at kjede
+    // B ikke ser kjede A — begge deler feil, og rødt på en riktig base.
+    // BRUKERSCOPE VINNER OVER GLOBAL. `personlig_kryss` har ingen
+    // tenantkolonner i det hele tatt — den ER global i skjemaet — men
+    // grensen er `user_id`, og den formen er den virkelige.
+    const globale = kontrakt.ressurser.filter(
+      (r) => r.tenant_scope === 'global' && r.data_class === 'warm' && !r.bruker_kolonne)
+    // KANARIFUGL: uten en global ressurs måler resten ingenting.
+    expect(globale.length, 'ingen varm global ressurs').toBeGreaterThan(0)
+
+    const sql = genererMatrise(kontrakt)
+    for (const r of globale) {
+      for (const i of IDENTITETER) {
+        expect(sql, `${r.tabell}: ${i.navn} prøves ikke mot den globale raden`)
+          .toContain(`${r.tabell} ${i.navn} SELECT den globale raden`)
+      }
+      // INGEN TENANTPÅSTAND. Sier matrisen «ser ikke» om en kjede på en
+      // global tabell, er formen falt tilbake til den vanlige — og da
+      // ville en riktig base blitt rød.
+      expect(sql, `${r.tabell}: global rad skal ikke måles mot en kjede`)
+        .not.toContain(`${r.tabell} owner_A SELECT B -> ser ikke`)
+    }
+
+    // DEN SKJULTE RADEN ER HELE POENGET på plattform_innlegg: uten den
+    // kan matrisen ikke skille «åpen for alle» fra «åpen, punktum».
+    const skjult = globale.filter((r) => r.usynlig_rad)
+    expect(skjult.length, 'ingen ressurs har en usynlig rad').toBeGreaterThan(0)
+    for (const r of skjult) {
+      for (const i of IDENTITETER) {
+        expect(sql, `${r.tabell}: ${i.navn} prøves ikke mot den skjulte raden`)
+          .toContain(`${r.tabell} ${i.navn} SELECT den skjulte raden -> ser ikke`)
+      }
+    }
+
+    // Og den hører bare hjemme der den betyr noe.
+    const base = skjult[0]
+    const feil = {
+      ...kontrakt,
+      ressurser: [{ ...base, tenant_scope: 'retailer' }],
+    } as typeof kontrakt
+    expect(valider(feil).join(' ')).toContain('usynlig_rad krever tenant_scope global')
   })
 
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
