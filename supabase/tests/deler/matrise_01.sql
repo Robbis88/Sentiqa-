@@ -249,27 +249,27 @@ begin
 end $$;
 
 -- --- Forutsetninger, en per forsoek ---
-insert into public.malekort (id, retailer_id, navn) values ('f3bfea3d-0000-4000-8000-0000f3bfea3d', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort fastA1');
-insert into public.malekort (id, retailer_id, navn) values ('f3c05eb2-0000-4000-8000-0000f3c05eb2', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort fastA2');
-insert into public.malekort (id, retailer_id, navn) values ('f3c0d312-0000-4000-8000-0000f3c0d312', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort fastA3');
-insert into public.malekort (id, retailer_id, navn) values ('f3ce01d6-0000-4000-8000-0000f3ce01d6', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort fastB1');
-insert into public.malekort (id, retailer_id, navn) values ('f3ce7636-0000-4000-8000-0000f3ce7636', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort fastB2');
-insert into public.malekort (id, retailer_id, navn) values ('843d5cfc-0000-4000-8000-0000843d5cfc', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort owner_AA1');
-insert into public.malekort (id, retailer_id, navn) values ('85f2359c-0000-4000-8000-000085f2359c', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort owner_AB1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5cfe-0000-4000-8000-0000843d5cfe', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort gjenowner_AA1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5cff-0000-4000-8000-0000843d5cff', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort manager_A1A1');
-insert into public.malekort (id, retailer_id, navn) values ('85f2359f-0000-4000-8000-000085f2359f', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort manager_A1B1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5d01-0000-4000-8000-0000843d5d01', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort manager_A12A1');
-insert into public.malekort (id, retailer_id, navn) values ('85f235b6-0000-4000-8000-000085f235b6', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort manager_A12B1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5d18-0000-4000-8000-0000843d5d18', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort tablet_A1A1');
-insert into public.malekort (id, retailer_id, navn) values ('85f235b8-0000-4000-8000-000085f235b8', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort tablet_A1B1');
-insert into public.malekort (id, retailer_id, navn) values ('85f235b9-0000-4000-8000-000085f235b9', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort owner_BB1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5d1b-0000-4000-8000-0000843d5d1b', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort owner_BA1');
-insert into public.malekort (id, retailer_id, navn) values ('85f235bb-0000-4000-8000-000085f235bb', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort gjenowner_BB1');
-insert into public.malekort (id, retailer_id, navn) values ('85f235bc-0000-4000-8000-000085f235bc', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort manager_B1B1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5d1e-0000-4000-8000-0000843d5d1e', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort manager_B1A1');
-insert into public.malekort (id, retailer_id, navn) values ('85f235be-0000-4000-8000-000085f235be', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort tablet_B1B1');
-insert into public.malekort (id, retailer_id, navn) values ('843d5d20-0000-4000-8000-0000843d5d20', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort tablet_B1A1');
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('f3bfea3d-0000-4000-8000-0000f3bfea3d', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort fastA1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('f3c05eb2-0000-4000-8000-0000f3c05eb2', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort fastA2', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('f3c0d312-0000-4000-8000-0000f3c0d312', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort fastA3', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('f3ce01d6-0000-4000-8000-0000f3ce01d6', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort fastB1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('f3ce7636-0000-4000-8000-0000f3ce7636', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort fastB2', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5cfc-0000-4000-8000-0000843d5cfc', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort owner_AA1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f2359c-0000-4000-8000-000085f2359c', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort owner_AB1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5cfe-0000-4000-8000-0000843d5cfe', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort gjenowner_AA1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5cff-0000-4000-8000-0000843d5cff', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort manager_A1A1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f2359f-0000-4000-8000-000085f2359f', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort manager_A1B1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5d01-0000-4000-8000-0000843d5d01', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort manager_A12A1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f235b6-0000-4000-8000-000085f235b6', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort manager_A12B1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5d18-0000-4000-8000-0000843d5d18', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort tablet_A1A1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f235b8-0000-4000-8000-000085f235b8', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort tablet_A1B1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f235b9-0000-4000-8000-000085f235b9', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort owner_BB1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5d1b-0000-4000-8000-0000843d5d1b', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort owner_BA1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f235bb-0000-4000-8000-000085f235bb', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort gjenowner_BB1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f235bc-0000-4000-8000-000085f235bc', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort manager_B1B1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5d1e-0000-4000-8000-0000843d5d1e', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort manager_B1A1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('85f235be-0000-4000-8000-000085f235be', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekort tablet_B1B1', 'omsetning', 'maaned', 'hoy', true, true);
+insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('843d5d20-0000-4000-8000-0000843d5d20', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekort tablet_B1A1', 'omsetning', 'maaned', 'hoy', true, true);
 -- --- varsler: forutsetninger og proberader ---
 insert into public.varsler (id, retailer_id, stasjon_id, type, tittel, tekst) values ('aef22628-0000-4000-8000-0000aef22628', 'aaaa0000-0000-4000-8000-000000000000', null, 'sonde', 'Sondevarsel nullA', 'Sonde');
 insert into public.varsler (id, retailer_id, stasjon_id, type, tittel, tekst) values ('aef22629-0000-4000-8000-0000aef22629', 'bbbb0000-0000-4000-8000-000000000000', null, 'sonde', 'Sondevarsel nullB', 'Sonde');
@@ -338,7 +338,7 @@ declare
   ny uuid;
   v_malekort uuid := gen_random_uuid();
 begin
-  insert into public.malekort (id, retailer_id, navn) values (v_malekort, p_retailer, 'Sondekort ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '');
+  insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values (v_malekort, p_retailer, 'Sondekort ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 'omsetning', 'maaned', 'hoy', true, true);
   insert into public.malekort_scope (retailer_id, malekort_id, nivaa, kode)
   values (p_retailer, v_malekort, 'avdeling', '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
   returning id into ny;

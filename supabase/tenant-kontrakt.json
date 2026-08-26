@@ -184,7 +184,7 @@
       },
       "owner": "retailer",
       "seed_ekstra": [
-        "insert into public.malekort (id, retailer_id, navn) values ('{{seed:malekort}}', '{{retailer}}', 'Sondekort {{unik}}')"
+        "insert into public.malekort (id, retailer_id, navn, metrikk, periode, retning, vis_tablet, vis_butikksjef) values ('{{seed:malekort}}', '{{retailer}}', 'Sondekort {{unik}}', 'omsetning', 'maaned', 'hoy', true, true)"
       ],
       "proberad": {
         "malekort_id": "'{{seed:malekort}}'",
@@ -1094,7 +1094,7 @@
       ],
       "seed_ekstra": [
         "insert into public.merker (id, retailer_id, navn) values ('{{seed:merke}}', '{{retailer}}', 'Sondemerke {{n}}')",
-        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'pin-merke-{{n}}')"
+        "insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('{{seed:ansatt}}', '{{retailer}}', '{{stasjon}}', 'Sondeansatt', 'merke-{{n}}', 'pin-merke-{{n}}')"
       ],
       "proberad": {
         "merke_id": "'{{seed:merke}}'",

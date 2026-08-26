@@ -263,6 +263,37 @@ export function valider(k: Kontrakt): string[] {
       feil.push(`${r.tabell}: både id_kolonne og id_kolonner — velg én`)
     }
 
+    // EN SEED SKAL IKKE OPPFINNE EN RAD KONTRAKTEN ALT KJENNER.
+    //
+    // `seed_ekstra` skriver forutsetningsrader for hånd. Peker en slik
+    // linje på en tabell som SELV står klassifisert, finnes det plutselig
+    // to håndholdte beskrivelser av samme gyldige rad — og den ene får
+    // aldri korrektur.
+    //
+    // `malekort_scope` seedet sitt eget målekort med (id, retailer_id,
+    // navn). `malekort.metrikk` er not-null, så CI stoppet på linje 243
+    // etter to minutter, med en 23502 som ikke sier noe om noen policy.
+    // Samme form, stillere: seeden for `tildelte_merker` lot
+    // `ansatte.ansatt_nr` stå null — en FORRETNINGSNØKKEL. Den var grønn
+    // bare fordi kolonnen tåler null i dag.
+    //
+    // Regelen: dekk proberaden til tabellen du seeder. Skal en kolonne
+    // utelates, må ressursen selv slutte å kreve den.
+    for (const linje of r.seed_ekstra ?? []) {
+      const m = /insert\s+into\s+public\.([a-z0-9_]+)\s*\(([^)]*)\)/i.exec(linje)
+      if (!m) continue
+      const mal = k.ressurser.find((x) => x.tabell === m[1])
+      if (!mal) continue
+      const satt = new Set(m[2].split(',').map((c) => c.trim()))
+      const mangler = Object.keys(mal.proberad)
+        .filter((kol) => !kol.startsWith('$') && !satt.has(kol))
+      if (mangler.length > 0) {
+        feil.push(`${r.tabell}: seed_ekstra mot «${m[1]}» setter ikke `
+          + `${mangler.map((x) => `«${x}»`).join(', ')}, som ${m[1]}s egen proberad krever. `
+          + 'To håndholdte beskrivelser av samme rad, og bare én av dem blir rettet.')
+      }
+    }
+
     // `null_stasjon` sier hva null BETYR. Uten et null-tilfelle i
     // scopet er feltet en påstand om noe som ikke finnes.
     if (r.null_stasjon && r.tenant_scope !== 'retailer_or_station') {
