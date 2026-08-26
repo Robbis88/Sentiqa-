@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 52
+  const UKLASSIFISERT_NA = 47
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -261,6 +261,58 @@ describe('genererte filer', () => {
     expect(deler.length, 'én del er ingen splitt').toBeGreaterThan(1)
   })
 
+  it('en sammensatt identitet peker på raden som faktisk ble seedet', () => {
+    // ANTAKELSEN, IKKE SYMPTOMET. `timesalg` har ingen id-kolonne, så
+    // raden pekes på med (retailer_id, stasjon_id, dato, time). Verdiene
+    // kan ikke utledes av kontrakten — `dato` varierer per forsøk — så
+    // generatoren leser dem av raden den nettopp skrev.
+    //
+    // Går de fra hverandre, finner ingen påstand raden igjen: hver
+    // avvisning blir «målraden finnes ikke», og hver lesing blir «ser
+    // ikke». Rødt over hele linja, av en grunn ingen ville lett etter i
+    // en policy.
+    const sql = genererMatrise(kontrakt)
+    const seedet = sql.match(/insert into public\.timesalg \(([^)]+)\) values \(([^;]+)\);/)
+    expect(seedet, 'timesalg må ha en seedet proberad — flytt kanarifuglen hvis tabellen er borte').toBeTruthy()
+    const kolonner = seedet![1].split(', ')
+    const verdier = seedet![2].split(', ')
+    const dato = verdier[kolonner.indexOf('dato')]
+
+    const lesing = sql.split('\n').find((l) => l.includes("'timesalg owner_A SELECT A1 -> ser'"))
+    expect(lesing, 'påstanden må finnes').toBeTruthy()
+    expect(lesing, `predikatet må bruke datoen raden fikk (${dato})`).toContain(`"dato" = ${dato}`)
+  })
+
+  it('null i stasjon_id betyr ikke det samme på to tabeller', () => {
+    // KONTRASTEN ER KANARIFUGLEN. `tablet_meldinger`: null = kjeden, og
+    // butikksjefen ser raden. `regnskapslinjer`: null = klyngelinje, og
+    // bare eieren ser den.
+    //
+    // Slutter generatoren å skille, blir den ene av de to påstandene
+    // borte — og en riktig base ville blitt rød på den andre.
+    const sql = genererMatrise(kontrakt)
+    expect(sql).toContain("'tablet_meldinger manager_A1 ser kjedens null-stasjonsrad'")
+    expect(sql).toContain("'regnskapslinjer manager_A1 ser IKKE kjedens null-stasjonsrad'")
+    expect(sql).toContain("'regnskapslinjer owner_A ser kjedens null-stasjonsrad'")
+  })
+
+  it('valider() nekter en flyktig eller uskrevet identitet', () => {
+    // Regelen, ikke et tilfelle av den. En `clock_timestamp()` i
+    // identiteten gir én verdi ved innsetting og en annen ved oppslag.
+    const base = kontrakt.ressurser.find((r) => r.tabell === 'timesalg')!
+    const flyktig = {
+      ...kontrakt,
+      ressurser: [{ ...base, proberad: { ...base.proberad, dato: 'clock_timestamp()::date' } }],
+    }
+    expect(valider(flyktig).join(' ')).toContain('flyktig')
+
+    const uskrevet = {
+      ...kontrakt,
+      ressurser: [{ ...base, id_kolonner: [...base.id_kolonner!, 'finnes_ikke'] }],
+    }
+    expect(valider(uskrevet).join(' ')).toContain('proberaden setter den ikke')
+  })
+
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
     // Kanarifugl på generatoren selv: emitterer den bare negative
     // påstander, er den ødelagt på en måte som ser trygg ut.
@@ -304,13 +356,34 @@ describe('genererte filer', () => {
     // Id-antakelsen satt på FIRE steder, og jeg fant tre av dem én om
     // gangen gjennom CI. Denne finner den fjerde på millisekunder.
     const sql = genererMatrise(kontrakt)
-    const utenId = kontrakt.ressurser.filter((r) => (r.id_kolonne ?? 'id') !== 'id')
+    const utenId = kontrakt.ressurser
+      .filter((r) => (r.id_kolonne ?? 'id') !== 'id' || r.id_kolonner)
     for (const r of utenId) {
       const feil = sql.split('\n')
         .filter((l) => l.includes(`into public.${r.tabell} (id,`))
       expect(feil, `${r.tabell} har ingen id-kolonne, men matrisen setter en`).toEqual([])
     }
     expect(utenId.length, 'ingen ressurs uten surrogatnokkel - maaler testen noe?')
+      .toBeGreaterThan(0)
+  })
+
+  it('ingen nyrad_* returnerer en id som ikke finnes', () => {
+    // FEMTE STEDET, funnet i CI 2026-08-26 — ikke ved generering, men
+    // ved KALL: `returning id into ny` mot en tabell uten id-kolonne gir
+    // 42703 midt i en ellers gyldig kjøring.
+    //
+    // Den forrige testen ser bare på insert-linjer, og
+    // funksjonskroppens `returning` er ikke en av dem.
+    const sql = genererMatrise(kontrakt)
+    const sammensatt = kontrakt.ressurser.filter((r) => r.id_kolonner)
+    for (const r of sammensatt) {
+      const kropp = sql.split(`create or replace function pg_temp.nyrad_${r.tabell}(`)[1]
+      if (kropp === undefined) continue // en_rad_per_stasjon lager ingen
+      const tilSlutt = kropp.split('end $fn$;')[0]
+      expect(tilSlutt, `nyrad_${r.tabell} returnerer en id tabellen ikke har`)
+        .not.toContain('returning id')
+    }
+    expect(sammensatt.length, 'ingen sammensatt identitet - maaler testen noe?')
       .toBeGreaterThan(0)
   })
 

@@ -37,17 +37,13 @@
       "REKKEFOELGE: varme foer kalde. En kald tabell faar ingen rader i",
       "atferdsmatrisen - den genereres bare for varme - saa en kald",
       "klassifisering flytter en tabell fra usett til sett, ikke til",
-      "bevist. Detektoren (kandidater_with_check.sql) har ingen",
-      "uklassifiserte kandidater igjen etter pulje 5.",
+      "bevist.",
       "",
-      "FEM VARME TABELLER ER SPERRET AV GENERATOREN, ikke av tvil om hvem",
-      "som skal naa dem: timesalg, kassererstatistikk, trafikk og",
-      "prognose_kalibrering har SAMMENSATT primaernokkel og ingen",
-      "id-kolonne, saa `where id = ...` peker ikke paa noen rad.",
-      "regnskapslinjer har stasjon_id null for klyngelinjer, som bare",
-      "eieren ser - det er ikke retailer_or_station, der null betyr hele",
-      "kjeden. Begge trenger et generatorbegrep foer de kan klassifiseres",
-      "aerlig; de skal ikke klassifiseres med en loegn om formen."
+      "INGEN TABELL ER LENGER SPERRET AV GENERATOREN. De fem fra pulje 6",
+      "er klassifisert i pulje 7: `id_kolonner` gir sammensatt radidentitet,",
+      "`null_stasjon` skiller \"null = kjeden\" fra \"null = kun eieren\".",
+      "Det som staar igjen, staar igjen fordi ingen har tatt stilling -",
+      "ikke fordi verktoeyet mangler."
     ],
     "tabeller": [
       "ai_tool_log",
@@ -68,7 +64,6 @@
       "import_jobber",
       "kalender_kilder",
       "kampanjer",
-      "kassererstatistikk",
       "kategori_vaerprofil",
       "konkurranser",
       "kontraktmal",
@@ -86,25 +81,193 @@
       "pin_forsok",
       "plattform_innlegg",
       "profiler",
-      "prognose_kalibrering",
       "prognose_treff",
       "push_abonnementer",
       "raa_filer",
       "regnskapsanalyser",
-      "regnskapslinjer",
       "retailers",
       "rutineskjemaer",
       "signal_lukket",
       "sjekkpunkter",
       "stasjoner",
-      "timesalg",
-      "trafikk",
       "uke_rapport",
       "vaer",
       "varsler"
     ]
   },
   "ressurser": [
+    {
+      "tabell": "timesalg",
+      "$hvorfor": "Salg per time (St1 0758) - grunnlaget for heatmapet og hele bemanningsplanleggeren. Samme rollebilde som daglig_salg: stasjonsscopet lesing for butikksjef og nettbrett, admin-skriving for hele kjeden. INGEN ID-KOLONNE: raden er (retailer_id, stasjon_id, dato, time), og det var den eneste grunnen til at den sto uklassifisert etter pulje 6.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "time"
+      ],
+      "business_unik": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "time"
+      ],
+      "business_unik_unntak": {
+        "time": "Klokketimen er en del av radens IDENTITET (id_kolonner), og maa derfor vaere det samme uttrykket hver gang predikatet evalueres - ellers peker det paa ingenting. Dato varierer per forsoek, saa den sammensatte noekkelen kan ikke kollidere uansett."
+      },
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "time": "'8-9'",
+        "salg": "1000",
+        "antall_kunder": "10"
+      },
+      "oppdaterbart": "antall_kunder = 11"
+    },
+    {
+      "tabell": "kassererstatistikk",
+      "$hvorfor": "Per kasserer per dag (St1 0018) - bonger, retur, makulert. Tallet kan ikke skille personer (kasserer 9 er delt paa Varden), men raden er likevel persondata i praksis. Samme rollebilde og samme manglende id-kolonne som timesalg: raden er (retailer_id, stasjon_id, dato, kasserer_nr).",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "kasserer_nr"
+      ],
+      "business_unik": [
+        "retailer_id",
+        "stasjon_id",
+        "dato",
+        "kasserer_nr"
+      ],
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "kasserer_nr": "'{{unik}}'",
+        "kasserer_navn": "'Sonde Sondesen'",
+        "omsetning_ink_mva": "1000",
+        "bonger": "10"
+      },
+      "oppdaterbart": "bonger = 11"
+    },
+    {
+      "tabell": "trafikk",
+      "$hvorfor": "Kjoeretoey forbi stasjonen per dag - grunnlaget for vaer- og trafikkjusteringen i prognosen. INGEN retailer_id og ingen id: raden er (stasjon_id, dato). Bare SELECT finnes som policy, og grantet gir bare select - dataene hentes av jobben som service_role. Alle tre rollene leser sine egne stasjoner; her er det ingen rolleskille i det hele tatt.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "stasjon_id",
+        "dato"
+      ],
+      "business_unik": [
+        "stasjon_id",
+        "dato"
+      ],
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "antall_kjoretoy": "1000",
+        "dekning_pst": "80"
+      }
+    },
+    {
+      "tabell": "prognose_kalibrering",
+      "$hvorfor": "Korreksjonsfaktoren prognosen ganges med, per stasjon og kategori. Raden er (stasjon_id, type, kategori) - ingen id. Bare SELECT finnes som policy; skrivingen skjer i kalibreringsjobben, som service_role. Leses av alle tre rollene paa egne stasjoner, som trafikk.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "id_kolonner": [
+        "stasjon_id",
+        "type",
+        "kategori"
+      ],
+      "business_unik": [
+        "stasjon_id",
+        "type",
+        "kategori"
+      ],
+      "business_unik_unntak": {
+        "type": "En check-skranke tillater bare produksjonsplan og salgsprognose, saa kolonnen kan ikke varieres fritt - og den er en del av identiteten, som maa vaere stabil. Kategori varierer per forsoek i stedet."
+      },
+      "proberad": {
+        "type": "'produksjonsplan'",
+        "kategori": "'{{unik}}'",
+        "korreksjon": "1.05",
+        "n": "30"
+      }
+    },
+    {
+      "tabell": "regnskapslinjer",
+      "$hvorfor": "Regnskapet per maaned, linje for linje. stasjon_id er NULLBAR, og en null-rad er en klyngelinje - tall for kjeden samlet, ikke for en stasjon. Skriving er admin alene (0077); lesing foelger stasjonen, med klyngelinjene forbeholdt eieren.",
+      "$null_stasjon_hvorfor": "Lesepolicyen krever `stasjon_id is not null` i stasjonsgrenen (0067). Null betyr derfor IKKE hele kjeden slik det gjor i tablet_meldinger - det betyr at bare retailer_admin-grenen kan slippe raden gjennom. Det skillet er hele grunnen til at tabellen ikke kunne klassifiseres i pulje 6.",
+      "tenant_scope": "retailer_or_station",
+      "null_stasjon": "kun_eier",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "periode": "date '2026-08-01'",
+        "seksjon": "'omsetning'",
+        "post": "'Sondepost {{unik}}'",
+        "regnskap": "1000"
+      },
+      "oppdaterbart": "post = 'endret av sonden'"
+    },
     {
       "tabell": "daglig_salg",
       "$hvorfor": "Den store. ~400k rader, partisjonert paa dato i 49 maanedspartisjoner som IKKE arver forelderens RLS - det var lekkasjen 0105 lukket. Alt som viser kroner leser den (gjennom v_butikksalg, som filtrerer bort drivstoff). Lesing: eieren hele kjeden, butikksjef og nettbrett sine egne stasjoner. Skriving: KUN retailer_admin, og for hele kjeden - det er importen, ikke et menneske. with check navngir retailer_id (0077), saa formen fra 0135 finnes ikke her.",

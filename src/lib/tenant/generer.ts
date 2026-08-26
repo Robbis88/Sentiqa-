@@ -91,6 +91,37 @@ function idKol(r: Ressurs): string {
 }
 
 /**
+ * Den faste proberaden per stasjon, slik den faktisk ble skrevet.
+ *
+ * SAMMENSATTE NOEKLER MAA PEKES PAA MED VERDIENE SINE. `timesalg` har
+ * ingen id-kolonne; raden identifiseres av (retailer_id, stasjon_id,
+ * dato, time), og dato varierer per forsoek fordi noekkelen krever det.
+ * Da kan ikke predikatet regnes ut fra kontrakten alene - det maa leses
+ * av raden som ble seedet.
+ */
+const fastRad: Record<string, Partial<Record<Stasjon, Record<string, string>>>> = {}
+
+/**
+ * Predikatet som peker paa den faste proberaden.
+ *
+ * Med en id-kolonne er det `id = '<uuid>'` - noeyaktig som foer. Med
+ * `id_kolonner` er det konjunksjonen av noekkelkolonnene, med verdiene
+ * raden faktisk fikk.
+ */
+function radPredikat(r: Ressurs, s: Stasjon): string {
+  if (!r.id_kolonner) return `${idKol(r)} = ${sitat(fastVerdi(r, s))}`
+  const rad = fastRad[r.tabell]?.[s]
+  if (!rad) throw new Error(`${r.tabell}: fast proberad for ${s} er ikke seedet enda`)
+  return r.id_kolonner.map((k) => {
+    const v = rad[k]
+    if (v === undefined) {
+      throw new Error(`${r.tabell}: id_kolonner nevner «${k}», men proberaden setter den ikke`)
+    }
+    return `"${k}" = ${v}`
+  }).join(' and ')
+}
+
+/**
  * Uttrykket som peker paa den faste proberaden for en stasjon.
  *
  * Har tabellen en surrogatnokkel, er det den seedede uuid-en. Har den
@@ -510,7 +541,10 @@ function genererRessursSeed(r: Ressurs): string {
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {
     const { kolonner, verdier } = proberadSql(r, kjede, s, `fast${s}`)
-    linjer.push(idKol(r) === 'id'
+    // Verdiene tas vare paa: uten id-kolonne er DE identiteten.
+    fastRad[r.tabell] ??= {}
+    fastRad[r.tabell]![s] = Object.fromEntries(kolonner.map((k, i) => [k, verdier[i]]))
+    linjer.push(idKol(r) === 'id' && !r.id_kolonner
       ? `insert into public.${r.tabell} (id, ${kolonner.join(', ')}) `
         + `values (${sitat(seedId(`${r.tabell}:fast:${s}`))}, ${verdier.join(', ')});`
       // Noekkelen staar allerede blant tenantkolonnene.
@@ -571,16 +605,20 @@ function genererRessursSeed(r: Ressurs): string {
   // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon.
   if (r.en_rad_per_stasjon) return linjer.join('\n')
 
+  // FEMTE STEDET ID-ANTAKELSEN SATT. `returning id into ny` feiler med
+  // 42703 paa en tabell uten id-kolonne - ikke ved generering, men naar
+  // funksjonen KALLES, midt i en ellers gyldig kjoering. Uten en
+  // id-kolonne er det heller ingenting fornuftig aa returnere: raden
+  // pekes paa med predikatet sitt.
+  const uidRad = !r.id_kolonner
   linjer.push(`
 create or replace function pg_temp.nyrad_${r.tabell}(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
-declare
-  ny uuid;${seedNavn.map((n) => `\n  v_${n} uuid := gen_random_uuid();`).join('')}
+returns ${uidRad ? 'uuid' : 'void'} language plpgsql security definer as $fn$
+declare${uidRad ? '\n  ny uuid;' : ''}${seedNavn.map((n) => `\n  v_${n} uuid := gen_random_uuid();`).join('')}
 begin${(r.seed_ekstra ?? []).map((l) => `\n  ${somVariabel(l)};`).join('')}
   insert into public.${r.tabell} (${[...tenantParam, ...proberadFelt.map(([k]) => k)].join(', ')})
-  values (${[...tenantVerdi, ...proberadFelt.map(([, v]) => somVariabel(v))].join(', ')})
-  returning id into ny;
-  return ny;
+  values (${[...tenantVerdi, ...proberadFelt.map(([, v]) => somVariabel(v))].join(', ')})${
+    uidRad ? '\n  returning id into ny;' : ';'}${uidRad ? '\n  return ny;' : ''}
 end $fn$;`)
 
   return linjer.join('\n')
@@ -673,9 +711,39 @@ begin
   return n > 0;
 end $$;
 
+-- SAMME KONTROLLKONTEKST, MEN FOR EN SAMMENSATT NOEKKEL.
+--
+-- \`timesalg\` og \`kassererstatistikk\` har ingen id-kolonne; raden er
+-- (retailer_id, stasjon_id, dato, time). Da finnes det ingen enkelt
+-- verdi aa slaa opp paa, og "0 rader" ville vaert like tvetydig som foer
+-- - bare uten en maate aa oppklare det paa.
+--
+-- Predikatet kommer fra generatoren og gjelder den seedede raden.
+create or replace function pg_temp.finnes_pred(p_tabell text, p_pred text)
+returns boolean language plpgsql security definer as $$
+declare n int;
+begin
+  execute format('select count(*) from public.%I where %s', p_tabell, p_pred) into n;
+  return n > 0;
+end $$;
+
 create or replace function pg_temp.skriv_avvist(
   p_navn text, p_sql text,
   p_maal_tabell text default null, p_maal_id uuid default null, p_maal_kol text default 'id'
+) returns void
+language plpgsql as $$
+begin
+  -- EN KROPP, to maater aa peke paa raden. Uten delegeringen ville
+  -- regelen om at 0 rader krever en bekreftet maalrad staatt to steder,
+  -- og den ene kopien ville sluttet aa gjelde uten at noe sa fra.
+  perform pg_temp.skriv_avvist_pred(p_navn, p_sql, p_maal_tabell,
+    case when p_maal_tabell is null then null
+         else format('%I = %L', p_maal_kol, p_maal_id) end);
+end $$;
+
+create or replace function pg_temp.skriv_avvist_pred(
+  p_navn text, p_sql text,
+  p_maal_tabell text default null, p_maal_pred text default null
 ) returns void
 language plpgsql as $$
 declare n bigint;
@@ -708,9 +776,9 @@ begin
   if p_maal_tabell is null then
     perform pg_temp.logg('FEIL', p_navn,
       '0 rader, men ingen maalrad oppgitt - kan ikke skille RLS fra feil fixture', 'negativ');
-  elsif not pg_temp.finnes(p_maal_tabell, p_maal_id, p_maal_kol) then
+  elsif not pg_temp.finnes_pred(p_maal_tabell, p_maal_pred) then
     perform pg_temp.logg('FEIL', p_navn,
-      '0 rader, men maalraden ' || p_maal_id || ' finnes ikke i ' || p_maal_tabell
+      '0 rader, men maalraden (' || p_maal_pred || ') finnes ikke i ' || p_maal_tabell
       || ' - testen beviser ingenting', 'negativ');
   else
     perform pg_temp.logg('ok', p_navn, '0 rader, maalrad bekreftet', 'negativ');
@@ -756,10 +824,11 @@ function genererRessurs(r: Ressurs): string {
         const kjede = kjedenFor(s)
         const navn = `${r.tabell} ${i.navn} ${op.toUpperCase()} ${stasjonsbasert ? s : kjede}`
         const fastId = fastVerdi(r, s)
+        const pred = radPredikat(r, s)
 
         if (op === 'select') {
           linjer.push(`select pg_temp.paastand(${sitat(`${navn} -> ${ok ? 'ser' : 'ser ikke'}`)}, ${
-            ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where ${idKol(r)} = ${sitat(fastId)}), ${
+            ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where ${pred}), ${
             sitat(ok ? 'positiv' : 'negativ')});`)
           continue
         }
@@ -810,23 +879,35 @@ function genererRessurs(r: Ressurs): string {
         }
 
         const sql = op === 'update'
-          ? `update public.${r.tabell} set ${settbartFelt(r)} where ${idKol(r)} = ${sitat(fastId)}`
-          : `delete from public.${r.tabell} where ${idKol(r)} = ${sitat(fastId)}`
+          ? `update public.${r.tabell} set ${settbartFelt(r)} where ${pred}`
+          : `delete from public.${r.tabell} where ${pred}`
         // Maalraden foelger med paa avvisninger: "0 rader" godtas bare
         // naar kontrollkonteksten bekrefter at raden faktisk finnes.
-        const maalrad = `, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))}`
+        const maalrad = r.id_kolonner
+          ? `, ${sitat(r.tabell)}, ${sitat(pred)}`
+          : `, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))}`
+        const avvist = r.id_kolonner ? 'skriv_avvist_pred' : 'skriv_avvist'
         linjer.push(ok
           ? `select pg_temp.skriv_tillatt(${sitat(navn)}, ${sitat(sql)});`
-          : `select pg_temp.skriv_avvist(${sitat(navn)}, ${sitat(sql)}${maalrad});`)
+          : `select pg_temp.${avvist}(${sitat(navn)}, ${sitat(sql)}${maalrad});`)
 
         // Etter en tillatt sletting maa den faste raden tilbake.
         if (op === 'delete' && ok) {
           linjer.push(`select pg_temp.som_eier();`)
-          const { kolonner, verdier } = proberadSql(r, kjede, s, `gjen${i.navn}${s}`)
-          // Fjerde stedet id-antakelsen satt. Se `idKol`.
-          linjer.push(idKol(r) === 'id'
-            ? `insert into public.${r.tabell} (id, ${kolonner.join(', ')}) values (${sitat(fastId)}, ${verdier.join(', ')});`
-            : `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')});`)
+          if (r.id_kolonner) {
+            // IDENTITETEN LIGGER I VERDIENE. En fersk rad ville faatt en
+            // ny dato, og predikatet ville pekt paa ingenting etterpaa.
+            const rad = fastRad[r.tabell]![s]!
+            const kol = Object.keys(rad)
+            linjer.push(`insert into public.${r.tabell} (${kol.join(', ')}) `
+              + `values (${kol.map((k) => rad[k]).join(', ')});`)
+          } else {
+            const { kolonner, verdier } = proberadSql(r, kjede, s, `gjen${i.navn}${s}`)
+            // Fjerde stedet id-antakelsen satt. Se `idKol`.
+            linjer.push(idKol(r) === 'id'
+              ? `insert into public.${r.tabell} (id, ${kolonner.join(', ')}) values (${sitat(fastId)}, ${verdier.join(', ')});`
+              : `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')});`)
+          }
           linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
         }
       }
@@ -843,8 +924,21 @@ function genererRessurs(r: Ressurs): string {
     if (r.tenant_scope === 'retailer_or_station' && r.operasjoner.includes('select')) {
       const egen = seedId(`${r.tabell}:nullrad:${i.kjede}`)
       const fremmed = seedId(`${r.tabell}:nullrad:${ANNEN_KJEDE[i.kjede]}`)
-      linjer.push(`select pg_temp.paastand(${sitat(`${r.tabell} ${i.navn} ser kjedens null-stasjonsrad`)}, `
-        + `exists (select 1 from public.${r.tabell} where id = ${sitat(egen)}), 'positiv');`)
+
+      // NULL BETYR IKKE DET SAMME OVERALT.
+      //
+      // `tablet_meldinger`: null = hele kjeden, og alle i kjeden ser
+      // raden. `regnskapslinjer`: null = klyngelinje, og BARE eieren ser
+      // den - stasjonsrollene faller ut fordi policyen krever
+      // `stasjon_id is not null` i sin gren.
+      //
+      // Uten dette skillet ville generatoren paastaatt at butikksjefen
+      // ser klyngelinjene, og en riktig base ville blitt roed.
+      const serEgen = r.null_stasjon === 'kun_eier' ? i.rolle === 'owner' : true
+      linjer.push(`select pg_temp.paastand(${sitat(
+        `${r.tabell} ${i.navn} ${serEgen ? 'ser' : 'ser IKKE'} kjedens null-stasjonsrad`)}, `
+        + `${serEgen ? '' : 'not '}exists (select 1 from public.${r.tabell} where id = ${sitat(egen)}), `
+        + `${sitat(serEgen ? 'positiv' : 'negativ')});`)
       linjer.push(`select pg_temp.paastand(${sitat(`${r.tabell} ${i.navn} ser IKKE den andre kjedens null-rad`)}, `
         + `not exists (select 1 from public.${r.tabell} where id = ${sitat(fremmed)}), 'negativ');`)
     }
@@ -857,16 +951,21 @@ function genererRessurs(r: Ressurs): string {
       const egen = i.stasjoner.find((s) => tillatt(r, i, 'update', s))
       if (egen) {
         const fastId = fastVerdi(r, egen)
+        const pred = radPredikat(r, egen)
         const forbudtISammeKjede = KJEDENS_STASJONER[i.kjede].find((s) => !tillatt(r, i, 'update', s))
         const annenKjede = ANNEN_KJEDE[i.kjede]
+        const avvist = r.id_kolonner ? 'skriv_avvist_pred' : 'skriv_avvist'
+        const maalrad = r.id_kolonner
+          ? `, ${sitat(r.tabell)}, ${sitat(pred)}`
+          : `, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))}`
 
         if (stasjonsbasert && forbudtISammeKjede && !r.tenant_kolonne) {
-          linjer.push(`select pg_temp.skriv_avvist(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad ${egen} -> ${forbudtISammeKjede}`)}, ${
-            sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where ${idKol(r)} = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))});`)
+          linjer.push(`select pg_temp.${avvist}(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad ${egen} -> ${forbudtISammeKjede}`)}, ${
+            sitat(`update public.${r.tabell} set stasjon_id = ${sitat(S[forbudtISammeKjede])} where ${pred}`)}${maalrad});`)
         }
         if (r.tenant_scope === 'retailer' || r.tenant_scope === 'retailer_and_station') {
-          linjer.push(`select pg_temp.skriv_avvist(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad -> kjede ${annenKjede}`)}, ${
-            sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where ${idKol(r)} = ${sitat(fastId)}`)}, ${sitat(r.tabell)}, ${sitat(fastId)}, ${sitat(idKol(r))});`)
+          linjer.push(`select pg_temp.${avvist}(${sitat(`${r.tabell} ${i.navn} FLYTTER egen rad -> kjede ${annenKjede}`)}, ${
+            sitat(`update public.${r.tabell} set retailer_id = ${sitat(R[annenKjede])} where ${pred}`)}${maalrad});`)
         }
       }
     }
