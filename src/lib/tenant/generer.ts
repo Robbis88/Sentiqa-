@@ -175,6 +175,24 @@ function kjedensEier(kjede: Kjede): string {
   return IDENTITETER.find((i) => i.rolle === 'owner' && i.kjede === kjede)!.uid
 }
 
+/**
+ * Firesifret, unikt per forsøk — og det SKAL smelle om det ikke er det.
+ *
+ * Uten taket ville forsøk nummer 10 000 gitt «10000» (fem siffer, altså
+ * 23514) og forsøk 10 001 gitt «0001» om igjen (altså 23505). Begge er
+ * domenefeil forkledd som noe annet, og de ville dukket opp først når
+ * matrisen hadde vokst nok til at ingen lette der.
+ */
+function unikNr(n: number): string {
+  if (n >= 10_000) {
+    throw new Error(
+      `{{unik_nr}} har bare fire siffer, og forsoek ${n} sprenger det. `
+      + 'Matrisen har vokst forbi taket: gi plassholderen flere siffer, '
+      + 'eller gi stasjoner en egen teller.')
+  }
+  return String(n).padStart(4, '0')
+}
+
 function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: string): {
   kolonner: string[]; verdier: string[]
 } {
@@ -182,6 +200,17 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
   const ctx: Record<string, string> = {
     retailer: R[kjede], stasjon: S[s], unik,
     unik_dato: `date '2026-01-01' + ${n}`,
+    // ET FIRESIFRET NUMMER SOM VARIERER PER FORSØK.
+    //
+    // `stasjoner.butikknummer` har `check (butikknummer ~ '^[0-9]{4}$')`
+    // og er unik per kjede. `{{unik}}` er tekst («fastA1»), så den kan
+    // ikke brukes — og en fixture som bryter et domene-check gir 23514,
+    // som ikke beviser noe om noen tenantgrense.
+    //
+    // Telleren er en GENERERINGSTID-teller, ikke en sekvens i basen:
+    // verdien står som en literal i fila, så to kjøringer av samme fil
+    // gir samme nummer. Det er nettopp det man vil ha av en fasit.
+    unik_nr: unikNr(n),
     // HVEM SOM HANDLER, ikke bare hvor. `persondata_logg` og
     // `kontrolltiltak_bekreftelse` binder raden til den innloggede med
     // `bruker_id = (select auth.uid())`. Uten dette maatte proberaden
@@ -191,7 +220,7 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
     bruker: uid ?? kjedensEier(kjede),
   }
   for (const linje of r.seed_ekstra ?? []) {
-    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n) }
+    const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n), unik_nr: unikNr(n) }
     for (const m of linje.matchAll(/\{\{seed:([a-z_]+)\}\}/g)) {
       const id = seedId(`${r.tabell}:${m[1]}:${s}:${n}`)
       ctx[`seed:${m[1]}`] = id
@@ -600,6 +629,13 @@ function genererRessursSeed(r: Ressurs): string {
       // Forretningsnoekkelen maa variere per KALL, ikke per call site.
       .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass)`)
       .split(`{{unik_dato}}`).join(`date '2030-01-01' + nextval('tenant_teller'::regclass)::int`)
+      // FIRE SIFRE OGSAA HER, og de maa vaere andre enn seedingens.
+      // `stasjoner.butikknummer` er unik per kjede, saa et kall som
+      // gjenbrukte generatorens nummer ville kollidert med proberaden
+      // det nettopp ble laget ved siden av. Telleren i basen starter i
+      // sitt eget rom - to sifre fra 90 og opp - og lpad holder formen
+      // `^[0-9]{4}$` uansett hvor hoeyt den kommer.
+      .split(`'{{unik_nr}}'`).join(`lpad((9000 + nextval('tenant_teller'::regclass) % 1000)::text, 4, '0')`)
       .split(`{{unik}}`).join(`' || p_merke || '-' || nextval('tenant_teller'::regclass) || '`)
       // `{{n}}` er generatorens teller og hoerer til seedingen. Naar den
       // samme linja bakes inn i nyrad_*, maa den bli en KJORETIDSverdi -

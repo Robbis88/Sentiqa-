@@ -52,7 +52,7 @@ describe('tenant-kontrakten', () => {
   // Går tallet OPP, er det en ny tabell som slapp inn uten å bli
   // klassifisert, og da skal denne si fra før dekningssjekken i CI
   // rekker det.
-  const UKLASSIFISERT_NA = 21
+  const UKLASSIFISERT_NA = 16
 
   it(`har nøyaktig ${UKLASSIFISERT_NA} uklassifiserte igjen (ferdig Port 2 = 0)`, () => {
     expect(kontrakt.uklassifisert_tillatt.tabeller.length).toBe(UKLASSIFISERT_NA)
@@ -361,6 +361,34 @@ describe('genererte filer', () => {
       }],
     }
     expect(valider(brutt).join(' ')).toContain('«metrikk»')
+  })
+
+  it('{{unik_nr}} er fire siffer, og aldri to like i samme kjede', () => {
+    // `stasjoner.butikknummer` har `check (butikknummer ~ '^[0-9]{4}$')`
+    // OG `unique (retailer_id, butikknummer) where slettet_tid is null`.
+    // En fixture som bommer på det ene gir 23514, på det andre 23505 —
+    // og begge ser ut som en avvisning uten å være det.
+    const sql = genererMatrise(kontrakt)
+    const linjer = [...sql.matchAll(
+      /insert into public\.stasjoner \(([^)]*)\) values \(([^;]*)\);/g)]
+    // KANARIFUGL: uten stasjonsrader måler resten av testen ingenting.
+    expect(linjer.length, 'ingen stasjoner-innsettinger i matrisen').toBeGreaterThan(5)
+
+    const perKjede: Record<string, string[]> = {}
+    for (const m of linjer) {
+      const kol = m[1].split(',').map((k) => k.trim())
+      // Verdiene står både bart og inne i en SQL-streng (der hver
+      // apostrof er doblet), så begge former må skrelles.
+      const verdi = m[2].split(',').map((v) => v.trim().replace(/^'+|'+$/g, ''))
+      const nr = verdi[kol.indexOf('butikknummer')]
+      const kjede = verdi[kol.indexOf('retailer_id')]
+      if (nr === undefined || nr.includes('lpad')) continue // kjøretidsverdi, sjekkes av basen
+      expect(nr, `butikknummer «${nr}» bryter ^[0-9]{4}$`).toMatch(/^[0-9]{4}$/)
+      ;(perKjede[kjede] ??= []).push(nr)
+    }
+    for (const [kjede, nr] of Object.entries(perKjede)) {
+      expect(new Set(nr).size, `to like butikknummer i ${kjede}`).toBe(nr.length)
+    }
   })
 
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {

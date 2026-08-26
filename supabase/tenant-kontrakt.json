@@ -27,7 +27,7 @@
     "PROBERAD er den minste raden som kan settes inn. Den kan ikke",
     "utledes av kontrakten, og er derfor den faktiske vedlikeholdskostnaden",
     "per tabell. Plassholdere: {{retailer}} {{stasjon}} {{unik}}",
-    "{{unik_dato}} - og navngitte fra `seed_ekstra`."
+    "{{unik_dato}} {{unik_nr}} - og navngitte fra `seed_ekstra`."
   ],
   "uklassifisert_tillatt": {
     "$kommentar": [
@@ -59,19 +59,41 @@
       "Klassifiseres naar matrisen kan uttrykke global: i dag seeder den en",
       "rad per stasjon og paastaar at kjede B ikke ser kjede As - for en",
       "global tabell er begge deler feil. oversettelse_cache er global den",
-      "ogsaa, men kald og uten operasjoner, saa den stien er aldri kjort."
+      "ogsaa, men kald og uten operasjoner, saa den stien er aldri kjort.",
+      "",
+      "TRE TABELLER BRYTER HVER SIN ANTAKELSE I GENERATOREN. De er ikke",
+      "vanskelige aa klassifisere - de er umulige aa FIKSTURERE med dagens",
+      "vokabular, og en gjettet fixture ville gitt 23xxx der vi leter etter",
+      "42501.",
+      "",
+      "  retailers      Tenantnoekkelen er tabellens EGEN primaernoekkel",
+      "                 (`id = gjeldende_retailer_id()`). Matrisen seeder en",
+      "                 fersk proberad per stasjon - men en fersk retailer",
+      "                 tilhoerer ingen, saa «owner_A ser sin egen rad» kan",
+      "                 ikke uttrykkes. Den maa maale den EKSISTERENDE",
+      "                 kjederaden, ikke en ny.",
+      "",
+      "  profiler       Primaernoekkelen er en fremmednoekkel til auth.users,",
+      "                 uten default. Generatoren velger id-en selv og seeden",
+      "                 kan ikke vite hvilken - saa forutsetningsraden i",
+      "                 auth.users kan ikke matche. Trenger at proberaden kan",
+      "                 EIE id-en, ikke bare kolonnene rundt den.",
+      "",
+      "  pin_forsok     `bigserial` primaernoekkel. Generatoren bygger faste",
+      "                 id-er som uuid-er, saa `id = '...'` blir aldri en",
+      "                 gyldig sammenligning.",
+      "",
+      "PLATTFORM_INNLEGG er global paa samme maate som kunnskap - ingen",
+      "retailer_id i det hele tatt - og venter paa samme form."
     ],
     "tabeller": [
       "ai_tool_log",
-      "arrangementer",
-      "fokuspunkter",
       "import_jobber",
       "kalender_kilder",
       "kategori_vaerprofil",
       "kontraktmal",
       "kunnskap",
       "lederstotte_rapporter",
-      "pengepremie",
       "personlig_kryss",
       "personlig_punkt",
       "pin_forsok",
@@ -80,9 +102,7 @@
       "push_abonnementer",
       "raa_filer",
       "regnskapsanalyser",
-      "retailers",
-      "stasjoner",
-      "vaer"
+      "retailers"
     ]
   },
   "ressurser": [
@@ -189,6 +209,38 @@
         "innhold": "'Sondetekst'"
       },
       "oppdaterbart": "sortering = 1"
+    },
+    {
+      "tabell": "arrangementer",
+      "$hvorfor": "Lokale arrangementer med en faktor produksjonsplanen ganger opp med (0053). Rent kjedescope: et arrangement gjelder kjeden, og faktoren treffer alle stasjonene. Hele kjeden leser, lederen skriver. Tabellen HAR en stasjon_id (null = alle stasjoner), men policyen ser den ikke - grensen er retailer_id alene. Stasjonen er data om hvem arrangementet gjelder, ikke en tenantgrense, paa samme maate som konkurranser.stasjon_ids. Proberaden lar den staa null.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Samme form som puls_sporsmal, opplaering_oppgave og anvisninger: en butikksjef med EN tildelt stasjon kan skrive og slette arrangementer for HELE kjeden, og faktoren treffer alle stasjonenes produksjonsplan. Tabellen har ingen stasjon_id, saa policyen kan bare skille paa rolle og kjede.",
+      "proberad": {
+        "dato": "{{unik_dato}}",
+        "navn": "'Sondearrangement {{unik}}'"
+      },
+      "oppdaterbart": "faktor = 1.5",
+      "business_unik": [
+        "kilde_id",
+        "ekstern_uid",
+        "stasjon_id"
+      ],
+      "business_unik_unntak": {
+        "kilde_id": "Indeksen (kilde_id, ekstern_uid, stasjon_id) finnes for dedup ved re-import fra en kalenderkilde (0060/0061). Manuelle rader - og alle proberadene - har kilde_id null, og Postgres regner null som DISTINKT i en unik indeks. To manuelle rader kan derfor aldri kollidere. Skulle proberaden en dag hente en fersk kalender_kilder-rad, hoerer den hjemme i seed_ekstra og unntaket kan fjernes.",
+        "ekstern_uid": "Samme grunn som kilde_id: den er null for alt annet enn importerte hendelser, og null er distinkt."
+      }
     },
     {
       "tabell": "avvik",
@@ -523,6 +575,31 @@
         "omsetning_eks_mva": "100"
       },
       "oppdaterbart": "varenavn = 'endret av sonden'"
+    },
+    {
+      "tabell": "fokuspunkter",
+      "$hvorfor": "Maanedens forbedringspunkter og skryt per stasjon (0009). Stasjonen leser sine egne, eieren leser hele kjeden og er den eneste som skriver. Merk at lesepolicyen har samme to-arms form som uke_rapport hadde - men her er skrivepolicyen eierens alene og binder retailer_id, saa det finnes ingen fri arm.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "periode": "{{unik_dato}}",
+        "type": "'forbedring'",
+        "tekst": "'Sondepunkt {{unik}}'"
+      },
+      "oppdaterbart": "tekst = 'endret av sonden'"
     },
     {
       "tabell": "ik_avlesninger",
@@ -938,6 +1015,35 @@
       "ingen_policy": "Med vilje siden 0037: RLS er paa og det finnes INGEN policy, saa alt annet enn service_role nektes. Kvitteringen staar her fordi en tabell uten policy aldri skal vaere usynlig - den skal vaere sett.",
       "proberad": {
         "$ikke_relevant": "ingen rolle naar tabellen"
+      }
+    },
+    {
+      "tabell": "pengepremie",
+      "$hvorfor": "Pengepremier stasjonen deler ut (0043). Hele stasjonen leser - ogsaa nettbrettet, som viser dem - og lederen skriver. FORVENTET FUNN: pengepremie_skriv er en for all-policy fra 0043 der with check ser stasjonen og ikke kjeden, altsaa samme form som 0135. Klassifisert som dagens sannhet; matrisen faar si det.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "beskrivelse": "'Sondepremie {{unik}}'",
+        "belop_kr": "100",
+        "dato": "{{unik_dato}}"
+      },
+      "oppdaterbart": "utbetalt = true",
+      "business_unik": [
+        "konkurranse_id"
+      ],
+      "business_unik_unntak": {
+        "konkurranse_id": "0043 laget indeksen FULL og ikke partiell med vilje, for at den skulle vaere en gyldig ON CONFLICT-mal ved automatisk tildeling fra en konkurranse. Manuelle premier - og alle proberadene - har konkurranse_id null, og null er distinkt i en unik indeks, saa de kolliderer aldri med hverandre."
       }
     },
     {
@@ -1422,6 +1528,31 @@
       "oppdaterbart": "prosent = 91"
     },
     {
+      "tabell": "stasjoner",
+      "$hvorfor": "Stasjonene selv. Sammen med butikksjef_stasjoner er dette tenantroten: har_stasjonstilgang() og mine_stasjoner() slaar begge opp her, saa en stasjon som kunne flyttes mellom kjeder ville tatt hele stasjonens datasett med seg. Eieren ser og skriver sin egen kjede; INGEN andre roller skriver. UDEKKET MED VILJE: stasjoner_select har en gren til - har_stasjonstilgang(id) - saa en butikksjef ser de stasjonene som er TILDELT dem. Proberaden er en fersk stasjon uten tildeling, saa manager staar som none. Det er sant om proberaden; tildelingsgrenen bevises av butikksjef_stasjoner.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "business_unik": [
+        "retailer_id",
+        "butikknummer"
+      ],
+      "proberad": {
+        "butikknummer": "'{{unik_nr}}'",
+        "navn": "'Sondestasjon {{unik}}'",
+        "stasjonstype": "'sentrum'"
+      },
+      "oppdaterbart": "navn = 'endret av sonden'"
+    },
+    {
       "tabell": "stempling",
       "$hvorfor": "Timene, avledet fra stemplingene. INGEN retailer_id - rent stasjonsscope, og kjeden naas bare gjennom stasjonen. 0101 stengte nettbrettet ute fra aa LESE den: rader med navn, dato og klokkeslett er personopplysninger, og den delte nettbrettkontoen er ikke en person. Sletting er eierens alene (0088) - en time som forsvinner er en time noen ikke faar betalt for.",
       "tenant_scope": "station",
@@ -1688,6 +1819,33 @@
         "stasjon_id",
         "uke_mandag"
       ]
+    },
+    {
+      "tabell": "vaer",
+      "$hvorfor": "Vaerdata per stasjon og dag (0015), brukt av produksjonsplanen og bemanningen. Ingen retailer_id - kjeden naas gjennom stasjonen. Hele stasjonen leser, bare eieren skriver. Policyene er allerede splittet og pakket i 0107.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "dato"
+      ],
+      "proberad": {
+        "dato": "{{unik_dato}}"
+      },
+      "oppdaterbart": "hentet_tid = now()"
     },
     {
       "tabell": "varsler",
