@@ -641,6 +641,140 @@ begin
     end loop;
   end;
 
+  -- --- 11) with check: kjeden maa bindes i HVER arm av et or ---
+  --
+  -- Lagt til 2026-08-26, etter 0141.
+  --
+  -- De aatte forekomstene foer den manglet `retailer_id` i `with check`.
+  -- `uke_rapport` NEVNTE den - bindingen sto bare i feil arm:
+  --
+  --   with check (
+  --     (rolle = 'retailer_admin' and retailer_id = min kjede)  -- bundet
+  --     or stasjon_id in (mine_stasjoner())                     -- fri
+  --   )
+  --
+  -- Andre arm godtar hva som helst i retailer_id saa lenge stasjonen er
+  -- min, og raden kan flyttes til en annen kjede med stasjonen i behold.
+  -- AA NEVNE KOLONNEN ER IKKE AA BINDE DEN - og derfor sto uke_rapport
+  -- aldri i kandidater_with_check.sql, som leter etter FRAVAER.
+  --
+  -- Regelen: har uttrykket mer enn en arm paa oeverste niva, maa HVER
+  -- arm nevne retailer_id. Ellers finnes det en vei gjennom som ikke
+  -- binder kjeden.
+  --
+  -- KUN `with check`. I `using` er en fri stasjonsarm riktig: en rad hvis
+  -- stasjon er min, er per definisjon min kjedes - naar den ikke lenger
+  -- kan flyttes.
+  --
+  -- Teksten kommer fra pg_get_expr, altsaa fra katalogen og ikke fra
+  -- migrasjonsfila. Splittingen teller parenteser og bryr seg ikke om
+  -- strengliteraler; en policy med « OR » inne i en literal ville lurt
+  -- den, og det finnes ingen slik i dag.
+  declare
+    t             text;
+    d             int;
+    i             int;
+    c             text;
+    arm           text;
+    fri           boolean;
+    antall_armer  int;
+    balansert     boolean;
+    sett          int := 0;
+  begin
+    for r in
+      -- KANARIFUGLEN GAAR GJENNOM SAMME KODE SOM ALT ANNET.
+      -- Den er uke_rapport slik den sto foer 0141, normalisert slik
+      -- pg_get_expr ville skrevet den. Slutter splitteren aa se en fri
+      -- arm, faller den her - ikke i stillhet et halvt aar senere.
+      select p.tablename, p.policyname, p.with_check, false as er_kanari
+      from pg_policies p
+      where p.schemaname = 'public'
+        and p.with_check is not null
+        and exists (
+          select 1 from information_schema.columns col
+          where col.table_schema = 'public'
+            and col.table_name = p.tablename
+            and col.column_name = 'retailer_id')
+      union all
+      select '(kanarifugl)', 'fri_arm_skal_ses',
+             '(((( SELECT gjeldende_rolle()) = ''retailer_admin''::text) AND'
+             || ' (retailer_id = ( SELECT gjeldende_retailer_id()))) OR'
+             || ' (stasjon_id IN ( SELECT mine_stasjoner())))',
+             true
+      order by 1, 2
+    loop
+      sett := sett + 1;
+      t := btrim(r.with_check);
+
+      -- Skrell ytre parenteser, men bare naar den foerste lukkes helt til slutt.
+      loop
+        exit when left(t, 1) <> '(' or right(t, 1) <> ')';
+        d := 0;
+        balansert := true;
+        for i in 1..length(t) loop
+          c := substr(t, i, 1);
+          if c = '(' then
+            d := d + 1;
+          elsif c = ')' then
+            d := d - 1;
+            if d = 0 and i < length(t) then
+              balansert := false;
+              exit;
+            end if;
+          end if;
+        end loop;
+        exit when not balansert;
+        t := btrim(substr(t, 2, length(t) - 2));
+      end loop;
+
+      -- Del paa OR i dybde 0.
+      d := 0;
+      arm := '';
+      fri := false;
+      antall_armer := 1;
+      i := 1;
+      while i <= length(t) loop
+        c := substr(t, i, 1);
+        if c = '(' then
+          d := d + 1;
+        elsif c = ')' then
+          d := d - 1;
+        end if;
+        if d = 0 and upper(substr(t, i, 4)) = ' OR ' then
+          antall_armer := antall_armer + 1;
+          if position('retailer_id' in arm) = 0 then fri := true; end if;
+          arm := '';
+          i := i + 4;
+          continue;
+        end if;
+        arm := arm || c;
+        i := i + 1;
+      end loop;
+      if position('retailer_id' in arm) = 0 then fri := true; end if;
+
+      if r.er_kanari then
+        if not (antall_armer > 1 and fri) then
+          funnliste := funnliste || 'ARMVAKT BLIND  kanarifuglen ble ikke sett - splitteren i punkt 11 maaler ikke lenger noe';
+          raise warning '%', funnliste[array_length(funnliste, 1)];
+          feil := feil + 1;
+        end if;
+      elsif antall_armer > 1 and fri then
+        funnliste := funnliste || format('FRI ARM I WITH CHECK  public.%s / %s - en av %s armene nevner ikke retailer_id, saa raden kan flyttes til en annen kjede med stasjonen i behold (se 0141)',
+          r.tablename, r.policyname, antall_armer);
+        raise warning '%', funnliste[array_length(funnliste, 1)];
+        feil := feil + 1;
+      end if;
+    end loop;
+
+    -- Kanarifuglen alene teller ogsaa: ser sjekken bare den, leser den
+    -- ingen ekte policyer, og da maaler den ingenting.
+    if sett < 2 then
+      funnliste := funnliste || 'ARMVAKT BLIND  ingen policy med with check paa en tabell med retailer_id - maaler sjekken riktig skjema?';
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end if;
+  end;
+
   -- FUNNENE HOERER HJEMME I FEILMELDINGEN.
   --
   -- Foer sto det bare «RLS-vakthund: 2 funn. Se advarslene over» - og
