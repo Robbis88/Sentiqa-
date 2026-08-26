@@ -1180,7 +1180,7 @@
     },
     {
       "tabell": "profiler",
-      "$hvorfor": "Brukerne selv - rolle og kjedetilhorighet. gjeldende_rolle() og gjeldende_retailer_id() slaar begge opp her, saa dette er den tredje tenantrot-tabellen ved siden av stasjoner og butikksjef_stasjoner. Eieren ser og skriver hele sin kjede; ingen andre roller skriver. PRIMAERNOEKKELEN ER EN FREMMEDNOEKKEL til auth.users uten default, saa proberaden maa EIE id-en: den kommer fra seed_ekstra, og id_kolonner peker paa den. UDEKKET MED VILJE: profiler_select har en egen-rad-gren (id = auth.uid()) som hver bruker ser seg selv gjennom. Den er brukerscopet og hoerer til samme form som butikksjef_stasjoner og personlig_punkt.",
+      "$hvorfor": "Brukerne selv - rolle og kjedetilhorighet. gjeldende_rolle() og gjeldende_retailer_id() slaar begge opp her, saa dette er den tredje tenantrot-tabellen ved siden av stasjoner og butikksjef_stasjoner. INGEN SKRIVER GJENNOM KLIENTEN: 0078 stengte privilegie-eskaleringen (PATCH /rest/v1/profiler {\"rolle\":\"retailer_admin\"}) med `revoke insert, update, delete ... from authenticated` - altsaa med en RETTIGHET, ikke med et predikat. profiler_admin_alt staar fortsatt i basen og ser ut som om eieren kan skrive, men den er virkningsloes. Alle skrivinger gaar gjennom service-rollen i serverhandlinger. Alle fire operasjonene staar likevel her, slik at matrisen BEVISER at ingen rolle skriver. PRIMAERNOEKKELEN ER EN FREMMEDNOEKKEL til auth.users uten default, saa proberaden maa EIE id-en: den kommer fra seed_ekstra, og id_kolonner peker paa den. UDEKKET MED VILJE: profiler_select har en egen-rad-gren (id = auth.uid()) som hver bruker ser seg selv gjennom. Den er brukerscopet og hoerer til samme form som butikksjef_stasjoner og personlig_punkt.",
       "tenant_scope": "retailer",
       "data_class": "warm",
       "operasjoner": [
@@ -1191,7 +1191,9 @@
       ],
       "tablet": "none",
       "manager": "none",
-      "owner": "retailer",
+      "owner": {
+        "select": "retailer"
+      },
       "id_kolonner": [
         "id"
       ],

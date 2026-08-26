@@ -19,7 +19,7 @@ import { rekkevidde, valider } from './kontrakt'
 import {
   genererDekning, genererMatrise, genererMatriseDeler, IDENTITETER, maal, tillatt,
 } from './generer'
-import { forretningsnokler } from './skjema'
+import { forretningsnokler, fratattAuthenticated } from './skjema'
 
 const ROT = new URL('../../../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
 const KONTRAKT_STI = `${ROT}supabase/tenant-kontrakt.json`
@@ -133,6 +133,47 @@ describe('forretningsnokler mot skjemaet', () => {
         if (mangler.length > 0) {
           feil.push(`${r.tabell}: ${n.navn ?? 'unique'} (${n.kolonner.join(', ')}) `
             + `- mangler i business_unik: ${mangler.join(', ')}`)
+        }
+      }
+    }
+    expect(feil, feil.join('\n')).toEqual([])
+  })
+})
+
+describe('rettigheter mot skjemaet', () => {
+  const fratatt = fratattAuthenticated(`${ROT}supabase/migrations`)
+
+  it('finner de tabellene rettigheten faktisk er tatt fra', () => {
+    // KANARIFUGL. Ser leseren ingen `revoke`, er regelen under stille —
+    // og en stille regel ser ut som en regel uten funn.
+    expect(fratatt.profiler, '0078 tok skriveretten på profiler').toBeTruthy()
+    expect([...(fratatt.profiler ?? [])].sort()).toEqual(['delete', 'insert', 'update'])
+
+    // OG EN KOMMENTAR ER IKKE EN SETNING. `0138` siterer `0112` sin
+    // `revoke update on public.ansatte` i en forklarende kommentar. Uten
+    // kommentarfjerning konkluderte leseren med at retten fortsatt var
+    // borte — lenge etter at `0112` ga den tilbake kolonne for kolonne.
+    expect(fratatt.ansatte, 'sitatet i 0138 er ikke en revoke').toBeUndefined()
+  })
+
+  it('ingen rolle når en operasjon rettigheten er tatt fra', () => {
+    // EN POLICY UTEN GRANT ER VIRKNINGSLØS, og kontrakten beskrev
+    // policyen. `profiler_admin_alt` står fortsatt i basen og ser ut som
+    // om eieren kan skrive; `0078` stengte privilegie-eskaleringen med
+    // `revoke insert, update, delete ... from authenticated` i stedet.
+    //
+    // Klassifiserte som skrivende ga matrisen 42501 fra grantet der den
+    // ventet et tillatt skriv — og etterpå kolliderte gjeninnsettingen
+    // med raden som aldri ble slettet. Fire minutter i CI. Her: ett ms.
+    const feil: string[] = []
+    for (const r of kontrakt.ressurser) {
+      for (const op of [...(fratatt[r.tabell] ?? [])]) {
+        if (!r.operasjoner.includes(op)) continue
+        for (const rolle of ['tablet', 'manager', 'owner'] as const) {
+          if (rekkevidde(r[rolle], op, r.operasjoner) !== 'none') {
+            feil.push(`${r.tabell}: ${rolle} når «${op}», men authenticated `
+              + 'har ikke den rettigheten — policyen er virkningsløs')
+          }
         }
       }
     }

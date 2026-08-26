@@ -1282,12 +1282,12 @@ select pg_temp.sett_gruppe('profiler');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
 select pg_temp.paastand('profiler owner_A SELECT A -> ser', exists (select 1 from public.profiler where "id" = '483c7998-0000-4000-8000-0000483c7998'), 'positiv');
 select pg_temp.paastand('profiler owner_A SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a911c-0000-4000-8000-0000484a911c'), 'negativ');
-select pg_temp.skriv_tillatt('profiler owner_A INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b95c-0000-4000-8000-0000bf52b95c'', ''butikksjef'', ''Sondeprofil owner_AA1'')');
+select pg_temp.skriv_avvist('profiler owner_A INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b95c-0000-4000-8000-0000bf52b95c'', ''butikksjef'', ''Sondeprofil owner_AA1'')');
 select pg_temp.skriv_avvist('profiler owner_A INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c10791fc-0000-4000-8000-0000c10791fc'', ''butikksjef'', ''Sondeprofil owner_AB1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_tillatt('profiler owner_A UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c7998-0000-4000-8000-0000483c7998''');
+select pg_temp.skriv_avvist_pred('profiler owner_A UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c7998-0000-4000-8000-0000483c7998''', 'profiler', '"id" = ''483c7998-0000-4000-8000-0000483c7998''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -1295,15 +1295,11 @@ select pg_temp.skriv_avvist_pred('profiler owner_A UPDATE B', 'update public.pro
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_tillatt('profiler owner_A DELETE A', 'delete from public.profiler where "id" = ''483c7998-0000-4000-8000-0000483c7998''');
-select pg_temp.som_eier();
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483c7998-0000-4000-8000-0000483c7998', 'butikksjef', 'Sondeprofil fastA1');
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+select pg_temp.skriv_avvist_pred('profiler owner_A DELETE A', 'delete from public.profiler where "id" = ''483c7998-0000-4000-8000-0000483c7998''', 'profiler', '"id" = ''483c7998-0000-4000-8000-0000483c7998''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('profiler owner_A DELETE B', 'delete from public.profiler where "id" = ''484a911c-0000-4000-8000-0000484a911c''', 'profiler', '"id" = ''484a911c-0000-4000-8000-0000484a911c''');
-select pg_temp.skriv_avvist_pred('profiler owner_A FLYTTER egen rad -> kjede B', 'update public.profiler set retailer_id = ''bbbb0000-0000-4000-8000-000000000000'' where "id" = ''483c7998-0000-4000-8000-0000483c7998''', 'profiler', '"id" = ''483c7998-0000-4000-8000-0000483c7998''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
 select pg_temp.paastand('profiler manager_A1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c7998-0000-4000-8000-0000483c7998'), 'negativ');
@@ -1374,12 +1370,12 @@ select pg_temp.skriv_avvist_pred('profiler tablet_A1 DELETE B', 'delete from pub
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
 select pg_temp.paastand('profiler owner_B SELECT B -> ser', exists (select 1 from public.profiler where "id" = '484a911c-0000-4000-8000-0000484a911c'), 'positiv');
 select pg_temp.paastand('profiler owner_B SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c7998-0000-4000-8000-0000483c7998'), 'negativ');
-select pg_temp.skriv_tillatt('profiler owner_B INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079218-0000-4000-8000-0000c1079218'', ''butikksjef'', ''Sondeprofil owner_BB1'')');
+select pg_temp.skriv_avvist('profiler owner_B INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079218-0000-4000-8000-0000c1079218'', ''butikksjef'', ''Sondeprofil owner_BB1'')');
 select pg_temp.skriv_avvist('profiler owner_B INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b97a-0000-4000-8000-0000bf52b97a'', ''butikksjef'', ''Sondeprofil owner_BA1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_tillatt('profiler owner_B UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a911c-0000-4000-8000-0000484a911c''');
+select pg_temp.skriv_avvist_pred('profiler owner_B UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a911c-0000-4000-8000-0000484a911c''', 'profiler', '"id" = ''484a911c-0000-4000-8000-0000484a911c''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -1387,15 +1383,11 @@ select pg_temp.skriv_avvist_pred('profiler owner_B UPDATE A', 'update public.pro
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_tillatt('profiler owner_B DELETE B', 'delete from public.profiler where "id" = ''484a911c-0000-4000-8000-0000484a911c''');
-select pg_temp.som_eier();
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('bbbb0000-0000-4000-8000-000000000000', '484a911c-0000-4000-8000-0000484a911c', 'butikksjef', 'Sondeprofil fastB1');
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+select pg_temp.skriv_avvist_pred('profiler owner_B DELETE B', 'delete from public.profiler where "id" = ''484a911c-0000-4000-8000-0000484a911c''', 'profiler', '"id" = ''484a911c-0000-4000-8000-0000484a911c''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('profiler owner_B DELETE A', 'delete from public.profiler where "id" = ''483c7998-0000-4000-8000-0000483c7998''', 'profiler', '"id" = ''483c7998-0000-4000-8000-0000483c7998''');
-select pg_temp.skriv_avvist_pred('profiler owner_B FLYTTER egen rad -> kjede A', 'update public.profiler set retailer_id = ''aaaa0000-0000-4000-8000-000000000000'' where "id" = ''484a911c-0000-4000-8000-0000484a911c''', 'profiler', '"id" = ''484a911c-0000-4000-8000-0000484a911c''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
 select pg_temp.paastand('profiler manager_B1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a911c-0000-4000-8000-0000484a911c'), 'negativ');

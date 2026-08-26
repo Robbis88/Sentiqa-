@@ -120,3 +120,80 @@ export function forretningsnokler(mappe: string): Record<string, Noekkel[]> {
   }
   return ut
 }
+
+/**
+ * Operasjoner `authenticated` IKKE har rettighet til, per tabell.
+ *
+ * EN POLICY UTEN GRANT ER VIRKNINGSLOES — og kontrakten beskrev
+ * policyen. `profiler_admin_alt` står fortsatt i basen og ser ut som om
+ * eieren kan skrive; `0078` tok grantet i stedet:
+ *
+ *   revoke insert, update, delete on public.profiler from authenticated;
+ *
+ * Privilegie-eskaleringen (`PATCH /rest/v1/profiler {"rolle":…}`) ble
+ * stengt med en RETTIGHET, ikke med et predikat. Klassifiserte jeg
+ * eieren som skrivende, ga matrisen 42501 fra grantet i stedet for det
+ * tillatte skrivet den ventet — og etterpå kolliderte gjeninnsettingen
+ * med raden som aldri ble slettet.
+ *
+ * KOLONNEGRANT TELLER SOM GJENOPPRETTING. `0112` tar `select` fra
+ * `ansatte` og gir den tilbake kolonne for kolonne; da er operasjonen
+ * fortsatt mulig, og dette skal ikke slå ut.
+ */
+export type Rettighetsop = 'select' | 'insert' | 'update' | 'delete'
+
+const ALLE_OPS: Rettighetsop[] = ['select', 'insert', 'update', 'delete']
+
+const REVOKE = /revoke\s+([a-z, ]+?)\s*(?:\([^)]*\))?\s+on\s+(?:table\s+)?(?:public\.)?([a-z0-9_]+)\s+from\s+([^;')]+)/gi
+const GRANT = /grant\s+([a-z, ]+?)\s*(?:\([^)]*\))?\s+on\s+(?:table\s+)?(?:public\.)?([a-z0-9_]+)\s+to\s+([^;')]+)/gi
+
+function ops(tekst: string): Rettighetsop[] {
+  const t = tekst.trim().toLowerCase()
+  if (t === 'all' || t.startsWith('all ')) return [...ALLE_OPS]
+  return t.split(',').map((x) => x.trim()).filter((x): x is Rettighetsop =>
+    (ALLE_OPS as string[]).includes(x))
+}
+
+/**
+ * SQL uten kommentarer.
+ *
+ * `0138` SITERER `0112` I EN KOMMENTAR:
+ *
+ *   -- `0112` skrev, for aa lukke pin_hash:
+ *   --   revoke update on public.ansatte from authenticated;
+ *
+ * Uten dette leste vakten sitatet som en setning, og konkluderte med at
+ * `ansatte` fortsatt manglet update-retten — lenge etter at `0112` ga
+ * den tilbake kolonne for kolonne. En kommentar som forklarer historien
+ * ble altså lest som historien selv.
+ */
+function utenKommentarer(sql: string): string {
+  return sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--.*/g, '')
+}
+
+export function fratattAuthenticated(mappe: string): Record<string, Set<Rettighetsop>> {
+  const ut: Record<string, Set<Rettighetsop>> = {}
+  for (const fil of readdirSync(mappe).filter((f) => f.endsWith('.sql')).sort()) {
+    const sql = utenKommentarer(readFileSync(`${mappe}/${fil}`, 'utf8'))
+    // Rekkefolgen INNE i en fil teller ogsaa: 0112 tar select og gir den
+    // tilbake kolonnevis i samme fil.
+    const hendelser: Array<[number, 'revoke' | 'grant', string, string, string]> = []
+    for (const m of sql.matchAll(REVOKE)) hendelser.push([m.index!, 'revoke', m[1], m[2], m[3]])
+    for (const m of sql.matchAll(GRANT)) hendelser.push([m.index!, 'grant', m[1], m[2], m[3]])
+    hendelser.sort((a, b) => a[0] - b[0])
+    for (const [, typ, opTekst, tabell, mottakere] of hendelser) {
+      // `revoke all on FUNCTION ...` fanges ikke: regexen krever et
+      // tabellnavn rett etter `on`, og «function» er ikke et tabellnavn
+      // vi noen gang klassifiserer.
+      if (tabell === 'function' || tabell === 'schema' || tabell === 'sequence') continue
+      if (!/(^|[\s,])authenticated([\s,]|$)/.test(mottakere)) continue
+      const sett = (ut[tabell] ??= new Set())
+      for (const op of ops(opTekst)) {
+        if (typ === 'revoke') sett.add(op)
+        else sett.delete(op)
+      }
+    }
+  }
+  for (const t of Object.keys(ut)) if (ut[t].size === 0) delete ut[t]
+  return ut
+}
