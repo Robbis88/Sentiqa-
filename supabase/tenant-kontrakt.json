@@ -47,14 +47,11 @@
     ],
     "tabeller": [
       "ai_tool_log",
-      "ansatt_avtale",
-      "ansatt_kontrakt",
       "anvisninger",
       "arrangementer",
       "bemanning_aar",
       "bemanning_budsjett",
       "bemanning_fast_vakt",
-      "bemanning_fravaer",
       "bemanning_krav",
       "bemanning_maned",
       "bemanning_vindu",
@@ -67,7 +64,6 @@
       "kategori_vaerprofil",
       "konkurranser",
       "kontraktmal",
-      "kontrolltiltak_bekreftelse",
       "kunnskap",
       "lederstotte_rapporter",
       "lenker",
@@ -75,7 +71,6 @@
       "merker",
       "opplaering_oppgave",
       "pengepremie",
-      "persondata_logg",
       "personlig_kryss",
       "personlig_punkt",
       "pin_forsok",
@@ -96,6 +91,139 @@
     ]
   },
   "ressurser": [
+    {
+      "tabell": "ansatt_avtale",
+      "$hvorfor": "Kontraktsfestet stilling per ansatt, noekklet paa stemplingsnummeret fra easy@work. 0101 tok lesingen fra nettbrettet: stasjonstilgang alene holdt ikke for et felt som sier hva folk tjener i prosent av full stilling. Skrivingen har vaert lederens hele tiden.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ansatt_nr"
+      ],
+      "proberad": {
+        "ansatt_nr": "'{{unik}}'",
+        "navn": "'Sonde Sondesen'",
+        "stillingsprosent": "80"
+      },
+      "oppdaterbart": "stillingsprosent = 90"
+    },
+    {
+      "tabell": "bemanning_fravaer",
+      "$hvorfor": "Fravaer per ansatt i bemanningsplanen. Aarsaken kan vaere sykdom, altsaa en helseopplysning - og det er grunnen til at 0101 stengte nettbrettet ute fra lesingen sammen med ansatt_avtale, ansatt_kontrakt og stempling.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "proberad": {
+        "navn": "'Sonde Sondesen'",
+        "fra_dato": "{{unik_dato}}",
+        "til_dato": "{{unik_dato}}",
+        "arsak": "'Sonde'"
+      },
+      "$oppdaterbart_hvorfor": "datoene har en check (til >= fra); aarsaken er trygg aa endre.",
+      "oppdaterbart": "arsak = 'endret av sonden'"
+    },
+    {
+      "tabell": "ansatt_kontrakt",
+      "$hvorfor": "Arbeidsavtalen, med hele verdier-objektet som skal til for aa gjenskape dokumentet - altsaa lonna. 0101 tok lesingen fra nettbrettet. Sletting er eierens alene OG bare av det som ikke er signert; en signert kontrakt kan ikke fjernes av noen gjennom klienten.",
+      "$signert_hvorfor": "ansatt_kontrakt_del krever `signert_tid is null` i tillegg til rollen. Det er et vilkaar paa en KOLONNEVERDI, som kontrakten ikke kan uttrykke - samme form som kaffeunntaket paa regnskap_usynlig_svinn. Proberaden er usignert, saa matrisen beviser at eieren kan slette et utkast. At en SIGNERT kontrakt ikke lar seg slette staar udekket.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "assigned_stations",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "ansatt_nr": "'{{unik}}'",
+        "ansatt_navn": "'Sonde Sondesen'",
+        "status": "'utkast'"
+      },
+      "oppdaterbart": "status = 'sendt'"
+    },
+    {
+      "tabell": "persondata_logg",
+      "$hvorfor": "Hvem har sett hva om hvem (GDPR art. 32). Vokser raskest av alle - en rad per oppslag paa persondata - og kan aldri endres eller slettes: ingen update- eller delete-policy finnes, med vilje. En logg som lar seg redigere av den som er logget, dokumenterer ingenting.",
+      "$bruker_hvorfor": "Innsettingspolicyen krever `bruker_id = (select auth.uid())`. Proberaden bruker derfor {{bruker}}, som er identiteten som faktisk proever - ellers ville hvert forsoek fra en annen enn eieren blitt avvist av FIXTUREN, og kontrakten ville sagt at rollen ikke naar noe den faktisk faar lov til.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert"
+      ],
+      "tablet": {
+        "insert": "retailer"
+      },
+      "manager": {
+        "select": "retailer",
+        "insert": "retailer"
+      },
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Butikksjefen ser HELE kjedens logg, ikke bare sine egne stasjoner: lesepolicyen scoper paa retailer_id og rolle, aldri paa stasjon. For en tilgangslogg kan det vaere riktig - den som er ansvarlig skal kunne se hvem som har sett hva - men det er en beslutning ingen har tatt eksplisitt, og det staar i kontrast til alle andre butikksjef-regler i basen. Nettbrettet kan SKRIVE i loggen for hele kjeden av samme grunn; det er mindre alvorlig, siden raden maa baere nettbrettets egen bruker_id.",
+      "proberad": {
+        "handling": "'sonde_oppslag'",
+        "ansatt_nr": "'{{unik}}'",
+        "bruker_id": "'{{bruker}}'",
+        "bruker_navn": "'Sonde Sondesen'"
+      }
+    },
+    {
+      "tabell": "kontrolltiltak_bekreftelse",
+      "$hvorfor": "Dokumentasjon paa at informasjonsplikten om kontrolltiltak (aml. § 9-2) er oppfylt - IKKE et samtykke. Ingen update- eller delete-policy: en bekreftelse skal staa. Lesingen har to grener: din egen (bruker_id = auth.uid()) eller lederens paa egne stasjoner.",
+      "$tre_identiteter": "Nettbrettet kan ikke lese sin egen bekreftelse. Den delte kontoen bekrefter som ANSATT (ansatt_id, via PIN), mens egen-grenen i policyen matcher paa bruker_id. To av de tre identitetene i systemet moetes ikke her. Se [[sentiqa-tre-identiteter]].",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert"
+      ],
+      "tablet": {
+        "insert": "retailer"
+      },
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "retailer"
+      },
+      "owner": "retailer",
+      "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan skrive en bekreftelse for en hvilken som helst stasjon i kjeden, og for en hvilken som helst ansatt_id. For et dokument som skal bevise at informasjonsplikten er oppfylt, er det for lite: raden sier at noen bekreftet, ikke at DEN som bekreftet var den det gjaldt. Utvei: bind ansatt_id/bruker_id til den innloggede slik persondata_logg gjor, og legg til stasjonsleddet.",
+      "business_unik": [
+        "bruker_id",
+        "versjon",
+        "ansatt_id"
+      ],
+      "business_unik_unntak": {
+        "ansatt_id": "Settes ikke av fixturen. Check-skranken krever ansatt_id ELLER bruker_id, og fixturen bruker bruker_id - som er den grenen policyens egen-lesing faktisk matcher paa. Den unike indeksen over ansatt_id er partiell (where ansatt_id is not null) og gjelder derfor ikke disse radene.",
+        "bruker_id": "Varierer ikke per forsoek, men per IDENTITET - den er hele poenget: raden bindes til den som bekreftet. Kollisjon er likevel umulig, for versjon varierer per forsoek, og den unike indeksen er (bruker_id, versjon)."
+      },
+      "proberad": {
+        "versjon": "'{{unik}}'",
+        "bruker_id": "'{{bruker}}'"
+      }
+    },
     {
       "tabell": "timesalg",
       "$hvorfor": "Salg per time (St1 0758) - grunnlaget for heatmapet og hele bemanningsplanleggeren. Samme rollebilde som daglig_salg: stasjonsscopet lesing for butikksjef og nettbrett, admin-skriving for hele kjeden. INGEN ID-KOLONNE: raden er (retailer_id, stasjon_id, dato, time), og det var den eneste grunnen til at den sto uklassifisert etter pulje 6.",
