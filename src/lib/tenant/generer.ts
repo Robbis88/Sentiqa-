@@ -170,13 +170,25 @@ function tenantKolonner(r: Ressurs, kjede: Kjede, s: Stasjon): Record<string, st
 let seedbehov: string[] = []
 let teller = 0
 
-function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string): {
+/** Eieren i kjeden. Den som seeder naar ingen bestemt identitet handler. */
+function kjedensEier(kjede: Kjede): string {
+  return IDENTITETER.find((i) => i.rolle === 'owner' && i.kjede === kjede)!.uid
+}
+
+function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: string): {
   kolonner: string[]; verdier: string[]
 } {
   const n = teller++
   const ctx: Record<string, string> = {
     retailer: R[kjede], stasjon: S[s], unik,
     unik_dato: `date '2026-01-01' + ${n}`,
+    // HVEM SOM HANDLER, ikke bare hvor. `persondata_logg` og
+    // `kontrolltiltak_bekreftelse` binder raden til den innloggede med
+    // `bruker_id = (select auth.uid())`. Uten dette maatte proberaden
+    // hatt EN fast bruker, og hvert forsoek fra en annen identitet ville
+    // blitt avvist av fixturen i stedet for av policyen - og kontrakten
+    // ville sagt "naar den ikke" om noe rollen faktisk faar lov til.
+    bruker: uid ?? kjedensEier(kjede),
   }
   for (const linje of r.seed_ekstra ?? []) {
     const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik, n: String(n) }
@@ -605,6 +617,15 @@ function genererRessursSeed(r: Ressurs): string {
   // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon.
   if (r.en_rad_per_stasjon) return linjer.join('\n')
 
+  // Og ingen naar ingen roerer raden etterpaa. `nyrad_*` finnes for at en
+  // tillatt sletting ikke skal rive grunnlaget for neste paastand - uten
+  // update og delete er den doed kode. `persondata_logg` og
+  // `kontrolltiltak_bekreftelse` har ingen av delene med vilje: en logg
+  // som lar seg redigere dokumenterer ingenting.
+  if (!r.operasjoner.includes('update') && !r.operasjoner.includes('delete')) {
+    return linjer.join('\n')
+  }
+
   // FEMTE STEDET ID-ANTAKELSEN SATT. `returning id into ny` feiler med
   // 42703 paa en tabell uten id-kolonne - ikke ved generering, men naar
   // funksjonen KALLES, midt i en ellers gyldig kjoering. Uten en
@@ -834,7 +855,9 @@ function genererRessurs(r: Ressurs): string {
         }
 
         if (op === 'insert') {
-          const { kolonner, verdier } = proberadSql(r, kjede, s, `${i.navn}${s}`)
+          // Identiteten foelger med: raden kan vaere bundet til den som
+          // skriver den, og da er det DENNE brukeren som proever.
+          const { kolonner, verdier } = proberadSql(r, kjede, s, `${i.navn}${s}`, i.uid)
           const sql = `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')})`
 
           // EN RAD PER STASJON: PLASSEN MAA VAERE LEDIG.
