@@ -629,7 +629,7 @@
     },
     {
       "tabell": "import_jobber",
-      "$hvorfor": "Jobbkoeen som parser en raa fil (0002). Eieren naar hele kjeden paa alle fire; butikksjefen LESER bare jobber som har en stasjon, og bare sine egne. NULL BETYR KUN EIER: import_jobber_sjef_les krever `stasjon_id is not null`, saa en jobb uten stasjon - typisk en kjedebred import - er eierens alene. Samme form som regnskapslinjer.",
+      "$hvorfor": "Jobbkoeen som parser en raa fil (0002). Eieren naar hele kjeden paa alle fire; butikksjefen LESER bare jobber som har en stasjon, og bare sine egne. NULL BETYR KUN EIER: import_jobber_sjef_les krever `stasjon_id is not null`, saa en jobb uten stasjon - typisk en kjedebred import - er eierens alene. Samme form som regnskapslinjer. NETTBRETTET LESTE DEN TIL 0144: import_jobber_sjef_les hadde ingen rollesjekk, og mine_stasjoner() dekker butikkbruker_tablet ogsaa. Rollen sto i kommentaren i 0002, ikke i predikatet. Funnet av matrisen i den kjoringen som klassifiserte tabellen.",
       "tenant_scope": "retailer_or_station",
       "data_class": "warm",
       "null_stasjon": "kun_eier",
