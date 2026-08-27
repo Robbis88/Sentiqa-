@@ -256,130 +256,70 @@ insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('e
 insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('e8571283-0000-4000-8000-0000e8571283', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 4');
 insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('e8571284-0000-4000-8000-0000e8571284', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 5');
 insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('e8571285-0000-4000-8000-0000e8571285', '00000000-0000-0000-0000-00000000b101', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 6');
-insert into auth.users (id, email) values ('483c79bb-0000-4000-8000-0000483c79bb', 'sonde-profil-29@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('483cee30-0000-4000-8000-0000483cee30', 'sonde-profil-30@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('483d6290-0000-4000-8000-0000483d6290', 'sonde-profil-31@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('484a9154-0000-4000-8000-0000484a9154', 'sonde-profil-32@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('484b05b4-0000-4000-8000-0000484b05b4', 'sonde-profil-33@kanari.local') on conflict (id) do nothing;
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47e23476-0000-4000-8000-000047e23476', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47e2a8d6-0000-4000-8000-000047e2a8d6', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47e31d36-0000-4000-8000-000047e31d36', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47f04bfa-0000-4000-8000-000047f04bfa', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47f0c05a-0000-4000-8000-000047f0c05a', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('4b643f87-0000-4000-8000-00004b643f87', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('2be01688-0000-4000-8000-00002be01688', 'aaaa0000-0000-4000-8000-000000000000', '4b643f87-0000-4000-8000-00004b643f87', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('4b64b3e7-0000-4000-8000-00004b64b3e7', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('2be08ae8-0000-4000-8000-00002be08ae8', 'aaaa0000-0000-4000-8000-000000000000', '4b64b3e7-0000-4000-8000-00004b64b3e7', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('4b652847-0000-4000-8000-00004b652847', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('2be0ff48-0000-4000-8000-00002be0ff48', 'aaaa0000-0000-4000-8000-000000000000', '4b652847-0000-4000-8000-00004b652847', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('4b72570b-0000-4000-8000-00004b72570b', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('2bee2e0c-0000-4000-8000-00002bee2e0c', 'bbbb0000-0000-4000-8000-000000000000', '4b72570b-0000-4000-8000-00004b72570b', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('4b72cb6b-0000-4000-8000-00004b72cb6b', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('2beea26c-0000-4000-8000-00002beea26c', 'bbbb0000-0000-4000-8000-000000000000', '4b72cb6b-0000-4000-8000-00004b72cb6b', date '2026-08-01', date '2026-08-31');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26b4-0000-4000-8000-0000227d26b4', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 59');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26ca-0000-4000-8000-0000227d26ca', '00000000-0000-0000-0000-00000000a001', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 60');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cb-0000-4000-8000-0000227d26cb', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 61');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cc-0000-4000-8000-0000227d26cc', '00000000-0000-0000-0000-00000000a001', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 62');
+insert into auth.users (id, email) values ('483c79d2-0000-4000-8000-0000483c79d2', 'sonde-profil-31@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('483cee32-0000-4000-8000-0000483cee32', 'sonde-profil-32@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('483d6292-0000-4000-8000-0000483d6292', 'sonde-profil-33@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('484a9156-0000-4000-8000-0000484a9156', 'sonde-profil-34@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('484b05b6-0000-4000-8000-0000484b05b6', 'sonde-profil-35@kanari.local') on conflict (id) do nothing;
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47e23478-0000-4000-8000-000047e23478', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47e2a8d8-0000-4000-8000-000047e2a8d8', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47e31d38-0000-4000-8000-000047e31d38', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47f04bfc-0000-4000-8000-000047f04bfc', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('47f0c071-0000-4000-8000-000047f0c071', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26b1-0000-4000-8000-0000227d26b1', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 56');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26b2-0000-4000-8000-0000227d26b2', '00000000-0000-0000-0000-00000000a001', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 57');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26b3-0000-4000-8000-0000227d26b3', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 58');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26b4-0000-4000-8000-0000227d26b4', '00000000-0000-0000-0000-00000000a001', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 59');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26ca-0000-4000-8000-0000227d26ca', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 60');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cb-0000-4000-8000-0000227d26cb', '00000000-0000-0000-0000-00000000a001', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 61');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cc-0000-4000-8000-0000227d26cc', '00000000-0000-0000-0000-00000000a012', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 62');
 insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cd-0000-4000-8000-0000227d26cd', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 63');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26ce-0000-4000-8000-0000227d26ce', '00000000-0000-0000-0000-00000000a001', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 64');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cf-0000-4000-8000-0000227d26cf', '00000000-0000-0000-0000-00000000a012', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 65');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26ce-0000-4000-8000-0000227d26ce', '00000000-0000-0000-0000-00000000a012', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 64');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26cf-0000-4000-8000-0000227d26cf', '00000000-0000-0000-0000-00000000a101', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 65');
 insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26d0-0000-4000-8000-0000227d26d0', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 66');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26d1-0000-4000-8000-0000227d26d1', '00000000-0000-0000-0000-00000000a012', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 67');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26d2-0000-4000-8000-0000227d26d2', '00000000-0000-0000-0000-00000000a101', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 68');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26d3-0000-4000-8000-0000227d26d3', '00000000-0000-0000-0000-00000000a000', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 69');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26e9-0000-4000-8000-0000227d26e9', '00000000-0000-0000-0000-00000000a101', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 70');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6b-0000-4000-8000-0000228b3e6b', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 71');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6c-0000-4000-8000-0000228b3e6c', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 72');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6d-0000-4000-8000-0000228b3e6d', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 73');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6e-0000-4000-8000-0000228b3e6e', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 74');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('227d26d1-0000-4000-8000-0000227d26d1', '00000000-0000-0000-0000-00000000a101', 'aaaa0000-0000-4000-8000-000000000000', 'Sondepunkt 67');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e53-0000-4000-8000-0000228b3e53', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 68');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e54-0000-4000-8000-0000228b3e54', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 69');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6a-0000-4000-8000-0000228b3e6a', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 70');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6b-0000-4000-8000-0000228b3e6b', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 71');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6c-0000-4000-8000-0000228b3e6c', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 72');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6d-0000-4000-8000-0000228b3e6d', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 73');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6e-0000-4000-8000-0000228b3e6e', '00000000-0000-0000-0000-00000000b101', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 74');
 insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e6f-0000-4000-8000-0000228b3e6f', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 75');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e70-0000-4000-8000-0000228b3e70', '00000000-0000-0000-0000-00000000b001', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 76');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e71-0000-4000-8000-0000228b3e71', '00000000-0000-0000-0000-00000000b101', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 77');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e72-0000-4000-8000-0000228b3e72', '00000000-0000-0000-0000-00000000b000', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 78');
-insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e73-0000-4000-8000-0000228b3e73', '00000000-0000-0000-0000-00000000b101', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 79');
-insert into auth.users (id, email) values ('bf52b9f8-0000-4000-8000-0000bf52b9f8', 'sonde-profil-183@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c1079298-0000-4000-8000-0000c1079298', 'sonde-profil-184@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('bf52b9fa-0000-4000-8000-0000bf52b9fa', 'sonde-profil-185@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c107929a-0000-4000-8000-0000c107929a', 'sonde-profil-186@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('bf52b9fc-0000-4000-8000-0000bf52b9fc', 'sonde-profil-187@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c107929c-0000-4000-8000-0000c107929c', 'sonde-profil-188@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('bf52b9fe-0000-4000-8000-0000bf52b9fe', 'sonde-profil-189@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c10792b3-0000-4000-8000-0000c10792b3', 'sonde-profil-190@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c10792b4-0000-4000-8000-0000c10792b4', 'sonde-profil-191@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('bf52ba16-0000-4000-8000-0000bf52ba16', 'sonde-profil-192@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c10792b6-0000-4000-8000-0000c10792b6', 'sonde-profil-193@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('bf52ba18-0000-4000-8000-0000bf52ba18', 'sonde-profil-194@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('c10792b8-0000-4000-8000-0000c10792b8', 'sonde-profil-195@kanari.local') on conflict (id) do nothing;
-insert into auth.users (id, email) values ('bf52ba1a-0000-4000-8000-0000bf52ba1a', 'sonde-profil-196@kanari.local') on conflict (id) do nothing;
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b4644fd9-0000-4000-8000-0000b4644fd9', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192879-0000-4000-8000-0000b6192879', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b4644fdb-0000-4000-8000-0000b4644fdb', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b464527c-0000-4000-8000-0000b464527c', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b1c-0000-4000-8000-0000b6192b1c', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b464527e-0000-4000-8000-0000b464527e', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b464527f-0000-4000-8000-0000b464527f', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b1f-0000-4000-8000-0000b6192b1f', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b4645281-0000-4000-8000-0000b4645281', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b4645282-0000-4000-8000-0000b4645282', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b22-0000-4000-8000-0000b6192b22', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b23-0000-4000-8000-0000b6192b23', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b4645285-0000-4000-8000-0000b4645285', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b3a-0000-4000-8000-0000b6192b3a', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b3b-0000-4000-8000-0000b6192b3b', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b464529d-0000-4000-8000-0000b464529d', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b3d-0000-4000-8000-0000b6192b3d', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b3e-0000-4000-8000-0000b6192b3e', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.personlig_punkt (id, user_id, retailer_id, tittel) values ('228b3e70-0000-4000-8000-0000228b3e70', '00000000-0000-0000-0000-00000000b101', 'bbbb0000-0000-4000-8000-000000000000', 'Sondepunkt 76');
+insert into auth.users (id, email) values ('bf52bcbf-0000-4000-8000-0000bf52bcbf', 'sonde-profil-201@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c107955f-0000-4000-8000-0000c107955f', 'sonde-profil-202@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('bf52bcc1-0000-4000-8000-0000bf52bcc1', 'sonde-profil-203@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c1079561-0000-4000-8000-0000c1079561', 'sonde-profil-204@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('bf52bcc3-0000-4000-8000-0000bf52bcc3', 'sonde-profil-205@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c1079563-0000-4000-8000-0000c1079563', 'sonde-profil-206@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('bf52bcc5-0000-4000-8000-0000bf52bcc5', 'sonde-profil-207@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c1079565-0000-4000-8000-0000c1079565', 'sonde-profil-208@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c1079566-0000-4000-8000-0000c1079566', 'sonde-profil-209@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('bf52bcdd-0000-4000-8000-0000bf52bcdd', 'sonde-profil-210@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c107957d-0000-4000-8000-0000c107957d', 'sonde-profil-211@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('bf52bcdf-0000-4000-8000-0000bf52bcdf', 'sonde-profil-212@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('c107957f-0000-4000-8000-0000c107957f', 'sonde-profil-213@kanari.local') on conflict (id) do nothing;
+insert into auth.users (id, email) values ('bf52bce1-0000-4000-8000-0000bf52bce1', 'sonde-profil-214@kanari.local') on conflict (id) do nothing;
 insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452a0-0000-4000-8000-0000b46452a0', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a62c-0000-4000-8000-00002123a62c', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af4b-0000-4000-8000-00005022af4b', 'aaaa0000-0000-4000-8000-000000000000', '2123a62c-0000-4000-8000-00002123a62c', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2131bdae-0000-4000-8000-00002131bdae', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5030c6cd-0000-4000-8000-00005030c6cd', 'aaaa0000-0000-4000-8000-000000000000', '2131bdae-0000-4000-8000-00002131bdae', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('213fd530-0000-4000-8000-0000213fd530', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('503ede4f-0000-4000-8000-0000503ede4f', 'aaaa0000-0000-4000-8000-000000000000', '213fd530-0000-4000-8000-0000213fd530', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87ece-0000-4000-8000-000022d87ece', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d787ed-0000-4000-8000-000051d787ed', 'bbbb0000-0000-4000-8000-000000000000', '22d87ece-0000-4000-8000-000022d87ece', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a630-0000-4000-8000-00002123a630', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af4f-0000-4000-8000-00005022af4f', 'aaaa0000-0000-4000-8000-000000000000', '2123a630-0000-4000-8000-00002123a630', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2131bdc7-0000-4000-8000-00002131bdc7', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5030c6e6-0000-4000-8000-00005030c6e6', 'aaaa0000-0000-4000-8000-000000000000', '2131bdc7-0000-4000-8000-00002131bdc7', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('213fd549-0000-4000-8000-0000213fd549', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('503ede68-0000-4000-8000-0000503ede68', 'aaaa0000-0000-4000-8000-000000000000', '213fd549-0000-4000-8000-0000213fd549', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87ee7-0000-4000-8000-000022d87ee7', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d78806-0000-4000-8000-000051d78806', 'bbbb0000-0000-4000-8000-000000000000', '22d87ee7-0000-4000-8000-000022d87ee7', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a649-0000-4000-8000-00002123a649', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af68-0000-4000-8000-00005022af68', 'aaaa0000-0000-4000-8000-000000000000', '2123a649-0000-4000-8000-00002123a649', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2131bdcb-0000-4000-8000-00002131bdcb', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5030c6ea-0000-4000-8000-00005030c6ea', 'aaaa0000-0000-4000-8000-000000000000', '2131bdcb-0000-4000-8000-00002131bdcb', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('213fd54d-0000-4000-8000-0000213fd54d', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('503ede6c-0000-4000-8000-0000503ede6c', 'aaaa0000-0000-4000-8000-000000000000', '213fd54d-0000-4000-8000-0000213fd54d', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87eeb-0000-4000-8000-000022d87eeb', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d7880a-0000-4000-8000-000051d7880a', 'bbbb0000-0000-4000-8000-000000000000', '22d87eeb-0000-4000-8000-000022d87eeb', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a64d-0000-4000-8000-00002123a64d', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af6c-0000-4000-8000-00005022af6c', 'aaaa0000-0000-4000-8000-000000000000', '2123a64d-0000-4000-8000-00002123a64d', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2131bdcf-0000-4000-8000-00002131bdcf', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5030c6ee-0000-4000-8000-00005030c6ee', 'aaaa0000-0000-4000-8000-000000000000', '2131bdcf-0000-4000-8000-00002131bdcf', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('213fd551-0000-4000-8000-0000213fd551', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('503ede70-0000-4000-8000-0000503ede70', 'aaaa0000-0000-4000-8000-000000000000', '213fd551-0000-4000-8000-0000213fd551', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87f04-0000-4000-8000-000022d87f04', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d78823-0000-4000-8000-000051d78823', 'bbbb0000-0000-4000-8000-000000000000', '22d87f04-0000-4000-8000-000022d87f04', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87f05-0000-4000-8000-000022d87f05', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d78824-0000-4000-8000-000051d78824', 'bbbb0000-0000-4000-8000-000000000000', '22d87f05-0000-4000-8000-000022d87f05', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22e69687-0000-4000-8000-000022e69687', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51e59fa6-0000-4000-8000-000051e59fa6', 'bbbb0000-0000-4000-8000-000000000000', '22e69687-0000-4000-8000-000022e69687', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a668-0000-4000-8000-00002123a668', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af87-0000-4000-8000-00005022af87', 'aaaa0000-0000-4000-8000-000000000000', '2123a668-0000-4000-8000-00002123a668', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87f08-0000-4000-8000-000022d87f08', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d78827-0000-4000-8000-000051d78827', 'bbbb0000-0000-4000-8000-000000000000', '22d87f08-0000-4000-8000-000022d87f08', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22e6968a-0000-4000-8000-000022e6968a', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51e59fa9-0000-4000-8000-000051e59fa9', 'bbbb0000-0000-4000-8000-000000000000', '22e6968a-0000-4000-8000-000022e6968a', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a66b-0000-4000-8000-00002123a66b', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af8a-0000-4000-8000-00005022af8a', 'aaaa0000-0000-4000-8000-000000000000', '2123a66b-0000-4000-8000-00002123a66b', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22d87f0b-0000-4000-8000-000022d87f0b', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51d7882a-0000-4000-8000-000051d7882a', 'bbbb0000-0000-4000-8000-000000000000', '22d87f0b-0000-4000-8000-000022d87f0b', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('22e6968d-0000-4000-8000-000022e6968d', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('51e59fac-0000-4000-8000-000051e59fac', 'bbbb0000-0000-4000-8000-000000000000', '22e6968d-0000-4000-8000-000022e6968d', date '2026-08-01', date '2026-08-31');
-insert into public.puls_sporsmal (id, retailer_id, tekst) values ('2123a66e-0000-4000-8000-00002123a66e', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('5022af8d-0000-4000-8000-00005022af8d', 'aaaa0000-0000-4000-8000-000000000000', '2123a66e-0000-4000-8000-00002123a66e', date '2026-08-01', date '2026-08-31');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b40-0000-4000-8000-0000b6192b40', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452a2-0000-4000-8000-0000b46452a2', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452a3-0000-4000-8000-0000b46452a3', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b43-0000-4000-8000-0000b6192b43', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452ba-0000-4000-8000-0000b46452ba', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452bb-0000-4000-8000-0000b46452bb', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b5b-0000-4000-8000-0000b6192b5b', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452bd-0000-4000-8000-0000b46452bd', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452be-0000-4000-8000-0000b46452be', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b5e-0000-4000-8000-0000b6192b5e', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b5f-0000-4000-8000-0000b6192b5f', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452c1-0000-4000-8000-0000b46452c1', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b61-0000-4000-8000-0000b6192b61', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b62-0000-4000-8000-0000b6192b62', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452d9-0000-4000-8000-0000b46452d9', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b79-0000-4000-8000-0000b6192b79', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b6192b7a-0000-4000-8000-0000b6192b7a', 'bbbb0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
+insert into public.puls_sporsmal (id, retailer_id, tekst) values ('b46452dc-0000-4000-8000-0000b46452dc', 'aaaa0000-0000-4000-8000-000000000000', 'Sondesporsmaal');
 -- --- personlig_kryss: forutsetninger og proberader ---
 insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('14c1b0e0-0000-4000-8000-000014c1b0e0', '00000000-0000-0000-0000-00000000a000', 'e8569e20-0000-4000-8000-0000e8569e20', date '2026-01-01' + 0);
 insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('eb9fbad7-0000-4000-8000-0000eb9fbad7', '00000000-0000-0000-0000-00000000a001', 'e8569e21-0000-4000-8000-0000e8569e21', date '2026-01-01' + 1);
@@ -410,12 +350,15 @@ begin
   insert into public.pin_forsok (retailer_id, ansatt_nr, kilde, ok)
   values (p_retailer, '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', 'vakt', false);
 end $fn$;
+-- --- plattform_innlegg: forutsetninger og proberader ---
+insert into public.plattform_innlegg (id, tittel, innhold, publisert) values ('727ec031-0000-4000-8000-0000727ec031', 'Sondeinnlegg global', 'Sondetekst', true);
+insert into public.plattform_innlegg (id, tittel, innhold, publisert) values ('ce74f8a9-0000-4000-8000-0000ce74f8a9', 'Sondeinnlegg usynlig', 'Sondetekst', false);
 -- --- produksjonsplan_hode: forutsetninger og proberader ---
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 19);
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e3-0000-4000-8000-00003628e8e3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 20);
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e4-0000-4000-8000-00003628e8e4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 21);
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e901-0000-4000-8000-00003628e901', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 22);
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e902-0000-4000-8000-00003628e902', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 23);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 21);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e3-0000-4000-8000-00003628e8e3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 22);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e4-0000-4000-8000-00003628e8e4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 23);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e901-0000-4000-8000-00003628e901', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 24);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e902-0000-4000-8000-00003628e902', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 25);
 
 create or replace function pg_temp.nyrad_produksjonsplan_hode(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
@@ -428,11 +371,11 @@ begin
   return ny;
 end $fn$;
 -- --- produksjonsplan_linjer: forutsetninger og proberader ---
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 24, 'Sondevare fastA1');
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0801-0000-4000-8000-0000d0ba0801', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 25, 'Sondevare fastA2');
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0802-0000-4000-8000-0000d0ba0802', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 26, 'Sondevare fastA3');
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba081f-0000-4000-8000-0000d0ba081f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 27, 'Sondevare fastB1');
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0820-0000-4000-8000-0000d0ba0820', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 28, 'Sondevare fastB2');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 26, 'Sondevare fastA1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0801-0000-4000-8000-0000d0ba0801', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 27, 'Sondevare fastA2');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0802-0000-4000-8000-0000d0ba0802', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 28, 'Sondevare fastA3');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba081f-0000-4000-8000-0000d0ba081f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 29, 'Sondevare fastB1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0820-0000-4000-8000-0000d0ba0820', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 30, 'Sondevare fastB2');
 
 create or replace function pg_temp.nyrad_produksjonsplan_linjer(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
@@ -445,11 +388,11 @@ begin
   return ny;
 end $fn$;
 -- --- profiler: forutsetninger og proberader ---
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483c79bb-0000-4000-8000-0000483c79bb', 'butikksjef', 'Sondeprofil fastA1');
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483cee30-0000-4000-8000-0000483cee30', 'butikksjef', 'Sondeprofil fastA2');
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483d6290-0000-4000-8000-0000483d6290', 'butikksjef', 'Sondeprofil fastA3');
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('bbbb0000-0000-4000-8000-000000000000', '484a9154-0000-4000-8000-0000484a9154', 'butikksjef', 'Sondeprofil fastB1');
-insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('bbbb0000-0000-4000-8000-000000000000', '484b05b4-0000-4000-8000-0000484b05b4', 'butikksjef', 'Sondeprofil fastB2');
+insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483c79d2-0000-4000-8000-0000483c79d2', 'butikksjef', 'Sondeprofil fastA1');
+insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483cee32-0000-4000-8000-0000483cee32', 'butikksjef', 'Sondeprofil fastA2');
+insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('aaaa0000-0000-4000-8000-000000000000', '483d6292-0000-4000-8000-0000483d6292', 'butikksjef', 'Sondeprofil fastA3');
+insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('bbbb0000-0000-4000-8000-000000000000', '484a9156-0000-4000-8000-0000484a9156', 'butikksjef', 'Sondeprofil fastB1');
+insert into public.profiler (retailer_id, id, rolle, fullt_navn) values ('bbbb0000-0000-4000-8000-000000000000', '484b05b6-0000-4000-8000-0000484b05b6', 'butikksjef', 'Sondeprofil fastB2');
 
 create or replace function pg_temp.nyrad_profiler(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns void language plpgsql security definer as $fn$
@@ -467,17 +410,17 @@ insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori
 insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori, korreksjon, n) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'produksjonsplan', 'fastB1', 1.05, 30);
 insert into public.prognose_kalibrering (retailer_id, stasjon_id, type, kategori, korreksjon, n) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'produksjonsplan', 'fastB2', 1.05, 30);
 -- --- prognose_treff: forutsetninger og proberader ---
-insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f208589-0000-4000-8000-00009f208589', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'produksjonsplan', date '2026-01-01' + 39, 'fastA1', 100, 95);
-insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f20858a-0000-4000-8000-00009f20858a', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'produksjonsplan', date '2026-01-01' + 40, 'fastA2', 100, 95);
-insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f20858b-0000-4000-8000-00009f20858b', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'produksjonsplan', date '2026-01-01' + 41, 'fastA3', 100, 95);
-insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f2085a8-0000-4000-8000-00009f2085a8', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'produksjonsplan', date '2026-01-01' + 42, 'fastB1', 100, 95);
-insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f2085a9-0000-4000-8000-00009f2085a9', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'produksjonsplan', date '2026-01-01' + 43, 'fastB2', 100, 95);
+insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f208589-0000-4000-8000-00009f208589', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'produksjonsplan', date '2026-01-01' + 41, 'fastA1', 100, 95);
+insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f20858a-0000-4000-8000-00009f20858a', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'produksjonsplan', date '2026-01-01' + 42, 'fastA2', 100, 95);
+insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f20858b-0000-4000-8000-00009f20858b', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'produksjonsplan', date '2026-01-01' + 43, 'fastA3', 100, 95);
+insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f2085a8-0000-4000-8000-00009f2085a8', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'produksjonsplan', date '2026-01-01' + 44, 'fastB1', 100, 95);
+insert into public.prognose_treff (id, retailer_id, stasjon_id, type, dato, kategori, forventet, faktisk) values ('9f2085a9-0000-4000-8000-00009f2085a9', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'produksjonsplan', date '2026-01-01' + 45, 'fastB2', 100, 95);
 -- --- puls_runde: forutsetninger og proberader ---
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', '47e23476-0000-4000-8000-000047e23476', date '2026-08-01', date '2026-08-31');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60e-0000-4000-8000-00001f2bd60e', 'aaaa0000-0000-4000-8000-000000000000', '47e2a8d6-0000-4000-8000-000047e2a8d6', date '2026-08-01', date '2026-08-31');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60f-0000-4000-8000-00001f2bd60f', 'aaaa0000-0000-4000-8000-000000000000', '47e31d36-0000-4000-8000-000047e31d36', date '2026-08-01', date '2026-08-31');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62c-0000-4000-8000-00001f2bd62c', 'bbbb0000-0000-4000-8000-000000000000', '47f04bfa-0000-4000-8000-000047f04bfa', date '2026-08-01', date '2026-08-31');
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62d-0000-4000-8000-00001f2bd62d', 'bbbb0000-0000-4000-8000-000000000000', '47f0c05a-0000-4000-8000-000047f0c05a', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', '47e23478-0000-4000-8000-000047e23478', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60e-0000-4000-8000-00001f2bd60e', 'aaaa0000-0000-4000-8000-000000000000', '47e2a8d8-0000-4000-8000-000047e2a8d8', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60f-0000-4000-8000-00001f2bd60f', 'aaaa0000-0000-4000-8000-000000000000', '47e31d38-0000-4000-8000-000047e31d38', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62c-0000-4000-8000-00001f2bd62c', 'bbbb0000-0000-4000-8000-000000000000', '47f04bfc-0000-4000-8000-000047f04bfc', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62d-0000-4000-8000-00001f2bd62d', 'bbbb0000-0000-4000-8000-000000000000', '47f0c071-0000-4000-8000-000047f0c071', date '2026-08-01', date '2026-08-31');
 
 create or replace function pg_temp.nyrad_puls_runde(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
@@ -508,27 +451,6 @@ begin
   returning id into ny;
   return ny;
 end $fn$;
--- --- puls_svar: forutsetninger og proberader ---
-insert into public.puls_svar (id, retailer_id, stasjon_id, runde_id, skala, kommentar) values ('3922575b-0000-4000-8000-00003922575b', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', '2be01688-0000-4000-8000-00002be01688', 3, 'Sondesvar fastA1');
-insert into public.puls_svar (id, retailer_id, stasjon_id, runde_id, skala, kommentar) values ('3922575c-0000-4000-8000-00003922575c', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', '2be08ae8-0000-4000-8000-00002be08ae8', 3, 'Sondesvar fastA2');
-insert into public.puls_svar (id, retailer_id, stasjon_id, runde_id, skala, kommentar) values ('3922575d-0000-4000-8000-00003922575d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', '2be0ff48-0000-4000-8000-00002be0ff48', 3, 'Sondesvar fastA3');
-insert into public.puls_svar (id, retailer_id, stasjon_id, runde_id, skala, kommentar) values ('3922577a-0000-4000-8000-00003922577a', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', '2bee2e0c-0000-4000-8000-00002bee2e0c', 3, 'Sondesvar fastB1');
-insert into public.puls_svar (id, retailer_id, stasjon_id, runde_id, skala, kommentar) values ('3922577b-0000-4000-8000-00003922577b', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', '2beea26c-0000-4000-8000-00002beea26c', 3, 'Sondesvar fastB2');
-
-create or replace function pg_temp.nyrad_puls_svar(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
-declare
-  ny uuid;
-  v_sporsmal uuid := gen_random_uuid();
-  v_runde uuid := gen_random_uuid();
-begin
-  insert into public.puls_sporsmal (id, retailer_id, tekst) values (v_sporsmal, p_retailer, 'Sondesporsmaal');
-  insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values (v_runde, p_retailer, v_sporsmal, date '2026-08-01', date '2026-08-31');
-  insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar)
-  values (p_retailer, p_stasjon, v_runde, 3, 'Sondesvar ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
-  returning id into ny;
-  return ny;
-end $fn$;
 
 -- =====================================================================
 -- personlig_kryss  (brukerscope paa user_id, warm)
@@ -543,14 +465,14 @@ select pg_temp.paastand('personlig_kryss owner_A SELECT tablet_A1 sin rad -> ser
 select pg_temp.paastand('personlig_kryss owner_A SELECT owner_B sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '14c1b0e1-0000-4000-8000-000014c1b0e1'), 'negativ');
 select pg_temp.paastand('personlig_kryss owner_A SELECT manager_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6'), 'negativ');
 select pg_temp.paastand('personlig_kryss owner_A SELECT tablet_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f4113-0000-4000-8000-0000738f4113'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss owner_A INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26b4-0000-4000-8000-0000227d26b4'', date ''2026-01-01'' + 59)');
-select pg_temp.skriv_avvist('personlig_kryss owner_A INSERT paa manager_A1 sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a001'', ''227d26ca-0000-4000-8000-0000227d26ca'', date ''2026-01-01'' + 60)');
+select pg_temp.skriv_tillatt('personlig_kryss owner_A INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26b1-0000-4000-8000-0000227d26b1'', date ''2026-01-01'' + 56)');
+select pg_temp.skriv_avvist('personlig_kryss owner_A INSERT paa manager_A1 sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a001'', ''227d26b2-0000-4000-8000-0000227d26b2'', date ''2026-01-01'' + 57)');
 select pg_temp.skriv_tillatt('personlig_kryss owner_A UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''');
 select pg_temp.skriv_avvist('personlig_kryss owner_A UPDATE manager_A1 sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''eb9fbad7-0000-4000-8000-0000eb9fbad7''', 'personlig_kryss', 'eb9fbad7-0000-4000-8000-0000eb9fbad7', 'id');
 select pg_temp.skriv_avvist('personlig_kryss owner_A DELETE manager_A1 sin rad', 'delete from public.personlig_kryss where id = ''eb9fbad7-0000-4000-8000-0000eb9fbad7''', 'personlig_kryss', 'eb9fbad7-0000-4000-8000-0000eb9fbad7', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss owner_A DELETE egen rad', 'delete from public.personlig_kryss where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('14c1b0e0-0000-4000-8000-000014c1b0e0', '00000000-0000-0000-0000-00000000a000', '227d26cb-0000-4000-8000-0000227d26cb', date '2026-01-01' + 61);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('14c1b0e0-0000-4000-8000-000014c1b0e0', '00000000-0000-0000-0000-00000000a000', '227d26b3-0000-4000-8000-0000227d26b3', date '2026-01-01' + 58);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
@@ -561,14 +483,14 @@ select pg_temp.paastand('personlig_kryss manager_A1 SELECT tablet_A1 sin rad -> 
 select pg_temp.paastand('personlig_kryss manager_A1 SELECT owner_B sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '14c1b0e1-0000-4000-8000-000014c1b0e1'), 'negativ');
 select pg_temp.paastand('personlig_kryss manager_A1 SELECT manager_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6'), 'negativ');
 select pg_temp.paastand('personlig_kryss manager_A1 SELECT tablet_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f4113-0000-4000-8000-0000738f4113'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss manager_A1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a001'', ''227d26cc-0000-4000-8000-0000227d26cc'', date ''2026-01-01'' + 62)');
-select pg_temp.skriv_avvist('personlig_kryss manager_A1 INSERT paa owner_A sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26cd-0000-4000-8000-0000227d26cd'', date ''2026-01-01'' + 63)');
+select pg_temp.skriv_tillatt('personlig_kryss manager_A1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a001'', ''227d26b4-0000-4000-8000-0000227d26b4'', date ''2026-01-01'' + 59)');
+select pg_temp.skriv_avvist('personlig_kryss manager_A1 INSERT paa owner_A sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26ca-0000-4000-8000-0000227d26ca'', date ''2026-01-01'' + 60)');
 select pg_temp.skriv_tillatt('personlig_kryss manager_A1 UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''eb9fbad7-0000-4000-8000-0000eb9fbad7''');
 select pg_temp.skriv_avvist('personlig_kryss manager_A1 UPDATE owner_A sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''', 'personlig_kryss', '14c1b0e0-0000-4000-8000-000014c1b0e0', 'id');
 select pg_temp.skriv_avvist('personlig_kryss manager_A1 DELETE owner_A sin rad', 'delete from public.personlig_kryss where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''', 'personlig_kryss', '14c1b0e0-0000-4000-8000-000014c1b0e0', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss manager_A1 DELETE egen rad', 'delete from public.personlig_kryss where id = ''eb9fbad7-0000-4000-8000-0000eb9fbad7''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('eb9fbad7-0000-4000-8000-0000eb9fbad7', '00000000-0000-0000-0000-00000000a001', '227d26ce-0000-4000-8000-0000227d26ce', date '2026-01-01' + 64);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('eb9fbad7-0000-4000-8000-0000eb9fbad7', '00000000-0000-0000-0000-00000000a001', '227d26cb-0000-4000-8000-0000227d26cb', date '2026-01-01' + 61);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
@@ -579,14 +501,14 @@ select pg_temp.paastand('personlig_kryss manager_A12 SELECT tablet_A1 sin rad ->
 select pg_temp.paastand('personlig_kryss manager_A12 SELECT owner_B sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '14c1b0e1-0000-4000-8000-000014c1b0e1'), 'negativ');
 select pg_temp.paastand('personlig_kryss manager_A12 SELECT manager_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6'), 'negativ');
 select pg_temp.paastand('personlig_kryss manager_A12 SELECT tablet_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f4113-0000-4000-8000-0000738f4113'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss manager_A12 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a012'', ''227d26cf-0000-4000-8000-0000227d26cf'', date ''2026-01-01'' + 65)');
-select pg_temp.skriv_avvist('personlig_kryss manager_A12 INSERT paa owner_A sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26d0-0000-4000-8000-0000227d26d0'', date ''2026-01-01'' + 66)');
+select pg_temp.skriv_tillatt('personlig_kryss manager_A12 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a012'', ''227d26cc-0000-4000-8000-0000227d26cc'', date ''2026-01-01'' + 62)');
+select pg_temp.skriv_avvist('personlig_kryss manager_A12 INSERT paa owner_A sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26cd-0000-4000-8000-0000227d26cd'', date ''2026-01-01'' + 63)');
 select pg_temp.skriv_tillatt('personlig_kryss manager_A12 UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''8857a03b-0000-4000-8000-00008857a03b''');
 select pg_temp.skriv_avvist('personlig_kryss manager_A12 UPDATE owner_A sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''', 'personlig_kryss', '14c1b0e0-0000-4000-8000-000014c1b0e0', 'id');
 select pg_temp.skriv_avvist('personlig_kryss manager_A12 DELETE owner_A sin rad', 'delete from public.personlig_kryss where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''', 'personlig_kryss', '14c1b0e0-0000-4000-8000-000014c1b0e0', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss manager_A12 DELETE egen rad', 'delete from public.personlig_kryss where id = ''8857a03b-0000-4000-8000-00008857a03b''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('8857a03b-0000-4000-8000-00008857a03b', '00000000-0000-0000-0000-00000000a012', '227d26d1-0000-4000-8000-0000227d26d1', date '2026-01-01' + 67);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('8857a03b-0000-4000-8000-00008857a03b', '00000000-0000-0000-0000-00000000a012', '227d26ce-0000-4000-8000-0000227d26ce', date '2026-01-01' + 64);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
@@ -597,14 +519,14 @@ select pg_temp.paastand('personlig_kryss tablet_A1 SELECT manager_A12 sin rad ->
 select pg_temp.paastand('personlig_kryss tablet_A1 SELECT owner_B sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '14c1b0e1-0000-4000-8000-000014c1b0e1'), 'negativ');
 select pg_temp.paastand('personlig_kryss tablet_A1 SELECT manager_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6'), 'negativ');
 select pg_temp.paastand('personlig_kryss tablet_A1 SELECT tablet_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f4113-0000-4000-8000-0000738f4113'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss tablet_A1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a101'', ''227d26d2-0000-4000-8000-0000227d26d2'', date ''2026-01-01'' + 68)');
-select pg_temp.skriv_avvist('personlig_kryss tablet_A1 INSERT paa owner_A sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26d3-0000-4000-8000-0000227d26d3'', date ''2026-01-01'' + 69)');
+select pg_temp.skriv_tillatt('personlig_kryss tablet_A1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a101'', ''227d26cf-0000-4000-8000-0000227d26cf'', date ''2026-01-01'' + 65)');
+select pg_temp.skriv_avvist('personlig_kryss tablet_A1 INSERT paa owner_A sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000a000'', ''227d26d0-0000-4000-8000-0000227d26d0'', date ''2026-01-01'' + 66)');
 select pg_temp.skriv_tillatt('personlig_kryss tablet_A1 UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''738f40f4-0000-4000-8000-0000738f40f4''');
 select pg_temp.skriv_avvist('personlig_kryss tablet_A1 UPDATE owner_A sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''', 'personlig_kryss', '14c1b0e0-0000-4000-8000-000014c1b0e0', 'id');
 select pg_temp.skriv_avvist('personlig_kryss tablet_A1 DELETE owner_A sin rad', 'delete from public.personlig_kryss where id = ''14c1b0e0-0000-4000-8000-000014c1b0e0''', 'personlig_kryss', '14c1b0e0-0000-4000-8000-000014c1b0e0', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss tablet_A1 DELETE egen rad', 'delete from public.personlig_kryss where id = ''738f40f4-0000-4000-8000-0000738f40f4''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('738f40f4-0000-4000-8000-0000738f40f4', '00000000-0000-0000-0000-00000000a101', '227d26e9-0000-4000-8000-0000227d26e9', date '2026-01-01' + 70);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('738f40f4-0000-4000-8000-0000738f40f4', '00000000-0000-0000-0000-00000000a101', '227d26d1-0000-4000-8000-0000227d26d1', date '2026-01-01' + 67);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
@@ -615,14 +537,14 @@ select pg_temp.paastand('personlig_kryss owner_B SELECT manager_A12 sin rad -> s
 select pg_temp.paastand('personlig_kryss owner_B SELECT tablet_A1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f40f4-0000-4000-8000-0000738f40f4'), 'negativ');
 select pg_temp.paastand('personlig_kryss owner_B SELECT manager_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6'), 'negativ');
 select pg_temp.paastand('personlig_kryss owner_B SELECT tablet_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f4113-0000-4000-8000-0000738f4113'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss owner_B INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b000'', ''228b3e6b-0000-4000-8000-0000228b3e6b'', date ''2026-01-01'' + 71)');
-select pg_temp.skriv_avvist('personlig_kryss owner_B INSERT paa manager_B1 sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b001'', ''228b3e6c-0000-4000-8000-0000228b3e6c'', date ''2026-01-01'' + 72)');
+select pg_temp.skriv_tillatt('personlig_kryss owner_B INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b000'', ''228b3e53-0000-4000-8000-0000228b3e53'', date ''2026-01-01'' + 68)');
+select pg_temp.skriv_avvist('personlig_kryss owner_B INSERT paa manager_B1 sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b001'', ''228b3e54-0000-4000-8000-0000228b3e54'', date ''2026-01-01'' + 69)');
 select pg_temp.skriv_tillatt('personlig_kryss owner_B UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e1-0000-4000-8000-000014c1b0e1''');
 select pg_temp.skriv_avvist('personlig_kryss owner_B UPDATE manager_B1 sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''eb9fbaf6-0000-4000-8000-0000eb9fbaf6''', 'personlig_kryss', 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6', 'id');
 select pg_temp.skriv_avvist('personlig_kryss owner_B DELETE manager_B1 sin rad', 'delete from public.personlig_kryss where id = ''eb9fbaf6-0000-4000-8000-0000eb9fbaf6''', 'personlig_kryss', 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss owner_B DELETE egen rad', 'delete from public.personlig_kryss where id = ''14c1b0e1-0000-4000-8000-000014c1b0e1''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('14c1b0e1-0000-4000-8000-000014c1b0e1', '00000000-0000-0000-0000-00000000b000', '228b3e6d-0000-4000-8000-0000228b3e6d', date '2026-01-01' + 73);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('14c1b0e1-0000-4000-8000-000014c1b0e1', '00000000-0000-0000-0000-00000000b000', '228b3e6a-0000-4000-8000-0000228b3e6a', date '2026-01-01' + 70);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
@@ -633,14 +555,14 @@ select pg_temp.paastand('personlig_kryss manager_B1 SELECT manager_A12 sin rad -
 select pg_temp.paastand('personlig_kryss manager_B1 SELECT tablet_A1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f40f4-0000-4000-8000-0000738f40f4'), 'negativ');
 select pg_temp.paastand('personlig_kryss manager_B1 SELECT owner_B sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '14c1b0e1-0000-4000-8000-000014c1b0e1'), 'negativ');
 select pg_temp.paastand('personlig_kryss manager_B1 SELECT tablet_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f4113-0000-4000-8000-0000738f4113'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss manager_B1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b001'', ''228b3e6e-0000-4000-8000-0000228b3e6e'', date ''2026-01-01'' + 74)');
-select pg_temp.skriv_avvist('personlig_kryss manager_B1 INSERT paa owner_B sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b000'', ''228b3e6f-0000-4000-8000-0000228b3e6f'', date ''2026-01-01'' + 75)');
+select pg_temp.skriv_tillatt('personlig_kryss manager_B1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b001'', ''228b3e6b-0000-4000-8000-0000228b3e6b'', date ''2026-01-01'' + 71)');
+select pg_temp.skriv_avvist('personlig_kryss manager_B1 INSERT paa owner_B sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b000'', ''228b3e6c-0000-4000-8000-0000228b3e6c'', date ''2026-01-01'' + 72)');
 select pg_temp.skriv_tillatt('personlig_kryss manager_B1 UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''eb9fbaf6-0000-4000-8000-0000eb9fbaf6''');
 select pg_temp.skriv_avvist('personlig_kryss manager_B1 UPDATE owner_B sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e1-0000-4000-8000-000014c1b0e1''', 'personlig_kryss', '14c1b0e1-0000-4000-8000-000014c1b0e1', 'id');
 select pg_temp.skriv_avvist('personlig_kryss manager_B1 DELETE owner_B sin rad', 'delete from public.personlig_kryss where id = ''14c1b0e1-0000-4000-8000-000014c1b0e1''', 'personlig_kryss', '14c1b0e1-0000-4000-8000-000014c1b0e1', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss manager_B1 DELETE egen rad', 'delete from public.personlig_kryss where id = ''eb9fbaf6-0000-4000-8000-0000eb9fbaf6''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('eb9fbaf6-0000-4000-8000-0000eb9fbaf6', '00000000-0000-0000-0000-00000000b001', '228b3e70-0000-4000-8000-0000228b3e70', date '2026-01-01' + 76);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('eb9fbaf6-0000-4000-8000-0000eb9fbaf6', '00000000-0000-0000-0000-00000000b001', '228b3e6d-0000-4000-8000-0000228b3e6d', date '2026-01-01' + 73);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
@@ -651,14 +573,14 @@ select pg_temp.paastand('personlig_kryss tablet_B1 SELECT manager_A12 sin rad ->
 select pg_temp.paastand('personlig_kryss tablet_B1 SELECT tablet_A1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '738f40f4-0000-4000-8000-0000738f40f4'), 'negativ');
 select pg_temp.paastand('personlig_kryss tablet_B1 SELECT owner_B sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = '14c1b0e1-0000-4000-8000-000014c1b0e1'), 'negativ');
 select pg_temp.paastand('personlig_kryss tablet_B1 SELECT manager_B1 sin rad -> ser ikke', not exists (select 1 from public.personlig_kryss where id = 'eb9fbaf6-0000-4000-8000-0000eb9fbaf6'), 'negativ');
-select pg_temp.skriv_tillatt('personlig_kryss tablet_B1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b101'', ''228b3e71-0000-4000-8000-0000228b3e71'', date ''2026-01-01'' + 77)');
-select pg_temp.skriv_avvist('personlig_kryss tablet_B1 INSERT paa owner_B sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b000'', ''228b3e72-0000-4000-8000-0000228b3e72'', date ''2026-01-01'' + 78)');
+select pg_temp.skriv_tillatt('personlig_kryss tablet_B1 INSERT paa seg selv', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b101'', ''228b3e6e-0000-4000-8000-0000228b3e6e'', date ''2026-01-01'' + 74)');
+select pg_temp.skriv_avvist('personlig_kryss tablet_B1 INSERT paa owner_B sin liste', 'insert into public.personlig_kryss (user_id, punkt_id, dato) values (''00000000-0000-0000-0000-00000000b000'', ''228b3e6f-0000-4000-8000-0000228b3e6f'', date ''2026-01-01'' + 75)');
 select pg_temp.skriv_tillatt('personlig_kryss tablet_B1 UPDATE egen rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''738f4113-0000-4000-8000-0000738f4113''');
 select pg_temp.skriv_avvist('personlig_kryss tablet_B1 UPDATE owner_B sin rad', 'update public.personlig_kryss set opprettet_tid = now() where id = ''14c1b0e1-0000-4000-8000-000014c1b0e1''', 'personlig_kryss', '14c1b0e1-0000-4000-8000-000014c1b0e1', 'id');
 select pg_temp.skriv_avvist('personlig_kryss tablet_B1 DELETE owner_B sin rad', 'delete from public.personlig_kryss where id = ''14c1b0e1-0000-4000-8000-000014c1b0e1''', 'personlig_kryss', '14c1b0e1-0000-4000-8000-000014c1b0e1', 'id');
 select pg_temp.skriv_tillatt('personlig_kryss tablet_B1 DELETE egen rad', 'delete from public.personlig_kryss where id = ''738f4113-0000-4000-8000-0000738f4113''');
 select pg_temp.som_eier();
-insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('738f4113-0000-4000-8000-0000738f4113', '00000000-0000-0000-0000-00000000b101', '228b3e73-0000-4000-8000-0000228b3e73', date '2026-01-01' + 79);
+insert into public.personlig_kryss (id, user_id, punkt_id, dato) values ('738f4113-0000-4000-8000-0000738f4113', '00000000-0000-0000-0000-00000000b101', '228b3e70-0000-4000-8000-0000228b3e70', date '2026-01-01' + 76);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 
 -- =====================================================================
@@ -952,6 +874,60 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('pin_forsok tablet_B1 DELETE A', 'delete from public.pin_forsok where "retailer_id" = ''aaaa0000-0000-4000-8000-000000000000'' and "ansatt_nr" = ''fastA1''', 'pin_forsok', '"retailer_id" = ''aaaa0000-0000-4000-8000-000000000000'' and "ansatt_nr" = ''fastA1''');
 
 -- =====================================================================
+-- plattform_innlegg  (global, warm)
+-- =====================================================================
+select pg_temp.sett_gruppe('plattform_innlegg');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
+select pg_temp.paastand('plattform_innlegg owner_A SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg owner_A SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg owner_A INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gowner_Ainsert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg owner_A UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg owner_A DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
+select pg_temp.paastand('plattform_innlegg manager_A1 SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg manager_A1 SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg manager_A1 INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gmanager_A1insert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg manager_A1 UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg manager_A1 DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
+select pg_temp.paastand('plattform_innlegg manager_A12 SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg manager_A12 SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg manager_A12 INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gmanager_A12insert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg manager_A12 UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg manager_A12 DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
+select pg_temp.paastand('plattform_innlegg tablet_A1 SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg tablet_A1 SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg tablet_A1 INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gtablet_A1insert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg tablet_A1 UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg tablet_A1 DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
+select pg_temp.paastand('plattform_innlegg owner_B SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg owner_B SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg owner_B INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gowner_Binsert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg owner_B UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg owner_B DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
+select pg_temp.paastand('plattform_innlegg manager_B1 SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg manager_B1 SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg manager_B1 INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gmanager_B1insert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg manager_B1 UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg manager_B1 DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
+select pg_temp.paastand('plattform_innlegg tablet_B1 SELECT den globale raden -> ser', exists (select 1 from public.plattform_innlegg where id = '727ec031-0000-4000-8000-0000727ec031'), 'positiv');
+select pg_temp.paastand('plattform_innlegg tablet_B1 SELECT den skjulte raden -> ser ikke', not exists (select 1 from public.plattform_innlegg where id = 'ce74f8a9-0000-4000-8000-0000ce74f8a9'), 'negativ');
+select pg_temp.skriv_avvist('plattform_innlegg tablet_B1 INSERT den globale raden', 'insert into public.plattform_innlegg (tittel, innhold, publisert) values (''Sondeinnlegg gtablet_B1insert'', ''Sondetekst'', true)');
+select pg_temp.skriv_avvist('plattform_innlegg tablet_B1 UPDATE den globale raden', 'update public.plattform_innlegg set tittel = ''endret av sonden'' where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+select pg_temp.skriv_avvist('plattform_innlegg tablet_B1 DELETE den globale raden', 'delete from public.plattform_innlegg where id = ''727ec031-0000-4000-8000-0000727ec031''', 'plattform_innlegg', '727ec031-0000-4000-8000-0000727ec031', 'id');
+
+-- =====================================================================
 -- produksjonsplan_hode  (retailer_and_station, warm)
 -- =====================================================================
 select pg_temp.sett_gruppe('produksjonsplan_hode');
@@ -961,10 +937,10 @@ select pg_temp.paastand('produksjonsplan_hode owner_A SELECT A1 -> ser', exists 
 select pg_temp.paastand('produksjonsplan_hode owner_A SELECT A2 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e8e3-0000-4000-8000-00003628e8e3'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode owner_A SELECT A3 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e8e4-0000-4000-8000-00003628e8e4'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 115)');
-select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 116)');
-select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 117)');
-select pg_temp.skriv_avvist('produksjonsplan_hode owner_A INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 118)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 133)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 134)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 135)');
+select pg_temp.skriv_avvist('produksjonsplan_hode owner_A INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 136)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -986,21 +962,21 @@ select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000'
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A DELETE A1', 'delete from public.produksjonsplan_hode where id = ''3628e8e2-0000-4000-8000-00003628e8e2''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 119);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 137);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A DELETE A2', 'delete from public.produksjonsplan_hode where id = ''3628e8e3-0000-4000-8000-00003628e8e3''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e3-0000-4000-8000-00003628e8e3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 120);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e3-0000-4000-8000-00003628e8e3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 138);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('produksjonsplan_hode owner_A DELETE A3', 'delete from public.produksjonsplan_hode where id = ''3628e8e4-0000-4000-8000-00003628e8e4''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e4-0000-4000-8000-00003628e8e4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 121);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e4-0000-4000-8000-00003628e8e4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 139);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
@@ -1013,10 +989,10 @@ select pg_temp.paastand('produksjonsplan_hode manager_A1 SELECT A1 -> ser', exis
 select pg_temp.paastand('produksjonsplan_hode manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e3-0000-4000-8000-00003628e8e3'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e4-0000-4000-8000-00003628e8e4'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 122)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_A1 INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 123)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_A1 INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 124)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_A1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 125)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 140)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_A1 INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 141)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_A1 INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 142)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_A1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 143)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
@@ -1038,7 +1014,7 @@ select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000'
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A1 DELETE A1', 'delete from public.produksjonsplan_hode where id = ''3628e8e2-0000-4000-8000-00003628e8e2''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 126);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 144);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-delete') as _;
@@ -1060,10 +1036,10 @@ select pg_temp.paastand('produksjonsplan_hode manager_A12 SELECT A1 -> ser', exi
 select pg_temp.paastand('produksjonsplan_hode manager_A12 SELECT A2 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e8e3-0000-4000-8000-00003628e8e3'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e4-0000-4000-8000-00003628e8e4'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A12 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 127)');
-select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A12 INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 128)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_A12 INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 129)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_A12 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 130)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A12 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 145)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A12 INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 146)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_A12 INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 147)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_A12 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 148)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -1085,14 +1061,14 @@ select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000'
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A12 DELETE A1', 'delete from public.produksjonsplan_hode where id = ''3628e8e2-0000-4000-8000-00003628e8e2''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 131);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e2-0000-4000-8000-00003628e8e2', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 149);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('produksjonsplan_hode manager_A12 DELETE A2', 'delete from public.produksjonsplan_hode where id = ''3628e8e3-0000-4000-8000-00003628e8e3''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e3-0000-4000-8000-00003628e8e3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 132);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e8e3-0000-4000-8000-00003628e8e3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 150);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-delete') as _;
@@ -1110,10 +1086,10 @@ select pg_temp.paastand('produksjonsplan_hode tablet_A1 SELECT A1 -> ser', exist
 select pg_temp.paastand('produksjonsplan_hode tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e3-0000-4000-8000-00003628e8e3'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e4-0000-4000-8000-00003628e8e4'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'negativ');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 133)');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 134)');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 135)');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 136)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 151)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT A2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 152)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT A3', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 153)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_A1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 154)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
@@ -1151,9 +1127,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_
 select pg_temp.paastand('produksjonsplan_hode owner_B SELECT B1 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode owner_B SELECT B2 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e902-0000-4000-8000-00003628e902'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e2-0000-4000-8000-00003628e8e2'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_hode owner_B INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 137)');
-select pg_temp.skriv_tillatt('produksjonsplan_hode owner_B INSERT B2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 138)');
-select pg_temp.skriv_avvist('produksjonsplan_hode owner_B INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 139)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode owner_B INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 155)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode owner_B INSERT B2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 156)');
+select pg_temp.skriv_avvist('produksjonsplan_hode owner_B INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 157)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -1171,14 +1147,14 @@ select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000'
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('produksjonsplan_hode owner_B DELETE B1', 'delete from public.produksjonsplan_hode where id = ''3628e901-0000-4000-8000-00003628e901''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e901-0000-4000-8000-00003628e901', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 140);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e901-0000-4000-8000-00003628e901', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 158);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('produksjonsplan_hode owner_B DELETE B2', 'delete from public.produksjonsplan_hode where id = ''3628e902-0000-4000-8000-00003628e902''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e902-0000-4000-8000-00003628e902', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 141);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e902-0000-4000-8000-00003628e902', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 159);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
@@ -1190,9 +1166,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manage
 select pg_temp.paastand('produksjonsplan_hode manager_B1 SELECT B1 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e902-0000-4000-8000-00003628e902'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e2-0000-4000-8000-00003628e8e2'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_hode manager_B1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 142)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_B1 INSERT B2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 143)');
-select pg_temp.skriv_avvist('produksjonsplan_hode manager_B1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 144)');
+select pg_temp.skriv_tillatt('produksjonsplan_hode manager_B1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 160)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_B1 INSERT B2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 161)');
+select pg_temp.skriv_avvist('produksjonsplan_hode manager_B1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 162)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
@@ -1210,7 +1186,7 @@ select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000'
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_tillatt('produksjonsplan_hode manager_B1 DELETE B1', 'delete from public.produksjonsplan_hode where id = ''3628e901-0000-4000-8000-00003628e901''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e901-0000-4000-8000-00003628e901', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 145);
+insert into public.produksjonsplan_hode (id, retailer_id, stasjon_id, dato) values ('3628e901-0000-4000-8000-00003628e901', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 163);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-delete') as _;
@@ -1227,9 +1203,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet
 select pg_temp.paastand('produksjonsplan_hode tablet_B1 SELECT B1 -> ser', exists (select 1 from public.produksjonsplan_hode where id = '3628e901-0000-4000-8000-00003628e901'), 'positiv');
 select pg_temp.paastand('produksjonsplan_hode tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e902-0000-4000-8000-00003628e902'), 'negativ');
 select pg_temp.paastand('produksjonsplan_hode tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.produksjonsplan_hode where id = '3628e8e2-0000-4000-8000-00003628e8e2'), 'negativ');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_B1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 146)');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_B1 INSERT B2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 147)');
-select pg_temp.skriv_avvist('produksjonsplan_hode tablet_B1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 148)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_B1 INSERT B1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 164)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_B1 INSERT B2', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 165)');
+select pg_temp.skriv_avvist('produksjonsplan_hode tablet_B1 INSERT A1', 'insert into public.produksjonsplan_hode (retailer_id, stasjon_id, dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 166)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_hode('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
@@ -1265,10 +1241,10 @@ select pg_temp.paastand('produksjonsplan_linjer owner_A SELECT A1 -> ser', exist
 select pg_temp.paastand('produksjonsplan_linjer owner_A SELECT A2 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0801-0000-4000-8000-0000d0ba0801'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer owner_A SELECT A3 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0802-0000-4000-8000-0000d0ba0802'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 149, ''Sondevare owner_AA1'')');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 150, ''Sondevare owner_AA2'')');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 151, ''Sondevare owner_AA3'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer owner_A INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 152, ''Sondevare owner_AB1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 167, ''Sondevare owner_AA1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 168, ''Sondevare owner_AA2'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 169, ''Sondevare owner_AA3'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer owner_A INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 170, ''Sondevare owner_AB1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -1290,21 +1266,21 @@ select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-00000000000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A DELETE A1', 'delete from public.produksjonsplan_linjer where id = ''d0ba0800-0000-4000-8000-0000d0ba0800''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 153, 'Sondevare gjenowner_AA1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 171, 'Sondevare gjenowner_AA1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A DELETE A2', 'delete from public.produksjonsplan_linjer where id = ''d0ba0801-0000-4000-8000-0000d0ba0801''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0801-0000-4000-8000-0000d0ba0801', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 154, 'Sondevare gjenowner_AA2');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0801-0000-4000-8000-0000d0ba0801', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 172, 'Sondevare gjenowner_AA2');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_A DELETE A3', 'delete from public.produksjonsplan_linjer where id = ''d0ba0802-0000-4000-8000-0000d0ba0802''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0802-0000-4000-8000-0000d0ba0802', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 155, 'Sondevare gjenowner_AA3');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0802-0000-4000-8000-0000d0ba0802', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', date '2026-01-01' + 173, 'Sondevare gjenowner_AA3');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
@@ -1317,10 +1293,10 @@ select pg_temp.paastand('produksjonsplan_linjer manager_A1 SELECT A1 -> ser', ex
 select pg_temp.paastand('produksjonsplan_linjer manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0801-0000-4000-8000-0000d0ba0801'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0802-0000-4000-8000-0000d0ba0802'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 156, ''Sondevare manager_A1A1'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A1 INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 157, ''Sondevare manager_A1A2'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A1 INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 158, ''Sondevare manager_A1A3'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 159, ''Sondevare manager_A1B1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 174, ''Sondevare manager_A1A1'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A1 INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 175, ''Sondevare manager_A1A2'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A1 INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 176, ''Sondevare manager_A1A3'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 177, ''Sondevare manager_A1B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
@@ -1342,7 +1318,7 @@ select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-00000000000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A1 DELETE A1', 'delete from public.produksjonsplan_linjer where id = ''d0ba0800-0000-4000-8000-0000d0ba0800''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 160, 'Sondevare gjenmanager_A1A1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 178, 'Sondevare gjenmanager_A1A1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-delete') as _;
@@ -1364,10 +1340,10 @@ select pg_temp.paastand('produksjonsplan_linjer manager_A12 SELECT A1 -> ser', e
 select pg_temp.paastand('produksjonsplan_linjer manager_A12 SELECT A2 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0801-0000-4000-8000-0000d0ba0801'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0802-0000-4000-8000-0000d0ba0802'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A12 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 161, ''Sondevare manager_A12A1'')');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A12 INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 162, ''Sondevare manager_A12A2'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A12 INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 163, ''Sondevare manager_A12A3'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A12 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 164, ''Sondevare manager_A12B1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A12 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 179, ''Sondevare manager_A12A1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A12 INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 180, ''Sondevare manager_A12A2'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A12 INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 181, ''Sondevare manager_A12A3'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_A12 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 182, ''Sondevare manager_A12B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -1389,14 +1365,14 @@ select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-00000000000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A12 DELETE A1', 'delete from public.produksjonsplan_linjer where id = ''d0ba0800-0000-4000-8000-0000d0ba0800''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 165, 'Sondevare gjenmanager_A12A1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0800-0000-4000-8000-0000d0ba0800', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 183, 'Sondevare gjenmanager_A12A1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_A12 DELETE A2', 'delete from public.produksjonsplan_linjer where id = ''d0ba0801-0000-4000-8000-0000d0ba0801''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0801-0000-4000-8000-0000d0ba0801', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 166, 'Sondevare gjenmanager_A12A2');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0801-0000-4000-8000-0000d0ba0801', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 184, 'Sondevare gjenmanager_A12A2');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-delete') as _;
@@ -1414,10 +1390,10 @@ select pg_temp.paastand('produksjonsplan_linjer tablet_A1 SELECT A1 -> ser', exi
 select pg_temp.paastand('produksjonsplan_linjer tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0801-0000-4000-8000-0000d0ba0801'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0802-0000-4000-8000-0000d0ba0802'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'negativ');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 167, ''Sondevare tablet_A1A1'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 168, ''Sondevare tablet_A1A2'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 169, ''Sondevare tablet_A1A3'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 170, ''Sondevare tablet_A1B1'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 185, ''Sondevare tablet_A1A1'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT A2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 186, ''Sondevare tablet_A1A2'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT A3', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', date ''2026-01-01'' + 187, ''Sondevare tablet_A1A3'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_A1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 188, ''Sondevare tablet_A1B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
@@ -1457,9 +1433,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_
 select pg_temp.paastand('produksjonsplan_linjer owner_B SELECT B1 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer owner_B SELECT B2 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0820-0000-4000-8000-0000d0ba0820'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0800-0000-4000-8000-0000d0ba0800'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_B INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 171, ''Sondevare owner_BB1'')');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_B INSERT B2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 172, ''Sondevare owner_BB2'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer owner_B INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 173, ''Sondevare owner_BA1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_B INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 189, ''Sondevare owner_BB1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_B INSERT B2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 190, ''Sondevare owner_BB2'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer owner_B INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 191, ''Sondevare owner_BA1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -1477,14 +1453,14 @@ select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-00000000000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_B DELETE B1', 'delete from public.produksjonsplan_linjer where id = ''d0ba081f-0000-4000-8000-0000d0ba081f''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba081f-0000-4000-8000-0000d0ba081f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 174, 'Sondevare gjenowner_BB1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba081f-0000-4000-8000-0000d0ba081f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 192, 'Sondevare gjenowner_BB1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer owner_B DELETE B2', 'delete from public.produksjonsplan_linjer where id = ''d0ba0820-0000-4000-8000-0000d0ba0820''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0820-0000-4000-8000-0000d0ba0820', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 175, 'Sondevare gjenowner_BB2');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba0820-0000-4000-8000-0000d0ba0820', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', date '2026-01-01' + 193, 'Sondevare gjenowner_BB2');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
@@ -1496,9 +1472,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manage
 select pg_temp.paastand('produksjonsplan_linjer manager_B1 SELECT B1 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0820-0000-4000-8000-0000d0ba0820'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0800-0000-4000-8000-0000d0ba0800'), 'negativ');
-select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_B1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 176, ''Sondevare manager_B1B1'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_B1 INSERT B2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 177, ''Sondevare manager_B1B2'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer manager_B1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 178, ''Sondevare manager_B1A1'')');
+select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_B1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 194, ''Sondevare manager_B1B1'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_B1 INSERT B2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 195, ''Sondevare manager_B1B2'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer manager_B1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 196, ''Sondevare manager_B1A1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
@@ -1516,7 +1492,7 @@ select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-00000000000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_tillatt('produksjonsplan_linjer manager_B1 DELETE B1', 'delete from public.produksjonsplan_linjer where id = ''d0ba081f-0000-4000-8000-0000d0ba081f''');
 select pg_temp.som_eier();
-insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba081f-0000-4000-8000-0000d0ba081f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 179, 'Sondevare gjenmanager_B1B1');
+insert into public.produksjonsplan_linjer (id, retailer_id, stasjon_id, dato, varenavn) values ('d0ba081f-0000-4000-8000-0000d0ba081f', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', date '2026-01-01' + 197, 'Sondevare gjenmanager_B1B1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-delete') as _;
@@ -1533,9 +1509,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet
 select pg_temp.paastand('produksjonsplan_linjer tablet_B1 SELECT B1 -> ser', exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba081f-0000-4000-8000-0000d0ba081f'), 'positiv');
 select pg_temp.paastand('produksjonsplan_linjer tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0820-0000-4000-8000-0000d0ba0820'), 'negativ');
 select pg_temp.paastand('produksjonsplan_linjer tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.produksjonsplan_linjer where id = 'd0ba0800-0000-4000-8000-0000d0ba0800'), 'negativ');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 180, ''Sondevare tablet_B1B1'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 INSERT B2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 181, ''Sondevare tablet_B1B2'')');
-select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 182, ''Sondevare tablet_B1A1'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 INSERT B1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 198, ''Sondevare tablet_B1B1'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 INSERT B2', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', date ''2026-01-01'' + 199, ''Sondevare tablet_B1B2'')');
+select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 INSERT A1', 'insert into public.produksjonsplan_linjer (retailer_id, stasjon_id, dato, varenavn) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', date ''2026-01-01'' + 200, ''Sondevare tablet_B1A1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_produksjonsplan_linjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
@@ -1569,158 +1545,158 @@ select pg_temp.skriv_avvist('produksjonsplan_linjer tablet_B1 FLYTTER egen rad -
 select pg_temp.sett_gruppe('profiler');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
-select pg_temp.paastand('profiler owner_A SELECT A -> ser', exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'positiv');
-select pg_temp.paastand('profiler owner_A SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'negativ');
-select pg_temp.skriv_avvist('profiler owner_A INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b9f8-0000-4000-8000-0000bf52b9f8'', ''butikksjef'', ''Sondeprofil owner_AA1'')');
-select pg_temp.skriv_avvist('profiler owner_A INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079298-0000-4000-8000-0000c1079298'', ''butikksjef'', ''Sondeprofil owner_AB1'')');
+select pg_temp.paastand('profiler owner_A SELECT A -> ser', exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'positiv');
+select pg_temp.paastand('profiler owner_A SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'negativ');
+select pg_temp.skriv_avvist('profiler owner_A INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bcbf-0000-4000-8000-0000bf52bcbf'', ''butikksjef'', ''Sondeprofil owner_AA1'')');
+select pg_temp.skriv_avvist('profiler owner_A INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c107955f-0000-4000-8000-0000c107955f'', ''butikksjef'', ''Sondeprofil owner_AB1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist_pred('profiler owner_A UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler owner_A UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist_pred('profiler owner_A UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler owner_A UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist_pred('profiler owner_A DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler owner_A DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist_pred('profiler owner_A DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler owner_A DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
-select pg_temp.paastand('profiler manager_A1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'negativ');
-select pg_temp.paastand('profiler manager_A1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'negativ');
-select pg_temp.skriv_avvist('profiler manager_A1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b9fa-0000-4000-8000-0000bf52b9fa'', ''butikksjef'', ''Sondeprofil manager_A1A1'')');
-select pg_temp.skriv_avvist('profiler manager_A1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c107929a-0000-4000-8000-0000c107929a'', ''butikksjef'', ''Sondeprofil manager_A1B1'')');
+select pg_temp.paastand('profiler manager_A1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'negativ');
+select pg_temp.paastand('profiler manager_A1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'negativ');
+select pg_temp.skriv_avvist('profiler manager_A1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bcc1-0000-4000-8000-0000bf52bcc1'', ''butikksjef'', ''Sondeprofil manager_A1A1'')');
+select pg_temp.skriv_avvist('profiler manager_A1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079561-0000-4000-8000-0000c1079561'', ''butikksjef'', ''Sondeprofil manager_A1B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist_pred('profiler manager_A1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler manager_A1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist_pred('profiler manager_A1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler manager_A1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist_pred('profiler manager_A1 DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler manager_A1 DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist_pred('profiler manager_A1 DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler manager_A1 DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
-select pg_temp.paastand('profiler manager_A12 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'negativ');
-select pg_temp.paastand('profiler manager_A12 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'negativ');
-select pg_temp.skriv_avvist('profiler manager_A12 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b9fc-0000-4000-8000-0000bf52b9fc'', ''butikksjef'', ''Sondeprofil manager_A12A1'')');
-select pg_temp.skriv_avvist('profiler manager_A12 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c107929c-0000-4000-8000-0000c107929c'', ''butikksjef'', ''Sondeprofil manager_A12B1'')');
+select pg_temp.paastand('profiler manager_A12 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'negativ');
+select pg_temp.paastand('profiler manager_A12 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'negativ');
+select pg_temp.skriv_avvist('profiler manager_A12 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bcc3-0000-4000-8000-0000bf52bcc3'', ''butikksjef'', ''Sondeprofil manager_A12A1'')');
+select pg_temp.skriv_avvist('profiler manager_A12 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079563-0000-4000-8000-0000c1079563'', ''butikksjef'', ''Sondeprofil manager_A12B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist_pred('profiler manager_A12 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler manager_A12 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist_pred('profiler manager_A12 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler manager_A12 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist_pred('profiler manager_A12 DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler manager_A12 DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist_pred('profiler manager_A12 DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler manager_A12 DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
-select pg_temp.paastand('profiler tablet_A1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'negativ');
-select pg_temp.paastand('profiler tablet_A1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'negativ');
-select pg_temp.skriv_avvist('profiler tablet_A1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52b9fe-0000-4000-8000-0000bf52b9fe'', ''butikksjef'', ''Sondeprofil tablet_A1A1'')');
-select pg_temp.skriv_avvist('profiler tablet_A1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c10792b3-0000-4000-8000-0000c10792b3'', ''butikksjef'', ''Sondeprofil tablet_A1B1'')');
+select pg_temp.paastand('profiler tablet_A1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'negativ');
+select pg_temp.paastand('profiler tablet_A1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'negativ');
+select pg_temp.skriv_avvist('profiler tablet_A1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bcc5-0000-4000-8000-0000bf52bcc5'', ''butikksjef'', ''Sondeprofil tablet_A1A1'')');
+select pg_temp.skriv_avvist('profiler tablet_A1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079565-0000-4000-8000-0000c1079565'', ''butikksjef'', ''Sondeprofil tablet_A1B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist_pred('profiler tablet_A1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler tablet_A1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist_pred('profiler tablet_A1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler tablet_A1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist_pred('profiler tablet_A1 DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler tablet_A1 DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist_pred('profiler tablet_A1 DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler tablet_A1 DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
-select pg_temp.paastand('profiler owner_B SELECT B -> ser', exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'positiv');
-select pg_temp.paastand('profiler owner_B SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'negativ');
-select pg_temp.skriv_avvist('profiler owner_B INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c10792b4-0000-4000-8000-0000c10792b4'', ''butikksjef'', ''Sondeprofil owner_BB1'')');
-select pg_temp.skriv_avvist('profiler owner_B INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52ba16-0000-4000-8000-0000bf52ba16'', ''butikksjef'', ''Sondeprofil owner_BA1'')');
+select pg_temp.paastand('profiler owner_B SELECT B -> ser', exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'positiv');
+select pg_temp.paastand('profiler owner_B SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'negativ');
+select pg_temp.skriv_avvist('profiler owner_B INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c1079566-0000-4000-8000-0000c1079566'', ''butikksjef'', ''Sondeprofil owner_BB1'')');
+select pg_temp.skriv_avvist('profiler owner_B INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bcdd-0000-4000-8000-0000bf52bcdd'', ''butikksjef'', ''Sondeprofil owner_BA1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist_pred('profiler owner_B UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler owner_B UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist_pred('profiler owner_B UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler owner_B UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist_pred('profiler owner_B DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler owner_B DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist_pred('profiler owner_B DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler owner_B DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
-select pg_temp.paastand('profiler manager_B1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'negativ');
-select pg_temp.paastand('profiler manager_B1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'negativ');
-select pg_temp.skriv_avvist('profiler manager_B1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c10792b6-0000-4000-8000-0000c10792b6'', ''butikksjef'', ''Sondeprofil manager_B1B1'')');
-select pg_temp.skriv_avvist('profiler manager_B1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52ba18-0000-4000-8000-0000bf52ba18'', ''butikksjef'', ''Sondeprofil manager_B1A1'')');
+select pg_temp.paastand('profiler manager_B1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'negativ');
+select pg_temp.paastand('profiler manager_B1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'negativ');
+select pg_temp.skriv_avvist('profiler manager_B1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c107957d-0000-4000-8000-0000c107957d'', ''butikksjef'', ''Sondeprofil manager_B1B1'')');
+select pg_temp.skriv_avvist('profiler manager_B1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bcdf-0000-4000-8000-0000bf52bcdf'', ''butikksjef'', ''Sondeprofil manager_B1A1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist_pred('profiler manager_B1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler manager_B1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist_pred('profiler manager_B1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler manager_B1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist_pred('profiler manager_B1 DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler manager_B1 DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist_pred('profiler manager_B1 DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler manager_B1 DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
-select pg_temp.paastand('profiler tablet_B1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9154-0000-4000-8000-0000484a9154'), 'negativ');
-select pg_temp.paastand('profiler tablet_B1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79bb-0000-4000-8000-0000483c79bb'), 'negativ');
-select pg_temp.skriv_avvist('profiler tablet_B1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c10792b8-0000-4000-8000-0000c10792b8'', ''butikksjef'', ''Sondeprofil tablet_B1B1'')');
-select pg_temp.skriv_avvist('profiler tablet_B1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52ba1a-0000-4000-8000-0000bf52ba1a'', ''butikksjef'', ''Sondeprofil tablet_B1A1'')');
+select pg_temp.paastand('profiler tablet_B1 SELECT B -> ser ikke', not exists (select 1 from public.profiler where "id" = '484a9156-0000-4000-8000-0000484a9156'), 'negativ');
+select pg_temp.paastand('profiler tablet_B1 SELECT A -> ser ikke', not exists (select 1 from public.profiler where "id" = '483c79d2-0000-4000-8000-0000483c79d2'), 'negativ');
+select pg_temp.skriv_avvist('profiler tablet_B1 INSERT B', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''bbbb0000-0000-4000-8000-000000000000'', ''c107957f-0000-4000-8000-0000c107957f'', ''butikksjef'', ''Sondeprofil tablet_B1B1'')');
+select pg_temp.skriv_avvist('profiler tablet_B1 INSERT A', 'insert into public.profiler (retailer_id, id, rolle, fullt_navn) values (''aaaa0000-0000-4000-8000-000000000000'', ''bf52bce1-0000-4000-8000-0000bf52bce1'', ''butikksjef'', ''Sondeprofil tablet_B1A1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist_pred('profiler tablet_B1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler tablet_B1 UPDATE B', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist_pred('profiler tablet_B1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler tablet_B1 UPDATE A', 'update public.profiler set fullt_navn = ''endret av sonden'' where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist_pred('profiler tablet_B1 DELETE B', 'delete from public.profiler where "id" = ''484a9154-0000-4000-8000-0000484a9154''', 'profiler', '"id" = ''484a9154-0000-4000-8000-0000484a9154''');
+select pg_temp.skriv_avvist_pred('profiler tablet_B1 DELETE B', 'delete from public.profiler where "id" = ''484a9156-0000-4000-8000-0000484a9156''', 'profiler', '"id" = ''484a9156-0000-4000-8000-0000484a9156''');
 select pg_temp.som_eier();
 select pg_temp.nyrad_profiler('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist_pred('profiler tablet_B1 DELETE A', 'delete from public.profiler where "id" = ''483c79bb-0000-4000-8000-0000483c79bb''', 'profiler', '"id" = ''483c79bb-0000-4000-8000-0000483c79bb''');
+select pg_temp.skriv_avvist_pred('profiler tablet_B1 DELETE A', 'delete from public.profiler where "id" = ''483c79d2-0000-4000-8000-0000483c79d2''', 'profiler', '"id" = ''483c79d2-0000-4000-8000-0000483c79d2''');
 
 -- =====================================================================
 -- prognose_kalibrering  (retailer_and_station, warm)
@@ -1818,8 +1794,8 @@ select pg_temp.sett_gruppe('puls_runde');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
 select pg_temp.paastand('puls_runde owner_A SELECT A -> ser', exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'positiv');
 select pg_temp.paastand('puls_runde owner_A SELECT B -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'negativ');
-select pg_temp.skriv_tillatt('puls_runde owner_A INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b4644fd9-0000-4000-8000-0000b4644fd9'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde owner_A INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192879-0000-4000-8000-0000b6192879'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_tillatt('puls_runde owner_A INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452a0-0000-4000-8000-0000b46452a0'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde owner_A INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b40-0000-4000-8000-0000b6192b40'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -1833,7 +1809,7 @@ select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a111000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('puls_runde owner_A DELETE A', 'delete from public.puls_runde where id = ''1f2bd60d-0000-4000-8000-00001f2bd60d''');
 select pg_temp.som_eier();
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', 'b4644fdb-0000-4000-8000-0000b4644fdb', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', 'b46452a2-0000-4000-8000-0000b46452a2', date '2026-08-01', date '2026-08-31');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
@@ -1844,8 +1820,8 @@ select pg_temp.skriv_avvist('puls_runde owner_A FLYTTER egen rad -> kjede B', 'u
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
 select pg_temp.paastand('puls_runde manager_A1 SELECT A -> ser', exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'positiv');
 select pg_temp.paastand('puls_runde manager_A1 SELECT B -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'negativ');
-select pg_temp.skriv_tillatt('puls_runde manager_A1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b464527c-0000-4000-8000-0000b464527c'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde manager_A1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b1c-0000-4000-8000-0000b6192b1c'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_tillatt('puls_runde manager_A1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452a3-0000-4000-8000-0000b46452a3'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde manager_A1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b43-0000-4000-8000-0000b6192b43'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
@@ -1859,7 +1835,7 @@ select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a111000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_tillatt('puls_runde manager_A1 DELETE A', 'delete from public.puls_runde where id = ''1f2bd60d-0000-4000-8000-00001f2bd60d''');
 select pg_temp.som_eier();
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', 'b464527e-0000-4000-8000-0000b464527e', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', 'b46452ba-0000-4000-8000-0000b46452ba', date '2026-08-01', date '2026-08-31');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
@@ -1870,8 +1846,8 @@ select pg_temp.skriv_avvist('puls_runde manager_A1 FLYTTER egen rad -> kjede B',
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
 select pg_temp.paastand('puls_runde manager_A12 SELECT A -> ser', exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'positiv');
 select pg_temp.paastand('puls_runde manager_A12 SELECT B -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'negativ');
-select pg_temp.skriv_tillatt('puls_runde manager_A12 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b464527f-0000-4000-8000-0000b464527f'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde manager_A12 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b1f-0000-4000-8000-0000b6192b1f'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_tillatt('puls_runde manager_A12 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452bb-0000-4000-8000-0000b46452bb'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde manager_A12 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b5b-0000-4000-8000-0000b6192b5b'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -1885,7 +1861,7 @@ select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a111000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('puls_runde manager_A12 DELETE A', 'delete from public.puls_runde where id = ''1f2bd60d-0000-4000-8000-00001f2bd60d''');
 select pg_temp.som_eier();
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', 'b4645281-0000-4000-8000-0000b4645281', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd60d-0000-4000-8000-00001f2bd60d', 'aaaa0000-0000-4000-8000-000000000000', 'b46452bd-0000-4000-8000-0000b46452bd', date '2026-08-01', date '2026-08-31');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
@@ -1896,8 +1872,8 @@ select pg_temp.skriv_avvist('puls_runde manager_A12 FLYTTER egen rad -> kjede B'
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
 select pg_temp.paastand('puls_runde tablet_A1 SELECT A -> ser', exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'positiv');
 select pg_temp.paastand('puls_runde tablet_A1 SELECT B -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'negativ');
-select pg_temp.skriv_avvist('puls_runde tablet_A1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b4645282-0000-4000-8000-0000b4645282'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde tablet_A1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b22-0000-4000-8000-0000b6192b22'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde tablet_A1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452be-0000-4000-8000-0000b46452be'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde tablet_A1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b5e-0000-4000-8000-0000b6192b5e'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
@@ -1918,8 +1894,8 @@ select pg_temp.skriv_avvist('puls_runde tablet_A1 DELETE B', 'delete from public
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
 select pg_temp.paastand('puls_runde owner_B SELECT B -> ser', exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'positiv');
 select pg_temp.paastand('puls_runde owner_B SELECT A -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'negativ');
-select pg_temp.skriv_tillatt('puls_runde owner_B INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b23-0000-4000-8000-0000b6192b23'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde owner_B INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b4645285-0000-4000-8000-0000b4645285'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_tillatt('puls_runde owner_B INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b5f-0000-4000-8000-0000b6192b5f'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde owner_B INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452c1-0000-4000-8000-0000b46452c1'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -1933,7 +1909,7 @@ select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b111000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('puls_runde owner_B DELETE B', 'delete from public.puls_runde where id = ''1f2bd62c-0000-4000-8000-00001f2bd62c''');
 select pg_temp.som_eier();
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62c-0000-4000-8000-00001f2bd62c', 'bbbb0000-0000-4000-8000-000000000000', 'b6192b3a-0000-4000-8000-0000b6192b3a', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62c-0000-4000-8000-00001f2bd62c', 'bbbb0000-0000-4000-8000-000000000000', 'b6192b61-0000-4000-8000-0000b6192b61', date '2026-08-01', date '2026-08-31');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
@@ -1944,8 +1920,8 @@ select pg_temp.skriv_avvist('puls_runde owner_B FLYTTER egen rad -> kjede A', 'u
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
 select pg_temp.paastand('puls_runde manager_B1 SELECT B -> ser', exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'positiv');
 select pg_temp.paastand('puls_runde manager_B1 SELECT A -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'negativ');
-select pg_temp.skriv_tillatt('puls_runde manager_B1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b3b-0000-4000-8000-0000b6192b3b'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde manager_B1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b464529d-0000-4000-8000-0000b464529d'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_tillatt('puls_runde manager_B1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b62-0000-4000-8000-0000b6192b62'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde manager_B1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452d9-0000-4000-8000-0000b46452d9'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
@@ -1959,7 +1935,7 @@ select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b111000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_tillatt('puls_runde manager_B1 DELETE B', 'delete from public.puls_runde where id = ''1f2bd62c-0000-4000-8000-00001f2bd62c''');
 select pg_temp.som_eier();
-insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62c-0000-4000-8000-00001f2bd62c', 'bbbb0000-0000-4000-8000-000000000000', 'b6192b3d-0000-4000-8000-0000b6192b3d', date '2026-08-01', date '2026-08-31');
+insert into public.puls_runde (id, retailer_id, sporsmal_id, start_dato, slutt_dato) values ('1f2bd62c-0000-4000-8000-00001f2bd62c', 'bbbb0000-0000-4000-8000-000000000000', 'b6192b79-0000-4000-8000-0000b6192b79', date '2026-08-01', date '2026-08-31');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
@@ -1970,8 +1946,8 @@ select pg_temp.skriv_avvist('puls_runde manager_B1 FLYTTER egen rad -> kjede A',
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
 select pg_temp.paastand('puls_runde tablet_B1 SELECT B -> ser', exists (select 1 from public.puls_runde where id = '1f2bd62c-0000-4000-8000-00001f2bd62c'), 'positiv');
 select pg_temp.paastand('puls_runde tablet_B1 SELECT A -> ser ikke', not exists (select 1 from public.puls_runde where id = '1f2bd60d-0000-4000-8000-00001f2bd60d'), 'negativ');
-select pg_temp.skriv_avvist('puls_runde tablet_B1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b3e-0000-4000-8000-0000b6192b3e'', date ''2026-08-01'', date ''2026-08-31'')');
-select pg_temp.skriv_avvist('puls_runde tablet_B1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452a0-0000-4000-8000-0000b46452a0'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde tablet_B1 INSERT B', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''b6192b7a-0000-4000-8000-0000b6192b7a'', date ''2026-08-01'', date ''2026-08-31'')');
+select pg_temp.skriv_avvist('puls_runde tablet_B1 INSERT A', 'insert into public.puls_runde (retailer_id, sporsmal_id, start_dato, slutt_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''b46452dc-0000-4000-8000-0000b46452dc'', date ''2026-08-01'', date ''2026-08-31'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_puls_runde('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
@@ -2167,175 +2143,6 @@ select pg_temp.som_eier();
 select pg_temp.nyrad_puls_sporsmal('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('puls_sporsmal tablet_B1 DELETE A', 'delete from public.puls_sporsmal where id = ''6a0e2c0c-0000-4000-8000-00006a0e2c0c''', 'puls_sporsmal', '6a0e2c0c-0000-4000-8000-00006a0e2c0c', 'id');
-
--- =====================================================================
--- puls_svar  (retailer_and_station, warm)
--- =====================================================================
-select pg_temp.sett_gruppe('puls_svar');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
-select pg_temp.paastand('puls_svar owner_A SELECT A1 -> ser', exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'positiv');
-select pg_temp.paastand('puls_svar owner_A SELECT A2 -> ser', exists (select 1 from public.puls_svar where id = '3922575c-0000-4000-8000-00003922575c'), 'positiv');
-select pg_temp.paastand('puls_svar owner_A SELECT A3 -> ser', exists (select 1 from public.puls_svar where id = '3922575d-0000-4000-8000-00003922575d'), 'positiv');
-select pg_temp.paastand('puls_svar owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar owner_A INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af4b-0000-4000-8000-00005022af4b'', 3, ''Sondesvar owner_AA1'')');
-select pg_temp.skriv_avvist('puls_svar owner_A INSERT A2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''5030c6cd-0000-4000-8000-00005030c6cd'', 3, ''Sondesvar owner_AA2'')');
-select pg_temp.skriv_avvist('puls_svar owner_A INSERT A3', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''503ede4f-0000-4000-8000-0000503ede4f'', 3, ''Sondesvar owner_AA3'')');
-select pg_temp.skriv_avvist('puls_svar owner_A INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d787ed-0000-4000-8000-000051d787ed'', 3, ''Sondesvar owner_AB1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist('puls_svar owner_A UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist('puls_svar owner_A UPDATE A2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575c-0000-4000-8000-00003922575c''', 'puls_svar', '3922575c-0000-4000-8000-00003922575c', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist('puls_svar owner_A UPDATE A3', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575d-0000-4000-8000-00003922575d''', 'puls_svar', '3922575d-0000-4000-8000-00003922575d', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
-select pg_temp.skriv_avvist('puls_svar owner_A UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
-select pg_temp.paastand('puls_svar manager_A1 SELECT A1 -> ser', exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'positiv');
-select pg_temp.paastand('puls_svar manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575c-0000-4000-8000-00003922575c'), 'negativ');
-select pg_temp.paastand('puls_svar manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575d-0000-4000-8000-00003922575d'), 'negativ');
-select pg_temp.paastand('puls_svar manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar manager_A1 INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af4f-0000-4000-8000-00005022af4f'', 3, ''Sondesvar manager_A1A1'')');
-select pg_temp.skriv_avvist('puls_svar manager_A1 INSERT A2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''5030c6e6-0000-4000-8000-00005030c6e6'', 3, ''Sondesvar manager_A1A2'')');
-select pg_temp.skriv_avvist('puls_svar manager_A1 INSERT A3', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''503ede68-0000-4000-8000-0000503ede68'', 3, ''Sondesvar manager_A1A3'')');
-select pg_temp.skriv_avvist('puls_svar manager_A1 INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d78806-0000-4000-8000-000051d78806'', 3, ''Sondesvar manager_A1B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist('puls_svar manager_A1 UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist('puls_svar manager_A1 UPDATE A2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575c-0000-4000-8000-00003922575c''', 'puls_svar', '3922575c-0000-4000-8000-00003922575c', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist('puls_svar manager_A1 UPDATE A3', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575d-0000-4000-8000-00003922575d''', 'puls_svar', '3922575d-0000-4000-8000-00003922575d', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
-select pg_temp.skriv_avvist('puls_svar manager_A1 UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
-select pg_temp.paastand('puls_svar manager_A12 SELECT A1 -> ser', exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'positiv');
-select pg_temp.paastand('puls_svar manager_A12 SELECT A2 -> ser', exists (select 1 from public.puls_svar where id = '3922575c-0000-4000-8000-00003922575c'), 'positiv');
-select pg_temp.paastand('puls_svar manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575d-0000-4000-8000-00003922575d'), 'negativ');
-select pg_temp.paastand('puls_svar manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar manager_A12 INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af68-0000-4000-8000-00005022af68'', 3, ''Sondesvar manager_A12A1'')');
-select pg_temp.skriv_avvist('puls_svar manager_A12 INSERT A2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''5030c6ea-0000-4000-8000-00005030c6ea'', 3, ''Sondesvar manager_A12A2'')');
-select pg_temp.skriv_avvist('puls_svar manager_A12 INSERT A3', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''503ede6c-0000-4000-8000-0000503ede6c'', 3, ''Sondesvar manager_A12A3'')');
-select pg_temp.skriv_avvist('puls_svar manager_A12 INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d7880a-0000-4000-8000-000051d7880a'', 3, ''Sondesvar manager_A12B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist('puls_svar manager_A12 UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist('puls_svar manager_A12 UPDATE A2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575c-0000-4000-8000-00003922575c''', 'puls_svar', '3922575c-0000-4000-8000-00003922575c', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist('puls_svar manager_A12 UPDATE A3', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575d-0000-4000-8000-00003922575d''', 'puls_svar', '3922575d-0000-4000-8000-00003922575d', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
-select pg_temp.skriv_avvist('puls_svar manager_A12 UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
-select pg_temp.paastand('puls_svar tablet_A1 SELECT A1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'negativ');
-select pg_temp.paastand('puls_svar tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575c-0000-4000-8000-00003922575c'), 'negativ');
-select pg_temp.paastand('puls_svar tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575d-0000-4000-8000-00003922575d'), 'negativ');
-select pg_temp.paastand('puls_svar tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af6c-0000-4000-8000-00005022af6c'', 3, ''Sondesvar tablet_A1A1'')');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 INSERT A2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''5030c6ee-0000-4000-8000-00005030c6ee'', 3, ''Sondesvar tablet_A1A2'')');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 INSERT A3', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''503ede70-0000-4000-8000-0000503ede70'', 3, ''Sondesvar tablet_A1A3'')');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d78823-0000-4000-8000-000051d78823'', 3, ''Sondesvar tablet_A1B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 UPDATE A2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575c-0000-4000-8000-00003922575c''', 'puls_svar', '3922575c-0000-4000-8000-00003922575c', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 UPDATE A3', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575d-0000-4000-8000-00003922575d''', 'puls_svar', '3922575d-0000-4000-8000-00003922575d', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
-select pg_temp.skriv_avvist('puls_svar tablet_A1 UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
-select pg_temp.paastand('puls_svar owner_B SELECT B1 -> ser', exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'positiv');
-select pg_temp.paastand('puls_svar owner_B SELECT B2 -> ser', exists (select 1 from public.puls_svar where id = '3922577b-0000-4000-8000-00003922577b'), 'positiv');
-select pg_temp.paastand('puls_svar owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar owner_B INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d78824-0000-4000-8000-000051d78824'', 3, ''Sondesvar owner_BB1'')');
-select pg_temp.skriv_avvist('puls_svar owner_B INSERT B2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''51e59fa6-0000-4000-8000-000051e59fa6'', 3, ''Sondesvar owner_BB2'')');
-select pg_temp.skriv_avvist('puls_svar owner_B INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af87-0000-4000-8000-00005022af87'', 3, ''Sondesvar owner_BA1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist('puls_svar owner_B UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist('puls_svar owner_B UPDATE B2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577b-0000-4000-8000-00003922577b''', 'puls_svar', '3922577b-0000-4000-8000-00003922577b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
-select pg_temp.skriv_avvist('puls_svar owner_B UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
-select pg_temp.paastand('puls_svar manager_B1 SELECT B1 -> ser', exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'positiv');
-select pg_temp.paastand('puls_svar manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577b-0000-4000-8000-00003922577b'), 'negativ');
-select pg_temp.paastand('puls_svar manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar manager_B1 INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d78827-0000-4000-8000-000051d78827'', 3, ''Sondesvar manager_B1B1'')');
-select pg_temp.skriv_avvist('puls_svar manager_B1 INSERT B2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''51e59fa9-0000-4000-8000-000051e59fa9'', 3, ''Sondesvar manager_B1B2'')');
-select pg_temp.skriv_avvist('puls_svar manager_B1 INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af8a-0000-4000-8000-00005022af8a'', 3, ''Sondesvar manager_B1A1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist('puls_svar manager_B1 UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist('puls_svar manager_B1 UPDATE B2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577b-0000-4000-8000-00003922577b''', 'puls_svar', '3922577b-0000-4000-8000-00003922577b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
-select pg_temp.skriv_avvist('puls_svar manager_B1 UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
-
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
-select pg_temp.paastand('puls_svar tablet_B1 SELECT B1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577a-0000-4000-8000-00003922577a'), 'negativ');
-select pg_temp.paastand('puls_svar tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922577b-0000-4000-8000-00003922577b'), 'negativ');
-select pg_temp.paastand('puls_svar tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.puls_svar where id = '3922575b-0000-4000-8000-00003922575b'), 'negativ');
-select pg_temp.skriv_avvist('puls_svar tablet_B1 INSERT B1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''51d7882a-0000-4000-8000-000051d7882a'', 3, ''Sondesvar tablet_B1B1'')');
-select pg_temp.skriv_avvist('puls_svar tablet_B1 INSERT B2', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''51e59fac-0000-4000-8000-000051e59fac'', 3, ''Sondesvar tablet_B1B2'')');
-select pg_temp.skriv_avvist('puls_svar tablet_B1 INSERT A1', 'insert into public.puls_svar (retailer_id, stasjon_id, runde_id, skala, kommentar) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''5022af8d-0000-4000-8000-00005022af8d'', 3, ''Sondesvar tablet_B1A1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist('puls_svar tablet_B1 UPDATE B1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577a-0000-4000-8000-00003922577a''', 'puls_svar', '3922577a-0000-4000-8000-00003922577a', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist('puls_svar tablet_B1 UPDATE B2', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922577b-0000-4000-8000-00003922577b''', 'puls_svar', '3922577b-0000-4000-8000-00003922577b', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_puls_svar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
-select pg_temp.skriv_avvist('puls_svar tablet_B1 UPDATE A1', 'update public.puls_svar set kommentar = ''endret av sonden'' where id = ''3922575b-0000-4000-8000-00003922575b''', 'puls_svar', '3922575b-0000-4000-8000-00003922575b', 'id');
 
 select pg_temp.som_eier();
 

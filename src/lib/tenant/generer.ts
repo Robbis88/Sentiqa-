@@ -589,6 +589,26 @@ function denAndre(i: Identitet): Identitet {
 function genererRessursSeed(r: Ressurs): string {
   const linjer: string[] = [`-- --- ${r.tabell}: forutsetninger og proberader ---`]
 
+  // GLOBAL: en rad som er alles, og eventuelt en som er ingens.
+  if (r.tenant_scope === 'global' && !r.bruker_kolonne && r.operasjoner.length > 0) {
+    const alles = proberadSql(r, 'A', 'A1', 'global')
+    linjer.push(`insert into public.${r.tabell} (id, ${alles.kolonner.join(', ')}) `
+      + `values (${sitat(seedId(`${r.tabell}:global`))}, ${alles.verdier.join(', ')});`)
+    if (r.usynlig_rad) {
+      const skjult = proberadSql(r, 'A', 'A1', 'usynlig')
+      const kol = [...skjult.kolonner]
+      const ver = [...skjult.verdier]
+      for (const [k, v] of Object.entries<string>(r.usynlig_rad)) {
+        const idx = kol.indexOf(k)
+        if (idx >= 0) ver[idx] = v
+        else { kol.push(k); ver.push(v) }
+      }
+      linjer.push(`insert into public.${r.tabell} (id, ${kol.join(', ')}) `
+        + `values (${sitat(seedId(`${r.tabell}:usynlig`))}, ${ver.join(', ')});`)
+    }
+    return linjer.join('\n')
+  }
+
   // BRUKERSCOPE: en rad per IDENTITET, ikke per stasjon.
   //
   // `personlig_punkt` er `user_id = (select auth.uid())`. Da er stasjonen
@@ -1005,8 +1025,82 @@ select pg_temp.logg_inn_som(${sitat(i.uid)});   -- ${i.navn}`)
   return linjer.join('\n')
 }
 
+/**
+ * Matrisen for en GLOBAL ressurs.
+ *
+ * Ingen tenantkolonner, ingen stasjon: raden hoerer ingen kjede til.
+ * `kunnskap` er tariff og arbeidsrett - det samme for alle - og
+ * `plattform_innlegg` er meldinger fra plattformredaksjonen.
+ *
+ * Den vanlige formen ville seedet en rad per stasjon og paastaatt at
+ * kjede B ikke ser kjede A. Paa en global tabell er BEGGE deler feil,
+ * og den ville dermed vaert roed paa en riktig base.
+ *
+ * TO SLAGS RADER, og den andre er den interessante:
+ *
+ *   proberad      alles - hver identitet skal se den
+ *   usynlig_rad   ingens - hver identitet skal IKKE se den
+ *
+ * Uten den andre kan en global tabell ikke skille «apen for alle» fra
+ * «apen, punktum»: et upublisert utkast maa vaere usynlig, og det er en
+ * paastand bare en rad ingen ser kan bevise.
+ */
+function genererGlobalRessurs(r: Ressurs): string {
+  const linjer: string[] = ['', '-- =====================================================================',
+    `-- ${r.tabell}  (global, ${r.data_class})`,
+    '-- =====================================================================',
+    `select pg_temp.sett_gruppe(${sitat(r.tabell)});`]
+
+  const alles = seedId(`${r.tabell}:global`)
+  const ingens = seedId(`${r.tabell}:usynlig`)
+  const naar = (rolle: 'tablet' | 'manager' | 'owner', op: Operasjon) =>
+    rekkevidde(r[rolle], op, r.operasjoner) !== 'none'
+
+  for (const i of IDENTITETER) {
+    linjer.push(`
+select pg_temp.logg_inn_som(${sitat(i.uid)});   -- ${i.navn}`)
+
+    if (r.operasjoner.includes('select')) {
+      const ok = naar(i.rolle, 'select')
+      linjer.push(`select pg_temp.paastand(${sitat(
+        `${r.tabell} ${i.navn} SELECT den globale raden -> ${ok ? 'ser' : 'ser ikke'}`)}, ${
+        ok ? '' : 'not '}exists (select 1 from public.${r.tabell} where id = ${sitat(alles)}), ${
+        sitat(ok ? 'positiv' : 'negativ')});`)
+      if (r.usynlig_rad) {
+        linjer.push(`select pg_temp.paastand(${sitat(
+          `${r.tabell} ${i.navn} SELECT den skjulte raden -> ser ikke`)}, `
+          + `not exists (select 1 from public.${r.tabell} where id = ${sitat(ingens)}), 'negativ');`)
+      }
+    }
+
+    for (const op of r.operasjoner.filter((o) => o !== 'select')) {
+      const ok = naar(i.rolle, op)
+      const ny = proberadSql(r, i.kjede, i.stasjoner[0], `g${i.navn}${op}`, i.uid)
+      const sql = op === 'insert'
+        ? `insert into public.${r.tabell} (${ny.kolonner.join(', ')}) values (${ny.verdier.join(', ')})`
+        : op === 'update'
+          ? `update public.${r.tabell} set ${settbartFelt(r)} where id = ${sitat(alles)}`
+          : `delete from public.${r.tabell} where id = ${sitat(alles)}`
+      const navn = `${r.tabell} ${i.navn} ${op.toUpperCase()} den globale raden`
+      linjer.push(ok
+        ? `select pg_temp.skriv_tillatt(${sitat(navn)}, ${sitat(sql)});`
+        : `select pg_temp.skriv_avvist(${sitat(navn)}, ${sitat(sql)}${
+          op === 'insert' ? '' : `, ${sitat(r.tabell)}, ${sitat(alles)}, 'id'`});`)
+      if (op === 'delete' && ok) {
+        const gjen = proberadSql(r, i.kjede, i.stasjoner[0], `ggjen${i.navn}`, i.uid)
+        linjer.push('select pg_temp.som_eier();')
+        linjer.push(`insert into public.${r.tabell} (id, ${gjen.kolonner.join(', ')}) `
+          + `values (${sitat(alles)}, ${gjen.verdier.join(', ')});`)
+        linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
+      }
+    }
+  }
+  return linjer.join('\n')
+}
+
 function genererRessurs(r: Ressurs): string {
   if (r.bruker_kolonne) return genererBrukerRessurs(r)
+  if (r.tenant_scope === 'global') return genererGlobalRessurs(r)
   const linjer: string[] = ['', `-- =====================================================================`,
     `-- ${r.tabell}  (${r.tenant_scope}, ${r.data_class})`,
     `-- =====================================================================`,

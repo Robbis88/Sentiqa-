@@ -96,10 +96,27 @@ export type Ressurs = {
    * Matrisen seeder da én rad per identitet og prøver hver identitet mot
    * sin egen rad og mot hver av de seks andres.
    *
+   * VINNER OVER `tenant_scope`. `personlig_kryss` har ingen
+   * tenantkolonner i det hele tatt og er `global` i skjemaet — men
+   * grensen er brukeren, og den formen er den virkelige.
+   *
    * ROLLEFELTENE ER `none` PÅ EN SLIK RESSURS. De beskriver hvor langt
    * en ROLLE rekker inn i andres rader, og svaret er: ingensteds. At
    * hver bruker når sin egen rad, er ikke en rolleegenskap.
    */
+  /**
+   * En rad ingen skal se, seedet ved siden av den globale proberaden.
+   *
+   * Verdiene her overstyrer proberaden. `plattform_innlegg` er formen:
+   * `plattform_les` slipper gjennom `publisert or rolle =
+   * 'plattform_redaktor'`, så et UPUBLISERT utkast skal være usynlig for
+   * alle sju identitetene.
+   *
+   * Uten en slik rad kan en global tabell ikke skille «åpen for alle»
+   * fra «åpen, punktum» — begge deler ser like grønne ut når det eneste
+   * som måles er en rad alle skal se.
+   */
+  usynlig_rad?: Record<string, string>
   bruker_kolonne?: string
   fast_rad?: string
   tenant_kolonne?: string
@@ -316,6 +333,13 @@ export function valider(k: Kontrakt): string[] {
           + 'bruk {{unik}}, {{unik_dato}} eller en konstant.')
       }
     }
+    // EN USYNLIG RAD MÅ HA ET SCOPE DER DEN BETYR NOE. Den seedes bare
+    // for globale ressurser; sto den på en stasjonsscopet tabell, ville
+    // den vært en påstand om noe generatoren aldri skriver.
+    if (r.usynlig_rad && r.tenant_scope !== 'global') {
+      feil.push(`${r.tabell}: usynlig_rad krever tenant_scope global`)
+    }
+
     // BRUKERSCOPE ER IKKE ROLLESCOPE. Rollefeltene beskriver hvor langt
     // en rolle rekker inn i ANDRES rader; på en brukerscopet ressurs er
     // svaret ingensteds. Sto det noe annet der, ville matrisen påstått
