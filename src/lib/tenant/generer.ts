@@ -710,6 +710,11 @@ function genererRessursSeed(r: Ressurs): string {
       // sitt eget rom - to sifre fra 90 og opp - og lpad holder formen
       // `^[0-9]{4}$` uansett hvor hoeyt den kommer.
       .split(`'{{unik_nr}}'`).join(`lpad((9000 + nextval('tenant_teller'::regclass) % 1000)::text, 4, '0')`)
+      // OG DEN BARE FORMEN. `kontraktmal.versjon` er en int og skrives
+      // som `{{unik_nr}}::int`, uten fnutter. Den siterte erstatningen
+      // over treffer den ikke, og en plassholder som overlever
+      // generatoren blir staaende i SQL-en som ren syntaksfeil.
+      .split(`{{unik_nr}}`).join(`(9000 + nextval('tenant_teller'::regclass) % 1000)`)
       .split(`{{unik}}`).join(`' || p_merke || '-' || nextval('tenant_teller'::regclass) || '`)
       // `{{n}}` er generatorens teller og hoerer til seedingen. Naar den
       // samme linja bakes inn i nyrad_*, maa den bli en KJORETIDSverdi -

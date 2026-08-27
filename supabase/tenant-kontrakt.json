@@ -31,69 +31,60 @@
   ],
   "uklassifisert_tillatt": {
     "$kommentar": [
-      "PROTOTYPEN DEKKET FEM TABELLER. Resten staar her til de er",
-      "klassifisert, og lista skal krympe til null. En tabell som",
-      "hverken staar her eller i `ressurser` feller dekningssjekken -",
-      "det er slik en NY tabell feiler lukket allerede i dag.",
+      "LISTA ER TOM. Alle 80 tabellene med policy er klassifisert, og hver",
+      "av dem har rader i atferdsmatrisen.",
       "",
-      "REKKEFOELGE: varme foer kalde. En kald tabell faar ingen rader i",
-      "atferdsmatrisen - den genereres bare for varme - saa en kald",
-      "klassifisering flytter en tabell fra usett til sett, ikke til",
-      "bevist.",
+      "DEN BLIR STAAENDE, TOM. Dekningskontrollen starter fra pg_class og",
+      "krever at hver tabell staar enten her eller i `ressurser`. Med en tom",
+      "liste feller den hver NY tabell til noen har tatt stilling - det er",
+      "hele poenget, og det er derfor mekanismen ikke slettes selv om den",
+      "ikke lenger har noe innhold.",
       "",
-      "ingen stasjon, ingen kjede. Matrisen seeder en fast rad per STASJON",
-      "og maaler rolle mot stasjon; her er spoersmaalet i stedet om Ada ser",
-      "Bos private liste. Det krever en fixture per identitet og en negativ",
-      "paastand mot en annen brukers rad - ikke en ny kolonne, men en ny",
-      "form. Klassifiseres naar formen finnes, ikke foer.",
+      "Skal du foere noe inn her igjen, skriv HVORFOR i samme slengen. En",
+      "tabell paa denne lista er en tabell ingen paastand roerer, og det",
+      "ser noyaktig ut som en tabell uten problemer.",
       "",
-      "er `using (slettet_tid is null)` - INGEN tenantgrense i det hele",
-      "tatt. I dag er det ufarlig fordi kunnskap_skriv bare slipper",
-      "plattform_redaktor til, og bare med retailer_id is null. Men",
-      "kolonnen finnes og er nullbar («null = global»), saa en",
-      "kjedespesifikk rad skrevet av service_role ville vaert lesbar for",
-      "HVER kjede. Skjemaet tillater det policyen ikke vokter.",
-      "Klassifiseres naar matrisen kan uttrykke global: i dag seeder den en",
-      "rad per stasjon og paastaar at kjede B ikke ser kjede As - for en",
-      "global tabell er begge deler feil. oversettelse_cache er global den",
-      "ogsaa, men kald og uten operasjoner, saa den stien er aldri kjort.",
+      "TRE FORMER FINNES, og en tabell som ikke passer noen av dem trenger",
+      "en fjerde - ikke en gjettet klassifisering:",
       "",
-      "TRE TABELLER BRYTER HVER SIN ANTAKELSE I GENERATOREN. De er ikke",
-      "vanskelige aa klassifisere - de er umulige aa FIKSTURERE med dagens",
-      "vokabular, og en gjettet fixture ville gitt 23xxx der vi leter etter",
-      "42501.",
-      "",
-      "  retailers      Tenantnoekkelen er tabellens EGEN primaernoekkel",
-      "                 (`id = gjeldende_retailer_id()`). Matrisen seeder en",
-      "                 fersk proberad per stasjon - men en fersk retailer",
-      "                 tilhoerer ingen, saa «owner_A ser sin egen rad» kan",
-      "                 ikke uttrykkes. Den maa maale den EKSISTERENDE",
-      "                 kjederaden, ikke en ny.",
-      "",
-      "  profiler       Primaernoekkelen er en fremmednoekkel til auth.users,",
-      "                 uten default. Generatoren velger id-en selv og seeden",
-      "                 kan ikke vite hvilken - saa forutsetningsraden i",
-      "                 auth.users kan ikke matche. Trenger at proberaden kan",
-      "                 EIE id-en, ikke bare kolonnene rundt den.",
-      "",
-      "  pin_forsok     `bigserial` primaernoekkel. Generatoren bygger faste",
-      "                 id-er som uuid-er, saa `id = '...'` blir aldri en",
-      "                 gyldig sammenligning.",
-      ""
+      "  vanlig          en proberad per stasjon; kjede B ser ikke kjede A",
+      "  fast_rad        proberaden ER en rad fasitverdenen alt har skrevet",
+      "                  (retailers - tenantnokkelen er dens egen primaernokkel)",
+      "  bruker_kolonne  grensen er brukeren; en rad per identitet, og den",
+      "                  skarpe negativen er naboen paa samme stasjon",
+      "  global (+usynlig_rad)",
+      "                  raden hoerer ingen kjede til; usynlig_rad beviser at",
+      "                  et upublisert utkast er ingens"
     ],
-    "tabeller": [
-      "ai_tool_log",
-      "import_jobber",
-      "kalender_kilder",
-      "kategori_vaerprofil",
-      "kontraktmal",
-      "lederstotte_rapporter",
-      "push_abonnementer",
-      "raa_filer",
-      "regnskapsanalyser"
-    ]
+    "tabeller": []
   },
   "ressurser": [
+    {
+      "tabell": "ai_tool_log",
+      "$hvorfor": "Logg over hvilke AI-verktoy som er kjort, per kjede. LESING ER EIERENS, SKRIVING ER ALLES: ai_tool_log_skriv sjekker bare retailer_id, uten rollepredikat, saa hver innlogget bruker legger sin egen linje i loggen. Det er formen en append-only revisjonslogg skal ha. Ingen update- eller delete-policy finnes - en logg som lar seg redigere dokumenterer ingenting - og alle fire operasjonene staar her slik at matrisen beviser det.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "insert": "retailer"
+      },
+      "manager": {
+        "insert": "retailer"
+      },
+      "owner": {
+        "select": "retailer",
+        "insert": "retailer"
+      },
+      "proberad": {
+        "verktoy": "'sonde {{unik}}'"
+      },
+      "oppdaterbart": "verktoy = 'endret'"
+    },
     {
       "tabell": "ansatt_avtale",
       "$hvorfor": "Kontraktsfestet stilling per ansatt, noekklet paa stemplingsnummeret fra easy@work. 0101 tok lesingen fra nettbrettet: stasjonstilgang alene holdt ikke for et felt som sier hva folk tjener i prosent av full stilling. Skrivingen har vaert lederens hele tiden.",
@@ -637,6 +628,55 @@
       "oppdaterbart": "sortering = 1"
     },
     {
+      "tabell": "import_jobber",
+      "$hvorfor": "Jobbkoeen som parser en raa fil (0002). Eieren naar hele kjeden paa alle fire; butikksjefen LESER bare jobber som har en stasjon, og bare sine egne. NULL BETYR KUN EIER: import_jobber_sjef_les krever `stasjon_id is not null`, saa en jobb uten stasjon - typisk en kjedebred import - er eierens alene. Samme form som regnskapslinjer. NETTBRETTET LESTE DEN TIL 0144: import_jobber_sjef_les hadde ingen rollesjekk, og mine_stasjoner() dekker butikkbruker_tablet ogsaa. Rollen sto i kommentaren i 0002, ikke i predikatet. Funnet av matrisen i den kjoringen som klassifiserte tabellen.",
+      "tenant_scope": "retailer_or_station",
+      "data_class": "warm",
+      "null_stasjon": "kun_eier",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.raa_filer (id, retailer_id, filnavn, storage_sti, mottakskanal) values ('{{seed:fil}}', '{{retailer}}', 'sonde-{{n}}.csv', 'sonde/{{n}}.csv', 'epost')"
+      ],
+      "proberad": {
+        "raa_fil_id": "'{{seed:fil}}'",
+        "rapporttype": "'st1_salgsstatistikk'"
+      },
+      "oppdaterbart": "forsok = 1"
+    },
+    {
+      "tabell": "kalender_kilder",
+      "$hvorfor": "iCal-kilder arrangementene importeres fra (0060). Hele kjeden leser, lederen skriver. Kilden har `stasjon_ider` som array - hvilke stasjoner en hendelse skal lage forslag for - men det er en visningsregel, ikke en tenantgrense: RLS ser den ikke.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": "retailer",
+      "owner": "retailer",
+      "avvik_fra_intensjon": "En butikksjef med EN tildelt stasjon kan skrive og slette for HELE kjeden. Tabellen har ingen stasjon_id, saa assigned_stations finnes ikke som begrensning - policyen kan bare skille paa rolle og kjede. Samme form som puls_sporsmal, opplaering_oppgave, anvisninger og arrangementer. Her er konsekvensen konkret: en ical_url som endres peker importen mot en annen kalender, for alle stasjoner i kjeden.",
+      "proberad": {
+        "navn": "'Sondekilde {{unik}}'",
+        "ical_url": "'https://sonde.local/{{unik}}.ics'"
+      },
+      "oppdaterbart": "aktiv = false"
+    },
+    {
       "tabell": "kampanjer",
       "$hvorfor": "Kampanjeperioder (0064). LESING ER DET ENESTE SOM FINNES: tabellen har bare kampanjer_les, og bare `grant select` - ingen skrivepolicy og ingen skriverettighet. Radene kommer fra service_role ved import. Alle fire operasjonene staar likevel her, slik at matrisen BEVISER at ingen rolle kan skrive - fravaer skal bevises, ikke forutsettes.",
       "tenant_scope": "retailer",
@@ -703,6 +743,45 @@
       "oppdaterbart": "bonger = 11"
     },
     {
+      "tabell": "kategori_vaerprofil",
+      "$hvorfor": "Hvor vaerfoelsom hver varegruppe er, per stasjon (0070). INGEN ID-KOLONNE: primaernokkelen er (stasjon_id, niva, kode). Bare lesing finnes som policy - profilen beregnes av beregn_kategori_vaerprofil(), som kjorer som eier - saa alle fire operasjonene staar her for at matrisen skal bevise at ingen rolle skriver.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": {
+        "select": "retailer"
+      },
+      "id_kolonner": [
+        "stasjon_id",
+        "niva",
+        "kode"
+      ],
+      "business_unik": [
+        "stasjon_id",
+        "niva",
+        "kode"
+      ],
+      "business_unik_unntak": {
+        "niva": "Del av den sammensatte identiteten (id_kolonner), saa den maa vaere det samme uttrykket hver gang predikatet evalueres. `kode` varierer per forsoek, saa noekkelen kan ikke kollidere uansett."
+      },
+      "proberad": {
+        "niva": "'avdeling'",
+        "kode": "'{{unik}}'"
+      },
+      "oppdaterbart": "n = 1"
+    },
+    {
       "tabell": "konkurranser",
       "$hvorfor": "Salgskonkurranser (0012). Hele kjeden leser - konkurransen vises paa nettbrettet - og bare eieren skriver. Merk at stasjon_ids er en uuid[]-kolonne, ikke en tenantgrense: tom betyr alle stasjoner i kjeden, og RLS ser den ikke. Avgrensningen er en visningsregel, ikke en grense.",
       "tenant_scope": "retailer",
@@ -727,6 +806,45 @@
         "periode_slutt": "{{unik_dato}} + 30"
       },
       "oppdaterbart": "status = 'avsluttet'"
+    },
+    {
+      "tabell": "kontraktmal",
+      "$hvorfor": "PDF-malene arbeidsavtalene genereres fra (0098) - per ansettelsesform, rolle, mindreaarig og tariffbundet. Hele kjeden leser malen, bare eieren skriver den. Policyene er allerede splittet og pakket.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "ansettelsesform",
+        "rolle",
+        "mindreaarig",
+        "tariffbundet",
+        "versjon"
+      ],
+      "business_unik_unntak": {
+        "ansettelsesform": "Noekkelen er (retailer_id, ansettelsesform, rolle, mindreaarig, tariffbundet, versjon) - EN mal per kombinasjon. Bare `versjon` kan varieres uten aa endre hva raden BETYR; de fire andre er selve identiteten til malen. Proberaden holder dem faste og teller versjon opp.",
+        "rolle": "Se ansettelsesform - den er en del av malens identitet, ikke en variabel.",
+        "mindreaarig": "Se ansettelsesform - den er en del av malens identitet, ikke en variabel.",
+        "tariffbundet": "Se ansettelsesform - den er en del av malens identitet, ikke en variabel."
+      },
+      "proberad": {
+        "ansettelsesform": "'fast'",
+        "filnavn": "'sonde-{{unik}}.pdf'",
+        "storage_sti": "'sonde/{{unik}}.pdf'",
+        "versjon": "{{unik_nr}}::int"
+      },
+      "oppdaterbart": "aktiv = false"
     },
     {
       "tabell": "kontrolltiltak_bekreftelse",
@@ -787,6 +905,30 @@
         "innhold": "'Sondetekst'"
       },
       "oppdaterbart": "kategori = 'endret'"
+    },
+    {
+      "tabell": "lederstotte_rapporter",
+      "$hvorfor": "Den maanedlige lederstotterapporten per stasjon (0011). Stasjonen leser sin egen, eieren leser hele kjeden og er den eneste som skriver.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "proberad": {
+        "periode": "{{unik_dato}}",
+        "rapport": "'{}'::jsonb"
+      },
+      "oppdaterbart": "rapport = '{\"endret\": true}'::jsonb"
     },
     {
       "tabell": "lenker",
@@ -1456,6 +1598,52 @@
       "oppdaterbart": "kommentar = 'endret av sonden'"
     },
     {
+      "tabell": "push_abonnementer",
+      "$hvorfor": "Web-push-abonnementene til en innlogget bruker. BRUKERSCOPE: push_egne er `user_id = auth.uid()` paa alle fire operasjonene, uten rolle, uten stasjon og uten kjede. Endepunktet er unikt paa TVERS av alle brukere - to abonnementer kan aldri dele det - saa forretningsnokkelen maa variere per forsoek.",
+      "tenant_scope": "global",
+      "data_class": "warm",
+      "bruker_kolonne": "user_id",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "none",
+      "business_unik": [
+        "endpoint"
+      ],
+      "proberad": {
+        "endpoint": "'https://sonde.local/push/{{unik}}'",
+        "p256dh": "'sonde-p256dh'",
+        "auth": "'sonde-auth'"
+      },
+      "oppdaterbart": "p256dh = 'endret'"
+    },
+    {
+      "tabell": "raa_filer",
+      "$hvorfor": "Innkomne rapportfiler foer parsing (0002) - epost eller drop zone. Rent eierscope: bare retailer_admin naar dem, i egen kjede, paa alle fire operasjonene. Filene ligger i en privat storage-bucket; denne raden er metadataene.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "proberad": {
+        "filnavn": "'sonde-{{unik}}.csv'",
+        "storage_sti": "'sonde/{{unik}}.csv'",
+        "mottakskanal": "'epost'"
+      },
+      "oppdaterbart": "filnavn = 'endret.csv'"
+    },
+    {
       "tabell": "regnskap_usynlig_svinn",
       "$hvorfor": "Usynlig svinn per periode - manko og overskudd fra regnskapet. Den eneste av de fire som er EIERENS ALENE: usynlig_svinn_les krever rolle retailer_admin, uten stasjonsledd. stasjon_id er nullbar (klyngelinjer), men null betyr ikke kjeden slik det gjor i tablet_meldinger - det betyr bare at ingen stasjonsrolle naar raden, for ingen stasjonsrolle naar noen rad her.",
       "$kaffeunntaket": "usynlig_svinn_les_kaffe (0127) gir butikksjefen ETT smalt vindu: linjer med kodeprefiks 130 paa egne stasjoner. Proberaden er med vilje en vanlig linje (kode 20010), saa matrisen beviser hovedregelen - at butikksjefen ikke ser usynlig svinn. Den positive siden av kaffeunntaket er derfor IKKE dekket her; en betingelse paa en kolonneverdi kan kontrakten ikke uttrykke i dag. Samme form som malekort.vis_tablet hadde foer 0134.",
@@ -1477,6 +1665,26 @@
         "usynlig_kr": "100"
       },
       "oppdaterbart": "navn = 'endret av sonden'"
+    },
+    {
+      "tabell": "regnskapsanalyser",
+      "$hvorfor": "AI-analyse av regnskapet per periode, for hele kjeden. Rent eierscope paa alle fire operasjonene - regnskapstall er ikke stasjonsdata, og butikksjefen naar dem ikke.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "proberad": {
+        "periode": "{{unik_dato}}",
+        "rapport": "'{}'::jsonb"
+      },
+      "oppdaterbart": "rapport = '{\"endret\": true}'::jsonb"
     },
     {
       "tabell": "regnskapslinjer",
