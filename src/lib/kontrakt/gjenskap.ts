@@ -19,11 +19,15 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { fyllUt } from './docx'
 
 export type Gjenskapt =
-  | { ok: true; docx: Uint8Array; navn: string; ansattNavn: string }
+  | { ok: true; docx: Uint8Array; navn: string; ansattNavn: string; stasjonId: string }
   | { ok: false; feil: string; status: number }
 
 type Rad = {
   ansatt_navn: string
+  // Stasjonen foelger med fordi TILGANGSLOGGEN trenger den. En
+  // logglinje uten stasjon kan ikke tilskrives noen butikksjefs
+  // ansvarsomraade, og faller da til eieren alene (0148).
+  stasjon_id: string
   verdier: Record<string, string>
   mal_versjon: number | null
   kontraktmal: { storage_sti: string; ansettelsesform: string } | null
@@ -42,7 +46,7 @@ export async function gjenskapKontrakt(
 ): Promise<Gjenskapt> {
   const { data } = await supabase
     .from('ansatt_kontrakt')
-    .select('ansatt_navn, verdier, mal_versjon, kontraktmal(storage_sti, ansettelsesform)')
+    .select('ansatt_navn, stasjon_id, verdier, mal_versjon, kontraktmal(storage_sti, ansettelsesform)')
     .eq('id', id)
     .maybeSingle()
   const rad = data as Rad | null
@@ -68,6 +72,7 @@ export async function gjenskapKontrakt(
     ok: true,
     docx,
     ansattNavn: rad.ansatt_navn,
+    stasjonId: rad.stasjon_id,
     navn: `${rent} - ${rad.kontraktmal.ansettelsesform}.docx`,
   }
 }
