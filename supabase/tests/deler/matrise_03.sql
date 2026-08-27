@@ -400,17 +400,6 @@ insert into public.kampanjer (id, retailer_id, navn, fra_dato, til_dato) values 
 insert into public.kampanjer (id, retailer_id, navn, fra_dato, til_dato) values ('47a8eee7-0000-4000-8000-000047a8eee7', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekampanje fastA3', date '2026-01-01' + 29, date '2026-01-01' + 29 + 7);
 insert into public.kampanjer (id, retailer_id, navn, fra_dato, til_dato) values ('47a8ef04-0000-4000-8000-000047a8ef04', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekampanje fastB1', date '2026-01-01' + 30, date '2026-01-01' + 30 + 7);
 insert into public.kampanjer (id, retailer_id, navn, fra_dato, til_dato) values ('47a8ef05-0000-4000-8000-000047a8ef05', 'bbbb0000-0000-4000-8000-000000000000', 'Sondekampanje fastB2', date '2026-01-01' + 31, date '2026-01-01' + 31 + 7);
-
-create or replace function pg_temp.nyrad_kampanjer(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
-declare
-  ny uuid;
-begin
-  insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato)
-  values (p_retailer, 'Sondekampanje ' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', date '2030-01-01' + nextval('tenant_teller'::regclass)::int, date '2030-01-01' + nextval('tenant_teller'::regclass)::int + 7)
-  returning id into ny;
-  return ny;
-end $fn$;
 -- --- kassererstatistikk: forutsetninger og proberader ---
 insert into public.kassererstatistikk (retailer_id, stasjon_id, dato, kasserer_nr, kasserer_navn, omsetning_ink_mva, bonger) values ('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 32, 'fastA1', 'Sonde Sondesen', 1000, 10);
 insert into public.kassererstatistikk (retailer_id, stasjon_id, dato, kasserer_nr, kasserer_navn, omsetning_ink_mva, bonger) values ('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 33, 'fastA2', 'Sonde Sondesen', 1000, 10);
@@ -431,14 +420,6 @@ insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) val
 insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values ('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'avdeling', 'fastA3');
 insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'avdeling', 'fastB1');
 insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values ('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'avdeling', 'fastB2');
-
-create or replace function pg_temp.nyrad_kategori_vaerprofil(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns void language plpgsql security definer as $fn$
-declare
-begin
-  insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode)
-  values (p_retailer, p_stasjon, 'avdeling', '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '');
-end $fn$;
 -- --- konkurranser: forutsetninger og proberader ---
 insert into public.konkurranser (id, retailer_id, navn, kpi, periode_start, periode_slutt) values ('1c515953-0000-4000-8000-00001c515953', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekonkurranse fastA1', 'omsetning sonde', date '2026-01-01' + 42, date '2026-01-01' + 42 + 30);
 insert into public.konkurranser (id, retailer_id, navn, kpi, periode_start, periode_slutt) values ('1c515954-0000-4000-8000-00001c515954', 'aaaa0000-0000-4000-8000-000000000000', 'Sondekonkurranse fastA2', 'omsetning sonde', date '2026-01-01' + 43, date '2026-01-01' + 43 + 30);
@@ -1603,21 +1584,9 @@ select pg_temp.paastand('kampanjer owner_A SELECT A -> ser', exists (select 1 fr
 select pg_temp.paastand('kampanjer owner_A SELECT B -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8ef04-0000-4000-8000-000047a8ef04'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer owner_A INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje owner_AA1'', date ''2026-01-01'' + 185, date ''2026-01-01'' + 185 + 7)');
 select pg_temp.skriv_avvist('kampanjer owner_A INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje owner_AB1'', date ''2026-01-01'' + 186, date ''2026-01-01'' + 186 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('kampanjer owner_A UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('kampanjer owner_A UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('kampanjer owner_A DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('kampanjer owner_A DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
@@ -1625,21 +1594,9 @@ select pg_temp.paastand('kampanjer manager_A1 SELECT A -> ser', exists (select 1
 select pg_temp.paastand('kampanjer manager_A1 SELECT B -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8ef04-0000-4000-8000-000047a8ef04'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer manager_A1 INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje manager_A1A1'', date ''2026-01-01'' + 187, date ''2026-01-01'' + 187 + 7)');
 select pg_temp.skriv_avvist('kampanjer manager_A1 INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje manager_A1B1'', date ''2026-01-01'' + 188, date ''2026-01-01'' + 188 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('kampanjer manager_A1 UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('kampanjer manager_A1 UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('kampanjer manager_A1 DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('kampanjer manager_A1 DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
@@ -1647,21 +1604,9 @@ select pg_temp.paastand('kampanjer manager_A12 SELECT A -> ser', exists (select 
 select pg_temp.paastand('kampanjer manager_A12 SELECT B -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8ef04-0000-4000-8000-000047a8ef04'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer manager_A12 INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje manager_A12A1'', date ''2026-01-01'' + 189, date ''2026-01-01'' + 189 + 7)');
 select pg_temp.skriv_avvist('kampanjer manager_A12 INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje manager_A12B1'', date ''2026-01-01'' + 190, date ''2026-01-01'' + 190 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('kampanjer manager_A12 UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('kampanjer manager_A12 UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('kampanjer manager_A12 DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('kampanjer manager_A12 DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
@@ -1669,21 +1614,9 @@ select pg_temp.paastand('kampanjer tablet_A1 SELECT A -> ser', exists (select 1 
 select pg_temp.paastand('kampanjer tablet_A1 SELECT B -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8ef04-0000-4000-8000-000047a8ef04'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer tablet_A1 INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje tablet_A1A1'', date ''2026-01-01'' + 191, date ''2026-01-01'' + 191 + 7)');
 select pg_temp.skriv_avvist('kampanjer tablet_A1 INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje tablet_A1B1'', date ''2026-01-01'' + 192, date ''2026-01-01'' + 192 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('kampanjer tablet_A1 UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('kampanjer tablet_A1 UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('kampanjer tablet_A1 DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('kampanjer tablet_A1 DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
@@ -1691,21 +1624,9 @@ select pg_temp.paastand('kampanjer owner_B SELECT B -> ser', exists (select 1 fr
 select pg_temp.paastand('kampanjer owner_B SELECT A -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8eee5-0000-4000-8000-000047a8eee5'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer owner_B INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje owner_BB1'', date ''2026-01-01'' + 193, date ''2026-01-01'' + 193 + 7)');
 select pg_temp.skriv_avvist('kampanjer owner_B INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje owner_BA1'', date ''2026-01-01'' + 194, date ''2026-01-01'' + 194 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('kampanjer owner_B UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('kampanjer owner_B UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('kampanjer owner_B DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('kampanjer owner_B DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
@@ -1713,21 +1634,9 @@ select pg_temp.paastand('kampanjer manager_B1 SELECT B -> ser', exists (select 1
 select pg_temp.paastand('kampanjer manager_B1 SELECT A -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8eee5-0000-4000-8000-000047a8eee5'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer manager_B1 INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje manager_B1B1'', date ''2026-01-01'' + 195, date ''2026-01-01'' + 195 + 7)');
 select pg_temp.skriv_avvist('kampanjer manager_B1 INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje manager_B1A1'', date ''2026-01-01'' + 196, date ''2026-01-01'' + 196 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('kampanjer manager_B1 UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('kampanjer manager_B1 UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('kampanjer manager_B1 DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('kampanjer manager_B1 DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
@@ -1735,21 +1644,9 @@ select pg_temp.paastand('kampanjer tablet_B1 SELECT B -> ser', exists (select 1 
 select pg_temp.paastand('kampanjer tablet_B1 SELECT A -> ser ikke', not exists (select 1 from public.kampanjer where id = '47a8eee5-0000-4000-8000-000047a8eee5'), 'negativ');
 select pg_temp.skriv_avvist('kampanjer tablet_B1 INSERT B', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''bbbb0000-0000-4000-8000-000000000000'', ''Sondekampanje tablet_B1B1'', date ''2026-01-01'' + 197, date ''2026-01-01'' + 197 + 7)');
 select pg_temp.skriv_avvist('kampanjer tablet_B1 INSERT A', 'insert into public.kampanjer (retailer_id, navn, fra_dato, til_dato) values (''aaaa0000-0000-4000-8000-000000000000'', ''Sondekampanje tablet_B1A1'', date ''2026-01-01'' + 198, date ''2026-01-01'' + 198 + 7)');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('kampanjer tablet_B1 UPDATE B', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('kampanjer tablet_B1 UPDATE A', 'update public.kampanjer set navn = ''endret av sonden'' where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('kampanjer tablet_B1 DELETE B', 'delete from public.kampanjer where id = ''47a8ef04-0000-4000-8000-000047a8ef04''', 'kampanjer', '47a8ef04-0000-4000-8000-000047a8ef04', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kampanjer('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('kampanjer tablet_B1 DELETE A', 'delete from public.kampanjer where id = ''47a8eee5-0000-4000-8000-000047a8eee5''', 'kampanjer', '47a8eee5-0000-4000-8000-000047a8eee5', 'id');
 
 -- =====================================================================
@@ -2052,37 +1949,13 @@ select pg_temp.skriv_avvist('kategori_vaerprofil owner_A INSERT A1', 'insert int
 select pg_temp.skriv_avvist('kategori_vaerprofil owner_A INSERT A2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''avdeling'', ''owner_AA2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil owner_A INSERT A3', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''avdeling'', ''owner_AA3'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil owner_A INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''owner_AB1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A UPDATE A2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A UPDATE A3', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A DELETE A2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A DELETE A3', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_A DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
@@ -2094,37 +1967,13 @@ select pg_temp.skriv_avvist('kategori_vaerprofil manager_A1 INSERT A1', 'insert 
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_A1 INSERT A2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''avdeling'', ''manager_A1A2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_A1 INSERT A3', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''avdeling'', ''manager_A1A3'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_A1 INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''manager_A1B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 UPDATE A2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 UPDATE A3', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 DELETE A2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 DELETE A3', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A1 DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
@@ -2136,37 +1985,13 @@ select pg_temp.skriv_avvist('kategori_vaerprofil manager_A12 INSERT A1', 'insert
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_A12 INSERT A2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''avdeling'', ''manager_A12A2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_A12 INSERT A3', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''avdeling'', ''manager_A12A3'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_A12 INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''manager_A12B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 UPDATE A2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 UPDATE A3', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 DELETE A2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 DELETE A3', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_A12 DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
@@ -2178,37 +2003,13 @@ select pg_temp.skriv_avvist('kategori_vaerprofil tablet_A1 INSERT A1', 'insert i
 select pg_temp.skriv_avvist('kategori_vaerprofil tablet_A1 INSERT A2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''avdeling'', ''tablet_A1A2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil tablet_A1 INSERT A3', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''avdeling'', ''tablet_A1A3'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil tablet_A1 INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''tablet_A1B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 UPDATE A2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 UPDATE A3', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 DELETE A2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastA2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 DELETE A3', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000003'' and "niva" = ''avdeling'' and "kode" = ''fastA3''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_A1 DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
@@ -2218,29 +2019,11 @@ select pg_temp.paastand('kategori_vaerprofil owner_B SELECT A1 -> ser ikke', not
 select pg_temp.skriv_avvist('kategori_vaerprofil owner_B INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''owner_BB1'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil owner_B INSERT B2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''avdeling'', ''owner_BB2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil owner_B INSERT A1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''avdeling'', ''owner_BA1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_B UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_B UPDATE B2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_B UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_B DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_B DELETE B2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil owner_B DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
@@ -2250,29 +2033,11 @@ select pg_temp.paastand('kategori_vaerprofil manager_B1 SELECT A1 -> ser ikke', 
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_B1 INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''manager_B1B1'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_B1 INSERT B2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''avdeling'', ''manager_B1B2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil manager_B1 INSERT A1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''avdeling'', ''manager_B1A1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_B1 UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_B1 UPDATE B2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_B1 UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_B1 DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_B1 DELETE B2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil manager_B1 DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
@@ -2282,29 +2047,11 @@ select pg_temp.paastand('kategori_vaerprofil tablet_B1 SELECT A1 -> ser ikke', n
 select pg_temp.skriv_avvist('kategori_vaerprofil tablet_B1 INSERT B1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''avdeling'', ''tablet_B1B1'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil tablet_B1 INSERT B2', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''avdeling'', ''tablet_B1B2'')');
 select pg_temp.skriv_avvist('kategori_vaerprofil tablet_B1 INSERT A1', 'insert into public.kategori_vaerprofil (retailer_id, stasjon_id, niva, kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''avdeling'', ''tablet_B1A1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_B1 UPDATE B1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_B1 UPDATE B2', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_B1 UPDATE A1', 'update public.kategori_vaerprofil set n = 1 where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_B1 DELETE B1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastB1''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_B1 DELETE B2', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''', 'kategori_vaerprofil', '"stasjon_id" = ''b1110000-0000-4000-8000-000000000002'' and "niva" = ''avdeling'' and "kode" = ''fastB2''');
-select pg_temp.som_eier();
-select pg_temp.nyrad_kategori_vaerprofil('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist_pred('kategori_vaerprofil tablet_B1 DELETE A1', 'delete from public.kategori_vaerprofil where "stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''', 'kategori_vaerprofil', '"stasjon_id" = ''a1110000-0000-4000-8000-000000000001'' and "niva" = ''avdeling'' and "kode" = ''fastA1''');
 
 -- =====================================================================

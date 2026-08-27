@@ -732,12 +732,19 @@ function genererRessursSeed(r: Ressurs): string {
   // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon.
   if (r.en_rad_per_stasjon) return linjer.join('\n')
 
-  // Og ingen naar ingen roerer raden etterpaa. `nyrad_*` finnes for at en
-  // tillatt sletting ikke skal rive grunnlaget for neste paastand - uten
-  // update og delete er den doed kode. `persondata_logg` og
-  // `kontrolltiltak_bekreftelse` har ingen av delene med vilje: en logg
-  // som lar seg redigere dokumenterer ingenting.
-  if (!r.operasjoner.includes('update') && !r.operasjoner.includes('delete')) {
+  // Og ingen naar INGEN ROLLE roerer raden etterpaa.
+  //
+  // `nyrad_*` finnes for at en TILLATT sletting ikke skal rive
+  // grunnlaget for neste paastand. Naar ingen identitet naar update
+  // eller delete, river ingen noe - og hjelperen er doed kode.
+  //
+  // Regelen sto foer paa `operasjoner`, ikke paa rekkevidden. Da vi
+  // begynte aa foere update/delete for aa BEVISE at de er avvist -
+  // fravaer skal bevises, ikke forutsettes - laget den plutselig
+  // hjelpere for tabeller ingen kan skrive til. `kontrolltiltak_bekreftelse`
+  // felte den: proberaden binder `bruker_id` til den innloggede, og en
+  // hjelper som ikke vet hvem som handler kan ikke fylle den.
+  if (!harNyrad(r)) {
     return linjer.join('\n')
   }
 
@@ -952,6 +959,24 @@ end $$;
  *
  * Flagget betyr «én rad per stasjon». Da er stasjonen plassen.
  */
+/**
+ * Om ressursen faar en `nyrad_*`-hjelper i det hele tatt.
+ *
+ * Hjelperen finnes for at en TILLATT sletting ikke skal rive grunnlaget
+ * for neste paastand. Naar ingen identitet naar update eller delete,
+ * river ingen noe - og hjelperen er doed kode.
+ *
+ * BESLUTNINGEN MAA VAERE ETT STED. Den ble foerst tatt to steder, med
+ * hvert sitt vilkaar: seedingen sluttet aa LAGE hjelperen, mens
+ * kroppen fortsatte aa KALLE den. En udefinert funksjon midt i en
+ * ellers gyldig kjoering - 42883, og ikke et ord om hvorfor.
+ */
+function harNyrad(r: Ressurs): boolean {
+  if (r.en_rad_per_stasjon || r.fast_rad) return false
+  return (['update', 'delete'] as const).some((op) => r.operasjoner.includes(op)
+    && IDENTITETER.some((i) => maal(i).some((s) => tillatt(r, i, op, s))))
+}
+
 function frigjorPlassen(r: Ressurs, s: Stasjon): string {
   return `delete from public.${r.tabell} where stasjon_id = ${sitat(S[s])};`
 }
@@ -1157,6 +1182,24 @@ function genererRessurs(r: Ressurs): string {
 
           linjer.push(`select pg_temp.${ok ? 'skriv_tillatt' : 'skriv_avvist'}(${sitat(navn)}, ${sitat(sql)});`)
 
+          // KAN JEG SKRIVE I EN ANNENS NAVN?
+          //
+          // Bare paa en stasjon jeg FAAR skrive paa. Ellers ville
+          // avvisningen kunnet komme fra stasjonsleddet, og paastanden
+          // bevist noe annet enn den sier.
+          // EN GANG PER IDENTITET, ikke per stasjon. Paastanden maaler
+          // brukerbindingen, og den er den samme uansett hvilken av
+          // mine stasjoner jeg staar paa - tre like navn i funn-tabellen
+          // ville bare gjort utskriften vanskeligere aa lese.
+          if (r.bruker_binding && ok && s === mål.find((x) => tillatt(r, i, 'insert', x))) {
+            const annen = denAndre(i)
+            const som = proberadSql(r, kjede, s, `${i.navn}somannen`, annen.uid)
+            linjer.push(`select pg_temp.skriv_avvist(${sitat(
+              `${r.tabell} ${i.navn} INSERT med ${annen.navn} sin ${r.bruker_binding}`)}, ${
+              sitat(`insert into public.${r.tabell} (${som.kolonner.join(', ')}) `
+                + `values (${som.verdier.join(', ')})`)});`)
+          }
+
           if (r.en_rad_per_stasjon) {
             const gjen = proberadSql(r, kjede, s, `gjeninn${i.navn}${s}`)
             linjer.push(`select pg_temp.som_eier();`)
@@ -1183,7 +1226,7 @@ function genererRessurs(r: Ressurs): string {
         // OG INGEN FERSK RAD NAAR DEN FASTE ER FASITVERDENEN SELV.
         // `nyrad_retailers` ville laget en kjede nummer tre, og
         // paastandene peker uansett paa kjederaden.
-        if (!r.en_rad_per_stasjon && !r.fast_rad) {
+        if (harNyrad(r)) {
           linjer.push(`select pg_temp.som_eier();`)
           linjer.push(`select pg_temp.nyrad_${r.tabell}(${sitat(R[kjede])}, ${sitat(S[s])}, ${sitat(`${i.navn}-${op}`)}) as _;`)
           linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
@@ -1201,6 +1244,22 @@ function genererRessurs(r: Ressurs): string {
         linjer.push(ok
           ? `select pg_temp.skriv_tillatt(${sitat(navn)}, ${sitat(sql)});`
           : `select pg_temp.${avvist}(${sitat(navn)}, ${sitat(sql)}${maalrad});`)
+
+        // OG KAN JEG FLYTTE RADEN TIL EN ANNEN BRUKER?
+        //
+        // Samme form som FLYTTER mellom kjeder, men paa brukeraksen.
+        // Den staar bare paa update, og bare paa en rad identiteten
+        // ellers naar - ellers beviser avvisningen stasjonsleddet.
+        // Ogsaa denne EN gang per identitet: bindingen er den samme
+        // uansett hvilken rad jeg peker paa.
+        if (r.bruker_binding && op === 'update' && s === mål[0]) {
+          const annen = denAndre(i)
+          const avvist2 = r.id_kolonner ? 'skriv_avvist_pred' : 'skriv_avvist'
+          linjer.push(`select pg_temp.${avvist2}(${sitat(
+            `${r.tabell} ${i.navn} FLYTTER raden til ${annen.navn}`)}, ${
+            sitat(`update public.${r.tabell} set ${r.bruker_binding} = ${sitat(annen.uid)} `
+              + `where ${pred}`)}${maalrad});`)
+        }
 
         // Etter en tillatt sletting maa den faste raden tilbake.
         if (op === 'delete' && ok) {

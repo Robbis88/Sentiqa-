@@ -117,6 +117,23 @@ export type Ressurs = {
    * som måles er en rad alle skal se.
    */
   usynlig_rad?: Record<string, string>
+  /**
+   * Kolonnen som må være den innloggede, PÅ EN TABELL SOM OGSÅ HAR
+   * stasjon og kjede.
+   *
+   * Ikke det samme som `bruker_kolonne`. Der ER brukeren hele grensen;
+   * her er brukerbindingen ett ledd på toppen av tenantgrensen:
+   * `kontrolltiltak_bekreftelse` er stasjonens dokumentasjon, men raden
+   * skal tilhøre den som faktisk bekreftet.
+   *
+   * Gir to negativer per identitet, begge på en rad identiteten ELLERS
+   * når — ellers ville avvisningen kunnet komme fra stasjonsleddet, og
+   * påstanden bevist noe annet enn den sier:
+   *
+   *   INSERT med en annens uid   → avvist
+   *   FLYTTER raden til en annen → avvist
+   */
+  bruker_binding?: string
   bruker_kolonne?: string
   fast_rad?: string
   tenant_kolonne?: string
@@ -338,6 +355,19 @@ export function valider(k: Kontrakt): string[] {
     // den vært en påstand om noe generatoren aldri skriver.
     if (r.usynlig_rad && r.tenant_scope !== 'global') {
       feil.push(`${r.tabell}: usynlig_rad krever tenant_scope global`)
+    }
+
+    // BRUKERBINDING ER IKKE BRUKERSCOPE. Den ene legger et ledd på
+    // toppen av tenantgrensen; den andre ERSTATTER den. Sto begge, ville
+    // ressursen blitt rutet til den brukerscopede formen, og
+    // stasjonsleddet aldri målt.
+    if (r.bruker_binding && r.bruker_kolonne) {
+      feil.push(`${r.tabell}: både bruker_binding og bruker_kolonne — velg én`)
+    }
+    if (r.bruker_binding && r.proberad[r.bruker_binding] !== '\'{{bruker}}\'') {
+      feil.push(`${r.tabell}: bruker_binding «${r.bruker_binding}» krever `
+        + 'at proberaden setter den til \'{{bruker}}\' — ellers prøver matrisen '
+        + 'aldri å skrive i en annens navn')
     }
 
     // BRUKERSCOPE ER IKKE ROLLESCOPE. Rollefeltene beskriver hvor langt
