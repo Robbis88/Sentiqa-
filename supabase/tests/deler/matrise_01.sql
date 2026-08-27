@@ -254,17 +254,6 @@ insert into public.ai_tool_log (id, retailer_id, verktoy) values ('beb374c9-0000
 insert into public.ai_tool_log (id, retailer_id, verktoy) values ('beb374ca-0000-4000-8000-0000beb374ca', 'aaaa0000-0000-4000-8000-000000000000', 'sonde fastA3');
 insert into public.ai_tool_log (id, retailer_id, verktoy) values ('beb374e7-0000-4000-8000-0000beb374e7', 'bbbb0000-0000-4000-8000-000000000000', 'sonde fastB1');
 insert into public.ai_tool_log (id, retailer_id, verktoy) values ('beb374e8-0000-4000-8000-0000beb374e8', 'bbbb0000-0000-4000-8000-000000000000', 'sonde fastB2');
-
-create or replace function pg_temp.nyrad_ai_tool_log(p_retailer uuid, p_stasjon uuid, p_merke text)
-returns uuid language plpgsql security definer as $fn$
-declare
-  ny uuid;
-begin
-  insert into public.ai_tool_log (retailer_id, verktoy)
-  values (p_retailer, 'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass))
-  returning id into ny;
-  return ny;
-end $fn$;
 -- --- ansatt_avtale: forutsetninger og proberader ---
 insert into public.ansatt_avtale (id, stasjon_id, ansatt_nr, navn, stillingsprosent) values ('8b2de393-0000-4000-8000-00008b2de393', 'a1110000-0000-4000-8000-000000000001', 'fastA1', 'Sonde Sondesen', 80);
 insert into public.ansatt_avtale (id, stasjon_id, ansatt_nr, navn, stillingsprosent) values ('8b2de394-0000-4000-8000-00008b2de394', 'a1110000-0000-4000-8000-000000000002', 'fastA2', 'Sonde Sondesen', 80);
@@ -390,21 +379,9 @@ select pg_temp.paastand('ai_tool_log owner_A SELECT A -> ser', exists (select 1 
 select pg_temp.paastand('ai_tool_log owner_A SELECT B -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374e7-0000-4000-8000-0000beb374e7'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log owner_A INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde owner_AA1'')');
 select pg_temp.skriv_avvist('ai_tool_log owner_A INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde owner_AB1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('ai_tool_log owner_A UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('ai_tool_log owner_A UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('ai_tool_log owner_A DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_avvist('ai_tool_log owner_A DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
@@ -412,21 +389,9 @@ select pg_temp.paastand('ai_tool_log manager_A1 SELECT A -> ser ikke', not exist
 select pg_temp.paastand('ai_tool_log manager_A1 SELECT B -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374e7-0000-4000-8000-0000beb374e7'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log manager_A1 INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde manager_A1A1'')');
 select pg_temp.skriv_avvist('ai_tool_log manager_A1 INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde manager_A1B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('ai_tool_log manager_A1 UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('ai_tool_log manager_A1 UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('ai_tool_log manager_A1 DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_avvist('ai_tool_log manager_A1 DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
@@ -434,21 +399,9 @@ select pg_temp.paastand('ai_tool_log manager_A12 SELECT A -> ser ikke', not exis
 select pg_temp.paastand('ai_tool_log manager_A12 SELECT B -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374e7-0000-4000-8000-0000beb374e7'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log manager_A12 INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde manager_A12A1'')');
 select pg_temp.skriv_avvist('ai_tool_log manager_A12 INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde manager_A12B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('ai_tool_log manager_A12 UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('ai_tool_log manager_A12 UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('ai_tool_log manager_A12 DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_A12-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_avvist('ai_tool_log manager_A12 DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
@@ -456,21 +409,9 @@ select pg_temp.paastand('ai_tool_log tablet_A1 SELECT A -> ser ikke', not exists
 select pg_temp.paastand('ai_tool_log tablet_A1 SELECT B -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374e7-0000-4000-8000-0000beb374e7'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log tablet_A1 INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde tablet_A1A1'')');
 select pg_temp.skriv_avvist('ai_tool_log tablet_A1 INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde tablet_A1B1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_A1 UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_A1 UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_A1 DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_A1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_A1 DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
@@ -478,21 +419,9 @@ select pg_temp.paastand('ai_tool_log owner_B SELECT B -> ser', exists (select 1 
 select pg_temp.paastand('ai_tool_log owner_B SELECT A -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374c8-0000-4000-8000-0000beb374c8'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log owner_B INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde owner_BB1'')');
 select pg_temp.skriv_avvist('ai_tool_log owner_B INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde owner_BA1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('ai_tool_log owner_B UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('ai_tool_log owner_B UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('ai_tool_log owner_B DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_avvist('ai_tool_log owner_B DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
@@ -500,21 +429,9 @@ select pg_temp.paastand('ai_tool_log manager_B1 SELECT B -> ser ikke', not exist
 select pg_temp.paastand('ai_tool_log manager_B1 SELECT A -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374c8-0000-4000-8000-0000beb374c8'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log manager_B1 INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde manager_B1B1'')');
 select pg_temp.skriv_avvist('ai_tool_log manager_B1 INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde manager_B1A1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('ai_tool_log manager_B1 UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('ai_tool_log manager_B1 UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('ai_tool_log manager_B1 DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_avvist('ai_tool_log manager_B1 DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
 
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
@@ -522,21 +439,9 @@ select pg_temp.paastand('ai_tool_log tablet_B1 SELECT B -> ser ikke', not exists
 select pg_temp.paastand('ai_tool_log tablet_B1 SELECT A -> ser ikke', not exists (select 1 from public.ai_tool_log where id = 'beb374c8-0000-4000-8000-0000beb374c8'), 'negativ');
 select pg_temp.skriv_tillatt('ai_tool_log tablet_B1 INSERT B', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''bbbb0000-0000-4000-8000-000000000000'', ''sonde tablet_B1B1'')');
 select pg_temp.skriv_avvist('ai_tool_log tablet_B1 INSERT A', 'insert into public.ai_tool_log (retailer_id, verktoy) values (''aaaa0000-0000-4000-8000-000000000000'', ''sonde tablet_B1A1'')');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_B1 UPDATE B', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_B1 UPDATE A', 'update public.ai_tool_log set verktoy = ''endret'' where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_B1 DELETE B', 'delete from public.ai_tool_log where id = ''beb374e7-0000-4000-8000-0000beb374e7''', 'ai_tool_log', 'beb374e7-0000-4000-8000-0000beb374e7', 'id');
-select pg_temp.som_eier();
-select pg_temp.nyrad_ai_tool_log('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_B1-delete') as _;
-select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.skriv_avvist('ai_tool_log tablet_B1 DELETE A', 'delete from public.ai_tool_log where id = ''beb374c8-0000-4000-8000-0000beb374c8''', 'ai_tool_log', 'beb374c8-0000-4000-8000-0000beb374c8', 'id');
 
 -- =====================================================================

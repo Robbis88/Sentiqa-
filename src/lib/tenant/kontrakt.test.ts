@@ -26,6 +26,9 @@ const KONTRAKT_STI = `${ROT}supabase/tenant-kontrakt.json`
 
 const kontrakt = JSON.parse(readFileSync(KONTRAKT_STI, 'utf8')) as Kontrakt
 
+/** manager_A1 sin stasjon, slik fasitverdenen skriver den. */
+const STASJON_A1 = 'a1110000-0000-4000-8000-000000000001'
+
 const FILER: Array<[string, (k: Kontrakt) => string]> = [
   ['supabase/tests/tenant_dekning.sql', genererDekning],
   ['supabase/tests/rls_kanarifugl_generert.sql', genererMatrise],
@@ -569,6 +572,49 @@ describe('genererte filer', () => {
       ressurser: [{ ...base, tenant_scope: 'retailer' }],
     } as typeof kontrakt
     expect(valider(feil).join(' ')).toContain('usynlig_rad krever tenant_scope global')
+  })
+
+  it('en brukerbundet rad kan verken skrives i en annens navn eller flyttes', () => {
+    // `kontrolltiltak_bekreftelse` er stasjonens dokumentasjon etter
+    // aml. § 9-2, men raden skal tilhøre den som faktisk bekreftet.
+    // Tenantgrensen alene beviser ikke det: en butikksjef på A1 er
+    // innenfor både kjeden og stasjonen når hun skriver i eierens navn.
+    const bundet = kontrakt.ressurser.filter((r) => r.bruker_binding)
+    // KANARIFUGL: uten en bunden ressurs måler resten ingenting.
+    expect(bundet.length, 'ingen ressurs har bruker_binding').toBeGreaterThan(0)
+
+    const sql = genererMatrise(kontrakt)
+    for (const r of bundet) {
+      for (const i of IDENTITETER) {
+        // Bare identiteter som FÅR skrive et sted har noe å bevise her.
+        const kanSkrive = maal(i).some((st) => tillatt(r, i, 'insert', st))
+        if (kanSkrive) {
+          expect(sql, `${r.tabell}: ${i.navn} prøver aldri å skrive i en annens navn`)
+            .toContain(`${r.tabell} ${i.navn} INSERT med `)
+        }
+        expect(sql, `${r.tabell}: ${i.navn} prøver aldri å flytte raden til en annen`)
+          .toContain(`${r.tabell} ${i.navn} FLYTTER raden til `)
+      }
+
+      // PÅ EN RAD IDENTITETEN ELLERS NÅR. Sto den på en stasjon jeg
+      // ikke rekker, kunne avvisningen kommet fra stasjonsleddet — og
+      // påstanden bevist noe annet enn den sier.
+      const linje = sql.split('\n').find((l) =>
+        l.includes(`${r.tabell} manager_A1 INSERT med `))
+      expect(linje, `fant ingen navnelinje for ${r.tabell}`).toBeTruthy()
+      expect(linje, 'negativen må stå på en stasjon identiteten når')
+        .toContain(STASJON_A1)
+    }
+
+    // OG DEN MÅ IKKE FORVEKSLES MED BRUKERSCOPE. Sto begge, ville
+    // ressursen blitt rutet til den brukerscopede formen, og
+    // stasjonsleddet aldri målt.
+    const base = bundet[0]
+    const begge = {
+      ...kontrakt,
+      ressurser: [{ ...base, bruker_kolonne: base.bruker_binding }],
+    } as typeof kontrakt
+    expect(valider(begge).join(' ')).toContain('velg én')
   })
 
   it('matrisen inneholder både en tillatt og en avvist skriving', () => {
