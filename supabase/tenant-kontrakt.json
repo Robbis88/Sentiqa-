@@ -1238,9 +1238,9 @@
     },
     {
       "tabell": "persondata_logg",
-      "$hvorfor": "Hvem har sett hva om hvem (GDPR art. 32). Vokser raskest av alle - en rad per oppslag paa persondata - og kan aldri endres eller slettes: ingen update- eller delete-policy finnes, med vilje. En logg som lar seg redigere av den som er logget, dokumenterer ingenting.",
+      "$hvorfor": "Hvem har sett hva om hvem (GDPR art. 32). Vokser raskest av alle - en rad per oppslag paa persondata - og kan aldri endres eller slettes: ingen update- eller delete-policy finnes, med vilje. En logg som lar seg redigere av den som er logget, dokumenterer ingenting. LOGGEN ER SELV PERSONDATA: den sier at denne lederen slo opp denne navngitte ansatte, paa denne datoen. En tilgangslogg bredere enn tilgangen den logger, lager et nytt innsyn i stedet for aa dokumentere det som fantes - derfor er butikksjefen snevret til egne stasjoner i 0148.",
       "$bruker_hvorfor": "Innsettingspolicyen krever `bruker_id = (select auth.uid())`. Proberaden bruker derfor {{bruker}}, som er identiteten som faktisk proever - ellers ville hvert forsoek fra en annen enn eieren blitt avvist av FIXTUREN, og kontrakten ville sagt at rollen ikke naar noe den faktisk faar lov til.",
-      "tenant_scope": "retailer_and_station",
+      "tenant_scope": "retailer_or_station",
       "data_class": "warm",
       "operasjoner": [
         "select",
@@ -1250,17 +1250,20 @@
         "insert": "retailer"
       },
       "manager": {
-        "select": "retailer",
+        "select": "assigned_stations",
         "insert": "retailer"
       },
       "owner": "retailer",
-      "avvik_fra_intensjon": "Butikksjefen ser HELE kjedens logg, ikke bare sine egne stasjoner: lesepolicyen scoper paa retailer_id og rolle, aldri paa stasjon. For en tilgangslogg kan det vaere riktig - den som er ansvarlig skal kunne se hvem som har sett hva - men det er en beslutning ingen har tatt eksplisitt, og det staar i kontrast til alle andre butikksjef-regler i basen. Nettbrettet kan SKRIVE i loggen for hele kjeden av samme grunn; det er mindre alvorlig, siden raden maa baere nettbrettets egen bruker_id.",
       "proberad": {
         "handling": "'sonde_oppslag'",
         "ansatt_nr": "'{{unik}}'",
         "bruker_id": "'{{bruker}}'",
         "bruker_navn": "'Sonde Sondesen'"
-      }
+      },
+      "null_stasjon": "kun_eier",
+      "bruker_binding": "bruker_id",
+      "$revisjonsinnsyn": "BESTEMT 2026-08-27, og strammet i 0148. Nettbrettet leser ingenting. Butikksjefen ser bare stasjonene hun faktisk administrerer - foer 0148 leste hun HELE kjedens logg. Eieren ser hele egen retailer. Ingen naar en annen retailer. SCOPET UTLEDES IKKE: persondata_logg har en egen stasjon_id fra 0103, saa butikksjefens gren er et direkte oppslag mot mine_stasjoner() - ingen kobling paa ansatt_nr, og ingen paa navn. Rader UTEN stasjon kan ikke tilskrives noen butikksjefs ansvarsomraade og faller til eieren alene; kolonnen er `on delete set null`, saa en slettet stasjon feiler LUKKET.",
+      "$skrivesiden": "UROERT AV 0148. persondata_logg_ins har krevd `bruker_id = (select auth.uid())` siden 0103 - det var den som viste hva kontrolltiltak_bekreftelse manglet. Nettbrettet og butikksjefen kan skrive en logglinje for hvilken som helst stasjon i egen kjede, men aldri i en annens navn: bruker_binding beviser det per identitet."
     },
     {
       "tabell": "personlig_kryss",

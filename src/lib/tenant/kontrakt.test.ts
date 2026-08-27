@@ -592,8 +592,13 @@ describe('genererte filer', () => {
           expect(sql, `${r.tabell}: ${i.navn} prøver aldri å skrive i en annens navn`)
             .toContain(`${r.tabell} ${i.navn} INSERT med `)
         }
-        expect(sql, `${r.tabell}: ${i.navn} prøver aldri å flytte raden til en annen`)
-          .toContain(`${r.tabell} ${i.navn} FLYTTER raden til `)
+        // Flyttingen måles bare der `update` i det hele tatt er ført.
+        // `persondata_logg` har den ikke: en logg endres ikke, og da
+        // finnes det ingen update-påstand å henge flyttingen på.
+        if (r.operasjoner.includes('update')) {
+          expect(sql, `${r.tabell}: ${i.navn} prøver aldri å flytte raden til en annen`)
+            .toContain(`${r.tabell} ${i.navn} FLYTTER raden til `)
+        }
       }
 
       // PÅ EN RAD IDENTITETEN ELLERS NÅR. Sto den på en stasjon jeg

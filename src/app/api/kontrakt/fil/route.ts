@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
   // jo nettopp signaturen som ikke lar seg regne ut.
   if (req.nextUrl.searchParams.get('signert') === '1') {
     const { data: rad } = await supabase
-      .from('ansatt_kontrakt').select('storage_sti, ansatt_navn').eq('id', id)
-      .maybeSingle<{ storage_sti: string | null; ansatt_navn: string }>()
+      .from('ansatt_kontrakt').select('storage_sti, ansatt_navn, stasjon_id').eq('id', id)
+      .maybeSingle<{ storage_sti: string | null; ansatt_navn: string; stasjon_id: string }>()
     if (!rad?.storage_sti) {
       return NextResponse.json({ feil: 'Ingen signert kopi lagret.' }, { status: 404 })
     }
@@ -35,7 +35,12 @@ export async function GET(req: NextRequest) {
     }
     await loggOppslag(supabase, {
       retailerId: bruker.retailerId ?? '',
-      stasjonId: null,
+      // STASJONEN, IKKE NULL. En logglinje uten stasjon kan ikke
+      // tilskrives noen butikksjefs ansvarsomraade, og ble usynlig
+      // for henne da 0148 snevret loggen til egne stasjoner.
+      // Kontrakten BAERER stasjonen (`not null` fra 0098), saa den
+      // utledes ikke - den leses.
+      stasjonId: rad.stasjon_id,
       ansattNavn: rad.ansatt_navn,
       handling: 'signert_lastet_ned',
       brukerId: bruker.id,
@@ -60,7 +65,7 @@ export async function GET(req: NextRequest) {
 
   await loggOppslag(supabase, {
     retailerId: bruker.retailerId ?? '',
-    stasjonId: null,
+    stasjonId: svar.stasjonId,
     ansattNavn: svar.ansattNavn,
     handling: 'kontrakt_lastet_ned',
     brukerId: bruker.id,
