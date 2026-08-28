@@ -1,0 +1,129 @@
+FASIT - KJOERT MOT PRODUKSJON 2026-08-28, FOER 0151
+Kilde: supabase/tests/baseline_vaerprofil.sql
+
+Vindu: 2025-07-24 .. 2026-08-28 (400 dager, rullende)
+
+---------------------------------------------------------------------
+LAGRET PROFIL FOER FIXEN
+---------------------------------------------------------------------
+stasjon                folsomhet   temp_korr   nedbor_korr   beregnet
+4177 St1 Lone            1.0000      0.5155      -0.0604     2026-08-28
+4185 St1 Dale            1.0000      0.5345       0.0314     2026-08-28
+9038 St1 Laguneparken    0.9309      0.4654      -0.1436     2026-08-28
+9145 St1 Varden          0.5357      0.2611      -0.2678     2026-08-28
+9467 St1 Bones           0.8400      0.4200      -0.1975     2026-08-28
+
+---------------------------------------------------------------------
+DRIVSTOFFANDEL AV INNDATA I DET FAKTISKE VINDUET
+---------------------------------------------------------------------
+stasjon                  total kr      drivstoff kr   andel
+4177 St1 Lone          28 911 240      17 984 027     62.2 %
+4185 St1 Dale          30 148 960      13 139 604     43.6 %
+9038 St1 Laguneparken  34 058 492      13 373 512     39.3 %
+9145 St1 Varden        15 445 337       3 900 462     25.3 %
+9467 St1 Bones         15 888 651       6 637 718     41.8 %
+KJEDEN                                                 44.2 %
+
+---------------------------------------------------------------------
+SIMULERT FOER -> ETTER (samme spoerring, samme current_date, n=305-307)
+---------------------------------------------------------------------
+stasjon                temp_korr        nedbor_korr      folsomhet
+4177 St1 Lone           0.5330 ->  0.4593   -0.0743 -> -0.2689   1.0000 -> 0.9185  (-0.0815)
+4185 St1 Dale           0.5469 ->  0.6060    0.0149 -> -0.0659   1.0000 -> 1.0000  ( 0.0000)
+9038 St1 Laguneparken   0.4560 -> -0.0418   -0.1403 -> -0.2922   0.9119 -> 0.5844  (-0.3275)
+9145 St1 Varden         0.2969 -> -0.1952   -0.2726 -> -0.4206   0.5938 -> 0.8412  (+0.2475)
+9467 St1 Bones          0.4434 -> -0.2400   -0.2070 -> -0.3584   0.8867 -> 0.7169  (-0.1698)
+
+Kanarifugl: 4 av 5 stasjoner faar ny folsomhet. 44,2 % av omsetningen i
+vinduet er drivstoff. 5 stasjoner har n>=30 og blir oppdatert.
+
+---------------------------------------------------------------------
+BACKTEST FOER FIXEN (prognose_treff, periode 2026-06-29..2026-08-24)
+---------------------------------------------------------------------
+stasjon                type              rader  snitt   median
+4177 St1 Lone          produksjonsplan     513  66.18   73.00
+4177 St1 Lone          salgsprognose       707  57.91   70.00
+4185 St1 Dale          produksjonsplan     513  65.18   72.00
+4185 St1 Dale          salgsprognose       570  71.80   82.00
+9038 St1 Laguneparken  produksjonsplan     513  64.42   73.00
+9038 St1 Laguneparken  salgsprognose       627  74.82   80.00
+9145 St1 Varden        produksjonsplan     513  50.80   50.00
+9145 St1 Varden        salgsprognose       627  62.31   71.00
+9467 St1 Bones         produksjonsplan     513  41.42   40.00
+9467 St1 Bones         salgsprognose       627  64.13   72.00
+
+Alle beregnet 2026-08-28. Backtesten kjoerer bare fra nattjobben, saa
+etter-tallene finnes foerst etter neste natt.
+
+
+=====================================================================
+FIRE LESNINGER
+=====================================================================
+
+1. TEMPERATURKORRELASJONEN SNUR FORTEGN PAA TRE AV FEM STASJONER.
+
+   Foer fixen er den positiv paa alle fem (+0.26 .. +0.53): "varmere gir
+   mer omsetning". Det er drivstoffets signatur - folk kjoerer mer i
+   fint vaer.
+
+   Uten drivstoff blir den NEGATIV paa Laguneparken (-0.04), Varden
+   (-0.20) og Bones (-0.24). Og nedboerskorrelasjonen blir mer negativ
+   overalt: regn gir mindre butikksalg, som er det man ville ventet.
+
+   Butikken og pumpa reagerer altsaa motsatt paa temperatur, og dagens
+   tall viser pumpas retning.
+
+2. MEN FORTEGNET NAAR IKKE MOTOREN - BARE STYRKEN GJOER DET.
+
+   `vaerfaktor()` henter RETNINGEN fra `koeff` (kategori_vaerprofil, per
+   varegruppe) og bruker `folsomhet` som ren SKALA:
+
+       return 1 + (f - 1) * clamp(folsomhet, 0, 1)
+
+   Og kategori_vaerprofil endres ikke av denne fixen - den grupperer per
+   kode, saa bakerienes koeffisienter var allerede rene.
+
+   Fixen endrer derfor AMPLITUDEN paa vaerjusteringen, ikke retningen.
+   Maalt mot LAGRET verdi:
+     Lone           1.0000 -> 0.9185   -8 %
+     Dale           1.0000 -> 1.0000    0 %   (begge klemt mot taket)
+     Laguneparken   0.9309 -> 0.5844  -37 %
+     Varden         0.5357 -> 0.8412  +57 %
+     Bones          0.8400 -> 0.7169  -15 %
+
+   `vaer_temp_korr` og `vaer_nedbor_korr` leses bare av /stasjoner, som
+   viser dem. Fortegnsskiftet er altsaa synlig for brukeren, men styrer
+   ingenting.
+
+3. DALE SER UENDRET UT FORDI KLEMMEN SKJULER ENDRINGEN.
+
+   folsomhet = clamp(max(|temp|,|nedbor|) * 2, 0.1, 1.0).
+   Dale: 0.5469*2 = 1.09 -> 1.0, og 0.6060*2 = 1.21 -> 1.0.
+   Korrelasjonen endret seg; den lagrede verdien gjorde det ikke.
+
+4. IKKE FORKLART: ENDRINGEN FOELGER IKKE DRIVSTOFFANDELEN.
+
+   Lone har hoeyest drivstoffandel (62,2 %) og MINST endring i
+   temperaturkorrelasjon (0.53 -> 0.46). Varden har lavest andel
+   (25,3 %) og et fullt fortegnsskifte.
+
+   Korrelasjonen regnes paa ukedagsjusterte residualer, ikke paa nivaa,
+   saa det er variansen i residualene som teller - ikke andelen av
+   snittet. Det er en plausibel forklaring, men jeg har ikke maalt den.
+
+   Dette blokkerer ikke fixen: aa ta drivstoff med i en korrelasjon som
+   skal beskrive butikkens vaerfoelsomhet er galt uansett hvilken vei
+   tallet flytter seg. Men de nye tallene boer ikke behandles som en
+   fasit foer punkt 4 er forstaatt.
+
+---------------------------------------------------------------------
+FORBEHOLD OM SAMMENLIGNINGEN
+---------------------------------------------------------------------
+LAGRET profil og SIMULERT "naa" er ikke helt like (Lone 0.5155 mot
+0.5330). Begge er fra 2026-08-28 og samme 400-dagersvindu, men
+nattjobben kjoerte foer dagens salg var lastet inn - data i vinduet gaar
+til 2026-08-27, og for Laguneparken bare til 2026-08-25.
+
+Den gyldige sammenligningen er derfor SIMULERT naa -> SIMULERT ny: samme
+spoerring, samme oeyeblikk, samme data. Etter at 0151 er kjoert samme dag
+skal LAGRET profil matche SIMULERT ny.

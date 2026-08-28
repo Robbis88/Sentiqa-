@@ -1,0 +1,92 @@
+FASIT - KJOERT MOT PRODUKSJON 2026-08-28, ETTER 0151
+Migrasjonen svarte: stasjoner_oppdatert=5, kategorirader=450.
+Sammenlign med baseline_vaerprofil_foer.txt.
+
+---------------------------------------------------------------------
+LAGRET PROFIL ETTER FIXEN - MOT PREDIKSJONEN FRA FOER-KJOERINGEN
+---------------------------------------------------------------------
+stasjon                predikert   faktisk    temp_korr   nedbor_korr
+4177 St1 Lone            0.9185     0.9185      0.4593      -0.2689   TRAFF
+4185 St1 Dale            1.0000     1.0000      0.6060      -0.0659   TRAFF
+9038 St1 Laguneparken    0.5844     0.5844     -0.0418      -0.2922   TRAFF
+9145 St1 Varden          0.8412     0.8412     -0.1952      -0.4206   TRAFF
+9467 St1 Bones           0.7169     0.7169     -0.2400      -0.3584   TRAFF
+
+Alle fem stemmer paa fire desimaler. Prediksjonen ble regnet FOER
+migrasjonen, i samme spoerring som foer-verdiene, paa samme
+current_date - saa dette er ikke en sammenligning som kunne bestaatt
+ved en tilfeldighet.
+
+ENDRING MOT LAGRET VERDI FOER FIXEN:
+  4177 St1 Lone           1.0000 -> 0.9185    -8 %
+  4185 St1 Dale           1.0000 -> 1.0000     0 %  (begge klemt mot taket)
+  9038 St1 Laguneparken   0.9309 -> 0.5844   -37 %
+  9145 St1 Varden         0.5357 -> 0.8412   +57 %
+  9467 St1 Bones          0.8400 -> 0.7169   -15 %
+
+FORTEGNSSKIFTET ER NAA I BASEN:
+  temp_korr var positiv paa alle fem foer (+0.26 .. +0.53).
+  Etter fixen er den negativ paa Laguneparken, Varden og Bones.
+  Nedboerskorrelasjonen er mer negativ paa alle fem.
+  Disse to kolonnene VISES paa /stasjoner, men styrer ingenting.
+
+---------------------------------------------------------------------
+KATEGORIPROFILEN: PAASTANDEN ER BEVIST
+---------------------------------------------------------------------
+stasjon                koder  maks_diff_temp  maks_diff_nedbor  avvikende
+4177 St1 Lone            8       0.000000        0.000000          0
+4185 St1 Dale            8       0.000000        0.000000          0
+9038 St1 Laguneparken    8       0.000000        0.000000          0
+9145 St1 Varden          8       0.000000        0.000000          0
+9467 St1 Bones           8       0.000000        0.000000          0
+
+Den GAMLE beregningen (daglig_salg, uten drivstoffilter) er regnet om
+igjen og sammenlignet mot det som faktisk staar lagret etter fixen.
+Null avvik paa alle aatte produksjonskoder, paa alle fem stasjoner.
+
+`beregn_kategori_vaerprofil` grupperer per (stasjon, niva, kode) og
+korrelerer per kode. Bakerienes koeffisienter var derfor allerede rene;
+fixen fjernet bare drivstoffets egne rader. Det var et strukturelt
+argument foer - det er en maaling naa.
+
+KONSEKVENS: produksjonsplanens RETNING er uendret. `vaerfaktor()` henter
+retningen fra kategori_vaerprofil og bruker `folsomhet` som ren skala.
+Fixen endrer amplituden, ikke retningen.
+
+---------------------------------------------------------------------
+SIMULERT FOER/ETTER: UENDRET, SOM VENTET
+---------------------------------------------------------------------
+Identisk med foer-kjoeringen paa alle fem stasjoner. Seksjonen regner
+begge varianter fra raadata og bryr seg ikke om hva som er lagret.
+Hadde den flyttet seg, ville det vaert nye data - ikke fixen.
+
+---------------------------------------------------------------------
+BACKTEST: IKKE MAALT ENDA
+---------------------------------------------------------------------
+Alle ti rader er uendret, beregnet=2026-08-28, periode
+2026-06-29..2026-08-24. Som ventet: `kjorBacktestAlle` kjoerer bare fra
+nattjobben.
+
+FOER-TALLENE, aa sammenligne mot etter neste natt:
+  4177 St1 Lone          produksjonsplan  66.18 / median 73.00
+  4177 St1 Lone          salgsprognose    57.91 / median 70.00
+  4185 St1 Dale          produksjonsplan  65.18 / median 72.00
+  4185 St1 Dale          salgsprognose    71.80 / median 82.00
+  9038 St1 Laguneparken  produksjonsplan  64.42 / median 73.00
+  9038 St1 Laguneparken  salgsprognose    74.82 / median 80.00
+  9145 St1 Varden        produksjonsplan  50.80 / median 50.00
+  9145 St1 Varden        salgsprognose    62.31 / median 71.00
+  9467 St1 Bones         produksjonsplan  41.42 / median 40.00
+  9467 St1 Bones         salgsprognose    64.13 / median 72.00
+
+Forventning: Varden faar STOERRE vaerjustering (+57 % amplitude),
+Laguneparken MINDRE (-37 %). Om treffet blir bedre eller verre er ikke
+gitt - fixen gjoer inndata riktig, den lover ikke bedre prognose.
+
+---------------------------------------------------------------------
+FORTSATT UFORKLART
+---------------------------------------------------------------------
+Endringen foelger ikke drivstoffandelen. Lone har hoeyest andel (62,2 %)
+og minst endring i temperaturkorrelasjon; Varden lavest (25,3 %) og
+fullt fortegnsskifte. Trolig fordi korrelasjonen regnes paa
+ukedagsjusterte residualer, ikke paa nivaa - men det er ikke maalt.
