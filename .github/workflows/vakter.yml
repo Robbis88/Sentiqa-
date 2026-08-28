@@ -150,6 +150,21 @@ jobs:
       - name: Tenant-dekning
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/tenant_dekning.sql
 
+      # ER ALT SOM ER LOVET LEVERT? Dekningen gaar fra basen til
+      # kontrakten. Denne gaar motsatt vei: fra migrasjonene til basen.
+      #
+      # `0075_malekort_stasjoner.sql` var aldri kjoert mot produksjon, og
+      # ingen vakt saa det - en funksjon som MANGLER finnes ikke, og blir
+      # derfor ikke sett av noe som starter fra katalogen. Symptomet var
+      # «Ingen stasjoner.» paa /maaling, fordi flata svelget rpc-feilen.
+      #
+      # I CI er basen bygd av migrasjonene selv, saa denne kan i praksis
+      # bare feile hvis fasitfila er utdatert. Verdien ligger i at den
+      # samme fila kjoeres mot PRODUKSJON, der den finner det ekte
+      # avviket.
+      - name: Funksjonene finnes
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/funksjoner_finnes.sql
+
       # KANARIFUGLEN FOR DEKNINGEN. Tre kall, og alle tre betyr noe:
       # groenn, saa ROED paa en uklassifisert tabell, saa groenn igjen.
       # Uten det siste ville en sjekk som ALLTID feiler ogsaa bestaatt.
