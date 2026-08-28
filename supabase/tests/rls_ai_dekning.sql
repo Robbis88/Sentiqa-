@@ -30,6 +30,19 @@ on conflict (id) do nothing;
 insert into public.retailers (id, navn) values
   ('a1111111-1111-1111-1111-111111111111', 'AI Tenant A'),
   ('b2222222-2222-2222-2222-222222222222', 'AI Tenant B');
+-- FAIL-CLOSED FRA 0152. `v_butikksalg` gir null rader til en kjede
+-- uten drivstofferklaering - ogsaa en fixture. Uten denne maaler
+-- fila ingenting, og hver paastand faller paa "ingen data" i stedet
+-- for paa det den skal maale.
+--
+-- Fixturen har ingen drivstoffrader, saa den aerlige erklaeringen er
+-- "ingen drivstoff". Den aapner alle rader og krever derfor kontroll;
+-- her ER testen Sentiqa.
+insert into public.retailer_kodeerklaering
+  (retailer_id, rolle, gjelder, kontrollert_tid) values
+  ('a1111111-1111-1111-1111-111111111111', 'drivstoff', false, now()),
+  ('b2222222-2222-2222-2222-222222222222', 'drivstoff', false, now());
+
 
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values
   ('00000000-0000-0000-0000-00000000ea01', 'a1111111-1111-1111-1111-111111111111', 'retailer_admin', 'AI Eier A'),

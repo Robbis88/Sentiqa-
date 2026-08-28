@@ -1044,10 +1044,8 @@ where not exists (
 insert into public.retailer_kodeerklaering
   (retailer_id, rolle, gjelder, kontrollert_av, kontrollert_tid)
 values
-  ('11111111-1111-4111-8111-111111111111', 'drivstoff', false,
-   '33333333-3333-4333-8333-111111111111', now()),
-  ('11111111-1111-4111-8111-222222222222', 'drivstoff', false,
-   '33333333-3333-4333-8333-333333333333', now())
+  ('11111111-1111-4111-8111-111111111111', 'drivstoff', false, null, now()),
+  ('11111111-1111-4111-8111-222222222222', 'drivstoff', false, null, now())
 on conflict (retailer_id, rolle) do nothing;
 
 -- Produksjonskodene. Uten dem er produksjonsplanen `ikke_konfigurert`,

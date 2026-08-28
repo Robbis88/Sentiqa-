@@ -58,6 +58,18 @@ begin
     forrige_mnd := (mnd - interval '1 month')::date;
 
     insert into public.retailers (id, navn) values (RET, 'BP-test');
+    -- FAIL-CLOSED FRA 0152. `v_butikksalg` gir null rader til en kjede
+    -- uten drivstofferklaering - ogsaa en fixture. Uten denne maaler
+    -- fila ingenting, og hver paastand faller paa "ingen data" i stedet
+    -- for paa det den skal maale.
+    --
+    -- Fixturen har ingen drivstoffrader, saa den aerlige erklaeringen er
+    -- "ingen drivstoff". Den aapner alle rader og krever derfor kontroll;
+    -- her ER testen Sentiqa.
+    insert into public.retailer_kodeerklaering
+      (retailer_id, rolle, gjelder, kontrollert_av, kontrollert_tid)
+      values (RET, 'drivstoff', false, null, now());
+
     insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
       values (STASJ, RET, '0001', 'BP-butikken', 'pendler');
 
