@@ -1,0 +1,249 @@
+FASIT - KJOERT MOT PRODUKSJON 2026-08-28, FOER SEMANTISK KODEMAPPING
+Kilde: supabase/tests/baseline_drivstoff.sql
+Sammenlign med en ny kjoering ETTER mappingen. Alt utenom SONDE skal
+vaere identisk. Avvik = regresjon.
+
+BUTIKKSALG | 2026-02 | Kelsar Bil AS | 4177 St1 Lone | rader=5345 oms=747292.77 antall=15883.21 btofort=441180.95
+BUTIKKSALG | 2026-02 | Kelsar Bil AS | 4185 St1 Dale | rader=6892 oms=1073766.85 antall=26498.45 btofort=594468.79
+BUTIKKSALG | 2026-02 | Kelsar Bil AS | 9038 St1 Laguneparken | rader=8204 oms=1505067.38 antall=28961.49 btofort=835855.85
+BUTIKKSALG | 2026-02 | Kelsar Bil AS | 9145 St1 Varden | rader=5466 oms=983954.67 antall=15103.74 btofort=623800.19
+BUTIKKSALG | 2026-02 | Kelsar Bil AS | 9467 St1 Bones | rader=4509 oms=844718.03 antall=12705.19 btofort=547130.23
+BUTIKKSALG | 2026-05 | Kelsar Bil AS | 4177 St1 Lone | rader=7683 oms=1049050.58 antall=25191.84 btofort=559414.06
+BUTIKKSALG | 2026-05 | Kelsar Bil AS | 4185 St1 Dale | rader=9291 oms=1406287.04 antall=36445.02 btofort=758718.99
+BUTIKKSALG | 2026-05 | Kelsar Bil AS | 9038 St1 Laguneparken | rader=11098 oms=2086311.32 antall=46764.06 btofort=1008465.29
+BUTIKKSALG | 2026-05 | Kelsar Bil AS | 9145 St1 Varden | rader=7706 oms=1157308.58 antall=22320.18 btofort=628422.31
+BUTIKKSALG | 2026-05 | Kelsar Bil AS | 9467 St1 Bones | rader=6490 oms=893102.05 antall=18883.79 btofort=464094.20
+BUTIKKSALG | 2026-06 | Kelsar Bil AS | 4177 St1 Lone | rader=6807 oms=934140.30 antall=22903.24 btofort=520799.99
+BUTIKKSALG | 2026-06 | Kelsar Bil AS | 4185 St1 Dale | rader=9245 oms=1543615.44 antall=39500.74 btofort=837642.83
+BUTIKKSALG | 2026-06 | Kelsar Bil AS | 9038 St1 Laguneparken | rader=9752 oms=1712861.06 antall=41272.51 btofort=830999.84
+BUTIKKSALG | 2026-06 | Kelsar Bil AS | 9145 St1 Varden | rader=6188 oms=743510.00 antall=17849.83 btofort=344215.74
+BUTIKKSALG | 2026-06 | Kelsar Bil AS | 9467 St1 Bones | rader=5662 oms=771589.49 antall=15921.71 btofort=426335.87
+BUTIKKSALG | 2026-07 | Kelsar Bil AS | 4177 St1 Lone | rader=7050 oms=985432.36 antall=23559.91 btofort=563403.53
+BUTIKKSALG | 2026-07 | Kelsar Bil AS | 4185 St1 Dale | rader=10096 oms=1799761.65 antall=43654.32 btofort=1016539.59
+BUTIKKSALG | 2026-07 | Kelsar Bil AS | 9038 St1 Laguneparken | rader=9363 oms=1524873.80 antall=28586.48 btofort=820519.51
+BUTIKKSALG | 2026-07 | Kelsar Bil AS | 9145 St1 Varden | rader=5645 oms=812264.26 antall=14801.38 btofort=478349.59
+BUTIKKSALG | 2026-07 | Kelsar Bil AS | 9467 St1 Bones | rader=4846 oms=646921.79 antall=12507.63 btofort=373870.16
+
+BUTIKKSALG KJEDE | 2026-02 | Kelsar Bil AS | stasjoner=5 rader=30416 oms=5154799.70 antall=99152.08 btofort=3042436.01
+BUTIKKSALG KJEDE | 2026-05 | Kelsar Bil AS | stasjoner=5 rader=42268 oms=6592059.57 antall=149604.89 btofort=3419114.85
+BUTIKKSALG KJEDE | 2026-06 | Kelsar Bil AS | stasjoner=5 rader=37654 oms=5705716.29 antall=137448.03 btofort=2959994.27
+BUTIKKSALG KJEDE | 2026-07 | Kelsar Bil AS | stasjoner=5 rader=37000 oms=5769253.86 antall=123109.72 btofort=3252682.38
+
+DRIVSTOFFILTER | 2026-02 | Kelsar Bil AS | 4177 St1 Lone | rader_alt=5345 rader_butikk=5345 fjernet_rader=0 fjernet_kr=0.00 fjernet_pct=0.0
+DRIVSTOFFILTER | 2026-02 | Kelsar Bil AS | 4185 St1 Dale | rader_alt=6892 rader_butikk=6892 fjernet_rader=0 fjernet_kr=0.00 fjernet_pct=0.0
+DRIVSTOFFILTER | 2026-02 | Kelsar Bil AS | 9038 St1 Laguneparken | rader_alt=8204 rader_butikk=8204 fjernet_rader=0 fjernet_kr=0.00 fjernet_pct=0.0
+DRIVSTOFFILTER | 2026-02 | Kelsar Bil AS | 9145 St1 Varden | rader_alt=5466 rader_butikk=5466 fjernet_rader=0 fjernet_kr=0.00 fjernet_pct=0.0
+DRIVSTOFFILTER | 2026-02 | Kelsar Bil AS | 9467 St1 Bones | rader_alt=4509 rader_butikk=4509 fjernet_rader=0 fjernet_kr=0.00 fjernet_pct=0.0
+DRIVSTOFFILTER | 2026-05 | Kelsar Bil AS | 4177 St1 Lone | rader_alt=7835 rader_butikk=7683 fjernet_rader=152 fjernet_kr=4011474.25 fjernet_pct=79.3
+DRIVSTOFFILTER | 2026-05 | Kelsar Bil AS | 4185 St1 Dale | rader_alt=9437 rader_butikk=9291 fjernet_rader=146 fjernet_kr=3039323.08 fjernet_pct=68.4
+DRIVSTOFFILTER | 2026-05 | Kelsar Bil AS | 9038 St1 Laguneparken | rader_alt=11191 rader_butikk=11098 fjernet_rader=93 fjernet_kr=4080571.93 fjernet_pct=66.2
+DRIVSTOFFILTER | 2026-05 | Kelsar Bil AS | 9145 St1 Varden | rader_alt=7799 rader_butikk=7706 fjernet_rader=93 fjernet_kr=1271105.84 fjernet_pct=52.3
+DRIVSTOFFILTER | 2026-05 | Kelsar Bil AS | 9467 St1 Bones | rader_alt=6583 rader_butikk=6490 fjernet_rader=93 fjernet_kr=1860133.38 fjernet_pct=67.6
+DRIVSTOFFILTER | 2026-06 | Kelsar Bil AS | 4177 St1 Lone | rader_alt=6955 rader_butikk=6807 fjernet_rader=148 fjernet_kr=4895368.26 fjernet_pct=84.0
+DRIVSTOFFILTER | 2026-06 | Kelsar Bil AS | 4185 St1 Dale | rader_alt=9388 rader_butikk=9245 fjernet_rader=143 fjernet_kr=3085867.45 fjernet_pct=66.7
+DRIVSTOFFILTER | 2026-06 | Kelsar Bil AS | 9038 St1 Laguneparken | rader_alt=9842 rader_butikk=9752 fjernet_rader=90 fjernet_kr=3241635.72 fjernet_pct=65.4
+DRIVSTOFFILTER | 2026-06 | Kelsar Bil AS | 9145 St1 Varden | rader_alt=6278 rader_butikk=6188 fjernet_rader=90 fjernet_kr=959837.73 fjernet_pct=56.4
+DRIVSTOFFILTER | 2026-06 | Kelsar Bil AS | 9467 St1 Bones | rader_alt=5752 rader_butikk=5662 fjernet_rader=90 fjernet_kr=1630265.69 fjernet_pct=67.9
+DRIVSTOFFILTER | 2026-07 | Kelsar Bil AS | 4177 St1 Lone | rader_alt=7201 rader_butikk=7050 fjernet_rader=151 fjernet_kr=4006169.65 fjernet_pct=80.3
+DRIVSTOFFILTER | 2026-07 | Kelsar Bil AS | 4185 St1 Dale | rader_alt=10241 rader_butikk=10096 fjernet_rader=145 fjernet_kr=2947846.74 fjernet_pct=62.1
+DRIVSTOFFILTER | 2026-07 | Kelsar Bil AS | 9038 St1 Laguneparken | rader_alt=9456 rader_butikk=9363 fjernet_rader=93 fjernet_kr=2810286.60 fjernet_pct=64.8
+DRIVSTOFFILTER | 2026-07 | Kelsar Bil AS | 9145 St1 Varden | rader_alt=5738 rader_butikk=5645 fjernet_rader=93 fjernet_kr=622982.13 fjernet_pct=43.4
+DRIVSTOFFILTER | 2026-07 | Kelsar Bil AS | 9467 St1 Bones | rader_alt=4939 rader_butikk=4846 fjernet_rader=93 fjernet_kr=1534789.31 fjernet_pct=70.3
+
+DRIVSTOFFGRUNNLAG | 2026-05 | 1000 / ENERGI | rader=577 oms=14262608.48 stasjoner=5 varer=5
+DRIVSTOFFGRUNNLAG | 2026-06 | 1000 / ENERGI | rader=561 oms=13812974.85 stasjoner=5 varer=5
+DRIVSTOFFGRUNNLAG | 2026-07 | 1000 / ENERGI | rader=575 oms=11922074.42 stasjoner=5 varer=5
+
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1201 BOLLER | rader=204 antall=2315.00 varer=9
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1202 HVETEBAKST | rader=147 antall=879.00 varer=5
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1203 WIENERPRODUKTER | rader=98 antall=505.00 varer=5
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1216 BAGUETTER | rader=234 antall=355.00 varer=13
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1217 MATPAKKER | rader=160 antall=257.00 varer=9
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1218 PASMURT | rader=168 antall=756.00 varer=9
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1219 SANDWICH | rader=39 antall=69.00 varer=2
+PRODUKSJON | 2026-05 | 4177 St1 Lone | 1221 SALAT | rader=21 antall=23.00 varer=2
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1201 BOLLER | rader=202 antall=2347.00 varer=7
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1202 HVETEBAKST | rader=148 antall=1340.00 varer=5
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1203 WIENERPRODUKTER | rader=71 antall=323.00 varer=3
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1216 BAGUETTER | rader=257 antall=596.00 varer=12
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1217 MATPAKKER | rader=71 antall=120.00 varer=7
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1218 PASMURT | rader=167 antall=974.00 varer=9
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1219 SANDWICH | rader=82 antall=176.00 varer=4
+PRODUKSJON | 2026-05 | 4185 St1 Dale | 1221 SALAT | rader=43 antall=55.00 varer=4
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1201 BOLLER | rader=163 antall=1714.00 varer=7
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1202 HVETEBAKST | rader=141 antall=982.00 varer=6
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1203 WIENERPRODUKTER | rader=112 antall=645.00 varer=5
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1216 BAGUETTER | rader=204 antall=517.00 varer=11
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1217 MATPAKKER | rader=181 antall=351.00 varer=9
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1218 PASMURT | rader=171 antall=1521.00 varer=7
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1219 SANDWICH | rader=83 antall=134.00 varer=5
+PRODUKSJON | 2026-05 | 9038 St1 Laguneparken | 1221 SALAT | rader=30 antall=45.00 varer=2
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1201 BOLLER | rader=137 antall=1297.00 varer=6
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1202 HVETEBAKST | rader=123 antall=847.00 varer=6
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1203 WIENERPRODUKTER | rader=72 antall=264.00 varer=5
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1216 BAGUETTER | rader=150 antall=201.00 varer=12
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1217 MATPAKKER | rader=90 antall=116.00 varer=10
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1218 PASMURT | rader=118 antall=379.00 varer=6
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1219 SANDWICH | rader=17 antall=25.00 varer=2
+PRODUKSJON | 2026-05 | 9145 St1 Varden | 1221 SALAT | rader=16 antall=18.00 varer=3
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1201 BOLLER | rader=96 antall=825.00 varer=6
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1202 HVETEBAKST | rader=137 antall=819.00 varer=5
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1203 WIENERPRODUKTER | rader=62 antall=346.00 varer=5
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1216 BAGUETTER | rader=95 antall=103.00 varer=10
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1217 MATPAKKER | rader=115 antall=147.00 varer=8
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1218 PASMURT | rader=135 antall=416.00 varer=6
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1219 SANDWICH | rader=18 antall=33.00 varer=1
+PRODUKSJON | 2026-05 | 9467 St1 Bones | 1221 SALAT | rader=8 antall=8.00 varer=2
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1201 BOLLER | rader=204 antall=1747.00 varer=9
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1202 HVETEBAKST | rader=124 antall=809.00 varer=5
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1203 WIENERPRODUKTER | rader=99 antall=524.00 varer=5
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1216 BAGUETTER | rader=230 antall=405.00 varer=15
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1217 MATPAKKER | rader=158 antall=234.00 varer=9
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1218 PASMURT | rader=182 antall=795.00 varer=11
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1219 SANDWICH | rader=33 antall=49.00 varer=2
+PRODUKSJON | 2026-06 | 4177 St1 Lone | 1221 SALAT | rader=31 antall=41.00 varer=2
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1201 BOLLER | rader=198 antall=2294.00 varer=8
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1202 HVETEBAKST | rader=149 antall=1360.00 varer=6
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1203 WIENERPRODUKTER | rader=73 antall=327.00 varer=5
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1216 BAGUETTER | rader=255 antall=661.00 varer=13
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1217 MATPAKKER | rader=83 antall=169.00 varer=9
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1218 PASMURT | rader=178 antall=1113.00 varer=7
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1219 SANDWICH | rader=98 antall=216.00 varer=4
+PRODUKSJON | 2026-06 | 4185 St1 Dale | 1221 SALAT | rader=49 antall=62.00 varer=5
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1201 BOLLER | rader=176 antall=1413.00 varer=8
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1202 HVETEBAKST | rader=129 antall=665.00 varer=5
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1203 WIENERPRODUKTER | rader=86 antall=341.00 varer=5
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1216 BAGUETTER | rader=200 antall=544.00 varer=11
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1217 MATPAKKER | rader=179 antall=405.00 varer=9
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1218 PASMURT | rader=140 antall=1691.00 varer=7
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1219 SANDWICH | rader=63 antall=106.00 varer=6
+PRODUKSJON | 2026-06 | 9038 St1 Laguneparken | 1221 SALAT | rader=32 antall=45.00 varer=5
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1201 BOLLER | rader=128 antall=806.00 varer=7
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1202 HVETEBAKST | rader=104 antall=475.00 varer=7
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1203 WIENERPRODUKTER | rader=57 antall=165.00 varer=5
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1216 BAGUETTER | rader=117 antall=156.00 varer=12
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1217 MATPAKKER | rader=102 antall=125.00 varer=8
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1218 PASMURT | rader=107 antall=394.00 varer=6
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1219 SANDWICH | rader=21 antall=32.00 varer=2
+PRODUKSJON | 2026-06 | 9145 St1 Varden | 1221 SALAT | rader=15 antall=17.00 varer=2
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1201 BOLLER | rader=104 antall=562.00 varer=7
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1202 HVETEBAKST | rader=111 antall=562.00 varer=5
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1203 WIENERPRODUKTER | rader=50 antall=176.00 varer=4
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1216 BAGUETTER | rader=91 antall=103.00 varer=10
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1217 MATPAKKER | rader=107 antall=127.00 varer=8
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1218 PASMURT | rader=123 antall=518.00 varer=6
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1219 SANDWICH | rader=23 antall=40.00 varer=1
+PRODUKSJON | 2026-06 | 9467 St1 Bones | 1221 SALAT | rader=5 antall=5.00 varer=2
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1201 BOLLER | rader=225 antall=1897.00 varer=9
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1202 HVETEBAKST | rader=138 antall=837.00 varer=5
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1203 WIENERPRODUKTER | rader=124 antall=707.00 varer=5
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1216 BAGUETTER | rader=220 antall=380.00 varer=15
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1217 MATPAKKER | rader=150 antall=247.00 varer=9
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1218 PASMURT | rader=211 antall=1074.00 varer=13
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1219 SANDWICH | rader=34 antall=55.00 varer=2
+PRODUKSJON | 2026-07 | 4177 St1 Lone | 1221 SALAT | rader=41 antall=50.00 varer=4
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1201 BOLLER | rader=220 antall=2808.00 varer=8
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1202 HVETEBAKST | rader=158 antall=1555.00 varer=6
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1203 WIENERPRODUKTER | rader=70 antall=300.00 varer=5
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1216 BAGUETTER | rader=243 antall=671.00 varer=13
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1217 MATPAKKER | rader=115 antall=170.00 varer=9
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1218 PASMURT | rader=185 antall=1306.00 varer=7
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1219 SANDWICH | rader=99 antall=294.00 varer=4
+PRODUKSJON | 2026-07 | 4185 St1 Dale | 1221 SALAT | rader=24 antall=32.00 varer=4
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1201 BOLLER | rader=187 antall=1310.00 varer=8
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1202 HVETEBAKST | rader=138 antall=661.00 varer=5
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1203 WIENERPRODUKTER | rader=70 antall=170.00 varer=4
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1216 BAGUETTER | rader=197 antall=485.00 varer=10
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1217 MATPAKKER | rader=197 antall=341.00 varer=9
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1218 PASMURT | rader=157 antall=1591.00 varer=9
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1219 SANDWICH | rader=51 antall=82.00 varer=4
+PRODUKSJON | 2026-07 | 9038 St1 Laguneparken | 1221 SALAT | rader=31 antall=39.00 varer=4
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1201 BOLLER | rader=114 antall=605.00 varer=7
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1202 HVETEBAKST | rader=94 antall=415.00 varer=5
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1203 WIENERPRODUKTER | rader=57 antall=161.00 varer=4
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1216 BAGUETTER | rader=111 antall=134.00 varer=8
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1217 MATPAKKER | rader=83 antall=90.00 varer=7
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1218 PASMURT | rader=104 antall=297.00 varer=6
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1219 SANDWICH | rader=18 antall=27.00 varer=2
+PRODUKSJON | 2026-07 | 9145 St1 Varden | 1221 SALAT | rader=13 antall=18.00 varer=2
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1201 BOLLER | rader=109 antall=547.00 varer=7
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1202 HVETEBAKST | rader=99 antall=441.00 varer=5
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1203 WIENERPRODUKTER | rader=32 antall=142.00 varer=3
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1216 BAGUETTER | rader=75 antall=80.00 varer=10
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1217 MATPAKKER | rader=87 antall=100.00 varer=8
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1218 PASMURT | rader=125 antall=394.00 varer=6
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1219 SANDWICH | rader=15 antall=31.00 varer=1
+PRODUKSJON | 2026-07 | 9467 St1 Bones | 1221 SALAT | rader=11 antall=11.00 varer=2
+
+VERN | v_butikksalg | security_invoker | true
+VERN | v_butikksalg | grants | authenticated=INSERT, authenticated=SELECT, authenticated=UPDATE, authenticated=DELETE, authenticated=TRUNCATE, authenticated=REFERENCES, authenticated=TRIGGER, service_role=INSERT, service_role=SELECT, service_role=UPDATE, service_role=DELETE, service_role=TRUNCATE, service_role=REFERENCES, service_role=TRIGGER
+VERN | daglig_salg | rls aktivert | true
+VERN | daglig_salg | partisjoner uten rls | ingen - alle partisjoner har rls
+VERN | daglig_salg | partisjoner med anon-grant | ingen - anon er utestengt
+
+SONDE | avdelinger som ligner drivstoff, men IKKE filtreres | ingen - filteret ser komplett ut
+SONDE | alle avdelinger i v_butikksalg mai-juli | 120/MAT, 130/VARM DRIKKE, 140/KALD DRIKKE, 160/KIOSKVARER, 170/BUTIKK, 180/TOBAKK, 190/FRITIDSARTIKLER, 200/BIL, 210/BILVASK, 240/DRIFT, 999/SYSTEM
+
+KANARIFUGL | 1. filteret fjerner noe i mai-juli | JA - 39997657.76 kr filtrert bort. Baselinen maaler noe.
+KANARIFUGL | 2. februarkontrollen er null | JA - som ventet. Foer april fantes ikke drivstoff.
+KANARIFUGL | 3. intervallene har data | JA - 20 stasjon-intervaller med rader
+KANARIFUGL | 4. produksjonskodene finnes i data | JA - 13432 rader paa de aatte kodene
+
+OMFANG | datospenn i daglig_salg | 2025-05-01 .. 2026-08-27
+OMFANG | stasjoner med salg i mai-juli | Kelsar Bil AS / 4177 St1 Lone, Kelsar Bil AS / 4185 St1 Dale, Kelsar Bil AS / 9038 St1 Laguneparken, Kelsar Bil AS / 9145 St1 Varden, Kelsar Bil AS / 9467 St1 Bones
+OMFANG | foerste dato med drivstoff | 2025-05-01
+
+
+=====================================================================
+TRE FUNN FRA DENNE KJOERINGEN - LES FOER MAPPINGEN BYGGES
+=====================================================================
+
+1. AVDELINGSKODEN FOR DRIVSTOFF ER 1000, IKKE 10.
+
+   Ingen rad har kode '10'. Filteret i v_butikksalg lyder
+     avdeling_kode <> '10' AND upper(avdeling_navn) <> 'ENERGI'
+   og det er NAVNESJEKKEN ALENE som gjoer jobben. Kodearmen er doed.
+
+   Det samme gjelder '250' (pant) og '40' (CR-rollup): de finnes ikke.
+   Alle avdelinger i data er tresifrede - 120..999 - pluss 1000.
+
+   AGENTS.md sier "avdeling ENERGI, kode 10". Koden i dokumentet er feil.
+
+2. BEREGN_VAERPROFIL OG BEREGN_KATEGORI_VAERPROFIL TAR MED DRIVSTOFF.
+
+   Begge leser public.daglig_salg direkte (0068:27, 0070:37 og :46) og
+   filtrerer KUN paa avdeling_kode not in ('10','250'[,'40']). Ingen av
+   dem nevner ENERGI - de er de eneste to migrasjonene utenom 0084/0085
+   som filtrerer drivstoff, og de eneste to uten navnesjekk.
+
+   Siden koden er 1000, treffer filteret ingenting.
+
+   beregn_vaerprofil summerer omsetning per stasjon per dag over ALLE
+   avdelinger og skriver stasjoner.vaerfolsomhet_laert. Med drivstoff paa
+   43-84 % av omsetningen er den laerte vaerfoelsomheten i praksis maalt
+   paa drivstoff, ikke paa butikken.
+
+   vaerfolsomhet_laert leses av produksjonsplan/page.tsx,
+   salgsprognose/page.tsx, stasjoner/page.tsx og lib/backtest.ts.
+
+   IKKE RETTET. Rettes den, endres Kelsars produksjonsplan - og da er
+   "Kelsar foer = Kelsar etter" ikke lenger riktig krav for den delen.
+   Maa avklares som egen beslutning foer mappingen.
+
+3. KANARIFUGL 2 GA RIKTIG MAALING MED GAL FORKLARING.
+
+   Februar 2026 filtrerer 0 kr - det stemmer. Men teksten sier "foer
+   april fantes ikke drivstoff", og OMFANG viser at foerste drivstoffdato
+   er 2025-05-01, som ogsaa er foerste dato i hele datasettet.
+
+   Drivstoff finnes altsaa i mai 2025 OG i mai-juli 2026, men ikke i
+   februar 2026. Dekningen har hull. Sannsynlig forklaring: 2025 ble
+   reimportert etter at drivstoff begynte aa komme med i rapportene.
+
+   Teksten i SQL-fila er IKKE endret, slik at en ny kjoering fortsatt kan
+   sammenlignes tegn for tegn med denne fasiten. Rettes den, maa begge
+   kjoeringer bruke samme filversjon.
+
+   Konsekvens for aar-mot-aar: i v_butikksalg er begge aar rene, fordi
+   navnesjekken virker. I alt som leser daglig_salg direkte - se funn 2 -
+   er 2025 med drivstoff og tidlig 2026 uten.
