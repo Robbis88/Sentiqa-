@@ -207,9 +207,14 @@ export function PlanTabell({
             </span>
             <span className="undertittel">Forslaget treffer forventet salg. Dette er påslaget du velger.</span>
           </label>
+          {/* IKKE EN <Status>. Sida har én status — om planen er
+              publisert — og den er det e2e-testen peker på. Dette er en
+              forklaring til en knapp, ikke et signal om tilstand. Bruker
+              man signalprimitivet til bildetekster, slutter det å bety
+              noe. */}
           <div className="pp-regel-handling">
             <Knapp onClick={brukPaaPlanen}>Bruk på hele planen</Knapp>
-            <Status nivaa="normal">Endrer dagens tall nå</Status>
+            <span className="undertittel">Endrer dagens tall nå</span>
           </div>
         </div>
       </section>
