@@ -1249,7 +1249,15 @@ function genererRessurs(r: Ressurs): string {
             // Den faste raden skal tilbake MED SIN EGEN ID: hver senere
             // paastand peker paa den. En ny uuid her ville gjort resten
             // av gruppa til "ser ikke" - uten at noen policy var roert.
-            linjer.push(idKol(r) === 'id'
+            // `&& !r.id_kolonner` STO IKKE HER, og begge seedingsgrenene
+            // har den. Ingen `en_rad_per_stasjon`-ressurs hadde sammensatt
+            // noekkel, saa avviket fyrte aldri - `en_rad_per_retailer` var
+            // det foerste tilfellet, og produksjonskjoeringen svarte
+            // «column "id" of relation ... does not exist».
+            //
+            // Samme familie som `id_kolonne`: en antakelse om skjemaets
+            // FORM, ikke om autorisasjon, og derfor stille til den smeller.
+            linjer.push(idKol(r) === 'id' && !r.id_kolonner
               ? `insert into public.${r.tabell} (id, ${gjen.kolonner.join(', ')}) values (${sitat(fastVerdi(r, s))}, ${gjen.verdier.join(', ')});`
               : `insert into public.${r.tabell} (${gjen.kolonner.join(', ')}) values (${gjen.verdier.join(', ')});`)
             linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)

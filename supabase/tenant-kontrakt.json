@@ -1758,7 +1758,11 @@
         "retailer_id"
       ],
       "oppdaterbart": "gjelder = false",
-      "en_rad_per_retailer": true
+      "en_rad_per_retailer": true,
+      "id_kolonner": [
+        "retailer_id",
+        "rolle"
+      ]
     },
     {
       "tabell": "retailer_koderegel",
