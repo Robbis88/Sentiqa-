@@ -43,6 +43,30 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
                   <div className="pp-tab-bar"><span style={{ width: `${pst}%` }} /></div>
                   <div className="pp-tab-bunn">
                     {p.start_antall > 0 && <span className="pp-tab-start">{t('Klart til morgen')}: {p.start_antall}</span>}
+                    {/* ETT TRYKK FOR DET SOM SKJEDDE I EN BEVEGELSE. Ni boller
+                        var ni trykk paa pluss. De to knappene daekker de to
+                        vanlige tilfellene; stepperen blir staaende, fordi den
+                        er den eneste veien NED igjen — og en flate uten anger
+                        er en flate folk ikke toer trykke i. */}
+                    {p.start_antall > 0 && x < p.start_antall && (
+                      <button
+                        type="button"
+                        className="pp-tab-kvitt"
+                        onClick={() => endre(p, p.start_antall)}
+                      >
+                        {t('Startpartiet er lagd')}
+                      </button>
+                    )}
+                    {p.planlagt > 0 && (
+                      <button
+                        type="button"
+                        className="pp-tab-kvitt alt"
+                        disabled={ferdig}
+                        onClick={() => endre(p, p.planlagt)}
+                      >
+                        {t('Alt er lagd')}
+                      </button>
+                    )}
                     <div className="stepper">
                       <button type="button" onClick={() => endre(p, x - 1)} aria-label="−">−</button>
                       <input inputMode="numeric" value={x} onChange={(e) => endre(p, Number(e.target.value.replace(/\D/g, '')))} aria-label={`${t('Lagd')} ${p.varenavn}`} />
