@@ -165,6 +165,20 @@ jobs:
       - name: Funksjonene finnes
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/funksjoner_finnes.sql
 
+      # KOMMER EN HELT NY KUNDE I GANG?
+      #
+      # Atferdsmatrisen beviser at de eksisterende kjedene naar det de
+      # skal - men fikstureverdenen dens har ALLTID stasjoner fra foer.
+      # En ny konto har ingenting: `mine_stasjoner()` er tom, og hver
+      # policy som hviler paa den avviser alt. Foerste steg maa virke
+      # uten den, ellers staar en ny kunde fast paa ledd null.
+      #
+      # Ni migrasjoner paa to dager (0140-0150) strammet policyer og tok
+      # bort tilgang. Denne gaar veien fra tom konto til foerste
+      # maalekort, som den nye brukeren, og ruller tilbake.
+      - name: Onboardingen virker
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/onboarding_gjennomgang.sql
+
       # KANARIFUGLEN FOR DEKNINGEN. Tre kall, og alle tre betyr noe:
       # groenn, saa ROED paa en uklassifisert tabell, saa groenn igjen.
       # Uten det siste ville en sjekk som ALLTID feiler ogsaa bestaatt.
