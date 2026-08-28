@@ -433,12 +433,17 @@
    modul, og den er like viktig som de fire andre». En rad i en liste
    sier «dette er neste sted» — og den kan bære en forklaring, som en
    flis på fire ganger fire centimeter ikke kan. */
+/* Margin-top av samme grunn som paa `.stempling-rad` under: paa
+   /vaar-stasjon staar denne raden rett under `MalekortTablet`, som er en
+   `.tablet-seksjon`. I stablene inne i `.tablet-fot` er den et nullsteg —
+   marginene kollapser mot naboens margin-bottom. */
 .tablet-videre {
   display: flex;
   align-items: center;
   gap: var(--luft-4);
   min-height: 4.5rem;
   padding: var(--luft-4);
+  margin-top: var(--luft-3);
   margin-bottom: var(--luft-3);
   border-radius: var(--radius-stor);
   background: var(--natt-flate);
@@ -472,12 +477,20 @@
    fordi det er timene hennes. Grønn kantstripe når hun står inne: samme
    grammatikk som køens røde stripe for kritisk. En stripe peker, en
    farget flate roper. */
+
+/* MARGIN-TOP OG MARGIN-BOTTOM, fordi naboene over og under bruker hver
+   sin konvensjon. `.tablet-seksjon` skiller seg fra det som staar FOER
+   den (margin-top), mens radene her skiller seg fra det som staar ETTER
+   (margin-bottom). Der en seksjon etterfoelges av en rad, gir det
+   max(0, 0) = null luft — og «Meldinger fra butikksjef» klistret seg
+   inntil stemplingsraden paa nettbrettets hjem. */
 .stempling-rad {
   display: flex;
   align-items: center;
   gap: var(--luft-4);
   min-height: 4.5rem;
   padding: var(--luft-4);
+  margin-top: var(--luft-3);
   margin-bottom: var(--luft-3);
   border-radius: var(--radius-stor);
   background: var(--natt-flate);
