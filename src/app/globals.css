@@ -1091,8 +1091,32 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-tab-tall { font-weight: 800; color: var(--natt-tekst); font-size: 1.1rem; white-space: nowrap; }
 .pp-tab-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 999px; margin: 0.5rem 0; overflow: hidden; }
 .pp-tab-bar > span { display: block; height: 100%; background: var(--gronn); border-radius: 999px; transition: width 0.2s; }
-.pp-tab-bunn { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.pp-tab-start { font-size: 0.85rem; color: var(--natt-tekst-svakere); }
+.pp-tab-bunn { display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+/* Skyver alt annet mot hoyre. Var `space-between` paa forelderen, men den
+   spredte de fire barna nar starttallet manglet — og da sto knappene til
+   venstre paa noen rader og til hoyre paa andre. */
+.pp-tab-start { font-size: 0.85rem; color: var(--natt-tekst-svakere); margin-right: auto; }
+
+/* «Startpartiet er lagd» og «Alt er lagd». Samme hoyde som steppertastene:
+   dette er en finger paa et nettbrett i et butikklokale, ikke en mus. */
+.pp-tab-kvitt {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  min-height: 2.9rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--natt-flate-hak);
+  color: var(--natt-blaa);
+  border: 1px solid var(--natt-kant-sterk);
+}
+.pp-tab-kvitt.alt {
+  background: var(--natt-flate-ferdig);
+  color: var(--natt-gronn);
+}
+.pp-tab-kvitt:active { background: var(--natt-flate-lys); }
+.pp-tab-kvitt:disabled { opacity: 0.32; cursor: default; }
 
 /* Produksjonsplan-kort på tablet-hjem */
 .pp-hjem { display: block; text-decoration: none; color: inherit; }

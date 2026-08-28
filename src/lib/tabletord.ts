@@ -28,7 +28,7 @@ export const TABLET_ORD: string[] = [
   'Merker', 'Det teamet har fått til',
   // Produksjonsplan (tablet)
   'Klart til morgen', 'Lagd', 'Produksjonsplan', 'produkter', 'lagd',
-  'Produksjon', 'Dagens plan',
+  'Produksjon', 'Dagens plan', 'Startpartiet er lagd', 'Alt er lagd',
   // Vekst
   'Vekst mot i fjor', 'Mat og drikke', 'Mat', 'Kald drikke', 'I dag', 'Måneden hittil',
   'på rad over fjoråret!', 'dag', 'dager', 'mot i fjor',
