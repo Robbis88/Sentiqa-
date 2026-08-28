@@ -1450,7 +1450,7 @@
         "varegruppe_kode"
       ],
       "proberad": {
-        "varegruppe_kode": "{{unik}}"
+        "varegruppe_kode": "'{{unik}}'"
       },
       "$oppdaterbart_hvorfor": "varegruppe_kode inngaar i business_unik, saa den kan ikke roeres. start_prosent er fri og innenfor check-en 0..99.",
       "oppdaterbart": "start_prosent = 42"

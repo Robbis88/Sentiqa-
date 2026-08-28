@@ -814,3 +814,77 @@ describe('genererte filer', () => {
     }
   })
 })
+
+// =====================================================================
+// `{{unik}}` ER TEKST, OG TEKST TRENGER HERMETEGN.
+//
+// `stasjon_produksjon_innstilling` fikk `"varegruppe_kode": "{{unik}}"`
+// i kontrakten. Plassholderen blir «fastA1», så hermetegnene hører til i
+// kontraktverdien: `"'{{unik}}'"`. Uten dem ble det generert
+//
+//   insert ... values (..., fastA1)
+//
+// og Postgres leste `fastA1` som en kolonne: «column "fasta1" does not
+// exist». Fila stoppet på linje 1461 av 6800, så INGEN av påstandene
+// etter den kjørte — og et rødt kryss på «Tenant-atferdsmatrise» ser
+// likt ut enten én fixture er feilskrevet eller hele matrisen er brutt.
+//
+// FULL CI VAR FØRSTE DETEKTOR, og det er nettopp det AGENTS.md sier at
+// en generatorantakelse ikke skal ha: fire minutter per symptom, ett
+// symptom per kjøring.
+//
+// TESTEN PRØVER REGELEN, IKKE SYMPTOMET. Å lete etter nakne
+// identifikatorer i den genererte SQL-en gir støy — plpgsql-variabler
+// (`v_ansatt`) og nøkkelord (`current_date`) står lovlig uten hermetegn.
+// Regelen som faktisk gjelder er enklere: de andre plassholderne blir
+// siterte uuid-er (`{{retailer}}`) eller siffer (`{{unik_nr}}`).
+// `{{unik}}` er den ene som blir bokstaver, og den må siteres av den som
+// skriver kontrakten.
+// =====================================================================
+describe('{{unik}} siteres i kontrakten', () => {
+  /** Alle strengverdier i en ressurs som ender i generert SQL. */
+  function sqlVerdier(r: (typeof kontrakt.ressurser)[number]): [string, string][] {
+    const ut: [string, string][] = []
+    for (const [k, v] of Object.entries(r.proberad ?? {})) {
+      if (!k.startsWith('$') && typeof v === 'string') ut.push([`proberad.${k}`, v])
+    }
+    for (const [i, linje] of (r.seed_ekstra ?? []).entries()) {
+      ut.push([`seed_ekstra[${i}]`, linje])
+    }
+    if (typeof r.oppdaterbart === 'string') ut.push(['oppdaterbart', r.oppdaterbart])
+    return ut
+  }
+
+  it('ingen naken {{unik}} i noen ressurs', () => {
+    const funn: string[] = []
+    for (const r of kontrakt.ressurser) {
+      for (const [hvor, verdi] of sqlVerdier(r)) {
+        // Naken = plassholderen staar uten et hermetegn foran seg noe sted
+        // i verdien. `'Sonde {{unik}}'` og `'{{unik}}'` er begge greie.
+        if (verdi.includes('{{unik}}') && !verdi.includes("'")) {
+          funn.push(`${r.tabell}.${hvor} = ${verdi}`)
+        }
+      }
+    }
+    expect(funn,
+      '{{unik}} blir tekst («fastA1»), og uten hermetegn leser Postgres '
+      + 'den som et kolonnenavn. Hele matrisen stopper paa den linja. '
+      + 'Skriv "\'{{unik}}\'" i kontrakten, ikke "{{unik}}".',
+    ).toEqual([])
+  })
+
+  // KANARIFUGL. Uten den ville testen vaert groenn ogsaa hvis ingen
+  // ressurs brukte {{unik}} i det hele tatt - og «ingen funn» ser
+  // noeyaktig likt ut enten regelen holder eller ingen utloeser den.
+  it('KANARIFUGL: regelen har noe aa maale, og den ville tatt feilen', () => {
+    const med = kontrakt.ressurser.filter((r) =>
+      sqlVerdier(r).some(([, v]) => v.includes('{{unik}}')))
+    expect(med.length, 'ingen ressurs bruker {{unik}} - da maaler testen ingenting')
+      .toBeGreaterThan(5)
+
+    const naken = (v: string) => v.includes('{{unik}}') && !v.includes("'")
+    expect(naken('{{unik}}'), 'ville ikke tatt den ekte feilen').toBe(true)
+    expect(naken("'{{unik}}'")).toBe(false)
+    expect(naken("'Sonde {{unik}}'")).toBe(false)
+  })
+})

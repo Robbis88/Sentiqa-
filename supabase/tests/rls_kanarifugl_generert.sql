@@ -1458,11 +1458,11 @@ begin
   return ny;
 end $fn$;
 -- --- stasjon_produksjon_innstilling: forutsetninger og proberader ---
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', fastA1);
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce45-0000-4000-8000-0000409fce45', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', fastA2);
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce46-0000-4000-8000-0000409fce46', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', fastA3);
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce63-0000-4000-8000-0000409fce63', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', fastB1);
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce64-0000-4000-8000-0000409fce64', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', fastB2);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'fastA1');
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce45-0000-4000-8000-0000409fce45', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'fastA2');
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce46-0000-4000-8000-0000409fce46', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'fastA3');
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce63-0000-4000-8000-0000409fce63', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'fastB1');
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce64-0000-4000-8000-0000409fce64', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'fastB2');
 
 create or replace function pg_temp.nyrad_stasjon_produksjon_innstilling(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
@@ -1470,7 +1470,7 @@ declare
   ny uuid;
 begin
   insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode)
-  values (p_retailer, p_stasjon, ' || p_merke || '-' || nextval('tenant_teller'::regclass) || ')
+  values (p_retailer, p_stasjon, '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '')
   returning id into ny;
   return ny;
 end $fn$;
@@ -12802,10 +12802,10 @@ select pg_temp.paastand('stasjon_produksjon_innstilling owner_A SELECT A1 -> ser
 select pg_temp.paastand('stasjon_produksjon_innstilling owner_A SELECT A2 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce45-0000-4000-8000-0000409fce45'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling owner_A SELECT A3 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce46-0000-4000-8000-0000409fce46'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'negativ');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', owner_AA1)');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', owner_AA2)');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', owner_AA3)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling owner_A INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', owner_AB1)');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''owner_AA1'')');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''owner_AA2'')');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''owner_AA3'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling owner_A INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''owner_AB1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -12827,21 +12827,21 @@ select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A DELETE A1', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce44-0000-4000-8000-0000409fce44''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', gjenowner_AA1);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'gjenowner_AA1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A DELETE A2', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce45-0000-4000-8000-0000409fce45''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce45-0000-4000-8000-0000409fce45', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', gjenowner_AA2);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce45-0000-4000-8000-0000409fce45', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'gjenowner_AA2');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_A DELETE A3', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce46-0000-4000-8000-0000409fce46''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce46-0000-4000-8000-0000409fce46', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', gjenowner_AA3);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce46-0000-4000-8000-0000409fce46', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'gjenowner_AA3');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
@@ -12854,10 +12854,10 @@ select pg_temp.paastand('stasjon_produksjon_innstilling manager_A1 SELECT A1 -> 
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce45-0000-4000-8000-0000409fce45'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce46-0000-4000-8000-0000409fce46'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'negativ');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', manager_A1A1)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A1 INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', manager_A1A2)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A1 INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', manager_A1A3)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', manager_A1B1)');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''manager_A1A1'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A1 INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''manager_A1A2'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A1 INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''manager_A1A3'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''manager_A1B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
@@ -12879,7 +12879,7 @@ select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A1 DELETE A1', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce44-0000-4000-8000-0000409fce44''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', gjenmanager_A1A1);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'gjenmanager_A1A1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A1-delete') as _;
@@ -12901,10 +12901,10 @@ select pg_temp.paastand('stasjon_produksjon_innstilling manager_A12 SELECT A1 ->
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_A12 SELECT A2 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce45-0000-4000-8000-0000409fce45'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce46-0000-4000-8000-0000409fce46'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'negativ');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A12 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', manager_A12A1)');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A12 INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', manager_A12A2)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A12 INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', manager_A12A3)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A12 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', manager_A12B1)');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A12 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''manager_A12A1'')');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A12 INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''manager_A12A2'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A12 INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''manager_A12A3'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_A12 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''manager_A12B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -12926,14 +12926,14 @@ select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A12 DELETE A1', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce44-0000-4000-8000-0000409fce44''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', gjenmanager_A12A1);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce44-0000-4000-8000-0000409fce44', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'gjenmanager_A12A1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'manager_A12-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_A12 DELETE A2', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce45-0000-4000-8000-0000409fce45''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce45-0000-4000-8000-0000409fce45', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', gjenmanager_A12A2);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce45-0000-4000-8000-0000409fce45', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'gjenmanager_A12A2');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'manager_A12-delete') as _;
@@ -12951,10 +12951,10 @@ select pg_temp.paastand('stasjon_produksjon_innstilling tablet_A1 SELECT A1 -> s
 select pg_temp.paastand('stasjon_produksjon_innstilling tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce45-0000-4000-8000-0000409fce45'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce46-0000-4000-8000-0000409fce46'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'negativ');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', tablet_A1A1)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', tablet_A1A2)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', tablet_A1A3)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', tablet_A1B1)');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''tablet_A1A1'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT A2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000002'', ''tablet_A1A2'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT A3', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000003'', ''tablet_A1A3'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_A1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''tablet_A1B1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
@@ -12992,9 +12992,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_
 select pg_temp.paastand('stasjon_produksjon_innstilling owner_B SELECT B1 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling owner_B SELECT B2 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce64-0000-4000-8000-0000409fce64'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce44-0000-4000-8000-0000409fce44'), 'negativ');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_B INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', owner_BB1)');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_B INSERT B2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', owner_BB2)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling owner_B INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', owner_BA1)');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_B INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''owner_BB1'')');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_B INSERT B2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''owner_BB2'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling owner_B INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''owner_BA1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -13012,14 +13012,14 @@ select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_B DELETE B1', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce63-0000-4000-8000-0000409fce63''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce63-0000-4000-8000-0000409fce63', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', gjenowner_BB1);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce63-0000-4000-8000-0000409fce63', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'gjenowner_BB1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling owner_B DELETE B2', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce64-0000-4000-8000-0000409fce64''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce64-0000-4000-8000-0000409fce64', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', gjenowner_BB2);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce64-0000-4000-8000-0000409fce64', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'gjenowner_BB2');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
@@ -13031,9 +13031,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manage
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_B1 SELECT B1 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce64-0000-4000-8000-0000409fce64'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce44-0000-4000-8000-0000409fce44'), 'negativ');
-select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_B1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', manager_B1B1)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_B1 INSERT B2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', manager_B1B2)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_B1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', manager_B1A1)');
+select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_B1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''manager_B1B1'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_B1 INSERT B2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''manager_B1B2'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling manager_B1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''manager_B1A1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
@@ -13051,7 +13051,7 @@ select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.skriv_tillatt('stasjon_produksjon_innstilling manager_B1 DELETE B1', 'delete from public.stasjon_produksjon_innstilling where id = ''409fce63-0000-4000-8000-0000409fce63''');
 select pg_temp.som_eier();
-insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce63-0000-4000-8000-0000409fce63', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', gjenmanager_B1B1);
+insert into public.stasjon_produksjon_innstilling (id, retailer_id, stasjon_id, varegruppe_kode) values ('409fce63-0000-4000-8000-0000409fce63', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'gjenmanager_B1B1');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'manager_B1-delete') as _;
@@ -13068,9 +13068,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet
 select pg_temp.paastand('stasjon_produksjon_innstilling tablet_B1 SELECT B1 -> ser', exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce63-0000-4000-8000-0000409fce63'), 'positiv');
 select pg_temp.paastand('stasjon_produksjon_innstilling tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce64-0000-4000-8000-0000409fce64'), 'negativ');
 select pg_temp.paastand('stasjon_produksjon_innstilling tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.stasjon_produksjon_innstilling where id = '409fce44-0000-4000-8000-0000409fce44'), 'negativ');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_B1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', tablet_B1B1)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_B1 INSERT B2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', tablet_B1B2)');
-select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_B1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', tablet_B1A1)');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_B1 INSERT B1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000001'', ''tablet_B1B1'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_B1 INSERT B2', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''bbbb0000-0000-4000-8000-000000000000'', ''b1110000-0000-4000-8000-000000000002'', ''tablet_B1B2'')');
+select pg_temp.skriv_avvist('stasjon_produksjon_innstilling tablet_B1 INSERT A1', 'insert into public.stasjon_produksjon_innstilling (retailer_id, stasjon_id, varegruppe_kode) values (''aaaa0000-0000-4000-8000-000000000000'', ''a1110000-0000-4000-8000-000000000001'', ''tablet_B1A1'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_stasjon_produksjon_innstilling('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
