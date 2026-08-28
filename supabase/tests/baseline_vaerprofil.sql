@@ -211,7 +211,61 @@ ut_treff as (
   group by st.kjede, st.navn, t.type
 ),
 
--- ---- 6. Kanarifugl -------------------------------------------------
+-- ---- 6. Kategoriprofilen: stemte paastanden? ------------------------
+-- `beregn_kategori_vaerprofil` gjoer `delete` foer `insert`, saa den
+-- gamle tilstanden er borte naar 0151 er kjoert. Paastanden om at
+-- koeffisientene per kode er UENDRET var derfor et strukturelt argument
+-- fra aa lese SQL-en, ikke en maaling.
+--
+-- Beregningen er deterministisk fra data, saa den gamle varianten kan
+-- regnes om igjen og sammenlignes mot det som faktisk staar lagret.
+-- Foerst da er paastanden bevist.
+kat_gammel_base as (
+  select ds.stasjon_id, ds.varegruppe_kode as kode, ds.dato,
+         extract(dow from ds.dato)::int as ukedag, sum(ds.antall) as val
+  from public.daglig_salg ds, vindu
+  where ds.slettet_tid is null and ds.varegruppe_kode is not null
+    and ds.dato >= vindu.fra
+  group by ds.stasjon_id, ds.varegruppe_kode, ds.dato
+),
+kat_gammel_wd as (
+  select stasjon_id, kode, ukedag, avg(val) as m
+  from kat_gammel_base group by stasjon_id, kode, ukedag
+),
+kat_gammel_res as (
+  select b.stasjon_id, b.kode, b.dato, b.val - w.m as resid
+  from kat_gammel_base b
+  join kat_gammel_wd w on w.stasjon_id = b.stasjon_id and w.kode = b.kode
+                      and w.ukedag = b.ukedag
+),
+kat_gammel as (
+  select r.stasjon_id, r.kode,
+         corr(r.resid, v.temp_maks)::numeric as temp_korr,
+         corr(r.resid, v.nedbor_mm)::numeric as nedbor_korr,
+         count(*) as n
+  from kat_gammel_res r
+  join public.vaer v on v.stasjon_id = r.stasjon_id and v.dato = r.dato
+                    and v.temp_maks is not null
+  group by r.stasjon_id, r.kode
+),
+ut_kategori as (
+  select 'KATEGORI: GAMMEL MOT LAGRET'::text, (st.kjede || ' | ' || st.navn)::text,
+         ('koder=' || count(*)
+           || ' maks_diff_temp=' || coalesce(round(max(abs(k.temp_korr - g.temp_korr)), 6)::text, '(null)')
+           || ' maks_diff_nedbor=' || coalesce(round(max(abs(k.nedbor_korr - g.nedbor_korr)), 6)::text, '(null)')
+           || ' avvikende=' || count(*) filter (
+                where abs(k.temp_korr - g.temp_korr) > 0.000001
+                   or abs(k.nedbor_korr - g.nedbor_korr) > 0.000001))::text,
+         6::int, st.navn::text
+  from public.kategori_vaerprofil k
+  join kat_gammel g on g.stasjon_id = k.stasjon_id and g.kode = k.kode
+  join stasjon st on st.id = k.stasjon_id
+  where k.niva = 'varegruppe'
+    and k.kode in ('1201','1202','1203','1216','1217','1218','1219','1221')
+  group by st.kjede, st.navn
+),
+
+-- ---- 7. Kanarifugl -------------------------------------------------
 ut_kanari as (
   select 'KANARIFUGL'::text, '1. fixen endrer faktisk noe'::text,
          (case when count(*) filter (
@@ -221,7 +275,7 @@ ut_kanari as (
                  || ' av ' || count(*) || ' stasjoner faar ny folsomhet.'
                else 'NEI - INGEN ENDRING. Da maaler denne fila ingenting, '
                  || 'og premisset om at drivstoff paavirker profilen er galt.' end)::text,
-         6::int, 'a'::text
+         7::int, 'a'::text
   from folsomhet f1
   join folsomhet f2 on f2.stasjon_id = f1.stasjon_id and f2.variant = 'ny'
   where f1.variant = 'naa'
@@ -231,7 +285,7 @@ ut_kanari as (
                then 'JA - ' || round(100 * sum(coalesce(a.drivstoff,0)) / nullif(sum(a.total),0), 1)
                  || ' % av omsetningen i vinduet er drivstoff.'
                else 'NEI - INGEN DRIVSTOFF I VINDUET. Da er det ingen bug aa rette her.' end)::text,
-         6::int, 'b'::text
+         7::int, 'b'::text
   from andel a
   union all
   select 'KANARIFUGL'::text, '3. nok historikk til aa oppdatere'::text,
@@ -239,7 +293,7 @@ ut_kanari as (
                then 'JA - ' || count(*) filter (where f2.n >= 30)
                  || ' stasjoner har n>=30 og vil bli oppdatert.'
                else 'NEI - INGEN stasjon naar n>=30. Fixen ville ikke skrevet noe.' end)::text,
-         6::int, 'c'::text
+         7::int, 'c'::text
   from folsomhet f2 where f2.variant = 'ny'
 )
 
@@ -249,6 +303,7 @@ select seksjon, noekkel, verdi from (
   union all select * from ut_andel
   union all select * from ut_simulert
   union all select * from ut_treff
+  union all select * from ut_kategori
   union all select * from ut_kanari
 ) x
 order by sort, s2, noekkel;
