@@ -114,17 +114,21 @@ andel as (
   group by ds.stasjon_id
 ),
 
+-- `corr()` gir double precision, og `round(double precision, int)`
+-- finnes ikke i Postgres - bare `round(numeric, int)`. Castes her, saa
+-- alt nedstroems slipper aa tenke paa det.
 folsomhet as (
-  select k.stasjon_id, k.temp_korr, k.nedbor_korr, k.n,
+  select k.stasjon_id, k.temp_korr::numeric as temp_korr,
+         k.nedbor_korr::numeric as nedbor_korr, k.n,
          least(1.0, greatest(0.1,
            greatest(abs(coalesce(k.temp_korr,0)), abs(coalesce(k.nedbor_korr,0))) * 2.0
-         )) as folsomhet, 'naa'::text as variant
+         ))::numeric as folsomhet, 'naa'::text as variant
   from korr_naa k
   union all
-  select k.stasjon_id, k.temp_korr, k.nedbor_korr, k.n,
+  select k.stasjon_id, k.temp_korr::numeric, k.nedbor_korr::numeric, k.n,
          least(1.0, greatest(0.1,
            greatest(abs(coalesce(k.temp_korr,0)), abs(coalesce(k.nedbor_korr,0))) * 2.0
-         )), 'ny'
+         ))::numeric, 'ny'
   from korr_ny k
 ),
 
@@ -193,8 +197,11 @@ ut_treff as (
   select 'BACKTEST NAA'::text, (st.kjede || ' | ' || st.navn || ' | ' || t.type)::text,
          ('rader=' || count(*)
            || ' snitt_treff=' || round(avg(t.treff), 2)
+           -- Parentesene er ikke pynt: uten dem kan `::numeric` binde til
+           -- `t.treff` inne i ORDER BY i staden for til aggregatet, og
+           -- `percentile_cont` gir double precision uansett inndatatype.
            || ' median_treff=' || round(
-                percentile_cont(0.5) within group (order by t.treff)::numeric, 2)
+                (percentile_cont(0.5) within group (order by t.treff))::numeric, 2)
            || ' dager=' || (max(t.dato) - min(t.dato) + 1)
            || ' periode=' || min(t.dato) || '..' || max(t.dato)
            || ' beregnet=' || max(t.beregnet_tid)::date)::text,
