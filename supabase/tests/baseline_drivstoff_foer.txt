@@ -3,6 +3,15 @@ Kilde: supabase/tests/baseline_drivstoff.sql
 Sammenlign med en ny kjoering ETTER mappingen. Alt utenom SONDE skal
 vaere identisk. Avvik = regresjon.
 
+REVERIFISERT 2026-08-28 etter at 0151 var kjoert mot produksjon.
+Alle 47 rader i BUTIKKSALG / DRIVSTOFFILTER / DRIVSTOFFGRUNNLAG diffet
+til null, alle 120 PRODUKSJON-rader finnes i begge, og kanarifugler,
+VERN, SONDE og OMFANG er uendret.
+
+Det bekrefter to ting: at 0151 bare roerte `stasjoner` og
+`kategori_vaerprofil` slik den skulle, og at denne fila fortsatt er
+gyldig foer-fasit for 0152.
+
 BUTIKKSALG | 2026-02 | Kelsar Bil AS | 4177 St1 Lone | rader=5345 oms=747292.77 antall=15883.21 btofort=441180.95
 BUTIKKSALG | 2026-02 | Kelsar Bil AS | 4185 St1 Dale | rader=6892 oms=1073766.85 antall=26498.45 btofort=594468.79
 BUTIKKSALG | 2026-02 | Kelsar Bil AS | 9038 St1 Laguneparken | rader=8204 oms=1505067.38 antall=28961.49 btofort=835855.85
@@ -198,7 +207,7 @@ OMFANG | foerste dato med drivstoff | 2025-05-01
 TRE FUNN FRA DENNE KJOERINGEN - LES FOER MAPPINGEN BYGGES
 =====================================================================
 
-1. AVDELINGSKODEN FOR DRIVSTOFF ER 1000, IKKE 10.
+1. AVDELINGSKODEN FOR DRIVSTOFF ER 1000, IKKE 10.   [RETTET - PR #110]
 
    Ingen rad har kode '10'. Filteret i v_butikksalg lyder
      avdeling_kode <> '10' AND upper(avdeling_navn) <> 'ENERGI'
@@ -210,6 +219,7 @@ TRE FUNN FRA DENNE KJOERINGEN - LES FOER MAPPINGEN BYGGES
    AGENTS.md sier "avdeling ENERGI, kode 10". Koden i dokumentet er feil.
 
 2. BEREGN_VAERPROFIL OG BEREGN_KATEGORI_VAERPROFIL TAR MED DRIVSTOFF.
+                                                    [RETTET - PR #109]
 
    Begge leser public.daglig_salg direkte (0068:27, 0070:37 og :46) og
    filtrerer KUN paa avdeling_kode not in ('10','250'[,'40']). Ingen av
@@ -226,9 +236,10 @@ TRE FUNN FRA DENNE KJOERINGEN - LES FOER MAPPINGEN BYGGES
    vaerfolsomhet_laert leses av produksjonsplan/page.tsx,
    salgsprognose/page.tsx, stasjoner/page.tsx og lib/backtest.ts.
 
-   IKKE RETTET. Rettes den, endres Kelsars produksjonsplan - og da er
-   "Kelsar foer = Kelsar etter" ikke lenger riktig krav for den delen.
-   Maa avklares som egen beslutning foer mappingen.
+   RETTET i 0151: begge leser naa v_butikksalg. Fire av fem stasjoner
+   fikk ny vaerfolsomhet; kategoriprofilenes koeffisienter var uendret
+   (avvikende=0 paa alle aatte produksjonskoder). Se
+   baseline_vaerprofil_foer.txt og _etter.txt.
 
 3. KANARIFUGL 2 GA RIKTIG MAALING MED GAL FORKLARING.
 
