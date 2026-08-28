@@ -211,6 +211,88 @@ export function lagProduksjonsplan(opts: {
   return { forslag, advarsler }
 }
 
+// =====================================================================
+// MARGIN OG STARTPARTI — to tall et menneske setter, aldri systemet.
+//
+// `foreslatt` treffer forventet SALG. Halvparten av dagene ligger over,
+// og utsolgt koster ingenting i noe tall vi måler — så motoren har en
+// innebygd skjevhet mot å lage for lite. Marginen er motvekten, og den
+// er butikksjefens vurdering, ikke en beregning.
+//
+// DEN MÅ ALDRI UTLEDES AV MÅLT SVINN. Gjøres det, lukker sløyfa seg
+// likevel, bare gjennom en annen dør enn den `grense.test.ts` vokter:
+// mindre margin → mindre svinn → «marginen kan settes ned». Se
+// kommentaren øverst i den fila for hvorfor det bare har ett fortegn.
+//
+// MARGINEN LEGGES PÅ `planlagt`, ALDRI PÅ `foreslatt`. Backtesten
+// regner `foreslatt` på nytt fra historikk og måler mot `v_butikksalg`;
+// den leser aldri `planlagt`. Blandes de, ser modellen ut til å
+// overvurdere salget systematisk — og kalibreringen ville «rettet» det.
+// =====================================================================
+
+/**
+ * Heltallsavrunding oppover, uten flyttallsfella.
+ *
+ * `Math.ceil(10 * 1.1)` er 12, ikke 11: 10 × 1,1 blir 11.000000000000002
+ * i binære flyttall. Med telleren som et helt tall først —
+ * `10 * 110 / 100` — er divisjonen korrekt avrundet til nøyaktig 11.
+ * Det er en feil på ett stykk per produkt per dag, og den ville sett ut
+ * som en avrundingsregel ingen kunne forklare.
+ */
+function oppTil(antall: number, prosent: number): number {
+  return Math.ceil((antall * prosent) / 100)
+}
+
+/** 0–100. Utenfor klemmes inn; ugyldig blir 0. */
+function lesProsent(p: number | null | undefined, maks: number): number {
+  if (p == null || !Number.isFinite(p)) return 0
+  return Math.min(maks, Math.max(0, Math.round(p)))
+}
+
+/**
+ * Planlagt antall = forslaget pluss en bevisst margin.
+ *
+ * Null forslag gir null planlagt: en margin på ingenting er fortsatt
+ * ingenting, og et produkt som ikke skal lages skal ikke dukke opp med
+ * én på grunn av avrunding.
+ */
+export function medMargin(foreslatt: number, marginProsent: number | null | undefined): number {
+  const n = Math.max(0, Math.round(foreslatt))
+  if (n === 0) return 0
+  return oppTil(n, 100 + lesProsent(marginProsent, 100))
+}
+
+/**
+ * Hvor mange som skal stå ferdig når døra åpner.
+ *
+ * Rundes OPP: 9 stk × 50 % blir 5, ikke 4. Et startparti som runder ned
+ * er et startparti som alltid er litt for lite, og da slutter folk å
+ * stole på tallet.
+ *
+ * Aldri over `planlagt` — reduseres planen etterpå, følger startpartiet
+ * med ned i stedet for å love mer enn dagen har.
+ */
+export function startAntall(planlagt: number, startProsent: number | null | undefined): number {
+  const n = Math.max(0, Math.round(planlagt))
+  const p = lesProsent(startProsent, 99)
+  if (n === 0 || p === 0) return 0
+  return Math.min(n, oppTil(n, p))
+}
+
+/**
+ * Varegruppens verdi hvis den er satt, ellers stasjonens.
+ *
+ * `null` på gruppa betyr ARV, ikke null prosent. Skal en gruppe faktisk
+ * ha null — varmmat som aldri står klar om morgenen — settes den til 0,
+ * og da vinner den over stasjonens standard.
+ */
+export function effektivProsent(
+  stasjon: number | null | undefined,
+  gruppe: number | null | undefined,
+): number {
+  return lesProsent(gruppe ?? stasjon ?? 0, 100)
+}
+
 // ── Bakoverkompatibel enkel værfaktor (brukt av v1-fallback om nødvendig) ──
 export function produksjonsfaktor(stasjonstype: string, vaer: Vaerdag | null, ukedagN: number, varegruppeNavn: string): number {
   let f = 1
@@ -227,3 +309,14 @@ export function produksjonsfaktor(stasjonstype: string, vaer: Vaerdag | null, uk
   if (regn && /(oppvarmet|kaffe|varm)/.test(navn)) f *= 1.1
   return f
 }
+
+/**
+ * Varegruppekoden som betyr «stasjonens standard».
+ *
+ * Samme konvensjon som `prognose_treff.kategori`, der '*' er totalen.
+ * Standarden ligger i samme tabell som gruppeavvikene fordi `stasjoner`
+ * bare kan skrives av `retailer_admin` (0001) — en standard som kolonne
+ * der ville vært utenfor butikksjefens rekkevidde, og det var nettopp
+ * hun som skulle sette den.
+ */
+export const STANDARD_KODE = '*'

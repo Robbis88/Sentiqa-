@@ -1430,6 +1430,32 @@
       "oppdaterbart": "lagd_hittil = 1"
     },
     {
+      "tabell": "stasjon_produksjon_innstilling",
+      "$hvorfor": "Driftsregler for produksjonsplanen: start- og marginprosent per varegruppe, som avvik fra stasjonens standard. SKRIVING ER LEDERENS. Nettbrettet utfoerer planen, det administrerer den ikke - samme skille som 0136 satte paa hode og linjer. Lesing foelger stasjonen fordi lederflaten trenger den; nettbrettet leser dem ikke selv, prosentene er alt regnet inn i planlagt og start_antall. Opprettet i 0149.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "varegruppe_kode"
+      ],
+      "proberad": {
+        "varegruppe_kode": "'{{unik}}'"
+      },
+      "$oppdaterbart_hvorfor": "varegruppe_kode inngaar i business_unik, saa den kan ikke roeres. start_prosent er fri og innenfor check-en 0..99.",
+      "oppdaterbart": "start_prosent = 42"
+    },
+    {
       "tabell": "profiler",
       "$hvorfor": "Brukerne selv - rolle og kjedetilhorighet. gjeldende_rolle() og gjeldende_retailer_id() slaar begge opp her, saa dette er den tredje tenantrot-tabellen ved siden av stasjoner og butikksjef_stasjoner. INGEN SKRIVER GJENNOM KLIENTEN: 0078 stengte privilegie-eskaleringen (PATCH /rest/v1/profiler {\"rolle\":\"retailer_admin\"}) med `revoke insert, update, delete ... from authenticated` - altsaa med en RETTIGHET, ikke med et predikat. profiler_admin_alt staar fortsatt i basen og ser ut som om eieren kan skrive, men den er virkningsloes. Alle skrivinger gaar gjennom service-rollen i serverhandlinger. Alle fire operasjonene staar likevel her, slik at matrisen BEVISER at ingen rolle skriver. PRIMAERNOEKKELEN ER EN FREMMEDNOEKKEL til auth.users uten default, saa proberaden maa EIE id-en: den kommer fra seed_ekstra, og id_kolonner peker paa den. UDEKKET MED VILJE: profiler_select har en egen-rad-gren (id = auth.uid()) som hver bruker ser seg selv gjennom. Den er brukerscopet og hoerer til samme form som butikksjef_stasjoner og personlig_punkt.",
       "tenant_scope": "retailer",

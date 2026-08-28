@@ -40,6 +40,13 @@ const MOTOREN = [
   'src/lib/produksjonsplan.ts',
   'src/lib/backtest.ts',
   'src/app/(beskyttet)/produksjonsplan/page.tsx',
+  // Lederflaten setter margin- og startprosenten (0149). Den er den
+  // NYE doera inn: marginen er et tall et menneske velger, og blir den
+  // en dag satt automatisk fra maalt svinn, lukker sloeyfa seg her i
+  // stedet for i motoren — mindre margin, mindre svinn, «marginen kan
+  // settes ned». Samme feil, ett lag lenger ut.
+  'src/app/(beskyttet)/produksjonsplan/plan-tabell.tsx',
+  'src/app/(beskyttet)/produksjonsplan/handlinger.ts',
 ]
 
 /** Kilder som betyr svinn. `svinnterskel` paa stasjoner hoerer ikke med. */
@@ -81,6 +88,8 @@ describe('produksjonsplanen maaler seg mot salg', () => {
       'src/lib/produksjonsplan.ts': 'lagProduksjonsplan',
       'src/lib/backtest.ts': 'prognose_treff',
       'src/app/(beskyttet)/produksjonsplan/page.tsx': 'produksjonsplan_linjer',
+      'src/app/(beskyttet)/produksjonsplan/plan-tabell.tsx': 'medMargin',
+      'src/app/(beskyttet)/produksjonsplan/handlinger.ts': 'setProsent',
     }
     for (const [sti, merke] of Object.entries(merker)) {
       const kilde = les(sti)
@@ -96,6 +105,19 @@ describe('produksjonsplanen maaler seg mot salg', () => {
     const kilde = les('src/lib/backtest.ts')
     expect(kilde).toContain('v_butikksalg')
     expect(kilde).toContain('faktisk')
+  })
+
+  // MARGINEN ER ET TALL ET MENNESKE SETTER. Den kommer fra
+  // `stasjon_produksjon_innstilling`, som ingen automatikk skriver til.
+  // Ser vakten en annen kilde skrive den, er sloeyfa i ferd med aa lukke
+  // seg gjennom den doeren.
+  it('marginen leses fra innstillingstabellen, ikke beregnes', () => {
+    const kilde = les('src/app/(beskyttet)/produksjonsplan/page.tsx')
+    expect(kilde).toContain('stasjon_produksjon_innstilling')
+    // Legges den paa foreslatt i stedet for planlagt, ser backtesten det
+    // som at modellen overvurderer salget - og kalibreringen «retter» en
+    // feil som ikke finnes ved aa foreslaa mindre.
+    expect(kilde).not.toMatch(/foreslatt:\s*medMargin/)
   })
 
   it('motoren bygger basis paa solgt antall', () => {
