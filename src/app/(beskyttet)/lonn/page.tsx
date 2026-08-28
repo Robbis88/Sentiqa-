@@ -109,7 +109,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // under parallellkjoring.
   const { data: stempl } = await supabase
     .from('v_stempling_aktiv')
-    .select('ansatt_nr, ansatt_navn, dato, fra_tid, til_tid')
+    .select('ansatt_nr, ansatt_navn, dato, fra_tid, til_tid, pause_fra, pause_til')
     .eq('stasjon_id', valgt.id)
     .eq('betalt', true)
     .gte('dato', fra)
@@ -117,14 +117,19 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     .order('dato')
   const rader = (stempl ?? []) as {
     ansatt_nr: string; ansatt_navn: string; dato: string; fra_tid: string; til_tid: string
+    pause_fra: string | null; pause_til: string | null
   }[]
 
   const navnFor = new Map(rader.map((r) => [r.ansatt_nr, r.ansatt_navn]))
+  // Samme pausevindu som fila (0150) - sida og eksporten skal aldri
+  // kunne vise to ulike tall for samme maaned.
   const linjer = tilLonnslinjer(rader.map((r) => ({
     ansattNr: r.ansatt_nr,
     dato: r.dato,
     fraTid: r.fra_tid.slice(0, 5),
     tilTid: r.til_tid.slice(0, 5),
+    pauseFraTid: r.pause_fra?.slice(0, 5) ?? null,
+    pauseTilTid: r.pause_til?.slice(0, 5) ?? null,
   })))
 
   // Bekreftede stillinger og satser — til tariffkontrollen.

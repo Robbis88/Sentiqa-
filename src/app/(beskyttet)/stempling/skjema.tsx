@@ -64,9 +64,26 @@ export function StemplingSkjema() {
           {venter ? 'Registrerer …' : 'Stemple'}
         </button>
 
+        {/* PAUSEN ER EN EGEN KNAPP, ikke et valg i et felt. Ett trykk er
+            tretti minutter — det finnes ingen annen lengde å velge, og
+            derfor heller ingenting å skrive inn. Den står under
+            stemple-knappen fordi den er det sjeldnere ærendet, og den
+            går gjennom samme skjema: pausen skal bevises med PIN, som
+            alt annet som havner i lønnsgrunnlaget. */}
+        <button
+          type="submit"
+          name="handling"
+          value="pause"
+          className="stempling-knapp pause"
+          disabled={venter}
+        >
+          {venter ? 'Registrerer …' : 'Registrer pause (30 min)'}
+        </button>
+
         <p id="stempling-hjelp" className="undertittel">
           Nummeret står på lønnsslippen din. Samme knapp brukes til å stemple
-          både inn og ut — systemet vet hva som står for tur.
+          både inn og ut — systemet vet hva som står for tur. Pausen trekkes
+          bare når du registrerer den, og er alltid 30 minutter.
         </p>
       </form>
 
@@ -76,7 +93,9 @@ export function StemplingSkjema() {
         {svar?.ok && (
           <div className="stempling-kvittering">
             <p className="stempling-retning">
-              {svar.navn} stemplet {svar.retning === 'inn' ? 'INN' : 'UT'}
+              {svar.retning === 'pause'
+                ? `${svar.navn} registrerte PAUSE`
+                : `${svar.navn} stemplet ${svar.retning === 'inn' ? 'INN' : 'UT'}`}
             </p>
             <p className="stempling-klokke">{svar.klokkeslett}</p>
             {svar.advarsel && <p className="notis">{svar.advarsel}</p>}

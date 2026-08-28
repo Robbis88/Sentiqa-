@@ -22,7 +22,20 @@
 // EN «INN» MENS MAN ER INNE ER EN FEIL, IKKE EN NY VAKT. Den forrige
 // staar aapen og blokkerer. Aa la den andre starte en ny vakt i stillhet
 // ville skjult at noen glemte aa stemple ut.
+//
+// PAUSEN HOERER TIL DEN AAPNE VAKTA, og det er hele koblingen. En
+// pausehendelse som kommer mens `aapen` staar, tilhoerer den vakta -
+// ikke naermeste i tid, ikke samme dato, ikke et oppslag i etterkant.
+// Koblingen er deterministisk fordi hendelsene sorteres paa tidspunkt
+// foerst: en pause kan ikke havne i feil vakt uten at rekkefolgen selv
+// er feil.
+//
+// MAKS EN PAUSE PER VAKT. Trykk nummer to er et avvik, ikke tretti
+// minutter til. Regelen staar her og ikke i flaten, fordi flaten kan
+// omgaas og avledningen er fasit.
 // =====================================================================
+
+import { pausevindu } from './pause'
 
 export type Hendelse = {
   id: string
@@ -31,7 +44,7 @@ export type Hendelse = {
   stasjonId: string
   /** ISO-tidspunkt med sone. */
   tidspunkt: string
-  type: 'inn' | 'ut'
+  type: 'inn' | 'ut' | 'pause'
 }
 
 export type Vakt = {
@@ -42,7 +55,11 @@ export type Vakt = {
   dato: string
   fraTid: string
   tilTid: string
+  /** Klokketid MINUS registrert pause. Uten pause: hele spennet. */
   minutter: number
+  /** Registrert pause, som klokkeslett. Null naar ingen ble trykket. */
+  pauseFraTid: string | null
+  pauseTilTid: string | null
   innId: string
   utId: string
 }
@@ -51,6 +68,8 @@ export type Avvik =
   | { slag: 'aapen'; hendelse: Hendelse; grunn: 'mangler_ut' }
   | { slag: 'foreldrelos'; hendelse: Hendelse; grunn: 'ut_uten_inn' }
   | { slag: 'dobbel_inn'; hendelse: Hendelse; grunn: 'inn_mens_inne' }
+  | { slag: 'pause_uten_vakt'; hendelse: Hendelse; grunn: 'pause_mens_ute' }
+  | { slag: 'dobbel_pause'; hendelse: Hendelse; grunn: 'pause_nummer_to' }
 
 export type Avledning = { vakter: Vakt[]; avvik: Avvik[] }
 
@@ -93,8 +112,27 @@ export function avledVakter(hendelser: Hendelse[]): Avledning {
     )
 
     let aapen: Hendelse | null = null
+    // Pausen(e) som er trykket mens `aapen` staar. Bare den forste
+    // teller; resten er avvik. Nullstilles naar vakta lukkes.
+    let pauser: Hendelse[] = []
 
     for (const h of sortert) {
+      if (h.type === 'pause') {
+        // En pause uten aapen vakt er et avvik, ikke et trekk. Uten den
+        // grenen ville et feiltrykk paa nettbrettet blitt et minusfaerdig
+        // tall i neste vakt.
+        if (!aapen) {
+          avvik.push({ slag: 'pause_uten_vakt', hendelse: h, grunn: 'pause_mens_ute' })
+          continue
+        }
+        if (pauser.length > 0) {
+          avvik.push({ slag: 'dobbel_pause', hendelse: h, grunn: 'pause_nummer_to' })
+          continue
+        }
+        pauser.push(h)
+        continue
+      }
+
       if (h.type === 'inn') {
         if (aapen) {
           // Hun stemplet inn uten å ha stemplet ut. Den forrige blir
@@ -104,6 +142,7 @@ export function avledVakter(hendelser: Hendelse[]): Avledning {
           avvik.push({ slag: 'dobbel_inn', hendelse: h, grunn: 'inn_mens_inne' })
         }
         aapen = h
+        pauser = []
         continue
       }
 
@@ -114,9 +153,19 @@ export function avledVakter(hendelser: Hendelse[]): Avledning {
 
       const start = iOslo(aapen.tidspunkt)
       const slutt = iOslo(h.tidspunkt)
-      const minutter = Math.round(
+      const klokketid = Math.round(
         (Date.parse(h.tidspunkt) - Date.parse(aapen.tidspunkt)) / 60_000,
       )
+
+      // Pausen KLEMMES MOT SLUTTIDEN, saa den aldri trekkes forbi det
+      // som faktisk ble jobbet. Se pause.ts.
+      const vindu = pauser.length > 0
+        ? pausevindu(
+            new Date(aapen.tidspunkt),
+            new Date(h.tidspunkt),
+            new Date(pauser[0].tidspunkt),
+          )
+        : null
 
       vakter.push({
         ansattNr: aapen.ansattNr,
@@ -128,11 +177,14 @@ export function avledVakter(hendelser: Hendelse[]): Avledning {
         dato: start.dato,
         fraTid: start.tid,
         tilTid: slutt.tid,
-        minutter,
+        minutter: klokketid - (vindu?.minutter ?? 0),
+        pauseFraTid: vindu ? iOslo(vindu.fra.toISOString()).tid : null,
+        pauseTilTid: vindu ? iOslo(vindu.til.toISOString()).tid : null,
         innId: aapen.id,
         utId: h.id,
       })
       aapen = null
+      pauser = []
     }
 
     // Står hun fortsatt inne når hendelsene tar slutt, er vakta åpen.
