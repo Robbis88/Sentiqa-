@@ -178,3 +178,64 @@ Skal noe faktisk endres: `OPPDATER_FASIT=1 npx vitest run src/lib/redesign`. Da 
 **Testgjeld, ikke rettet:** `bolge2-analyse.spec.ts:216` bruker `.not.toMatch` mot `main.innerText()`. **En negativ påstand på `innerText` over sammenleggbart innhold kan gi falsk trygghet** — den kan ikke skille «finnes ikke» fra «er skjult i en `<details>`». Den er ikke feil i dag, men den beviser mindre enn den ser ut til.
 
 **Hver vakt har en kanarifugl, og det er ikke pynt.** To av dem har vært grønne mens de var i stykker — RLS-vakthunden i månedsvis fordi den forutsatte at det fantes policyer å vurdere, rollevakten fordi regexen ikke tålte parenteser og dermed var blind for `!erLeder(bruker.rolle)`. **En vakt som slutter å se, ser nøyaktig ut som en vakt som ikke finner noe.** Legger du til en ny kontroll, legg til noe som feiler når den slutter å måle.
+
+
+# Onboarding skal holdes levende
+
+Onboarding skal beskrive hva en ny retailer trenger i **dagens** Sentiqa —
+ikke hva som var nødvendig da onboarding først ble skrevet. En onboarding
+som er sann den dagen den lages og usann tre måneder senere er verre enn
+ingen: den ser komplett ut mens den er det ikke.
+
+**Etter hver endring i funksjon, datamodell, innstilling, import,
+integrasjon eller modul skal du svare eksplisitt på:**
+
+> Påvirker denne endringen hva en helt ny retailer trenger for å starte fra
+> tom konto og få denne funksjonen til å virke *korrekt*?
+
+Svaret skrives i klartekst før oppgaven regnes som ferdig — ikke som en
+antakelse, og ikke bare i en commit-melding:
+
+```
+Onboardingpåvirkning: NEI.
+Onboardingpåvirkning: JA — <hva som må endres i onboarding>
+```
+
+**Gjelder også små endringer.** Det som utløser JA:
+
+| | |
+|---|---|
+| nytt obligatorisk onboardingsteg | ny fil/datatype som må lastes opp |
+| ny valgfri konfigurasjon | endret minimum historikk |
+| ny mapping per retailer | endret anbefalt historikk |
+| ny mapping per stasjon | ny konfigurasjon per varegruppe |
+| nytt krav på ansatte | ny integrasjon |
+| nytt Sentiqa-kontrollpunkt | noe retaileren kan gjøre selv |
+| noe Sentiqa må gjøre | **en oppgave som nå kan fjernes** |
+
+Den siste er den som glemmes. Automatiserer vi inntaksadressen, skal det
+manuelle kontrollpunktet **ut** av onboarding — ellers vokser lista med
+arbeid som ikke finnes lenger, og da slutter folk å tro på den.
+
+Gjør vi produksjonsmargin eller start-% konfigurerbart per
+retailer/stasjon/varegruppe, er spørsmålet ikke «skal det med i
+onboarding», men: **holder en trygg standardverdi, eller må en ny kjede ta
+stilling til dette før modulen svarer riktig?** Standardverdi som virker →
+ingen onboardingendring. Standardverdi som gir feil tall for en annen
+kjede → nytt steg.
+
+## Én sannhet, ikke to
+
+**Onboarding skal ikke være en hardkodet sjekkliste ved siden av modulene.**
+Da finnes det to sannheter — hva modulen faktisk krever, og hva onboardingen
+tror den krever — og de skiller lag i stillhet. Det er samme form som en
+vakt som slutter å se: lista ser like komplett ut dagen den blir feil.
+
+Når dette skal bygges, skal det først undersøkes om onboardingstatus kan
+**utledes** av de samme kravene og konfigurasjonene modulene selv leser, i
+stedet for å gjentas.
+
+Driften har alt begynt: `KILDER` i `src/lib/onboarding.ts` er håndholdt og
+kjenner fem kilder. Kartleggingen 2026-08-28 fant ni, og fant samtidig at
+`hentDagskunder` går to kalenderår tilbake mens `KILDER` lover 365 dager for
+timesalg. Ingen av delene var feil da de ble skrevet.
