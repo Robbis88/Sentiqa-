@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { produksjonsfaktor, lagProduksjonsplan, type SalgsPunkt } from './produksjonsplan'
+import { produksjonsfaktor, lagProduksjonsplan, medMargin, startAntall, effektivProsent, type SalgsPunkt } from './produksjonsplan'
 
 describe('produksjonsfaktor', () => {
   it('utfart + solrik helg løfter kald drikke', () => {
@@ -101,5 +101,78 @@ describe('helligdager treffer fjorårets samme helligdag', () => {
       vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5,
     })
     expect(plan.forslag.find((f) => f.varenavn === 'Bolle')?.fjorMedian).toBe(30)
+  })
+})
+
+describe('margin over forslaget', () => {
+  it('legger prosenten paa og runder OPP', () => {
+    expect(medMargin(9, 10)).toBe(10) // 9,9 -> 10
+    expect(medMargin(24, 10)).toBe(27) // 26,4 -> 27
+    expect(medMargin(7, 25)).toBe(9) // 8,75 -> 9
+  })
+
+  it('FLYTTALLSFELLA: 10 med 10 % er 11, ikke 12', () => {
+    // Math.ceil(10 * 1.1) gir 12, fordi 10 * 1.1 er 11.000000000000002.
+    // En feil paa ett stykk per produkt per dag, umulig aa forklare.
+    expect(medMargin(10, 10)).toBe(11)
+    expect(medMargin(20, 5)).toBe(21)
+    expect(medMargin(50, 20)).toBe(60)
+  })
+
+  it('null margin lar forslaget staa', () => {
+    expect(medMargin(9, 0)).toBe(9)
+    expect(medMargin(9, null)).toBe(9)
+    expect(medMargin(9, undefined)).toBe(9)
+  })
+
+  it('null forslag blir null, ikke én', () => {
+    // Et produkt som ikke skal lages skal ikke dukke opp paa grunn av
+    // avrunding.
+    expect(medMargin(0, 50)).toBe(0)
+  })
+
+  it('klemmer ugyldig prosent i stedet for aa kaste', () => {
+    expect(medMargin(10, -5)).toBe(10)
+    expect(medMargin(10, 999)).toBe(20) // maks 100 %
+    expect(medMargin(10, Number.NaN)).toBe(10)
+  })
+})
+
+describe('startparti', () => {
+  it('runder OPP, slik Robert ba om', () => {
+    expect(startAntall(9, 50)).toBe(5) // 4,5 -> 5
+    expect(startAntall(10, 50)).toBe(5)
+    expect(startAntall(7, 33)).toBe(3) // 2,31 -> 3
+  })
+
+  it('kan aldri overstige planlagt', () => {
+    expect(startAntall(4, 99)).toBe(4)
+    expect(startAntall(1, 99)).toBe(1)
+  })
+
+  it('null prosent gir null, ikke én', () => {
+    expect(startAntall(20, 0)).toBe(0)
+    expect(startAntall(20, null)).toBe(0)
+  })
+
+  it('99 er taket — 100 % er ikke et startparti, det er planen', () => {
+    expect(startAntall(10, 100)).toBe(10)
+    expect(startAntall(10, 99)).toBe(10)
+  })
+})
+
+describe('arv fra stasjon til varegruppe', () => {
+  it('gruppa vinner naar den er satt', () => {
+    expect(effektivProsent(50, 0)).toBe(0)
+    expect(effektivProsent(50, 80)).toBe(80)
+  })
+
+  it('null paa gruppa betyr ARV, ikke null prosent', () => {
+    expect(effektivProsent(50, null)).toBe(50)
+    expect(effektivProsent(50, undefined)).toBe(50)
+  })
+
+  it('ingen av delene gir null', () => {
+    expect(effektivProsent(null, null)).toBe(0)
   })
 })

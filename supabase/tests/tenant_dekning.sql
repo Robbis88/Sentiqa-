@@ -94,6 +94,7 @@ begin
     ('sjekkpunkt_svar', true, false),
     ('sjekkpunkter', true, false),
     ('skills_score', true, false),
+    ('stasjon_produksjon_innstilling', true, false),
     ('stasjoner', true, false),
     ('stempling', true, false),
     ('stempling_hendelse', true, false),

@@ -115,7 +115,10 @@ declare
     'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
     'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
     'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
-    'push_abonnementer'
+    'push_abonnementer',
+    -- Driftsregler for produksjonsplanen (0149). Skrives naar en stasjon
+    -- setter start- eller marginprosent, ikke per transaksjon.
+    'stasjon_produksjon_innstilling'
     -- Her stod opplaring_personer, opplaring_punkter og opplaring_fullfort
     -- (varme). Ingen av dem finnes i basen - de er erstattet av
     -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:

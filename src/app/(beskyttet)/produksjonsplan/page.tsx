@@ -3,7 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
-import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, medMargin, startAntall, effektivProsent, STANDARD_KODE, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { hentKalibrering } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, fjorHelligdag, helligdagNavn } from '@/lib/helligdager'
@@ -149,6 +149,9 @@ export default async function ProduksjonsplanSide({
   let vaer: Vaerdag | null = null
   let advarsler: string[] = []
   let hodeData: { notat: string | null; publisert_tid: string | null } | null = null
+  // Driftsreglene (0149). Settes inne i planblokka, leses i JSX-en under.
+  let prosent = { start: 0, margin: 0 }
+  let gruppeAvvik: Record<string, { start: number | null; margin: number | null }> = {}
   let arrangementer: { id: string; navn: string; faktor: number }[] = []
 
   if (stasjon) {
@@ -161,11 +164,12 @@ export default async function ProduksjonsplanSide({
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
     const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
 
-    const [{ data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: arr }] = await Promise.all([
+    const [{ data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: avvik }, { data: arr }] = await Promise.all([
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
       supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
       supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
+      supabase.from('stasjon_produksjon_innstilling').select('varegruppe_kode, start_prosent, margin_prosent').eq('stasjon_id', stasjon.id).overrideTypes<{ varegruppe_kode: string; start_prosent: number | null; margin_prosent: number | null }[]>(),
       // Kun BEKREFTEDE arrangementer løfter planen (forslag styres på /arrangementer).
       supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).neq('status', 'forslag').is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
     ])
@@ -203,16 +207,35 @@ export default async function ProduksjonsplanSide({
     if (arrangementer.length > 0) advarsler.push(`Arrangement-dag: ${arrangementer.map((a) => `${a.navn} (×${a.faktor})`).join(', ')} — forslaget er løftet.`)
 
     const lagretFor = new Map((lagrede ?? []).map((l) => [l.varenavn, l]))
+    // Avvik per varegruppe (0149). null i en kolonne betyr ARV fra
+    // stasjonen; 0 betyr null prosent og vinner over standarden.
+    const avvikFor = new Map((avvik ?? []).map((a) => [a.varegruppe_kode, a]))
+    // '*' er stasjonens standard, samme konvensjon som prognose_treff.kategori.
+    const standard = avvikFor.get(STANDARD_KODE)
     const grupperMap = new Map<string, Gruppe>()
     for (const f of plan.forslag) {
       const l = lagretFor.get(f.varenavn)
       const korr = kalibrering.get(f.varegruppeKode ?? '') ?? 1
       const justert = Math.max(0, Math.round(f.foreslatt * korr))
+
+      // PROSENTENE SEEDER, DE STYRER IKKE. Finnes linja alt, har noen
+      // tatt stilling til tallet - da skal ikke en innstilling flytte
+      // det i stillhet. `l?.planlagt ?? ...` er hele regelen.
+      const av = avvikFor.get(f.varegruppeKode ?? '')
+      const marginPst = effektivProsent(standard?.margin_prosent, av?.margin_prosent)
+      const startPst = effektivProsent(standard?.start_prosent, av?.start_prosent)
+      // Marginen legges paa PLANLAGT, aldri paa foreslatt: backtesten
+      // maaler foreslatt mot faktisk salg og ville lest paaslaget som
+      // at modellen overvurderer.
+      const planlagt = l?.planlagt ?? medMargin(justert, marginPst)
+
       const produkt: Produkt = {
         varenavn: f.varenavn, baseline: f.basis,
         faktor: korr !== 1 ? Math.round(f.samletfaktor * korr * 100) / 100 : f.samletfaktor,
         foreslatt: justert,
-        planlagt: l?.planlagt ?? justert, start_antall: l?.start_antall ?? 0, ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
+        planlagt,
+        start_antall: l?.start_antall ?? startAntall(planlagt, startPst),
+        ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
       }
       const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)
@@ -220,6 +243,10 @@ export default async function ProduksjonsplanSide({
       g.produkter.push(produkt)
     }
     grupper = [...grupperMap.values()].sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? ''))
+    prosent = { start: standard?.start_prosent ?? 0, margin: standard?.margin_prosent ?? 0 }
+    gruppeAvvik = Object.fromEntries((avvik ?? [])
+      .filter((a) => a.varegruppe_kode !== STANDARD_KODE)
+      .map((a) => [a.varegruppe_kode, { start: a.start_prosent, margin: a.margin_prosent }]))
   }
 
   // NIVÅ 1 på en arbeidsflyt: hvor langt er jeg kommet.
@@ -296,7 +323,7 @@ export default async function ProduksjonsplanSide({
         />
       ) : (
         <>
-          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} notat={hodeData?.notat ?? null} publisertTid={hodeData?.publisert_tid ?? null} />
+          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} notat={hodeData?.notat ?? null} publisertTid={hodeData?.publisert_tid ?? null} prosent={prosent} gruppeAvvik={gruppeAvvik} />
 
           {/* NIVÅ 4 — grunnlaget. Sto som undertittel over hele siden. */}
           <Forklaring sporsmaal="Hvor kommer forslaget fra?">

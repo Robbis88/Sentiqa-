@@ -58,7 +58,9 @@ with lister as (
       'kontraktmal', 'opplaering_oppgave', 'puls_sporsmal', 'puls_runde',
       'sjekkpunkter', 'rutineskjemaer', 'ik_kontrollpunkter',
       'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
-      'push_abonnementer'
+      'push_abonnementer',
+      -- Driftsregler for produksjonsplanen (0149).
+      'stasjon_produksjon_innstilling'
     ]::text[] as kalde
 )
 

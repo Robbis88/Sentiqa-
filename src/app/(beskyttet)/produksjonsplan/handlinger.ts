@@ -71,3 +71,37 @@ export async function loggLagd(stasjon_id: string, dato: string, varenavn: strin
     .update({ lagd_hittil: Math.max(0, Math.round(lagd)), oppdatert_tid: new Date().toISOString() })
     .eq('stasjon_id', stasjon_id).eq('dato', dato).eq('varenavn', varenavn), 'oppdatere produksjonsplan linjer')
 }
+
+// Driftsreglene: start- og marginprosent (0149).
+//
+// `varegruppeKode = '*'` er stasjonens standard; en varegruppekode er et
+// avvik fra den. `null` i et felt betyr ARV — den lagres som null, ikke
+// som 0, fordi de to betyr forskjellige ting: 0 er «null prosent, og det
+// er et valg», null er «bruk standarden».
+//
+// BEGGE NIVAAER LIGGER I SAMME TABELL fordi `stasjoner` bare kan skrives
+// av retailer_admin (0001). En standard som kolonne der ville vaert
+// utenfor butikksjefens rekkevidde, og det var nettopp hun som skulle
+// sette den.
+export async function setProsent(
+  stasjon_id: string,
+  varegruppe_kode: string,
+  verdi: { start: number | null; margin: number | null },
+): Promise<void> {
+  const bruker = await hentInnloggetBruker()
+  if (!bruker.retailerId || !stasjon_id || !varegruppe_kode) return
+  const klem = (v: number | null, maks: number) =>
+    v == null || !Number.isFinite(v) ? null : Math.min(maks, Math.max(0, Math.round(v)))
+  const supabase = await lagSupabaseServerKlient()
+  maaLykkes(await supabase.from('stasjon_produksjon_innstilling').upsert(
+    {
+      retailer_id: bruker.retailerId,
+      stasjon_id,
+      varegruppe_kode,
+      start_prosent: klem(verdi.start, 99),
+      margin_prosent: klem(verdi.margin, 100),
+      oppdatert_tid: new Date().toISOString(),
+    },
+    { onConflict: 'stasjon_id,varegruppe_kode' },
+  ), 'lagre produksjonsprosent')
+}
