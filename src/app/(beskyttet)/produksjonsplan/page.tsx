@@ -3,7 +3,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
-import { lagProduksjonsplan, leggTilDager, medMargin, startAntall, effektivProsent, STANDARD_KODE, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, medMargin, startAntall, effektivProsent, STANDARD_KODE, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { hentProduksjonskoder, IKKE_KONFIGURERT_TEKST } from '@/lib/produksjonskoder'
 import { hentKalibrering } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, fjorHelligdag, helligdagNavn } from '@/lib/helligdager'
@@ -146,6 +147,10 @@ export default async function ProduksjonsplanSide({
 
   let grupper: Gruppe[] = []
   let datadybde = 0
+  // 0152: kjeden maa ha mappet varegruppene sine. Ingen mapping gir ikke en
+  // tom plan, men en forklaring - en tom plan er en gyldig plan og ville
+  // sett ut som «ingenting skal produseres i dag».
+  let ikkeKonfigurert = false
   let vaer: Vaerdag | null = null
   let advarsler: string[] = []
   let hodeData: { notat: string | null; publisert_tid: string | null } | null = null
@@ -154,7 +159,11 @@ export default async function ProduksjonsplanSide({
   let gruppeAvvik: Record<string, { start: number | null; margin: number | null }> = {}
   let arrangementer: { id: string; navn: string; faktor: number }[] = []
 
-  if (stasjon) {
+  const oppsett = await hentProduksjonskoder(supabase)
+  ikkeKonfigurert = oppsett.status === 'ikke_konfigurert'
+  const KODER = oppsett.status === 'mappet' ? oppsett.koder : []
+
+  if (stasjon && !ikkeKonfigurert) {
     const fjorBase = leggTilDager(dato, -364)
     // Siste dag med faktisk salg (ikke «i dag») — så manglende dager bakerst
     // ikke trekker snittet ned.
@@ -275,6 +284,21 @@ export default async function ProduksjonsplanSide({
         vaer?.temp_maks != null ? `varsel ${vaer.temp_maks.toFixed(0)}°` : 'ingen værvarsel',
       ].join(' · ')
     : ''
+
+  // 0152: uten mapping viser vi HVORFOR, og ikke en plan uten forslag.
+  // En tom plan er en gyldig plan - «ingenting skal produseres i dag» er
+  // noe systemet kan mene - saa de to maa se forskjellige ut.
+  if (ikkeKonfigurert) {
+    return (
+      <>
+        <Sidehode tittel="Produksjonsplan" undertittel="Venter paa oppsett" />
+        <Tomtilstand
+          tittel="Ikke satt opp for kjeden ennaa"
+          forklaring={IKKE_KONFIGURERT_TEKST}
+        />
+      </>
+    )
+  }
 
   return (
     <>

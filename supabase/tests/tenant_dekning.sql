@@ -86,6 +86,8 @@ begin
     ('regnskap_usynlig_svinn', true, false),
     ('regnskapsanalyser', true, false),
     ('regnskapslinjer', true, false),
+    ('retailer_kodeerklaering', true, false),
+    ('retailer_koderegel', true, false),
     ('retailers', true, false),
     ('rutine_utforinger', true, false),
     ('rutiner', true, false),

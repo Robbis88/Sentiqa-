@@ -142,27 +142,61 @@ describe('produksjonsmotoren, festet før kodemappingen', () => {
   })
 })
 
-describe('utvalget som ennå er hardkodet', () => {
+describe('utvalget, etter at det ble konfigurasjon', () => {
   it('er de åtte St1-kodene', () => {
-    // Blir dette en mapping, skal Kelsars oppslag gi NØYAKTIG denne
-    // lista. Endres den her uten at Kelsars mapping endres tilsvarende,
-    // er planen ikke lenger identisk.
     expect(PRODUKSJON_KODER).toEqual(
       ['1201', '1202', '1203', '1216', '1217', '1218', '1219', '1221'])
   })
 
-  it('leses fra nøyaktig to steder', () => {
-    // SKAL BARE NED. Kommer et tredje kallsted til FØR mappingen er
-    // innført, må også det stedet legges om — og et kallsted som glemmes
-    // gir en tom plan uten feilmelding. Samme form som `0075`.
+  it('og 0152 backfiller NØYAKTIG de samme åtte', () => {
+    // Konstanten leses ikke lenger av noen spørring — den er seedet
+    // migrasjonen fyller Kelsars mapping med. Da må de to holdes i takt,
+    // ellers har vi to sannheter om hva en produksjonsvare er: den i
+    // koden og den i basen. Denne påstanden er sammenføyningen.
+    const sql = readFileSync(
+      join(process.cwd(), 'supabase/migrations/0152_semantisk_kodemapping.sql'), 'utf8')
+    const m = sql.match(/unnest\(array\[([^\]]+)\]\)/)
+    expect(m, 'fant ikke produksjonsbackfillen i 0152').not.toBeNull()
+    const iMigrasjonen = m![1].split(',').map((k) => k.trim().replace(/'/g, ''))
+    expect(iMigrasjonen).toEqual(PRODUKSJON_KODER)
+  })
+
+  it('leses ikke lenger av noen spørring', () => {
+    // Sto i to kallsteder til `0152`. Blir konstanten tatt i bruk igjen,
+    // har noen omgått mappingen — og da får den kjeden Kelsars koder
+    // uansett hva som står i konfigurasjonen.
+    // Kommentarer teller ikke. `produksjonskoder.ts` forklarer hva den
+    // erstattet, og `produksjonsplan.ts` eksporterer den — en omtale er
+    // ikke et kall, samme skille som `funksjoner.ts` gjør.
     const treff = kildefiler(join(process.cwd(), 'src'))
-      .filter((f) => !f.endsWith('produksjonsplan.ts'))
+      .filter((f) => !/produksjonsplan\.ts$|produksjonskoder\.ts$/.test(f.replace(/\\/g, '/')))
       .filter((f) => /PRODUKSJON_KODER/.test(readFileSync(f, 'utf8')))
       .map((f) => f.replace(/\\/g, '/').split('/src/')[1])
-    expect(treff.sort(), 'nytt kallsted for PRODUKSJON_KODER').toEqual([
+    expect(treff, 'PRODUKSJON_KODER brukes igjen i en spørring').toEqual([])
+  })
+
+  it('mappingen leses fra nøyaktig to steder', () => {
+    // SKRALLEN FLYTTET MED. Samme regel som før, nytt kallnavn: kommer et
+    // tredje sted til, må også det håndtere `ikke_konfigurert` — og et
+    // kallsted som glemmer det gir en troverdig tom plan. `0075`-formen.
+    const treff = kildefiler(join(process.cwd(), 'src'))
+      .filter((f) => !f.endsWith('produksjonskoder.ts'))
+      .filter((f) => /hentProduksjonskoder/.test(readFileSync(f, 'utf8')))
+      .map((f) => f.replace(/\\/g, '/').split('/src/')[1])
+    expect(treff.sort(), 'nytt kallsted for produksjonsmappingen').toEqual([
       'app/(beskyttet)/produksjonsplan/page.tsx',
       'lib/backtest.ts',
     ])
+  })
+
+  it('og begge håndterer ikke_konfigurert', () => {
+    // Det er ikke nok å kalle helperen. Kaller du den og ignorerer
+    // statusen, filtrerer du på en tom liste og er akkurat like ille
+    // stilt som før.
+    for (const f of ['app/(beskyttet)/produksjonsplan/page.tsx', 'lib/backtest.ts']) {
+      const kilde = readFileSync(join(process.cwd(), 'src', f), 'utf8')
+      expect(kilde, `${f} sjekker ikke ikke_konfigurert`).toMatch(/ikke_konfigurert/)
+    }
   })
 
   it('KANARIFUGL: filsøket leser en kodebase som finnes', () => {

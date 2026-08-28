@@ -1430,32 +1430,6 @@
       "oppdaterbart": "lagd_hittil = 1"
     },
     {
-      "tabell": "stasjon_produksjon_innstilling",
-      "$hvorfor": "Driftsregler for produksjonsplanen: start- og marginprosent per varegruppe, som avvik fra stasjonens standard. SKRIVING ER LEDERENS. Nettbrettet utfoerer planen, det administrerer den ikke - samme skille som 0136 satte paa hode og linjer. Lesing foelger stasjonen fordi lederflaten trenger den; nettbrettet leser dem ikke selv, prosentene er alt regnet inn i planlagt og start_antall. Opprettet i 0149.",
-      "tenant_scope": "retailer_and_station",
-      "data_class": "warm",
-      "operasjoner": [
-        "select",
-        "insert",
-        "update",
-        "delete"
-      ],
-      "tablet": {
-        "select": "own_station"
-      },
-      "manager": "assigned_stations",
-      "owner": "retailer",
-      "business_unik": [
-        "stasjon_id",
-        "varegruppe_kode"
-      ],
-      "proberad": {
-        "varegruppe_kode": "'{{unik}}'"
-      },
-      "$oppdaterbart_hvorfor": "varegruppe_kode inngaar i business_unik, saa den kan ikke roeres. start_prosent er fri og innenfor check-en 0..99.",
-      "oppdaterbart": "start_prosent = 42"
-    },
-    {
       "tabell": "profiler",
       "$hvorfor": "Brukerne selv - rolle og kjedetilhorighet. gjeldende_rolle() og gjeldende_retailer_id() slaar begge opp her, saa dette er den tredje tenantrot-tabellen ved siden av stasjoner og butikksjef_stasjoner. INGEN SKRIVER GJENNOM KLIENTEN: 0078 stengte privilegie-eskaleringen (PATCH /rest/v1/profiler {\"rolle\":\"retailer_admin\"}) med `revoke insert, update, delete ... from authenticated` - altsaa med en RETTIGHET, ikke med et predikat. profiler_admin_alt staar fortsatt i basen og ser ut som om eieren kan skrive, men den er virkningsloes. Alle skrivinger gaar gjennom service-rollen i serverhandlinger. Alle fire operasjonene staar likevel her, slik at matrisen BEVISER at ingen rolle skriver. PRIMAERNOEKKELEN ER EN FREMMEDNOEKKEL til auth.users uten default, saa proberaden maa EIE id-en: den kommer fra seed_ekstra, og id_kolonner peker paa den. UDEKKET MED VILJE: profiler_select har en egen-rad-gren (id = auth.uid()) som hver bruker ser seg selv gjennom. Den er brukerscopet og hoerer til samme form som butikksjef_stasjoner og personlig_punkt.",
       "tenant_scope": "retailer",
@@ -1754,6 +1728,75 @@
       "oppdaterbart": "post = 'endret av sonden'"
     },
     {
+      "tabell": "retailer_kodeerklaering",
+      "$hvorfor": "Har kjeden drivstoff, og har Sentiqa kontrollert svaret? LESING ER HELE TENANTENS, ikke bare eierens: v_butikksalg joiner denne tabellen, saa en rolle uten leserett ser NULL salgsrader i hele produktet. SKRIVING ER EIERENS - men `with check` krever at kontrollert_av og kontrollert_tid er null, saa ingen approlle kan bekrefte sin egen 'vi har ikke drivstoff'-paastand og dermed aapne hver eneste rad. Kontrollen settes av Sentiqa i SQL Editor; det finnes ingen Sentiqa-rolle i basen.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": {
+        "select": "retailer",
+        "insert": "retailer",
+        "update": "retailer",
+        "delete": "retailer"
+      },
+      "proberad": {
+        "rolle": "'drivstoff'",
+        "gjelder": "true"
+      },
+      "business_unik": [
+        "rolle"
+      ],
+      "oppdaterbart": "gjelder = false"
+    },
+    {
+      "tabell": "retailer_koderegel",
+      "$hvorfor": "Hvilke koder og navn som betyr drivstoff og produksjonsvarer, per kjede. LESING ER HELE TENANTENS av samme grunn som erklaeringen: v_butikksalg leser den i hver eneste salgsspoerring. SKRIVING ER EIERENS - en feil her gir gale butikktall for hele kjeden, saa butikksjef og nettbrett skal ikke naa den.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "retailer"
+      },
+      "manager": {
+        "select": "retailer"
+      },
+      "owner": {
+        "select": "retailer",
+        "insert": "retailer",
+        "update": "retailer",
+        "delete": "retailer"
+      },
+      "proberad": {
+        "rolle": "'drivstoff'",
+        "nivaa": "'avdeling'",
+        "kode": "'{{unik}}'"
+      },
+      "business_unik": [
+        "kode"
+      ],
+      "oppdaterbart": "navn = 'endret'",
+      "business_unik_unntak": {
+        "rolle": "Bundet av check-skranken (drivstoff|produksjon) og av P0-kontrakten, som binder rolle til nivaa. Kan ikke varieres per forsoek. `kode` varierer og gjor den sammensatte noekkelen unik uansett.",
+        "nivaa": "Se rolle - check-skranken krever drivstoff+avdeling eller produksjon+varegruppe, saa nivaa foelger av rollen og er ikke en fri variabel."
+      }
+    },
+    {
       "tabell": "retailers",
       "$hvorfor": "Kjeden selv - den ytterste tenantgrensen. TENANTNOEKKELEN ER TABELLENS EGEN PRIMAERNOEKKEL: policyen sier `id = gjeldende_retailer_id()`, ikke `retailer_id = ...`. En fersk proberad ville derfor tilhoert INGEN, og paastanden «owner_A ser sin egen rad» kunne ikke uttrykkes. Med fast_rad maaler matrisen kjederaden som faktisk finnes. Ingen policy for insert eller delete: en kjede opprettes og fjernes av service_role, aldri gjennom klienten - og alle fire operasjonene staar her slik at matrisen beviser det i stedet for aa forutsette det.",
       "tenant_scope": "retailer",
@@ -1952,6 +1995,32 @@
         "prosent": "88"
       },
       "oppdaterbart": "prosent = 91"
+    },
+    {
+      "tabell": "stasjon_produksjon_innstilling",
+      "$hvorfor": "Driftsregler for produksjonsplanen: start- og marginprosent per varegruppe, som avvik fra stasjonens standard. SKRIVING ER LEDERENS. Nettbrettet utfoerer planen, det administrerer den ikke - samme skille som 0136 satte paa hode og linjer. Lesing foelger stasjonen fordi lederflaten trenger den; nettbrettet leser dem ikke selv, prosentene er alt regnet inn i planlagt og start_antall. Opprettet i 0149.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "varegruppe_kode"
+      ],
+      "proberad": {
+        "varegruppe_kode": "'{{unik}}'"
+      },
+      "$oppdaterbart_hvorfor": "varegruppe_kode inngaar i business_unik, saa den kan ikke roeres. start_prosent er fri og innenfor check-en 0..99.",
+      "oppdaterbart": "start_prosent = 42"
     },
     {
       "tabell": "stasjoner",

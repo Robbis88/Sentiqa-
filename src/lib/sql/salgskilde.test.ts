@@ -49,28 +49,95 @@ describe('vaerprofilene leser butikksalg', () => {
 describe('hva som fortsatt summerer fra daglig_salg', () => {
   const funn = aggregerendeDaglige(FILER)
 
-  it('er kun de fem fra 0084, som definerer filteret selv', () => {
+  it('er de fem fra 0084 pluss treffkontrollen', () => {
     // SKAL BARE NED. Et nytt objekt som summerer fra `daglig_salg` maa
     // enten lese `v_butikksalg` eller foeres inn her med en begrunnelse.
     expect(funn.map((f) => f.navn)).toEqual([
       'uke_avdeling_aggregat',
       'utsolgt_kandidater',
+      'v_retailer_drivstofftreff',
       'v_salg_per_avdeling_dag',
       'v_salg_per_varegruppe_dag',
       'v_salg_per_varegruppe_stasjon_dag',
     ])
-    expect(new Set(funn.map((f) => f.fil))).toEqual(new Set(['0084_uten_drivstoff.sql']))
   })
 
-  it('og hver av dem har navnesjekken som faktisk virker', () => {
-    // Dette er forskjellen paa en unntaksliste og et bevis. Aa TAALE at
-    // et objekt leser `daglig_salg` er bare forsvarlig hvis det filtrerer
-    // riktig — og etter 2026-08-28 vet vi at kodearmen ikke gjoer det.
+  it('og hver av dem har et drivstoffilter som faktisk kan treffe', () => {
+    // =================================================================
+    // REGELEN ER SNUDD I 0152, OG DET ER POENGET.
+    //
+    // Før mappingen var kravet «har navnesjekken på ENERGI», fordi det
+    // var det eneste filteret som beviselig traff — koden `10` fantes
+    // ikke i data i det hele tatt.
+    //
+    // Etter 0152 er litteralen den GALE formen. Et nytt objekt skal lese
+    // `retailer_koderegel`. De fem fra `0084` beholder litteralen sin
+    // til noen legger dem om: de er korrekte for Kelsar i dag, men de er
+    // gjeld.
+    //
+    // Kravet er derfor ETT av de to. Et objekt med ingen av delene
+    // filtrerer ikke drivstoff i det hele tatt — og det var nøyaktig
+    // dét `beregn_vaerprofil` gjorde i to år.
+    // =================================================================
     for (const f of funn) {
       const d = sisteDefinisjon(FILER, f.navn)!
-      expect(d.kropp, `${f.navn} leser daglig_salg UTEN navnesjekk paa ENERGI`)
-        .toMatch(/upper\s*\(\s*coalesce\s*\(\s*(?:ds\.)?avdeling_navn[\s\S]{0,40}?<>\s*'ENERGI'/i)
+      expect(
+        LITTERAL.test(d.kropp) || /retailer_koderegel/i.test(d.kropp),
+        `${f.navn} leser daglig_salg uten å filtrere drivstoff — `
+        + 'hverken navnesjekk eller retailer_koderegel',
+      ).toBe(true)
     }
+  })
+
+  it('litteralgjelden står stille på fem', () => {
+    // Tallet skal bare NED. Når det når null, er drivstoff definert ett
+    // sted i hele basen.
+    const gjeld = funn.filter((f) => LITTERAL.test(sisteDefinisjon(FILER, f.navn)!.kropp))
+    expect(gjeld.length,
+      `Litteralgjeld: ${gjeld.map((f) => f.navn).join(', ')}`).toBeLessThanOrEqual(5)
+    expect(new Set(gjeld.map((f) => f.fil))).toEqual(new Set(['0084_uten_drivstoff.sql']))
+  })
+})
+
+/** Navnesjekken fra 0084/0085 — den armen som faktisk traff. */
+const LITTERAL = /upper\s*\(\s*coalesce\s*\(\s*(?:ds\.)?avdeling_navn[\s\S]{0,40}?<>\s*'ENERGI'/i
+
+describe('mappingen er kilden, ikke litteralen', () => {
+  it('v_butikksalg leser retailer_koderegel og erklæringen', () => {
+    const d = sisteDefinisjon(FILER, 'v_butikksalg')
+    expect(d, 'v_butikksalg finnes ikke').not.toBeNull()
+    expect(d!.kropp, 'v_butikksalg leser ikke mappingen').toMatch(/retailer_koderegel/i)
+    expect(d!.kropp, 'v_butikksalg joiner ikke erklæringen — da fail-closer den ikke')
+      .toMatch(/retailer_kodeerklaering/i)
+  })
+
+  it('v_butikksalg har ingen litteral igjen', () => {
+    // Står én av dem igjen, er drivstoff definert to steder — og de
+    // skiller lag i stillhet.
+    const k = sisteDefinisjon(FILER, 'v_butikksalg')!.kropp
+    expect(k, "v_butikksalg filtrerer fortsatt paa 'ENERGI'").not.toMatch(/'ENERGI'/)
+    expect(k, "v_butikksalg filtrerer fortsatt paa '10'").not.toMatch(/avdeling_kode[^\n]*'10'/)
+  })
+
+  it('security_invoker står i samme setning', () => {
+    // `create or replace view` uten klausulen nullstiller flagget i
+    // stillhet, og viewet leses da som eier — forbi RLS.
+    for (const v of ['v_butikksalg', 'v_retailer_kodestatus', 'v_retailer_drivstofftreff']) {
+      const d = sisteDefinisjon(FILER, v)
+      expect(d, `${v} finnes ikke`).not.toBeNull()
+      expect(d!.kropp, `${v} mangler security_invoker`).toMatch(/security_invoker\s*=\s*true/i)
+    }
+  })
+
+  it('0152 backfiller FØR den bytter viewet', () => {
+    // Rekkefølgen er sikkerhetskritisk. Bytter viewet før radene finnes,
+    // ser hver kjede med salg null rader i hele produktet — `0065`-formen.
+    const f = FILER.find((x) => x.fil.startsWith('0152'))!.sql
+    const backfill = f.indexOf('insert into public.retailer_kodeerklaering')
+    const viewbytte = f.indexOf('create or replace view public.v_butikksalg')
+    expect(backfill, 'fant ikke backfillen').toBeGreaterThan(-1)
+    expect(viewbytte, 'fant ikke viewbyttet').toBeGreaterThan(-1)
+    expect(backfill, 'viewet byttes FØR backfillen').toBeLessThan(viewbytte)
   })
 })
 
