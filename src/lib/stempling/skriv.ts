@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { avledVakter, type Hendelse, type Vakt } from './avled'
-import { tellbareMinutter, type Pauseregel } from './pause'
 
 // =====================================================================
 // Hendelser inn, vakter ut, skrevet tilbake til `stempling`.
@@ -25,7 +24,7 @@ import { tellbareMinutter, type Pauseregel } from './pause'
 
 type Rad = {
   id: string; ansatt_nr: string; ansatt_navn: string
-  stasjon_id: string; tidspunkt: string; type: 'inn' | 'ut'
+  stasjon_id: string; tidspunkt: string; type: 'inn' | 'ut' | 'pause'
 }
 
 export type Skriveresultat = {
@@ -61,12 +60,16 @@ export function vindu(rundt: Date): { fra: string; til: string } {
  * `Vakt` → rad i `stempling`.
  *
  * `fra_tid` og `til_tid` står som de ble stemplet — de er hva som
- * faktisk skjedde. Det er `minutter` som er lønnstallet, og det er der
- * pausen trekkes. Å barbere sluttiden i stedet ville skrevet et
- * klokkeslett som aldri fant sted, i noe som er
- * regnskapsdokumentasjon.
+ * faktisk skjedde. Å barbere sluttiden ville skrevet et klokkeslett som
+ * aldri fant sted, i noe som er regnskapsdokumentasjon.
+ *
+ * PAUSEN BÆRES SOM ET INTERVALL, ikke bare som et fratrukket tall.
+ * `minutter` er allerede redusert av avledningen, men lønnsfila må vite
+ * NÅR pausen lå for å kunne holde de samme minuttene utenfor
+ * tilleggsbåndene også. Et tall alene kan ikke svare på om de tretti
+ * minuttene lå før eller etter klokka 18.
  */
-export function tilStemplingsrad(v: Vakt, pause: Pauseregel) {
+export function tilStemplingsrad(v: Vakt) {
   return {
     stasjon_id: v.stasjonId,
     ansatt_nr: v.ansattNr,
@@ -74,7 +77,9 @@ export function tilStemplingsrad(v: Vakt, pause: Pauseregel) {
     dato: v.dato,
     fra_tid: v.fraTid,
     til_tid: v.tilTid,
-    minutter: tellbareMinutter(v.minutter, pause),
+    minutter: v.minutter,
+    pause_fra: v.pauseFraTid,
+    pause_til: v.pauseTilTid,
     kilde: 'tablet',
     betalt: true,
   }
@@ -96,19 +101,10 @@ export async function skrivAvledteVakter(
   const { fra, til } = vindu(rundt)
   const feil: string[] = []
 
-  // Pauseregelen ligger på kjeden (0110). Standard er at pausen er
-  // betalt: med én til to på jobb kan folk sjelden forlate stasjonen, og
-  // da er den arbeidstid etter aml. § 10-9.
-  //
-  // Feiler oppslaget, regner vi pausen som BETALT. Det er den trygge
-  // veien å ta feil på — den gir henne timene, og et for høyt tall
-  // oppdages i avstemmingen mot easy@work. Et for lavt tall oppdages på
-  // lønnsslippen hennes, av henne, en måned senere.
-  const { data: kjede } = await supabase
-    .from('retailers').select('stempling_pause_betalt')
-    .maybeSingle<{ stempling_pause_betalt: boolean }>()
-  const pause: Pauseregel = { betalt: kjede?.stempling_pause_betalt ?? true }
-
+  // INGEN PAUSEREGEL AA SLAA OPP LENGER. Fram til 0150 leste denne
+  // `retailers.stempling_pause_betalt` og trakk 30 minutter automatisk.
+  // Naa trekkes bare pauser som faktisk er REGISTRERT, og de kommer inn
+  // som hendelser i strommen under. Se pause.ts.
   const { data, error } = await supabase
     .from('stempling_hendelse')
     .select('id, ansatt_nr, ansatt_navn, stasjon_id, tidspunkt, type')
@@ -163,7 +159,7 @@ export async function skrivAvledteVakter(
 
   const { error: skrivfeil } = await supabase
     .from('stempling')
-    .insert(vakter.map((v) => tilStemplingsrad(v, pause)))
+    .insert(vakter.map((v) => tilStemplingsrad(v)))
   if (skrivfeil) feil.push(skrivfeil.message)
 
   return {

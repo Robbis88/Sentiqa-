@@ -150,3 +150,60 @@ describe('tilLonnslinjer', () => {
     expect(l).toEqual([])
   })
 })
+
+// =====================================================================
+// REGISTRERT PAUSE (0150) — de samme minuttene ut av BEGGE.
+// =====================================================================
+describe('pausen utelates fra timeloenn og tillegg', () => {
+  const NAVN: Record<string, string> = Object.fromEntries(
+    Object.entries(LONNSART).map(([k, v]) => [v, k]))
+  const kart = (v: Parameters<typeof delVakt>[0]) =>
+    Object.fromEntries([...delVakt(v)].map(([k, m]) => [NAVN[k], m]))
+
+  test('uten pause staar vakta uroert', () => {
+    // 2026-08-27 er en torsdag.
+    expect(kart({ dato: '2026-08-27', fraTid: '07:00', tilTid: '15:00' }))
+      .toEqual({ timelonn: 480 })
+  })
+
+  test('trekker de tretti minuttene fra timeloenn', () => {
+    expect(kart({
+      dato: '2026-08-27', fraTid: '07:00', tilTid: '15:00',
+      pauseFraTid: '11:00', pauseTilTid: '11:30',
+    })).toEqual({ timelonn: 450 })
+  })
+
+  test('EN PAUSE I ET TILLEGGSBAAND FALLER UT AV BAADE DELER', () => {
+    // 18:00-18:30 ligger i 1429 (hverdag 18-21). Uten utelatelsen fra
+    // baandet ville hun faatt kveldstillegg for en pause hun ikke jobbet.
+    expect(kart({
+      dato: '2026-08-27', fraTid: '15:00', tilTid: '21:00',
+      pauseFraTid: '18:00', pauseTilTid: '18:30',
+    })).toEqual({ timelonn: 330, hverdag1821: 150 })
+    // Til sammenligning, samme vakt uten pause:
+    expect(kart({ dato: '2026-08-27', fraTid: '15:00', tilTid: '21:00' }))
+      .toEqual({ timelonn: 360, hverdag1821: 180 })
+  })
+
+  test('virker over midnatt — pausen hoerer til neste doegn', () => {
+    expect(kart({
+      dato: '2026-08-27', fraTid: '22:00', tilTid: '06:00',
+      pauseFraTid: '01:00', pauseTilTid: '01:30',
+    })).toEqual({ timelonn: 450, hverdag2124: 120, hverdag0006: 330 })
+  })
+
+  test('en pause som krysser midnatt klemmes ikke i stykker', () => {
+    expect(kart({
+      dato: '2026-08-27', fraTid: '22:00', tilTid: '06:00',
+      pauseFraTid: '23:45', pauseTilTid: '00:15',
+    })).toEqual({ timelonn: 450, hverdag2124: 105, hverdag0006: 345 })
+  })
+
+  test('en klemt pause trekker bare det den faktisk varte', () => {
+    // avledVakter klemmer mot sluttiden; her kommer den inn som 10 min.
+    expect(kart({
+      dato: '2026-08-27', fraTid: '07:00', tilTid: '15:00',
+      pauseFraTid: '14:50', pauseTilTid: '15:00',
+    })).toEqual({ timelonn: 470 })
+  })
+})

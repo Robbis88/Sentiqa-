@@ -73,7 +73,20 @@ const dagtype = (dato: string): 'hverdag' | 'lordag' | 'sondag' => {
   return u === 6 ? 'lordag' : u === 7 ? 'sondag' : 'hverdag'
 }
 
-export type Stempling = { dato: string; fraTid: string; tilTid: string }
+export type Stempling = {
+  dato: string
+  fraTid: string
+  tilTid: string
+  /**
+   * Registrert pause (0150). Null naar ingen ble trykket.
+   *
+   * BAERES SOM ET INTERVALL, ikke som et fratrukket tall. De samme
+   * minuttene skal utelates fra BAADE timeloenn og tillegg, og et tall
+   * alene kan ikke svare paa om pausen laa foer eller etter klokka 18.
+   */
+  pauseFraTid?: string | null
+  pauseTilTid?: string | null
+}
 
 /**
  * Deler én vakt i lønnsarter, i minutter.
@@ -90,6 +103,20 @@ export function delVakt(v: Stempling): Map<string, number> {
   // Slike finnes i ekte data: 05:00 -> 05:00, 0,00 t.
   if (slutt < start) slutt += 24 * 60
 
+  // PAUSEVINDUET, i samme minuttrom som loekka under. Ligger pausen
+  // etter midnatt paa en nattevakt, er klokkeslettet lavere enn
+  // starten - da hoerer det til neste doegn, akkurat som sluttiden.
+  let pStart = -1
+  let pSlutt = -1
+  if (v.pauseFraTid && v.pauseTilTid) {
+    pStart = minutter(v.pauseFraTid)
+    if (pStart < start) pStart += 24 * 60
+    pSlutt = v.pauseTilTid === '00:00' || v.pauseTilTid === '24:00'
+      ? 24 * 60
+      : minutter(v.pauseTilTid)
+    if (pSlutt <= pStart) pSlutt += 24 * 60
+  }
+
   const ut = new Map<string, number>()
   const legg = (kode: string) => ut.set(kode, (ut.get(kode) ?? 0) + 1)
 
@@ -99,6 +126,12 @@ export function delVakt(v: Stempling): Map<string, number> {
   const erAften = aftenNavn(v.dato) !== null
 
   for (let m = start; m < slutt; m++) {
+    // Pausen teller ikke som noe. Ett `continue` foer alt annet gir
+    // begge virkningene paa en gang: minuttet blir hverken timeloenn
+    // eller tillegg. Ligger pausen 18:00-18:30 paa en hverdag, faller
+    // den ut av 1429 like presist som av loennsart 2.
+    if (pStart >= 0 && m >= pStart && m < pSlutt) continue
+
     const klokke = m % (24 * 60)
     const overMidnatt = Math.floor(m / (24 * 60))
     const dag = overMidnatt === 0 ? v.dato : pluss(v.dato, overMidnatt)

@@ -12,7 +12,7 @@ type Verifikasjon = { ansatt_id: string | null; status: 'ok' | 'avvist' | 'sperr
 export type StemplingSvar = {
   ok?: true
   navn?: string
-  retning?: 'inn' | 'ut'
+  retning?: 'inn' | 'ut' | 'pause'
   klokkeslett?: string
   advarsel?: string
   feil?: string
@@ -45,6 +45,11 @@ export async function stemple(
 ): Promise<StemplingSvar> {
   const bruker = await hentInnloggetBruker()
   if (!bruker.retailerId) return { feil: 'Mangler tilgang.' }
+
+  // PAUSEN GAAR SAMME VEI SOM INN OG UT: samme skjema, samme PIN, samme
+  // identitetsbevis. En pause er en registrert hendelse knyttet til en
+  // person - ikke et trykk hvem som helst kan gjoere paa hennes vegne.
+  const erPause = String(formData.get('handling') ?? '') === 'pause'
 
   const nummer = String(formData.get('ansatt_nr') ?? '').trim()
   const pin = String(formData.get('pin') ?? '').trim()
@@ -99,11 +104,16 @@ export async function stemple(
   const stasjonId = (await hentStasjonId(supabase, aktiv)) ?? ansatt.stasjon_id
   if (!stasjonId) return { feil: 'Nettbrettet vet ikke hvilken stasjon det står på.' }
 
+  // BARE inn og ut. En pause snur ikke retningen - etter en pause er
+  // hun fortsatt inne, og neste trykk er fortsatt «ut». Uten filteret
+  // ville `nesteRetning` lest pausen som «sist ute» og stemplet henne
+  // inn paa nytt, midt i en vakt som alt sto aapen.
   const { data: siste } = await supabase
     .from('stempling_hendelse')
     .select('type, tidspunkt')
     .eq('stasjon_id', stasjonId)
     .eq('ansatt_nr', nummer)
+    .in('type', ['inn', 'ut'])
     .is('annullert_tid', null)
     .order('tidspunkt', { ascending: false })
     .limit(1)
@@ -113,13 +123,36 @@ export async function stemple(
   const retning = nesteRetning(siste ?? null)
   const lenge = harStaattLenge(siste ?? null, naa)
 
+  if (erPause) {
+    // Pause krever en aapen vakt. Avledningen ville uansett meldt den
+    // som avvik, men da hadde hun gaatt fra nettbrettet i den tro at
+    // det ble registrert.
+    if (siste?.type !== 'inn') {
+      return { feil: 'Du må være stemplet inn for å registrere pause.' }
+    }
+    // MAKS EN PAUSE PER VAKT. Regelen er avledningens, men flaten skal
+    // si det med en gang - ellers trykker hun to ganger og tror hun har
+    // faatt en time.
+    const { count } = await supabase
+      .from('stempling_hendelse')
+      .select('id', { count: 'exact', head: true })
+      .eq('stasjon_id', stasjonId)
+      .eq('ansatt_nr', nummer)
+      .eq('type', 'pause')
+      .is('annullert_tid', null)
+      .gt('tidspunkt', siste.tidspunkt)
+    if ((count ?? 0) > 0) {
+      return { feil: 'Du har allerede registrert pause på denne vakten.' }
+    }
+  }
+
   const { error } = await supabase.from('stempling_hendelse').insert({
     retailer_id: bruker.retailerId,
     stasjon_id: stasjonId,
     ansatt_nr: nummer,
     ansatt_navn: ansatt.navn,
     tidspunkt: naa.toISOString(),
-    type: retning,
+    type: erPause ? 'pause' : retning,
     kilde: 'tablet',
   })
 
@@ -136,7 +169,10 @@ export async function stemple(
   // avledningen kan kjores om igjen. Aa si «ble ikke registrert» her
   // ville vaert usant og faatt henne til aa stemple en gang til, som
   // lager et dobbel_inn-avvik butikksjefen maa rydde.
-  if (retning === 'ut') {
+  // INGEN AVLEDNING VED PAUSE. Vakta er fortsatt aapen, og en aapen vakt
+  // har ingen sluttid aa regne fra. Pausen plukkes opp naar hun stempler
+  // ut, av samme avledning som alltid.
+  if (!erPause && retning === 'ut') {
     await skrivAvledteVakter(supabase, stasjonId, nummer, naa)
   }
 
@@ -144,7 +180,7 @@ export async function stemple(
   return {
     ok: true,
     navn: ansatt.navn,
-    retning,
+    retning: erPause ? 'pause' : retning,
     klokkeslett: klokke.format(naa),
     advarsel: lenge
       ? 'Vakten din har stått åpen i over 16 timer. Si fra til butikksjefen om det ikke stemmer.'

@@ -1,61 +1,47 @@
 import { describe, it, expect } from 'vitest'
-import {
-  tellbareMinutter, pausetrekk, PAUSE_TERSKEL_MIN, PAUSE_MIN,
-} from './pause'
+import { pausevindu, PAUSE_MINUTTER } from './pause'
 
-const BETALT = { betalt: true }
-const UBETALT = { betalt: false }
+const t = (hhmm: string) => new Date(`2026-08-28T${hhmm}:00+02:00`)
 
-describe('tellbareMinutter', () => {
-  it('teller hele vakta når pausen er betalt', () => {
-    expect(tellbareMinutter(600, BETALT)).toBe(600)
+describe('pausevindu', () => {
+  it('er tretti minutter fra trykket', () => {
+    const v = pausevindu(t('07:00'), t('15:00'), t('11:00'))
+    expect(v?.minutter).toBe(30)
+    expect(v?.fra.toISOString()).toBe(t('11:00').toISOString())
+    expect(v?.til.toISOString()).toBe(t('11:30').toISOString())
   })
 
-  it('teller hele vakta når den er kortere enn terskelen', () => {
-    expect(tellbareMinutter(240, UBETALT)).toBe(240)
+  it('KLEMMES MOT SLUTTIDEN — aldri forbi det som faktisk ble jobbet', () => {
+    // Trykker pause 14:50, stempler ut 15:00. Ti minutter, ikke tretti.
+    // Uten klemmen ville vakta blitt tjue minutter kortere enn den var.
+    const v = pausevindu(t('07:00'), t('15:00'), t('14:50'))
+    expect(v?.minutter).toBe(10)
+    expect(v?.til.toISOString()).toBe(t('15:00').toISOString())
   })
 
-  it('teller hele vakta akkurat på terskelen', () => {
-    expect(tellbareMinutter(PAUSE_TERSKEL_MIN, UBETALT)).toBe(PAUSE_TERSKEL_MIN)
+  it('gir null naar pausen trykkes i samme oeyeblikk som utstemplingen', () => {
+    expect(pausevindu(t('07:00'), t('15:00'), t('15:00'))).toBeNull()
   })
 
-  it('trekker pausen fra en lang vakt', () => {
-    expect(tellbareMinutter(480, UBETALT)).toBe(480 - PAUSE_MIN)
+  it('gir null utenfor vakta, i begge retninger', () => {
+    expect(pausevindu(t('07:00'), t('15:00'), t('06:59'))).toBeNull()
+    expect(pausevindu(t('07:00'), t('15:00'), t('15:01'))).toBeNull()
   })
 
-  // Et kvarters ekstra arbeid skal ikke gi tjue minutter mindre betalt.
-  // Det er et tall ingen kan forklare til den det gjelder.
-  it('gjør aldri en vakt kortere enn terskelen', () => {
-    expect(tellbareMinutter(PAUSE_TERSKEL_MIN + 10, UBETALT)).toBe(PAUSE_TERSKEL_MIN)
+  it('virker paa en vakt over midnatt', () => {
+    const inn = new Date('2026-08-28T22:00:00+02:00')
+    const ut = new Date('2026-08-29T06:00:00+02:00')
+    const trykk = new Date('2026-08-29T01:00:00+02:00')
+    const v = pausevindu(inn, ut, trykk)
+    expect(v?.minutter).toBe(30)
+    expect(v?.til.toISOString()).toBe(new Date('2026-08-29T01:30:00+02:00').toISOString())
   })
 
-  it('er monotont — mer arbeid gir aldri mindre betalt', () => {
-    let forrige = 0
-    for (let m = 0; m <= 900; m += 5) {
-      const naa = tellbareMinutter(m, UBETALT)
-      expect(naa).toBeGreaterThanOrEqual(forrige)
-      forrige = naa
-    }
-  })
-
-  it('gir aldri mer enn vakta varte', () => {
-    for (const m of [0, 60, 330, 331, 480, 900]) {
-      expect(tellbareMinutter(m, UBETALT)).toBeLessThanOrEqual(m)
-      expect(tellbareMinutter(m, BETALT)).toBeLessThanOrEqual(m)
-    }
-  })
-})
-
-describe('pausetrekk', () => {
-  it('er null når pausen er betalt', () => {
-    expect(pausetrekk(600, BETALT)).toBe(0)
-  })
-
-  it('er hele pausen på en lang vakt', () => {
-    expect(pausetrekk(600, UBETALT)).toBe(PAUSE_MIN)
-  })
-
-  it('er null på en kort vakt', () => {
-    expect(pausetrekk(200, UBETALT)).toBe(0)
+  it('KANARIFUGL: lengden er én fast konstant, ikke et valg', () => {
+    // Endres denne, endres hver eneste registrerte pause i systemet.
+    // Ingen flate skal kunne sende inn en annen lengde — funksjonen tar
+    // ikke imot en.
+    expect(PAUSE_MINUTTER).toBe(30)
+    expect(pausevindu.length).toBe(3) // vaktStart, vaktSlutt, trykket
   })
 })

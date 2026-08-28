@@ -4,7 +4,7 @@ import { avledVakter, kanLageLonnsfil, type Hendelse } from './avled'
 let teller = 0
 const h = (
   tidspunkt: string,
-  type: 'inn' | 'ut',
+  type: 'inn' | 'ut' | 'pause',
   ansattNr = '11058',
   stasjonId = 'A',
 ): Hendelse => ({
@@ -147,5 +147,111 @@ describe('kanLageLonnsfil', () => {
       h('2026-08-19T15:00:00+02:00', 'ut'),
     ])
     expect(kanLageLonnsfil(avvik)).toBe(true)
+  })
+})
+
+// =====================================================================
+// PAUSE ER EN HENDELSE (0150).
+//
+// Robert 2026-08-28: all tid mellom inn og ut er betalt, ingen
+// automatisk pause trekkes, og en ubetalt pause reduserer arbeidstiden
+// kun naar den faktisk er registrert.
+// =====================================================================
+describe('registrert pause', () => {
+  test('uten pausehendelse trekkes INGENTING', () => {
+    const { vakter } = avledVakter([
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T15:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].minutter).toBe(480)
+    expect(vakter[0].pauseFraTid).toBeNull()
+    expect(vakter[0].pauseTilTid).toBeNull()
+  })
+
+  test('ett trykk trekker tretti minutter, og baerer intervallet', () => {
+    const { vakter } = avledVakter([
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T11:00:00+02:00', 'pause'),
+      h('2026-08-28T15:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].minutter).toBe(450)
+    expect(vakter[0].pauseFraTid).toBe('11:00')
+    expect(vakter[0].pauseTilTid).toBe('11:30')
+  })
+
+  test('pausen trekkes ALDRI forbi faktisk sluttid', () => {
+    const { vakter } = avledVakter([
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T14:50:00+02:00', 'pause'),
+      h('2026-08-28T15:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].minutter).toBe(470) // 480 - 10, ikke 450
+    expect(vakter[0].pauseTilTid).toBe('15:00')
+  })
+
+  test('MAKS EN PAUSE PER VAKT — trykk nummer to er et avvik', () => {
+    const { vakter, avvik } = avledVakter([
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T11:00:00+02:00', 'pause'),
+      h('2026-08-28T13:00:00+02:00', 'pause'),
+      h('2026-08-28T15:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].minutter).toBe(450) // 30, ikke 60
+    expect(avvik.filter((a) => a.slag === 'dobbel_pause')).toHaveLength(1)
+  })
+
+  test('pause uten aapen vakt er et avvik, ikke et trekk', () => {
+    const { vakter, avvik } = avledVakter([
+      h('2026-08-28T06:00:00+02:00', 'pause'),
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T15:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].minutter).toBe(480)
+    expect(avvik.filter((a) => a.slag === 'pause_uten_vakt')).toHaveLength(1)
+  })
+
+  test('KOBLES DETERMINISTISK TIL RIKTIG VAKT', () => {
+    // To vakter samme dag. Pausen ligger i den andre, og skal bare
+    // treffe den. Uten koblingen ville et oppslag paa dato eller
+    // naermeste tidspunkt vaert et gjett.
+    const { vakter } = avledVakter([
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T11:00:00+02:00', 'ut'),
+      h('2026-08-28T12:00:00+02:00', 'inn'),
+      h('2026-08-28T13:00:00+02:00', 'pause'),
+      h('2026-08-28T17:00:00+02:00', 'ut'),
+    ])
+    expect(vakter).toHaveLength(2)
+    expect(vakter[0].minutter).toBe(240) // uroert
+    expect(vakter[0].pauseFraTid).toBeNull()
+    expect(vakter[1].minutter).toBe(270) // 300 - 30
+    expect(vakter[1].pauseFraTid).toBe('13:00')
+  })
+
+  test('pausen foelger ikke med til neste vakt', () => {
+    // Trykk i vakt 1, ingen i vakt 2. Uten nullstillingen ville den
+    // andre vakta arvet trekket.
+    const { vakter } = avledVakter([
+      h('2026-08-28T07:00:00+02:00', 'inn'),
+      h('2026-08-28T08:00:00+02:00', 'pause'),
+      h('2026-08-28T11:00:00+02:00', 'ut'),
+      h('2026-08-28T12:00:00+02:00', 'inn'),
+      h('2026-08-28T17:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].minutter).toBe(210)
+    expect(vakter[1].minutter).toBe(300)
+    expect(vakter[1].pauseFraTid).toBeNull()
+  })
+
+  test('over midnatt: pausen ligger paa neste dags klokke', () => {
+    const { vakter } = avledVakter([
+      h('2026-08-28T22:00:00+02:00', 'inn'),
+      h('2026-08-29T01:00:00+02:00', 'pause'),
+      h('2026-08-29T06:00:00+02:00', 'ut'),
+    ])
+    expect(vakter[0].dato).toBe('2026-08-28') // forretningsdato foelger starten
+    expect(vakter[0].minutter).toBe(450)
+    expect(vakter[0].pauseFraTid).toBe('01:00')
+    expect(vakter[0].pauseTilTid).toBe('01:30')
   })
 })

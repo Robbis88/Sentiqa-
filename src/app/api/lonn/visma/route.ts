@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   // timene i lonnsfila.
   const { data } = await supabase
     .from('v_stempling_aktiv')
-    .select('ansatt_nr, dato, fra_tid, til_tid')
+    .select('ansatt_nr, dato, fra_tid, til_tid, pause_fra, pause_til')
     .eq('stasjon_id', stasjonId)
     .eq('betalt', true)
     .gte('dato', `${ar}-${mm}-01`)
@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
     .order('dato')
 
   const rader = (data ?? []) as
-    { ansatt_nr: string; dato: string; fra_tid: string; til_tid: string }[]
+    { ansatt_nr: string; dato: string; fra_tid: string; til_tid: string
+      pause_fra: string | null; pause_til: string | null }[]
   if (rader.length === 0) {
     return NextResponse.json({ feil: 'Ingen stemplinger i perioden.' }, { status: 404 })
   }
@@ -78,11 +79,16 @@ export async function GET(req: NextRequest) {
     }, { status: 409 })
   }
 
+  // PAUSEVINDUET MAA MED (0150). Uten det regner delVakt hele spennet,
+  // og de tretti minuttene ville blitt betalt - baade som timeloenn og
+  // som eventuelt kveldstillegg.
   const linjer = tilLonnslinjer(rader.map((r) => ({
     ansattNr: r.ansatt_nr,
     dato: r.dato,
     fraTid: r.fra_tid.slice(0, 5),
     tilTid: r.til_tid.slice(0, 5),
+    pauseFraTid: r.pause_fra?.slice(0, 5) ?? null,
+    pauseTilTid: r.pause_til?.slice(0, 5) ?? null,
   })))
 
   // Fastlønnede og tilkallingsvikarer stempler, men skal ikke i fila.

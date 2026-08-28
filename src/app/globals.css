@@ -2038,6 +2038,15 @@ button.liten { min-height: 40px; }
   border: 0;
 }
 .stempling-knapp[disabled] { opacity: 0.7; }
+/* Pausen er det sjeldnere ærendet. Samme høyde — det er fortsatt en
+   finger med hansker — men dempet, så «Stemple» blir stående som det
+   knappen skjermen er til for. */
+.stempling-knapp.pause {
+  background: var(--kort);
+  color: var(--tekst);
+  border: 1px solid var(--kant-sterk);
+  font-size: 1.15rem;
+}
 
 /* Kvitteringen sier NAVN og KLOKKESLETT, ikke «lagret». Hun skal se at
    det ble riktig person og riktig tid uten aa lete - og oppdage med en
