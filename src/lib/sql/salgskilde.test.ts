@@ -141,6 +141,46 @@ describe('mappingen er kilden, ikke litteralen', () => {
   })
 })
 
+describe('en fixture som seeder salg maa erklaere drivstoff', () => {
+  // =====================================================================
+  // `v_butikksalg` er fail-closed fra `0152`. En kjede uten erklæring ser
+  // null rader — også en testkjede.
+  //
+  // Backfillen i migrasjonen kan ikke hjelpe: den leser `daglig_salg`, og
+  // seeden kjører ETTER migrasjonene. Den fant ingenting å backfille fra.
+  //
+  // Det slo til første gang CI kjørte, som «BLIND TEST: ingen salgsdata i
+  // basen» fra `bp_status.sql`. Kanarifuglen der gjorde jobben sin — men
+  // den peker på symptomet, tre minutter ut i en tolv minutters jobb.
+  // Denne peker på årsaken, på millisekunder.
+  // =====================================================================
+  const seed = readFileSync(join(process.cwd(), 'supabase/seed.sql'), 'utf8')
+
+  const kjederMedSalg = [...new Set(
+    [...seed.matchAll(/insert into public\.daglig_salg[\s\S]*?;/g)]
+      .flatMap((blokk) => [...blokk[0].matchAll(/'(11111111-[0-9a-f-]{27})'/g)])
+      .map((treff) => treff[1]),
+  )]
+
+  it('KANARIFUGL: seeden inneholder faktisk salgsdata', () => {
+    // Uten denne ville «hver kjede med salg har erklæring» vært sant fordi
+    // ingen kjede har salg.
+    expect(kjederMedSalg.length, 'fant ingen kjeder med salg i seed.sql')
+      .toBeGreaterThan(0)
+  })
+
+  it('hver kjede med salg har en drivstofferklæring', () => {
+    for (const id of kjederMedSalg) {
+      expect(
+        new RegExp(`retailer_kodeerklaering[\\s\\S]*'${id}'`).test(seed),
+        `seed.sql gir ${id} salgsdata, men ingen drivstofferklæring — `
+        + 'kjeden ser null rader i v_butikksalg, og hver test som leser salg '
+        + 'faller på «ingen data» i stedet for på det den måler',
+      ).toBe(true)
+    }
+  })
+})
+
 describe('bugfixen holdt seg innenfor', () => {
   const f0151 = FILER.find((f) => f.fil.startsWith('0151'))
 
