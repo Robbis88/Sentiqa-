@@ -184,11 +184,23 @@ export async function kjorRegnskapsanalyseHittil(supabase: Klient, retailerId: s
 
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null }
   type SvinnRad = { stasjon_id: string | null; navn: string; salg: number | null; usynlig_kr: number | null }
-  const [{ data: sum }, { data: stasjoner }, { data: svinn }] = await Promise.all([
+  // SJEKKER `error`. `svinn_sum` manglet i produksjon fordi `0065` var
+  // kjort halvveis, og analysen regnet paa null uten et eneste spor.
+  // ET SPROG SOM MANGLER TALL SKAL IKKE SVARE. En AI-analyse som
+  // konkluderer paa et tomt datasett er verre enn ingen analyse - den
+  // ser like sikker ut.
+  const [
+    { data: sum, error: sumFeil },
+    { data: stasjoner },
+    { data: svinn, error: svinnFeil },
+  ] = await Promise.all([
     supabase.rpc('regnskap_sum', { p_fra: fra, p_til: til }),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     supabase.rpc('svinn_sum', { p_fra: fra, p_til: til }),
   ])
+  if (sumFeil) throw new Error(`regnskap_sum feilet: ${sumFeil.message}`)
+  if (svinnFeil) throw new Error(`svinn_sum feilet: ${svinnFeil.message}`)
+
   const rader = (sum ?? []) as SumRad[]
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 
