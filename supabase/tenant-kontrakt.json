@@ -1755,9 +1755,10 @@
         "gjelder": "true"
       },
       "business_unik": [
-        "rolle"
+        "retailer_id"
       ],
-      "oppdaterbart": "gjelder = false"
+      "oppdaterbart": "gjelder = false",
+      "en_rad_per_retailer": true
     },
     {
       "tabell": "retailer_koderegel",

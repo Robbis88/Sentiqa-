@@ -133,6 +133,10 @@ function fastVerdi(r: Ressurs, s: Stasjon): string {
   // fersk proberad ville tilhort ingen - og «owner_A ser sin egen rad»
   // kunne ikke uttrykkes. Da peker vi paa kjederaden i fasitverdenen.
   if (r.fast_rad) return fyll(r.fast_rad, { retailer: R[kjedenFor(s)], stasjon: S[s] })
+  // EN RAD PER RETAILER: alle stasjonene i kjeden peker paa SAMME rad.
+  // Nokkelen er kjeden, ikke stasjonen - ellers ville A1, A2 og A3 pekt
+  // paa tre rader der skjemaet bare har plass til en.
+  if (r.en_rad_per_retailer) return seedId(`${r.tabell}:fast:${kjedenFor(s)}`)
   return idKol(r) === 'id' ? seedId(`${r.tabell}:fast:${s}`) : S[s]
 }
 
@@ -653,6 +657,36 @@ function genererRessursSeed(r: Ressurs): string {
     return linjer.join('\n')
   }
 
+  // EN RAD PER RETAILER: SEEDINGEN SELV MAA VITE DET.
+  //
+  // Loekka under lager en rad per STASJON - fem i alt. Har skjemaet plass
+  // til én per kjede, kolliderer rad nummer to i kjede A med 23505 **for
+  // fixturen blir ferdig**, og hele matrisen faller over paa en domenefeil
+  // som ikke ligner et sikkerhetsfunn.
+  //
+  // Dette var det femte kallstedet, og det som ikke lot seg gjette fra
+  // `en_rad_per_stasjon`: der er stasjonen bade plassen OG loekkas enhet,
+  // saa de to faller sammen. Her gjoer de ikke det.
+  //
+  // Raden seedes en gang per kjede, men registreres under HVER av kjedens
+  // stasjoner - da trenger `radPredikat` ingen endring: A1, A2 og A3
+  // finner den samme raden.
+  if (r.en_rad_per_retailer) {
+    for (const kjede of ['A', 'B'] as Kjede[]) {
+      const forste = KJEDENS_STASJONER[kjede][0]
+      const { kolonner, verdier } = proberadSql(r, kjede, forste, `fast${kjede}`)
+      fastRad[r.tabell] ??= {}
+      for (const s of KJEDENS_STASJONER[kjede]) {
+        fastRad[r.tabell]![s] = Object.fromEntries(kolonner.map((k, i) => [k, verdier[i]]))
+      }
+      linjer.push(idKol(r) === 'id' && !r.id_kolonner
+        ? `insert into public.${r.tabell} (id, ${kolonner.join(', ')}) `
+          + `values (${sitat(seedId(`${r.tabell}:fast:${kjede}`))}, ${verdier.join(', ')});`
+        : `insert into public.${r.tabell} (${kolonner.join(', ')}) values (${verdier.join(', ')});`)
+    }
+    return linjer.join('\n')
+  }
+
   // Én fast proberad per stasjon, til lese- og flyttetester.
   for (const [kjede, s] of alle) {
     const { kolonner, verdier } = proberadSql(r, kjede, s, `fast${s}`)
@@ -729,8 +763,9 @@ function genererRessursSeed(r: Ressurs): string {
 
   const proberadFelt = Object.entries(r.proberad).filter(([k]) => !k.startsWith('$'))
 
-  // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon.
-  if (r.en_rad_per_stasjon) return linjer.join('\n')
+  // Ingen nyrad_* naar skjemaet bare tillater en rad per stasjon - eller
+  // en per kjede.
+  if (r.en_rad_per_stasjon || r.en_rad_per_retailer) return linjer.join('\n')
 
   // Og ingen naar INGEN ROLLE roerer raden etterpaa.
   //
@@ -972,12 +1007,16 @@ end $$;
  * ellers gyldig kjoering - 42883, og ikke et ord om hvorfor.
  */
 function harNyrad(r: Ressurs): boolean {
-  if (r.en_rad_per_stasjon || r.fast_rad) return false
+  if (r.en_rad_per_stasjon || r.en_rad_per_retailer || r.fast_rad) return false
   return (['update', 'delete'] as const).some((op) => r.operasjoner.includes(op)
     && IDENTITETER.some((i) => maal(i).some((s) => tillatt(r, i, op, s))))
 }
 
 function frigjorPlassen(r: Ressurs, s: Stasjon): string {
+  // Plassen er kjeden naar `en_rad_per_retailer` staar, ellers stasjonen.
+  if (r.en_rad_per_retailer) {
+    return `delete from public.${r.tabell} where retailer_id = ${sitat(R[kjedenFor(s)])};`
+  }
   return `delete from public.${r.tabell} where stasjon_id = ${sitat(S[s])};`
 }
 
@@ -1174,7 +1213,7 @@ function genererRessurs(r: Ressurs): string {
           //
           // Raden fjernes som eier foer forsoeket, og tilstanden
           // normaliseres etterpaa uansett utfall.
-          if (r.en_rad_per_stasjon) {
+          if (r.en_rad_per_stasjon || r.en_rad_per_retailer) {
             linjer.push(`select pg_temp.som_eier();`)
             linjer.push(frigjorPlassen(r, s))
             linjer.push(`select pg_temp.logg_inn_som(${sitat(i.uid)});`)
@@ -1200,7 +1239,10 @@ function genererRessurs(r: Ressurs): string {
                 + `values (${som.verdier.join(', ')})`)});`)
           }
 
-          if (r.en_rad_per_stasjon) {
+          // Plassen settes tilbake. `fastVerdi` gir kjedens id naar
+          // `en_rad_per_retailer` staar, saa den gjeninnsatte raden er
+          // den samme hver senere paastand peker paa.
+          if (r.en_rad_per_stasjon || r.en_rad_per_retailer) {
             const gjen = proberadSql(r, kjede, s, `gjeninn${i.navn}${s}`)
             linjer.push(`select pg_temp.som_eier();`)
             linjer.push(frigjorPlassen(r, s))
