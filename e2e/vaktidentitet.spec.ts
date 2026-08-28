@@ -136,7 +136,11 @@ async function stemple(page: Page, nr: string, pin: string) {
   await page.goto('/stempling')
   await page.fill('.stempling-skjema input[name="ansatt_nr"]', nr)
   await page.fill('.stempling-skjema input[name="pin"]', pin)
-  await page.locator('.stempling-skjema button[type="submit"]').click()
+  // `.primar`, ikke bare `submit`: skjemaet fikk en pauseknapp i 0150, og
+  // to submit-knapper i samme skjema er riktig HTML for «samme felter, to
+  // handlinger». Testen skal peke paa STEMPLE-knappen, ikke paa den av dem
+  // som tilfeldigvis staar foerst.
+  await page.locator('.stempling-skjema button.primar').click()
   await expect(
     page.locator('.stempling-kvittering, .stempling-feil'),
     'stemplingsskjemaet svarte hverken med kvittering eller feilmelding',
@@ -473,7 +477,7 @@ test.describe('verifiseringen virker for begge innlogginger', () => {
     await page.goto('/stempling')
     await page.fill('.stempling-skjema input[name="ansatt_nr"]', ADA.nr)
     await page.fill('.stempling-skjema input[name="pin"]', BO.pin)
-    await page.locator('.stempling-skjema button[type="submit"]').click()
+    await page.locator('.stempling-skjema button.primar').click()
 
     const feil = page.locator('.stempling-feil')
     await expect(feil).toBeVisible({ timeout: 30_000 })
