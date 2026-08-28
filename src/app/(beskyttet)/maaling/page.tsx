@@ -49,7 +49,11 @@ export default async function MalingSide() {
 
   // Alle cluster-stasjoner (navn) via definer-RPC — butikksjef ser ellers bare
   // sine egne via RLS, men leaderboardet trenger alle.
-  const { data: stData } = await supabase.rpc('malekort_stasjoner')
+  // SJEKKER `error`. Uten den ga et kall mot en funksjon som ikke fantes
+  // samme svar som en kjede uten stasjoner: tom liste, og teksten «Ingen
+  // stasjoner.» `0075` var aldri kjort mot produksjon, og sida sa det
+  // aldri - den bare viste ingenting, i maanedsvis.
+  const { data: stData, error: stFeil } = await supabase.rpc('malekort_stasjoner')
   const stasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[]).map((s) => ({
     id: s.id,
     navn: `${s.butikknummer} ${s.navn}`,
@@ -71,6 +75,20 @@ export default async function MalingSide() {
   if (erButikksjef) q = q.eq('vis_butikksjef', true) // butikksjef ser kun delte
   const { data: kortData } = await q.overrideTypes<MalekortDb[]>()
   const malekort = kortData ?? []
+
+  // «Kunne ikke hente stasjonene» er et annet svar enn «ingen stasjoner»,
+  // og forskjellen er hele grunnen til at dette tok en time aa finne.
+  if (stFeil) {
+    return (
+      <>
+        <Sidehode tittel="Måling" />
+        <p className="undertittel">
+          Kunne ikke hente stasjonene ({stFeil.message}). Målekortene kan ikke
+          regnes ut før det er rettet.
+        </p>
+      </>
+    )
+  }
 
   const [resultater, tre] = await Promise.all([
     Promise.all(malekort.map((m) => beregnMalekort(supabase, m, stasjoner))),

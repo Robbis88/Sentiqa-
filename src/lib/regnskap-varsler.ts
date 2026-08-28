@@ -39,11 +39,24 @@ export async function hentRegnskapVarsler(
   const fra = `${periode.slice(0, 4)}-01-01` // ny start hvert år
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
   type SvinnRad = { stasjon_id: string | null; navn: string; salg: number | null; usynlig_kr: number | null; kast: number | null }
-  const [{ data: sumLinjer }, { data: stasjoner }, { data: sumSvinn }] = await Promise.all([
+  // SJEKKER `error`. `svinn_sum` manglet i produksjon fordi `0065` var
+  // kjort halvveis, og varslene var stille i maanedsvis - ikke fordi det
+  // ikke var svinn, men fordi kallet feilet og ingen saa det.
+  const [
+    { data: sumLinjer, error: linjeFeil },
+    { data: stasjoner },
+    { data: sumSvinn, error: svinnFeil },
+  ] = await Promise.all([
     supabase.rpc('regnskap_sum', { p_fra: fra, p_til: periode }),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     supabase.rpc('svinn_sum', { p_fra: fra, p_til: periode }),
   ])
+
+  // KASTER framfor aa returnere tomt. Et varsel som mangler fordi
+  // kallet feilet, ser ut som fravaer av avvik - og det er den farligste
+  // formen for stillhet i et regnskap.
+  if (linjeFeil) throw new Error(`regnskap_sum feilet: ${linjeFeil.message}`)
+  if (svinnFeil) throw new Error(`svinn_sum feilet: ${svinnFeil.message}`)
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   const alle: Linje[] = ((sumLinjer ?? []) as SumRad[]).map((r) => ({

@@ -52,7 +52,13 @@ export default async function VaarStasjonSide() {
 
   let maling: TabletKort[] = []
   if (st) {
-    const { data: stData } = await supabase.rpc('malekort_stasjoner')
+    // Samme svelging som /maaling hadde. Nettbrettet har vist maalekortene
+    // tomme like lenge, for de samme fem butikkene, uten at noen kunne se
+    // hvorfor. Her er det ingen flate aa melde feilen paa - de som staar
+    // paa gulvet kan uansett ikke gjore noe med den - saa den logges, og
+    // kortene utelates framfor aa vises som nuller.
+    const { data: stData, error: stFeil } = await supabase.rpc('malekort_stasjoner')
+    if (stFeil) console.error('malekort_stasjoner feilet paa /vaar-stasjon', stFeil)
     const malStasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[])
       .map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))
     const { data: kortData } = await supabase
