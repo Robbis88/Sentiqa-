@@ -6,10 +6,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Salgstall: les `v_butikksalg`, aldri `daglig_salg`
 
-Drivstoff (avdeling `ENERGI`, kode `10`) ligger i `daglig_salg` og er **~68 %
-av omsetningen**. Det betjener seg selv på pumpa, bidrar ikke til stasjonens
-P&L, og skal aldri måles mot butikkens bemanning, kategorier, målekort eller
-konkurranser.
+Drivstoff ligger i `daglig_salg` og er **~68 % av omsetningen**. Det betjener
+seg selv på pumpa, bidrar ikke til stasjonens P&L, og skal aldri måles mot
+butikkens bemanning, kategorier, målekort eller konkurranser.
+
+**Det er avdelingsnavnet `ENERGI` som identifiserer drivstoff — ikke koden.**
+Denne linja sto tidligere som «avdeling `ENERGI`, kode `10`». Målt mot
+produksjon 2026-08-28 er avdelingskoden hos Kelsar `1000`; `10` finnes ikke i
+data, og den armen av filteret har aldri truffet noe. Behandle kodeverdien som
+en observasjon fra én kjede, ikke som en regel — hvilken kode en kjede bruker
+er retailer-data, og den mappingen er ikke bygget. Trenger du å kjenne igjen
+drivstoff, les `v_butikksalg` i stedet for å skrive et nytt filter.
 
 Det kom inn i salgsstatistikken i løpet av april 2026. Fram til 0084/0085 var
 det ikke filtrert noe sted, og ukerapporten sammenlignet årets uke *med*
