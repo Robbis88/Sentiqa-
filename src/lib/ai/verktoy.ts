@@ -1339,7 +1339,7 @@ export const VERKTOY: Record<string, Verktoy> = {
       const treff = await les<Kunnskapsrad>(
         supabase
           .from('kunnskap')
-          .select('kategori, tittel, innhold, kilde')
+          .select('kategori, tittel, innhold, kilde').is('slettet_tid', null)
           .textSearch('fts', q, { type: 'websearch', config: 'norwegian' })
           .limit(5),
         'kunnskap',
@@ -1357,7 +1357,7 @@ export const VERKTOY: Record<string, Verktoy> = {
           const bredt = await les<Kunnskapsrad>(
             supabase
               .from('kunnskap')
-              .select('kategori, tittel, innhold, kilde')
+              .select('kategori, tittel, innhold, kilde').is('slettet_tid', null)
               .or(ord.map((o) => `innhold.ilike.%${o}%,tittel.ilike.%${o}%`).join(','))
               .limit(5),
             'kunnskap',
@@ -1579,7 +1579,7 @@ export const VERKTOY: Record<string, Verktoy> = {
       const k = await les<Konkurransedetalj>(
         supabase
           .from('konkurranser')
-          .select('id, navn, varegruppe_kode, maaltype, stasjon_ids, periode_start, periode_slutt, status')
+          .select('id, navn, varegruppe_kode, maaltype, stasjon_ids, periode_start, periode_slutt, status').is('slettet_tid', null)
           .eq('id', id)
           .limit(1),
         'konkurranser',

@@ -105,7 +105,7 @@ export default async function OversiktSide(
     let stempling: Stemplingstilstand = { slag: 'ukjent' }
     if (aktiv && st) {
       const { data: ansattRad } = await supabase
-        .from('ansatte').select('ansatt_nr').eq('id', aktiv.id)
+        .from('ansatte').select('ansatt_nr').is('slettet_tid', null).eq('id', aktiv.id)
         .maybeSingle<{ ansatt_nr: string | null }>()
       if (ansattRad?.ansatt_nr) {
         const { data: siste } = await supabase
@@ -137,7 +137,7 @@ export default async function OversiktSide(
     if (st) {
       const { data: opp } = await supabase
         .from('oppgaver')
-        .select('id, tittel, beskrivelse, bilde_url, frist, status, fullfort_tid')
+        .select('id, tittel, beskrivelse, bilde_url, frist, status, fullfort_tid').is('slettet_tid', null)
         .eq('stasjon_id', st.id)
         .eq('vis_paa_tablet', true)
         .is('slettet_tid', null)

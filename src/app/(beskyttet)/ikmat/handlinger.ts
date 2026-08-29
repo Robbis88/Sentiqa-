@@ -22,7 +22,7 @@ export async function registrerAvlesning(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   const { data: punkt } = await supabase
     .from('ik_kontrollpunkter')
-    .select('navn, stasjon_id, min_temp, max_temp')
+    .select('navn, stasjon_id, min_temp, max_temp').is('slettet_tid', null)
     .eq('id', punktId)
     .maybeSingle<{ navn: string; stasjon_id: string; min_temp: number | null; max_temp: number | null }>()
   if (!punkt) return
@@ -69,7 +69,7 @@ export async function loggMaaling(punktId: string, tempStr: string, strakstiltak
 
   const supabase = await lagSupabaseServerKlient()
   const { data: punkt } = await supabase
-    .from('ik_kontrollpunkter').select('navn, stasjon_id, min_temp, max_temp')
+    .from('ik_kontrollpunkter').select('navn, stasjon_id, min_temp, max_temp').is('slettet_tid', null)
     .eq('id', punktId).maybeSingle<{ navn: string; stasjon_id: string; min_temp: number | null; max_temp: number | null }>()
   if (!punkt) return { feil: 'Fant ikke kontrollpunktet.' }
 

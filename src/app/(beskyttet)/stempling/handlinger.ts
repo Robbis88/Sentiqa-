@@ -93,7 +93,7 @@ export async function stemple(
   // som maatte bak funksjonen.
   const { data: ansatt } = await supabase
     .from('ansatte')
-    .select('navn, stasjon_id')
+    .select('navn, stasjon_id').is('slettet_tid', null)
     .eq('id', rad.ansatt_id)
     .maybeSingle<{ navn: string; stasjon_id: string }>()
   if (!ansatt) return { feil: 'Fant ingen med det nummeret og den PIN-en.' }

@@ -152,7 +152,7 @@ export const lesAktivAnsatt = cache(
     // samtidig, og en policy som endres i morgen tar ikke med seg dette.
     const { data } = await supabase
       .from('ansatte')
-      .select('id, navn')
+      .select('id, navn').is('slettet_tid', null)
       .eq('id', id)
       .eq('retailer_id', bruker.retailerId)
       .eq('aktiv', true)

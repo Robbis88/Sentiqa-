@@ -33,7 +33,7 @@ export async function beregnRutinestat(
   const [{ data: skjemaer }, { data: rutiner }, { data: ansatte }, { data: utf }] = await Promise.all([
     supabase.from('rutineskjemaer').select('id, ukedager').eq('stasjon_id', stasjonId).eq('aktiv', true).is('slettet_tid', null),
     supabase.from('rutiner').select('id, skjema_id, ukedager, opprettet_dato').eq('stasjon_id', stasjonId).not('skjema_id', 'is', null).is('slettet_tid', null),
-    supabase.from('ansatte').select('id, navn').eq('stasjon_id', stasjonId),
+    supabase.from('ansatte').select('id, navn').is('slettet_tid', null).eq('stasjon_id', stasjonId),
     supabase.from('rutine_utforinger').select('rutine_id, dato, ansatt_id').eq('stasjon_id', stasjonId).gte('dato', fra90).lte('dato', idag),
   ])
 

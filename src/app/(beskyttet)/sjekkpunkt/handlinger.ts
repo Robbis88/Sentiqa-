@@ -74,7 +74,7 @@ export async function svarSjekkpunktTablet(sjekkpunktId: string, stasjonId: stri
     { onConflict: 'sjekkpunkt_id,dato' },
   ), 'lagre sjekkpunkt svar')
   if (!ja && bruker.retailerId) {
-    const { data: sp } = await supabase.from('sjekkpunkter').select('sporsmaal, kritisk').eq('id', sjekkpunktId).maybeSingle<{ sporsmaal: string; kritisk: boolean }>()
+    const { data: sp } = await supabase.from('sjekkpunkter').select('sporsmaal, kritisk').is('slettet_tid', null).eq('id', sjekkpunktId).maybeSingle<{ sporsmaal: string; kritisk: boolean }>()
     if (sp?.kritisk) {
       await opprettVarsel(supabase, { retailer_id: bruker.retailerId, stasjon_id: stasjonId, type: 'sjekkpunkt', tittel: 'Kritisk sjekkpunkt: Nei', tekst: sp.sporsmaal, lenke: '/sjekkpunkt' })
     }
@@ -99,7 +99,7 @@ export async function svar(formData: FormData) {
   if (!verdi && bruker.retailerId) {
     const { data: sp } = await supabase
       .from('sjekkpunkter')
-      .select('sporsmaal, kritisk')
+      .select('sporsmaal, kritisk').is('slettet_tid', null)
       .eq('id', sjekkpunktId)
       .maybeSingle<{ sporsmaal: string; kritisk: boolean }>()
     if (sp?.kritisk) {
