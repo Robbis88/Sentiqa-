@@ -33,7 +33,7 @@ export async function bekreftLest(_t: Tilstand, _fd: FormData): Promise<Tilstand
   // Stasjonen slås opp, for vaktkapselen bærer bare en ansatt-ID.
   // Null er greit: bekreftelsen gjelder personen, ikke stedet.
   const { data: rad } = ansatt
-    ? await supabase.from('ansatte').select('stasjon_id').eq('id', ansatt.id)
+    ? await supabase.from('ansatte').select('stasjon_id').is('slettet_tid', null).eq('id', ansatt.id)
       .maybeSingle<{ stasjon_id: string }>()
     : { data: null }
 

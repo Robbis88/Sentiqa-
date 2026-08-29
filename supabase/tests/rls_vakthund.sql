@@ -782,6 +782,87 @@ begin
     end if;
   end;
 
+  -- --- 12) Myk sletting maa faktisk kunne gjennomfoeres ---
+  --
+  -- Funnet 2026-08-29, gjennom et skjermbilde: "Kunne ikke slette
+  -- malekort [42501]: new row violates row-level security policy".
+  --
+  -- En SELECT-policy som krever `slettet_tid IS NULL` blokkerer sin egen
+  -- soft delete. Setter en UPDATE `slettet_tid`, faller den nye raden ut
+  -- av policyen - og Postgres nekter en oppdatering som gjoer raden
+  -- usynlig for den som skriver. Bevist ved eksperiment: samme UPDATE
+  -- gikk gjennom straks en midlertidig policy lot eieren se slettede
+  -- rader.
+  --
+  -- Ingen har kunnet slette et malekort siden 0073. Feilen sier
+  -- "tilgang", saa den ser ut som en rettighetssak - og rollen var
+  -- riktig hele tiden.
+  --
+  -- HVORFOR MATRISEN IKKE FANGET DET: den tester `update` med
+  -- `oppdaterbart`-feltet, som setter et VANLIG felt. Den har aldri
+  -- forsokt aa sette `slettet_tid`. Vakten maalte at eieren kan skrive,
+  -- ikke at eieren kan slette.
+  --
+  -- REGELEN: `slettet_tid` er ikke et sikkerhetsvilkaar. En slettet rad i
+  -- din egen kjede er din egen rad i en annen tilstand, ikke andres data.
+  -- RLS haandhever TENANT; spoerringene haandhever LIVSSYKLUS - og
+  -- 62 av 80 lesninger gjorde det allerede da regelen ble skrevet.
+  --
+  -- Salgstabellene staar UTENFOR med vilje: de myk-slettes bare av
+  -- importen, som kjoerer som service_role og omgaar RLS. Der virker
+  -- slettingen alt, og aa eksponere slettede salgsrader er en tallrisiko.
+  declare
+    myk_slettbare text[] := array[
+      'malekort', 'ansatte', 'rutiner', 'rutineskjemaer', 'oppgaver',
+      'sjekkpunkter', 'konkurranser', 'merker', 'lenker', 'kunnskap',
+      'anvisninger', 'arrangementer', 'kalender_kilder', 'ik_kontrollpunkter',
+      'puls_runde', 'puls_sporsmal', 'opplaering_oppgave', 'plattform_innlegg',
+      'tablet_meldinger', 'personlig_punkt'
+    ];
+    t text;
+    sett int := 0;
+  begin
+    foreach t in array myk_slettbare loop
+      -- Finnes tabellen i det hele tatt? En som er dopt om ville ellers
+      -- passert i stillhet.
+      if not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                     where n.nspname = 'public' and c.relname = t) then
+        funnliste := funnliste || format(
+          'MYK SLETT UKJENT  %s staar i lista, men finnes ikke - dopt om eller fjernet?', t);
+        raise warning '%', funnliste[array_length(funnliste, 1)];
+        feil := feil + 1;
+        continue;
+      end if;
+
+      sett := sett + 1;
+
+      if exists (
+        select 1 from pg_policy pol
+        join pg_class c on c.oid = pol.polrelid
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relname = t
+          and pol.polcmd::text in ('r', '*')
+          and pg_get_expr(pol.polqual, pol.polrelid) like '%slettet_tid IS NULL%'
+      ) then
+        funnliste := funnliste || format(
+          'MYK SLETT BLOKKERT  %s: SELECT-policyen krever slettet_tid IS NULL, '
+          || 'saa en UPDATE som SETTER den avvises med 42501. Sletteknappen er doed. '
+          || 'Filtrer i spoerringen i stedet.', t);
+        raise warning '%', funnliste[array_length(funnliste, 1)];
+        feil := feil + 1;
+      end if;
+    end loop;
+
+    -- KANARIFUGL. Ser loekka ingen tabeller, melder den heller ingen
+    -- funn - og en vakt som slutter aa se ser noeyaktig ut som en vakt
+    -- som ikke finner noe.
+    if sett = 0 then
+      funnliste := funnliste || 'MYK SLETT BLIND  ingen av de myk-slettbare tabellene ble sett';
+      raise warning '%', funnliste[array_length(funnliste, 1)];
+      feil := feil + 1;
+    end if;
+  end;
+
   -- FUNNENE HOERER HJEMME I FEILMELDINGEN.
   --
   -- Foer sto det bare «RLS-vakthund: 2 funn. Se advarslene over» - og

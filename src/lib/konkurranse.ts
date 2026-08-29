@@ -12,7 +12,7 @@ export async function maalKonkurranse(
 ): Promise<{ stilling: Stilling[]; vinner: Stilling } | null> {
   const { data: k } = await supabase
     .from('konkurranser')
-    .select('varegruppe_kode, maaltype, stasjon_ids, periode_start, periode_slutt')
+    .select('varegruppe_kode, maaltype, stasjon_ids, periode_start, periode_slutt').is('slettet_tid', null)
     .eq('id', konkId)
     .maybeSingle<{
       varegruppe_kode: string | null

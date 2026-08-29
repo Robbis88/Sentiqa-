@@ -65,7 +65,7 @@ export async function kaarVinner(formData: FormData) {
   if (!res) return // ingen salgsdata ennå
   const { data: k } = await supabase
     .from('konkurranser')
-    .select('retailer_id, navn, premie_kr, periode_slutt, premie_utbetalt')
+    .select('retailer_id, navn, premie_kr, periode_slutt, premie_utbetalt').is('slettet_tid', null)
     .eq('id', id)
     .maybeSingle<{ retailer_id: string; navn: string; premie_kr: number | null; periode_slutt: string; premie_utbetalt: boolean }>()
   maaLykkes(await supabase
