@@ -212,9 +212,6 @@ export default async function SalgSide({
     a.antall += r.antall ?? 0
     avdMap.set(kode, a)
   }
-  const avdelinger = [...avdMap.entries()]
-    .map(([kode, a]) => ({ kode, ...a }))
-    .sort((x, y) => y.omsetning - x.omsetning)
 
   // Sammenligningen mot en vanlig ukedag. Per stasjon naar en er valgt,
   // ellers for kjeden samlet - historikken filtreres likt som tallet.
@@ -308,6 +305,33 @@ export default async function SalgSide({
   const forventet = stasjonProfil && vindu.siste
     ? await hentForventet(supabase, stasjonProfil, dato, vindu.siste)
     : null
+
+  // RADENE ER UNIONEN AV DE FIRE KILDENE, ikke bare salget.
+  //
+  // Bygges lista av salget alene, staar tabellen tom paa prognosedagen -
+  // og paa dagene importen ligger bak. Da forsvinner BP, fjoraaret og
+  // prognosen akkurat den dagen de er det eneste vi har.
+  //
+  // Det var slik den var da jeg skrev den, og feilen viste seg foerst
+  // naar man gikk til i morgen.
+  const radKoder = new Set<string>([
+    ...avdMap.keys(),
+    ...bpDagPerAvd.keys(),
+    ...fjorPerAvdDag.keys(),
+    ...(forventet?.perAvdeling.keys() ?? []),
+  ])
+  const avdelinger = [...radKoder]
+    .filter((kode) => kode && !SKJUL_OMS_KODER.has(kode))
+    .map((kode) => ({
+      kode,
+      navn: avdMap.get(kode)?.navn ?? pentNavn.get(kode) ?? kode,
+      omsetning: avdMap.get(kode)?.omsetning ?? 0,
+      antall: avdMap.get(kode)?.antall ?? 0,
+    }))
+    // Salget sorterer naar det finnes; ellers budsjettet. Uten det andre
+    // leddet ville prognosedagen faatt en tilfeldig rekkefolge.
+    .sort((x, y) => (y.omsetning - x.omsetning)
+      || ((bpDagPerAvd.get(y.kode) ?? 0) - (bpDagPerAvd.get(x.kode) ?? 0)))
 
   // «+4,9 %», ikke «+4.9 %». toFixed skriver engelsk uansett hvor den
   // staar, og hele systemet er norsk.
@@ -460,7 +484,11 @@ export default async function SalgSide({
           </thead>
           <tbody>
             {avdelinger.length === 0 ? (
-              <tr><td colSpan={5} className="undertittel">Ingen kategori-salg denne dagen.</td></tr>
+              <tr><td colSpan={5} className="undertittel">
+                {vindu.siste != null && dato > vindu.siste
+                  ? 'Salgstallene for denne dagen er ikke importert ennå.'
+                  : 'Ingen kategori-salg denne dagen.'}
+              </td></tr>
             ) : avdelinger.map((a) => {
               const bpDag = bpDagPerAvd.get(a.kode)
               const forv = forventet?.perAvdeling.get(a.kode)

@@ -89,3 +89,36 @@ describe('prognosen regnes ett sted', () => {
     expect(kilde).toContain('hentKalibrering')
   })
 })
+
+// =====================================================================
+// TABELLEN MISTER IKKE RADENE SINE PAA PROGNOSEDAGEN
+//
+// Foerste utgave bygde radlista av SALGET den dagen. Paa prognosedagen -
+// og paa dagene importen ligger bak - finnes det ikke salg, saa tabellen
+// sto tom med «Ingen kategori-salg denne dagen», enda vi hadde bade BP,
+// fjoraar og prognose.
+//
+// Kolonnene forsvant altsaa akkurat den dagen de var det eneste vi
+// hadde, og feilen viste seg foerst naar man gikk til i morgen.
+// =====================================================================
+
+describe('radene i kategoritabellen', () => {
+  const kilde = readFileSync(
+    join(process.cwd(), 'src/app/(beskyttet)/salg/page.tsx'), 'utf8')
+  const kode = kilde.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+
+  it.each([
+    ['salget', 'avdMap.keys()'],
+    ['budsjettet', 'bpDagPerAvd.keys()'],
+    ['fjoraaret', 'fjorPerAvdDag.keys()'],
+    ['prognosen', 'forventet?.perAvdeling.keys()'],
+  ])('bygges ogsaa av %s', (_navn, uttrykk) => {
+    expect(kode, 'radKoder skal vaere unionen av alle fire kildene').toContain(uttrykk)
+  })
+
+  it('skiller «ikke importert enda» fra «ingen salg»', () => {
+    // En dag uten importerte tall er ikke en dag uten handel. Sier sida
+    // «ingen kategori-salg», paastaar den noe den ikke vet.
+    expect(kode).toContain('ikke importert ennå')
+  })
+})
