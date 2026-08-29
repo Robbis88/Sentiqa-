@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { bekreftLest, type Tilstand } from './handlinger'
 
 /**
@@ -11,7 +12,7 @@ import { bekreftLest, type Tilstand } from './handlinger'
  * samtykke ville gitt et inntrykk av valgfrihet som ikke finnes.
  */
 export function BekreftSkjema({ versjon }: { versjon: string }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(
     bekreftLest, undefined)
   return (
     <form action={handling}>

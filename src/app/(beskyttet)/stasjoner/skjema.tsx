@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { leggTilStasjon, type StasjonTilstand } from './handlinger'
 
 const TYPER: { verdi: string; tekst: string }[] = [
@@ -11,7 +12,7 @@ const TYPER: { verdi: string; tekst: string }[] = [
 ]
 
 export function StasjonSkjema() {
-  const [tilstand, handling, venter] = useActionState<StasjonTilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<StasjonTilstand, FormData>(
     leggTilStasjon,
     undefined,
   )

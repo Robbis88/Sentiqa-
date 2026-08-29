@@ -1,5 +1,6 @@
 'use client'
-import { useActionState, useState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+import { useState } from 'react'
 import { lukkVakt, annullerHendelse, type RettelseSvar } from './rettelser'
 
 // =====================================================================
@@ -27,9 +28,9 @@ type Props = {
 export function LukkVakt({ innId, navn, siden, dato }: Props) {
   const [valg, settValg] = useState<'lukk' | 'annuller'>('lukk')
   const [lukkSvar, lukkHandling, lukkVenter] =
-    useActionState<RettelseSvar, FormData>(lukkVakt, undefined)
+    useKvittering<RettelseSvar, FormData>(lukkVakt, undefined)
   const [annSvar, annHandling, annVenter] =
-    useActionState<RettelseSvar, FormData>(annullerHendelse, undefined)
+    useKvittering<RettelseSvar, FormData>(annullerHendelse, undefined)
 
   const svar = valg === 'lukk' ? lukkSvar : annSvar
   if (svar?.ok) {

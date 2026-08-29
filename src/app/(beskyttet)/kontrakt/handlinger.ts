@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
@@ -84,7 +83,6 @@ export async function lastOppMal(_t: Tilstand, fd: FormData): Promise<Tilstand> 
     await supabase.storage.from(BUCKET).remove([sti])
     return { feil: error.message }
   }
-  revalidatePath('/kontrakt')
   return { ok: `Lagret som versjon ${versjon}` }
 }
 
@@ -104,7 +102,6 @@ export async function lagreStandardfelt(_t: Tilstand, fd: FormData): Promise<Til
   const { error } = await supabase.from('retailers')
     .update({ kontrakt_standardfelt: felt }).eq('id', bruker.retailerId)
   if (error) return { feil: error.message }
-  revalidatePath('/kontrakt')
   return { ok: `${Object.keys(felt).length} felt lagret` }
 }
 
@@ -161,8 +158,6 @@ export async function lastOppSignert(_t: Tilstand, fd: FormData): Promise<Tilsta
     await supabase.storage.from(BUCKET).remove([sti])
     return { feil: error.message }
   }
-  revalidatePath('/kontrakt')
-  revalidatePath(`/kontrakt/${id}`)
   return { ok: kontrakt.signert_tid ? 'Nytt signert eksemplar lagret' : 'Signert' }
 }
 
@@ -199,6 +194,5 @@ export async function lagreAnsattkort(_t: Tilstand, fd: FormData): Promise<Tilst
     { onConflict: 'stasjon_id,ansatt_nr' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/kontrakt')
   return { ok: `${felt.data.navn} lagret` }
 }

@@ -1,5 +1,6 @@
 'use client'
-import { useActionState, useState, useTransition } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+import { useState, useTransition } from 'react'
 import { opprettInnlegg, formulerNyhet, type RedTilstand } from './handlinger'
 
 const TONER = [
@@ -9,7 +10,7 @@ const TONER = [
 ]
 
 export function NyttInnlegg() {
-  const [tilstand, handling, venter] = useActionState<RedTilstand, FormData>(opprettInnlegg, undefined)
+  const [tilstand, handling, venter] = useKvittering<RedTilstand, FormData>(opprettInnlegg, undefined)
   const [tittel, setTittel] = useState('')
   const [innhold, setInnhold] = useState('')
   const [ide, setIde] = useState('')

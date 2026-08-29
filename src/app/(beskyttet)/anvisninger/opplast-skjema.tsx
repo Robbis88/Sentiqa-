@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { Knapp } from '@/components/ui/knapp'
 import { Felt } from '@/components/ui/felt'
 import type { Kvittering } from '@/lib/kvittering'
@@ -21,7 +22,7 @@ import { lastOppAnvisning } from './handlinger'
 
 export function OpplastSkjema() {
   const [tilstand, kjor, venter] =
-    useActionState<Kvittering, FormData>(lastOppAnvisning, undefined)
+    useKvittering<Kvittering, FormData>(lastOppAnvisning, undefined)
 
   return (
     <form action={kjor} className="sq-skjema">

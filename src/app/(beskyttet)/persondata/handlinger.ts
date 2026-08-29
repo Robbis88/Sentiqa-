@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -25,7 +24,6 @@ export async function lagreFrist(_t: Tilstand, fd: FormData): Promise<Tilstand> 
   const { error } = await supabase.from('retailers')
     .update({ oppbevaring_maaneder: felt.data.maaneder }).eq('id', bruker.retailerId)
   if (error) return { feil: error.message }
-  revalidatePath('/persondata')
   return { ok: `Oppbevaringstid satt til ${felt.data.maaneder} måneder` }
 }
 
@@ -99,7 +97,6 @@ export async function slettPerson(_t: Tilstand, fd: FormData): Promise<Tilstand>
     brukerNavn: bruker.fulltNavn,
     detaljer: { ...(r ?? {}), dokumenter: stier.length },
   })
-  revalidatePath('/persondata')
   return {
     ok: `${person.navn} slettet — ${r?.stemplinger ?? 0} stemplinger, `
       + `${r?.kontrakter ?? 0} kontrakter, ${r?.ansattkort ?? 0} ansattkort`

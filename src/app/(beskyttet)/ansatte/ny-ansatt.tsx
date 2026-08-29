@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { Felt, Velg } from '@/components/ui/felt'
 import { Knapp } from '@/components/ui/knapp'
 import { leggTilAnsatt, type AnsattTilstand } from './handlinger'
@@ -20,7 +21,7 @@ import { leggTilAnsatt, type AnsattTilstand } from './handlinger'
 
 export function NyAnsatt({ stasjoner }: { stasjoner: { id: string; navn: string }[] }) {
   const [tilstand, handling, venter] =
-    useActionState<AnsattTilstand, FormData>(leggTilAnsatt, undefined)
+    useKvittering<AnsattTilstand, FormData>(leggTilAnsatt, undefined)
 
   return (
     <form action={handling} className="sq-skjema">

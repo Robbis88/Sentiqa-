@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { lagreFrist, slettPerson, type Tilstand } from './handlinger'
 
 function Svar({ tilstand }: { tilstand: Tilstand }) {
@@ -9,7 +10,7 @@ function Svar({ tilstand }: { tilstand: Tilstand }) {
 }
 
 export function FristSkjema({ naa }: { naa: number }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreFrist, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(lagreFrist, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <label className="felt sq-smalt">
@@ -36,7 +37,7 @@ export function FristSkjema({ naa }: { naa: number }) {
 export function SlettSkjema(
   { stasjonId, ansattNr, navn }: { stasjonId: string; ansattNr: string; navn: string },
 ) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(slettPerson, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(slettPerson, undefined)
   return (
     <form action={handling}>
       <input type="hidden" name="stasjon_id" value={stasjonId} />

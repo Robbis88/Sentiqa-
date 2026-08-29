@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { settStemplingskilde, type OvergangSvar } from './overgang'
 
 // =====================================================================
@@ -24,7 +25,7 @@ type Props = {
 
 export function ByttKilde({ stasjonId, naavaerende, ar, maned, klar }: Props) {
   const [svar, handling, venter] =
-    useActionState<OvergangSvar, FormData>(settStemplingskilde, undefined)
+    useKvittering<OvergangSvar, FormData>(settStemplingskilde, undefined)
 
   const tilTablet = naavaerende === 'import'
 

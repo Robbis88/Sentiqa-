@@ -1,6 +1,5 @@
 'use server'
 import { headers } from 'next/headers'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
@@ -78,7 +77,6 @@ export async function opprettKunde(_t: KundeTilstand, formData: FormData): Promi
     return { feil: 'Kunne ikke fullføre opprettelsen.' }
   }
 
-  revalidatePath('/plattform')
   return { ok: `${firma} opprettet. Invitasjon sendt til ${epost}.` }
 }
 
@@ -101,7 +99,6 @@ export async function sendInvitasjonPaaNytt(
   )
   if (error) return { feil: `Kunne ikke sende: ${error.message}` }
 
-  revalidatePath('/plattform')
   return { ok: `Lenke sendt til ${epost}` }
 }
 
@@ -202,7 +199,6 @@ export async function slettKundePermanent(
     if (de) etterlatte.push(uid)
   }
 
-  revalidatePath('/plattform')
   return etterlatte.length
     ? {
       feil: `Kjeden og dataene er slettet, men ${etterlatte.length} `

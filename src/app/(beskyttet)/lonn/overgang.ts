@@ -70,7 +70,6 @@ export async function settStemplingskilde(
     .eq('id', stasjonId)
   if (error) return { feil: 'Ble ikke lagret. Prøv igjen.' }
 
-  revalidatePath('/lonn')
   revalidatePath('/bemanning')
   return { ok: true }
 }

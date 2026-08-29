@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -51,7 +50,6 @@ export async function opprettAvvik(_t: AvvikTilstand, formData: FormData): Promi
     opprettet_av: bruker.id,
   })
   if (error) return { feil: error.message }
-  revalidatePath('/avvik')
   return { ok: true }
 }
 
@@ -67,5 +65,4 @@ export async function settGjennomfort(formData: FormData) {
     .from('avvik')
     .update({ gjennomfort: til, gjennomfort_dato: til ? idag : null })
     .eq('id', id), 'oppdatere avvik')
-  revalidatePath('/avvik')
 }

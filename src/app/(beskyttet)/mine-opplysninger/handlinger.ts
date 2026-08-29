@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
@@ -47,6 +46,5 @@ export async function bekreftLest(_t: Tilstand, _fd: FormData): Promise<Tilstand
   // Har hun bekreftet før, finnes raden allerede. Det er ikke en feil.
   if (error && !error.message.includes('duplicate')) return { feil: error.message }
 
-  revalidatePath('/mine-opplysninger')
   return { ok: 'Takk — registrert' }
 }

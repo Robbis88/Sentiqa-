@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -30,7 +29,6 @@ export async function opprettInnlegg(_t: RedTilstand, formData: FormData): Promi
     forfatter: bruker.id,
   })
   if (error) return { feil: error.message }
-  revalidatePath('/redaktor')
   return { ok: true }
 }
 
@@ -62,7 +60,6 @@ export async function settPublisert(formData: FormData) {
     .from('plattform_innlegg')
     .update({ publisert: til, publisert_tid: til ? new Date().toISOString() : null })
     .eq('id', id), 'oppdatere plattform innlegg')
-  revalidatePath('/redaktor')
 }
 
 export async function slettInnlegg(_t: Kvittering, fd: FormData,
