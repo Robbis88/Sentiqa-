@@ -132,3 +132,67 @@ describe('kvitteringsvakten', () => {
       .toEqual([])
   })
 })
+
+// =====================================================================
+// KVITTERINGEN SKAL IKKE VAERE GISSEL FOR EN REVALIDERING
+//
+// `useActionState` holder `venter` sann gjennom HELE overgangen. Kalles
+// `revalidatePath` inne i serverhandlingen, blir ruteroppdateringen en
+// del av den overgangen - og kvitteringen vises foerst naar hele sida
+// har tegnet seg om.
+//
+// MAALT, IKKE ANTATT. Playwright-sporet fra en roed CI-kjoring
+// 2026-08-29 (PR #113, `vaktidentitet.spec.ts`):
+//
+//   0,7 s   POST /stempling      200 paa 190 ms
+//   1,2 s   siste aktivitet
+//   ...     29 sekunder stille
+//   30,6 s  GET /stempling?_rsc  200 paa 108 ms
+//   45 s    knappen staar fortsatt «Registrerer …»
+//
+// Serveren gjorde jobben paa 190 ms. Klienten viste det aldri.
+//
+// Den 29 sekunder lange stillheten er ressursmangel paa CI-maskinen, og
+// den er IKKE fjernet. Det som er fjernet er koblingen som gjorde den om
+// til en feil - og den koblingen rammer mennesket ogsaa: hun ser
+// «Registrerer …» paa en stempling som alt ER registrert, og det er
+// nettopp da hun trykker en gang til. Et dobbelttrykk lager
+// `dobbel_inn`-avviket butikksjefen maa rydde.
+//
+// Rekkefolgen skal vaere: kvittering foerst, liste etterpaa.
+// =====================================================================
+
+describe('kvitteringen kommer foer revalideringen', () => {
+  const les = (sti: string) => utenKommentarer(readFileSync(sti, 'utf8'))
+
+  test('stemplingshandlingen revaliderer ikke selv', () => {
+    expect(
+      les('src/app/(beskyttet)/stempling/handlinger.ts'),
+      'revalidatePath her gjor kvitteringen til gissel for ruteroppdateringen',
+    ).not.toContain('revalidatePath')
+  })
+
+  test('skjemaet oppdaterer lista ETTER at svaret er kommet', () => {
+    // Uten dette staar «Inne naa» og henger igjen paa forrige tall, og
+    // hun ser ikke seg selv dukke opp i lista.
+    const kilde = les('src/app/(beskyttet)/stempling/skjema.tsx')
+    expect(kilde).toContain('router.refresh()')
+    expect(kilde, 'refreshen skal staa i effekten som ser et vellykket svar')
+      .toMatch(/svar\?\.ok[\s\S]{0,400}router\.refresh\(\)/)
+  })
+
+  test('KANARIFUGL: maalingen ser et revalidatePath naar det staar der', () => {
+    // Slutter dette aa treffe, blir paastanden over groenn uansett hva
+    // handlingen gjor.
+    expect(utenKommentarer("import { revalidatePath } from 'next/cache'\nrevalidatePath('/x')"))
+      .toContain('revalidatePath')
+  })
+
+  test('KANARIFUGL: kommentarstrippen skjuler ikke et ekte kall', () => {
+    // Tar den for mye, leser vakten en tom fil - og en vakt som ikke ser
+    // ser ut som en som ikke finner noe.
+    expect(utenKommentarer("// revalidatePath('/x')\nrevalidatePath('/y')"))
+      .toContain("revalidatePath('/y')")
+    expect(utenKommentarer("// revalidatePath('/x')\nconst a = 1")).not.toContain('/x')
+  })
+})

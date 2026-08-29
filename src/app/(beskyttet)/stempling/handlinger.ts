@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hashPin, lesAktivAnsatt, hentStasjonId } from '@/lib/ansatt'
@@ -176,7 +175,21 @@ export async function stemple(
     await skrivAvledteVakter(supabase, stasjonId, nummer, naa)
   }
 
-  revalidatePath('/stempling')
+  // INGEN `revalidatePath` HER, OG DET ER MED VILJE.
+  //
+  // `useActionState` holder `venter` sann gjennom HELE overgangen, og en
+  // revalidering inne i handlingen gjor ruteroppdateringen til en del av
+  // den. Kvitteringen blir da gissel for at hele sida skal tegne seg om -
+  // enda svaret laa ferdig etter 190 ms.
+  //
+  // MAALT, IKKE ANTATT. Playwright-sporet fra en roed CI-kjoring
+  // 2026-08-29: POST svarte 200 paa 190 ms, saa var det stille i 29
+  // sekunder, og knappen sto «Registrerer …» hele veien.
+  //
+  // Paa et tregt nettbrett er det nettopp da hun trykker en gang til - og
+  // et dobbelttrykk lager `dobbel_inn`-avviket butikksjefen maa rydde.
+  // «Inne naa»-lista oppdateres i stedet av `router.refresh()` i skjemaet,
+  // ETTER at kvitteringen staar. Se `skjema.tsx`.
   return {
     ok: true,
     navn: ansatt.navn,
