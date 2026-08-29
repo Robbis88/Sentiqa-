@@ -38,13 +38,17 @@
 -- Idempotent: `drop constraint if exists`.
 -- =====================================================================
 
-alter table public.retailer_kodeerklaering
-  drop constraint if exists retailer_kodeerklaering_check1;
-
--- Skranken fikk et generert navn i 0152. Postgres nummererer anonyme
--- check-skranker i rekkefoelge, og `_check` er tatt av `rolle in (...)`.
--- Vi finner den paa DEFINISJONEN i stedet, saa fjerningen ikke hviler paa
--- en gjetning om navnet.
+-- SKRANKEN FINNES PAA DEFINISJONEN, IKKE PAA NAVNET.
+--
+-- Foerste utgave av denne fila droppet `retailer_kodeerklaering_check1`
+-- eksplisitt, fordi jeg antok at `_check` var tatt av `rolle in (...)`.
+-- Det var galt: en ENKOLONNES check faar `<tabell>_<kolonne>_check`, saa
+-- rolle-skranken heter `retailer_kodeerklaering_rolle_check` og den
+-- flerkolonnes fikk `retailer_kodeerklaering_check`.
+--
+-- Produksjon svarte med navnet da vi spurte. Gjetningen er tatt ut - en
+-- linje som ser ut som kunnskap, men er en antakelse, er verre enn ingen
+-- linje. Loekka under leter paa hva skranken GJOER.
 do $$
 declare n text;
 begin
