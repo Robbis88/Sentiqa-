@@ -10,6 +10,10 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { lesDag } from '@/lib/periode'
 import { hentDagvindu, sisteDag } from '@/lib/dagvindu'
 import { Dagsvelger } from '@/components/ui/periode'
+import { maanedenTil } from '@/lib/periode'
+import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
+import { fordelBp, hittil, motpartFor, motpartsvindu, dageneI } from '@/lib/salg/bp-per-dag'
+import { hentAlle } from '@/lib/supabase/sider'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 const kr = new Intl.NumberFormat('nb-NO', {
@@ -132,11 +136,57 @@ export default async function SalgSide({
         .limit(10)
   if (erStasjon) avdelingQ.eq('stasjon_id', valgtStasjon!)
 
+  // ---- BP PER DAG ------------------------------------------------
+  //
+  // Maanedens BP finnes per avdeling; fordelingen paa dagene skjer i
+  // `fordelBp`, etter ukedagsmedianen i motpartsvinduet. Vinduet er IKKE
+  // fjoraarets maaned - se kommentaren i bp-per-dag.ts.
+  const maaned = maanedenTil(dato)
+  const mpVindu = motpartsvindu(maaned)
+  const maanedSlutt = dageneI(maaned).slice(-1)[0]
+
+  const bpQ = supabase
+    .from('regnskapslinjer')
+    .select('kode, post, seksjon, budsjett')
+    .eq('periode', maaned)
+    .is('slettet_tid', null)
+    .in('seksjon', ['omsetning', 'bp_omsetning'])
+  const fjorDagQ = supabase
+    .from('v_salg_per_avdeling_dag')
+    .select('avdeling_kode, omsetning')
+    .eq('dato', motpartFor(dato))
+  if (erStasjon) {
+    bpQ.eq('stasjon_id', valgtStasjon!)
+    fjorDagQ.eq('stasjon_id', valgtStasjon!)
+  }
+
   const [{ data: avdData }, { data: vgData }] = await Promise.all([
     avdelingQ.overrideTypes<{ avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null; antall: number | null }[]>(),
     varegruppeQ.overrideTypes<VaregruppeRad[]>(),
   ])
   const varegrupper: VaregruppeRad[] = vgData ?? []
+
+  // Vinduet og maaneden hentes SIDEVIS. En rad per (stasjon, dag,
+  // avdeling) blir over tusen for hele kjeden, og PostgREST kutter i
+  // stillhet - da ville medianen vaert regnet av et tilfeldig utvalg.
+  const [{ data: bpData }, { data: fjorDagData }, fjorVindu, salgMnd] = await Promise.all([
+    bpQ.overrideTypes<{ kode: string | null; post: string | null; seksjon: string; budsjett: number | null }[]>(),
+    fjorDagQ.overrideTypes<{ avdeling_kode: string | null; omsetning: number | null }[]>(),
+    hentAlle<{ dato: string; avdeling_kode: string | null; omsetning: number | null }>(
+      () => {
+        const q = supabase.from('v_salg_per_avdeling_dag')
+          .select('dato, avdeling_kode, omsetning')
+          .gte('dato', mpVindu.fra).lte('dato', mpVindu.til).order('dato')
+        return erStasjon ? q.eq('stasjon_id', valgtStasjon!) : q
+      }),
+    hentAlle<{ dato: string; omsetning: number | null }>(
+      () => {
+        const q = supabase.from('v_salg_per_stasjon_dag')
+          .select('dato, omsetning')
+          .gte('dato', maaned).lte('dato', maanedSlutt).order('dato')
+        return erStasjon ? q.eq('stasjon_id', valgtStasjon!) : q
+      }),
+  ])
 
   // Avdeling-rader er per (avdeling, stasjon) → summer per avdeling. Pen navn/ikon
   // fra AVDELINGER (St1-kontoplan), fallback til viewets avdeling_navn.
@@ -152,7 +202,6 @@ export default async function SalgSide({
   const avdelinger = [...avdMap.entries()]
     .map(([kode, a]) => ({ kode, ...a }))
     .sort((x, y) => y.omsetning - x.omsetning)
-  const avdSum = avdelinger.reduce((s, a) => s + a.omsetning, 0)
 
   // Sammenligningen mot en vanlig ukedag. Per stasjon naar en er valgt,
   // ellers for kjeden samlet - historikken filtreres likt som tallet.
@@ -164,18 +213,79 @@ export default async function SalgSide({
   }
 
   const totalOms = rader.reduce((a, r) => a + r.omsetning, 0)
-  const totalAntall = rader.reduce((a, r) => a + r.antall, 0)
 
   // SAMMENLIGNINGER SOM FINNES I DATAENE, ikke oppfunnet.
   // Snittbong er omsetning delt paa antall - begge staar allerede i
   // raden. Matandelen likedan. Ingen av dem er et nytt tall; de er det
   // samme tallet sagt slik at det betyr noe.
   const visOms = erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms
-  const visAntall = erStasjon ? (valgtRad?.antall ?? 0) : totalAntall
-  const snittbong = visAntall > 0 ? Math.round(visOms / visAntall) : null
-  const matAndel = erStasjon && (valgtRad?.omsetning ?? 0) > 0
-    ? Math.round(((valgtRad?.mat_omsetning ?? 0) / valgtRad!.omsetning) * 100)
-    : null
+  // ---- BP: maanedens tall, og dagens andel av den ----------------
+  //
+  // Avlagt foerst, aapen som reserve - samme regel `v_bp_status_avdeling`
+  // bruker tre steder. To sider som viser ulik BP for samme maaned er
+  // verre enn en side som mangler den.
+  //
+  // DRIFT, pant og grand total er ute. De har ingen BP aa maales mot, og
+  // en rad med tom BP-kolonne ser ut som manglende data.
+  // De to seksjonene samles hver for seg, og avlagt velges naar den
+  // finnes. Blandes de i samme sum, dobbelttelles en avlagt maaned.
+  const bpAvlagt = new Map<string, number>()
+  const bpAapen = new Map<string, number>()
+  for (const r of bpData ?? []) {
+    const kode = r.kode ?? ''
+    if (!kode || SKJUL_OMS_KODER.has(kode)) continue
+    const m = r.seksjon === 'omsetning' ? bpAvlagt : bpAapen
+    m.set(kode, (m.get(kode) ?? 0) + (r.budsjett ?? 0))
+  }
+  const bpPerAvd = new Map<string, number>()
+  for (const kode of new Set([...bpAvlagt.keys(), ...bpAapen.keys()])) {
+    const v = bpAvlagt.get(kode) ?? bpAapen.get(kode) ?? 0
+    if (v > 0) bpPerAvd.set(kode, v)
+  }
+
+  const fjorPerAvdDag = new Map<string, number>()
+  for (const r of fjorDagData ?? []) {
+    const kode = r.avdeling_kode ?? ''
+    if (!kode || SKJUL_OMS_KODER.has(kode)) continue
+    fjorPerAvdDag.set(kode, (fjorPerAvdDag.get(kode) ?? 0) + (r.omsetning ?? 0))
+  }
+
+  // Fordelingen regnes PER AVDELING, ikke ved aa dele stasjonens
+  // dagsandel. Varm drikke topper paa hverdager og mat i helga - en
+  // felles form ville flyttet penger mellom kategoriene.
+  const bpDagPerAvd = new Map<string, number>()
+  let bpDagSum = 0
+  for (const [kode, bpMnd] of bpPerAvd) {
+    const ifjor = fjorVindu
+      .filter((r) => (r.avdeling_kode ?? '') === kode)
+      .map((r) => ({ dato: r.dato, omsetning: r.omsetning ?? 0 }))
+    const dag = fordelBp(maaned, bpMnd, ifjor).find((d) => d.dato === dato)
+    if (dag) { bpDagPerAvd.set(kode, dag.bp); bpDagSum += dag.bp }
+  }
+
+  // Hittil: stasjonens egne dagstall mot BP og mot MOTPARTENE. Fjoraaret
+  // hittil er ikke 1.-27. i fjor - samme antall dager er ikke samme
+  // ukedager, og forskjellen var 3,4 prosentpoeng paa Dale.
+  const bpMndSum = [...bpPerAvd.values()].reduce((a, b) => a + b, 0)
+  const vinduPerDag = new Map<string, number>()
+  for (const r of fjorVindu) {
+    if (SKJUL_OMS_KODER.has(r.avdeling_kode ?? '')) continue
+    vinduPerDag.set(r.dato, (vinduPerDag.get(r.dato) ?? 0) + (r.omsetning ?? 0))
+  }
+  const budsjettDager = fordelBp(maaned, bpMndSum,
+    [...vinduPerDag].map(([d, o]) => ({ dato: d, omsetning: o })))
+  const salgPerDag = new Map<string, number>()
+  for (const r of salgMnd) {
+    salgPerDag.set(r.dato, (salgPerDag.get(r.dato) ?? 0) + (r.omsetning ?? 0))
+  }
+  const hittilTall = hittil(budsjettDager, salgPerDag)
+
+  // «+4,9 %», ikke «+4.9 %». toFixed skriver engelsk uansett hvor den
+  // staar, og hele systemet er norsk.
+  const pstFmt = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const pstTekst = (x: number) =>
+    `${x >= 0 ? '+' : '−'}${pstFmt.format(Math.abs(x * 100))} %`
+
   const mot = motNormalen(
     dato,
     erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms,
@@ -223,16 +333,43 @@ export default async function SalgSide({
           retning={mot.avvikProsent > 0 ? 'opp' : mot.avvikProsent < 0 ? 'ned' : 'flat'}
           bra={verdtEtBlikk(mot) ? mot.avvikProsent > 0 : undefined}
         />
-        <Nokkeltall
-          merkelapp="Antall solgt"
-          verdi={tall.format(erStasjon ? (valgtRad?.antall ?? 0) : totalAntall)}
-          sammenlignet={snittbong != null ? `${kr.format(snittbong)} per vare` : undefined}
-        />
-        {erStasjon && (
+        {bpDagSum > 0 && (
           <Nokkeltall
-            merkelapp="Matsalg"
-            verdi={kr.format(valgtRad?.mat_omsetning ?? 0)}
-            sammenlignet={matAndel != null ? `${matAndel} % av omsetningen` : undefined}
+            merkelapp="BP denne dagen"
+            verdi={kr.format(bpDagSum)}
+            sammenlignet={`${visOms - bpDagSum >= 0 ? '+' : '−'}${kr.format(Math.abs(visOms - bpDagSum))} mot måltallet`}
+            retning={visOms >= bpDagSum ? 'opp' : 'ned'}
+            bra={visOms >= bpDagSum}
+          />
+        )}
+        {hittilTall.dager > 0 && hittilTall.bp > 0 && (
+          <Nokkeltall
+            merkelapp="Hittil i måneden"
+            verdi={kr.format(hittilTall.salg)}
+            sammenlignet={`${pstTekst(hittilTall.salg / hittilTall.bp - 1)} mot BP · ${hittilTall.dager} dager`}
+            retning={hittilTall.salg >= hittilTall.bp ? 'opp' : 'ned'}
+            bra={hittilTall.salg >= hittilTall.bp}
+          />
+        )}
+        {/* BEGGE SUMMENE I SAMME KORT. Prosenten alene tvinger leseren
+            til aa hente aarets sum fra nabokortet - et nokkeltall skal
+            vaere til aa lese alene. */}
+        {hittilTall.dager > 0 && hittilTall.ifjor > 0 && (
+          <Nokkeltall
+            merkelapp="Hittil mot i fjor"
+            verdi={pstTekst(hittilTall.salg / hittilTall.ifjor - 1)}
+            sammenlignet={`${kr.format(hittilTall.ifjor)} → ${kr.format(hittilTall.salg)}`}
+            retning={hittilTall.salg >= hittilTall.ifjor ? 'opp' : 'ned'}
+            bra={hittilTall.salg >= hittilTall.ifjor}
+          />
+        )}
+        {hittilTall.landing != null && bpMndSum > 0 && (
+          <Nokkeltall
+            merkelapp="Måneden lander på"
+            verdi={kr.format(hittilTall.landing)}
+            sammenlignet={`${pstTekst(hittilTall.landing / bpMndSum - 1)} mot BP på ${kr.format(bpMndSum)}`}
+            retning={hittilTall.landing >= bpMndSum ? 'opp' : 'ned'}
+            bra={hittilTall.landing >= bpMndSum}
           />
         )}
       </div>
@@ -240,21 +377,44 @@ export default async function SalgSide({
       {/* Kortet rundt tabellen var en ramme, ikke et objekt. Datatabell
           gir overskrift, vannrett rulling og tom tilstand - de tre
           tingene hver handskrevne tabell maatte loese selv. */}
+      {/* ANTALL OG ANDEL UT, FIRE KRONETALL INN.
+          «Antall» og «andel» svarte paa spoersmaal ingen stilte: femten
+          kioskvarer er hverken bra eller daarlig, og andelen sier bare
+          at mat er stoerst - noe den er hver dag.
+
+          Inn kom de to tallene en dag faktisk maales mot: hva vi gjorde
+          i fjor, og hva budsjettet sa.
+
+          «FORVENTET» MANGLER MED VILJE. Prognosen i salgsprognose.ts er
+          bygget for I MORGEN - den bruker vaervarsel og nylig trend. For
+          en dag som har vaert maa «nylig» avgrenses til dagen FOER, ellers
+          er tallet ikke en prognose men et etterpaaklokt anslag som ser
+          ut som en prognose. Det er en egen jobb, og en egen vakt.
+
+          DRIFT og pant er ute (SKJUL_OMS_KODER). De har ingen BP aa
+          maales mot, og en rad med tom BP-kolonne ser ut som manglende
+          data i stedet for en kode som ikke hoerer hjemme. */}
       <Datatabell tittel={`Per kategori${erStasjon ? ` · ${valgtNavn}` : ''}`} antall={avdelinger.length}>
           <thead>
-            <tr><th>Kategori</th><th>Omsetning</th><th>Antall</th><th>Andel</th></tr>
+            <tr>
+              <th>Kategori</th><th>Salg</th>
+              <th>Salg i fjor</th><th>BP denne dagen</th>
+            </tr>
           </thead>
           <tbody>
             {avdelinger.length === 0 ? (
               <tr><td colSpan={4} className="undertittel">Ingen kategori-salg denne dagen.</td></tr>
-            ) : avdelinger.map((a) => (
-              <tr key={a.kode}>
-                <td>{a.navn}</td>
-                <td>{kr.format(a.omsetning)}</td>
-                <td>{tall.format(a.antall)}</td>
-                <td>{avdSum > 0 ? `${Math.round((a.omsetning / avdSum) * 100)} %` : '—'}</td>
-              </tr>
-            ))}
+            ) : avdelinger.map((a) => {
+              const bpDag = bpDagPerAvd.get(a.kode)
+              return (
+                <tr key={a.kode}>
+                  <td>{a.navn}</td>
+                  <td>{kr.format(a.omsetning)}</td>
+                  <td>{kr.format(fjorPerAvdDag.get(a.kode) ?? 0)}</td>
+                  <td>{bpDag != null ? kr.format(bpDag) : '—'}</td>
+                </tr>
+              )
+            })}
           </tbody>
       </Datatabell>
 
@@ -306,6 +466,24 @@ export default async function SalgSide({
           Sammenligningen er mot MEDIANEN for samme ukedag aatte uker tilbake, ikke mot
           snittet. En 17. mai eller en dag med veiarbeid utenfor drar snittet nok til at
           «normalen» blir noe som aldri har skjedd.
+        </p>
+        <p>
+          <strong>BP denne dagen</strong> er maanedens budsjett fordelt paa dagene etter
+          medianen for ukedagen i fjor. Hver dag peker 364 dager tilbake — 52 uker, saa
+          soendag alltid treffer soendag — og dagene summerer til maanedens BP paa krona.
+          Fordelingen skjer per kategori: varm drikke topper paa hverdager og mat i helga,
+          saa en felles form ville flyttet penger mellom dem.
+        </p>
+        <p>
+          Medianen, ikke fjoraarets enkeltdag. Var stasjonen stengt en loerdag i fjor, skal
+          ikke maaltallet for den loerdagen i aar arve det. <strong>Salg i fjor</strong> viser
+          derimot den ekte dagen: budsjettet er et maal og skal taale at fjoraaret var i
+          stykker, fjoraaret er et faktum og skal vise hva som skjedde.
+        </p>
+        <p>
+          <strong>Hittil mot i fjor</strong> maaler de dagene som har vaert mot MOTPARTENE
+          deres, ikke mot den 1. til den samme datoen i fjor. Samme antall dager er ikke
+          samme ukedager, og forskjellen er flere prosentpoeng.
         </p>
       </Forklaring>
 
