@@ -7,6 +7,9 @@ import { AiKontekst } from '../ai-kontekst'
 import { Sidehode, Tomtilstand, Nokkeltall, Datatabell, Forklaring } from '@/components/ui/side'
 import { motNormalen, verdtEtBlikk } from '@/lib/salg/normalen'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { lesDag } from '@/lib/periode'
+import { hentDagvindu, sisteDag } from '@/lib/dagvindu'
+import { Dagsvelger } from '@/components/ui/periode'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 const kr = new Intl.NumberFormat('nb-NO', {
@@ -37,19 +40,16 @@ export default async function SalgSide({
 
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
-  const valgtDato = sp.dato
 
-  // Default: siste dato med data (RLS scoper til brukerens stasjoner)
-  let dato = valgtDato && /^\d{4}-\d{2}-\d{2}$/.test(valgtDato) ? valgtDato : null
-  if (!dato) {
-    const { data } = await supabase
-      .from('v_salg_per_stasjon_dag')
-      .select('dato')
-      .order('dato', { ascending: false })
-      .limit(1)
-      .maybeSingle<{ dato: string }>()
-    dato = data?.dato ?? null
-  }
+  // Default: siste dato med data (RLS scoper til brukerens stasjoner).
+  //
+  // VALIDERINGEN LAA HER SOM `/^\d{4}-\d{2}-\d{2}$/`, og den godtok
+  // `2026-13-45`. Videre nede blir datoen til en `Date` og trukket 56
+  // dager - paa en ugyldig dato gir det `RangeError: Invalid time value`,
+  // altsaa hvit side. `lesDag` gjor rundturen gjennom `Date` og faller
+  // tilbake til siste dag med data i stedet.
+  const siste = await sisteDag(supabase, 'v_salg_per_stasjon_dag')
+  const dato = siste ? lesDag(sp, siste) : null
 
   if (!dato) {
     return (
@@ -90,6 +90,10 @@ export default async function SalgSide({
     stasjonsliste, stasjonFraUrl(sok, stasjonsliste),
     tillatAlleFor('/salg', bruker.rolle, stasjonsliste.length),
   )
+
+  // Dagene aa gaa til. Etter stasjonsvalget, fordi velgeren maa baere
+  // `stasjon` videre - uten det bytter et datobytte stille stasjon.
+  const vindu = await hentDagvindu(supabase, 'v_salg_per_stasjon_dag', dato)
 
   // PostgREST-taket paa tusen rader.
   const fraDato = new Date(`${dato}T12:00:00Z`)
@@ -186,6 +190,15 @@ export default async function SalgSide({
           ? `${mot.tekst}. ${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`
           : `${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`}
         handlinger={<AiKontekst tekst="Forklar utviklingen" sporsmal="Forklar utviklingen i salget for denne stasjonen den siste tiden. Hva driver den?" />}
+      />
+
+      <Dagsvelger
+        dag={dato}
+        forste={vindu.forste}
+        siste={vindu.siste}
+        forrige={vindu.forrige}
+        neste={vindu.neste}
+        skjulte={{ stasjon: erStasjon ? valgtStasjon! : undefined }}
       />
 
       {/* TRE TALL BLE TO.

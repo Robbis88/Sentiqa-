@@ -6,12 +6,15 @@ import { TimesalgKart } from './timesalg-kart'
 import Link from 'next/link'
 import { Sidehode, Tomtilstand, Nokkeltall, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { lesDag } from '@/lib/periode'
+import { hentDagvindu, sisteDag } from '@/lib/dagvindu'
+import { Dagsvelger } from '@/components/ui/periode'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr } from '@/lib/format'
 
 type Rad = { stasjon_id: string; time: string; salg: number | null; inne_kunder: number | null; ute_kunder: number | null }
 
-export default async function TimesalgSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
+export default async function TimesalgSide({ searchParams }: { searchParams: Promise<{ stasjon?: string; dato?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
     return <p>Du har ikke tilgang til timesalg.</p>
@@ -20,14 +23,15 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   const sp = await searchParams
 
   const supabase = await lagSupabaseServerKlient()
-  const { data: siste } = await supabase
-    .from('timesalg')
-    .select('dato')
-    .order('dato', { ascending: false })
-    .limit(1)
-    .maybeSingle<{ dato: string }>()
 
-  if (!siste) {
+  // SIDA TOK IKKE IMOT `?dato=` I DET HELE TATT. Datoen var alltid
+  // nyeste rad, saa timesalget kunne bare leses for den ene siste dagen -
+  // ingen vei tilbake, heller ikke via URL-en. `/salg` hadde i det minste
+  // parameteren; her fantes den ikke.
+  const nyeste = await sisteDag(supabase, 'timesalg')
+  const dato = nyeste ? lesDag(sp, nyeste) : null
+
+  if (!dato) {
     return (
       <>
         <Sidehode tittel="Timesalg" undertittel="Når på døgnet pengene kommer inn." />
@@ -41,7 +45,7 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   }
 
   const [{ data: rader }, { data: stasjoner }] = await Promise.all([
-    supabase.from('timesalg').select('stasjon_id, time, salg, inne_kunder, ute_kunder').eq('dato', siste.dato).overrideTypes<Rad[]>(),
+    supabase.from('timesalg').select('stasjon_id, time, salg, inne_kunder, ute_kunder').eq('dato', dato).overrideTypes<Rad[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
   ])
 
@@ -81,14 +85,27 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   const dagsomsetning = [...perTime.values()].reduce((n, v) => n + v, 0)
   const aktiveTimer = [...perTime.values()].filter((v) => v > 0).length
 
+  // Dagene aa gaa til. Kilden er `timesalg`, ikke salgsstatistikken -
+  // rapportene lastes opp hver for seg og har ikke de samme dagene.
+  const vindu = await hentDagvindu(supabase, 'timesalg', dato)
+
   return (
     <>
       <Sidehode
         tittel="Timesalg"
         undertittel={topp
           ? `Travlest kl. ${topp.time} med ${kr.format(topp.salg)}. `
-            + `${datoLang.format(new Date(siste.dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`
-          : `${datoLang.format(new Date(siste.dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`}
+            + `${datoLang.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`
+          : `${datoLang.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner'}`}
+      />
+
+      <Dagsvelger
+        dag={dato}
+        forste={vindu.forste}
+        siste={vindu.siste}
+        forrige={vindu.forrige}
+        neste={vindu.neste}
+        skjulte={{ stasjon: erStasjon ? valgtStasjon! : undefined }}
       />
 
       {topp && (
@@ -104,7 +121,7 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
 
       <Forklaring sporsmaal="Hva viser døgnkurven?">
         <p>
-          Salget per klokketime for {datoLang.format(new Date(siste.dato))}, slik det
+          Salget per klokketime for {datoLang.format(new Date(dato))}, slik det
           kom inn fra timesalgsrapporten. Timene staar som de er skrevet i kilden -
           «11-12» er kildens egen merking, ikke en omregning.
         </p>
