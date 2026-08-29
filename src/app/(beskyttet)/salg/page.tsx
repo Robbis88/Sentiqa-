@@ -14,6 +14,9 @@ import { maanedenTil } from '@/lib/periode'
 import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
 import { fordelBp, hittil, motpartFor, motpartsvindu, dageneI } from '@/lib/salg/bp-per-dag'
 import { hentAlle } from '@/lib/supabase/sider'
+import { hentForventet, erPrognosedag } from '@/lib/salg/forventet'
+import { leggTilDager } from '@/lib/produksjonsplan'
+import { iDag } from '@/lib/format'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 
 const kr = new Intl.NumberFormat('nb-NO', {
@@ -53,6 +56,11 @@ export default async function SalgSide({
   // altsaa hvit side. `lesDag` gjor rundturen gjennom `Date` og faller
   // tilbake til siste dag med data i stedet.
   const siste = await sisteDag(supabase, 'v_salg_per_stasjon_dag')
+  // I MORGEN, fra kalenderen - ikke fra siste salgsdag. Importen ligger
+  // gjerne to dager bak, saa «dagen etter siste salgsdag» kan vaere en dag
+  // som alt er forbi. Prognosen svarer for kalenderens i morgen, og det
+  // er den samme dagen /salgsprognose svarer for.
+  const imorgen = leggTilDager(iDag(), 1)
   const dato = siste ? lesDag(sp, siste) : null
 
   if (!dato) {
@@ -74,12 +82,17 @@ export default async function SalgSide({
       .select('stasjon_id, omsetning, antall, mat_omsetning')
       .eq('dato', dato)
       .overrideTypes<StasjonRad[]>(),
-    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
+    supabase.from('stasjoner')
+      .select('id, navn, butikknummer, stasjonstype, vaerfolsomhet, vaerfolsomhet_laert')
+      .is('slettet_tid', null),
   ])
 
   // Aatte uker tilbake — nok til at fire like ukedager finnes selv om
   // noen dager mangler. 56 dager x 5 stasjoner er godt under
-  const stasjonsliste = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
+  const stasjonsliste = (stasjoner ?? []) as {
+    id: string; navn: string; butikknummer: string
+    stasjonstype: string; vaerfolsomhet: number | null; vaerfolsomhet_laert: number | null
+  }[]
   // Stasjonen kommer fra den felles kontrakten (trinn 09): URL foran
   // hukommelse foran forste stasjon. Sida leste for bare `?stasjon=`, og
   // ignorerte dermed valget i toppstripen - skallet kunne vise en stasjon
@@ -280,6 +293,22 @@ export default async function SalgSide({
   }
   const hittilTall = hittil(budsjettDager, salgPerDag)
 
+  // ---- FORVENTET: BARE FOR I MORGEN ------------------------------
+  //
+  // Prognosen bygger paa vaervarselet og trenden fram til siste
+  // salgsdag. For en dag som har vaert ville den regnet med tall fra
+  // ETTER dagen den skal forutsi - et etterpaaklokt anslag som ser ut
+  // som en prognose. Da staar kolonnen heller tom.
+  //
+  // Den regnes PER STASJON, saa «alle stasjoner samlet» har ingen: et
+  // snitt over kjeden ville skjult den ene som skiller seg ut. Samme
+  // begrunnelse som /salgsprognose gir for aa ikke tilby «alle».
+  const erPrognose = erPrognosedag(dato, iDag())
+  const stasjonProfil = erStasjon ? stasjonsliste.find((s) => s.id === valgtStasjon) : undefined
+  const forventet = stasjonProfil && vindu.siste
+    ? await hentForventet(supabase, stasjonProfil, dato, vindu.siste)
+    : null
+
   // «+4,9 %», ikke «+4.9 %». toFixed skriver engelsk uansett hvor den
   // staar, og hele systemet er norsk.
   const pstFmt = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -296,18 +325,24 @@ export default async function SalgSide({
     <>
       <Sidehode
         tittel="Salg"
-        undertittel={mot.tekst
+        undertittel={erPrognose
+          ? `Prognose. ${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`
+          : mot.tekst
           ? `${mot.tekst}. ${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`
           : `${datoFmt.format(new Date(dato))} · ${erStasjon ? valgtNavn : 'alle stasjoner samlet'}`}
         handlinger={<AiKontekst tekst="Forklar utviklingen" sporsmal="Forklar utviklingen i salget for denne stasjonen den siste tiden. Hva driver den?" />}
       />
 
+      {/* TAKET ER SISTE SALGSDAG + 1, ikke siste salgsdag.
+          Prognosen finnes for i morgen, og da skal man kunne gaa dit.
+          Lenger fram finnes verken vaervarsel eller budsjettdekning vi
+          vil staa for, saa der stopper det. */}
       <Dagsvelger
         dag={dato}
         forste={vindu.forste}
-        siste={vindu.siste}
+        siste={imorgen}
         forrige={vindu.forrige}
-        neste={vindu.neste}
+        neste={vindu.neste ?? (dato < imorgen ? leggTilDager(dato, 1) : null)}
         skjulte={{ stasjon: erStasjon ? valgtStasjon! : undefined }}
       />
 
@@ -326,20 +361,39 @@ export default async function SalgSide({
           settes fortsatt hver for seg, saa /salg og /svinn bruker samme
           spraak selv om dommen faller motsatt. */}
       <div className="sq-nokkelrad">
-        <Nokkeltall
-          merkelapp="Omsetning eks. mva"
-          verdi={kr.format(erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms)}
-          sammenlignet={mot.tekst ?? undefined}
-          retning={mot.avvikProsent > 0 ? 'opp' : mot.avvikProsent < 0 ? 'ned' : 'flat'}
-          bra={verdtEtBlikk(mot) ? mot.avvikProsent > 0 : undefined}
-        />
+        {/* PAA PROGNOSEDAGEN FINNES INGEN OMSETNING. Et nullkort med
+            «−100 % mot en vanlig torsdag» ville vaert bokstavelig sant
+            og fullstendig misvisende. */}
+        {erPrognose ? (
+          forventet && (
+            <Nokkeltall
+              merkelapp="Forventet omsetning"
+              verdi={kr.format(forventet.total)}
+              sammenlignet={bpDagSum > 0
+                ? `${pstTekst(forventet.total / bpDagSum - 1)} mot BP for dagen`
+                : undefined}
+              retning={bpDagSum > 0 && forventet.total >= bpDagSum ? 'opp' : 'ned'}
+              bra={bpDagSum > 0 ? forventet.total >= bpDagSum : undefined}
+            />
+          )
+        ) : (
+          <Nokkeltall
+            merkelapp="Omsetning eks. mva"
+            verdi={kr.format(erStasjon ? (valgtRad?.omsetning ?? 0) : totalOms)}
+            sammenlignet={mot.tekst ?? undefined}
+            retning={mot.avvikProsent > 0 ? 'opp' : mot.avvikProsent < 0 ? 'ned' : 'flat'}
+            bra={verdtEtBlikk(mot) ? mot.avvikProsent > 0 : undefined}
+          />
+        )}
         {bpDagSum > 0 && (
           <Nokkeltall
             merkelapp="BP denne dagen"
             verdi={kr.format(bpDagSum)}
-            sammenlignet={`${visOms - bpDagSum >= 0 ? '+' : '−'}${kr.format(Math.abs(visOms - bpDagSum))} mot måltallet`}
-            retning={visOms >= bpDagSum ? 'opp' : 'ned'}
-            bra={visOms >= bpDagSum}
+            sammenlignet={erPrognose
+              ? 'måltall for i morgen'
+              : `${visOms - bpDagSum >= 0 ? '+' : '−'}${kr.format(Math.abs(visOms - bpDagSum))} mot måltallet`}
+            retning={erPrognose ? 'flat' : visOms >= bpDagSum ? 'opp' : 'ned'}
+            bra={erPrognose ? undefined : visOms >= bpDagSum}
           />
         )}
         {hittilTall.dager > 0 && hittilTall.bp > 0 && (
@@ -385,11 +439,14 @@ export default async function SalgSide({
           Inn kom de to tallene en dag faktisk maales mot: hva vi gjorde
           i fjor, og hva budsjettet sa.
 
-          «FORVENTET» MANGLER MED VILJE. Prognosen i salgsprognose.ts er
-          bygget for I MORGEN - den bruker vaervarsel og nylig trend. For
-          en dag som har vaert maa «nylig» avgrenses til dagen FOER, ellers
-          er tallet ikke en prognose men et etterpaaklokt anslag som ser
-          ut som en prognose. Det er en egen jobb, og en egen vakt.
+          «FORVENTET» HAR TALL BARE FOR I MORGEN. Prognosen bygger paa
+          vaervarselet og trenden fram til siste salgsdag; for en dag som
+          har vaert ville den regnet med tall fra ETTER dagen den skal
+          forutsi. En tom celle er et aerligere svar enn et etterpaaklokt
+          anslag som ser ut som en prognose.
+
+          Og motsatt: paa prognosedagen er det SALG-kolonnen som staar
+          tom. De to konkurrerer aldri om samme celle.
 
           DRIFT og pant er ute (SKJUL_OMS_KODER). De har ingen BP aa
           maales mot, og en rad med tom BP-kolonne ser ut som manglende
@@ -397,19 +454,21 @@ export default async function SalgSide({
       <Datatabell tittel={`Per kategori${erStasjon ? ` · ${valgtNavn}` : ''}`} antall={avdelinger.length}>
           <thead>
             <tr>
-              <th>Kategori</th><th>Salg</th>
+              <th>Kategori</th><th>Salg</th><th>Forventet</th>
               <th>Salg i fjor</th><th>BP denne dagen</th>
             </tr>
           </thead>
           <tbody>
             {avdelinger.length === 0 ? (
-              <tr><td colSpan={4} className="undertittel">Ingen kategori-salg denne dagen.</td></tr>
+              <tr><td colSpan={5} className="undertittel">Ingen kategori-salg denne dagen.</td></tr>
             ) : avdelinger.map((a) => {
               const bpDag = bpDagPerAvd.get(a.kode)
+              const forv = forventet?.perAvdeling.get(a.kode)
               return (
                 <tr key={a.kode}>
                   <td>{a.navn}</td>
-                  <td>{kr.format(a.omsetning)}</td>
+                  <td>{erPrognose ? '—' : kr.format(a.omsetning)}</td>
+                  <td>{forv != null ? kr.format(forv) : '—'}</td>
                   <td>{kr.format(fjorPerAvdDag.get(a.kode) ?? 0)}</td>
                   <td>{bpDag != null ? kr.format(bpDag) : '—'}</td>
                 </tr>
