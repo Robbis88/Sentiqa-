@@ -125,3 +125,42 @@ export function maanederI<T extends { maned: string }>(rader: T[]): Maaned[] {
     .sort()
     .reverse()
 }
+
+// =====================================================================
+// ÉN DAG, SAMME SPRÅK.
+//
+// `/salg` tok allerede imot `?dato=`, men validerte den med
+// `/^\d{4}-\d{2}-\d{2}$/`. Det er nøyaktig samme form som `\d{2}` hadde
+// på månedsleddet over — og den slapp `2026-13-45` rett gjennom. Der en
+// ugyldig måned bare bar seg selv videre, KRASJER en ugyldig dag sida:
+//
+//   new Date('2026-13-45T12:00:00Z')  →  Invalid Date
+//   .setUTCDate(NaN); .toISOString()  →  RangeError: Invalid time value
+//
+// En URL noen kunne skrevet feil ga en hvit side, ikke en dårlig dag.
+// =====================================================================
+
+/** `YYYY-MM-DD`. */
+export type Dag = string
+
+const ISO_DAG = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
+
+export function erDag(s: unknown): s is Dag {
+  if (typeof s !== 'string' || !ISO_DAG.test(s)) return false
+  // `2026-02-31` består regexen, men finnes ikke — og `new Date` ruller
+  // den STILLE over til 3. mars. Da ville sida vist en annen dag enn
+  // URL-en lovte, uten at noe sa fra. Rundturen er det som skiller de to.
+  return new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s
+}
+
+/**
+ * Dagen fra URL-en, eller standarden.
+ *
+ * Ingen gammel form å møte halvveis her: `?dato=` har alltid vært ISO.
+ * Det er nettopp derfor den kunne valideres slurvete uten at noen merket
+ * det — alle lenkene i produktet lager den selv.
+ */
+export function lesDag(sok: { dato?: string }, standard: Dag): Dag {
+  const d = sok.dato?.trim()
+  return erDag(d) ? d : standard
+}

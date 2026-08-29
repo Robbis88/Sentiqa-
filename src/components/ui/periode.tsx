@@ -1,7 +1,8 @@
+import Link from 'next/link'
 import { manedAar } from '@/lib/format'
-import { Velg } from './felt'
+import { Felt, Velg } from './felt'
 import { Knapp } from './knapp'
-import type { Maaned } from '@/lib/periode'
+import type { Dag, Maaned } from '@/lib/periode'
 
 // =====================================================================
 // Månedsvelgeren.
@@ -69,6 +70,86 @@ export function Maanedsvelger({
         ))}
       </Velg>
       <Knapp type="submit">{knapp}</Knapp>
+    </form>
+  )
+}
+
+// =====================================================================
+// Dagsvelgeren.
+//
+// SAMME REGEL, ETT KORN NED. Månedsvelgeren over tar imot lista fordi
+// kilden bestemmer hva som er gyldig. Her er kornet dag, og da kan ikke
+// lista være en liste: salgsdata går to kalenderår tilbake, og en
+// `<select>` med sju hundre datoer er ikke et valg — det er en katalog.
+//
+// Derfor et datofelt med `min`/`max` fra første og siste dagen kilden
+// faktisk har, pluss to piler.
+//
+// ---------------------------------------------------------------------
+// PILENE HOPPER TIL DAGER SOM FINNES
+//
+// Ikke til «i går». Er det hull i dataene — og det er det, importen
+// kjøres ikke hver dag — ville en kalenderdag ført til en tom side som
+// ser ut som en dårlig dag. `forrige`/`neste` kommer fra `hentDagvindu`,
+// som spør basen hva nabodagen er.
+//
+// Står vi ytterst, er de `null`, og pila er ikke der. En knapp som ikke
+// fører noe sted er verre enn ingen knapp.
+// =====================================================================
+
+export function Dagsvelger({
+  dag,
+  forste,
+  siste,
+  forrige,
+  neste,
+  skjulte,
+  etikett = 'Dato',
+}: {
+  dag: Dag
+  /** `min`/`max` i feltet. Kommer fra kilden, ikke herfra. */
+  forste: Dag | null
+  siste: Dag | null
+  /** Nærmeste dag med data på hver side, eller `null` ytterst. */
+  forrige: Dag | null
+  neste: Dag | null
+  /**
+   * Felt som skal følge med — typisk `stasjon`.
+   *
+   * SAMME FELLE SOM I MÅNEDSVELGEREN, og den gjelder pilene også:
+   * skjemaet sender bare sine egne felt, og en lenke bærer bare det som
+   * står i den. Uten disse bytter et datobytte stille stasjon.
+   */
+  skjulte?: Record<string, string | undefined>
+  etikett?: string
+}) {
+  // ÉN DAG ER IKKE ET VALG. Har kilden bare den ene dagen, er det
+  // ingenting å gå til — verken i feltet eller med pilene.
+  if (!forrige && !neste) return null
+
+  const lenke = (til: Dag) => {
+    const sok = new URLSearchParams()
+    for (const [n, v] of Object.entries(skjulte ?? {})) if (v) sok.set(n, v)
+    sok.set('dato', til)
+    return `?${sok}`
+  }
+
+  return (
+    <form method="get" className="sq-listetopp">
+      {Object.entries(skjulte ?? {}).map(([n, v]) =>
+        v == null || v === '' ? null : <input key={n} type="hidden" name={n} value={v} />,
+      )}
+      <Felt
+        etikett={etikett}
+        type="date"
+        name="dato"
+        defaultValue={dag}
+        min={forste ?? undefined}
+        max={siste ?? undefined}
+      />
+      <Knapp type="submit">Vis dagen</Knapp>
+      {forrige && <Link className="sq-knapp" href={lenke(forrige)}>← Forrige dag</Link>}
+      {neste && <Link className="sq-knapp" href={lenke(neste)}>Neste dag →</Link>}
     </form>
   )
 }

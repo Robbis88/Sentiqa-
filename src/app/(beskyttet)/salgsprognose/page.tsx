@@ -3,11 +3,10 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, iDag, ramsOpp } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
-import { leggTilDager, type Vaerdag } from '@/lib/produksjonsplan'
-import { lagSalgsprognose, type AvdSalg } from '@/lib/salgsprognose'
-import { hentKalibrering } from '@/lib/backtest'
-import { hentVaerKoeff } from '@/lib/vaerprofil'
-import { erHelligdag, helligdagNavn } from '@/lib/helligdager'
+import { leggTilDager } from '@/lib/produksjonsplan'
+import { hentForventet } from '@/lib/salg/forventet'
+import { sisteDag } from '@/lib/dagvindu'
+import { helligdagNavn } from '@/lib/helligdager'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
@@ -15,7 +14,6 @@ import { Signal, Status } from '@/components/ui/status'
 import Link from 'next/link'
 
 const datoLang = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Oslo' })
-const UTELAT = new Set(['10', '250', '40']) // drivstoff/pant/CR — ikke butikkdrift
 
 // Signaler bak prognosen. 'live' = i bruk nå, 'kommer' = bygges/venter (lett å
 // skru på: bytt status til 'live' når datakilden er på plass).
@@ -71,42 +69,21 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
 
   const idag = iDag()
   const maalDato = leggTilDager(idag, 1) // i morgen
-  const fjorBase = leggTilDager(maalDato, -364)
-  const helligdag = erHelligdag(maalDato)
   const roddagNavn = helligdagNavn(maalDato)
 
-  const [{ data: nylig }, { data: fjor }, { data: vMaal }, { data: vFjor }] = await Promise.all([
-    supabase.from('v_salg_per_avdeling_dag').select('dato, avdeling_kode, avdeling_navn, omsetning').eq('stasjon_id', valgtId).gte('dato', leggTilDager(idag, -35)).lte('dato', idag).overrideTypes<{ dato: string; avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null }[]>(),
-    supabase.from('v_salg_per_avdeling_dag').select('dato, avdeling_kode, avdeling_navn, omsetning').eq('stasjon_id', valgtId).gte('dato', leggTilDager(fjorBase, -28)).lte('dato', leggTilDager(fjorBase, 21)).overrideTypes<{ dato: string; avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null }[]>(),
-    supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', valgtId).eq('dato', maalDato).maybeSingle<Vaerdag>(),
-    supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', valgtId).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
-  ])
-
-  const rader = [...(nylig ?? []), ...(fjor ?? [])]
-  const salg: AvdSalg[] = rader
-    .filter((r) => r.avdeling_kode && !UTELAT.has(r.avdeling_kode))
-    .map((r) => ({ dato: r.dato, avdelingKode: r.avdeling_kode!, avdelingNavn: r.avdeling_navn ?? r.avdeling_kode!, omsetning: r.omsetning ?? 0 }))
-  const datoer = (nylig ?? []).map((r) => r.dato).sort()
-  const sisteSalgsdato = datoer.length ? datoer[datoer.length - 1] : idag
-
-  const vaerKoeff = await hentVaerKoeff(supabase, valgtId, 'avdeling')
-  const raaPrognose = salg.length > 0
-    ? lagSalgsprognose({ maalDato, sisteSalgsdato, salg, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, vaerKoeff, stasjonstype: stasjon.stasjonstype, helligdag })
-    : null
-  // Selvlæring: gang inn korreksjon pr avdeling fra egen treffhistorikk.
-  const kalibrering = raaPrognose ? await hentKalibrering(supabase, valgtId, 'salgsprognose') : new Map<string, number>()
-  const prognose = raaPrognose
-    ? (() => {
-        const forslag = raaPrognose.forslag.map((f) => {
-          const korr = kalibrering.get(f.kode) ?? 1
-          return korr === 1 ? f : { ...f, forventet: Math.max(0, Math.round(f.forventet * korr)) }
-        })
-        const advarsler = kalibrering.size > 0
-          ? [...raaPrognose.advarsler, 'Selvlært kalibrering aktiv — justert mot stasjonens egen treffhistorikk.']
-          : raaPrognose.advarsler
-        return { ...raaPrognose, forslag, advarsler, totalForventet: forslag.reduce((s, f) => s + f.forventet, 0) }
-      })()
-    : null
+  // ÉN KILDE, TO SIDER.
+  //
+  // Henting, modellkall og kalibrering laa her - og /salg trengte det
+  // samme tallet. To kopier av det samme regnestykket skiller lag i
+  // stillhet, og da har produktet to sannheter om i morgen.
+  //
+  // `hentForventet` er naa det ene stedet. Den finner ogsaa siste
+  // salgsdag selv, som var en egen kilde til drift: her ble den lest av
+  // «nylig»-vinduet, mens /salg leser `v_salg_per_stasjon_dag`.
+  const sisteSalgsdato = await sisteDag(supabase, 'v_salg_per_avdeling_dag') ?? idag
+  const svarFraModellen = await hentForventet(supabase, stasjon, maalDato, sisteSalgsdato)
+  const prognose = svarFraModellen?.prognose ?? null
+  const vMaal = svarFraModellen?.vaerMaal ?? null
 
   const navnFor = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
 
