@@ -1,0 +1,68 @@
+FASIT - KJOERT MOT PRODUKSJON 2026-08-28, ETTER 0152
+Kilde: supabase/tests/baseline_drivstoff.sql (uendret fil, samme 16651 tegn)
+Sammenlign med baseline_drivstoff_foer.txt.
+
+=====================================================================
+RESULTAT: INGEN AVVIK
+=====================================================================
+
+Mekanisk diff av de 47 radene i BUTIKKSALG / BUTIKKSALG KJEDE /
+DRIVSTOFFILTER / DRIVSTOFFGRUNNLAG: tom.
+
+  $ diff foer.txt etter.txt
+  INGEN AVVIK - 47 rader identiske
+
+PRODUKSJON: 120 rader i begge.
+
+Noekkelverdier uendret:
+  KANARIFUGL 1   39997657.76 kr filtrert bort
+  KANARIFUGL 3   20 stasjon-intervaller med rader
+  KANARIFUGL 4   13432 rader paa de aatte kodene
+  SONDE          ingen - filteret ser komplett ut
+  SONDE          120/MAT, 130/VARM DRIKKE, 140/KALD DRIKKE, 160/KIOSKVARER,
+                 170/BUTIKK, 180/TOBAKK, 190/FRITIDSARTIKLER, 200/BIL,
+                 210/BILVASK, 240/DRIFT, 999/SYSTEM
+  VERN           security_invoker = true
+  VERN           ingen partisjoner uten rls, ingen anon-grant
+  OMFANG         2025-05-01 .. 2026-08-27
+
+Det som ER endret er HVOR definisjonen kommer fra: viewet leser naa
+retailer_koderegel i stedet for litteralene '10' og 'ENERGI'. Tallene er
+de samme fordi backfillen la inn noeyaktig de tre armene filteret hadde.
+
+=====================================================================
+OEVRIGE PRODUKSJONSBEVIS SAMME DAG
+=====================================================================
+
+0152 kvittering          erklaeringer=1 drivstoffregler=3
+                         produksjonsregler=8 mappet=1
+                         laaste_kjeder_med_salg=0
+
+verifiser_kodemapping    alle 6 kontroller OK
+                         treff_rader=1669 treff_kr=39452162.58
+                         rader_i_vindu=111677 periode=2026-05-30..2026-08-27
+                         RGcasas staar ikke_konfigurert - ingen salgsdata,
+                         saa ingenting er skjult, men fail-close virker
+
+koderegel_kanarifugl     22 bestatt, 0 feilet
+                         fail-close, kode 77, navneregel alene,
+                         kontrollert "ingen drivstoff", ekte bruker naar
+                         sine egne rader, nabokjeden isolert
+
+rls_vakthund             ingen funn
+tenant_dekning           ingen funn
+matrise_07 (10 deler)    ingen funn - do-blokka kaster ved ett eneste FEIL
+                         retailer_kodeerklaering og retailer_koderegel
+                         fullt groenne, INGEN 23505
+
+produksjonsbaselinen     8/8 (motorens gullbilde, kjorer uten database)
+full vitest              1404 groenne
+
+=====================================================================
+HVA SOM IKKE ER MAALT
+=====================================================================
+
+Backtesten er ikke kjoert etter 0152. Den kjoerer bare fra nattjobben, og
+0152 roerer ikke vaerprofilen - men treffradene bygger paa
+produksjonsplanens inndata, som naa hentes gjennom mappingen. De skal
+vaere identiske; det er ikke bevist enda.

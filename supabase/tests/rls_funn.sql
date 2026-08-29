@@ -37,6 +37,9 @@ with lister as (
     -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
     -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
     'pin_forsok',
+    -- Semantisk kodemapping (0152). Faa rader, men varme: v_butikksalg
+    -- joiner dem i HVER eneste salgsspoerring.
+    'retailer_kodeerklaering', 'retailer_koderegel',
       'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
       'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned',
       'bemanning_stasjon', 'stempling', 'stempling_hendelse',

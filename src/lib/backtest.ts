@@ -7,7 +7,8 @@
 // regningen er de rene motorene. Kjøres med service-role (natt/knapp) → omgår
 // RLS og slipper 1000-rad-fella via paginert henting.
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { lagProduksjonsplan, leggTilDager, PRODUKSJON_KODER as KODER, type SalgsPunkt, type Vaerdag } from './produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, type SalgsPunkt, type Vaerdag } from './produksjonsplan'
+import { hentProduksjonskoder } from './produksjonskoder'
 import { lagSalgsprognose, type AvdSalg } from './salgsprognose'
 import { hentVaerKoeff } from './vaerprofil'
 import { erHelligdag } from './helligdager'
@@ -43,6 +44,14 @@ export async function kjorBacktestForStasjon(
   st: StasjonRad,
   antallDager = 60,
 ): Promise<{ treff: TreffRad[]; kalibrering: KalRad[] }> {
+  // 0152: uten mapping finnes det ingen produksjonsvarer aa treffe paa.
+  // AA KJOERE VIDERE MED TOM KODELISTE VILLE GITT treff=0 PAA ALT - en
+  // treffsikkerhet paa null prosent som ser ut som en elendig prognose,
+  // ikke som en manglende konfigurasjon. Tomme lister er verre enn ingen.
+  const oppsett = await hentProduksjonskoder(supabase)
+  if (oppsett.status === 'ikke_konfigurert') return { treff: [], kalibrering: [] }
+  const KODER = oppsett.koder
+
   const idag = new Date().toISOString().slice(0, 10)
   const vinduStart = leggTilDager(idag, -antallDager)
   const hentFra = leggTilDager(vinduStart, -400) // dekker fjor-vindu for tidligste mål-dag

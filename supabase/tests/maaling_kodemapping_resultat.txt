@@ -1,0 +1,71 @@
+YTELSESMAALING - PRODUKSJON 2026-08-28
+
+arbeid  variant        kjoring     planlegging   mot referansen
+BRED    A LITTERAL      363.8 ms     12.7 ms      1.00x  (referanse)
+BRED    B NOT EXISTS   1376.1 ms      3.6 ms      3.78x
+BRED    C ANTI-JOIN    1425.5 ms      3.6 ms      3.92x
+SMAL    A LITTERAL        7.9 ms      2.4 ms      1.00x  (referanse)
+SMAL    B NOT EXISTS     19.7 ms      0.6 ms      2.49x
+SMAL    C ANTI-JOIN      20.0 ms      0.4 ms      2.53x
+
+LIKHET  BRED  alle tre   rader=466341  sum_oms=69417356.38
+LIKHET  SMAL  alle tre   rader=7050    sum_oms=985432.36
+
+Kanarifugl: alle tre varianter enige. Tidene er sammenlignbare.
+
+=====================================================================
+KONKLUSJON
+=====================================================================
+
+1. B OG C ER SAMME PLAN.
+
+   1376 mot 1425 ms er 3,5 % - stoey. 19,7 mot 20,0 ms likesaa.
+   Planleggeren gjoer om `not exists` til en anti-join selv, saa valget
+   mellom dem er ikke et ytelsesvalg.
+
+2. MAPPINGEN KOSTER 3,8x PAA DEN TYNGSTE LESNINGEN - OG DET GAAR FINT.
+
+   Frykten var `statement timeout`, formen som slo ut daglig_salg
+   2026-06-16. Absolutt ligger den brede kjoeringen paa 1,4 sekunder for
+   400 dager x alle stasjoner. Det er nattjobbens arbeidsmengde, og
+   3,8x paa en nattjobb er ingenting.
+
+   Den smale - den brukeren faktisk venter paa - gaar fra 8 til 20 ms.
+
+3. SKALERING: PER RETAILER, IKKE PER BASE.
+
+   Den brede maalingen har ingen retailer-filter og skanner alt. I appen
+   legger RLS paa `retailer_id`, saa en brukers verste tilfelle er en
+   kjedes 400 dager - det vi maalte. Flere kjeder gjoer ikke dette
+   tyngre for den enkelte.
+
+   Nattjobben leser alle kjeder og skalerer lineaert. Med ti kjeder blir
+   den brede ~14 s. Fortsatt greit, men verdt aa vite naar den femte
+   kunden kommer.
+
+4. PLANLEGGINGSTIDEN GAAR NED, ikke opp (12,7 -> 3,6 ms bredt).
+   Litteralfilteret paa en partisjonert tabell koster mer aa planlegge
+   enn joinen mot to smaa tabeller.
+
+5. KRYSSJEKK: SMAL-TALLENE ER BASELINENS TALL.
+
+   rader=7050 sum_oms=985432.36 for Lone i juli 2026 er noeyaktig det
+   `baseline_drivstoff.sql` maalte gjennom `v_butikksalg` samme dag.
+   Maaleharnisket maaler altsaa den ekte spoerringen, ikke en variant av
+   den.
+
+=====================================================================
+VALG: B (NOT EXISTS)
+=====================================================================
+
+Ikke fordi den er raskere - den er innenfor stoeyen av C - men fordi:
+
+  * den leser som "samme filter, annen kilde", og diffen mot dagens
+    view blir liten nok til aa granskes
+  * den har ingen kardinalitetsfelle. C bygger paa at LEFT JOIN +
+    `r.id is null` er en anti-join; endrer noen den til en INNER JOIN
+    senere, dupliseres rader i stillhet naar en rad treffer to regler
+  * `not exists` sier hva den betyr. `left join ... where id is null`
+    sier hvordan den virker.
+
+Formen laases herved. Ingen gjetning.

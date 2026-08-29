@@ -52,6 +52,10 @@ declare
     -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
     -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
     'pin_forsok',
+    -- Semantisk kodemapping (0152). FAA RADER, MEN VARME: `v_butikksalg`
+    -- joiner dem i HVER eneste salgsspoerring. En upakket funksjon i en
+    -- policy her trekker per-rad-kall inn i alt som summerer kroner.
+    'retailer_kodeerklaering', 'retailer_koderegel',
     -- Oppsett for bemanningsplanleggeren (0081). Faa rader, men de
     -- joines mot timesalg per time - en upakket policy her trekker
     -- per-rad-kall inn i hver eneste planberegning.

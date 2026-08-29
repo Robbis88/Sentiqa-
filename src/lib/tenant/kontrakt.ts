@@ -208,6 +208,38 @@ export type Ressurs = {
    */
   en_rad_per_stasjon?: boolean
   /**
+   * Skjemaet tillater **én rad per RETAILER**, ikke per stasjon.
+   *
+   * Speilbildet av `en_rad_per_stasjon`, men plassen er kjeden. Første
+   * tilfelle er `retailer_kodeerklaering` (0152): primærnøkkelen er
+   * `(retailer_id, rolle)`, og `rolle` er bundet til én verdi av en
+   * check-skranke. Ingen kolonne kan variere mellom to forsøk.
+   *
+   * ---------------------------------------------------------------------
+   * HVA FLAGGET BETYR, PRESIST
+   *
+   * 1. Fixturen seeder **én rad per kjede**, ikke én per stasjon. Uten
+   *    dette ville seedingen selv gitt 23505: kjede A har tre stasjoner.
+   * 2. Alle stasjonene i en kjede peker på den **samme** raden.
+   * 3. Plassen frigjøres som eier før hvert insert-forsøk og settes
+   *    tilbake etterpå — nøyaktig som `en_rad_per_stasjon`.
+   * 4. Ingen `nyrad_*`-hjelper: det finnes ikke plass til nummer to.
+   *
+   * ---------------------------------------------------------------------
+   * HVA DET IKKE BETYR
+   *
+   * Det er **ikke** en vei forbi validatoren. Flagget krever
+   * `tenant_scope: 'retailer'`, og `business_unik` må være tom eller
+   * nøyaktig `['retailer_id']`. Nevner den en forretningskolonne i
+   * tillegg, tillater tabellen per definisjon flere rader per kjede —
+   * og da er flagget en påstand som ikke stemmer med skjemaet.
+   *
+   * Sier ingenting om autorisasjon. En kollisjon på forsøk nummer to er
+   * domenelogikk, ikke et RLS-bevis, og flagget finnes for at matrisen
+   * ikke skal forveksle de to.
+   */
+  en_rad_per_retailer?: boolean
+  /**
    * Kolonnen som identifiserer én rad. `id` når ikke annet er sagt.
    *
    * Ikke alle tabeller har en surrogatnøkkel: `bemanning_stasjon` har
@@ -444,6 +476,36 @@ export function valider(k: Kontrakt): string[] {
     // scopet er feltet en påstand om noe som ikke finnes.
     if (r.null_stasjon && r.tenant_scope !== 'retailer_or_station') {
       feil.push(`${r.tabell}: null_stasjon krever tenant_scope retailer_or_station`)
+    }
+
+    // EN SMAL KONTRAKT, IKKE EN VEI FORBI VALIDATOREN.
+    //
+    // `en_rad_per_retailer` gjør at generatoren slutter å bevise
+    // tenantgrensen med to innslag i samme kjede. Det er riktig når
+    // skjemaet bare har plass til én rad — og en løgn ellers. Uten
+    // sjekkene under kunne flagget skjult en tabell som faktisk tillater
+    // mange rader per kjede, og da ville matrisen sluttet å teste noe den
+    // burde testet, i stillhet.
+    if (r.en_rad_per_retailer) {
+      if (r.tenant_scope !== 'retailer') {
+        feil.push(`${r.tabell}: en_rad_per_retailer krever tenant_scope retailer `
+          + `(er «${r.tenant_scope}»). Plassen er kjeden, så kjeden må være scopet.`)
+      }
+      if (r.en_rad_per_stasjon) {
+        feil.push(`${r.tabell}: en_rad_per_retailer og en_rad_per_stasjon utelukker `
+          + 'hverandre — plassen er enten kjeden eller stasjonen, ikke begge.')
+      }
+      const utenom = (r.business_unik ?? []).filter((k) => k !== 'retailer_id')
+      if (utenom.length > 0) {
+        feil.push(`${r.tabell}: en_rad_per_retailer, men business_unik nevner `
+          + `${utenom.map((k) => `«${k}»`).join(', ')}. En forretningskolonne i tillegg `
+          + 'til retailer_id betyr at skjemaet tillater FLERE rader per kjede, og da er '
+          + 'flagget en påstand som ikke stemmer. Fjern flagget, eller fjern kolonnen.')
+      }
+      if (r.fast_rad) {
+        feil.push(`${r.tabell}: en_rad_per_retailer og fast_rad utelukker hverandre — `
+          + 'fast_rad betyr at raden alt finnes og ikke skal seedes.')
+      }
     }
 
     // Proberaden er den eneste håndholdte biten per tabell. Mangler den,

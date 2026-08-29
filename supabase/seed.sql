@@ -1008,3 +1008,56 @@ where not exists (
   where periode_id = '0ccc0000-0000-4000-8000-000000000001'
     and oppgave_id = '0bbb0000-0000-4000-8000-000000000003'
 );
+
+-- =====================================================================
+-- SEMANTISK KODEMAPPING (0152)
+--
+-- `v_butikksalg` er FAIL-CLOSED fra og med 0152: en kjede uten
+-- drivstofferklaering ser null rader. Det gjelder ogsaa testkjedene.
+--
+-- Migrasjonens backfill kunne ikke hjelpe her - den leser `daglig_salg`,
+-- og seeden kjoerer ETTER migrasjonene. Da fantes det ingen salgsdata aa
+-- backfille fra.
+--
+-- Det er ikke en feil i 0152. Det er den samme regelen en ekte ny
+-- retailer moeter, og den slo til foerste gang CI kjoerte:
+--
+--   bp_status.sql: BLIND TEST: ingen salgsdata i basen
+--
+-- Kanarifuglen i bp_status gjorde jobben sin. En fixture som seeder salg
+-- maa fra naa av ogsaa si hva drivstoff ER for den kjeden.
+--
+-- ---------------------------------------------------------------------
+-- HVORFOR `gjelder = false`
+--
+-- Seeden har ingen ENERGI-rader og ingen avdeling 1000 - testkjedene har
+-- ikke drivstoff. Den aerlige erklaeringen er derfor "ingen drivstoff",
+-- ikke en mapping som treffer null rader.
+--
+-- Den paastanden aapner alle rader, saa den krever kontroll. Her ER
+-- seeden Sentiqa, og kontrollen settes med en seedet profil.
+--
+-- Tallene endrer seg ikke av dette: det gamle filteret fjernet heller
+-- ingenting fra denne seeden.
+-- =====================================================================
+
+insert into public.retailer_kodeerklaering
+  (retailer_id, rolle, gjelder, kontrollert_av, kontrollert_tid)
+values
+  ('11111111-1111-4111-8111-111111111111', 'drivstoff', false, null, now()),
+  ('11111111-1111-4111-8111-222222222222', 'drivstoff', false, null, now())
+on conflict (retailer_id, rolle) do nothing;
+
+-- Produksjonskodene. Uten dem er produksjonsplanen `ikke_konfigurert`,
+-- og kallstedene viser en forklaring i stedet for en plan - riktig for en
+-- ny kunde, men ikke det testene maaler.
+insert into public.retailer_koderegel (retailer_id, rolle, nivaa, kode)
+select r.id, 'produksjon', 'varegruppe', k
+from public.retailers r
+cross join unnest(array['1201','1202','1203','1216','1217','1218','1219','1221']) k
+where r.id in ('11111111-1111-4111-8111-111111111111',
+               '11111111-1111-4111-8111-222222222222')
+  and not exists (
+    select 1 from public.retailer_koderegel x
+    where x.retailer_id = r.id and x.rolle = 'produksjon'
+      and x.nivaa = 'varegruppe' and x.kode = k);
