@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
@@ -46,7 +45,6 @@ export async function leggTilOppgave(
     opprettet_av: bruker.id,
   })
   if (error) return { feil: error.message }
-  revalidatePath('/oppgaver')
   return { ok: true }
 }
 
@@ -86,5 +84,4 @@ export async function veksleOppgave(formData: FormData) {
         : { status: 'apen', fullfort_av: null, fullfort_tid: null },
     )
     .eq('id', id), 'oppdatere oppgaver')
-  revalidatePath('/oppgaver')
 }

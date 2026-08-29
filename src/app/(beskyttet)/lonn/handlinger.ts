@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
@@ -45,7 +44,6 @@ export async function settTimesats(_t: Tilstand, fd: FormData): Promise<Tilstand
     { onConflict: 'stasjon_id,ansatt_nr' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/lonn')
   return { ok: 'Lagret' }
 }
 
@@ -80,6 +78,5 @@ export async function settLonnsform(_t: Tilstand, fd: FormData): Promise<Tilstan
     { onConflict: 'stasjon_id,ansatt_nr' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/lonn')
   return { ok: 'Lagret' }
 }

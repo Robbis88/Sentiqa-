@@ -56,7 +56,6 @@ export async function leggTilStasjon(
     return { feil: error.message }
   }
 
-  revalidatePath('/stasjoner')
   return { ok: true }
 }
 
@@ -79,7 +78,6 @@ export async function settPosisjon(formData: FormData) {
     .from('stasjoner')
     .update({ breddegrad: num('breddegrad'), lengdegrad: num('lengdegrad') })
     .eq('id', stasjonId), 'oppdatere stasjoner')
-  revalidatePath('/stasjoner')
 }
 
 // Værfølsomhet (0–1): hvor mye værvarsel skal vekte produksjonsplan-forslaget.
@@ -92,7 +90,6 @@ export async function settVaerfolsomhet(formData: FormData) {
   if (!stasjonId || !Number.isFinite(n)) return
   const supabase = await lagSupabaseServerKlient()
   maaLykkes(await supabase.from('stasjoner').update({ vaerfolsomhet: Math.max(0, Math.min(1, n)) }).eq('id', stasjonId), 'oppdatere stasjoner')
-  revalidatePath('/stasjoner')
 }
 
 // Sett primær + valgfri sekundær stasjonstype (§7 – styrer analysene).
@@ -109,7 +106,6 @@ export async function settStasjonstype(formData: FormData) {
     .from('stasjoner')
     .update({ stasjonstype: primaer, stasjonstype_sekundaer: sekundaer })
     .eq('id', stasjonId), 'oppdatere stasjoner')
-  revalidatePath('/stasjoner')
 }
 
 // Sett/oppdater svinnterskel per stasjon (§11).
@@ -123,6 +119,5 @@ export async function settTerskel(formData: FormData) {
   if (verdi !== null && !Number.isFinite(verdi)) return
   const supabase = await lagSupabaseServerKlient()
   maaLykkes(await supabase.from('stasjoner').update({ svinnterskel_prosent: verdi }).eq('id', stasjonId), 'oppdatere stasjoner')
-  revalidatePath('/stasjoner')
   revalidatePath('/svinn')
 }

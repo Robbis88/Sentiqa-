@@ -1,9 +1,10 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { opprettAvvik, type AvvikTilstand } from './handlinger'
 
 export function NyAvvik({ stasjoner, idag }: { stasjoner: { id: string; navn: string }[]; idag: string }) {
-  const [tilstand, handling, venter] = useActionState<AvvikTilstand, FormData>(opprettAvvik, undefined)
+  const [tilstand, handling, venter] = useKvittering<AvvikTilstand, FormData>(opprettAvvik, undefined)
 
   return (
     <form action={handling} className="skjema avvik-skjema">

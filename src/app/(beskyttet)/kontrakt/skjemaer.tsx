@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import {
   lagreAnsattkort, lagreStandardfelt, lastOppMal, type Tilstand,
 } from './handlinger'
@@ -30,7 +31,7 @@ export type Ansattkort = {
  * butikksjefen huske det per kontrakt.
  */
 export function AnsattkortSkjema({ stasjonId, kort }: { stasjonId: string; kort: Ansattkort }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(
     lagreAnsattkort, undefined)
   return (
     <form action={handling} className="sq-skjema">
@@ -78,7 +79,7 @@ export function AnsattkortSkjema({ stasjonId, kort }: { stasjonId: string; kort:
 
 /** Eier laster opp Virke-malen. Ny versjon hver gang, aldri overskriving. */
 export function MalSkjema() {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lastOppMal, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(lastOppMal, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <div className="sq-skjema-rad">
@@ -125,7 +126,7 @@ export function MalSkjema() {
 export function StandardfeltSkjema(
   { felt }: { felt: { navn: string; forklaring: string; verdi: string }[] },
 ) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(
     lagreStandardfelt, undefined)
   return (
     <form action={handling} className="sq-skjema">

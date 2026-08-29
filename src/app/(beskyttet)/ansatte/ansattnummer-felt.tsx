@@ -1,5 +1,6 @@
 'use client'
-import { useActionState, useState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+import { useState } from 'react'
 import { settAnsattnummer, type AnsattTilstand } from './handlinger'
 
 // =====================================================================
@@ -17,7 +18,7 @@ import { settAnsattnummer, type AnsattTilstand } from './handlinger'
 export function AnsattnummerFelt(
   { id, nummer }: { id: string; nummer: string | null },
 ) {
-  const [tilstand, handling, venter] = useActionState<AnsattTilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<AnsattTilstand, FormData>(
     settAnsattnummer, undefined,
   )
   const [verdi, settVerdi] = useState(nummer ?? '')

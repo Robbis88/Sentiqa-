@@ -1,9 +1,10 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { leggTilSjekkpunkt, type SjekkTilstand } from './handlinger'
 
 export function NyttSjekkpunkt({ stasjoner }: { stasjoner: { id: string; navn: string }[] }) {
-  const [tilstand, handling, venter] = useActionState<SjekkTilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<SjekkTilstand, FormData>(
     leggTilSjekkpunkt,
     undefined,
   )

@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { settLonnsform, type Tilstand } from './handlinger'
 import { LONNSFORM_NAVN, type Lonnsform } from '@/lib/lonn/lonnsform'
 
@@ -13,7 +14,7 @@ export function LonnsformVelger(
   { stasjonId, ansattNr, navn, verdi }:
   { stasjonId: string; ansattNr: string; navn: string; verdi: Lonnsform | null },
 ) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(
     settLonnsform, undefined)
   return (
     <form action={handling}>

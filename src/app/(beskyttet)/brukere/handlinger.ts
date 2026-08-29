@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
@@ -70,7 +69,6 @@ export async function opprettBruker(_t: BrukerTilstand, formData: FormData): Pro
   const { error: se } = await admin.from('butikksjef_stasjoner')
     .insert(stasjonIds.map((sid) => ({ profil_id: brukerId, stasjon_id: sid })))
   if (se) return { feil: `Brukeren er opprettet, men stasjonene ble ikke koblet: ${se.message}` }
-  revalidatePath('/brukere')
   return { ok: true }
 }
 
@@ -104,6 +102,5 @@ export async function fjernBruker(
   const { error } = await admin.auth.admin.deleteUser(id)
   if (error) return { feil: `Kunne ikke fjerne brukeren: ${error.message}` }
 
-  revalidatePath('/brukere')
   return { ok: 'Brukeren er fjernet' }
 }

@@ -1,9 +1,10 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { opprettKunde, type KundeTilstand } from './handlinger'
 
 export function NyKunde() {
-  const [tilstand, handling, venter] = useActionState<KundeTilstand, FormData>(opprettKunde, undefined)
+  const [tilstand, handling, venter] = useKvittering<KundeTilstand, FormData>(opprettKunde, undefined)
   return (
     <form action={handling} className="rutine-form arr-form" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.6rem' }}>
       <div className="arr-form">

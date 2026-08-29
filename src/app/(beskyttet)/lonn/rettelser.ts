@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -86,7 +85,6 @@ export async function lukkVakt(
   })
 
   await skrivAvledteVakter(supabase, inn.stasjon_id, inn.ansatt_nr, new Date(ut!))
-  revalidatePath('/lonn')
   return { ok: true }
 }
 
@@ -146,6 +144,5 @@ export async function annullerHendelse(
   })
 
   await skrivAvledteVakter(supabase, h.stasjon_id, h.ansatt_nr, new Date(h.tidspunkt))
-  revalidatePath('/lonn')
   return { ok: true }
 }

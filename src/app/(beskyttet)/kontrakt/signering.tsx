@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { lastOppSignert, type Tilstand } from './handlinger'
 
 /**
@@ -12,7 +13,7 @@ export function SigneringSkjema(
   { kontraktId, iDag, alleredeSignert }:
   { kontraktId: string; iDag: string; alleredeSignert: boolean },
 ) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(
     lastOppSignert, undefined)
   return (
     <form action={handling} className="sq-skjema">

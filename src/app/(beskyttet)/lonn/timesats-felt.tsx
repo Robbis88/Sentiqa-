@@ -1,5 +1,6 @@
 'use client'
-import { useActionState, useRef } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+import { useRef } from 'react'
 import { settTimesats, type Tilstand } from './handlinger'
 
 /**
@@ -17,7 +18,7 @@ export function TimesatsFelt(
   { stasjonId, ansattNr, navn, verdi }:
   { stasjonId: string; ansattNr: string; navn: string; verdi: number | null },
 ) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(
     settTimesats, undefined)
   const start = verdi != null ? String(verdi).replace('.', ',') : ''
   const forrige = useRef(start)

@@ -98,7 +98,6 @@ export async function lagreVindu(_t: Tilstand, fd: FormData): Promise<Tilstand> 
     { onConflict: 'stasjon_id,ukedag,gjelder_fra' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/bemanning')
   return { ok: `Lagret for ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
@@ -171,7 +170,6 @@ export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilst
     { onConflict: 'stasjon_id,navn,ukedag,gjelder_fra' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/bemanning')
   revalidatePath('/timeregnskap')
   return { ok: `Lagt til på ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
@@ -197,7 +195,6 @@ export async function leggTilKrav(_t: Tilstand, fd: FormData): Promise<Tilstand>
     })),
   )
   if (error) return { feil: error.message }
-  revalidatePath('/bemanning')
   return { ok: `Lagt til på ${felt.data.ukedager.length} ${felt.data.ukedager.length === 1 ? 'dag' : 'dager'}` }
 }
 
@@ -225,7 +222,6 @@ export async function lagreTak(_t: Tilstand, fd: FormData): Promise<Tilstand> {
     { onConflict: 'stasjon_id' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/bemanning')
   return {
     ok: felt.data.maks_bemanning === null
       ? 'Taket er fjernet'
@@ -262,7 +258,6 @@ export async function lagreStilling(_t: Tilstand, fd: FormData): Promise<Tilstan
     { onConflict: 'stasjon_id,ansatt_nr' },
   )
   if (error) return { feil: error.message }
-  revalidatePath('/bemanning')
   return {
     ok: felt.data.stillingsprosent === null
       ? 'Tilbake til anslaget'
@@ -294,7 +289,6 @@ export async function leggTilFravaer(_t: Tilstand, fd: FormData): Promise<Tilsta
     ...felt.data, arsak: felt.data.arsak || null,
   })
   if (error) return { feil: error.message }
-  revalidatePath('/bemanning')
   // Antall dager sier hvor mye det faktisk flytter — «Lagret» sier ingenting.
   const dager = Math.round(
     (Date.parse(felt.data.til_dato) - Date.parse(felt.data.fra_dato)) / 86400000) + 1
@@ -322,7 +316,6 @@ async function slett(
   const { error } = await supabase.from(tabell).delete().eq('id', id)
   if (error) return { feil: `Kunne ikke slette: ${error.message}` }
 
-  revalidatePath('/bemanning')
   revalidatePath('/timeregnskap')
   return { ok: `${hva} slettet` }
 }

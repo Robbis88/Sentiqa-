@@ -1,5 +1,6 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import {
   lagreStilling, lagreTak, lagreVindu, leggTilFastVakt, leggTilFravaer, leggTilKrav,
   type Tilstand,
@@ -55,7 +56,7 @@ function Tid({ navn, merke, standard }: { navn: string; merke: string; standard:
 }
 
 export function VinduSkjema({ stasjonId, iDag }: { stasjonId: string; iDag: string }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreVindu, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(lagreVindu, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
@@ -93,7 +94,7 @@ export function VinduSkjema({ stasjonId, iDag }: { stasjonId: string; iDag: stri
 // å tenke ut hva det motsatte er, og gjetter man feil her, roter man budsjettet
 // uten å se det. Begge alternativene skal stå synlige side om side.
 export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilFastVakt, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(leggTilFastVakt, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
@@ -160,7 +161,7 @@ export function FastVaktSkjema({ stasjonId }: { stasjonId: string }) {
 
 // Timene der én ikke holder. Varemottak er det vanligste.
 export function KravSkjema({ stasjonId }: { stasjonId: string }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilKrav, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(leggTilKrav, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
@@ -192,7 +193,7 @@ export function KravSkjema({ stasjonId }: { stasjonId: string }) {
 // personer klokka 13. Matematisk riktig, fysisk umulig. Dette er stasjonens
 // egen grense, og den kjenner bare butikksjefen.
 export function TakSkjema({ stasjonId, naa }: { stasjonId: string; naa: number | null }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreTak, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(lagreTak, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
@@ -228,7 +229,7 @@ export function StillingSkjema({
   stasjonId: string; ansattNr: string; navn: string
   lagret: number | null; anslag: number
 }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(lagreStilling, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(lagreStilling, undefined)
   return (
     <form action={handling} className="stilling-rad">
       <input type="hidden" name="stasjon_id" value={stasjonId} />
@@ -256,7 +257,7 @@ export function StillingSkjema({
 // Fravær. Butikksjefens fem uker er den enkeltposten som flytter mest —
 // er han borte, dekker ikke den faste vakten gulvet, og timene må kjøpes.
 export function FravaerSkjema({ stasjonId, navn }: { stasjonId: string; navn: string[] }) {
-  const [tilstand, handling, venter] = useActionState<Tilstand, FormData>(leggTilFravaer, undefined)
+  const [tilstand, handling, venter] = useKvittering<Tilstand, FormData>(leggTilFravaer, undefined)
   return (
     <form action={handling} className="sq-skjema">
       <input type="hidden" name="stasjon_id" value={stasjonId} />

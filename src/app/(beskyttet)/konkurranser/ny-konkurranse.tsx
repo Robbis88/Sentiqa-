@@ -1,9 +1,10 @@
 'use client'
-import { useActionState } from 'react'
+import { useKvittering } from '@/components/ui/kvittering'
+
 import { opprettKonkurranse, type KonkTilstand } from './handlinger'
 
 export function NyKonkurranse() {
-  const [tilstand, handling, venter] = useActionState<KonkTilstand, FormData>(opprettKonkurranse, undefined)
+  const [tilstand, handling, venter] = useKvittering<KonkTilstand, FormData>(opprettKonkurranse, undefined)
 
   return (
     <form action={handling} className="skjema konk-skjema">

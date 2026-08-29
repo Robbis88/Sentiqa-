@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
@@ -48,7 +47,6 @@ export async function leggTilAnsatt(_t: AnsattTilstand, formData: FormData): Pro
     opprettet_av: bruker.id,
   })
   if (error) return { feil: forklarFeil(error.message) }
-  revalidatePath('/ansatte')
   return { ok: true }
 }
 
@@ -117,7 +115,6 @@ export async function settAnsattnummer(
     .eq('id', felt.data.id)
   if (error) return { feil: forklarFeil(error.message) }
 
-  revalidatePath('/ansatte')
   return { ok: true }
 }
 
@@ -128,5 +125,4 @@ export async function deaktiverAnsatt(formData: FormData) {
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
   maaLykkes(await supabase.from('ansatte').update({ aktiv: false, slettet_tid: new Date().toISOString() }).eq('id', id), 'slette ansatte')
-  revalidatePath('/ansatte')
 }

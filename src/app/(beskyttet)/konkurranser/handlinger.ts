@@ -51,7 +51,6 @@ export async function opprettKonkurranse(_t: KonkTilstand, formData: FormData): 
     opprettet_av: bruker.id,
   })
   if (error) return { feil: error.message }
-  revalidatePath('/konkurranser')
   return { ok: true }
 }
 
@@ -79,7 +78,6 @@ export async function kaarVinner(formData: FormData) {
       { onConflict: 'konkurranse_id' },
     ), 'lagre pengepremie')
   }
-  revalidatePath('/konkurranser')
   revalidatePath('/premier')
 }
 
@@ -95,7 +93,6 @@ export async function markerUtbetalt(formData: FormData) {
     .eq('id', id), 'oppdatere konkurranser')
   // Hold den koblede tildelingen i synk
   maaLykkes(await supabase.from('pengepremie').update({ utbetalt: true }).eq('konkurranse_id', id), 'oppdatere pengepremie')
-  revalidatePath('/konkurranser')
   revalidatePath('/premier')
 }
 

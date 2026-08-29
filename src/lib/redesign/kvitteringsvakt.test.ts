@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { utenKommentarer } from './skrivevakt'
 
@@ -194,5 +195,120 @@ describe('kvitteringen kommer foer revalideringen', () => {
     expect(utenKommentarer("// revalidatePath('/x')\nrevalidatePath('/y')"))
       .toContain("revalidatePath('/y')")
     expect(utenKommentarer("// revalidatePath('/x')\nconst a = 1")).not.toContain('/x')
+  })
+})
+
+// =====================================================================
+// INGEN SERVERHANDLING SKAL REVALIDERE SIN EGEN RUTE
+//
+// Regelen, ikke listen. Seksten sider hadde koblingen da den ble
+// oppdaget; en syttende ville arvet den i stillhet hvis vakten bare
+// nevnte de seksten ved navn.
+//
+// `useActionState` holder `venter` sann gjennom hele overgangen, og en
+// revalidering av EGEN rute gjor ruteroppdateringen til en del av den.
+// Kvitteringen blir da gissel for at siden skal tegne seg om — maalt til
+// 45 sekunder paa /stempling der serveren svarte paa 190 ms.
+//
+// `revalidatePath` for ANDRE ruter er fortsatt riktig: `router.refresh()`
+// i `useKvittering` naar bare siden du staar paa.
+// =====================================================================
+
+/**
+ * Navngitte unntak, ikke hull i maalingen.
+ *
+ * Et hull kan ingen se; et navngitt unntak kan leses og bestrides.
+ */
+const EGENRUTE_UNNTAK: Record<string, string> = {
+  // `revalidatePath('/', 'layout')` friskner opp ALLE datasider etter en
+  // import - salg, dekning, oversikt. `router.refresh()` naar bare den
+  // ene siden, saa den kan ikke erstatte dette.
+  //
+  // Prisen er at kvitteringen paa /import fortsatt venter paa
+  // oppdateringen. Det er akseptabelt her og bare her: en import tar tid
+  // uansett, og den trykkes én gang, ikke av folk med hansker som har
+  // det travelt.
+  '/import': 'revalidatePath(\'/\', \'layout\') maa treffe alle datasider',
+}
+
+function ruterMedEgenrevalidering(): { rute: string; katalog: string }[] {
+  const ut: { rute: string; katalog: string }[] = []
+  const gaa = (katalog: string) => {
+    for (const oppf of readdirSync(katalog, { withFileTypes: true })) {
+      const sti = join(katalog, oppf.name)
+      if (oppf.isDirectory()) { gaa(sti); continue }
+      // ALLE `'use server'`-FILER, ikke bare `handlinger.ts`.
+      //
+      // Foerste utgave saa bare paa `handlinger.ts`, og /lonn har
+      // serverhandlinger i `rettelser.ts` og `overgang.ts` ogsaa. Tre
+      // egen-rute-revalideringer laa der og ble ikke sett - av en vakt
+      // som var gronn.
+      if (!oppf.name.endsWith('.ts') || oppf.name.endsWith('.d.ts')) continue
+      if (!readFileSync(sti, 'utf8').startsWith("'use server'")) continue
+
+      const rute = '/' + katalog.replace(/\\/g, '/').split('/').slice(2)
+        .filter((d) => !d.startsWith('(')).join('/')
+      const kode = utenKommentarer(readFileSync(sti, 'utf8'))
+      // Bade `'/rute'` og en mal som `` `/rute/${id}` `` - den siste er
+      // ogsaa egen rute naar skjemaet bor paa undersiden.
+      const egen = kode.includes(`revalidatePath('${rute}')`)
+        || kode.includes(`revalidatePath(\`${rute}/`)
+      if (!egen) continue
+
+      // BEGGE KROKENE TELLER, og det er ikke pynt.
+      //
+      // Foerste utgave saa bare etter `useActionState`. Da jeg hadde
+      // byttet alle seksten til `useKvittering`, kunne vakten aldri slaa
+      // ut igjen - den sto gronn med en ekte regresjon lagt inn med
+      // vilje.
+      //
+      // Men aa droppe betingelsen HELT er ogsaa feil: 23 ruter bruker
+      // rene skjemaer uten kvitteringstilstand, og der ER revalideringen
+      // tilbakemeldingen. Tas den bort, oppdateres ingenting.
+      //
+      // Det som gjor koblingen skadelig er at en klient holder paa
+      // ventetilstand og svar TVERS OVER overgangen. Det er nettopp det
+      // begge disse krokene gjor.
+      const harTilstand = readdirSync(katalog)
+        .filter((f) => f.endsWith('.tsx'))
+        .some((f) => {
+          const k = readFileSync(join(katalog, f), 'utf8')
+          return k.includes('useActionState') || k.includes('useKvittering')
+        })
+      if (harTilstand) ut.push({ rute, katalog })
+    }
+  }
+  gaa('src/app')
+  return ut
+}
+
+describe('ingen serverhandling revaliderer sin egen rute', () => {
+  const funn = ruterMedEgenrevalidering().filter((f) => !(f.rute in EGENRUTE_UNNTAK))
+
+  test('ingen ruter utenfor unntakslisten', () => {
+    expect(
+      funn.map((f) => f.rute),
+      'Kvitteringen blir gissel for ruteroppdateringen. Bruk `useKvittering` '
+      + 'fra @/components/ui/kvittering og ta revalideringen av egen rute ut '
+      + 'av serverhandlingen.',
+    ).toEqual([])
+  })
+
+  test('KANARIFUGL: maalingen finner faktisk noe naar unntaket tas bort', () => {
+    // Uten dette ville en tom liste betydd bade «alt er ryddet» og
+    // «maalingen ser ingenting», og de to ser like ut.
+    const alle = ruterMedEgenrevalidering().map((f) => f.rute)
+    expect(alle, 'unntaket /import skal fortsatt bli SETT av maalingen')
+      .toContain('/import')
+  })
+
+  test('KANARIFUGL: hvert unntak peker paa en rute som finnes', () => {
+    // Et unntak for en rute som er slettet er et hull som ser ut som en
+    // begrunnelse.
+    const alle = ruterMedEgenrevalidering().map((f) => f.rute)
+    for (const rute of Object.keys(EGENRUTE_UNNTAK)) {
+      expect(alle, `unntaket ${rute} gjelder ingenting lenger — fjern det`)
+        .toContain(rute)
+    }
   })
 })
