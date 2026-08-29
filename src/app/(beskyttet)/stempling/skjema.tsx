@@ -1,5 +1,6 @@
 'use client'
 import { useActionState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { stemple, type StemplingSvar } from './handlinger'
 
 // =====================================================================
@@ -21,16 +22,27 @@ export function StemplingSkjema() {
   )
   const skjema = useRef<HTMLFormElement>(null)
   const nummerfelt = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
   // Tømmer og setter fokus tilbake etter et vellykket trykk, så neste
   // person kan taste med én gang. Uten dette står forrige persons nummer
   // igjen i feltet — og da stempler nestemann henne ut.
+  //
+  // OG FØRST DA OPPDATERES «INNE NÅ». Revalideringen lå inne i
+  // serverhandlingen, og `useActionState` holder `venter` sann gjennom
+  // hele overgangen — så kvitteringen ventet på at siden skulle tegne seg
+  // om, enda svaret var ferdig etter 190 ms. Hun så «Registrerer …» på en
+  // stempling som alt var registrert, og det er nettopp da man trykker en
+  // gang til.
+  //
+  // Rekkefølgen er hele poenget: kvitteringen først, listen etterpå.
   useEffect(() => {
     if (svar?.ok) {
       skjema.current?.reset()
       nummerfelt.current?.focus()
+      router.refresh()
     }
-  }, [svar])
+  }, [svar, router])
 
   return (
     <>
