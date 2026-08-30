@@ -491,6 +491,71 @@
       "oppdaterbart": "min_bemanning = 2"
     },
     {
+      "tabell": "bp_aar",
+      "$hvorfor": "St1s BP slik fila kom, per stasjon og aar. EIERENS ALENE, som bemanning_aar: BP-en baerer royaltysats, fastloenn og kjedens kostnadsramme - kjedens oekonomi, ikke stasjonens drift. Butikksjefen ser sin maanedsramme i bemanning_maned og har ingen bruk for denne. Ikke det samme som regnskapslinjer bp_*: de hopper over avlagte maaneder med vilje, saa et avsluttet aar finnes ikke der.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ar"
+      ],
+      "proberad": {
+        "retailer_id": "'{{retailer}}'",
+        "$retailer_id": "bemanning_aar har ingen retailer_id og noekles paa stasjon alene, saa generatoren setter den ikke for en stasjonsnoeklet ressurs. Her er den not null og baerer den sammensatte fremmednoekkelen bp_linje henger i, saa den maa staa eksplisitt.",
+        "ar": "{{unik_aar}}",
+        "format": "'st1_bp26'",
+        "timer_aar": "12000",
+        "$ar": "Aaret MAA variere: unikheten er (stasjon_id, ar) alene, saa to forsoek paa samme aar gir 23505 - en domenefeil som ser ut som en avvisning. {{unik_aar}} har to disjunkte baser, som datoene: generatoren 2100-2499, sekvensen 2500-2899."
+      },
+      "oppdaterbart": "timer_aar = 12500"
+    },
+    {
+      "tabell": "bp_linje",
+      "$hvorfor": "Budsjettlinjene i BP-en: omsetning og varekost per varegruppe, kostnad per konto, per maaned. Samme eierskap som bp_aar - den er oppdelingen av det samme dokumentet. retailer_id er denormalisert for at RLS skal ha et sargbart predikat, men bundet av en sammensatt fremmednoekkel mot bp_aar (id, retailer_id) slik at den ikke kan settes til en annen kjede enn aargangen tilhoerer.",
+      "tenant_scope": "retailer",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('{{seed:bpaar}}', '{{retailer}}', '{{stasjon}}', {{unik_aar}}, 'st1_bp26', 12000)"
+      ],
+      "business_unik": [
+        "bp_aar_id",
+        "maned",
+        "seksjon",
+        "kode"
+      ],
+      "business_unik_unntak": {
+        "maned": "Maaned er 1-12 og seksjon er ett av tre navn - ingen av dem kan varieres per forsoek uten aa finne paa verdier utenfor domenet. De trenger det heller ikke: noekkelen er (bp_aar_id, maned, seksjon, kode), og BADE bp_aar_id (fersk forutsetningsrad per forsoek) og kode ({{unik}}) varierer. To forsoek kan derfor ikke kollidere, og et 23505 her ville vaert en ekte feil.",
+        "seksjon": "Samme grunn som maaned: bundet domene med tre verdier. Variasjonen ligger i bp_aar_id og kode, som begge er ferske per forsoek."
+      },
+      "proberad": {
+        "bp_aar_id": "'{{seed:bpaar}}'",
+        "maned": "1",
+        "seksjon": "'omsetning'",
+        "kode": "'{{unik}}'",
+        "post": "'120 Mat'",
+        "belop_kr": "1000"
+      },
+      "oppdaterbart": "belop_kr = 2000"
+    },
+    {
       "tabell": "butikksjef_stasjoner",
       "$hvorfor": "TILDELINGEN SELV. Denne tabellen er det mine_stasjoner() og har_stasjonstilgang() leser, saa hver av de andre 4259 paastandene hviler paa at ingen kan skrive seg inn her. Bare retailer_admin skriver, og bare til stasjoner i egen kjede. INGEN retailer_id: kjeden naas gjennom stasjonen, saa scopet er station. Identiteten er (profil_id, stasjon_id) - ingen id-kolonne finnes. UDEKKET MED VILJE: bs_select har en egen-rad-gren (profil_id = auth.uid()), saa en butikksjef ser den raden som gir DEM tilgang. Proberaden peker paa en frisk sondeprofil, aldri paa en av de sju identitetene - hadde den pekt paa en av dem, ville en tillatt innsetting endret hvem som naar hva midt i kjoeringen. Derfor staar manager og tablet som none: det er sant om proberaden, og egen-rad-grenen maa bevises av den brukerscopede formen sammen med personlig_punkt.",
       "tenant_scope": "station",

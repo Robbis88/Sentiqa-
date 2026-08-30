@@ -1,4 +1,5 @@
 import { lesArk, arknavn, type Celleverdi } from './xlsx-rader'
+import { erBp25Arknavn } from './gjenkjenn'
 import { ParserFeil } from './felles'
 import type { BpResultat, BpStasjon, BpMaaned } from './typer'
 
@@ -123,8 +124,7 @@ function tomStasjon(butikknummer: string): Akk {
  * — noen kilobyte — så den kan brukes før man bestemmer seg for å parse.
  */
 export function erBp25Fil(data: Uint8Array | ArrayBuffer): boolean {
-  const n = arknavn(data).map((x) => x.toLowerCase())
-  return n.includes('cr-sales') && n.includes('costs') && n.includes('cluster data')
+  return erBp25Arknavn(arknavn(data).map((x) => x.toLowerCase()))
 }
 
 export function parseBp25(data: Uint8Array | ArrayBuffer): BpResultat {

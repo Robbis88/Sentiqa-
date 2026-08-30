@@ -1,7 +1,16 @@
 import { celletekst, lastArbeidsbok } from './felles'
+import { arknavn as lesArknavn } from './xlsx-rader'
 import type { Rapporttype } from './typer'
 
 export const ER_BP = /budsjettfil til vb|timebudsjett grunnlagsfil/
+
+/**
+ * St1s GAMLE BP-mal, til og med budsjettaaret 2025. Engelske arknavn, og
+ * `Cluster data` deles med BP26 - det er `cr-sales` og `costs` sammen som
+ * skiller dem.
+ */
+export const erBp25Arknavn = (navn: string[]): boolean =>
+  navn.includes('cr-sales') && navn.includes('costs') && navn.includes('cluster data')
 
 // Kjenner igjen hvilken St1/Visma-rapport en opplastet xlsx er, basert på
 // arknavn + tittelcelle. Brukes av arbeideren til å rute til riktig parser
@@ -14,6 +23,23 @@ export const ER_BP = /budsjettfil til vb|timebudsjett grunnlagsfil/
 export async function gjenkjennRapporttype(
   data: Buffer | ArrayBuffer,
 ): Promise<Rapporttype> {
+  // BP-FILENE SKAL ALDRI LASTES HELT, HELLER IKKE HER.
+  //
+  // Denne funksjonen kjoerer ogsaa i nettleseren, paa hver eneste fil
+  // brukeren velger. BP26 er 27 MB og koster 2,3 GB aa laste; BP25 er
+  // 11 MB og koster 2,1 GB. Fram til naa gikk begge rett i
+  // `lastArbeidsbok` - en fane som ryker, med en fil som er helt i orden.
+  //
+  // Arknavnene ligger i `xl/workbook.xml`, noen faa kilobyte, og de er
+  // nok til aa kjenne igjen begge formatene.
+  try {
+    const navn = lesArknavn(data).map((n) => n.toLowerCase())
+    if (ER_BP.test(navn.join(' ')) || erBp25Arknavn(navn)) return 'st1_bp'
+  } catch {
+    // Ikke en xlsx, eller en vi ikke kan pakke ut. Da faar den vanlige
+    // veien svare - den gir 'ukjent' med en lesbar feil.
+  }
+
   const wb = await lastArbeidsbok(data)
 
   const arknavn = wb.worksheets.map((w) => w.name.toLowerCase())

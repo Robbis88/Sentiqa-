@@ -37,6 +37,9 @@ with lister as (
     -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
     -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
     'pin_forsok',
+    -- BP-en som eget dokument (0155). Faa rader per aar, men de leses av
+    -- hver analysevisning og vokser med hver aargang og hver stasjon.
+    'bp_aar', 'bp_linje',
     -- Semantisk kodemapping (0152). Faa rader, men varme: v_butikksalg
     -- joiner dem i HVER eneste salgsspoerring.
     'retailer_kodeerklaering', 'retailer_koderegel',

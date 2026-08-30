@@ -797,9 +797,13 @@ describe('genererte filer', () => {
       //   p_merke            «identitet-operasjon», en form generatorens
       //                      {{unik}} aldri produserer (den gir `fastA1`,
       //                      `manager_A1A2` — aldri med bindestrek)
+      //   2500 +             årstall, som datoene: BEGGE tellerne skriver
+      //                      år, så de har hver sin base. Generatoren tar
+      //                      2100–2499, sekvensen 2500–2899.
       .filter((l) => !l.includes(`'rt'`)
         && !l.includes(`date '2030-01-01'`)
-        && !l.includes('p_merke'))
+        && !l.includes('p_merke')
+        && !l.includes('2500 +'))
     expect(uskilt.map((l) => l.trim().slice(0, 90)), 'kjoeretidsteller uten eget verdirom')
       .toEqual([])
     expect(sql.includes('nextval('), 'ingen kjoeretidsteller - maaler testen noe?').toBe(true)
