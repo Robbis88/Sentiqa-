@@ -1,127 +1,193 @@
 import { describe, it, expect } from 'vitest'
-import { summer, royaltysats, analyser, type Aarstall } from './analyse'
+import {
+  summer, analyser, royaltyandel, royaltyEndring, ordinaertSalg, type Aarstall,
+} from './analyse'
 import type { BpResultat } from '@/lib/parsere/typer'
 
 // =====================================================================
-// TALLENE ER KELSARS EGNE, fra BP 2025 og BP 2026.
+// TALLENE ER KELSARS EGNE, lest ut av BP25 og BP26 med `parseBp25` og
+// `parseBp`, og krysset mot filenes egne kontrolltall:
 //
-// Oppdiktede tall ville bevist at koden gjor det den sier. Disse beviser
-// at den sier noe RIKTIG - og de tre funnene under er alle verifisert mot
-// filenes egne kontrolltall foer de ble skrevet inn her.
+//   BP25 «Budget»-arket   CR salg 38 835 338, Royalty 5 746 464
+//   BP25 Laguneparken     120 Mat 4 651 908
+//
+// Oppdiktede tall ville bevist at koden gjoer det den sier. Disse beviser
+// at den sier noe RIKTIG.
 // =====================================================================
 
-/** Bygger en aargang uten aa maatte lage tolv maaneder for haand. */
 function aar(o: Partial<Aarstall> & { ar: number }): Aarstall {
   return {
-    salg: 0, varekost: 0, brutto: 0, timelonn: 0, fastlonn: 0,
+    salg: 0, varekost: 0, brutto: 0,
+    personal: 0, timelonn: 0, fastlonn: 0,
     andreKostnader: 0, royalty: 0, timer: 0,
     kategorier: new Map(), konti: new Map(),
     ...o,
   }
 }
+const vg = (post: string, salg: number, varekost = 0) => ({ post, salg, varekost })
+const ko = (post: string, kr: number) => ({ post, kr })
 
-describe('royaltysatsen leses ut av tallene', () => {
-  it('finner 10 % naar vask holdes utenfor', () => {
-    // BP 2026, fem stasjoner. Ordinaert salg 59 346 575, royalty paa
-    // ordinaert 5 934 658. Vaskeandelen er tatt ut av nevneren.
-    const t = aar({
-      ar: 2026,
-      royalty: 5934658,
-      kategorier: new Map([['120 Mat', 34316540], ['180 Tobakk', 25030035]]),
-    })
-    expect(royaltysats(t)).toBeCloseTo(0.10, 4)
+// De tre stasjonene Robert har hatt sammenhengende: Laguneparken 9038,
+// Varden 9145, Boenes 9467.
+const BP25 = aar({
+  ar: 2025,
+  salg: 38835338, varekost: 19855697, brutto: 18979640,
+  personal: 11568903, andreKostnader: 1960629, royalty: 5746464,
+  kategorier: new Map([
+    ['180', vg('180 Tobakk', 9799686)],
+    ['120', vg('120 Mat', 8537572)],
+    ['210', vg('210 Bilvask', 7302260, 1826486)],
+    ['140', vg('140 Kald drikke', 4360032)],
+    // NB: navnet er et annet i 2026. Se kanarifuglen under.
+    ['160', vg('160 Kioskvarer ex smågodt', 3134014)],
+    ['200', vg('200 Bil', 2158345)],
+    ['170', vg('170 Butikk', 1166210)],
+    ['190', vg('190 Fritidsartikler', 1030698)],
+    ['130', vg('130 Varm drikke', 1017027)],
+    ['250', vg('250 Pant', 252360, 252360)],
+    ['220', vg('220 Utleie', 4188)],
+  ]),
+  konti: new Map([
+    ['5010', ko('5010 Site Salary costs', 11271621)],
+    ['5210', ko('5210 Andre personal', 297282)],
+    ['6613', ko('6613 Rep & vedlikehold', 482451)],
+    ['6450', ko('6450 Leie driftsmidler', 411773)],
+    ['6271', ko('6271 Renhold-renovasj.', 394150)],
+    ['6590', ko('6590 Forbruksmateriell', 292212)],
+  ]),
+})
+
+const BP26 = aar({
+  ar: 2026,
+  salg: 40875850, varekost: 20861893, brutto: 20013957,
+  personal: 12246500, timelonn: 7489430, fastlonn: 1861479,
+  andreKostnader: 2348428, royalty: 6934489,
+  kategorier: new Map([
+    ['180', vg('180 Tobakk', 9912503)],
+    ['120', vg('120 Mat', 9276278)],
+    ['210', vg('210 Bilvask', 7525737, 1127617)],
+    ['140', vg('140 Kald drikke', 4969234)],
+    ['160', vg('160 Kioskvarer', 3559427)],
+    ['200', vg('200 Bil', 1995398)],
+    ['170', vg('170 Butikk', 1249344)],
+    ['130', vg('130 Varm drikke', 1110472)],
+    ['190', vg('190 Fritidsartikler', 928026)],
+    ['250', vg('250 Pant', 268690, 268690)],
+  ]),
+  konti: new Map([
+    ['5010', ko('5010 Kostnader', 1861479)],
+    ['5012', ko('5012 Kostnader', 7489430)],
+    ['6420', ko('6420 Kostnader', 775812)],
+    ['6600', ko('6600 Kostnader', 438921)],
+    ['6570', ko('6570 Kostnader', 263089)],
+    ['6275', ko('6275 Kostnader', 241552)],
+  ]),
+})
+
+describe('royaltyen', () => {
+  it('måler andelen av omsetningen eksakt', () => {
+    expect(royaltyandel(BP25)!).toBeCloseTo(0.14797, 5)
+    expect(royaltyandel(BP26)!).toBeCloseTo(0.16965, 5)
   })
 
-  it('KANARIFUGL: pant blaser ikke opp nevneren', () => {
-    // Pant har ingen royalty. Ligger den i nevneren, ser satsen lavere
-    // ut enn den er - og et aar med mer pant ser ut som en rabatt.
-    const utenPant = aar({ ar: 2026, royalty: 1000, kategorier: new Map([['120 Mat', 10000]]) })
-    const medPant = aar({
-      ar: 2026, royalty: 1000,
-      kategorier: new Map([['120 Mat', 10000], ['250 Pant', 5000]]),
-    })
-    // Samme ordinaere omsetning, samme royalty - saa samme sats.
-    expect(royaltysats(utenPant)).toBeCloseTo(0.10, 4)
-    expect(royaltysats(medPant)).toBeCloseTo(0.10, 4)
+  it('KANARIFUGL: volum og andel skal summere til hele endringen', () => {
+    // Dekomponeringen er det funnet hviler paa. Gaar den ikke opp, er
+    // kronene i funnet gjetning - og de ser like sikre ut uansett.
+    const r = royaltyEndring(BP25, BP26)!
+    expect(r.volum + r.sats).toBeCloseTo(r.totalt, 6)
+    expect(r.totalt).toBeCloseTo(6934489 - 5746464, 6)
   })
 
-  it('KANARIFUGL: satsen leses ikke naar vasken er med', () => {
-    // Vasken har 60 %, ikke 10 %. En samlet sats over begge er et
-    // blandingstall som ikke kan sammenlignes mellom to aar der
-    // vaskeandelen har flyttet seg. Da er null det aerlige svaret.
-    const medVask = aar({
-      ar: 2026, royalty: 1000,
-      kategorier: new Map([['120 Mat', 10000], ['210 Bilvask', 10000]]),
-    })
-    expect(royaltysats(medVask)).toBeNull()
+  it('skiller kostnaden ved satsen fra prisen på vekst', () => {
+    const r = royaltyEndring(BP25, BP26)!
+    // ~302 000 kr fordi de selger mer, ~886 000 kr fordi andelen steg.
+    expect(Math.round(r.volum)).toBeGreaterThan(290_000)
+    expect(Math.round(r.volum)).toBeLessThan(310_000)
+    expect(Math.round(r.sats)).toBeGreaterThan(870_000)
+    expect(Math.round(r.sats)).toBeLessThan(900_000)
   })
 
-  it('gir null naar det ikke finnes omsetning', () => {
-    expect(royaltysats(aar({ ar: 2026 }))).toBeNull()
+  it('gir null når det ikke finnes omsetning', () => {
+    expect(royaltyandel(aar({ ar: 2026 }))).toBeNull()
+    expect(royaltyEndring(aar({ ar: 2025 }), BP26)).toBeNull()
+  })
+
+  it('KANARIFUGL: vask og pant er ikke ordinær omsetning', () => {
+    // Vask har sin egen sats og pant har ingen. Blandes de inn i
+    // ordinaer omsetning, er tallet ikke lenger det royaltyen maales paa.
+    expect(Math.round(ordinaertSalg(BP26))).toBe(33000682)
+    // ... som er nettopp alt salget minus vask og pant.
+    const alt = [...BP26.kategorier.values()].reduce((a, v) => a + v.salg, 0)
+    expect(Math.round(ordinaertSalg(BP26))).toBe(Math.round(alt - 7525737 - 268690))
   })
 })
 
-describe('analysen finner det en regnskapsfoerer ville sett', () => {
-  // Kelsars tre stasjoner, forenklet til aarstall.
-  const fjor = aar({
-    ar: 2025,
-    salg: 38831150, brutto: 18979640,
-    timelonn: 6796990, fastlonn: 1800000, andreKostnader: 2257912,
-    royalty: 2249077, timer: 28824,   // 7,75 % av ordinaert salg
-    kategorier: new Map([
-      ['180 Tobakk', 9799686], ['120 Mat', 8537572], ['140 Kald drikke', 4360032],
-      ['160 Kioskvarer', 3134014], ['200 Bil', 2158345], ['190 Fritidsartikler', 1030698],
-    ]),
-    konti: new Map([['6420 Leie driftsmidler', 900000], ['6275 Renhold', 400000]]),
-  })
-  const iAar = aar({
-    ar: 2026,
-    salg: 40875850, brutto: 20100000,
-    timelonn: 7489430, fastlonn: 1861479, andreKostnader: 2400000,
-    royalty: 3064087, timer: 30270,   // 10,00 % av ordinaert salg
-    kategorier: new Map([
-      ['180 Tobakk', 9912503], ['120 Mat', 9276278], ['140 Kald drikke', 4969234],
-      ['160 Kioskvarer', 3559427], ['200 Bil', 1995398], ['190 Fritidsartikler', 928026],
-    ]),
-    konti: new Map([['6420 Leie driftsmidler', 950000], ['6600 Rep & vedlikehold', 500000]]),
-  })
-  const funn = analyser(fjor, iAar)
+describe('analysen finner det en regnskapsfører ville sett', () => {
+  const funn = analyser(BP25, BP26)
   const finn = (id: string) => funn.find((f) => f.id === id)
 
-  it('setter en pris paa royaltyendringen', () => {
-    const f = finn('royaltysats')!
+  it('setter en pris på royaltyendringen', () => {
+    const f = finn('royalty')!
     expect(f.alvor).toBe('viktig')
     expect(f.dom).toBe('vond')
-    // 7,75 % -> 10,00 % paa de tre stasjonenes ordinaere omsetning.
-    expect(Math.round(f.kroner!)).toBeGreaterThan(600000)
-    expect(f.tittel).toContain('hevet')
+    expect(f.tittel).toContain('stiger')
+    expect(f.tittel).toContain('14,80 %')
+    expect(f.tittel).toContain('16,96 %')
+    expect(Math.round(f.kroner!)).toBeGreaterThan(870_000)
   })
 
-  it('KANARIFUGL: hoyere timepris er GODT, ikke vondt', () => {
-    // Timeprisen er en ramme St1 gir, ikke en kostnad de baerer.
-    // Snur denne til «vond», er hele fargelogikken paa sida feil igjen.
-    const f = finn('timeramme')!
+  it('KANARIFUGL: høyere lønnsramme er GODT, ikke vondt', () => {
+    // Loennsramma er penger St1 legger inn, ikke en kostnad de baerer.
+    // Snus denne, er hele fargelogikken paa sida feil igjen.
+    const f = finn('lonnsramme')!
     expect(f.dom).toBe('god')
-    expect(f.betyr).toContain('ramme dere har fått')
+    expect(Math.round(f.kroner!)).toBe(677597)
   })
 
-  it('deler loennsveksten i timer og timepris', () => {
-    const f = finn('timeramme')!
+  it('KANARIFUGL: uten timetall loves ingen kr/time', () => {
+    // BP25-malen har ikke timebudsjett. En kr/time regnet paa `timer = 0`
+    // ville gitt Infinity - eller verre, et tall som saa fornuftig ut.
+    const f = finn('lonnsramme')!
+    expect(f.maalt).toContain('Timerammen står ikke i begge årganger')
+    expect(f.maalt).not.toMatch(/Infinity|NaN/)
+  })
+
+  it('deler lønnsveksten i timer og timepris når begge år har timer', () => {
+    const f = analyser(
+      { ...BP25, timer: 28824 }, { ...BP26, timer: 30270 },
+    ).find((x) => x.id === 'lonnsramme')!
     expect(f.maalt).toMatch(/\+5,0 % timer/)
-    expect(f.maalt).toMatch(/timepris/)
+    expect(f.maalt).toContain('kroner per time')
+    expect(f.dom).toBe('god')
   })
 
-  it('ser marginklemmen naar kostnadene vokser raskest', () => {
+  it('ser marginklemmen, og feller ingen dom over den', () => {
     const f = finn('marginklem')!
     expect(f.tittel).toContain('raskere enn salgsmålet')
+    // `toLocaleString('nb-NO')` skiller tusener med HARDT mellomrom.
+    // Et vanlig mellomrom i paastanden gir en test som feiler paa et
+    // tegn ingen kan se.
+    const flatt = f.maalt.replace(/\s/g, ' ')
+    expect(flatt).toContain('13 529 532')
+    expect(flatt).toContain('14 594 928')
     // Ingen dom: en romsligere ramme er ikke et daarlig aar.
     expect(f.dom).toBeUndefined()
   })
 
-  it('peker paa hvor veksten ligger', () => {
+  it('peker på hvor veksten ligger', () => {
     const f = finn('vekstkonsentrasjon')!
     expect(f.maalt).toContain('120 Mat')
     expect(f.kroner).toBeGreaterThan(0)
+  })
+
+  it('KANARIFUGL: samme varegruppe med nytt navn er ikke to grupper', () => {
+    // «160 Kioskvarer ex smaagodt» ble «160 Kioskvarer». Noekles det paa
+    // navn, ser gruppa ut som kuttet 100 % OG som splitter ny - to funn
+    // som begge er feil, i en liste der alt annet er riktig.
+    const kuttet = finn('kuttede-grupper')!
+    expect(kuttet.maalt).not.toContain('Kioskvarer')
+    // Den skal derimot vises med det NYE navnet, og som vekst.
+    expect(finn('vekstkonsentrasjon')!.maalt).toContain('160 Kioskvarer +13,6 %')
   })
 
   it('KANARIFUGL: sier fra om varegrupper som er budsjettert NED', () => {
@@ -133,74 +199,115 @@ describe('analysen finner det en regnskapsfoerer ville sett', () => {
     expect(f.kroner).toBeLessThan(0)
   })
 
-  it('KANARIFUGL: melder konti som er nye eller borte', () => {
-    // En linje som forsvinner mellom to aar er lett aa overse.
-    const f = finn('kontoplan')!
-    expect(f.maalt).toContain('6600 Rep & vedlikehold')
-    expect(f.maalt).toContain('6275 Renhold')
+  it('KANARIFUGL: to ulike kontoplaner gir ikke en linje-for-linje-diff', () => {
+    // BP25 har 18 aggregerte konti, BP26 over femti. En diff ga «38 nye,
+    // 17 borte» - som ser ut som en stor endring og er null informasjon.
+    expect(finn('kontoplan')).toBeUndefined()
+    const f = finn('kontoplan-omlagt')!
+    expect(f.alvor).toBe('info')
+    expect(f.betyr).toContain('ulik oppdeling')
   })
 
-  it('gir ingen royaltyfunn naar satsen staar stille', () => {
-    const likt = analyser(fjor, aar({ ...fjor, ar: 2026 }))
-    expect(likt.find((f) => f.id === 'royaltysats')).toBeUndefined()
+  it('gjør diffen når kontoplanene faktisk er de samme', () => {
+    const konti = new Map(BP25.konti)
+    konti.delete('6590')
+    konti.set('6900', ko('6900 Telefon', 33875))
+    const f = analyser(BP25, aar({ ...BP25, ar: 2026, konti }))
+      .find((x) => x.id === 'kontoplan')!
+    expect(f.maalt).toContain('6900 Telefon')
+    expect(f.maalt).toContain('6590 Forbruksmateriell')
+  })
+
+  it('gir ingen royaltyfunn når andelen står stille', () => {
+    const likt = analyser(BP25, aar({ ...BP25, ar: 2026 }))
+    expect(likt.find((f) => f.id === 'royalty')).toBeUndefined()
   })
 })
 
 describe('summer', () => {
-  const bp: BpResultat = {
+  const bp = (
+    kontoRader: { kode: string; post: string; belopKr: number }[],
+    timelonnKr = 0, fastlonnKr = 0,
+  ): BpResultat => ({
     rapporttype: 'st1_bp',
     ar: 2026,
-    stasjoner: [
-      {
-        butikknummer: '9038',
-        timerAar: 13877.65,
-        maaneder: [{
-          maned: 1, salgKr: 100000, varekostKr: 40000, bruttoKr: 60000,
-          timelonnKr: 20000, fastlonnKr: 5000,
-          kategorier: [{ kode: '120', post: '120 Mat', salgKr: 60000, varekostKr: 25000 }],
-          konti: [
-            { kode: '6312', post: '6312 Royalty', belopKr: 8000 },
-            { kode: '6315', post: '6315 FSA', belopKr: -700 },
-            { kode: '6420', post: '6420 Leie driftsmidler', belopKr: 3000 },
-          ],
-        }],
-      },
-      {
-        butikknummer: '4185', timerAar: 11187.47,
-        maaneder: [{
-          maned: 1, salgKr: 50000, varekostKr: 20000, bruttoKr: 30000,
-          timelonnKr: 10000, fastlonnKr: 2500, kategorier: [], konti: [],
-        }],
-      },
-    ],
-  }
-
-  it('summerer hele kjeden naar ingen stasjoner er valgt', () => {
-    const t = summer(bp)
-    expect(t.salg).toBe(150000)
-    expect(t.timer).toBeCloseTo(25065.12, 2)
+    stasjoner: [{
+      butikknummer: '9038',
+      timerAar: 13877.65,
+      maaneder: [{
+        maned: 1, salgKr: 100000, varekostKr: 40000, bruttoKr: 60000,
+        timelonnKr, fastlonnKr,
+        kategorier: [{ kode: '120', post: '120 Mat', salgKr: 60000, varekostKr: 25000 }],
+        konti: kontoRader,
+      }],
+    }],
   })
 
-  it('filtrerer til de stasjonene som er bedt om', () => {
-    const t = summer(bp, ['9038'])
-    expect(t.salg).toBe(100000)
-    expect(t.timer).toBeCloseTo(13877.65, 2)
+  it('summerer stasjoner og filtrerer på butikknummer', () => {
+    const to: BpResultat = {
+      rapporttype: 'st1_bp', ar: 2026,
+      stasjoner: [
+        ...bp([]).stasjoner,
+        { butikknummer: '4185', timerAar: 11187.47, maaneder: [{
+          maned: 1, salgKr: 50000, varekostKr: 20000, bruttoKr: 30000,
+          timelonnKr: 0, fastlonnKr: 0, kategorier: [], konti: [],
+        }] },
+      ],
+    }
+    expect(summer(to).salg).toBe(150000)
+    expect(summer(to).timer).toBeCloseTo(25065.12, 2)
+    expect(summer(to, ['9038']).salg).toBe(100000)
+    expect(summer(to, ['9038']).timer).toBeCloseTo(13877.65, 2)
   })
 
   it('KANARIFUGL: royalty og FSA er ikke driftskostnader', () => {
     // Tas royaltyen med i kostnadsramma, ser rammen mye stoerre ut enn
     // den er - og FSA staar negativt, saa den ville trukket den ned.
-    const t = summer(bp, ['9038'])
+    const t = summer(bp([
+      { kode: '6312', post: '6312 Royalty', belopKr: 8000 },
+      { kode: '6315', post: '6315 FSA', belopKr: -700 },
+      { kode: '6420', post: '6420 Leie driftsmidler', belopKr: 3000 },
+    ]))
     expect(t.royalty).toBe(8000)
     expect(t.andreKostnader).toBe(3000)
-    expect(t.konti.has('6315 FSA')).toBe(false)
-    expect(t.konti.has('6312 Royalty')).toBe(false)
+    expect(t.konti.has('6315')).toBe(false)
+    expect(t.konti.has('6312')).toBe(false)
   })
 
-  it('holder timeloenn og fastloenn utenfor andre kostnader', () => {
-    const t = summer(bp, ['9038'])
-    expect(t.timelonn).toBe(20000)
-    expect(t.fastlonn).toBe(5000)
+  it('KANARIFUGL: lønn leses av kontoplanen, ikke av splittfeltene', () => {
+    // BP25 foerer alt paa 5010 og har ingen splitt. Leses loennen av
+    // feltene, blir 2025 staaende paa null og hele kostnadsveksten mot
+    // 2026 blir +546 % - et tall som er aapenbart galt, men som en
+    // graf tegner like villig som et riktig ett.
+    const bp25 = summer(bp([{ kode: '5010', post: '5010 Site Salary costs', belopKr: 9000 }]))
+    expect(bp25.personal).toBe(9000)
+    expect(bp25.andreKostnader).toBe(0)
+    expect(bp25.timelonn).toBe(0)
+  })
+
+  it('KANARIFUGL: lønn som står både som felt og som konto telles én gang', () => {
+    // BP26 gir begge deler. Summeres de, blir loennsramma dobbel.
+    const bp26 = summer(bp(
+      [
+        { kode: '5010', post: '5010 Kostnader', belopKr: 2000 },
+        { kode: '5012', post: '5012 Kostnader', belopKr: 7000 },
+      ],
+      7000, 2000,
+    ))
+    expect(bp26.personal).toBe(9000)
+    expect(bp26.timelonn).toBe(7000)
+    expect(bp26.fastlonn).toBe(2000)
+    expect(bp26.andreKostnader).toBe(0)
+  })
+
+  it('faller tilbake på splittfeltene når kontoplanen mangler lønn', () => {
+    const t = summer(bp([{ kode: '6420', post: '6420 Leie', belopKr: 3000 }], 7000, 2000))
+    expect(t.personal).toBe(9000)
     expect(t.andreKostnader).toBe(3000)
+  })
+
+  it('nøkler varegrupper på kode og tar vare på varekosten', () => {
+    const t = summer(bp([]))
+    expect(t.kategorier.get('120')).toEqual({ post: '120 Mat', salg: 60000, varekost: 25000 })
   })
 })
