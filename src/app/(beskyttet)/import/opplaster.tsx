@@ -20,7 +20,7 @@ export function Opplaster() {
           type="file"
           name="filer"
           multiple
-          accept=".csv,.txt,.xlsx,.xls"
+          accept=".csv,.txt,.xlsx,.xlsm,.xls"
           required
         />
       </label>

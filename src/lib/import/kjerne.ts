@@ -10,6 +10,7 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
+import { bpLinjer as byggLinjer } from '@/lib/bp/rader'
 import {
   LONNSKONTI, SYKEKONTI, kjedensSykesats, type Regnskapsrad,
 } from '@/lib/bemanning/sykereserve'
@@ -710,9 +711,33 @@ async function lagreBp(
     // gamle per-stasjon-verdiene, og ville frosset dem for alltid.
     const reservePst = sykesats
     const stasjonSikkerhet = gammel?.sikkerhet_pst ?? sikkerhetPst
+
+    // EN BP UTEN TIMEBUDSJETT SKAL IKKE ROERE BEMANNINGSPLANLEGGEREN.
+    //
+    // St1-malen til og med BP25 har ikke timer i det hele tatt. `?? 0`
+    // sto her og gjorde «formatet sier det ikke» om til «null timer» -
+    // og en import av en gammel BP ville da overskrevet `bemanning_aar`
+    // med 0 og tatt timerammen for det aaret med seg. Ingen feilmelding,
+    // bare en planlegger som plutselig ikke har timer aa fordele.
+    //
+    // Dokumentet (`bp_aar`/`bp_linje`) lagres uansett - det er hele
+    // poenget med aa kunne laste opp fjoraarets BP. Det er BARE
+    // bemanningstabellene som hopper over.
+    // EN BP UTEN TIMEBUDSJETT SKAL IKKE ROERE BEMANNINGSPLANLEGGEREN.
+    //
+    // St1-malen til og med BP25 har ikke timer i det hele tatt. `?? 0`
+    // sto her og gjorde "formatet sier det ikke" om til "null timer" -
+    // og en import av en gammel BP ville da overskrevet `bemanning_aar`
+    // med 0 og tatt timerammen for det aaret med seg. Ingen feilmelding,
+    // bare en planlegger som plutselig ikke har timer aa fordele.
+    //
+    // BARE bemanningsradene staar over. Budsjettlinjene til
+    // regnskapslinjer og dokumentet i `bp_aar`/`bp_linje` skrives
+    // uansett - det er hele poenget med aa kunne laste fjoraarets BP.
+    const harTimebudsjett = s.timerAar !== null
     const timerAar = s.timerAar ?? 0
 
-    aarRader.push({
+    if (harTimebudsjett) aarRader.push({
       stasjon_id: stasjonId, ar,
       timer_aar: timerAar,
       fast_arsverk_timer: gammel?.fast_arsverk_timer ?? 0,
@@ -735,7 +760,7 @@ async function lagreBp(
       const bruttoMnd = brutto[m.maned - 1]
       // Rå månedsramme før fradrag — det retailer ser.
       const andel = bruttoSum > 0 ? bruttoMnd / bruttoSum : 1 / 12
-      budsjettRader.push({
+      if (harTimebudsjett) budsjettRader.push({
         stasjon_id: stasjonId, ar, maned: m.maned,
         timer: timerAar * andel,
         lonn_kr: m.timelonnKr,
@@ -743,7 +768,7 @@ async function lagreBp(
         reserve_pst: reservePst,
         oppdatert_tid: new Date().toISOString(),
       })
-      manedRader.push({
+      if (harTimebudsjett) manedRader.push({
         stasjon_id: stasjonId, ar, maned: m.maned,
         disponible_timer: Math.max(0, timerPerMaaned[m.maned - 1]),
         beregnet_tid: new Date().toISOString(),
@@ -819,22 +844,16 @@ async function lagreBp(
     )
   }
 
+  // Radbyggingen ligger i `bpLinjer` og ikke her, fordi den maa vaere ren:
+  // `hent.test.ts` beviser at fila og basen gir samme tall, og den maa
+  // bruke SAMME radbygging som importen. Skrives den av i testen, beviser
+  // testen bare at kopien stemmer med seg selv.
   const dokumentLinjer: Record<string, unknown>[] = []
   for (const { s, stasjonId } of mine) {
     const aargangId = bpAarId.get(stasjonId)
     if (!aargangId) continue
-    for (const m of s.maaneder) {
-      const linje = (seksjon: string, kode: string, post: string, belop: number) => ({
-        bp_aar_id: aargangId, retailer_id: retailerId,
-        maned: m.maned, seksjon, kode, post, belop_kr: belop,
-      })
-      for (const k of m.kategorier) {
-        if (k.salgKr) dokumentLinjer.push(linje('omsetning', k.kode, k.post, k.salgKr))
-        if (k.varekostKr) dokumentLinjer.push(linje('varekost', k.kode, k.post, k.varekostKr))
-      }
-      for (const k of m.konti) {
-        if (k.belopKr) dokumentLinjer.push(linje('kostnad', k.kode, k.post, k.belopKr))
-      }
+    for (const l of byggLinjer(s)) {
+      dokumentLinjer.push({ bp_aar_id: aargangId, retailer_id: retailerId, ...l })
     }
   }
   // Slettes foerst: en revidert BP kan ha FAERRE linjer enn den forrige,
