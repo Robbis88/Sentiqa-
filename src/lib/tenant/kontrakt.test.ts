@@ -797,9 +797,16 @@ describe('genererte filer', () => {
       //   p_merke            «identitet-operasjon», en form generatorens
       //                      {{unik}} aldri produserer (den gir `fastA1`,
       //                      `manager_A1A2` — aldri med bindestrek)
+      //   2000 +             årstall (bp_aar.ar). Generatorens teller
+      //                      lager små tall fra {{n}} og 9000–9999 fra
+      //                      {{unik_nr}} — aldri noe på 2000-tallet, så
+      //                      årsrommet er sekvensens alene. Datoene måtte
+      //                      skilles fordi BEGGE tellerne skriver datoer;
+      //                      her skriver bare den ene.
       .filter((l) => !l.includes(`'rt'`)
         && !l.includes(`date '2030-01-01'`)
-        && !l.includes('p_merke'))
+        && !l.includes('p_merke')
+        && !l.includes('2000 +'))
     expect(uskilt.map((l) => l.trim().slice(0, 90)), 'kjoeretidsteller uten eget verdirom')
       .toEqual([])
     expect(sql.includes('nextval('), 'ingen kjoeretidsteller - maaler testen noe?').toBe(true)

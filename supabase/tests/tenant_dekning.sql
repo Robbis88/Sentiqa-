@@ -41,6 +41,8 @@ begin
     ('bemanning_maned', true, false),
     ('bemanning_stasjon', true, false),
     ('bemanning_vindu', true, false),
+    ('bp_aar', true, false),
+    ('bp_linje', true, false),
     ('butikksjef_stasjoner', true, false),
     ('daglig_salg', true, false),
     ('fokuspunkter', true, false),

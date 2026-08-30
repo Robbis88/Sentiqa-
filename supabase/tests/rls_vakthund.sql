@@ -52,6 +52,9 @@ declare
     -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
     -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
     'pin_forsok',
+    -- BP-en som eget dokument (0155). Faa rader per aar, men de leses av
+    -- hver analysevisning og vokser med hver aargang og hver stasjon.
+    'bp_aar', 'bp_linje',
     -- Semantisk kodemapping (0152). FAA RADER, MEN VARME: `v_butikksalg`
     -- joiner dem i HVER eneste salgsspoerring. En upakket funksjon i en
     -- policy her trekker per-rad-kall inn i alt som summerer kroner.

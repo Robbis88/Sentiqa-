@@ -9,6 +9,7 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
+import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import {
   LONNSKONTI, SYKEKONTI, kjedensSykesats, type Regnskapsrad,
 } from '@/lib/bemanning/sykereserve'
@@ -160,9 +161,14 @@ export async function behandleJobbKjerne(
         return
       }
     } else {
-      // BP-fila kjennes igjen av arknavnene alene. Den er ~27 MB, og en full
-      // lastArbeidsbok paa den koster 2,3 GB heap - mer enn funksjonen har.
+      // BP-fila kjennes igjen av arknavnene alene. Den er 11-27 MB, og en
+      // full lastArbeidsbok paa den koster over 2 GB heap - mer enn
+      // funksjonen har. Begge formatene ryddes under samme rapporttype:
+      // det ER samme dokument, og hvilken mal St1 sendte staar som
+      // `format` paa raden. En ny enumverdi ville krevd en migrasjon for
+      // en forskjell ingen leser bryr seg om.
       const erBp = await erBpFil(buffer).catch(() => false)
+        || (() => { try { return erBp25Fil(buffer) } catch { return false } })()
       rapporttype = erBp ? 'st1_bp' : await gjenkjennRapporttype(buffer)
     }
   } catch (e) {
@@ -238,9 +244,14 @@ export async function behandleJobbKjerne(
         break
       }
       case 'st1_bp': {
-        const r = await parseBp(buffer)
+        // To maler, samme dokument. `erBp25Fil` leser bare arknavnene.
+        const gammelMal = (() => { try { return erBp25Fil(buffer) } catch { return false } })()
+        const r = gammelMal ? parseBp25(buffer) : await parseBp(buffer)
         dato = r.ar ? `${r.ar}-01-01` : null
-        res = await lagreBp(supabase, retailerId, jobbId, r, oppslag.medNummer)
+        res = await lagreBp(
+          supabase, retailerId, jobbId, r, oppslag.medNummer,
+          gammelMal ? 'st1_bp25' : 'st1_bp26',
+        )
         break
       }
       default:
@@ -627,6 +638,7 @@ async function lagreBp(
   jobbId: string,
   r: Awaited<ReturnType<typeof parseBp>>,
   medNummer: Map<string, string>,
+  format: 'st1_bp25' | 'st1_bp26',
 ): Promise<Lagring> {
   const ar = r.ar
   if (!ar) throw new ParserFeil('BP: fant ingen årstall i fila.')
@@ -759,6 +771,81 @@ async function lagreBp(
     }
   }
 
+  // -------------------------------------------------------------------
+  // BP-EN SOM SITT EGET DOKUMENT (0155)
+  // -------------------------------------------------------------------
+  // Dette er hva fila SA, uroert av maanedslaasen under. De to svarer paa
+  // hvert sitt spoersmaal: `bp_*`-linjene i regnskapslinjer sier hva denne
+  // maaneden maales mot, `bp_aar`/`bp_linje` sier hva St1 lovet for aaret.
+  //
+  // Uten dette finnes ikke et avsluttet aar som BP i det hele tatt -
+  // laasen hopper over hver avlagt maaned, og for 2025 er det alle tolv.
+  // Da er det ingenting aa sammenligne den nye BP-en MOT.
+  //
+  // Skrives FOERST, og med egne feilsvar: er dokumentet lagret, kan
+  // resten kjoeres om igjen uten aa miste det.
+  const naa = new Date().toISOString()
+  const bpAarRader = mine.map(({ s, stasjonId }) => ({
+    retailer_id: retailerId,
+    stasjon_id: stasjonId,
+    ar,
+    // null, ikke 0: BP25-malen HAR ikke timebudsjett, og «ingen timer»
+    // er noe helt annet enn «formatet sier det ikke».
+    timer_aar: s.timerAar,
+    format,
+    kilde_jobb_id: jobbId,
+    oppdatert_tid: naa,
+  }))
+  await skrivBatch(supabase, 'bp_aar', bpAarRader, 'stasjon_id,ar')
+
+  // Id-ene maa leses tilbake: `bp_linje` peker paa aargangen, ikke paa
+  // (stasjon, aar), slik at `retailer_id` ikke kan drive fra den.
+  const { data: aargangene } = await supabase
+    .from('bp_aar')
+    .select('id, stasjon_id')
+    .eq('ar', ar)
+    .in('stasjon_id', mine.map((m) => m.stasjonId))
+  const bpAarId = new Map(
+    ((aargangene ?? []) as { id: string; stasjon_id: string }[])
+      .map((x) => [x.stasjon_id, x.id]),
+  )
+  // En skriving som ikke traff noe skal si fra. Uten dette ville
+  // linjene bare uteblitt, og importen meldt seg ferdig: dokumentet
+  // hadde manglet, og sida ville sagt «ingen BP for dette aaret».
+  if (bpAarId.size === 0) {
+    throw new ParserFeil(
+      `BP: skrev ${bpAarRader.length} aargangsrader, men fant ingen igjen. `
+      + 'Er 0155 kjoert mot denne basen?',
+    )
+  }
+
+  const dokumentLinjer: Record<string, unknown>[] = []
+  for (const { s, stasjonId } of mine) {
+    const aargangId = bpAarId.get(stasjonId)
+    if (!aargangId) continue
+    for (const m of s.maaneder) {
+      const linje = (seksjon: string, kode: string, post: string, belop: number) => ({
+        bp_aar_id: aargangId, retailer_id: retailerId,
+        maned: m.maned, seksjon, kode, post, belop_kr: belop,
+      })
+      for (const k of m.kategorier) {
+        if (k.salgKr) dokumentLinjer.push(linje('omsetning', k.kode, k.post, k.salgKr))
+        if (k.varekostKr) dokumentLinjer.push(linje('varekost', k.kode, k.post, k.varekostKr))
+      }
+      for (const k of m.konti) {
+        if (k.belopKr) dokumentLinjer.push(linje('kostnad', k.kode, k.post, k.belopKr))
+      }
+    }
+  }
+  // Slettes foerst: en revidert BP kan ha FAERRE linjer enn den forrige,
+  // og en ren upsert ville latt de gamle bli staaende. Cascade fra
+  // `bp_aar` tar dem ikke - aargangen ble oppdatert, ikke slettet.
+  await supabase
+    .from('bp_linje')
+    .delete()
+    .in('bp_aar_id', [...bpAarId.values()])
+  await skrivBatch(supabase, 'bp_linje', dokumentLinjer)
+
   await skrivBatch(supabase, 'bemanning_aar', aarRader, 'stasjon_id,ar')
   await skrivBatch(supabase, 'bemanning_budsjett', budsjettRader, 'stasjon_id,ar,maned')
   await skrivBatch(supabase, 'bemanning_maned', manedRader, 'stasjon_id,ar,maned')
@@ -779,7 +866,8 @@ async function lagreBp(
 
   return {
     antallRader:
-      aarRader.length + budsjettRader.length + manedRader.length + bpLinjer.length,
+      aarRader.length + budsjettRader.length + manedRader.length
+      + bpLinjer.length + bpAarRader.length + dokumentLinjer.length,
     umatchet: [],
   }
 }
