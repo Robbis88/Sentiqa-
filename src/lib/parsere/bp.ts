@@ -1,7 +1,6 @@
-import { Readable } from 'node:stream'
-import ExcelJS from 'exceljs'
-import { celletall, celletekst, ParserFeil } from './felles'
+import { celletall, ParserFeil } from './felles'
 import { ER_BP } from './gjenkjenn'
+import { lesArk, arknavn, type Celleverdi } from './xlsx-rader'
 import type { BpResultat, BpStasjon } from './typer'
 
 // =====================================================================
@@ -28,39 +27,50 @@ import type { BpResultat, BpStasjon } from './typer'
 // tilhører innlogget retailer filtreres bort ved lagring — det er normalt,
 // ikke en feil.
 //
-// STRØMMES, ikke lastes. Fila er ~27 MB og inneholder ark på 289 000 rader
-// som vi ikke bruker. Full innlasting kostet 2,3 GB heap og 13 sekunder —
-// ikke kjørbart i en funksjon. WorkbookReader leser rad for rad og kaster
-// det den har passert, og vi hopper over ark vi ikke trenger.
+// ---------------------------------------------------------------------
+// HVORFOR IKKE ExcelJS
+//
+// Fila er ~27 MB og inneholder ark på 289 000 rader vi ikke bruker. Full
+// innlasting kostet 2,3 GB heap og 13 sekunder — ikke kjørbart i en
+// funksjon. Strømming var svaret, og den holdt så lenge dette var det
+// eneste BP-formatet.
+//
+// Men ExcelJS' strømmeleser MISTER VERDIER I STILLHET: en delt formel som
+// peker tilbake med bare `si` mister sin bufrede `<v>`, selv om den står
+// i XML-en. Det oppdaget vi da BP25 skulle leses — der ble Laguneparkens
+// Mat 352 898 i stedet for 4 651 908, altså januar alene.
+//
+// «Budsjettfil til VB» er et eksportark med rene verdier, så dette arket
+// har trolig aldri vært rammet. «Trolig» er ikke godt nok når tallet er et
+// årsbudsjett: en slik feil gir ingen exception, bare et lavere tall.
+// Derfor leses begge formatene nå med samme leser, og migreringen ble
+// verifisert rad for rad mot den gamle — se `bp.test.ts`.
+//
+// `lesArk` pakker bare ut det arket vi spør etter. De 289 000 radene vi
+// ikke bruker blir aldri dekomprimert.
 // =====================================================================
 
 // Mange celler er formler uten bufret verdi. Verifisert mot «Pivot»-arket at
 // disse er nuller: summen av det som lot seg lese stemte på kronen med
 // pivottotalene. Hadde de tomme cellene båret verdier, ville summen manglet.
-function belop(v: unknown): number {
+function belop(v: Celleverdi | undefined): number {
   if (typeof v === 'number') return v
-  if (v && typeof v === 'object') {
-    const o = v as { result?: unknown; formula?: unknown; sharedFormula?: unknown }
-    if (typeof o.result === 'number') return o.result
-    if (o.formula !== undefined || o.sharedFormula !== undefined) return 0
-  }
+  if (v === undefined || v === null) return 0
   return celletall(v as Parameters<typeof celletall>[0])
 }
 
 const KONTO = { salg: '3010', varekost: '4090', timelonn: '5012', fastlonn: '5010' } as const
 
-type Celle = { value: unknown }
-type StroemRad = { getCell(i: number): Celle; cellCount: number }
-
-const tekst = (c: Celle | undefined) => celletekst((c?.value ?? null) as never).trim()
+const tekst = (v: Celleverdi | undefined) =>
+  v === undefined || v === null ? '' : String(v).trim()
 
 // Finner kolonneindeks fra overskriftsraden i stedet for å hardkode
 // posisjoner — kolonnerekkefølgen har ingen garanti mellom BP-årganger.
-function kolonner(rad: StroemRad): Map<string, number> {
+function kolonner(celler: Map<number, Celleverdi>): Map<string, number> {
   const ut = new Map<string, number>()
-  for (let c = 1; c <= Math.max(rad.cellCount, 24); c++) {
-    const navn = tekst(rad.getCell(c)).toLowerCase()
-    if (navn && !ut.has(navn)) ut.set(navn, c)
+  for (const [nr, v] of celler) {
+    const navn = tekst(v).toLowerCase()
+    if (navn && !ut.has(navn)) ut.set(navn, nr)
   }
   return ut
 }
@@ -98,30 +108,20 @@ function kategori(raa: string): { kode: string; post: string } | null {
   return { kode: m[1], post: `${m[1]} ${m[2]}` }
 }
 
-// Kjenner igjen BP-fila uten å laste den. Arknavnene alene holder, og de kan
-// strømmes for noen titalls MB i stedet for 2,3 GB. Ligger her og ikke i
-// gjenkjenn.ts fordi den filen også kjøres i nettleseren.
-export async function erBpFil(data: Buffer | ArrayBuffer): Promise<boolean> {
-  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
-  const leser = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(buffer), {
-    worksheets: 'emit', sharedStrings: 'ignore', styles: 'ignore',
-    hyperlinks: 'ignore', entries: 'ignore',
-  })
-  const navn: string[] = []
-  for await (const ws of leser as AsyncIterable<{ name: string }>) navn.push(ws.name.toLowerCase())
+/**
+ * Kjenner igjen BP-fila uten å laste den. Arknavnene alene holder, og de
+ * ligger i `xl/workbook.xml` — noen få kilobyte.
+ *
+ * Fortsatt `async` selv om den ikke trenger å være det: `kjerne.ts` kaller
+ * den med `await … .catch(() => false)`, og signaturen er ikke verdt å
+ * endre i samme slengen som lesemåten.
+ */
+export async function erBpFil(data: Uint8Array | ArrayBuffer): Promise<boolean> {
+  const navn = arknavn(data).map((n) => n.toLowerCase())
   return ER_BP.test(navn.join(' '))
 }
 
-export async function parseBp(data: Buffer | ArrayBuffer): Promise<BpResultat> {
-  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
-  const leser = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(buffer), {
-    worksheets: 'emit',
-    sharedStrings: 'cache',
-    styles: 'ignore',
-    hyperlinks: 'ignore',
-    entries: 'ignore',
-  })
-
+export async function parseBp(data: Uint8Array | ArrayBuffer): Promise<BpResultat> {
   const stasjoner = new Map<string, Akk>()
   const hent = (bnr: string): Akk => {
     const s = stasjoner.get(bnr)
@@ -135,29 +135,29 @@ export async function parseBp(data: Buffer | ArrayBuffer): Promise<BpResultat> {
   let saaTimer = false
   let saaBudsjett = false
 
-  for await (const ws of leser as AsyncIterable<{ name: string } & AsyncIterable<StroemRad>>) {
-    const erTimer = /timebudsjett/i.test(ws.name)
-    const erBudsjett = /budsjettfil/i.test(ws.name)
-    // Hopp over ark vi ikke bruker — de store er nettopp dem.
-    if (!erTimer && !erBudsjett) continue
+  // ---- Timebudsjettet ------------------------------------------------
+  // Arket kan mangle i en revidert BP. Da er timene allerede lagret fra
+  // forrige innlasting, og en tom `timerAar` er riktigere enn et kast.
+  const harTimer = arknavn(data).some((n) => /timebudsjett/i.test(n))
+  if (harTimer) {
+    lesArk(data, (n) => /timebudsjett/i.test(n), (rad) => {
+      const bnr = tekst(rad.celler.get(1))
+      if (!/^\d{3,5}$/.test(bnr)) return
+      const timer = belop(rad.celler.get(2))
+      if (timer > 0) hent(bnr).timerAar = timer
+      saaTimer = true
+    })
+  }
 
+  // ---- Budsjettfil til VB --------------------------------------------
+  const harBudsjett = arknavn(data).some((n) => /budsjettfil/i.test(n))
+  if (harBudsjett) {
     let kol: Map<string, number> | null = null
     let iBnr = 0, iKonto = 0, iBelop = 0, iAr = 0, iPr = 0, iKat = 0, iKontonavn = 0
-    let forste = true
 
-    for await (const rad of ws) {
-      if (erTimer) {
-        const bnr = tekst(rad.getCell(1))
-        if (!/^\d{3,5}$/.test(bnr)) continue
-        const timer = belop(rad.getCell(2).value)
-        if (timer > 0) hent(bnr).timerAar = timer
-        saaTimer = true
-        continue
-      }
-
-      if (forste) {
-        forste = false
-        kol = kolonner(rad)
+    lesArk(data, (n) => /budsjettfil/i.test(n), (rad) => {
+      if (!kol) {
+        kol = kolonner(rad.celler)
         iBnr = kol.get('butikknr') ?? 0
         iKonto = kol.get('kontonr') ?? 0
         iBelop = kol.get('beløp pivot') ?? kol.get('belop pivot') ?? 0
@@ -170,24 +170,24 @@ export async function parseBp(data: Buffer | ArrayBuffer): Promise<BpResultat> {
             'BP: «Budsjettfil til VB» mangler forventede kolonner (Butikknr, Kontonr, Beløp pivot, Pr).',
           )
         }
-        continue
+        return
       }
 
-      const bnr = tekst(rad.getCell(iBnr))
-      if (!/^\d{3,5}$/.test(bnr)) continue
-      const maned = Number.parseInt(tekst(rad.getCell(iPr)), 10)
-      if (!(maned >= 1 && maned <= 12)) continue
+      const bnr = tekst(rad.celler.get(iBnr))
+      if (!/^\d{3,5}$/.test(bnr)) return
+      const maned = Number.parseInt(tekst(rad.celler.get(iPr)), 10)
+      if (!(maned >= 1 && maned <= 12)) return
       saaBudsjett = true
 
       if (ar === null && iAr) {
-        const a = Number.parseInt(tekst(rad.getCell(iAr)), 10)
+        const a = Number.parseInt(tekst(rad.celler.get(iAr)), 10)
         if (a >= 2020 && a <= 2100) ar = a
       }
 
-      const v = belop(rad.getCell(iBelop).value)
-      if (v === 0) continue
+      const v = belop(rad.celler.get(iBelop))
+      if (v === 0) return
 
-      const konto = tekst(rad.getCell(iKonto))
+      const konto = tekst(rad.celler.get(iKonto))
       const m = hent(bnr).maaneder[maned - 1]
 
       if (konto === KONTO.salg || konto === KONTO.varekost) {
@@ -197,14 +197,14 @@ export async function parseBp(data: Buffer | ArrayBuffer): Promise<BpResultat> {
 
         // Varegruppen ligger som «120 [Mat]». Rader uten kategori er
         // kostnadsrader og hører ikke hjemme i omsetningsoppstillingen.
-        const kat = iKat ? kategori(tekst(rad.getCell(iKat))) : null
+        const kat = iKat ? kategori(tekst(rad.celler.get(iKat))) : null
         if (kat) {
           const k = m.kategorier.get(kat.kode) ?? { post: kat.post, salgKr: 0, varekostKr: 0 }
           if (erSalg) k.salgKr += -v
           else k.varekostKr += v
           m.kategorier.set(kat.kode, k)
         }
-        continue
+        return
       }
 
       if (konto === KONTO.timelonn) m.timelonnKr += v
@@ -214,13 +214,13 @@ export async function parseBp(data: Buffer | ArrayBuffer): Promise<BpResultat> {
       // per stasjon, ikke bare timer og brutto, og de månedene som ennå ikke er
       // avlagt finnes ikke i regnskapslinjer fra noen annen kilde.
       if (/^\d{3,4}$/.test(konto)) {
-        const navn = iKontonavn ? tekst(rad.getCell(iKontonavn)) : ''
+        const navn = iKontonavn ? tekst(rad.celler.get(iKontonavn)) : ''
         const post = navn ? `${konto} ${navn}` : `Konto ${konto}`
         const k = m.konti.get(konto) ?? { post, belopKr: 0 }
         k.belopKr += v
         m.konti.set(konto, k)
       }
-    }
+    })
   }
 
   if (!saaTimer && !saaBudsjett) {

@@ -1,4 +1,4 @@
-import { lesArk, type Celleverdi } from './xlsx-rader'
+import { lesArk, arknavn, type Celleverdi } from './xlsx-rader'
 import { ParserFeil } from './felles'
 import type { BpResultat, BpStasjon, BpMaaned } from './typer'
 
@@ -123,13 +123,7 @@ function tomStasjon(butikknummer: string): Akk {
  * — noen kilobyte — så den kan brukes før man bestemmer seg for å parse.
  */
 export function erBp25Fil(data: Uint8Array | ArrayBuffer): boolean {
-  const funnet: string[] = []
-  try {
-    lesArk(data, (navn) => { funnet.push(navn); return false }, () => {})
-  } catch {
-    // lesArk kaster alltid når ingen ark velges — navnene er samlet inn.
-  }
-  const n = funnet.map((x) => x.toLowerCase())
+  const n = arknavn(data).map((x) => x.toLowerCase())
   return n.includes('cr-sales') && n.includes('costs') && n.includes('cluster data')
 }
 

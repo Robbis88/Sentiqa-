@@ -104,6 +104,19 @@ function delteStrenger(xml: string): string[] {
   return ut
 }
 
+/**
+ * Arknavnene, i bokas rekkefølge. Leser bare `xl/workbook.xml` — noen få
+ * kilobyte — så en fil kan kjennes igjen uten at noe ark pakkes ut.
+ */
+export function arknavn(data: Uint8Array | ArrayBuffer): string[] {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
+  const wb = lesHele(bytes, 'xl/workbook.xml')
+  if (!wb) throw new ParserFeil('Fant ingen xl/workbook.xml – er dette en xlsx-fil?')
+  return [...wb.matchAll(/<sheet\b[^>]*\/?>/g)]
+    .map((m) => avkod(m[0].match(/\bname="([^"]*)"/)?.[1] ?? ''))
+    .filter(Boolean)
+}
+
 /** Finner hvilken XML-del et ark ligger i. Rekkefølgen i zip-en sier ingenting. */
 function arkdel(data: Uint8Array, velg: (navn: string) => boolean): { del: string; navn: string } {
   const wb = lesHele(data, 'xl/workbook.xml')
