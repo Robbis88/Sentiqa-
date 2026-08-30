@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { gjenkjennRapporttype } from '@/lib/parsere/gjenkjenn'
+import type { Rapporttype } from '@/lib/parsere/typer'
+import { tilServeren, FOR_STOR } from '@/lib/import/rute'
 import { parseSalgsstatistikk } from '@/lib/parsere/salgsstatistikk'
 import { parseSalesPerHourInneUte } from '@/lib/parsere/salesperhourinneute'
 import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
@@ -17,7 +19,9 @@ import { trygtFilnavn } from '@/lib/storage-noekkel'
 // fanen ryker før den er ferdig. Slike filer skal gjennom drop-zonen, der
 // serveren strømmer dem. Grensen ligger godt over alt vi ellers mottar
 // (regnskapsrapporten er ~1,2 MB, timesalg noen hundre kB).
-const FOR_STOR = 12 * 1024 * 1024
+//
+// Selve regelen for hvem som går hvor bor i `@/lib/import/rute` — den er
+// ikke bare en størrelsesgrense, og den skal ha en test.
 
 type Tilstand = 'venter' | 'parser' | 'lagrer' | 'ferdig' | 'iko' | 'hoppet' | 'feilet'
 type FilRad = { navn: string; tilstand: Tilstand; melding?: string }
@@ -33,8 +37,9 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function byggPayload(buf: ArrayBuffer): Promise<ForhandsPayload | null> {
-  const type = await gjenkjennRapporttype(buf)
+async function byggPayload(
+  buf: ArrayBuffer, type: Rapporttype,
+): Promise<ForhandsPayload | null> {
   switch (type) {
     case 'st1_salgsstatistikk': return { type, salg: await parseSalgsstatistikk(buf) }
     case 'st1_salesperhour_inneute': return { type, timesalg: await parseSalesPerHourInneUte(buf) }
@@ -95,17 +100,31 @@ export function KlientOpplaster() {
         // PDF og CSV går samme vei. Nettleserparseren her kan bare xlsx —
         // slipper man en CSV inn i den, kveles zip-leseren og fila «feiler»
         // uten at noen skjønner hvorfor. Serveren kan begge deler.
-        if (valgte[i].size > FOR_STOR || /\.(pdf|csv|txt)$/i.test(valgte[i].name)) {
+        const tilServer = async () => {
           sett(i, 'lagrer')
           const res = await tilStorage(valgte[i])
           if (res.hoppet) sett(i, 'hoppet', res.melding ?? 'Allerede lastet opp')
           else if (res.ok) sett(i, 'iko', 'Ligger i kø — behandles i natt, eller trykk «Behandle» under')
           else sett(i, 'feilet', res.feil)
+        }
+        const fil = { navn: valgte[i].name, storrelse: valgte[i].size }
+        // Første runde: det vi kan se uten å åpne fila.
+        if (tilServeren(fil)) {
+          await tilServer()
           continue
         }
         sett(i, 'parser')
         const buf = await valgte[i].arrayBuffer()
-        const payload = await byggPayload(buf)
+        const type = await gjenkjennRapporttype(buf)
+        // Andre runde, nå med typen. Forretningsplanen har ingen
+        // nettleserparser og skal hit uansett hvor liten den er — se
+        // `rute.ts` for hvorfor det ikke kan stå som en størrelsesgrense.
+        if (tilServeren({ ...fil, type })) {
+          await tilServer()
+          continue
+        }
+
+        const payload = await byggPayload(buf, type)
         if (!payload) { sett(i, 'feilet', 'Ukjent/ustøttet filtype'); continue }
         const sha = await sha256Hex(buf)
         sett(i, 'lagrer')
@@ -131,7 +150,7 @@ export function KlientOpplaster() {
         <input
           type="file"
           multiple
-          accept=".csv,.txt,.xlsx,.xls,.pdf"
+          accept=".csv,.txt,.xlsx,.xlsm,.xls,.pdf"
           disabled={kjorer}
           onChange={(e) => kjor([...(e.target.files ?? [])])}
         />
@@ -141,9 +160,10 @@ export function KlientOpplaster() {
         én rar fil stopper ikke resten.
       </p>
       <p className="undertittel">
-        <strong>Forretningsplanen</strong> (og andre filer over {Math.round(FOR_STOR / 1024 / 1024)} MB)
-        lastes rett til lagring og legges i kø. Den behandles automatisk i natt — vil du ha tallene
-        inn med én gang, trykk <strong>«Behandle»</strong> på raden i statuslista lenger ned.
+        <strong>Forretningsplanen</strong> — uansett størrelse — og andre filer over{' '}
+        {Math.round(FOR_STOR / 1024 / 1024)} MB lastes rett til lagring og legges i kø.
+        Den behandles automatisk i natt — vil du ha tallene inn med én gang, trykk{' '}
+        <strong>«Behandle»</strong> på raden i statuslista lenger ned.
       </p>
 
       {filer.length > 0 && (
