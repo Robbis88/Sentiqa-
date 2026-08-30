@@ -247,6 +247,9 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     tittel: 'Innsikt',
     punkter: [
       { sti: '/businessplan', tekst: 'Businessplan', roller: [A, B] },
+      // Eierens alene: BP-en baerer royaltysats, fastloenn og kjedens
+      // kostnadsramme. Butikksjefen ser sin maanedsramme i /bemanning.
+      { sti: '/businessplan/sammenlign', tekst: 'Sammenlign BP', roller: [A] },
       { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
       { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
       { sti: '/timeregnskap', tekst: 'Timeregnskap', roller: [A] },

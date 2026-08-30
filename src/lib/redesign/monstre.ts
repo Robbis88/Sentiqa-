@@ -172,6 +172,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // tvers av systemet. Men den KREVER noe - derfor staar det som
   // krever mest oeverst, sortert paa kroner bak plan.
   '/businessplan': 'analyse',
+  // «Hva betyr den nye BP-en for oss?» - en annen side enn /businessplan,
+  // som svarer paa «ligger vi i rute». Aargang mot aargang, foer et
+  // eneste salg er gjort.
+  '/businessplan/sammenlign': 'analyse',
   '/regnskap': 'analyse',
   '/analyse': 'analyse',
   '/maaling': 'analyse',
