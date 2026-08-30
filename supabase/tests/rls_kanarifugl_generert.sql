@@ -240,11 +240,11 @@ begin
 end $$;
 
 -- --- Forutsetninger, en per forsoek ---
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e46244d-0000-4000-8000-00007e46244d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 0080 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e4698ad-0000-4000-8000-00007e4698ad', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 2000 + 0081 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e470d0d-0000-4000-8000-00007e470d0d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 2000 + 0082 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e543bd1-0000-4000-8000-00007e543bd1', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 0083 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e54b031-0000-4000-8000-00007e54b031', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 2000 + 0084 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e46244d-0000-4000-8000-00007e46244d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2180, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e4698ad-0000-4000-8000-00007e4698ad', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 2181, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e470d0d-0000-4000-8000-00007e470d0d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 2182, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e543bd1-0000-4000-8000-00007e543bd1', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2183, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('7e54b031-0000-4000-8000-00007e54b031', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 2184, 'st1_bp26', 12000);
 insert into auth.users (id, email) values ('57fa72bf-0000-4000-8000-000057fa72bf', 'sonde-85@kanari.local') on conflict (id) do nothing;
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('57fa72bf-0000-4000-8000-000057fa72bf', 'aaaa0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 85');
 insert into auth.users (id, email) values ('57fae71f-0000-4000-8000-000057fae71f', 'sonde-86@kanari.local') on conflict (id) do nothing;
@@ -334,22 +334,22 @@ insert into public.merker (id, retailer_id, navn) values ('3d63484d-0000-4000-80
 insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('3e820462-0000-4000-8000-00003e820462', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondeansatt', 'merke-396', 'pin-merke-396');
 insert into public.merker (id, retailer_id, navn) values ('3d715fcf-0000-4000-8000-00003d715fcf', 'bbbb0000-0000-4000-8000-000000000000', 'Sondemerke 397');
 insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('3e901be4-0000-4000-8000-00003e901be4', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sondeansatt', 'merke-397', 'pin-merke-397');
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('4a7e6a64-0000-4000-8000-00004a7e6a64', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 0999 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157b5-0000-4000-8000-00003a3157b5', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1000 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c75-0000-4000-8000-0000054b1c75', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1001 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c76-0000-4000-8000-0000054b1c76', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1002 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157b8-0000-4000-8000-00003a3157b8', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1003 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c78-0000-4000-8000-0000054b1c78', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1004 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157ba-0000-4000-8000-00003a3157ba', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1005 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c7a-0000-4000-8000-0000054b1c7a', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1006 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157bc-0000-4000-8000-00003a3157bc', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1007 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157bd-0000-4000-8000-00003a3157bd', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1008 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c7d-0000-4000-8000-0000054b1c7d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1009 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157d4-0000-4000-8000-00003a3157d4', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1010 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157d5-0000-4000-8000-00003a3157d5', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1011 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c95-0000-4000-8000-0000054b1c95', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1012 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157d7-0000-4000-8000-00003a3157d7', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2000 + 1013 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c97-0000-4000-8000-0000054b1c97', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2000 + 1014 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('4a7e6a64-0000-4000-8000-00004a7e6a64', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2299, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157b5-0000-4000-8000-00003a3157b5', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2300, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c75-0000-4000-8000-0000054b1c75', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2301, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c76-0000-4000-8000-0000054b1c76', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2302, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157b8-0000-4000-8000-00003a3157b8', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2303, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c78-0000-4000-8000-0000054b1c78', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2304, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157ba-0000-4000-8000-00003a3157ba', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2305, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c7a-0000-4000-8000-0000054b1c7a', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2306, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157bc-0000-4000-8000-00003a3157bc', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2307, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157bd-0000-4000-8000-00003a3157bd', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2308, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c7d-0000-4000-8000-0000054b1c7d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2309, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157d4-0000-4000-8000-00003a3157d4', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2310, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157d5-0000-4000-8000-00003a3157d5', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2311, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c95-0000-4000-8000-0000054b1c95', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2312, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('3a3157d7-0000-4000-8000-00003a3157d7', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 2313, 'st1_bp26', 12000);
+insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('054b1c97-0000-4000-8000-0000054b1c97', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 2314, 'st1_bp26', 12000);
 insert into auth.users (id, email) values ('432583c5-0000-4000-8000-0000432583c5', 'sonde-1015@kanari.local') on conflict (id) do nothing;
 insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('432583c5-0000-4000-8000-0000432583c5', 'aaaa0000-0000-4000-8000-000000000000', 'butikksjef', 'Sondesjef 1015');
 insert into auth.users (id, email) values ('44da5c65-0000-4000-8000-000044da5c65', 'sonde-1016@kanari.local') on conflict (id) do nothing;
@@ -1018,19 +1018,19 @@ begin
   return ny;
 end $fn$;
 -- --- bp_aar: forutsetninger og proberader ---
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7255-0000-4000-8000-0000f4eb7255', 'a1110000-0000-4000-8000-000000000001', 2000 + 0075 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7256-0000-4000-8000-0000f4eb7256', 'a1110000-0000-4000-8000-000000000002', 2000 + 0076 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7257-0000-4000-8000-0000f4eb7257', 'a1110000-0000-4000-8000-000000000003', 2000 + 0077 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7274-0000-4000-8000-0000f4eb7274', 'b1110000-0000-4000-8000-000000000001', 2000 + 0078 % 1000, 'st1_bp26', 12000);
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7275-0000-4000-8000-0000f4eb7275', 'b1110000-0000-4000-8000-000000000002', 2000 + 0079 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7255-0000-4000-8000-0000f4eb7255', 'a1110000-0000-4000-8000-000000000001', 'aaaa0000-0000-4000-8000-000000000000', 2175, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7256-0000-4000-8000-0000f4eb7256', 'a1110000-0000-4000-8000-000000000002', 'aaaa0000-0000-4000-8000-000000000000', 2176, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7257-0000-4000-8000-0000f4eb7257', 'a1110000-0000-4000-8000-000000000003', 'aaaa0000-0000-4000-8000-000000000000', 2177, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7274-0000-4000-8000-0000f4eb7274', 'b1110000-0000-4000-8000-000000000001', 'bbbb0000-0000-4000-8000-000000000000', 2178, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7275-0000-4000-8000-0000f4eb7275', 'b1110000-0000-4000-8000-000000000002', 'bbbb0000-0000-4000-8000-000000000000', 2179, 'st1_bp26', 12000);
 
 create or replace function pg_temp.nyrad_bp_aar(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
 declare
   ny uuid;
 begin
-  insert into public.bp_aar (stasjon_id, ar, format, timer_aar)
-  values (p_stasjon, 2000 + (9000 + nextval('tenant_teller'::regclass) % 1000) % 1000, 'st1_bp26', 12000)
+  insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar)
+  values (p_stasjon, p_retailer, (2500 + nextval('tenant_teller'::regclass) % 400), 'st1_bp26', 12000)
   returning id into ny;
   return ny;
 end $fn$;
@@ -1047,7 +1047,7 @@ declare
   ny uuid;
   v_bpaar uuid := gen_random_uuid();
 begin
-  insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values (v_bpaar, p_retailer, p_stasjon, 2000 + (9000 + nextval('tenant_teller'::regclass) % 1000) % 1000, 'st1_bp26', 12000);
+  insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values (v_bpaar, p_retailer, p_stasjon, (2500 + nextval('tenant_teller'::regclass) % 400), 'st1_bp26', 12000);
   insert into public.bp_linje (retailer_id, bp_aar_id, maned, seksjon, kode, post, belop_kr)
   values (p_retailer, v_bpaar, 1, 'omsetning', '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', '120 Mat', 1000)
   returning id into ny;
@@ -6099,10 +6099,10 @@ select pg_temp.paastand('bp_aar owner_A SELECT A1 -> ser', exists (select 1 from
 select pg_temp.paastand('bp_aar owner_A SELECT A2 -> ser', exists (select 1 from public.bp_aar where id = 'f4eb7256-0000-4000-8000-0000f4eb7256'), 'positiv');
 select pg_temp.paastand('bp_aar owner_A SELECT A3 -> ser', exists (select 1 from public.bp_aar where id = 'f4eb7257-0000-4000-8000-0000f4eb7257'), 'positiv');
 select pg_temp.paastand('bp_aar owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'negativ');
-select pg_temp.skriv_tillatt('bp_aar owner_A INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0969 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_tillatt('bp_aar owner_A INSERT A2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', 2000 + 0970 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_tillatt('bp_aar owner_A INSERT A3', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', 2000 + 0971 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar owner_A INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0972 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_tillatt('bp_aar owner_A INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2269, ''st1_bp26'', 12000)');
+select pg_temp.skriv_tillatt('bp_aar owner_A INSERT A2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', ''aaaa0000-0000-4000-8000-000000000000'', 2270, ''st1_bp26'', 12000)');
+select pg_temp.skriv_tillatt('bp_aar owner_A INSERT A3', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', ''aaaa0000-0000-4000-8000-000000000000'', 2271, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar owner_A INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2272, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -6124,21 +6124,21 @@ select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-00
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('bp_aar owner_A DELETE A1', 'delete from public.bp_aar where id = ''f4eb7255-0000-4000-8000-0000f4eb7255''');
 select pg_temp.som_eier();
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7255-0000-4000-8000-0000f4eb7255', 'a1110000-0000-4000-8000-000000000001', 2000 + 0973 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7255-0000-4000-8000-0000f4eb7255', 'a1110000-0000-4000-8000-000000000001', 'aaaa0000-0000-4000-8000-000000000000', 2273, 'st1_bp26', 12000);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('bp_aar owner_A DELETE A2', 'delete from public.bp_aar where id = ''f4eb7256-0000-4000-8000-0000f4eb7256''');
 select pg_temp.som_eier();
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7256-0000-4000-8000-0000f4eb7256', 'a1110000-0000-4000-8000-000000000002', 2000 + 0974 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7256-0000-4000-8000-0000f4eb7256', 'a1110000-0000-4000-8000-000000000002', 'aaaa0000-0000-4000-8000-000000000000', 2274, 'st1_bp26', 12000);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('bp_aar owner_A DELETE A3', 'delete from public.bp_aar where id = ''f4eb7257-0000-4000-8000-0000f4eb7257''');
 select pg_temp.som_eier();
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7257-0000-4000-8000-0000f4eb7257', 'a1110000-0000-4000-8000-000000000003', 2000 + 0975 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7257-0000-4000-8000-0000f4eb7257', 'a1110000-0000-4000-8000-000000000003', 'aaaa0000-0000-4000-8000-000000000000', 2275, 'st1_bp26', 12000);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
@@ -6150,10 +6150,10 @@ select pg_temp.paastand('bp_aar manager_A1 SELECT A1 -> ser ikke', not exists (s
 select pg_temp.paastand('bp_aar manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7256-0000-4000-8000-0000f4eb7256'), 'negativ');
 select pg_temp.paastand('bp_aar manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7257-0000-4000-8000-0000f4eb7257'), 'negativ');
 select pg_temp.paastand('bp_aar manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'negativ');
-select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0976 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT A2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', 2000 + 0977 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT A3', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', 2000 + 0978 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0979 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2276, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT A2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', ''aaaa0000-0000-4000-8000-000000000000'', 2277, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT A3', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', ''aaaa0000-0000-4000-8000-000000000000'', 2278, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A1 INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2279, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
@@ -6192,10 +6192,10 @@ select pg_temp.paastand('bp_aar manager_A12 SELECT A1 -> ser ikke', not exists (
 select pg_temp.paastand('bp_aar manager_A12 SELECT A2 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7256-0000-4000-8000-0000f4eb7256'), 'negativ');
 select pg_temp.paastand('bp_aar manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7257-0000-4000-8000-0000f4eb7257'), 'negativ');
 select pg_temp.paastand('bp_aar manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'negativ');
-select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0980 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT A2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', 2000 + 0981 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT A3', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', 2000 + 0982 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0983 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2280, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT A2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', ''aaaa0000-0000-4000-8000-000000000000'', 2281, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT A3', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', ''aaaa0000-0000-4000-8000-000000000000'', 2282, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_A12 INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2283, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -6234,10 +6234,10 @@ select pg_temp.paastand('bp_aar tablet_A1 SELECT A1 -> ser ikke', not exists (se
 select pg_temp.paastand('bp_aar tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7256-0000-4000-8000-0000f4eb7256'), 'negativ');
 select pg_temp.paastand('bp_aar tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7257-0000-4000-8000-0000f4eb7257'), 'negativ');
 select pg_temp.paastand('bp_aar tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'negativ');
-select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0984 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT A2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', 2000 + 0985 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT A3', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', 2000 + 0986 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0987 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2284, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT A2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000002'', ''aaaa0000-0000-4000-8000-000000000000'', 2285, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT A3', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000003'', ''aaaa0000-0000-4000-8000-000000000000'', 2286, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_A1 INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2287, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
@@ -6275,9 +6275,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_
 select pg_temp.paastand('bp_aar owner_B SELECT B1 -> ser', exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'positiv');
 select pg_temp.paastand('bp_aar owner_B SELECT B2 -> ser', exists (select 1 from public.bp_aar where id = 'f4eb7275-0000-4000-8000-0000f4eb7275'), 'positiv');
 select pg_temp.paastand('bp_aar owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7255-0000-4000-8000-0000f4eb7255'), 'negativ');
-select pg_temp.skriv_tillatt('bp_aar owner_B INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0988 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_tillatt('bp_aar owner_B INSERT B2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000002'', 2000 + 0989 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar owner_B INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0990 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_tillatt('bp_aar owner_B INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2288, ''st1_bp26'', 12000)');
+select pg_temp.skriv_tillatt('bp_aar owner_B INSERT B2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000002'', ''bbbb0000-0000-4000-8000-000000000000'', 2289, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar owner_B INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2290, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -6295,14 +6295,14 @@ select pg_temp.nyrad_bp_aar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-00
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('bp_aar owner_B DELETE B1', 'delete from public.bp_aar where id = ''f4eb7274-0000-4000-8000-0000f4eb7274''');
 select pg_temp.som_eier();
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7274-0000-4000-8000-0000f4eb7274', 'b1110000-0000-4000-8000-000000000001', 2000 + 0991 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7274-0000-4000-8000-0000f4eb7274', 'b1110000-0000-4000-8000-000000000001', 'bbbb0000-0000-4000-8000-000000000000', 2291, 'st1_bp26', 12000);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('bp_aar owner_B DELETE B2', 'delete from public.bp_aar where id = ''f4eb7275-0000-4000-8000-0000f4eb7275''');
 select pg_temp.som_eier();
-insert into public.bp_aar (id, stasjon_id, ar, format, timer_aar) values ('f4eb7275-0000-4000-8000-0000f4eb7275', 'b1110000-0000-4000-8000-000000000002', 2000 + 0992 % 1000, 'st1_bp26', 12000);
+insert into public.bp_aar (id, stasjon_id, retailer_id, ar, format, timer_aar) values ('f4eb7275-0000-4000-8000-0000f4eb7275', 'b1110000-0000-4000-8000-000000000002', 'bbbb0000-0000-4000-8000-000000000000', 2292, 'st1_bp26', 12000);
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
@@ -6313,9 +6313,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manage
 select pg_temp.paastand('bp_aar manager_B1 SELECT B1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'negativ');
 select pg_temp.paastand('bp_aar manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7275-0000-4000-8000-0000f4eb7275'), 'negativ');
 select pg_temp.paastand('bp_aar manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7255-0000-4000-8000-0000f4eb7255'), 'negativ');
-select pg_temp.skriv_avvist('bp_aar manager_B1 INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0993 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_B1 INSERT B2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000002'', 2000 + 0994 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar manager_B1 INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0995 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_B1 INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2293, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_B1 INSERT B2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000002'', ''bbbb0000-0000-4000-8000-000000000000'', 2294, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar manager_B1 INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2295, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
@@ -6345,9 +6345,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet
 select pg_temp.paastand('bp_aar tablet_B1 SELECT B1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7274-0000-4000-8000-0000f4eb7274'), 'negativ');
 select pg_temp.paastand('bp_aar tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7275-0000-4000-8000-0000f4eb7275'), 'negativ');
 select pg_temp.paastand('bp_aar tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.bp_aar where id = 'f4eb7255-0000-4000-8000-0000f4eb7255'), 'negativ');
-select pg_temp.skriv_avvist('bp_aar tablet_B1 INSERT B1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', 2000 + 0996 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar tablet_B1 INSERT B2', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000002'', 2000 + 0997 % 1000, ''st1_bp26'', 12000)');
-select pg_temp.skriv_avvist('bp_aar tablet_B1 INSERT A1', 'insert into public.bp_aar (stasjon_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', 2000 + 0998 % 1000, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_B1 INSERT B1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000001'', ''bbbb0000-0000-4000-8000-000000000000'', 2296, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_B1 INSERT B2', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''b1110000-0000-4000-8000-000000000002'', ''bbbb0000-0000-4000-8000-000000000000'', 2297, ''st1_bp26'', 12000)');
+select pg_temp.skriv_avvist('bp_aar tablet_B1 INSERT A1', 'insert into public.bp_aar (stasjon_id, retailer_id, ar, format, timer_aar) values (''a1110000-0000-4000-8000-000000000001'', ''aaaa0000-0000-4000-8000-000000000000'', 2298, ''st1_bp26'', 12000)');
 select pg_temp.som_eier();
 select pg_temp.nyrad_bp_aar('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');

@@ -213,6 +213,19 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
   const ctx: Record<string, string> = {
     retailer: R[kjede], stasjon: S[s], unik,
     unik_dato: `date '2026-01-01' + ${n}`,
+    // ET AARSTALL SOM VARIERER, I SITT EGET VERDIROM.
+    //
+    // Samme problem som datoene, og samme loesning: BEGGE tellerne
+    // skriver aarstall, saa de maa ha hver sin base. Generatoren tar
+    // 2100-2499, sekvensen tar 2500-2899 (se genererMatrise).
+    //
+    // `2000 + {{unik_nr}} % 1000` var forsoek nummer en, og den var
+    // feil: modulo kollapser generatorens rom (0001-8999) og
+    // sekvensens (9000-9999) inn i det samme 0-999. Da kolliderer
+    // proberaden med forsoeket som skjer ved siden av den, og en
+    // unik (stasjon_id, ar) gir 23505 - en domenefeil forkledd som
+    // en tenantavvisning.
+    unik_aar: String(2100 + (n % 400)),
     // ET FIRESIFRET NUMMER SOM VARIERER PER FORSØK.
     //
     // `stasjoner.butikknummer` har `check (butikknummer ~ '^[0-9]{4}$')`
@@ -237,7 +250,8 @@ function proberadSql(r: Ressurs, kjede: Kjede, s: Stasjon, unik: string, uid?: s
     // punkt, og punktet maa tilhoere SAMME bruker som krysset - ellers
     // ville forutsetningen selv vaert et brudd paa brukergrensen.
     const seedCtx: Record<string, string> = { retailer: R[kjede], stasjon: S[s], unik,
-      n: String(n), unik_nr: unikNr(n), bruker: uid ?? kjedensEier(kjede) }
+      n: String(n), unik_nr: unikNr(n), unik_aar: String(2100 + (n % 400)),
+      bruker: uid ?? kjedensEier(kjede) }
     for (const m of linje.matchAll(/\{\{seed:([a-z_]+)\}\}/g)) {
       const id = seedId(`${r.tabell}:${m[1]}:${s}:${n}`)
       ctx[`seed:${m[1]}`] = id
@@ -737,6 +751,11 @@ function genererRessursSeed(r: Ressurs): string {
       // Forretningsnoekkelen maa variere per KALL, ikke per call site.
       .split(`'sonde {{unik}}'`).join(`'sonde ' || p_merke || '-' || nextval('tenant_teller'::regclass)`)
       .split(`{{unik_dato}}`).join(`date '2030-01-01' + nextval('tenant_teller'::regclass)::int`)
+      // AARSTALL, SEKVENSENS ROM. Generatoren tok 2100-2499 over; her
+      // starter vi paa 2500 slik at de to aldri moetes. Uten skillet
+      // ville proberaden og forsoeket ved siden av den kunne treffe
+      // samme aar, og en unik (stasjon_id, ar) gitt 23505.
+      .split(`{{unik_aar}}`).join(`(2500 + nextval('tenant_teller'::regclass) % 400)`)
       // FIRE SIFRE OGSAA HER, og de maa vaere andre enn seedingens.
       // `stasjoner.butikknummer` er unik per kjede, saa et kall som
       // gjenbrukte generatorens nummer ville kollidert med proberaden

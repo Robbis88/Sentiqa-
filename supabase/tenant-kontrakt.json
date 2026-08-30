@@ -509,10 +509,12 @@
         "ar"
       ],
       "proberad": {
-        "ar": "2000 + {{unik_nr}} % 1000",
+        "retailer_id": "'{{retailer}}'",
+        "$retailer_id": "bemanning_aar har ingen retailer_id og noekles paa stasjon alene, saa generatoren setter den ikke for en stasjonsnoeklet ressurs. Her er den not null og baerer den sammensatte fremmednoekkelen bp_linje henger i, saa den maa staa eksplisitt.",
+        "ar": "{{unik_aar}}",
         "format": "'st1_bp26'",
         "timer_aar": "12000",
-        "$ar": "Aaret MAA variere: unikheten er (stasjon_id, ar) alene, saa to forsoek paa samme aar gir 23505 - en domenefeil som ser ut som en avvisning. Basis 2000 gir aaret sitt eget verdirom: generatorens teller lager smaa tall ({{n}}) og 9000-9999 ({{unik_nr}}), aldri noe i 2000-tallet."
+        "$ar": "Aaret MAA variere: unikheten er (stasjon_id, ar) alene, saa to forsoek paa samme aar gir 23505 - en domenefeil som ser ut som en avvisning. {{unik_aar}} har to disjunkte baser, som datoene: generatoren 2100-2499, sekvensen 2500-2899."
       },
       "oppdaterbart": "timer_aar = 12500"
     },
@@ -531,7 +533,7 @@
       "manager": "none",
       "owner": "retailer",
       "seed_ekstra": [
-        "insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('{{seed:bpaar}}', '{{retailer}}', '{{stasjon}}', 2000 + {{unik_nr}} % 1000, 'st1_bp26', 12000)"
+        "insert into public.bp_aar (id, retailer_id, stasjon_id, ar, format, timer_aar) values ('{{seed:bpaar}}', '{{retailer}}', '{{stasjon}}', {{unik_aar}}, 'st1_bp26', 12000)"
       ],
       "business_unik": [
         "bp_aar_id",
