@@ -970,7 +970,7 @@ async function lagreDelingsfil(
   const matbudsjett = await matbudsjettPerAar(supabase)
   const svar = finnAaret(r.stasjoner, paaNavn.kobling, matbudsjett)
   if (svar.ar === null) throw new ParserFeil(`Delingsfil: ${svar.grunn}`)
-  const { ar, kobling, ukoblet } = svar
+  const { ar, kobling } = svar
 
   // TIMENE SKRIVES BARE DER AARGANGEN ALT FINNES. `bp_aar` er BP-ens eget
   // dokument; en delingsfil uten en BP aa henge paa er en fil vi ikke kan
@@ -1014,9 +1014,17 @@ async function lagreDelingsfil(
       `Delingsfil: fant BP ${ar}, men ingen av stasjonene hadde en aargang aa skrive timene paa.`,
     )
   }
-  // De som ikke lot seg koble forsvinner ikke i stillhet - de staar i
-  // jobbens `umatchet`, som importsida viser.
-  return { antallRader: skrevet, umatchet: [...ukoblet, ...utenAargang] }
+  // BARE DET SOM ER NOE AA GJOERE NOE MED.
+  //
+  // `ukoblet` er stasjoner i fila som ikke er vaare - St1 sender ofte hele
+  // klyngen, og det er helt normalt. Meldinga «Ukjente stasjoner
+  // (registrer dem)» ba Robert registrere Bones og Varden, som han alt
+  // eier. Et varsel om noe som ikke er galt laerer folk aa se bort fra
+  // varsler.
+  //
+  // `utenAargang` er derimot handlingsdyktig: stasjonen ER vaar, men det
+  // finnes ingen BP for det aaret aa skrive timene paa.
+  return { antallRader: skrevet, umatchet: utenAargang }
 }
 
 
