@@ -924,11 +924,20 @@ async function lagreDelingsfil(
   r: ReturnType<typeof parseDelingsfil>,
   stasjoner: { id: string; navn: string; butikknummer: string }[],
 ): Promise<Lagring> {
-  const { kobling, ukoblet } = koblePaaNavn(stasjoner, r.stasjoner.map((s) => s.butikknavn))
+  // NAVNET ER IKKE NØKKELEN — BELØPET ER.
+  //
+  // Stasjonene byttet fra Shell til St1 mot slutten av 2025, så
+  // 2025-fila sier «SHELL LAGUNEPARKEN» mens basen sier «St1
+  // Laguneparken». `finnAaret` kobler på budsjettert matomsetning, som er
+  // BP-ens Mat på krona og ikke endrer seg når skiltet gjør det.
+  //
+  // Navnekoblingen sendes med som KRYSSJEKK: peker de to hver sin vei, er
+  // ett av dem feil, og da skrives ingenting.
+  const paaNavn = koblePaaNavn(stasjoner, r.stasjoner.map((s) => s.butikknavn))
   const matbudsjett = await matbudsjettPerAar(supabase)
-  const svar = finnAaret(r.stasjoner, kobling, matbudsjett)
+  const svar = finnAaret(r.stasjoner, paaNavn.kobling, matbudsjett)
   if (svar.ar === null) throw new ParserFeil(`Delingsfil: ${svar.grunn}`)
-  const ar = svar.ar
+  const { ar, kobling, ukoblet } = svar
 
   // TIMENE SKRIVES BARE DER AARGANGEN ALT FINNES. `bp_aar` er BP-ens eget
   // dokument; en delingsfil uten en BP aa henge paa er en fil vi ikke kan
