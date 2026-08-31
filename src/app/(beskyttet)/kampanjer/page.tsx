@@ -19,7 +19,7 @@ export default async function KampanjerSide() {
   try {
     admin = lagSupabaseAdminKlient()
   } catch {
-    return <><h1>Kampanjer</h1><p className="undertittel">Mangler service-nøkkel.</p></>
+    return <Sideramme><h1>Kampanjer</h1><p className="undertittel">Mangler service-nøkkel.</p></Sideramme>
   }
 
   const [{ data: retailers }, { data: kampanjer }] = await Promise.all([

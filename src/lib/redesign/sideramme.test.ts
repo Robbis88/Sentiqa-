@@ -115,6 +115,38 @@ describe('Sideramme: bredden kommer fra mønsteret', () => {
       .toEqual([])
   })
 
+  it('en migrert side har ingen returvei UTENFOR rammen', () => {
+    // FUNNET AV CI, IKKE AV MEG.
+    //
+    // /kampanjer har tre returveier: avvist rolle, «mangler
+    // service-nøkkel», og den ekte sida. Migreringen tok bare den siste,
+    // fordi de to andre er skrevet på én linje — `return <>…</>` — og
+    // ikke på formen `return (` + linjeskift + `<>`.
+    //
+    // I CI finnes ingen service-nøkkel, så det var nettopp den glemte
+    // grenen nettleseren fikk. Sida rendret helt fint. Den sto bare
+    // utenfor kontrakten, og ingenting sa fra før målingen fant null
+    // rammer.
+    //
+    // En side som er migrert skal ikke ha igjen et nakent fragment som
+    // returverdi. Da er en tilstand av sida uten bredde.
+    const synder: string[] = []
+    for (const p of sider(APP)) {
+      const k = readFileSync(p, 'utf8')
+      if (!/\bSideramme\b/.test(k)) continue
+      const lin = k.split(/\r?\n/)
+      const start = lin.findIndex((l) => l.startsWith('export default'))
+      if (start < 0) continue
+      for (let i = start; i < lin.length; i++) {
+        const enLinje = /^\s*return\s*<>/.test(lin[i])
+        const flere = /^\s*return \($/.test(lin[i]) && lin[i + 1]?.trim() === '<>'
+        if (enLinje || flere) synder.push(`${ruteFor(p)}:${i + 1}`)
+      }
+    }
+    expect(synder, `returnerer et nakent fragment i stedet for Sideramme: ${synder.join(', ')}`)
+      .toEqual([])
+  })
+
   it('ingen migrert side setter sin egen bredde', () => {
     // Poenget med rammen er at bredden har én eier. En side som legger på
     // `max-width` selv har tatt den tilbake, og da er vi der vi startet.
