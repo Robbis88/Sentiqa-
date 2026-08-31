@@ -11,8 +11,10 @@ import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import type { ForhandsPayload } from '@/lib/import/typer'
 import { importerForhandsparset, registrerRaaFil } from './handlinger'
+import { behandleJobb } from '@/lib/import/behandle'
 import { lagSupabaseNettleserKlient } from '@/lib/supabase/client'
 import { trygtFilnavn } from '@/lib/storage-noekkel'
+import { BehandleKnapp } from './behandle-knapp'
 
 // Nettleseren laster hele arbeidsboka i minnet for å parse den. St1s
 // forretningsplan er ~27 MB med et ark på 289 000 rader og koster over 2 GB —
@@ -24,7 +26,10 @@ import { trygtFilnavn } from '@/lib/storage-noekkel'
 // ikke bare en størrelsesgrense, og den skal ha en test.
 
 type Tilstand = 'venter' | 'parser' | 'lagrer' | 'ferdig' | 'iko' | 'hoppet' | 'feilet'
-type FilRad = { navn: string; tilstand: Tilstand; melding?: string }
+// `jobbId` settes når fila alt er lastet opp. Da kan handlingen tilbys
+// her, i stedet for å sende brukeren til en statusliste som bare viser
+// de 50 siste jobbene — en BP fra i fjor står ikke der.
+type FilRad = { navn: string; tilstand: Tilstand; melding?: string; jobbId?: string }
 
 // 'iko' er BLA, ikke gronn: fila er lagret, men ingen data er importert
 // enda. Gronn skal vaere reservert for tall som faktisk ligger i basen -
@@ -59,7 +64,7 @@ async function byggPayload(
 // serverens egen sjekk. Retailer-id-en hentes fra profilen, ikke fra klienten.
 async function tilStorage(
   fil: File,
-): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
+): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string; jobbId?: string }> {
   const supabase = lagSupabaseNettleserKlient()
   const { data: bruker } = await supabase.auth.getUser()
   if (!bruker.user) return { ok: false, feil: 'Ikke innlogget.' }
@@ -89,8 +94,8 @@ export function KlientOpplaster() {
     if (valgte.length === 0) return
     setKjorer(true)
     setFiler(valgte.map((f) => ({ navn: f.name, tilstand: 'venter' as Tilstand })))
-    const sett = (i: number, tilstand: Tilstand, melding?: string) =>
-      setFiler((prev) => prev.map((x, j) => (j === i ? { ...x, tilstand, melding } : x)))
+    const sett = (i: number, tilstand: Tilstand, melding?: string, jobbId?: string) =>
+      setFiler((prev) => prev.map((x, j) => (j === i ? { ...x, tilstand, melding, jobbId } : x)))
 
     for (let i = 0; i < valgte.length; i++) {
       try {
@@ -103,8 +108,15 @@ export function KlientOpplaster() {
         const tilServer = async () => {
           sett(i, 'lagrer')
           const res = await tilStorage(valgte[i])
-          if (res.hoppet) sett(i, 'hoppet', res.melding ?? 'Allerede lastet opp')
-          else if (res.ok) sett(i, 'iko', 'Ligger i kø — behandles i natt, eller trykk «Behandle» under')
+          if (res.hoppet) {
+            sett(
+              i, 'hoppet',
+              res.jobbId
+                ? 'Allerede lastet opp — behandle den på nytt her:'
+                : (res.melding ?? 'Allerede lastet opp'),
+              res.jobbId,
+            )
+          } else if (res.ok) sett(i, 'iko', 'Ligger i kø — behandles i natt, eller trykk «Behandle» under')
           else sett(i, 'feilet', res.feil)
         }
         const fil = { navn: valgte[i].name, storrelse: valgte[i].size }
@@ -163,7 +175,8 @@ export function KlientOpplaster() {
         <strong>Forretningsplanen</strong> — uansett størrelse — og andre filer over{' '}
         {Math.round(FOR_STOR / 1024 / 1024)} MB lastes rett til lagring og legges i kø.
         Den behandles automatisk i natt — vil du ha tallene inn med én gang, trykk{' '}
-        <strong>«Behandle»</strong> på raden i statuslista lenger ned.
+        <strong>«Behandle»</strong> på raden i statuslista lenger ned. Er fila lastet opp
+        fra før, får du knappen her.
       </p>
 
       {filer.length > 0 && (
@@ -174,7 +187,18 @@ export function KlientOpplaster() {
           <ul className="arr-liste">
             {filer.map((f, i) => (
               <li key={i}>
-                <span>{f.navn} {f.melding ? <span className="undertittel">· {f.melding}</span> : null}</span>
+                <span>
+                  {f.navn} {f.melding ? <span className="undertittel">· {f.melding}</span> : null}
+                  {/* Handlingen der brukeren er. En «Hoppet over» uten vei
+                      videre er en blindvei, og statuslista under viser bare
+                      de 50 siste jobbene. */}
+                  {f.jobbId ? (
+                    <form action={behandleJobb}>
+                      <input type="hidden" name="jobbId" value={f.jobbId} />
+                      <BehandleKnapp tekst="Behandle på nytt" />
+                    </form>
+                  ) : null}
+                </span>
                 <span className={`status-pip ${PIP[f.tilstand]}`}>{ETIKETT[f.tilstand]}</span>
               </li>
             ))}

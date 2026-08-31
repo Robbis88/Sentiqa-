@@ -30,7 +30,7 @@ export async function importerForhandsparset(arg: {
 // serveren registrerer bare fila. Samme kø, samme «Behandle»-knapp.
 async function registrerRaaFilKjerne(arg: {
   filnavn: string; sha256: string; storrelse: number; sti: string
-}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
+}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string; jobbId?: string }> {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
     return { ok: false, feil: 'Bare eier kan laste opp filer.' }
@@ -58,7 +58,24 @@ async function registrerRaaFilKjerne(arg: {
 
   if (filFeil) {
     await supabase.storage.from(BUCKET).remove([arg.sti])
-    if (filFeil.code === '23505') return { ok: true, hoppet: true } // allerede lastet opp
+    if (filFeil.code === '23505') {
+      // ALLEREDE LASTET OPP — MEN DA MÅ VI SI HVILKEN.
+      //
+      // «Hoppet over» alene er en blindvei. Den som laster opp igjen vil
+      // som regel ha tallene inn på nytt, og systemet vet nøyaktig hvilken
+      // jobb det gjelder. Uten id-en må brukeren lete i statuslista, og
+      // den viser bare de 50 siste — en forretningsplan fra i fjor står
+      // ikke der lenger.
+      const { data: fra_for } = await supabase
+        .from('raa_filer')
+        .select('id, import_jobber(id, opprettet_tid)')
+        .eq('retailer_id', bruker.retailerId)
+        .eq('sha256', arg.sha256)
+        .maybeSingle<{ id: string; import_jobber: { id: string; opprettet_tid: string }[] }>()
+      const jobber = fra_for?.import_jobber ?? []
+      const nyeste = [...jobber].sort((a, b) => b.opprettet_tid.localeCompare(a.opprettet_tid))[0]
+      return { ok: true, hoppet: true, jobbId: nyeste?.id }
+    }
     return { ok: false, feil: filFeil.message }
   }
 
@@ -73,7 +90,7 @@ async function registrerRaaFilKjerne(arg: {
 // Samme regel som over: en server action skal returnere feil, ikke kaste.
 export async function registrerRaaFil(arg: {
   filnavn: string; sha256: string; storrelse: number; sti: string
-}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string }> {
+}): Promise<{ ok: boolean; hoppet?: boolean; melding?: string; feil?: string; jobbId?: string }> {
   try {
     return await registrerRaaFilKjerne(arg)
   } catch (e) {
