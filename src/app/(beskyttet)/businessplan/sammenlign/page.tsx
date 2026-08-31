@@ -1,13 +1,17 @@
 import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr, tall } from '@/lib/format'
 import { Sidehode, Nokkeltall, Datatabell, Forklaring, Tomtilstand } from '@/components/ui/side'
 import { Signal } from '@/components/ui/status'
 import {
   hentAarganger, hentAarstall, hentPerStasjon, sammenlignbareStasjoner,
 } from '@/lib/bp/hent'
-import { analyser, royaltyandel, type Funn, type Aarstall } from '@/lib/bp/analyse'
+import {
+  analyser, royaltyandel, royaltyEndring, type Funn, type Aarstall,
+} from '@/lib/bp/analyse'
 
 // =====================================================================
 // "HVA BETYR DEN NYE BP-EN FOR OSS?"
@@ -16,65 +20,101 @@ import { analyser, royaltyandel, type Funn, type Aarstall } from '@/lib/bp/analy
 // aaret. Denne svarer paa noe annet: hva St1 har endret fra en aargang
 // til den neste, foer et eneste salg er gjort.
 //
-//   "naar 2027 skal lastes opp er det greit at vi kan sammenligne og se
-//    hva den nye er betydning for oss, gaar vi opp i royalty? faar vi
-//    mindre loenn, fastloenn?"  - Robert 2026-08-30
+// ---------------------------------------------------------------------
+// FORMEN ER DEN ROBERT GODKJENTE
 //
-// MONSTERET ER "ANALYSE": nivaa 1 er SVARET, som en setning paa norsk.
-// Ikke et tall. "886 090 kr" betyr ingenting; "royaltyandelen stiger, og
-// det koster 886 090 kr i aaret uten at dere gjoer noe annerledes" betyr
-// alt.
+// Foerste utgave av denne sida var noe annet: en liste med "funn" som
+// hovedsak, kjedetotal, og ingen stasjonsvelger. Robert sa fra:
+//
+//   "det var denne her jeg godkjente, ikke litt det du har bygget
+//    engang. ka skjedde?"  - 2026-08-31
+//
+// Han hadde rett. Han ba om en analyse SOM TILLEGG ("hadde vaert goeyt
+// om du gjorde en analyse av bpene"), og jeg lot tillegget fortrenge
+// demoen. Rekkefoelgen her er demoens:
+//
+//   1. Fem noekkeltall, med royaltykostnaden foerst
+//   2. Kostnader per konto, linje for linje, med NY/BORTE
+//   3. CR-salg per varegruppe
+//   4. Timer og timekost per stasjon
+//   5. Funnene - som tillegg, til slutt
+//
+// Stasjonsvelgeren er skallets egen (`TAALER_AGGREGAT`), ikke en ny en:
+// demoen hadde en nedtrekksliste, men systemet har alt en velger som
+// staar samme sted paa hver side.
 //
 // ---------------------------------------------------------------------
 // SIDA REGNER IKKE
 //
-// All dom ligger i `analyser()`, som er ren og testet mot Kelsars egne
-// tall. Sida velger rekkefoelge og ord. Da kan tallene bevises i en
-// vitest, og skjermen kan ikke komme til aa si noe annet enn motoren.
+// All dom ligger i `analyse.ts`, som er ren og testet mot Kelsars egne
+// tall. Sida velger rekkefoelge og ord.
 // =====================================================================
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Funnets alvor til signalets nivaa.
- *
- * INGENTING ER "kritisk". `Signal` setter `role="alert"` paa den, og en
- * alert er for noe som nettopp skjedde - ikke for et budsjett som ligger
- * stille paa skjermen. En skjermleser ville avbrutt lesingen for aa
- * melde en royaltysats som har staatt der siden fila ble lastet opp.
- */
+type Stasjon = { id: string; navn: string; butikknummer: string }
+
 function nivaaFor(f: Funn): 'informasjon' | 'mulighet' | 'oppmerksomhet' {
+  // INGENTING ER "kritisk": `Signal` setter `role="alert"`, og en alert er
+  // for noe som nettopp skjedde - ikke for et budsjett som ligger stille.
   if (f.dom === 'god') return 'mulighet'
   if (f.dom === 'vond') return 'oppmerksomhet'
   return 'informasjon'
 }
 
-function Rad({ merkelapp, fjor, iAar, ar }: {
-  merkelapp: string; fjor: number; iAar: number; ar: [number, number]
+const pst = (fjor: number, iAar: number): string => {
+  if (fjor === 0) return '—'
+  const d = (iAar / fjor - 1) * 100
+  return `${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1).replace('.', ',')} %`
+}
+
+/** En linje i en sammenligningstabell: to år, endring, og kroner. */
+function Linje({ navn, fjor, iAar, sum = false, enhet = 'kr' }: {
+  navn: string; fjor: number | null; iAar: number | null
+  sum?: boolean; enhet?: 'kr' | 't'
 }) {
-  const d = fjor === 0 ? null : (iAar / fjor - 1) * 100
+  const f = fjor ?? 0
+  const i = iAar ?? 0
+  const vis = (v: number | null) =>
+    v === null ? '—' : enhet === 't' ? `${tall.format(Math.round(v))} t` : kr.format(Math.round(v))
   return (
-    <tr>
-      <th scope="row">{merkelapp}</th>
-      <td className="tall">{kr.format(Math.round(fjor))}</td>
-      <td className="tall">{kr.format(Math.round(iAar))}</td>
-      <td className="tall">
-        {d === null ? '—' : `${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1).replace('.', ',')} %`}
-      </td>
-      <td className="tall">{kr.format(Math.round(iAar - fjor))}</td>
-      <td className="sq-skjult">{`${ar[0]} mot ${ar[1]}`}</td>
+    <tr className={sum ? 'sum' : undefined}>
+      <th scope="row">
+        {navn}{' '}
+        {/* NY og BORTE staar som ord, ikke som farge alene. En konto som
+            forsvant mellom to aar er det letteste aa overse i en lang
+            liste, og fargen er borte for den som ikke ser den. */}
+        {fjor === null && iAar !== null && <span className="merke-pill">NY</span>}
+        {iAar === null && fjor !== null && <span className="merke-pill">BORTE</span>}
+      </th>
+      <td className="tall">{vis(fjor)}</td>
+      <td className="tall">{vis(iAar)}</td>
+      <td className="tall">{fjor === null || iAar === null ? '—' : pst(f, i)}</td>
+      <td className="tall">{vis(i - f)}</td>
     </tr>
   )
 }
 
+function Hode({ forste, fraAar, tilAar }: { forste: string; fraAar: number; tilAar: number }) {
+  return (
+    <thead>
+      <tr>
+        <th scope="col">{forste}</th>
+        <th scope="col" className="tall">BP {fraAar}</th>
+        <th scope="col" className="tall">BP {tilAar}</th>
+        <th scope="col" className="tall">Endring</th>
+        <th scope="col" className="tall">I kroner</th>
+      </tr>
+    </thead>
+  )
+}
+
 export default async function BpSammenlign(
-  { searchParams }: { searchParams: Promise<{ fra?: string; til?: string }> },
+  { searchParams }: { searchParams: Promise<{ fra?: string; til?: string; stasjon?: string }> },
 ) {
   const bruker = await hentInnloggetBruker()
   // Eierens data. BP-en baerer royaltysats, fastloenn og kjedens
   // kostnadsramme - butikksjefen ser sin maanedsramme i `/bemanning`.
-  // RLS sier det samme; dette er for at sida ikke skal love noe policyen
-  // avviser, som `tilgang.test.ts` leser ut av kilden.
   if (bruker.rolle !== 'retailer_admin') {
     return <p>Kun eier har tilgang til BP-sammenligningen.</p>
   }
@@ -105,8 +145,13 @@ export default async function BpSammenlign(
   const eldre = aarganger.map((a) => a.ar).filter((a) => a < tilAar)
   const fraAar = Number(sp.fra) && finnes.has(Number(sp.fra)) ? Number(sp.fra) : eldre[0]
 
-  // ÉN AARGANG ER IKKE EN FEIL. En helt ny kjede har nettopp det, og en
-  // tom sammenligning ville sett ut som om noe manglet i systemet.
+  const { data: stasjonsrader } = await supabase
+    .from('stasjoner').select('id, navn, butikknummer')
+    .is('slettet_tid', null).order('butikknummer')
+  const stasjonsliste = (stasjonsrader ?? []) as Stasjon[]
+  const navnFor = new Map(stasjonsliste.map((s) => [s.id, s.navn]))
+
+  // ÉN AARGANG ER IKKE EN FEIL. En helt ny kjede har nettopp det.
   if (fraAar === undefined) {
     const alene = await hentAarstall(supabase, tilAar)
     return (
@@ -135,22 +180,27 @@ export default async function BpSammenlign(
 
   // TO KRAV, BEGGE ARITMETIKK: stasjonen må finnes i begge årganger, og
   // BP-ene må dekke like mange måneder. Se `sammenlignbareStasjoner`.
-  const { med: felles, utelatt } = await sammenlignbareStasjoner(supabase, fraAar, tilAar)
+  const { med: sammenlignbare, utelatt } = await sammenlignbareStasjoner(supabase, fraAar, tilAar)
+
+  // Skallets egen velger, ikke en ny. `TAALER_AGGREGAT` sier at denne
+  // siden tåler «alle» for eier; velgeren står samme sted som ellers.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  const valgtStasjon = await husketStasjon(
+    stasjonsliste.filter((s) => sammenlignbare.includes(s.id)),
+    stasjonFraUrl(sok, stasjonsliste),
+    tillatAlleFor('/businessplan/sammenlign', bruker.rolle, sammenlignbare.length),
+  )
+  const valgte = valgtStasjon && sammenlignbare.includes(valgtStasjon)
+    ? [valgtStasjon]
+    : sammenlignbare
+
   const [fjor, iAar] = await Promise.all([
-    hentAarstall(supabase, fraAar, felles),
-    hentAarstall(supabase, tilAar, felles),
+    hentAarstall(supabase, fraAar, valgte),
+    hentAarstall(supabase, tilAar, valgte),
   ])
 
-  // Navnene, så siden kan si HVEM som er holdt utenfor. Et antall alene
-  // («1 stasjon holdt utenfor») lar leseren gjette, og gjetningen blir
-  // som regel feil stasjon.
-  const { data: stasjonsrader } = await supabase
-    .from('stasjoner').select('id, navn').is('slettet_tid', null)
-  const navnFor = new Map(
-    ((stasjonsrader ?? []) as { id: string; navn: string }[]).map((s) => [s.id, s.navn]),
-  )
-
-  if (!fjor || !iAar || felles.length === 0) {
+  if (!fjor || !iAar || valgte.length === 0) {
     return (
       <>
         <Sidehode tittel="Sammenlign BP" />
@@ -169,225 +219,211 @@ export default async function BpSammenlign(
     )
   }
 
-  // PER STASJON. Kjedetotalen sier hva den nye BP-en betyr samlet; den
-  // sier ikke hvilken stasjon som baerer endringen. En royaltyandel som
-  // stiger like mye paa alle tre er noe helt annet enn en stasjon som
-  // drar snittet.
   const [perFjor, perIAar] = await Promise.all([
-    hentPerStasjon(supabase, fraAar, felles),
-    hentPerStasjon(supabase, tilAar, felles),
+    hentPerStasjon(supabase, fraAar, valgte),
+    hentPerStasjon(supabase, tilAar, valgte),
   ])
-  const stasjonsvis = felles
-    .map((id) => ({
-      id,
-      navn: navnFor.get(id) ?? id,
-      a: perFjor.get(id),
-      b: perIAar.get(id),
-    }))
-    .filter((x): x is { id: string; navn: string; a: Aarstall; b: Aarstall } =>
-      Boolean(x.a && x.b))
-    .sort((x, y) => y.b.salg - x.b.salg)
 
   const funn = analyser(fjor, iAar)
-  const viktigste = funn.find((f) => f.alvor === 'viktig') ?? funn[0]
-
-  const salgspst = fjor.salg === 0 ? null : (iAar.salg / fjor.salg - 1) * 100
+  const roy = royaltyEndring(fjor, iAar)
   const rf = royaltyandel(fjor)
   const ri = royaltyandel(iAar)
 
-  const rader: [string, number, number][] = [
-    ['Salgsmål', fjor.salg, iAar.salg],
-    ['Varekost', fjor.varekost, iAar.varekost],
-    ['Bruttofortjeneste', fjor.brutto, iAar.brutto],
-    ['Lønnsramme', fjor.personal, iAar.personal],
-    ['Andre driftskostnader', fjor.andreKostnader, iAar.andreKostnader],
-    ['Royalty', fjor.royalty, iAar.royalty],
-  ]
+  // KONTI OG VAREGRUPPER, LINJE FOR LINJE. `null` betyr «fantes ikke
+  // dette året» — og det er noe helt annet enn 0 kr, som betyr «budsjettert
+  // til null». Linje-komponenten merker dem NY og BORTE.
+  const konti = [...new Set([...fjor.konti.keys(), ...iAar.konti.keys()])]
+    .map((kode) => ({
+      kode,
+      post: iAar.konti.get(kode)?.post ?? fjor.konti.get(kode)?.post ?? kode,
+      f: fjor.konti.has(kode) ? fjor.konti.get(kode)!.kr : null,
+      i: iAar.konti.has(kode) ? iAar.konti.get(kode)!.kr : null,
+    }))
+    .sort((a, b) => (b.i ?? b.f ?? 0) - (a.i ?? a.f ?? 0))
 
-  const kategorier = [...new Set([...fjor.kategorier.keys(), ...iAar.kategorier.keys()])]
+  const grupper = [...new Set([...fjor.kategorier.keys(), ...iAar.kategorier.keys()])]
     .map((kode) => ({
       kode,
       post: iAar.kategorier.get(kode)?.post ?? fjor.kategorier.get(kode)?.post ?? kode,
-      f: fjor.kategorier.get(kode)?.salg ?? 0,
-      i: iAar.kategorier.get(kode)?.salg ?? 0,
+      f: fjor.kategorier.has(kode) ? fjor.kategorier.get(kode)!.salg : null,
+      i: iAar.kategorier.has(kode) ? iAar.kategorier.get(kode)!.salg : null,
     }))
     .filter((k) => k.f !== 0 || k.i !== 0)
-    .sort((a, b) => b.i - a.i)
+    .sort((a, b) => (b.i ?? b.f ?? 0) - (a.i ?? a.f ?? 0))
+
+  const timerader = valgte
+    .map((id) => ({ id, navn: navnFor.get(id) ?? id, a: perFjor.get(id), b: perIAar.get(id) }))
+    .filter((x): x is { id: string; navn: string; a: Aarstall; b: Aarstall } => Boolean(x.a && x.b))
+    .sort((x, y) => y.b.salg - x.b.salg)
+  const harTimer = fjor.timer > 0 && iAar.timer > 0
+
+  const hvem = valgte.length === 1
+    ? (navnFor.get(valgte[0]) ?? '')
+    : valgte.map((id) => navnFor.get(id) ?? id).join(', ')
 
   return (
     <>
       <Sidehode
         tittel={`BP ${tilAar} mot BP ${fraAar}`}
-        merke={
-          felles.length === 1
-            ? '1 stasjon, samme periode begge år'
-            : `${felles.length} stasjoner, samme periode begge år`
+        merke={hvem}
+        undertittel={
+          valgte.length === 1
+            ? undefined
+            : `${valgte.length} stasjoner med BP for like mange måneder i begge år`
         }
-        undertittel={viktigste?.tittel}
       />
 
-      {/* Nivaa 1: svaret. Ikke et tall - en setning. */}
-      {viktigste && (
-        <Signal nivaa={nivaaFor(viktigste)} tittel={viktigste.tittel}>
-          {viktigste.betyr}
-        </Signal>
-      )}
-
-      {/* VELGEREN, og bare naar det finnes noe aa velge.
-          To aarganger gir en sammenligning, og da er en velger med ett
-          alternativ stoy som ser ut som en kontroll. */}
-      {aarganger.length > 2 && (
-        <nav className="sq-faner" aria-label="Velg arganger">
-          {aarganger.map((a) => a.ar).filter((a) => a !== tilAar).map((a) => (
-            <Link
-              key={a}
-              href={`/businessplan/sammenlign?fra=${Math.min(a, tilAar)}&til=${Math.max(a, tilAar)}`}
-              className="sq-fane"
-              aria-current={a === fraAar ? 'page' : undefined}
-            >
-              {`BP ${tilAar} mot ${a}`}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      {/* Nivaa 2: hva som sammenlignes. */}
+      {/* NIVÅ 1: fem tall, med royaltykostnaden først. Den er den eneste
+          som er avtalt og ikke kan jobbes inn. */}
       <div className="sq-nokkelrad">
+        <Nokkeltall
+          merkelapp="Royaltyandelen koster"
+          verdi={roy ? kr.format(Math.round(roy.sats)) : '—'}
+          sammenlignet={rf !== null && ri !== null
+            ? `${(rf * 100).toFixed(2).replace('.', ',')} % → ${(ri * 100).toFixed(2).replace('.', ',')} % av omsetningen`
+            : undefined}
+          retning={roy && roy.sats > 0 ? 'opp' : roy && roy.sats < 0 ? 'ned' : 'flat'}
+          bra={roy ? roy.sats <= 0 : undefined}
+        />
+        <Nokkeltall
+          merkelapp="Timer"
+          verdi={harTimer ? `${tall.format(Math.round(iAar.timer))} t` : 'Ikke i BP-en'}
+          sammenlignet={harTimer
+            ? `${pst(fjor.timer, iAar.timer)} · ${tall.format(Math.round(iAar.timer - fjor.timer))} timer`
+            : `BP ${fraAar} har ikke timebudsjett`}
+          retning={harTimer && iAar.timer >= fjor.timer ? 'opp' : 'flat'}
+          // TIMENE ER NOE ST1 GIR DERE. Flere timer er mer ramme, ikke
+          // en høyere kostnad.
+          bra={harTimer ? iAar.timer >= fjor.timer : undefined}
+        />
+        <Nokkeltall
+          merkelapp="Kr per time"
+          verdi={harTimer ? kr.format(Math.round(iAar.personal / iAar.timer)) : '—'}
+          sammenlignet={harTimer
+            ? `${pst(fjor.personal / fjor.timer, iAar.personal / iAar.timer)} mot BP ${fraAar}`
+            : undefined}
+          retning={harTimer && iAar.personal / iAar.timer >= fjor.personal / fjor.timer ? 'opp' : 'flat'}
+          // «det er posetivt om vi får høyere timepris pr time på lønn,
+          //  for det er det st1 gir oss» — Robert 2026-08-30
+          bra={harTimer ? iAar.personal / iAar.timer >= fjor.personal / fjor.timer : undefined}
+        />
         <Nokkeltall
           merkelapp="Salgsmål"
           verdi={kr.format(Math.round(iAar.salg))}
-          sammenlignet={salgspst === null ? undefined
-            : `${salgspst >= 0 ? '+' : '−'}${Math.abs(salgspst).toFixed(1).replace('.', ',')} % mot BP ${fraAar}`}
-          retning={salgspst === null ? 'flat' : salgspst >= 0 ? 'opp' : 'ned'}
+          sammenlignet={`${pst(fjor.salg, iAar.salg)} mot BP ${fraAar}`}
+          retning={iAar.salg >= fjor.salg ? 'opp' : 'ned'}
         />
         <Nokkeltall
-          merkelapp="Lønnsramme"
-          verdi={kr.format(Math.round(iAar.personal))}
-          sammenlignet={`${kr.format(Math.round(iAar.personal - fjor.personal))} mot BP ${fraAar}`}
-          retning={iAar.personal >= fjor.personal ? 'opp' : 'ned'}
-          // MER RAMME ER GODT. Timeprisen og timene er begge penger St1
-          // legger inn - ikke en kostnad Kelsar baerer.
-          bra={iAar.personal >= fjor.personal}
-        />
-        <Nokkeltall
-          merkelapp="Royaltyandel"
-          verdi={ri === null ? '—' : `${(ri * 100).toFixed(2).replace('.', ',')} %`}
-          sammenlignet={rf === null || ri === null ? undefined
-            : `mot ${(rf * 100).toFixed(2).replace('.', ',')} % i BP ${fraAar}`}
-          retning={rf === null || ri === null ? 'flat' : ri > rf ? 'opp' : 'ned'}
-          bra={rf === null || ri === null ? undefined : ri <= rf}
-        />
-        <Nokkeltall
-          merkelapp="Timeramme"
-          verdi={iAar.timer > 0 ? `${tall.format(Math.round(iAar.timer))} t` : 'Ikke i formatet'}
-          sammenlignet={fjor.timer > 0 && iAar.timer > 0
-            ? `${tall.format(Math.round(iAar.timer - fjor.timer))} t mot BP ${fraAar}` : undefined}
-          retning={fjor.timer > 0 && iAar.timer > 0 && iAar.timer >= fjor.timer ? 'opp' : 'flat'}
-          bra={fjor.timer > 0 && iAar.timer > 0 ? iAar.timer >= fjor.timer : undefined}
+          merkelapp="Kostnadsramme"
+          verdi={kr.format(Math.round(iAar.personal + iAar.andreKostnader))}
+          sammenlignet={`${pst(fjor.personal + fjor.andreKostnader, iAar.personal + iAar.andreKostnader)} mot BP ${fraAar}`}
+          retning={
+            iAar.personal + iAar.andreKostnader >= fjor.personal + fjor.andreKostnader ? 'opp' : 'ned'
+          }
         />
       </div>
 
-      {/* Nivaa 3: funnene, i regnskapsfoererens leserekkefoelge. */}
-      {funn.slice(viktigste ? 1 : 0).map((f) => (
-        <Signal key={f.id} nivaa={nivaaFor(f)} tittel={f.tittel}>
-          {f.maalt} {f.betyr}
-        </Signal>
-      ))}
+      <Datatabell
+        tittel={`Kostnader per konto · ${valgte.length === 1 ? hvem : 'alle valgte samlet'}`}
+        antall={konti.length}
+      >
+        <Hode forste="Konto" fraAar={fraAar} tilAar={tilAar} />
+        <tbody>
+          {konti.map((k) => (
+            <Linje key={k.kode} navn={k.post} fjor={k.f} iAar={k.i} />
+          ))}
+        </tbody>
+        <tfoot>
+          <Linje
+            navn="Sum"
+            fjor={fjor.personal + fjor.andreKostnader}
+            iAar={iAar.personal + iAar.andreKostnader}
+            sum
+          />
+        </tfoot>
+      </Datatabell>
 
-      {/* Nivaa 4: tabellene. */}
-      <Datatabell tittel="Rammene">
+      <Datatabell
+        tittel={`CR-salg per varegruppe · ${valgte.length === 1 ? hvem : 'alle valgte samlet'}`}
+        antall={grupper.length}
+      >
+        <Hode forste="Varegruppe" fraAar={fraAar} tilAar={tilAar} />
+        <tbody>
+          {grupper.map((g) => (
+            <Linje key={g.kode} navn={g.post} fjor={g.f} iAar={g.i} />
+          ))}
+        </tbody>
+        <tfoot>
+          <Linje navn="Sum" fjor={fjor.salg} iAar={iAar.salg} sum />
+        </tfoot>
+      </Datatabell>
+
+      <Datatabell tittel="Timer og timekost" antall={timerader.length}>
         <thead>
           <tr>
-            <th scope="col">Post</th>
-            <th scope="col" className="tall">BP {fraAar}</th>
-            <th scope="col" className="tall">BP {tilAar}</th>
+            <th scope="col">Stasjon</th>
+            <th scope="col" className="tall">Timer {fraAar}</th>
+            <th scope="col" className="tall">Timer {tilAar}</th>
             <th scope="col" className="tall">Endring</th>
-            <th scope="col" className="tall">Kroner</th>
+            <th scope="col" className="tall">Kr/time {fraAar}</th>
+            <th scope="col" className="tall">Kr/time {tilAar}</th>
+            <th scope="col" className="tall">Endring</th>
+            <th scope="col" className="tall">Lønnsramme</th>
           </tr>
         </thead>
         <tbody>
-          {rader.map(([navn, f, i]) => (
-            <Rad key={navn} merkelapp={navn} fjor={f} iAar={i} ar={[fraAar, tilAar]} />
-          ))}
+          {timerader.map(({ id, navn, a, b }) => {
+            const kan = a.timer > 0 && b.timer > 0
+            return (
+              <tr key={id}>
+                <th scope="row">{navn}</th>
+                <td className="tall">{a.timer > 0 ? `${tall.format(Math.round(a.timer))}` : '—'}</td>
+                <td className="tall">{b.timer > 0 ? `${tall.format(Math.round(b.timer))}` : '—'}</td>
+                <td className="tall">{kan ? pst(a.timer, b.timer) : '—'}</td>
+                <td className="tall">{a.timer > 0 ? kr.format(Math.round(a.personal / a.timer)) : '—'}</td>
+                <td className="tall">{b.timer > 0 ? kr.format(Math.round(b.personal / b.timer)) : '—'}</td>
+                <td className="tall">
+                  {kan ? pst(a.personal / a.timer, b.personal / b.timer) : '—'}
+                </td>
+                <td className="tall">{pst(a.personal, b.personal)}</td>
+              </tr>
+            )
+          })}
+          {timerader.length > 1 && (
+            <tr className="sum">
+              <th scope="row">Sum</th>
+              <td className="tall">{fjor.timer > 0 ? tall.format(Math.round(fjor.timer)) : '—'}</td>
+              <td className="tall">{iAar.timer > 0 ? tall.format(Math.round(iAar.timer)) : '—'}</td>
+              <td className="tall">{harTimer ? pst(fjor.timer, iAar.timer) : '—'}</td>
+              <td className="tall">
+                {fjor.timer > 0 ? kr.format(Math.round(fjor.personal / fjor.timer)) : '—'}
+              </td>
+              <td className="tall">
+                {iAar.timer > 0 ? kr.format(Math.round(iAar.personal / iAar.timer)) : '—'}
+              </td>
+              <td className="tall">
+                {harTimer ? pst(fjor.personal / fjor.timer, iAar.personal / iAar.timer) : '—'}
+              </td>
+              <td className="tall">{pst(fjor.personal, iAar.personal)}</td>
+            </tr>
+          )}
         </tbody>
       </Datatabell>
 
-      <Datatabell tittel="Salgsmål per varegruppe" antall={kategorier.length}>
-        <thead>
-          <tr>
-            <th scope="col">Varegruppe</th>
-            <th scope="col" className="tall">BP {fraAar}</th>
-            <th scope="col" className="tall">BP {tilAar}</th>
-            <th scope="col" className="tall">Endring</th>
-            <th scope="col" className="tall">Kroner</th>
-          </tr>
-        </thead>
-        <tbody>
-          {kategorier.map((k) => (
-            <Rad key={k.kode} merkelapp={k.post} fjor={k.f} iAar={k.i} ar={[fraAar, tilAar]} />
+      {/* TILLEGGET, og det står sist. «hadde vært gøyt om du gjorde en
+          analyse av bpene, gir noen tilbakemeldinger på hva det betyr for
+          oss når den lastes opp» — Robert 2026-08-30. Tallene over er
+          svaret; dette er hva de betyr. */}
+      {funn.length > 0 && (
+        <section>
+          <h2>Hva tallene betyr</h2>
+          {funn.map((f) => (
+            <Signal key={f.id} nivaa={nivaaFor(f)} tittel={f.tittel}>
+              {f.maalt} {f.betyr}
+            </Signal>
           ))}
-        </tbody>
-      </Datatabell>
-
-      {/* PER STASJON. Kjedetotalen sier hva som er endret; den sier ikke
-          hvem som bærer det. Én tabell hver — CR og kostnader for den
-          stasjonen alene, aldri blandet. */}
-      {stasjonsvis.map(({ id, navn, a, b }) => {
-        const ra = royaltyandel(a)
-        const rb = royaltyandel(b)
-        return (
-          <Datatabell key={id} tittel={navn}>
-            <thead>
-              <tr>
-                <th scope="col">Post</th>
-                <th scope="col" className="tall">BP {fraAar}</th>
-                <th scope="col" className="tall">BP {tilAar}</th>
-                <th scope="col" className="tall">Endring</th>
-                <th scope="col" className="tall">Kroner</th>
-              </tr>
-            </thead>
-            <tbody>
-              <Rad merkelapp="Salgsmål" fjor={a.salg} iAar={b.salg} ar={[fraAar, tilAar]} />
-              <Rad merkelapp="Bruttofortjeneste" fjor={a.brutto} iAar={b.brutto} ar={[fraAar, tilAar]} />
-              <Rad merkelapp="Lønnsramme" fjor={a.personal} iAar={b.personal} ar={[fraAar, tilAar]} />
-              <Rad merkelapp="Andre driftskostnader" fjor={a.andreKostnader} iAar={b.andreKostnader} ar={[fraAar, tilAar]} />
-              <Rad merkelapp="Royalty" fjor={a.royalty} iAar={b.royalty} ar={[fraAar, tilAar]} />
-              <tr>
-                <th scope="row">Royaltyandel av omsetning</th>
-                <td className="tall">
-                  {ra === null ? '—' : `${(ra * 100).toFixed(2).replace('.', ',')} %`}
-                </td>
-                <td className="tall">
-                  {rb === null ? '—' : `${(rb * 100).toFixed(2).replace('.', ',')} %`}
-                </td>
-                <td className="tall">
-                  {ra === null || rb === null
-                    ? '—'
-                    : `${rb >= ra ? '+' : '−'}${Math.abs((rb - ra) * 100).toFixed(2).replace('.', ',')} pp`}
-                </td>
-                {/* Kronene her er ikke en differanse, men hva andelen ALENE
-                    koster på årets omsetning — det er tallet som betyr noe. */}
-                <td className="tall">
-                  {ra === null || rb === null ? '—' : kr.format(Math.round((rb - ra) * b.salg))}
-                </td>
-                <td className="sq-skjult">{`${fraAar} mot ${tilAar}`}</td>
-              </tr>
-              {a.timer > 0 && b.timer > 0 && (
-                <tr>
-                  <th scope="row">Timeramme</th>
-                  <td className="tall">{tall.format(Math.round(a.timer))} t</td>
-                  <td className="tall">{tall.format(Math.round(b.timer))} t</td>
-                  <td className="tall">
-                    {`${b.timer >= a.timer ? '+' : '−'}${Math.abs((b.timer / a.timer - 1) * 100).toFixed(1).replace('.', ',')} %`}
-                  </td>
-                  <td className="tall">{tall.format(Math.round(b.timer - a.timer))} t</td>
-                  <td className="sq-skjult">{`${fraAar} mot ${tilAar}`}</td>
-                </tr>
-              )}
-            </tbody>
-          </Datatabell>
-        )
-      })}
+        </section>
+      )}
 
       <Forklaring sporsmaal="Hvordan er tallene regnet?">
         <p>
@@ -408,18 +444,21 @@ export default async function BpSammenlign(
           <strong>Royaltyandelen</strong> er royalty delt på CR-salg. Den ordinære
           satsen står ikke i filene og lar seg ikke regne ut av dem: vaskedelen er
           korrigert for appens andel, og den korreksjonen finnes ingen steder i
-          tallene. Andelen er derimot eksakt, og endringen deles i hvor mye som
-          skyldes at dere selger mer og hvor mye som skyldes at andelen selv har
-          flyttet seg.
+          tallene. Andelen er derimot eksakt, og «koster»-tallet er den delen av
+          royaltyøkningen som skyldes at <em>andelen selv</em> har flyttet seg —
+          ikke at dere selger mer.
         </p>
         <p>
           <strong>Lønnsrammen</strong> er alle 5000-konti. Den gamle St1-malen
           fører hele lønnen på én konto, mens den nye splitter i timelønn og
           fastlønn — derfor sammenlignes summen, ikke splitten. Hvilket format
           en BP har følger ikke årstallet: for 2025 er Laguneparken, Varden og
-          Bønes på den gamle malen mens Dale er på den nye. Timerammen finnes
-          bare i noen av filene, så kroner per time vises ikke når en av
-          årgangene mangler den.
+          Bønes på den gamle malen mens Dale er på den nye.
+        </p>
+        <p>
+          <strong>Timerammen</strong> finnes bare i det nye formatet. Mangler den
+          i én av årgangene, står kroner per time som «—» i stedet for et tall vi
+          ikke kan belegge.
         </p>
       </Forklaring>
     </>

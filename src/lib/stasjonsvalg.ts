@@ -117,6 +117,10 @@ export const TAALER_AGGREGAT: Record<string, true | readonly string[]> = {
   '/kasserer': true,
   '/oversikt': ['retailer_admin'],
   '/regnskap': ['retailer_admin'],
+  // BP-sammenligningen er eierens, og den er MEST nyttig samlet: "hva
+  // betyr den nye BP-en for kjeden". Men den maa kunne brytes ned, ellers
+  // ser man ikke hvilken stasjon som baerer endringen.
+  '/businessplan/sammenlign': ['retailer_admin'],
 }
 
 export function sidenTaalerAggregat(sti: string, rolle?: string): boolean {
