@@ -27,6 +27,76 @@ export type Monster =
   | 'tablet'        // Arbeidsverktøy i butikken. Egne regler.
   | 'utenfor'       // Før innlogging. Eget formspråk, rører vi ikke nå.
 
+/**
+ * Hvor bred innholdsspalten er i hvert moenster.
+ *
+ * ---------------------------------------------------------------------
+ * MAALT FOER VALGT, 2026-08-31
+ *
+ * Bredden var ikke bestemt noe sted. Den falt ut av om siden tilfeldigvis
+ * brukte `className="kort"` - `.innhold .kort { max-width: 880px }` i
+ * globals.css er den eneste breddereglen i systemet, og den er udokumentert.
+ * Telt over alle 71 sider:
+ *
+ *     moenster        ruter   880px   full    entydig
+ *     detalj              5       5      0    JA
+ *     innstillinger       5       4      1    nei
+ *     arbeidsflyt        10       7      3    nei
+ *     analyse            15       3     12    nei
+ *     liste              22       6     16    nei
+ *
+ * Bare `detalj` var entydig. Bredden var altsaa ikke et moenster, men et
+ * utfall. Tabellen under gjoer den til et valg, og foelger flertallet i
+ * hvert moenster - det er den eneste avgjoerelsen som ikke redesigner noe
+ * som allerede fungerer.
+ *
+ * `liste` er den omstridte: 16 av 22 er fullbredde i dag, men de fleste av
+ * dem har ingen tabell - de er brede fordi ingen tok stilling, ikke fordi
+ * innholdet krever det. Den staar som `bred` her for aa bevare dagens
+ * oppfoersel, ikke fordi den er riktig. Den skal avgjoeres for seg.
+ *
+ * ---------------------------------------------------------------------
+ * DENNE TABELLEN ER `Record<Monster, Bredde>` MED VILJE
+ *
+ * Legger noen til et moenster uten aa ta stilling til bredden, kompilerer
+ * ikke koden. Det er billigere enn en vakt som oppdager det etterpaa.
+ */
+export type Bredde = 'smal' | 'bred'
+
+export const SPALTE: Record<Monster, Bredde> = {
+  dashbord: 'bred',      // Mange kort ved siden av hverandre.
+  liste: 'bred',         // Flertallet i dag. Omstridt, se over.
+  detalj: 'smal',        // 5 av 5 er smale i dag. Eneste entydige.
+  arbeidsflyt: 'smal',   // 7 av 10. En rekkefoelge leses, den skannes ikke.
+  analyse: 'bred',       // 12 av 15. Tabellene trenger plassen.
+  innstillinger: 'smal', // 4 av 5. Skjemafelter blir uleselige brede.
+  opprett: 'smal',       // Skal bli sidepanel. Smal er riktig uansett.
+  tablet: 'bred',        // Eget skall (TabletSkall), roeres ikke naa.
+  utenfor: 'smal',       // Innloggingssidene, sentrert og smale allerede.
+}
+
+/**
+ * Moensteret for en faktisk URL - ogsaa naar den har et dynamisk segment.
+ *
+ * `RUTEMONSTER` har `/kontrakt/[id]`, men nettleseren ber om
+ * `/kontrakt/9f2c-...`. Uten denne oversettelsen faller hver detaljside
+ * tilbake til standardbredden, og det ville sett ut som om den virket.
+ */
+export function monsterFor(sti: string): Monster | null {
+  const rein = sti.replace(/\/+$/, '') || '/'
+  const direkte = RUTEMONSTER[rein]
+  if (direkte) return direkte
+
+  const deler = rein.split('/')
+  for (let i = deler.length - 1; i > 0; i--) {
+    const forsok = [...deler]
+    forsok[i] = '[id]'
+    const treff = RUTEMONSTER[forsok.join('/')]
+    if (treff) return treff
+  }
+  return null
+}
+
 export type Monsterspek = {
   navn: string
   nivaa1: string

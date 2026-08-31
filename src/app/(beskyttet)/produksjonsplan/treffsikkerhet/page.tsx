@@ -10,6 +10,7 @@ import { datoLang, tall, kr } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { OppdaterKnapp } from './oppdater-knapp'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Backtesten kan ta litt når den kjøres fra knappen (motorene × ~60 dager × stasjoner).
 export const maxDuration = 120
@@ -182,7 +183,7 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
       + (svakest ? `. Svakest på ${katNavn(svakest.type, svakest.kode)} (${svakest.treff} %)` : '')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Treffsikkerhet"
         undertittel={[
@@ -289,6 +290,6 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
           </Forklaring>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

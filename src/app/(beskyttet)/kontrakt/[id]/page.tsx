@@ -7,6 +7,7 @@ import { docxTilTekst } from '@/lib/kontrakt/docx'
 import { SigneringSkjema } from '../signering'
 import { Status } from '@/components/ui/status'
 import { Sidehode } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Kontrakten som tekst, slik den faktisk ble fylt ut.
 //
@@ -60,7 +61,7 @@ export default async function KontraktVisning({ params }: { params: Params }) {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={rad.ansatt_navn}
         undertittel={`${tilstand}. Ansattnummer ${rad.ansatt_nr} · malversjon v${rad.mal_versjon ?? '—'} · skrevet ${new Date(rad.opprettet_tid).toLocaleDateString('nb-NO')}${rad.gjelder_fra ? ` · gjelder fra ${new Date(rad.gjelder_fra).toLocaleDateString('nb-NO')}` : ''}`}
@@ -162,6 +163,6 @@ export default async function KontraktVisning({ params }: { params: Params }) {
           </table>
         </div>
       </section>
-    </>
+    </Sideramme>
   )
 }

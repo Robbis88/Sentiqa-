@@ -18,6 +18,7 @@ import { hentForventet, erPrognosedag } from '@/lib/salg/forventet'
 import { leggTilDager } from '@/lib/produksjonsplan'
 import { iDag } from '@/lib/format'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
+import { Sideramme } from '@/components/ui/sideramme'
 
 const kr = new Intl.NumberFormat('nb-NO', {
   style: 'currency',
@@ -65,14 +66,14 @@ export default async function SalgSide({
 
   if (!dato) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Salg" undertittel="Omsetning, kategorier og varegrupper." />
         <Tomtilstand
           tittel="Ingen salgsdata ennå"
           forklaring="Last opp en Salgsstatistikk-fil under Import og trykk Behandle, så fylles siden."
           handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -346,7 +347,7 @@ export default async function SalgSide({
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Salg"
         undertittel={erPrognose
@@ -574,6 +575,6 @@ export default async function SalgSide({
         </p>
       </Forklaring>
 
-    </>
+    </Sideramme>
   )
 }

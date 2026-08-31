@@ -9,6 +9,7 @@ import { OversettProvider } from './oversett-kontekst'
 import { SEKSJONER } from './navigasjon'
 import { stasjonskontekst } from '@/lib/stasjonskontekst'
 import { URL_HODE } from '@/lib/supabase/proxy'
+import { SPALTE, monsterFor } from '@/lib/redesign/monstre'
 
 export default async function BeskyttetLayout({
   children,
@@ -48,6 +49,13 @@ export default async function BeskyttetLayout({
     supabase, sti || '/', bruker.rolle, new URLSearchParams(sokestreng),
   )
 
+  // Innholdsspaltens bredde foelger rutens moenster, ikke siden. Ruta uten
+  // moenster finnes ikke - vakthunden krever at hver rute staar i
+  // `RUTEMONSTER` - men skjer det likevel, er smal det trygge utfallet:
+  // en side som er for smal ser rar ut, en som er for bred er uleselig.
+  const monster = monsterFor(sti || '/')
+  const bredde = monster ? SPALTE[monster] : 'smal'
+
   const seksjoner = SEKSJONER.map((s) => ({
     ...s,
     punkter: s.punkter.filter((p) => p.roller.includes(bruker.rolle)),
@@ -77,6 +85,7 @@ export default async function BeskyttetLayout({
       navn={bruker.fulltNavn ?? bruker.epost ?? ''}
       uleste={uleste ?? 0}
       kontekst={kontekst}
+      bredde={bredde}
       seksjoner={seksjoner.map((s) => ({
         tittel: s.tittel,
         punkter: s.punkter.map((p) => ({ sti: p.sti, tekst: p.tekst })),

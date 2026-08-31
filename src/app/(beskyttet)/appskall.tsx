@@ -5,6 +5,7 @@ import { Sidemeny } from './sidemeny'
 import { Toppstripe } from './toppstripe'
 import { Fanerad } from './fanerad'
 import { AiBoble } from './ai-boble'
+import type { Bredde } from '@/lib/redesign/monstre'
 
 // =====================================================================
 // Desktop-skallet.
@@ -30,11 +31,13 @@ type Props = {
   uleste: number
   kontekst: Kontekst
   seksjoner: Seksjon[]
+  /** Innholdsspaltens bredde, utledet av rutens moenster. Se `SPALTE`. */
+  bredde: Bredde
   children: React.ReactNode
 }
 
 export function Appskall({
-  brukerId, rolle, navn, uleste, kontekst, seksjoner, children,
+  brukerId, rolle, navn, uleste, kontekst, seksjoner, bredde, children,
 }: Props) {
   const menypunkter = seksjoner.flatMap((s) =>
     s.punkter.map((p) => ({ ...p, gruppe: s.tittel })))
@@ -54,7 +57,7 @@ export function Appskall({
         {/* Landemerket heter noe. Med to nav-elementer på siden — menyen
             og fanene — er «navigasjon» to ganger ubrukelig i en
             skjermleserliste. */}
-        <main className="innhold" id="innhold">
+        <main className="innhold" id="innhold" data-bredde={bredde}>
           <Fanerad rolle={rolle} />
           {children}
         </main>
