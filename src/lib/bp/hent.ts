@@ -135,32 +135,79 @@ export async function hentAarstall(
 }
 
 /**
- * Stasjonene som finnes i BEGGE aargangene, og bare de.
+ * Hvor mange måneder BP-en faktisk dekker, per stasjon.
  *
- * DETTE ER IKKE EN DETALJ. Robert overtok Lone 01.02.25 og Dale
- * 01.04.25. En sammenligning over alle stasjoner i hver aargang ville
- * malt oppkjoep som vekst: BP26 har fem stasjoner, BP25 har tre, og
- * "+40 % omsetning" hadde vaert to nye stasjoner - ikke en krone mer per
- * stasjon.
+ * EN BP DEKKER IKKE NØDVENDIGVIS ET HELT ÅR. Målt mot Kelsars egne
+ * filer 2026-08-31:
  *
- * Snittet er det eneste utvalget som svarer paa spoersmaalet "hva betyr
- * den nye BP-en for driften vi alt har".
+ *   Laguneparken, Varden, Bønes   BP 2025   12 mnd
+ *   Dale                          BP 2025    9 mnd  (apr–des)
+ *   Lone                          BP 2025   11 mnd  (feb–des)
+ *
+ * Robert overtok Lone 01.02.25 og Dale 01.04.25, og St1 lager da en BP
+ * for den delen av året han faktisk driver.
  */
-export async function fellesStasjoner(
-  supabase: Klient, fjor: number, iAar: number,
-): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('bp_aar')
-    .select('ar, stasjon_id')
-    .in('ar', [fjor, iAar])
-  if (error) throw new Error(`Kunne ikke lese BP-stasjoner: ${error.message}`)
-  const per = new Map<number, Set<string>>()
-  for (const r of (data ?? []) as { ar: number; stasjon_id: string }[]) {
-    if (!per.has(r.ar)) per.set(r.ar, new Set())
-    per.get(r.ar)!.add(r.stasjon_id)
+export async function maanederPerStasjon(
+  supabase: Klient, ar: number,
+): Promise<Map<string, number>> {
+  const { data: aarRader, error } = await supabase
+    .from('bp_aar').select('id, stasjon_id').eq('ar', ar)
+  if (error) throw new Error(`Kunne ikke lese BP-stasjoner ${ar}: ${error.message}`)
+  const aargangene = (aarRader ?? []) as { id: string; stasjon_id: string }[]
+  if (aargangene.length === 0) return new Map()
+  const stasjonFor = new Map(aargangene.map((a) => [a.id, a.stasjon_id]))
+
+  const linjer = await hentAlle<{ bp_aar_id: string; maned: number }>(() =>
+    supabase
+      .from('bp_linje')
+      .select('bp_aar_id, maned')
+      .eq('seksjon', 'omsetning')
+      .in('bp_aar_id', [...stasjonFor.keys()])
+      .order('bp_aar_id'),
+  )
+
+  const per = new Map<string, Set<number>>()
+  for (const l of linjer) {
+    const s = stasjonFor.get(l.bp_aar_id)
+    if (!s) continue
+    if (!per.has(s)) per.set(s, new Set())
+    per.get(s)!.add(l.maned)
   }
-  const a = per.get(fjor)
-  const b = per.get(iAar)
-  if (!a || !b) return []
-  return [...a].filter((s) => b.has(s)).sort()
+  return new Map([...per].map(([s, m]) => [s, m.size]))
+}
+
+export type Utelatt = { stasjonId: string; fjor: number; iAar: number }
+
+/**
+ * Stasjonene sammenligningen kan bruke, og de den maa la ligge.
+ *
+ * TO KRAV, OG BEGGE ER ARITMETIKK - IKKE SMAK:
+ *
+ *   1. Stasjonen maa finnes i BEGGE aarganger. Ellers males et oppkjoep
+ *      som vekst.
+ *   2. BP-ene maa dekke LIKE MANGE MAANEDER. Dales BP for 2025 dekker
+ *      ni maaneder, den for 2026 tolv. Stilt mot hverandre gir det rundt
+ *      +33 % «vekst» som utelukkende er kalender - og tallet ser like
+ *      solid ut som et ekte.
+ *
+ * De utelatte returneres med tallene sine, slik at sida kan si HVEM som
+ * er holdt utenfor og HVORFOR. En stille utelatelse ville vaert like
+ * misvisende som en stille medregning.
+ */
+export async function sammenlignbareStasjoner(
+  supabase: Klient, fjor: number, iAar: number,
+): Promise<{ med: string[]; utelatt: Utelatt[] }> {
+  const [a, b] = await Promise.all([
+    maanederPerStasjon(supabase, fjor),
+    maanederPerStasjon(supabase, iAar),
+  ])
+  const med: string[] = []
+  const utelatt: Utelatt[] = []
+  for (const [stasjonId, mFjor] of [...a].sort()) {
+    const mIAar = b.get(stasjonId)
+    if (mIAar === undefined) continue // finnes ikke i det nye aaret
+    if (mFjor === mIAar) med.push(stasjonId)
+    else utelatt.push({ stasjonId, fjor: mFjor, iAar: mIAar })
+  }
+  return { med, utelatt }
 }
