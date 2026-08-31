@@ -938,9 +938,16 @@ async function lagreBp(
 function arkhint(buffer: Buffer): string {
   try {
     const navn = arknavn(buffer)
-    return navn.length ? ` Arkene i fila: ${navn.join(', ')}.` : ' Fila har ingen ark.'
-  } catch {
-    return ' Fila lot seg ikke aapne som xlsx.'
+    return navn.length
+      ? ` Arkene i fila: ${navn.join(', ')}.`
+      : ` Fila har ingen ark (${buffer.length} byte).`
+  } catch (e) {
+    // GRUNNEN, IKKE BARE AT DET GIKK GALT. `gjenkjennRapporttype` svelger
+    // denne feilen med vilje - den skal falle tilbake paa den gamle veien
+    // - men da er den borte, og en fil som avvises paa serveren og ikke
+    // lokalt har ingen spor aa foelge. Her er det siste stedet den finnes.
+    return ` Fila lot seg ikke aapne som xlsx: ${e instanceof Error ? e.message : String(e)}`
+      + ` (${buffer.length} byte).`
   }
 }
 
