@@ -4,8 +4,10 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall } from '@/lib/format'
 import { Sidehode, Nokkeltall, Datatabell, Forklaring, Tomtilstand } from '@/components/ui/side'
 import { Signal } from '@/components/ui/status'
-import { hentAarganger, hentAarstall, fellesStasjoner } from '@/lib/bp/hent'
-import { analyser, royaltyandel, type Funn } from '@/lib/bp/analyse'
+import {
+  hentAarganger, hentAarstall, hentPerStasjon, sammenlignbareStasjoner,
+} from '@/lib/bp/hent'
+import { analyser, royaltyandel, type Funn, type Aarstall } from '@/lib/bp/analyse'
 
 // =====================================================================
 // "HVA BETYR DEN NYE BP-EN FOR OSS?"
@@ -131,31 +133,63 @@ export default async function BpSammenlign(
     )
   }
 
-  const felles = await fellesStasjoner(supabase, fraAar, tilAar)
+  // TO KRAV, BEGGE ARITMETIKK: stasjonen må finnes i begge årganger, og
+  // BP-ene må dekke like mange måneder. Se `sammenlignbareStasjoner`.
+  const { med: felles, utelatt } = await sammenlignbareStasjoner(supabase, fraAar, tilAar)
   const [fjor, iAar] = await Promise.all([
     hentAarstall(supabase, fraAar, felles),
     hentAarstall(supabase, tilAar, felles),
   ])
+
+  // Navnene, så siden kan si HVEM som er holdt utenfor. Et antall alene
+  // («1 stasjon holdt utenfor») lar leseren gjette, og gjetningen blir
+  // som regel feil stasjon.
+  const { data: stasjonsrader } = await supabase
+    .from('stasjoner').select('id, navn').is('slettet_tid', null)
+  const navnFor = new Map(
+    ((stasjonsrader ?? []) as { id: string; navn: string }[]).map((s) => [s.id, s.navn]),
+  )
 
   if (!fjor || !iAar || felles.length === 0) {
     return (
       <>
         <Sidehode tittel="Sammenlign BP" />
         <Tomtilstand
-          tittel={`Ingen stasjon finnes i både ${fraAar} og ${tilAar}`}
+          tittel={`Ingen stasjon kan sammenlignes mellom ${fraAar} og ${tilAar}`}
           forklaring={
-            'Sammenligningen bruker bare stasjoner som er med i begge '
-            + 'årganger. Ellers ville et oppkjøp blitt målt som vekst.'
+            utelatt.length > 0
+              ? `${utelatt.map((u) => navnFor.get(u.stasjonId) ?? u.stasjonId).join(', ')} `
+                + 'har BP-er som dekker ulikt antall måneder i de to årene. '
+                + 'Stilt mot hverandre ville forskjellen vært kalender, ikke drift.'
+              : 'Sammenligningen bruker bare stasjoner som er med i begge '
+                + 'årganger. Ellers ville et oppkjøp blitt målt som vekst.'
           }
         />
       </>
     )
   }
 
+  // PER STASJON. Kjedetotalen sier hva den nye BP-en betyr samlet; den
+  // sier ikke hvilken stasjon som baerer endringen. En royaltyandel som
+  // stiger like mye paa alle tre er noe helt annet enn en stasjon som
+  // drar snittet.
+  const [perFjor, perIAar] = await Promise.all([
+    hentPerStasjon(supabase, fraAar, felles),
+    hentPerStasjon(supabase, tilAar, felles),
+  ])
+  const stasjonsvis = felles
+    .map((id) => ({
+      id,
+      navn: navnFor.get(id) ?? id,
+      a: perFjor.get(id),
+      b: perIAar.get(id),
+    }))
+    .filter((x): x is { id: string; navn: string; a: Aarstall; b: Aarstall } =>
+      Boolean(x.a && x.b))
+    .sort((x, y) => y.b.salg - x.b.salg)
+
   const funn = analyser(fjor, iAar)
   const viktigste = funn.find((f) => f.alvor === 'viktig') ?? funn[0]
-  const antallStasjoner = aarganger.find((a) => a.ar === tilAar)?.stasjoner ?? 0
-  const utelatt = antallStasjoner - felles.length
 
   const salgspst = fjor.salg === 0 ? null : (iAar.salg / fjor.salg - 1) * 100
   const rf = royaltyandel(fjor)
@@ -186,8 +220,8 @@ export default async function BpSammenlign(
         tittel={`BP ${tilAar} mot BP ${fraAar}`}
         merke={
           felles.length === 1
-            ? '1 stasjon i begge årganger'
-            : `${felles.length} stasjoner i begge årganger`
+            ? '1 stasjon, samme periode begge år'
+            : `${felles.length} stasjoner, samme periode begge år`
         }
         undertittel={viktigste?.tittel}
       />
@@ -295,12 +329,81 @@ export default async function BpSammenlign(
         </tbody>
       </Datatabell>
 
+      {/* PER STASJON. Kjedetotalen sier hva som er endret; den sier ikke
+          hvem som bærer det. Én tabell hver — CR og kostnader for den
+          stasjonen alene, aldri blandet. */}
+      {stasjonsvis.map(({ id, navn, a, b }) => {
+        const ra = royaltyandel(a)
+        const rb = royaltyandel(b)
+        return (
+          <Datatabell key={id} tittel={navn}>
+            <thead>
+              <tr>
+                <th scope="col">Post</th>
+                <th scope="col" className="tall">BP {fraAar}</th>
+                <th scope="col" className="tall">BP {tilAar}</th>
+                <th scope="col" className="tall">Endring</th>
+                <th scope="col" className="tall">Kroner</th>
+              </tr>
+            </thead>
+            <tbody>
+              <Rad merkelapp="Salgsmål" fjor={a.salg} iAar={b.salg} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Bruttofortjeneste" fjor={a.brutto} iAar={b.brutto} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Lønnsramme" fjor={a.personal} iAar={b.personal} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Andre driftskostnader" fjor={a.andreKostnader} iAar={b.andreKostnader} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Royalty" fjor={a.royalty} iAar={b.royalty} ar={[fraAar, tilAar]} />
+              <tr>
+                <th scope="row">Royaltyandel av omsetning</th>
+                <td className="tall">
+                  {ra === null ? '—' : `${(ra * 100).toFixed(2).replace('.', ',')} %`}
+                </td>
+                <td className="tall">
+                  {rb === null ? '—' : `${(rb * 100).toFixed(2).replace('.', ',')} %`}
+                </td>
+                <td className="tall">
+                  {ra === null || rb === null
+                    ? '—'
+                    : `${rb >= ra ? '+' : '−'}${Math.abs((rb - ra) * 100).toFixed(2).replace('.', ',')} pp`}
+                </td>
+                {/* Kronene her er ikke en differanse, men hva andelen ALENE
+                    koster på årets omsetning — det er tallet som betyr noe. */}
+                <td className="tall">
+                  {ra === null || rb === null ? '—' : kr.format(Math.round((rb - ra) * b.salg))}
+                </td>
+                <td className="sq-skjult">{`${fraAar} mot ${tilAar}`}</td>
+              </tr>
+              {a.timer > 0 && b.timer > 0 && (
+                <tr>
+                  <th scope="row">Timeramme</th>
+                  <td className="tall">{tall.format(Math.round(a.timer))} t</td>
+                  <td className="tall">{tall.format(Math.round(b.timer))} t</td>
+                  <td className="tall">
+                    {`${b.timer >= a.timer ? '+' : '−'}${Math.abs((b.timer / a.timer - 1) * 100).toFixed(1).replace('.', ',')} %`}
+                  </td>
+                  <td className="tall">{tall.format(Math.round(b.timer - a.timer))} t</td>
+                  <td className="sq-skjult">{`${fraAar} mot ${tilAar}`}</td>
+                </tr>
+              )}
+            </tbody>
+          </Datatabell>
+        )
+      })}
+
       <Forklaring sporsmaal="Hvordan er tallene regnet?">
         <p>
           Sammenligningen bruker bare stasjoner som finnes i begge årganger
-          {utelatt > 0 && ` — ${utelatt} stasjon${utelatt === 1 ? '' : 'er'} i BP ${tilAar} er holdt utenfor`}.
-          Ellers ville et oppkjøp blitt målt som vekst.
+          <strong> og som har BP for like mange måneder</strong>. Ellers ville
+          et oppkjøp blitt målt som vekst, eller en kortere budsjettperiode
+          blitt lest som en svakere plan.
         </p>
+        {utelatt.length > 0 && (
+          <p>
+            Holdt utenfor:{' '}
+            {utelatt.map((u) => (
+              `${navnFor.get(u.stasjonId) ?? u.stasjonId} (${u.fjor} mnd i ${fraAar} mot ${u.iAar} i ${tilAar})`
+            )).join(', ')}.
+          </p>
+        )}
         <p>
           <strong>Royaltyandelen</strong> er royalty delt på CR-salg. Den ordinære
           satsen står ikke i filene og lar seg ikke regne ut av dem: vaskedelen er

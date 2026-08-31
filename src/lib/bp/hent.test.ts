@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hentAarstall, fellesStasjoner } from './hent'
+import { hentAarstall, hentPerStasjon, sammenlignbareStasjoner } from './hent'
 import { bpLinjer } from './rader'
 import { summer, analyser, type Aarstall } from './analyse'
 import type { BpResultat } from '@/lib/parsere/typer'
@@ -237,6 +237,48 @@ describe('basen gir samme svar som fila', () => {
     expect(await hentAarstall(k as any, 2025)).toBeNull()
   })
 
+  it('KANARIFUGL: stasjonene summerer til kjedetallet', async () => {
+    // To visninger av det samme, og de MAA moetes. Skiller de lag, viser
+    // sida en kjedetotal som ikke er summen av det den nettopp listet
+    // opp - og leseren har ingen maate aa vite hvilken som er riktig.
+    const to: BpResultat = {
+      rapporttype: 'st1_bp', ar: 2026,
+      stasjoner: [
+        BP26.stasjoner[0],
+        { ...BP26.stasjoner[0], butikknummer: '9145', timerAar: 9512.73 },
+      ],
+    }
+    const aarRader = to.stasjoner.map((st, i) => ({
+      id: `aar-${i}`, stasjon_id: `st-${i}`, timer_aar: st.timerAar, format: 'st1_bp26',
+    }))
+    const linjeRader = to.stasjoner.flatMap((st, i) =>
+      bpLinjer(st).map((l) => ({ bp_aar_id: `aar-${i}`, ...l })),
+    )
+    const k = fakeKlient(aarRader, linjeRader)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hele = (await hentAarstall(k as any, 2026))!
+    k.nullstill()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const per = await hentPerStasjon(k as any, 2026)
+
+    expect(per.size).toBe(2)
+    const sum = (f: (a: Aarstall) => number) =>
+      [...per.values()].reduce((acc, a) => acc + f(a), 0)
+    expect(sum((a) => a.salg)).toBeCloseTo(hele.salg, 6)
+    expect(sum((a) => a.varekost)).toBeCloseTo(hele.varekost, 6)
+    expect(sum((a) => a.brutto)).toBeCloseTo(hele.brutto, 6)
+    expect(sum((a) => a.personal)).toBeCloseTo(hele.personal, 6)
+    expect(sum((a) => a.andreKostnader)).toBeCloseTo(hele.andreKostnader, 6)
+    expect(sum((a) => a.royalty)).toBeCloseTo(hele.royalty, 6)
+    expect(sum((a) => a.timer)).toBeCloseTo(hele.timer, 6)
+  })
+
+  it('gir tom liste naar aaret ikke finnes', async () => {
+    const k = fakeKlient([], [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((await hentPerStasjon(k as any, 2025)).size).toBe(0)
+  })
+
   it('analysen leser basens tall like godt som filas', async () => {
     const a = (await beggeVeier(BP25, 'st1_bp25')).fraBasen
     const b = (await beggeVeier(BP26, 'st1_bp26')).fraBasen
@@ -248,39 +290,84 @@ describe('basen gir samme svar som fila', () => {
   })
 })
 
-describe('fellesStasjoner', () => {
-  /** En klient som bare kan svare paa `bp_aar` med ar og stasjon. */
-  const klientMed = (rader: { ar: number; stasjon_id: string }[]) => {
-    const q = {
-      select: () => q,
-      in: () => q,
-      then: (r: (v: { data: unknown; error: null }) => void) => r({ data: rader, error: null }),
+describe('sammenlignbareStasjoner', () => {
+  /**
+   * En klient som svarer paa `bp_aar` og `bp_linje`. `maaneder` sier hvor
+   * mange maaneder hver stasjon har omsetningslinjer for.
+   */
+  const klientMed = (aar: Record<number, Record<string, number>>) => {
+    const aarRader: { id: string; stasjon_id: string; _ar: number }[] = []
+    const linjer: { bp_aar_id: string; maned: number }[] = []
+    for (const [ar, stasjoner] of Object.entries(aar)) {
+      for (const [stasjon, n] of Object.entries(stasjoner)) {
+        const id = `${ar}-${stasjon}`
+        aarRader.push({ id, stasjon_id: stasjon, _ar: Number(ar) })
+        for (let m = 1; m <= n; m++) linjer.push({ bp_aar_id: id, maned: m })
+      }
     }
-    return { from: () => q }
+    return {
+      from(tabell: string) {
+        if (tabell === 'bp_aar') {
+          let ar = 0
+          const q: Record<string, unknown> = {
+            select: () => q,
+            eq: (_k: string, v: number) => { ar = v; return q },
+            then: (r: (v: { data: unknown; error: null }) => void) =>
+              r({ data: aarRader.filter((x) => x._ar === ar), error: null }),
+          }
+          return q
+        }
+        let ider: string[] = []
+        const q: Record<string, unknown> = {
+          select: () => q,
+          eq: () => q,
+          in: (_k: string, v: string[]) => { ider = v; return q },
+          order: () => q,
+          range: (fra: number, til: number) =>
+            Promise.resolve({
+              data: linjer.filter((l) => ider.includes(l.bp_aar_id)).slice(fra, til + 1),
+              error: null,
+            }),
+        }
+        return q
+      },
+    }
   }
 
-  it('KANARIFUGL: stasjoner som bare finnes i det ene aaret holdes utenfor', async () => {
-    // Robert overtok Lone 01.02.25 og Dale 01.04.25. Tas de med, maaler
-    // sammenligningen oppkjoep som vekst: «+40 % omsetning» ville vaert
-    // to nye stasjoner, ikke en krone mer per stasjon.
-    const k = klientMed([
-      { ar: 2025, stasjon_id: 'laguneparken' },
-      { ar: 2025, stasjon_id: 'varden' },
-      { ar: 2025, stasjon_id: 'bones' },
-      { ar: 2026, stasjon_id: 'laguneparken' },
-      { ar: 2026, stasjon_id: 'varden' },
-      { ar: 2026, stasjon_id: 'bones' },
-      { ar: 2026, stasjon_id: 'lone' },
-      { ar: 2026, stasjon_id: 'dale' },
-    ])
+  it('KANARIFUGL: en BP som dekker faerre maaneder holdes utenfor', async () => {
+    // Dales BP for 2025 dekker ni maaneder, den for 2026 tolv. Stilt mot
+    // hverandre gir det rundt +33 % «vekst» som utelukkende er kalender -
+    // og tallet ser like solid ut som et ekte.
+    const k = klientMed({
+      2025: { laguneparken: 12, varden: 12, bones: 12, dale: 9, lone: 11 },
+      2026: { laguneparken: 12, varden: 12, bones: 12, dale: 12, lone: 12 },
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(await fellesStasjoner(k as any, 2025, 2026))
-      .toEqual(['bones', 'laguneparken', 'varden'])
+    const r = await sammenlignbareStasjoner(k as any, 2025, 2026)
+    expect(r.med).toEqual(['bones', 'laguneparken', 'varden'])
+    expect(r.utelatt).toEqual([
+      { stasjonId: 'dale', fjor: 9, iAar: 12 },
+      { stasjonId: 'lone', fjor: 11, iAar: 12 },
+    ])
   })
 
-  it('gir tom liste naar det ene aaret mangler helt', async () => {
-    const k = klientMed([{ ar: 2026, stasjon_id: 'laguneparken' }])
+  it('tar med en stasjon som dekker like mange maaneder begge aar', async () => {
+    // Delaar mot delaar er sammenlignbart. Regelen er LIK periode, ikke
+    // «helt aar» - ellers ville en kjede som starter midt i aaret aldri
+    // faa en sammenligning.
+    const k = klientMed({ 2025: { dale: 9 }, 2026: { dale: 9 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(await fellesStasjoner(k as any, 2025, 2026)).toEqual([])
+    const r = await sammenlignbareStasjoner(k as any, 2025, 2026)
+    expect(r.med).toEqual(['dale'])
+    expect(r.utelatt).toEqual([])
+  })
+
+  it('lar stasjoner som mangler i det ene aaret vaere', async () => {
+    // De er ikke «utelatt» - de finnes ikke aa sammenligne.
+    const k = klientMed({ 2025: { laguneparken: 12 }, 2026: { laguneparken: 12, ny: 12 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = await sammenlignbareStasjoner(k as any, 2025, 2026)
+    expect(r.med).toEqual(['laguneparken'])
+    expect(r.utelatt).toEqual([])
   })
 })
