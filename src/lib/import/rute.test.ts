@@ -73,3 +73,26 @@ describe('tilServeren', () => {
     }
   })
 })
+
+describe('en fil som alt er lastet opp er ikke en blindvei', () => {
+  const les = (f: string) =>
+    readFileSync(join(process.cwd(), 'src', 'app', '(beskyttet)', 'import', f), 'utf8')
+
+  it('KANARIFUGL: duplikatsjekken sier HVILKEN jobb det gjelder', () => {
+    // `return { ok: true, hoppet: true }` kastet bort id-en, og «Hoppet
+    // over» ble staaende uten vei videre. Statuslista viser bare de 50
+    // siste jobbene, saa en BP fra i fjor staar ikke der - og da har
+    // brukeren ingen maate aa kjoere den om igjen paa.
+    const h = les('handlinger.ts')
+    expect(h).toMatch(/23505/)
+    expect(h).toMatch(/jobbId:/)
+  })
+
+  it('KANARIFUGL: opplasteren tilbyr handlingen der brukeren staar', () => {
+    const k = les('klient-opplaster.tsx')
+    expect(k).toContain('behandleJobb')
+    expect(k).toContain('f.jobbId')
+    // Og den maa faktisk vaere en knapp, ikke bare en tekst som naevner den.
+    expect(k).toMatch(/BehandleKnapp/)
+  })
+})
