@@ -85,7 +85,24 @@ describe('en fil som alt er lastet opp er ikke en blindvei', () => {
     // brukeren ingen maate aa kjoere den om igjen paa.
     const h = les('handlinger.ts')
     expect(h).toMatch(/23505/)
-    expect(h).toMatch(/jobbId:/)
+    // `\bjobbId\b`, ikke `jobbId:` - shorthand er like gyldig, og en
+    // paastand paa skrivemaaten maaler formatering i stedet for intensjon.
+    expect(h).toMatch(/\bjobbId\b/)
+  })
+
+  it('KANARIFUGL: oppslaget svelger ikke feilen sin', () => {
+    // Foerste utgave var `const { data } = await supabase...` uten
+    // errorsjekk. Fant den ingenting - og det gjorde den - ble `jobbId`
+    // bare `undefined`, knappen forsvant, og ingen fikk vite hvorfor.
+    // Robert satt igjen med «Hoppet over» og ingen vei videre, to ganger.
+    const h = les('handlinger.ts')
+    const blokk = h.slice(h.indexOf('23505'), h.indexOf('23505') + 2400)
+    // Hvert oppslag i duplikatgrenen skal hente ut feilen OG bruke den.
+    const uttrekk = [...blokk.matchAll(/const \{ data[^}]*\} = await supabase/g)]
+    expect(uttrekk.length).toBeGreaterThan(0)
+    for (const m of uttrekk) {
+      expect(m[0], `oppslag uten errorsjekk: ${m[0]}`).toContain('error:')
+    }
   })
 
   it('KANARIFUGL: opplasteren tilbyr handlingen der brukeren staar', () => {
