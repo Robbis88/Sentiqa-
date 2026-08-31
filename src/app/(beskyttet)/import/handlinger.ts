@@ -66,15 +66,52 @@ async function registrerRaaFilKjerne(arg: {
       // jobb det gjelder. Uten id-en må brukeren lete i statuslista, og
       // den viser bare de 50 siste — en forretningsplan fra i fjor står
       // ikke der lenger.
-      const { data: fra_for } = await supabase
+      // TO SPØRRINGER, IKKE EN EMBED, OG FEILEN SKAL SES.
+      //
+      // Første forsøk var `.select('id, import_jobber(...)').maybeSingle()`
+      // med feilen ignorert. Den fant ingenting, og siden `jobbId` da bare
+      // ble `undefined`, forsvant knappen uten et ord — nøyaktig den
+      // stille formen jeg har advart mot ellers i koden.
+      //
+      // `maybeSingle()` var uansett feil: unikhetsindeksen på
+      // (retailer_id, sha256) er DELVIS — `where slettet_tid is null` —
+      // så den samme fila kan ligge der flere ganger med en myk slettet
+      // blant dem. Da kaster `maybeSingle` «more than one row», og
+      // duplikatet vi nettopp oppdaget blir uframkommelig.
+      const { data: filer, error: oppslagFeil } = await supabase
         .from('raa_filer')
-        .select('id, import_jobber(id, opprettet_tid)')
+        .select('id')
         .eq('retailer_id', bruker.retailerId)
         .eq('sha256', arg.sha256)
-        .maybeSingle<{ id: string; import_jobber: { id: string; opprettet_tid: string }[] }>()
-      const jobber = fra_for?.import_jobber ?? []
-      const nyeste = [...jobber].sort((a, b) => b.opprettet_tid.localeCompare(a.opprettet_tid))[0]
-      return { ok: true, hoppet: true, jobbId: nyeste?.id }
+        .is('slettet_tid', null)
+        .order('opprettet_tid', { ascending: false })
+        .limit(1)
+      if (oppslagFeil) {
+        return {
+          ok: true, hoppet: true,
+          melding: `Allerede lastet opp, men fant ikke jobben: ${oppslagFeil.message}`,
+        }
+      }
+      const filId = (filer as { id: string }[] | null)?.[0]?.id
+      if (!filId) {
+        return { ok: true, hoppet: true, melding: 'Allerede lastet opp (fant ingen jobb å kjøre)' }
+      }
+      const { data: jobber, error: jobbOppslag } = await supabase
+        .from('import_jobber')
+        .select('id')
+        .eq('raa_fil_id', filId)
+        .order('opprettet_tid', { ascending: false })
+        .limit(1)
+      if (jobbOppslag) {
+        return {
+          ok: true, hoppet: true,
+          melding: `Allerede lastet opp, men fant ikke jobben: ${jobbOppslag.message}`,
+        }
+      }
+      const jobbId = (jobber as { id: string }[] | null)?.[0]?.id
+      return jobbId
+        ? { ok: true, hoppet: true, jobbId }
+        : { ok: true, hoppet: true, melding: 'Allerede lastet opp (ingen importjobb finnes)' }
     }
     return { ok: false, feil: filFeil.message }
   }

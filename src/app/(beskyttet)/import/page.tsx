@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Opplaster } from './opplaster'
@@ -120,7 +121,9 @@ function nivaaFraKlasse(k: string): Statusnivaa {
   return k === 'gronn' ? 'normal' : k === 'gul' ? 'endring' : k === 'rod' ? 'handling' : 'normal'
 }
 
-export default async function ImportSide() {
+export default async function ImportSide(
+  { searchParams }: { searchParams: Promise<{ type?: string }> },
+) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
     return <p>Kun eier har tilgang til import.</p>
@@ -132,14 +135,21 @@ export default async function ImportSide() {
     .from('retailers')
     .select('inntak_epost, avsender_allowlist')
     .maybeSingle<{ inntak_epost: string | null; avsender_allowlist: string[] }>()
-  const { data } = await supabase
+  // FILTERET ER IKKE PYNT. Lista viser de 50 siste jobbene, og med
+  // daglige salgsimporter er en forretningsplan fra i fjor for lengst ute
+  // av vinduet. Den lastes opp en gang i aaret og er nettopp den man
+  // trenger aa finne igjen - for aa kjoere den om igjen mot ny kode.
+  const sp = await searchParams
+  const filter = sp.type === 'st1_bp' ? 'st1_bp' : null
+  let sporring = supabase
     .from('import_jobber')
     .select(
       'id, status, rapporttype, antall_rader, feilmelding, gjelder_dato, opprettet_tid, raa_filer(filnavn, mottakskanal)',
     )
     .order('opprettet_tid', { ascending: false })
     .limit(50)
-    .overrideTypes<Jobb[]>()
+  if (filter) sporring = sporring.eq('rapporttype', filter)
+  const { data } = await sporring.overrideTypes<Jobb[]>()
 
   const jobber = data ?? []
   const { count: antallStasjoner } = await supabase
@@ -237,8 +247,27 @@ export default async function ImportSide() {
       <section className="kort">
         <h2>Status</h2>
         <BehandleAlleKnapp antall={jobber.filter((j) => j.status === 'mottatt').length} />
+        {/* Lista viser de 50 siste. Forretningsplanen lastes opp én gang i
+            året, og er nettopp den man trenger å finne igjen — den er for
+            lengst ute av vinduet når salgsfilene kommer daglig. */}
+        <nav className="sq-faner" aria-label="Filtrer importjobber">
+          <Link href="/import" className="sq-fane" aria-current={filter ? undefined : 'page'}>
+            Alle
+          </Link>
+          <Link
+            href="/import?type=st1_bp"
+            className="sq-fane"
+            aria-current={filter === 'st1_bp' ? 'page' : undefined}
+          >
+            Forretningsplan
+          </Link>
+        </nav>
         {jobber.length === 0 ? (
-          <p className="undertittel">Ingen filer lastet opp ennå.</p>
+          <p className="undertittel">
+            {filter
+              ? 'Ingen forretningsplaner er lastet opp ennå.'
+              : 'Ingen filer lastet opp ennå.'}
+          </p>
         ) : (
           <table className="tabell">
             <thead>
