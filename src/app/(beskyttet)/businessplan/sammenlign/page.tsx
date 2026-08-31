@@ -311,10 +311,12 @@ export default async function BpSammenlign(
         </p>
         <p>
           <strong>Lønnsrammen</strong> er alle 5000-konti. Den gamle St1-malen
-          (til og med BP 2025) fører hele lønnen på én konto, mens BP 2026 splitter
-          i timelønn og fastlønn — derfor sammenlignes summen, ikke splitten.
-          Timerammen finnes bare i det nye formatet, så kroner per time vises ikke
-          når en av årgangene mangler den.
+          fører hele lønnen på én konto, mens den nye splitter i timelønn og
+          fastlønn — derfor sammenlignes summen, ikke splitten. Hvilket format
+          en BP har følger ikke årstallet: for 2025 er Laguneparken, Varden og
+          Bønes på den gamle malen mens Dale er på den nye. Timerammen finnes
+          bare i noen av filene, så kroner per time vises ikke når en av
+          årgangene mangler den.
         </p>
       </Forklaring>
     </>

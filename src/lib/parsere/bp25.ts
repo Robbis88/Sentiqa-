@@ -4,7 +4,16 @@ import { ParserFeil } from './felles'
 import type { BpResultat, BpStasjon, BpMaaned } from './typer'
 
 // =====================================================================
-// St1s GAMLE BP-mal — den som gjelder til og med budsjettåret 2025.
+// St1s GAMLE BP-mal. Engelske arknavn: "CR-Sales", "Costs",
+// "Cluster data".
+//
+// FORMATET FOELGER IKKE AARSTALLET. Det var antakelsen da denne fila ble
+// skrevet, og den er feil: Kelsars BP for 2025 er den gamle malen for
+// Laguneparken, Varden og Boenes - men Dales BP for SAMME AAR er den nye
+// arbeidsboka. St1 flyttet stasjonene over hver for seg.
+//
+// Derfor rutes filene paa ARKNAVN, aldri paa aar. Hadde koden sagt
+// "2025 gir gammel mal", ville Dales fil blitt lest med feil parser.
 //
 // BP26 er en helt annen arbeidsbok: norske arknavn, «Omsetning
 // Grunnlagsfil», «Timebudsjett Grunnlagsfil», «Budsjettfil til VB».

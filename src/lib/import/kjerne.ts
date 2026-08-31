@@ -714,7 +714,9 @@ async function lagreBp(
 
     // EN BP UTEN TIMEBUDSJETT SKAL IKKE ROERE BEMANNINGSPLANLEGGEREN.
     //
-    // St1-malen til og med BP25 har ikke timer i det hele tatt. `?? 0`
+    // Den gamle St1-malen har ikke timer i det hele tatt - og heller
+    // ikke alle filer i det nye formatet har dem (Dales BP for 2025
+    // mangler `Timebudsjett Grunnlagsfil`). `?? 0`
     // sto her og gjorde «formatet sier det ikke» om til «null timer» -
     // og en import av en gammel BP ville da overskrevet `bemanning_aar`
     // med 0 og tatt timerammen for det aaret med seg. Ingen feilmelding,
@@ -725,7 +727,9 @@ async function lagreBp(
     // bemanningstabellene som hopper over.
     // EN BP UTEN TIMEBUDSJETT SKAL IKKE ROERE BEMANNINGSPLANLEGGEREN.
     //
-    // St1-malen til og med BP25 har ikke timer i det hele tatt. `?? 0`
+    // Den gamle St1-malen har ikke timer i det hele tatt - og heller
+    // ikke alle filer i det nye formatet har dem (Dales BP for 2025
+    // mangler `Timebudsjett Grunnlagsfil`). `?? 0`
     // sto her og gjorde "formatet sier det ikke" om til "null timer" -
     // og en import av en gammel BP ville da overskrevet `bemanning_aar`
     // med 0 og tatt timerammen for det aaret med seg. Ingen feilmelding,
