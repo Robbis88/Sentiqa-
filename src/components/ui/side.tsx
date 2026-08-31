@@ -171,6 +171,18 @@ export function Datatabell({
           {antall !== undefined && <span className="undertittel">{antall}</span>}
         </div>
       )}
+      {/* FUNN 2026-08-31, IKKE RETTET: `.tabellramme` har ingen CSS-regel.
+          Div-en ser ut som en scroll-container og er det ikke. På mobil
+          reddes kortbaserte sider av `.kort { overflow-x: auto }` i
+          globals.css — men en side som bruker `Datatabell` uten kort, som
+          /salg, har ingen vannrett scroll og ruller hele dokumentet i
+          stedet (målt: 129 px på 390 px skjerm).
+
+          Rettingen hører hjemme her, ikke i Sideramme: `.tabellramme
+          { overflow-x: auto }` gjør tabellen til sin egen rullebane og
+          gjør samtidig kortregelen overflødig. Den er holdt utenfor
+          rammearbeidet med vilje — feilen er eldre, og en pilot skal ikke
+          være inngang til opportunistisk reparasjon. */}
       <div className="tabellramme">
         <table className="tabell">{children}</table>
       </div>

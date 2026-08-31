@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 import { RUTEMONSTER, SPALTE, monsterFor, MONSTRE, type Monster } from './monstre'
 
@@ -29,6 +29,33 @@ function sider(rot: string): string[] {
   }
   return ut
 }
+/**
+ * All kode som utgjør en rute: `page.tsx` pluss filene den importerer
+ * lokalt. Uten dette teller `/ansatte` som klasseløs fordi radene ligger
+ * i `AnsattListe` i nabofila.
+ */
+function kodenFor(sidefil: string): string {
+  const mappe = dirname(sidefil)
+  const ut = [readFileSync(sidefil, 'utf8')]
+  const sett = new Set([sidefil])
+  const ko = [...ut]
+  while (ko.length) {
+    const k = ko.pop()!
+    for (const x of k.matchAll(/from\s+'(\.\.?\/[^']+)'/g)) {
+      for (const endelse of ['.tsx', '.ts']) {
+        const p = join(mappe, x[1] + endelse)
+        if (!existsSync(p) || sett.has(p)) continue
+        sett.add(p)
+        const t = readFileSync(p, 'utf8')
+        ut.push(t)
+        ko.push(t)
+        break
+      }
+    }
+  }
+  return ut.join('\n')
+}
+
 const ruteFor = (p: string) =>
   ('/' + relative(APP, dirname(p)).replace(/\\/g, '/')
     .replace(/\(.*?\)\/?/g, '').replace(/\/$/, '')) || '/'
@@ -123,5 +150,180 @@ describe('monsterFor', () => {
 
   it('tåler etterslepende skråstrek', () => {
     expect(monsterFor('/salg/')).toBe(RUTEMONSTER['/salg'])
+  })
+})
+
+// =====================================================================
+// VAKT 1 — RAMMEN SKAL IKKE KUNNE FÅ EN BREDDEPARAMETER
+//
+// Målt, ikke antatt: jeg ga `Sideramme` en `bredde`-parameter og kjørte
+// hele vaktsettet. Alt var grønt. Kontrakten «tar ingen breddeparameter»
+// levde bare i en kommentar, og en kommentar stopper ingen.
+//
+// Trenger vi senere en ny layoutform, skal den uttrykkes i `Monster` og
+// `SPALTE` — der alle sider av samme sort får den samtidig — ikke som en
+// luke én side kan smette gjennom.
+// =====================================================================
+
+describe('Sideramme-signaturen', () => {
+  const kilde = () => les('src', 'components', 'ui', 'sideramme.tsx')
+
+  it('tar bare children — ingen bredde, variant, style eller className', () => {
+    const k = kilde()
+
+    // Propsene, slik de faktisk står i signaturen.
+    const sig = /export function Sideramme\(\s*\{([^}]*)\}\s*:\s*\{([^}]*)\}/.exec(k)
+    expect(sig, 'fant ikke signaturen — er komponenten skrevet om?').not.toBeNull()
+
+    const navn = sig![1].split(',').map((s) => s.trim().split(/[:=]/)[0].trim()).filter(Boolean)
+    expect(navn, `Sideramme tar ${navn.join(', ')} — den skal bare ta children`)
+      .toEqual(['children'])
+
+    const felter = sig![2].split(';').map((s) => s.trim().split(':')[0].trim()).filter(Boolean)
+    expect(felter, `props-typen har ${felter.join(', ')} — bare children er tillatt`)
+      .toEqual(['children'])
+  })
+
+  it('setter ingen style og ingen beregnet className', () => {
+    // En `style`-prop er den korteste veien tilbake til lokal bredde, og
+    // en `className` bygget av en variabel er den nest korteste.
+    const k = kilde()
+    expect(k, 'Sideramme setter style — da eier den ikke lenger bredden alene')
+      .not.toMatch(/style=/)
+    expect(k, 'className skal være strengen "sq-sideramme", ikke noe beregnet')
+      .toMatch(/className="sq-sideramme"/)
+    expect(k, 'className er bygget av et uttrykk').not.toMatch(/className=\{/)
+  })
+})
+
+// =====================================================================
+// VAKT 2 — INGEN LOKAL KLASSE SKAL TA SPALTEBREDDEN TILBAKE
+//
+// Vakt 1 lukker parameteren. Denne lukker omveien: en egen klasse i
+// globals.css/ui.css med `width: 600px; margin-inline: auto`. Sidefila
+// inneholder da ingen breddeord i det hele tatt, så en tekstsjekk på
+// `page.tsx` ser ingenting. Målt: den slapp gjennom hele vaktsettet.
+//
+// Vakten er smal med vilje — den er ingen generell CSS-linter:
+//
+//   · bare klasser som faktisk brukes av MIGRERTE sider
+//   · bare regler der klassen lengst til høyre er en av dem, altså der
+//     regelen styrer et element på sida vår
+//   · bare erklæringer som BEGRENSER en spalte. `width: 100%` fyller
+//     den, `max-width: 62ch` er et lesemål for tekst, `min-width: 0` er
+//     flex-fiksen. Ingen av dem tar bredden.
+//
+// Det som står igjen er en fast lengde eller `margin-inline: auto`, og
+// hver slik regel må stå i `BREDDEUNNTAK` med en skrevet begrunnelse.
+// =====================================================================
+
+/** Regler som setter en fast bredde, og hvorfor de får lov. */
+const BREDDEUNNTAK: Record<string, string> = {
+  '.innhold .kort':
+    'Den gamle mekanismen. Nøytralisert inne i rammen av '
+    + '`.innhold .sq-sideramme > .kort { max-width: none }`. Forsvinner '
+    + 'når siste rute er migrert.',
+  '.logg-inn .kort':
+    'Innloggingskortet. Krever `.logg-inn` som forfar, og den finnes '
+    + 'ikke på en innlogget side.',
+  '.malekort-rad-2 .felt':
+    'Et felt i målekortraden, ikke en spalte.',
+  '.stepper.liten input':
+    'Tallfeltet i en stepper. Komponentmål.',
+  '.stepper.liten button':
+    'Knappen i en stepper. Komponentmål.',
+  '.skjema-form':
+    'Lesbar skjemabredde. Et skjema på 1600 px er uleselig — dette er '
+    + 'et mål for innholdet, ikke for sida.',
+  '.sq-skjema':
+    'Samme: bemanningsskjemaets egen lesbare bredde.',
+  '.ansattnr-form input':
+    'Ansattnummerfeltet. Et tallfelt bredt nok til fire siffer — et '
+    + 'komponentmål, ikke en spalte. Kom fram da /ansatte ble migrert, '
+    + 'som er nøyaktig når vakten skal spørre.',
+}
+
+describe('lokalt breddeansvar', () => {
+  /** CSS-en uten kommentarer — ellers treffer vakten sin egen prosa. */
+  const rens = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '')
+  const css = () =>
+    rens(les('src', 'app', 'globals.css')) + '\n' + rens(les('src', 'components', 'ui', 'ui.css'))
+
+  /** Erklæringer som BEGRENSER en spalte, ikke fyller eller måler tekst. */
+  function spaltebredde(kropp: string): string[] {
+    const ut: string[] = []
+    const re = /(max-width|min-width|width|inline-size|margin-inline)\s*:\s*([^;]+)/g
+    for (const m of kropp.matchAll(re)) {
+      const prop = m[1]
+      const verdi = m[2].trim()
+      if (/^(100%|auto|none|0|inherit|unset)$/.test(verdi)) continue
+      if (prop === 'margin-inline') {
+        if (/auto/.test(verdi)) ut.push(`${prop}: ${verdi}`)
+        continue
+      }
+      if (/\dch\b/.test(verdi)) continue
+      ut.push(`${prop}: ${verdi}`)
+    }
+    return ut
+  }
+
+  /** Klassene de migrerte sidene faktisk bruker, inkl. lokale barnefiler. */
+  function klasserIMigrerte(): Set<string> {
+    const ut = new Set<string>()
+    for (const p of sider(APP)) {
+      if (!/\bSideramme\b/.test(readFileSync(p, 'utf8'))) continue
+      for (const m of kodenFor(p).matchAll(/className="([^"{]*)"/g)) {
+        for (const c of m[1].split(/\s+/)) if (c) ut.add(c)
+      }
+    }
+    return ut
+  }
+
+  it('KANARIFUGL: vakten finner de kjente reglene', () => {
+    // Uten dette ville «ingen funn» også vært svaret hvis parseren var
+    // ødelagt — og en vakt som slutter å se ser ut som en som ikke
+    // finner noe. `.innhold .kort` er den eldste breddereglen i
+    // systemet; ser vakten ikke den, ser den ingenting.
+    const funnet = funn().map((f) => f.sel)
+    expect(funnet, 'vakten finner ikke .innhold .kort — da måler den ingenting')
+      .toContain('.innhold .kort')
+    expect(funnet.length).toBeGreaterThanOrEqual(3)
+  })
+
+  function funn() {
+    const klasser = klasserIMigrerte()
+    const ut: { sel: string; props: string[] }[] = []
+    for (const m of css().matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sel = m[1].trim().replace(/\s+/g, ' ')
+      const props = spaltebredde(m[2])
+      if (!props.length) continue
+      const iSel = [...sel.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((x) => x[1])
+      if (!iSel.length) continue
+      if (!klasser.has(iSel[iSel.length - 1])) continue
+      ut.push({ sel, props })
+    }
+    return ut
+  }
+
+  it('ingen udokumentert regel setter spaltebredde på en migrert side', () => {
+    const ukjente = funn()
+      .filter((f) => !(f.sel in BREDDEUNNTAK))
+      .map((f) => `${f.sel}  →  ${f.props.join('; ')}`)
+    expect(
+      ukjente,
+      'En klasse på en migrert side setter sin egen bredde. Bredden skal '
+      + 'komme fra mønsteret (SPALTE). Er dette et komponentmål og ikke en '
+      + 'spalte, før det inn i BREDDEUNNTAK med en begrunnelse:\n  '
+      + ukjente.join('\n  '),
+    ).toEqual([])
+  })
+
+  it('BREDDEUNNTAK inneholder ingen døde oppføringer', () => {
+    // Et unntak som ikke lenger treffer noe er en løgn om systemet, og
+    // det neste blir lettere å legge til.
+    const levende = new Set(funn().map((f) => f.sel))
+    const doede = Object.keys(BREDDEUNNTAK).filter((s) => !levende.has(s))
+    expect(doede, `unntak som ikke treffer noen regel lenger: ${doede.join(', ')}`)
+      .toEqual([])
   })
 })

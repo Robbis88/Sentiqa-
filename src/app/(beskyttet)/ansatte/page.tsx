@@ -5,6 +5,7 @@ import { Sidehode } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyAnsatt } from './ny-ansatt'
 import { AnsattListe, type Ansatt } from './ansatt-liste'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // Første side migrert til det nye designsystemet (pilot A).
@@ -57,7 +58,7 @@ export default async function AnsatteSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Ansatte"
         undertittel={
@@ -77,6 +78,6 @@ export default async function AnsatteSide() {
         stasjoner={stasjonsvalg}
         nyAnsattPanel={nyAnsattPanel}
       />
-    </>
+    </Sideramme>
   )
 }

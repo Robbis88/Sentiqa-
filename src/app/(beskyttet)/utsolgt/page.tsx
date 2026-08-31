@@ -6,6 +6,7 @@ import { finnTidsproblemer, samletTap, type Tidsproblem } from '@/lib/svinn/tids
 import { finnUtsolgt, type Kandidatrad, type UtsolgtHendelse } from '@/lib/utsolgt'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Kjører deteksjon for alle tilgjengelige stasjoner (én RPC hver).
 export const maxDuration = 60
@@ -85,7 +86,7 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
   const totaltHendelser = resultater.reduce((s, r) => s + r.hendelser.length, 0)
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Mulig utsolgt"
         undertittel={totaltHendelser === 0
@@ -195,6 +196,6 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
           </p>
         </section>
       )}
-    </>
+    </Sideramme>
   )
 }

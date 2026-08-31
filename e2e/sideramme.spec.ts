@@ -126,6 +126,35 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     expect(Math.abs(naa - familien)).toBeLessThan(2)
   })
 
+  test('/utsolgt får bredden en dataliste skal ha', async ({ page }) => {
+    // 5 kolonner, og 880 px i dag fordi den brukte kort. `dataliste` er
+    // mønsteret som sier at kolonner sammenlignes på tvers, og at det
+    // koster plass. Sammenlignes mot /salg: samme bredde, ulikt mønster,
+    // fordi begge er `bred`.
+    await page.goto('/salg')
+    const bred = await rammebredde(page)
+    await page.goto('/utsolgt')
+    const naa = await rammebredde(page)
+
+    await expect(page.locator('main.innhold')).toHaveAttribute('data-bredde', 'bred')
+    expect(naa).toBeGreaterThan(SMAL)
+    expect(Math.abs(naa - bred)).toBeLessThan(2)
+  })
+
+  test('/ansatte får bredden en enkel liste skal ha', async ({ page }) => {
+    // Fullbredde i dag — men uten en eneste kolonne. Den er bygget på
+    // `Rad`, hvis slot-vokabular er enspaltet per konstruksjon. 1600 px
+    // til én kolonne tekst er ikke en beslutning noen tok.
+    await page.goto('/persondata')
+    const smal = await gammelSpalte(page)
+    await page.goto('/ansatte')
+    const naa = await rammebredde(page)
+
+    await expect(page.locator('main.innhold')).toHaveAttribute('data-bredde', 'smal')
+    expect(naa).toBeLessThanOrEqual(SMAL)
+    expect(Math.abs(naa - smal)).toBeLessThan(2)
+  })
+
   test('rammen holder seg innenfor spalta på liten skjerm', async ({ page }) => {
     // FØRSTE UTGAVE AV DENNE TESTEN MÅLTE FEIL TING, OG DEN FANT EN ANNENS FEIL
     //
@@ -142,7 +171,7 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     // `max-width` uten `width: 100%`, eller flex-barn med `min-width:
     // auto` som drar den ut — begge deler ville vært rammens skyld.
     await page.setViewportSize({ width: 390, height: 844 })
-    for (const sti of ['/salg', '/rutiner/oppsett', '/produksjonsplan/treffsikkerhet']) {
+    for (const sti of ['/salg', '/rutiner/oppsett', '/produksjonsplan/treffsikkerhet', '/utsolgt', '/ansatte']) {
       await page.goto(sti)
       await expect(page.locator('.sq-sideramme')).toBeVisible()
       const { ramme, spalte } = await page.evaluate(() => {
