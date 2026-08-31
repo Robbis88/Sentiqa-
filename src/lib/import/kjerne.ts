@@ -942,6 +942,16 @@ async function lagreDelingsfil(
   // TIMENE SKRIVES BARE DER AARGANGEN ALT FINNES. `bp_aar` er BP-ens eget
   // dokument; en delingsfil uten en BP aa henge paa er en fil vi ikke kan
   // plassere, og en tom rad ville vaert en oppfinnelse.
+  //
+  // OG BARE DIT. `bemanning_aar` roeres ikke, og det er en bevisst grense:
+  // planleggeren trenger ogsaa `bemanning_budsjett` og `bemanning_maned`,
+  // som fordeles etter BP-ens bruttokurve - en `timer_aar` alene ville
+  // gitt en aarsramme uten maaneder, som ser komplett ut og ikke er det.
+  //
+  // For Kelsar er det uten betydning: 2025 er avsluttet, og 2026 er i det
+  // nye formatet som baerer timene selv. En kjede med den GAMLE malen for
+  // INNEVAERENDE aar ville derimot staa uten timer i planleggeren - da maa
+  // fordelingen kjoeres, ikke bare aarsrammen skrives. Ikke bygget.
   const { data: aargangene, error: les } = await supabase
     .from('bp_aar').select('id, stasjon_id').eq('ar', ar)
   if (les) throw new ParserFeil(`Delingsfil: kunne ikke lese BP ${ar}: ${les.message}`)
