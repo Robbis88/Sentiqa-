@@ -1,68 +1,55 @@
 import type { Delingsrad } from '@/lib/parsere/delingsfil'
 
 // =====================================================================
-// HVILKET ÅR, OG HVILKEN STASJON?
+// HVILKET ÅR GJELDER DELINGSFILA?
 //
-// Delingsfila sier ingen av delene direkte. Den har ingen årskolonne og
-// ingen butikknummer — bare et navn og noen tall.
-//
-// ---------------------------------------------------------------------
-// NAVNET ER IKKE EN NØKKEL. BELØPET ER.
-//
-//   «det var navneendring i 2025 på slutten av året, fra shell til st1»
-//                                            — Robert 2026-08-31
-//
-// Delingsfila for 2025 sier «SHELL LAGUNEPARKEN». Basen sier «St1
-// Laguneparken». Første utgave av denne fila koblet på navnet uten
-// kjedemerket, og det VILLE virket — men det er en kobling som ryker
-// neste gang noen bytter merke, og den ryker i stillhet.
-//
-// `Budsjettert matomsetning` er derimot BP-ens Mat på krona:
-//
-//     Laguneparken   4 651 908
-//     Varden         2 119 896
-//     Bønes          1 700 096
-//
-// Tre tall som ikke kan forveksles, og som ikke endrer seg når skiltet
-// på taket gjør det. Beløpet peker på både året og stasjonen på én gang.
-//
-// Navnet brukes fortsatt — som KRYSSJEKK. Sier navnet én stasjon og
-// beløpet en annen, er det en ekte uenighet, og da kobles ingen av dem.
+// Fila sier det ikke. Ingen årskolonne, ingen celle, ingenting i
+// filnavnet. Den må plasseres av innholdet.
 //
 // ---------------------------------------------------------------------
-// KRAVET ER STRENGT MED VILJE
+// FØRSTE FORSØK VAR BYGGET PÅ ÉN OBSERVASJON, OG DEN HOLDT IKKE
 //
-// Et timebudsjett på feil stasjon eller feil år er verre enn ingen:
-// bemanningsplanleggeren ville fordelt tallene, og planen ville sett
-// helt normal ut. Derfor: eksakt beløp (én krones toleranse), entydig
-// treff, og bare ÉN årgang som forklarer flest rader.
+// Laguneparkens `Budsjettert matomsetning` er 4 651 908, og BP 2025s Mat
+// for samme stasjon er 4 651 907,99. Jeg så det, og gjorde det om til en
+// regel: koble stasjon OG år på eksakt beløp.
+//
+// Målt mot alle tre:
+//
+//     Laguneparken   4 651 907,99  mot  4 651 908,00   avvik      0,01
+//     Varden         2 164 028,88  mot  2 119 896,31   avvik 44 132,57
+//     Bønes          1 721 635,41  mot  1 700 095,81   avvik 21 539,60
+//
+// Bare den ene stemmer. BP-fila heter `_v2` — den er revidert etter at
+// delingsfila ble laget, og to av tre stasjoner flyttet seg. Importen
+// skrev derfor timer for ÉN stasjon og meldte de to andre som ukjente.
+//
+// ---------------------------------------------------------------------
+// SÅ: NAVNET KOBLER STASJONEN, BELØPET VELGER ÅRET
+//
+// Navnet er stabilt nok. Stasjonene byttet fra Shell til St1 mot slutten
+// av 2025, men `koblePaaNavn` kobler på stedsnavnet uten kjedemerket og
+// krever entydighet — den byttet tåler den.
+//
+// Året velges av beløpet, men på NÆRHET og ikke likhet: årgangen der
+// delingsfilas mattall ligger nærmest BP-ens. Mellom 2025 og 2026 er det
+// ingen tvil — 2025 bommer med 1–2 %, 2026 med titalls prosent. Kravet
+// er at vinneren er klart bedre enn nummer to, ellers plasseres fila ikke.
+//
+// Det tåler en revisjon. Eksakt likhet gjorde det ikke.
 // =====================================================================
 
 /** Mat-omsetningen per år og stasjon, slik den er budsjettert i BP-en. */
 export type Matbudsjett = Map<number, Map<string, number>>
 
 export type Aarssvar =
-  | { ar: number; kobling: Map<string, string>; ukoblet: string[] }
+  | { ar: number; kobling: Map<string, string>; ukoblet: string[]; avvikPst: number }
   | { ar: null; grunn: string }
 
-const KRONE = 1
+/** Over dette er «nærmest» ikke nær nok til å bety noe. */
+const MAKS_AVVIK_PST = 15
+/** Vinneren må være så mye bedre enn nummer to. */
+const MARGIN = 2
 
-/** Stasjonene i ett år hvis Mat-budsjett stemmer med beløpet. */
-function treffIAar(perStasjon: Map<string, number>, belop: number): string[] {
-  const ut: string[] = []
-  for (const [stasjonId, mat] of perStasjon) {
-    if (Math.abs(mat - belop) <= KRONE) ut.push(stasjonId)
-  }
-  return ut
-}
-
-/**
- * Finner året og hvilken stasjon hver rad hører til, eller sier hvorfor
- * det ikke lot seg gjøre.
- *
- * `navnekobling` er navnematchingen fra `koblePaaNavn`, og brukes bare
- * som kryssjekk. Den kan være tom — da svarer beløpene alene.
- */
 export function finnAaret(
   rader: Delingsrad[],
   navnekobling: Map<string, string>,
@@ -77,66 +64,75 @@ export function finnAaret(
     }
   }
 
-  // Hvor mange rader kan hvert år forklare entydig?
-  const kandidater: { ar: number; kobling: Map<string, string>; antall: number }[] = []
-  for (const [ar, perStasjon] of matbudsjett) {
-    const kobling = new Map<string, string>()
-    const brukt = new Set<string>()
-    let tvetydig = false
-    for (const r of rader) {
-      const treff = treffIAar(perStasjon, r.matomsetning)
-      if (treff.length === 0) continue
-      // To stasjoner med samme Mat-budsjett, eller to rader som peker på
-      // samme stasjon: begge deler gjør koblingen til en gjetning.
-      if (treff.length > 1 || brukt.has(treff[0])) { tvetydig = true; break }
-      brukt.add(treff[0])
-      kobling.set(r.butikknavn.trim().toLowerCase(), treff[0])
+  const kjente = rader
+    .map((r) => ({ r, stasjonId: navnekobling.get(r.butikknavn.trim().toLowerCase()) }))
+    .filter((x): x is { r: Delingsrad; stasjonId: string } => Boolean(x.stasjonId))
+
+  if (kjente.length === 0) {
+    return {
+      ar: null,
+      grunn:
+        `Ingen av stasjonene i delingsfila (${rader.map((r) => r.butikknavn).join(', ')}) `
+        + 'kunne kobles til en stasjon i kjeden.',
     }
-    if (tvetydig || kobling.size === 0) continue
-    kandidater.push({ ar, kobling, antall: kobling.size })
+  }
+
+  // Hvor godt passer hver årgang? Gjennomsnittlig relativt avvik over de
+  // stasjonene som finnes i begge.
+  const kandidater: { ar: number; avvikPst: number; treff: number }[] = []
+  for (const [ar, perStasjon] of matbudsjett) {
+    const avvik: number[] = []
+    for (const k of kjente) {
+      const bp = perStasjon.get(k.stasjonId)
+      if (bp === undefined || bp === 0) continue
+      avvik.push(Math.abs(bp - k.r.matomsetning) / Math.abs(bp) * 100)
+    }
+    if (avvik.length === 0) continue
+    kandidater.push({
+      ar,
+      avvikPst: avvik.reduce((a, b) => a + b, 0) / avvik.length,
+      treff: avvik.length,
+    })
   }
 
   if (kandidater.length === 0) {
     return {
       ar: null,
       grunn:
-        'Fant ingen BP-årgang der budsjettert matomsetning stemmer med delingsfila. '
-        + 'Last opp forretningsplanen for samme år først — delingsfila plasseres ved '
-        + 'å kjenne igjen tallene i den.',
+        'Fant ingen BP-årgang med de samme stasjonene. Last opp forretningsplanen '
+        + 'for samme år først — delingsfila plasseres ved å kjenne igjen tallene i den.',
     }
   }
 
-  kandidater.sort((a, b) => b.antall - a.antall)
-  if (kandidater.length > 1 && kandidater[0].antall === kandidater[1].antall) {
-    const like = kandidater.filter((k) => k.antall === kandidater[0].antall).map((k) => k.ar)
+  kandidater.sort((a, b) => a.avvikPst - b.avvikPst)
+  const beste = kandidater[0]
+
+  if (beste.avvikPst > MAKS_AVVIK_PST) {
     return {
       ar: null,
       grunn:
-        `Delingsfila passer like godt til ${like.sort().join(' og ')}. `
-        + 'Da kan den ikke plasseres uten å gjette, og et timebudsjett på feil år '
-        + 'er verre enn ingen.',
+        `Nærmeste årgang er ${beste.ar}, men budsjettert matomsetning avviker `
+        + `${beste.avvikPst.toFixed(1).replace('.', ',')} % fra BP-en. Det er for langt `
+        + 'unna til å si at fila hører til det året.',
+    }
+  }
+  // Nummer to må være tydelig dårligere. Er de like gode, er valget en
+  // gjetning — og et timebudsjett på feil år er verre enn ingen.
+  const nestBeste = kandidater[1]
+  if (nestBeste && nestBeste.avvikPst < beste.avvikPst * MARGIN) {
+    return {
+      ar: null,
+      grunn:
+        `Delingsfila passer nesten like godt til ${beste.ar} `
+        + `(${beste.avvikPst.toFixed(1).replace('.', ',')} % avvik) som til ${nestBeste.ar} `
+        + `(${nestBeste.avvikPst.toFixed(1).replace('.', ',')} %). Da kan den ikke `
+        + 'plasseres uten å gjette.',
     }
   }
 
-  const { ar, kobling } = kandidater[0]
-
-  // KRYSSJEKK MOT NAVNET. Sier navnet én stasjon og beløpet en annen, er
-  // det en ekte uenighet — og da er én av dem feil, uten at vi vet hvilken.
-  for (const [navn, viaBelop] of kobling) {
-    const viaNavn = navnekobling.get(navn)
-    if (viaNavn && viaNavn !== viaBelop) {
-      return {
-        ar: null,
-        grunn:
-          `«${navn}» peker på én stasjon etter navnet og en annen etter `
-          + 'budsjettert matomsetning. Da er én av dem feil, og timene skrives ikke '
-          + 'før det er avklart.',
-      }
-    }
-  }
-
+  const kobling = new Map(kjente.map((k) => [k.r.butikknavn.trim().toLowerCase(), k.stasjonId]))
   const ukoblet = rader
     .map((r) => r.butikknavn)
     .filter((n) => !kobling.has(n.trim().toLowerCase()))
-  return { ar, kobling, ukoblet }
+  return { ar: beste.ar, kobling, ukoblet, avvikPst: beste.avvikPst }
 }
