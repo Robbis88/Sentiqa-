@@ -26,7 +26,7 @@ export const FOR_STOR = 12 * 1024 * 1024
  * `gjenkjennRapporttype` kjenner den igjen paa arknavnene alene, men
  * selve lesingen hoerer hjemme paa serveren.
  */
-const BARE_SERVER: Rapporttype[] = ['st1_bp']
+const BARE_SERVER: Rapporttype[] = ['st1_bp', 'st1_delingsfil']
 
 /**
  * `type` er `undefined` foer fila er lest. Da svarer funksjonen paa det

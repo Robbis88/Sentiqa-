@@ -8,6 +8,7 @@ export type Rapporttype =
   | 'salgsgrid_varetrans'
   | 'regnskap_resultat'
   | 'st1_bp'
+  | 'st1_delingsfil'
   | 'easyatwork_stempling'
   | 'ukjent'
 

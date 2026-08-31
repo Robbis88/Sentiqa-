@@ -33,6 +33,7 @@ const RAPPORT_ETIKETT: Record<string, string> = {
   salgsgrid_varetrans: 'Synlig svinn',
   regnskap_resultat: 'Regnskap',
   st1_bp: 'Forretningsplan',
+  st1_delingsfil: 'Delingsfil (timer)',
   easyatwork_stempling: 'Stemplinger',
   ukjent: '—',
 }

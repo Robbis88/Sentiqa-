@@ -16,6 +16,18 @@ export const ER_BP = /budsjettfil til vb|timebudsjett grunnlagsfil/
 export const erBp25Arknavn = (navn: string[]): boolean =>
   navn.includes('cr-sales') && navn.includes('costs') && navn.includes('cluster data')
 
+/**
+ * St1s DELINGSFIL — følgefila til forretningsplanen. Den bærer
+ * timebudsjettet, som den gamle BP-malen ikke har.
+ *
+ * «Timer» ALENE er for tynt — ordet kan stå i hvilken som helst
+ * arbeidsbok. Det er kombinasjonen med varegruppearkene som skiller
+ * den.
+ */
+export const erDelingsfilArknavn = (navn: string[]): boolean =>
+  navn.includes('timer') && navn.includes('mat')
+  && (navn.includes('bilvask') || navn.includes('vask'))
+
 // Kjenner igjen hvilken St1/Visma-rapport en opplastet xlsx er, basert på
 // arknavn + tittelcelle. Brukes av arbeideren til å rute til riktig parser
 // (§6). Gjetter aldri på tvers – ukjent format flagges som 'ukjent'.
@@ -39,6 +51,10 @@ export async function gjenkjennRapporttype(
   try {
     const navn = lesArknavn(data).map((n) => n.toLowerCase())
     if (ER_BP.test(navn.join(' ')) || erBp25Arknavn(navn)) return 'st1_bp'
+    // Delingsfila: «Timer» ALENE er for tynt - ordet kan staa i hvilken
+    // som helst arbeidsbok. Det er kombinasjonen med varegruppearkene
+    // som skiller den.
+    if (erDelingsfilArknavn(navn)) return 'st1_delingsfil'
   } catch {
     // Ikke en xlsx, eller en vi ikke kan pakke ut. Da faar den vanlige
     // veien svare - den gir 'ukjent' med en lesbar feil.
