@@ -112,8 +112,12 @@ export function arknavn(data: Uint8Array | ArrayBuffer): string[] {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
   const wb = lesHele(bytes, 'xl/workbook.xml')
   if (!wb) throw new ParserFeil('Fant ingen xl/workbook.xml – er dette en xlsx-fil?')
+  // TRIMMET. Et arknavn med mellomrom bak ser identisk ut i Excel, og
+  // `'timer '.includes('timer')` er sant mens `navn.includes('timer')`
+  // på en liste er usant. En gjenkjenning som feiler på et usynlig tegn
+  // gir «ukjent filtype» på en fil som er helt i orden.
   return [...wb.matchAll(/<sheet\b[^>]*\/?>/g)]
-    .map((m) => avkod(m[0].match(/\bname="([^"]*)"/)?.[1] ?? ''))
+    .map((m) => avkod(m[0].match(/\bname="([^"]*)"/)?.[1] ?? '').trim())
     .filter(Boolean)
 }
 
@@ -132,7 +136,9 @@ function arkdel(data: Uint8Array, velg: (navn: string) => boolean): { del: strin
 
   const funnet: string[] = []
   for (const m of wb.matchAll(/<sheet\b[^>]*\/?>/g)) {
-    const navn = avkod(m[0].match(/\bname="([^"]*)"/)?.[1] ?? '')
+    // Trimmet, som i `arknavn`. Sto det bare det ene stedet, ville
+    // gjenkjenningen sagt ja til fila og lesingen så ikke funnet arket.
+    const navn = avkod(m[0].match(/\bname="([^"]*)"/)?.[1] ?? '').trim()
     const rid = m[0].match(/\br:id="([^"]+)"/)?.[1]
     funnet.push(navn)
     if (navn && rid && velg(navn)) {

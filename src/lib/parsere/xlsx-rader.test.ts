@@ -132,6 +132,16 @@ describe('lesArk', () => {
     expect(les(b).rader[0].celler.get(1)).toBe('Rep & vedlikehold')
   })
 
+it('KANARIFUGL: arknavn trimmes', () => {
+    // Et arknavn med mellomrom bak ser identisk ut i Excel, men
+    // `['timer '].includes('timer')` er USANT. En gjenkjenning som feiler
+    // paa et usynlig tegn gir «ukjent filtype» paa en fil som er helt i
+    // orden - og ingen kan se hvorfor.
+    const b = bok('<row r="1"><c r="A1"><v>1</v></c></row>', [], ' Ark1 ')
+    const { svar } = les(b, 'Ark1')
+    expect(svar.arknavn).toBe('Ark1')
+  })
+
   it('leser arket uansett hvilken del det ligger i', () => {
     // Rekkefoelgen i zip-en sier ingenting om rekkefoelgen i boka.
     const b = bok(`<row r="1"><c r="A1"><v>7</v></c></row>`, [], 'CR-Sales')

@@ -12,6 +12,7 @@ import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer } from '@/lib/bp/rader'
 import { parseDelingsfil } from '@/lib/parsere/delingsfil'
+import { arknavn } from '@/lib/parsere/xlsx-rader'
 import { finnAaret } from '@/lib/bp/delingsfil-aar'
 import { koblePaaNavn } from '@/lib/bp/stasjonsnavn'
 import { matbudsjettPerAar } from '@/lib/bp/hent'
@@ -265,7 +266,16 @@ export async function behandleJobbKjerne(
         break
       }
       default:
-        await settFeil(`Gjenkjent som «${rapporttype}» – lagring for denne typen kommer senere.`)
+        // MELDINGA MAA SI HVA DEN SAA, ikke bare at den ikke forsto.
+        //
+        // «Gjenkjent som ukjent» kostet en runde fram og tilbake med
+        // Robert 2026-08-31: delingsfila ble avvist, og ingen av oss
+        // kunne se hvorfor uten aa ha fila i haanden. Arknavnene er det
+        // gjenkjenningen faktisk leser, saa de hoerer med i svaret.
+        await settFeil(
+          `Gjenkjent som «${rapporttype}» – lagring for denne typen kommer senere.`
+          + arkhint(buffer),
+        )
         return
     }
 
@@ -918,6 +928,22 @@ async function lagreBp(
 //              budsjettert matomsetning (finnAaret)
 //   aargangen  BP-en for det aaret maa vaere lastet foerst, ellers er
 //              det ingen rad aa skrive timene paa
+/**
+ * Arknavnene, til feilmeldinger.
+ *
+ * Gjenkjenningen leser nettopp disse, saa naar den ikke kjenner igjen en
+ * fil, er det de som forteller hvorfor. Kaster den - fila er ikke en
+ * xlsx - sier vi det i stedet, som er et like nyttig svar.
+ */
+function arkhint(buffer: Buffer): string {
+  try {
+    const navn = arknavn(buffer)
+    return navn.length ? ` Arkene i fila: ${navn.join(', ')}.` : ' Fila har ingen ark.'
+  } catch {
+    return ' Fila lot seg ikke aapne som xlsx.'
+  }
+}
+
 async function lagreDelingsfil(
   supabase: Klient,
   jobbId: string,
