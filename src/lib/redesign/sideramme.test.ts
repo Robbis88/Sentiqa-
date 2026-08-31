@@ -215,6 +215,36 @@ describe('Sideramme-signaturen', () => {
 //
 // Det som står igjen er en fast lengde eller `margin-inline: auto`, og
 // hver slik regel må stå i `BREDDEUNNTAK` med en skrevet begrunnelse.
+//
+// ---------------------------------------------------------------------
+// KJENT BEGRENSNING — BEVISST AKSEPTERT, IKKE OVERSETT
+//
+// DENNE VAKTEN LESER CSS. DEN LESER IKKE INLINE-STILER.
+//
+// En migrert side kan i prinsippet skrive
+//
+//     <div style={{ inlineSize: 600 }}>…</div>
+//
+// og komme unna med det. Vakt 2 ser den ikke, fordi det ikke finnes noen
+// CSS-regel å lese. Det eneste som står i veien er design-skrallen i
+// `design.ts`, og den forbyr bare at det TOTALE antallet inline-stiler
+// vokser — så den som samtidig fjerner en inline-stil et annet sted,
+// slipper gjennom uten et eneste rødt lys.
+//
+// Dette er en bevisst beslutning, ikke en forglemmelse: den som skal dit
+// må aktivt ofre en annen inline-stil, og det er ikke noe man gjør ved
+// et uhell. Kostnaden ved å tette det — å parse JSX-uttrykk framfor CSS —
+// er høyere enn risikoen.
+//
+// Men les ikke denne fila som et bevis på at alle lokale breddeveier er
+// fysisk umulige. To av tre er stengt:
+//
+//     breddeparameter på Sideramme   STENGT   (vakt 1)
+//     lokal CSS-klasse med bredde    STENGT   (vakt 2)
+//     inline style med bredde        ÅPEN     (denne merknaden)
+//
+// Skal den tettes senere, hører den hjemme i design-skrallen som en egen
+// teller for breddesettende inline-stiler — ikke som enda en regex her.
 // =====================================================================
 
 /** Regler som setter en fast bredde, og hvorfor de får lov. */

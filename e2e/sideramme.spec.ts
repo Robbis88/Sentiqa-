@@ -65,6 +65,43 @@ async function rammebredde(page: Page): Promise<number> {
  * `.innhold` gir bort innenfor sin egen padding. To former, fordi det
  * nettopp var to former før rammen fantes.
  */
+/**
+ * Plassen `.innhold` faktisk gir bort, innenfor sin egen padding.
+ *
+ * Dette er fasiten en `bred` side skal fylle, og taket en `smal` side
+ * ikke kan overstige. Den leses fra sida i stedet for å skrives ned her,
+ * så tallet holder når sidemenyen eller paddingen endrer seg.
+ */
+function tilgjengelig(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const el = document.querySelector('main.innhold')!
+    const s = getComputedStyle(el)
+    return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
+  })
+}
+
+/**
+ * Beviser hele kjeden for én rute: rute → Monster → SPALTE → målt bredde.
+ *
+ * En `smal` side skal være nøyaktig 880 px, eller hele spalta hvis den er
+ * trangere enn det. En `bred` side skal fylle spalta. Ingen søsterside er
+ * involvert — påstanden er absolutt, og gjelder også for ruter der dagens
+ * bredde var tilfeldig og SKAL endres.
+ */
+async function bevisBredde(page: Page, sti: string, ventet: 'smal' | 'bred') {
+  await page.goto(sti)
+  await expect(page.locator('main.innhold'), sti).toHaveAttribute('data-bredde', ventet)
+  const rom = await tilgjengelig(page)
+  const ramme = await rammebredde(page)
+  const fasit = ventet === 'bred' ? rom : Math.min(SMAL, rom)
+  expect(
+    Math.abs(ramme - fasit),
+    `${sti} (${ventet}): rammen er ${Math.round(ramme)} px, spalta gir ${Math.round(rom)} px, `
+    + `fasit ${Math.round(fasit)} px`,
+  ).toBeLessThan(2)
+  return { ramme, rom }
+}
+
 async function gammelSpalte(page: Page): Promise<number> {
   const kort = page.locator('.innhold > .kort, .innhold .kort').first()
   if (await kort.count()) {
@@ -126,33 +163,34 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     expect(Math.abs(naa - familien)).toBeLessThan(2)
   })
 
-  test('/utsolgt får bredden en dataliste skal ha', async ({ page }) => {
-    // 5 kolonner, og 880 px i dag fordi den brukte kort. `dataliste` er
-    // mønsteret som sier at kolonner sammenlignes på tvers, og at det
-    // koster plass. Sammenlignes mot /salg: samme bredde, ulikt mønster,
-    // fordi begge er `bred`.
-    await page.goto('/salg')
-    const bred = await rammebredde(page)
-    await page.goto('/utsolgt')
-    const naa = await rammebredde(page)
+  // -------------------------------------------------------------------
+  // DE NYE MØNSTRENE MÅLES ABSOLUTT, IKKE MOT EN SØSTER
+  //
+  // For /salg og /rutiner/oppsett er påstanden «ingenting endret seg», og
+  // da er nabosida riktig fasit. For /utsolgt og /ansatte er påstanden
+  // den motsatte: dagens bredde var tilfeldig og SKAL endres. Da beviser
+  // en søstersammenligning ingenting, og kjeden må måles for seg.
+  //
+  // Første utgave sammenlignet /ansatte mot /persondata og var rød med
+  // 436 px avvik. Den sa ikke hvilket av de to tallene som var galt —
+  // derfor står begge i meldinga nå.
+  // -------------------------------------------------------------------
 
-    await expect(page.locator('main.innhold')).toHaveAttribute('data-bredde', 'bred')
-    expect(naa).toBeGreaterThan(SMAL)
-    expect(Math.abs(naa - bred)).toBeLessThan(2)
+  test('/utsolgt: dataliste → bred → målt', async ({ page }) => {
+    // 5 kolonner, og 880 px i dag bare fordi den brukte kort.
+    await bevisBredde(page, '/utsolgt', 'bred')
   })
 
-  test('/ansatte får bredden en enkel liste skal ha', async ({ page }) => {
-    // Fullbredde i dag — men uten en eneste kolonne. Den er bygget på
-    // `Rad`, hvis slot-vokabular er enspaltet per konstruksjon. 1600 px
-    // til én kolonne tekst er ikke en beslutning noen tok.
-    await page.goto('/persondata')
-    const smal = await gammelSpalte(page)
-    await page.goto('/ansatte')
-    const naa = await rammebredde(page)
+  test('/ansatte: liste → smal → målt', async ({ page }) => {
+    // Fullbredde i dag — men uten en eneste kolonne. Bygget på `Rad`,
+    // hvis slot-vokabular er enspaltet per konstruksjon.
+    await bevisBredde(page, '/ansatte', 'smal')
+  })
 
-    await expect(page.locator('main.innhold')).toHaveAttribute('data-bredde', 'smal')
-    expect(naa).toBeLessThanOrEqual(SMAL)
-    expect(Math.abs(naa - smal)).toBeLessThan(2)
+  test('de allerede migrerte holder sin egen kjede', async ({ page }) => {
+    await bevisBredde(page, '/salg', 'bred')
+    await bevisBredde(page, '/produksjonsplan/treffsikkerhet', 'bred')
+    await bevisBredde(page, '/rutiner/oppsett', 'smal')
   })
 
   test('rammen holder seg innenfor spalta på liten skjerm', async ({ page }) => {
