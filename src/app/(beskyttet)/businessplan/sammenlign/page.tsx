@@ -4,8 +4,10 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kr, tall } from '@/lib/format'
 import { Sidehode, Nokkeltall, Datatabell, Forklaring, Tomtilstand } from '@/components/ui/side'
 import { Signal } from '@/components/ui/status'
-import { hentAarganger, hentAarstall, sammenlignbareStasjoner } from '@/lib/bp/hent'
-import { analyser, royaltyandel, type Funn } from '@/lib/bp/analyse'
+import {
+  hentAarganger, hentAarstall, hentPerStasjon, sammenlignbareStasjoner,
+} from '@/lib/bp/hent'
+import { analyser, royaltyandel, type Funn, type Aarstall } from '@/lib/bp/analyse'
 
 // =====================================================================
 // "HVA BETYR DEN NYE BP-EN FOR OSS?"
@@ -167,6 +169,25 @@ export default async function BpSammenlign(
     )
   }
 
+  // PER STASJON. Kjedetotalen sier hva den nye BP-en betyr samlet; den
+  // sier ikke hvilken stasjon som baerer endringen. En royaltyandel som
+  // stiger like mye paa alle tre er noe helt annet enn en stasjon som
+  // drar snittet.
+  const [perFjor, perIAar] = await Promise.all([
+    hentPerStasjon(supabase, fraAar, felles),
+    hentPerStasjon(supabase, tilAar, felles),
+  ])
+  const stasjonsvis = felles
+    .map((id) => ({
+      id,
+      navn: navnFor.get(id) ?? id,
+      a: perFjor.get(id),
+      b: perIAar.get(id),
+    }))
+    .filter((x): x is { id: string; navn: string; a: Aarstall; b: Aarstall } =>
+      Boolean(x.a && x.b))
+    .sort((x, y) => y.b.salg - x.b.salg)
+
   const funn = analyser(fjor, iAar)
   const viktigste = funn.find((f) => f.alvor === 'viktig') ?? funn[0]
 
@@ -307,6 +328,66 @@ export default async function BpSammenlign(
           ))}
         </tbody>
       </Datatabell>
+
+      {/* PER STASJON. Kjedetotalen sier hva som er endret; den sier ikke
+          hvem som bærer det. Én tabell hver — CR og kostnader for den
+          stasjonen alene, aldri blandet. */}
+      {stasjonsvis.map(({ id, navn, a, b }) => {
+        const ra = royaltyandel(a)
+        const rb = royaltyandel(b)
+        return (
+          <Datatabell key={id} tittel={navn}>
+            <thead>
+              <tr>
+                <th scope="col">Post</th>
+                <th scope="col" className="tall">BP {fraAar}</th>
+                <th scope="col" className="tall">BP {tilAar}</th>
+                <th scope="col" className="tall">Endring</th>
+                <th scope="col" className="tall">Kroner</th>
+              </tr>
+            </thead>
+            <tbody>
+              <Rad merkelapp="Salgsmål" fjor={a.salg} iAar={b.salg} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Bruttofortjeneste" fjor={a.brutto} iAar={b.brutto} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Lønnsramme" fjor={a.personal} iAar={b.personal} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Andre driftskostnader" fjor={a.andreKostnader} iAar={b.andreKostnader} ar={[fraAar, tilAar]} />
+              <Rad merkelapp="Royalty" fjor={a.royalty} iAar={b.royalty} ar={[fraAar, tilAar]} />
+              <tr>
+                <th scope="row">Royaltyandel av omsetning</th>
+                <td className="tall">
+                  {ra === null ? '—' : `${(ra * 100).toFixed(2).replace('.', ',')} %`}
+                </td>
+                <td className="tall">
+                  {rb === null ? '—' : `${(rb * 100).toFixed(2).replace('.', ',')} %`}
+                </td>
+                <td className="tall">
+                  {ra === null || rb === null
+                    ? '—'
+                    : `${rb >= ra ? '+' : '−'}${Math.abs((rb - ra) * 100).toFixed(2).replace('.', ',')} pp`}
+                </td>
+                {/* Kronene her er ikke en differanse, men hva andelen ALENE
+                    koster på årets omsetning — det er tallet som betyr noe. */}
+                <td className="tall">
+                  {ra === null || rb === null ? '—' : kr.format(Math.round((rb - ra) * b.salg))}
+                </td>
+                <td className="sq-skjult">{`${fraAar} mot ${tilAar}`}</td>
+              </tr>
+              {a.timer > 0 && b.timer > 0 && (
+                <tr>
+                  <th scope="row">Timeramme</th>
+                  <td className="tall">{tall.format(Math.round(a.timer))} t</td>
+                  <td className="tall">{tall.format(Math.round(b.timer))} t</td>
+                  <td className="tall">
+                    {`${b.timer >= a.timer ? '+' : '−'}${Math.abs((b.timer / a.timer - 1) * 100).toFixed(1).replace('.', ',')} %`}
+                  </td>
+                  <td className="tall">{tall.format(Math.round(b.timer - a.timer))} t</td>
+                  <td className="sq-skjult">{`${fraAar} mot ${tilAar}`}</td>
+                </tr>
+              )}
+            </tbody>
+          </Datatabell>
+        )
+      })}
 
       <Forklaring sporsmaal="Hvordan er tallene regnet?">
         <p>

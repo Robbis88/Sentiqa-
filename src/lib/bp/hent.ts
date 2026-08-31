@@ -72,24 +72,59 @@ const erLonn = (kode: string) => /^5\d{3}$/.test(kode)
 export async function hentAarstall(
   supabase: Klient, ar: number, stasjonIder?: string[],
 ): Promise<Aarstall | null> {
+  const { aargangene, linjer } = await lesAargang(supabase, ar, stasjonIder)
+  // Null, ikke en tom `Aarstall`. «Vi har ingen BP for 2025» og «BP-en
+  // for 2025 er null kroner» er to helt forskjellige svar.
+  if (aargangene.length === 0) return null
+  return bygg(ar, aargangene, linjer)
+}
+
+/**
+ * Samme årgang, men delt per stasjon.
+ *
+ * «trenger jo å kunne se hvilken stasjon også» — Robert 2026-08-31.
+ *
+ * Kjedetotalen sier hva den nye BP-en betyr samlet; den sier ikke hvilken
+ * stasjon som bærer endringen. En royaltyandel som stiger like mye på alle
+ * tre er noe helt annet enn én stasjon som drar snittet.
+ *
+ * Leser NØYAKTIG de samme radene som `hentAarstall`, og bygger med samme
+ * funksjon — så summen av stasjonene er kjedetallet, ikke et tall til.
+ */
+export async function hentPerStasjon(
+  supabase: Klient, ar: number, stasjonIder?: string[],
+): Promise<Map<string, Aarstall>> {
+  const { aargangene, linjer } = await lesAargang(supabase, ar, stasjonIder)
+  const ut = new Map<string, Aarstall>()
+  for (const a of aargangene) {
+    const mine = linjer.filter((l) => l.bp_aar_id === a.id)
+    ut.set(a.stasjon_id, bygg(ar, [a], mine))
+  }
+  return ut
+}
+
+/** Radene for en årgang. Delt av begge inngangene over. */
+async function lesAargang(
+  supabase: Klient, ar: number, stasjonIder?: string[],
+): Promise<{ aargangene: AarRad[]; linjer: LinjeRad[] }> {
   let q = supabase.from('bp_aar').select('id, stasjon_id, timer_aar, format').eq('ar', ar)
   if (stasjonIder) q = q.in('stasjon_id', stasjonIder)
   const { data: aarRader, error } = await q
   if (error) throw new Error(`Kunne ikke lese BP ${ar}: ${error.message}`)
   const aargangene = (aarRader ?? []) as AarRad[]
-  // Null, ikke en tom `Aarstall`. «Vi har ingen BP for 2025» og «BP-en
-  // for 2025 er null kroner» er to helt forskjellige svar.
-  if (aargangene.length === 0) return null
-
-  const ider = aargangene.map((a) => a.id)
+  if (aargangene.length === 0) return { aargangene, linjer: [] }
   const linjer = await hentAlle<LinjeRad>(() =>
     supabase
       .from('bp_linje')
       .select('bp_aar_id, seksjon, kode, post, belop_kr')
-      .in('bp_aar_id', ider)
+      .in('bp_aar_id', aargangene.map((a) => a.id))
       .order('bp_aar_id'),
   )
+  return { aargangene, linjer }
+}
 
+/** Summerer et sett årgangsrader og linjer til én `Aarstall`. */
+function bygg(ar: number, aargangene: AarRad[], linjer: LinjeRad[]): Aarstall {
   const t: Aarstall = {
     ar,
     salg: 0, varekost: 0, brutto: 0,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hentAarstall, sammenlignbareStasjoner } from './hent'
+import { hentAarstall, hentPerStasjon, sammenlignbareStasjoner } from './hent'
 import { bpLinjer } from './rader'
 import { summer, analyser, type Aarstall } from './analyse'
 import type { BpResultat } from '@/lib/parsere/typer'
@@ -235,6 +235,48 @@ describe('basen gir samme svar som fila', () => {
     const k = fakeKlient([], [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(await hentAarstall(k as any, 2025)).toBeNull()
+  })
+
+  it('KANARIFUGL: stasjonene summerer til kjedetallet', async () => {
+    // To visninger av det samme, og de MAA moetes. Skiller de lag, viser
+    // sida en kjedetotal som ikke er summen av det den nettopp listet
+    // opp - og leseren har ingen maate aa vite hvilken som er riktig.
+    const to: BpResultat = {
+      rapporttype: 'st1_bp', ar: 2026,
+      stasjoner: [
+        BP26.stasjoner[0],
+        { ...BP26.stasjoner[0], butikknummer: '9145', timerAar: 9512.73 },
+      ],
+    }
+    const aarRader = to.stasjoner.map((st, i) => ({
+      id: `aar-${i}`, stasjon_id: `st-${i}`, timer_aar: st.timerAar, format: 'st1_bp26',
+    }))
+    const linjeRader = to.stasjoner.flatMap((st, i) =>
+      bpLinjer(st).map((l) => ({ bp_aar_id: `aar-${i}`, ...l })),
+    )
+    const k = fakeKlient(aarRader, linjeRader)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hele = (await hentAarstall(k as any, 2026))!
+    k.nullstill()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const per = await hentPerStasjon(k as any, 2026)
+
+    expect(per.size).toBe(2)
+    const sum = (f: (a: Aarstall) => number) =>
+      [...per.values()].reduce((acc, a) => acc + f(a), 0)
+    expect(sum((a) => a.salg)).toBeCloseTo(hele.salg, 6)
+    expect(sum((a) => a.varekost)).toBeCloseTo(hele.varekost, 6)
+    expect(sum((a) => a.brutto)).toBeCloseTo(hele.brutto, 6)
+    expect(sum((a) => a.personal)).toBeCloseTo(hele.personal, 6)
+    expect(sum((a) => a.andreKostnader)).toBeCloseTo(hele.andreKostnader, 6)
+    expect(sum((a) => a.royalty)).toBeCloseTo(hele.royalty, 6)
+    expect(sum((a) => a.timer)).toBeCloseTo(hele.timer, 6)
+  })
+
+  it('gir tom liste naar aaret ikke finnes', async () => {
+    const k = fakeKlient([], [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((await hentPerStasjon(k as any, 2025)).size).toBe(0)
   })
 
   it('analysen leser basens tall like godt som filas', async () => {
