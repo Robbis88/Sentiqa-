@@ -246,3 +246,47 @@ export async function sammenlignbareStasjoner(
   }
   return { med, utelatt }
 }
+
+/**
+ * Budsjettert Mat-omsetning per aar og stasjon.
+ *
+ * Grunnlaget for aa plassere en delingsfil i riktig aargang: fila oppgir
+ * `Budsjettert matomsetning`, og det tallet er BP-ens Mat paa krona.
+ *
+ * MAT ER ST1s EGET ORD, og koblingen er iboende i filparet - begge filene
+ * er St1s, og de bruker samme vokabular. Derfor gjenkjennes gruppa paa
+ * NAVNET og ikke bare paa koden: koden `120` er en observasjon fra en
+ * kjede, navnet «Mat» er det St1 selv skriver i begge filene.
+ */
+export async function matbudsjettPerAar(
+  supabase: Klient,
+): Promise<Map<number, Map<string, number>>> {
+  const { data: aarRader, error } = await supabase
+    .from('bp_aar').select('id, stasjon_id, ar')
+  if (error) throw new Error(`Kunne ikke lese BP-aargangene: ${error.message}`)
+  const aargangene = (aarRader ?? []) as { id: string; stasjon_id: string; ar: number }[]
+  if (aargangene.length === 0) return new Map()
+  const info = new Map(aargangene.map((a) => [a.id, a]))
+
+  const linjer = await hentAlle<{
+    bp_aar_id: string; kode: string; post: string; belop_kr: number
+  }>(() =>
+    supabase
+      .from('bp_linje')
+      .select('bp_aar_id, kode, post, belop_kr')
+      .eq('seksjon', 'omsetning')
+      .in('bp_aar_id', [...info.keys()])
+      .order('bp_aar_id'),
+  )
+
+  const ut = new Map<number, Map<string, number>>()
+  for (const l of linjer) {
+    const a = info.get(l.bp_aar_id)
+    if (!a) continue
+    if (!/\bmat\b/i.test(l.post) && l.kode !== '120') continue
+    if (!ut.has(a.ar)) ut.set(a.ar, new Map())
+    const per = ut.get(a.ar)!
+    per.set(a.stasjon_id, (per.get(a.stasjon_id) ?? 0) + (Number(l.belop_kr) || 0))
+  }
+  return ut
+}

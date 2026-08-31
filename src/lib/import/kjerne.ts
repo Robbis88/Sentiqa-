@@ -11,6 +11,10 @@ import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer } from '@/lib/bp/rader'
+import { parseDelingsfil } from '@/lib/parsere/delingsfil'
+import { finnAaret } from '@/lib/bp/delingsfil-aar'
+import { koblePaaNavn } from '@/lib/bp/stasjonsnavn'
+import { matbudsjettPerAar } from '@/lib/bp/hent'
 import {
   LONNSKONTI, SYKEKONTI, kjedensSykesats, type Regnskapsrad,
 } from '@/lib/bemanning/sykereserve'
@@ -253,6 +257,11 @@ export async function behandleJobbKjerne(
           supabase, retailerId, jobbId, r, oppslag.medNummer,
           gammelMal ? 'st1_bp25' : 'st1_bp26',
         )
+        break
+      }
+      case 'st1_delingsfil': {
+        const r = parseDelingsfil(buffer)
+        res = await lagreDelingsfil(supabase, jobbId, r, oppslag.stasjoner)
         break
       }
       default:
@@ -894,6 +903,89 @@ async function lagreBp(
     umatchet: [],
   }
 }
+
+// ---------------------------------------------------------------------
+// DELINGSFILA: TIMEBUDSJETTET SOM IKKE STAAR I BP-EN
+// ---------------------------------------------------------------------
+// Den gamle St1-malen har ikke timer. Delingsfila oppgir dem, og de
+// skrives inn paa den BP-aargangen de hoerer til.
+//
+// TRE TING SOM MAA STEMME, OG ALLE TRE SIER FRA NAAR DE IKKE GJOER DET:
+//
+//   navnene    "SHELL LAGUNEPARKEN" mot "St1 Laguneparken" - koblingen
+//              er entydig eller den finnes ikke (koblePaaNavn)
+//   aaret      fila sier det ikke; det finnes ved aa kjenne igjen
+//              budsjettert matomsetning (finnAaret)
+//   aargangen  BP-en for det aaret maa vaere lastet foerst, ellers er
+//              det ingen rad aa skrive timene paa
+async function lagreDelingsfil(
+  supabase: Klient,
+  jobbId: string,
+  r: ReturnType<typeof parseDelingsfil>,
+  stasjoner: { id: string; navn: string; butikknummer: string }[],
+): Promise<Lagring> {
+  // NAVNET ER IKKE NØKKELEN — BELØPET ER.
+  //
+  // Stasjonene byttet fra Shell til St1 mot slutten av 2025, så
+  // 2025-fila sier «SHELL LAGUNEPARKEN» mens basen sier «St1
+  // Laguneparken». `finnAaret` kobler på budsjettert matomsetning, som er
+  // BP-ens Mat på krona og ikke endrer seg når skiltet gjør det.
+  //
+  // Navnekoblingen sendes med som KRYSSJEKK: peker de to hver sin vei, er
+  // ett av dem feil, og da skrives ingenting.
+  const paaNavn = koblePaaNavn(stasjoner, r.stasjoner.map((s) => s.butikknavn))
+  const matbudsjett = await matbudsjettPerAar(supabase)
+  const svar = finnAaret(r.stasjoner, paaNavn.kobling, matbudsjett)
+  if (svar.ar === null) throw new ParserFeil(`Delingsfil: ${svar.grunn}`)
+  const { ar, kobling, ukoblet } = svar
+
+  // TIMENE SKRIVES BARE DER AARGANGEN ALT FINNES. `bp_aar` er BP-ens eget
+  // dokument; en delingsfil uten en BP aa henge paa er en fil vi ikke kan
+  // plassere, og en tom rad ville vaert en oppfinnelse.
+  //
+  // OG BARE DIT. `bemanning_aar` roeres ikke, og det er en bevisst grense:
+  // planleggeren trenger ogsaa `bemanning_budsjett` og `bemanning_maned`,
+  // som fordeles etter BP-ens bruttokurve - en `timer_aar` alene ville
+  // gitt en aarsramme uten maaneder, som ser komplett ut og ikke er det.
+  //
+  // For Kelsar er det uten betydning: 2025 er avsluttet, og 2026 er i det
+  // nye formatet som baerer timene selv. En kjede med den GAMLE malen for
+  // INNEVAERENDE aar ville derimot staa uten timer i planleggeren - da maa
+  // fordelingen kjoeres, ikke bare aarsrammen skrives. Ikke bygget.
+  const { data: aargangene, error: les } = await supabase
+    .from('bp_aar').select('id, stasjon_id').eq('ar', ar)
+  if (les) throw new ParserFeil(`Delingsfil: kunne ikke lese BP ${ar}: ${les.message}`)
+  const radFor = new Map(
+    ((aargangene ?? []) as { id: string; stasjon_id: string }[])
+      .map((a) => [a.stasjon_id, a.id]),
+  )
+
+  const naa = new Date().toISOString()
+  let skrevet = 0
+  const utenAargang: string[] = []
+  for (const s of r.stasjoner) {
+    const stasjonId = kobling.get(s.butikknavn.trim().toLowerCase())
+    if (!stasjonId) continue
+    const radId = radFor.get(stasjonId)
+    if (!radId) { utenAargang.push(s.butikknavn); continue }
+    const { error } = await supabase
+      .from('bp_aar')
+      .update({ timer_aar: s.timebudsjett, oppdatert_tid: naa, kilde_jobb_id: jobbId })
+      .eq('id', radId)
+    if (error) throw new ParserFeil(`Delingsfil: kunne ikke skrive timer: ${error.message}`)
+    skrevet++
+  }
+
+  if (skrevet === 0) {
+    throw new ParserFeil(
+      `Delingsfil: fant BP ${ar}, men ingen av stasjonene hadde en aargang aa skrive timene paa.`,
+    )
+  }
+  // De som ikke lot seg koble forsvinner ikke i stillhet - de staar i
+  // jobbens `umatchet`, som importsida viser.
+  return { antallRader: skrevet, umatchet: [...ukoblet, ...utenAargang] }
+}
+
 
 // ---------------------------------------------------------------------
 // ---------------------------------------------------------------------
