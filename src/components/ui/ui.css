@@ -989,6 +989,14 @@
   max-width: var(--sq-spalte);
 }
 
+/* Et flex-barn har `min-width: auto` og krymper derfor ikke under sitt
+   eget min-content. En bred tabell ville dratt spalta ut - noe den samme
+   tabellen i en vanlig blokk ikke gjoer. `.sq-nokkeltall` traff paa dette
+   for og loeste det for seg selv; her loeses det for alle barn, slik at
+   rammen aldri kan bli AARSAKEN til sideveis rulling. Om innholdet selv
+   flyter over, er det innholdets sak - se `.tabellramme`. */
+.sq-sideramme > * { min-width: 0; }
+
 /* Vinner over baade `.innhold .kort` og `.kort + .kort` i globals.css. */
 .innhold .sq-sideramme > .kort,
 .innhold .sq-sideramme > .kort + .kort {

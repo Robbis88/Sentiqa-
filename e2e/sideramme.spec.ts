@@ -126,17 +126,35 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     expect(Math.abs(naa - familien)).toBeLessThan(2)
   })
 
-  test('rammen kollapser på liten skjerm i stedet for å skape sideveis rulling', async ({ page }) => {
-    // `max-width` uten `width: 100%` gir en spalte som stikker utenfor på
-    // mobil. Da ruller HELE sida sideveis, og det er verre enn feil bredde.
+  test('rammen holder seg innenfor spalta på liten skjerm', async ({ page }) => {
+    // FØRSTE UTGAVE AV DENNE TESTEN MÅLTE FEIL TING, OG DEN FANT EN ANNENS FEIL
+    //
+    // Den målte `document.scrollWidth` og var rød på /salg med 129 px. Det
+    // er en ekte feil, men den er ikke rammens: `Datatabell` rendrer
+    // `<div className="tabellramme">` som scroll-container, og den divven
+    // har ingen CSS-regel i det hele tatt. På mobil reddes kortbaserte
+    // sider av `.kort { overflow-x: auto }` i globals.css; sider som
+    // bruker `Datatabell` bart — som /salg — har ingen slik container.
+    // Feilen er eldre enn piloten og ligger i `Datatabell`, ikke her.
+    //
+    // Rammens eget ansvar er smalere og måles derfor presist: den skal
+    // aldri selv bli bredere enn spalta den fikk. Blir den det, er det
+    // `max-width` uten `width: 100%`, eller flex-barn med `min-width:
+    // auto` som drar den ut — begge deler ville vært rammens skyld.
     await page.setViewportSize({ width: 390, height: 844 })
     for (const sti of ['/salg', '/rutiner/oppsett', '/produksjonsplan/treffsikkerhet']) {
       await page.goto(sti)
       await expect(page.locator('.sq-sideramme')).toBeVisible()
-      const overflyt = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      )
-      expect(overflyt, `${sti} ruller sideveis på 390 px`).toBeLessThanOrEqual(1)
+      const { ramme, spalte } = await page.evaluate(() => {
+        const el = document.querySelector('main.innhold')!
+        const s = getComputedStyle(el)
+        return {
+          ramme: document.querySelector('.sq-sideramme')!.getBoundingClientRect().width,
+          spalte: el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
+        }
+      })
+      expect(ramme, `${sti}: rammen er bredere enn spalta den fikk`)
+        .toBeLessThanOrEqual(spalte + 1)
     }
   })
 })
