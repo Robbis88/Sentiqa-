@@ -78,6 +78,27 @@ describe('erBpFil', () => {
   it('sier nei til den gamle St1-malen', async () => {
     expect(await erBpFil(bok('', '', ['CR-Sales', 'Costs']))).toBe(false)
   })
+
+  it('KANARIFUGL: formatet foelger IKKE aarstallet', async () => {
+    // Antakelsen var "gammel mal til og med 2025, ny fra 2026". Den er
+    // FEIL: Kelsars BP for 2025 er den gamle malen for Laguneparken,
+    // Varden og Boenes, mens DALES BP FOR SAMME AAR er den nye
+    // arbeidsboka. St1 flyttet stasjonene over hver for seg.
+    //
+    // Hadde koden rutet paa aar, ville Dales fil blitt lest med feil
+    // parser - og den ville kastet, ikke gitt gale tall. Men neste gang
+    // kunne det gaatt motsatt vei.
+    const dale2025 = bok(
+      // Ingen `Timebudsjett Grunnlagsfil` - Dales fil har den ikke.
+      '',
+      HODE + linje(2, '4185', '3010', 'CR salg', '01', -100000, '120 [Mat]'),
+      ['Hjelpeark', 'Budsjettfil til VB'],
+    )
+    expect(await erBpFil(dale2025)).toBe(true)
+    const r = await parseBp(dale2025)
+    expect(r.ar).toBe(2026) // aaret kommer fra `Yr`, ikke fra formatet
+    expect(r.stasjoner[0].timerAar).toBeNull()
+  })
 })
 
 describe('parseBp', () => {

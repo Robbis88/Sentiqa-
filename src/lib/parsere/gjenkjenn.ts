@@ -5,9 +5,13 @@ import type { Rapporttype } from './typer'
 export const ER_BP = /budsjettfil til vb|timebudsjett grunnlagsfil/
 
 /**
- * St1s GAMLE BP-mal, til og med budsjettaaret 2025. Engelske arknavn, og
- * `Cluster data` deles med BP26 - det er `cr-sales` og `costs` sammen som
- * skiller dem.
+ * St1s GAMLE BP-mal. Engelske arknavn, og `Cluster data` deles med det
+ * nye formatet — det er `cr-sales` og `costs` sammen som skiller dem.
+ *
+ * FORMATET FØLGER IKKE ÅRSTALLET. Kelsars BP for 2025 er den gamle malen
+ * for Laguneparken, Varden og Bønes, mens Dales BP for SAMME ÅR er den
+ * nye arbeidsboka — St1 flyttet stasjonene over hver for seg. Derfor
+ * leser gjenkjenningen ark, aldri år.
  */
 export const erBp25Arknavn = (navn: string[]): boolean =>
   navn.includes('cr-sales') && navn.includes('costs') && navn.includes('cluster data')
