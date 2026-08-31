@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { REDAKTOR_OKTFIL } from './eier'
 
 // =====================================================================
 // SIDERAMMEN — MÅLT, IKKE RESONNERT
@@ -58,14 +59,6 @@ async function rammebredde(page: Page): Promise<number> {
 }
 
 /**
- * Spalta på en URØRT side — altså «før».
- *
- * Har sida kort, er 880 px-regelen i kraft og kortet ER spalta. Har den
- * ikke kort, er det ingenting som begrenser bredden, og spalta er alt
- * `.innhold` gir bort innenfor sin egen padding. To former, fordi det
- * nettopp var to former før rammen fantes.
- */
-/**
  * Plassen `.innhold` faktisk gir bort, innenfor sin egen padding.
  *
  * Dette er fasiten en `bred` side skal fylle, og taket en `smal` side
@@ -102,6 +95,14 @@ async function bevisBredde(page: Page, sti: string, ventet: 'smal' | 'bred') {
   return { ramme, rom }
 }
 
+/**
+ * Spalta på en URØRT side — altså «før».
+ *
+ * Har sida kort, er 880 px-regelen i kraft og kortet ER spalta. Har den
+ * ikke kort, er det ingenting som begrenser bredden, og spalta er alt
+ * `.innhold` gir bort innenfor sin egen padding. To former, fordi det
+ * nettopp var to former før rammen fantes.
+ */
 async function gammelSpalte(page: Page): Promise<number> {
   const kort = page.locator('.innhold > .kort, .innhold .kort').first()
   if (await kort.count()) {
@@ -222,6 +223,65 @@ test.describe('sideramme — bredden følger mønsteret', () => {
       })
       expect(ramme, `${sti}: rammen er bredere enn spalta den fikk`)
         .toBeLessThanOrEqual(spalte + 1)
+    }
+  })
+})
+
+// =====================================================================
+// BOELGE 1 — DE TO SISTE DATALISTENE
+//
+// /kampanjer og /trafikk er plattform-redaktoerens. Hun er seedet i
+// supabase/seed.sql og rullet inn i TOTP av e2e/eier.setup.ts, som lagrer
+// oekta i REDAKTOR_OKTFIL. Ingen ny testinfrastruktur - samme mekanisme
+// som port0-4b.spec.ts alt bruker.
+//
+// TILGANGEN BEVISES AV MAALINGEN SELV. Portneren i begge sidene svarer
+//
+//     if (bruker.rolle !== 'plattform_redaktor') return <p>...</p>
+//
+// FOER den innpakkede returen. Uten ekte tilgang finnes det ingen
+// `.sq-sideramme` aa maale, og `rammebredde()` feiler paa antallet. Det
+// er derfor ingen egen tilgangstest her.
+//
+// Hva rollen IKKE naar er allerede bevist i port0-4b.spec.ts: hun
+// avvises paa /salg fordi hun staar utenfor alle kjeder, og butikksjef
+// og nettbrett avvises paa /plattform. Den dekningen dupliseres ikke.
+//
+// /trafikk uten service-noekkel i miljoeet rendrer «Mangler
+// service-noekkel» - ogsaa den innenfor rammen, med vilje. Da maaler
+// testen fortsatt riktig kjede, i stedet for aa flake paa hva miljoeet
+// tilfeldigvis har.
+// =====================================================================
+
+test.describe('sideramme — plattform-redaktørens datalister', () => {
+  test.use({ storageState: REDAKTOR_OKTFIL })
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 })
+  })
+
+  test('/kampanjer: dataliste → bred → målt', async ({ page }) => {
+    await bevisBredde(page, '/kampanjer', 'bred')
+  })
+
+  test('/trafikk: dataliste → bred → målt', async ({ page }) => {
+    await bevisBredde(page, '/trafikk', 'bred')
+  })
+
+  test('rammen holder seg innenfor spalta også på mobil', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const sti of ['/kampanjer', '/trafikk']) {
+      await page.goto(sti)
+      await expect(page.locator('.sq-sideramme')).toBeVisible()
+      const { ramme, rom } = await page.evaluate(() => {
+        const el = document.querySelector('main.innhold')!
+        const s = getComputedStyle(el)
+        return {
+          ramme: document.querySelector('.sq-sideramme')!.getBoundingClientRect().width,
+          rom: el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
+        }
+      })
+      expect(ramme, `${sti}: rammen er bredere enn spalta`).toBeLessThanOrEqual(rom + 1)
     }
   })
 })

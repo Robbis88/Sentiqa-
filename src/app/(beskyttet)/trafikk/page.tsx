@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { finnTeller, settTrafikkAktiv } from './handlinger'
 import { Sidehode, Tomtilstand, Datatabell, Forklaring } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Plattform-eierens trafikk-oppsett: koble hver stasjon til nærmeste bilteller
 // (Vegvesen) og skru måling på/av. Kun der telleren faktisk står på veien forbi
@@ -15,13 +16,13 @@ export default async function TrafikkSide() {
     admin = lagSupabaseAdminKlient()
   } catch {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Trafikk" />
         <Tomtilstand
           tittel="Mangler service-nøkkel"
           forklaring="Trafikk-oppsettet leser på tvers av kjeder og trenger service-nøkkelen i miljøet. Uten den kan siden ikke vise stasjonene."
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -49,7 +50,7 @@ export default async function TrafikkSide() {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Trafikk"
         undertittel={svar}
@@ -110,6 +111,6 @@ export default async function TrafikkSide() {
           ikke noe «Finn teller» gjør for deg.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

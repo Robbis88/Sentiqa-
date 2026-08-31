@@ -6,6 +6,7 @@ import { opprettKampanje, slettKampanje } from './handlinger'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sidehode } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Kampanje = { id: string; retailer_id: string; navn: string; fra_dato: string; til_dato: string; eaner: string[] | null; stasjon_ider: string[] | null }
 type Rad = { dato: string; antall: number; antall_tilbud: number; omsetning: number; innekunder: number; biler: number }
@@ -70,7 +71,7 @@ export default async function KampanjerSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Kampanjer"
         undertittel="Salgsløft og fangstrate per kampanje, på tvers av kjedene."
@@ -114,6 +115,6 @@ export default async function KampanjerSide() {
           )}
         </section>
       ))}
-    </>
+    </Sideramme>
   )
 }

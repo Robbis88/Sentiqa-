@@ -267,6 +267,12 @@ const BREDDEUNNTAK: Record<string, string> = {
     + 'et mål for innholdet, ikke for sida.',
   '.sq-skjema':
     'Samme: bemanningsskjemaets egen lesbare bredde.',
+  '.rutine-form input[type="text"], .rutine-form input:not([type])':
+    'Minstebredde på skjemafelt så de ikke kollapser i en flex-rad. '
+    + 'Komponentmål. Kom fram da /kampanjer ble migrert.',
+  '.rutine-form select':
+    'Samme skjema, samme grunn — en nedtrekksliste som er 3 rem bred er '
+    + 'ubrukelig.',
   '.ansattnr-form input':
     'Ansattnummerfeltet. Et tallfelt bredt nok til fire siffer — et '
     + 'komponentmål, ikke en spalte. Kom fram da /ansatte ble migrert, '
