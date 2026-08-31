@@ -101,6 +101,34 @@ describe('Sideramme: bredden kommer fra mønsteret', () => {
       .toMatch(/\.sq-sideramme\s*\{[^}]*max-width:\s*var\(--sq-spalte\)/)
   })
 
+  it('den smale spalta er NØYAKTIG den gamle kortbredden', () => {
+    // DETTE ERSTATTER EN NETTLESERTEST SOM MÅLTE FEIL TING.
+    //
+    // Piloten sammenlignet hver migrert side mot en urørt søsterside for
+    // å vise at bredden ikke endret seg. Den feilet to ganger — ikke
+    // fordi kontrakten var gal, men fordi baselinen beveget seg:
+    // /persondata gir 1316 px for butikksjefen (hun ser ingen `.kort`
+    // der i det hele tatt) og 880 for eieren. Testen sammenlignet altså
+    // mot et tall som avhenger av hvem som ser, og hvilke data som
+    // finnes.
+    //
+    // Påstanden «vi endret ikke det som allerede var riktig» hører
+    // hjemme her, i katalogen, der den er deterministisk: den nye
+    // standardbredden må være det SAMME tallet som den gamle regelen
+    // ga. Endrer noen den ene uten den andre, sier denne fra — og
+    // nettleseren beviser deretter at rammen faktisk treffer tallet.
+    const ui = les('src', 'components', 'ui', 'ui.css')
+    const globals = les('src', 'app', 'globals.css')
+
+    const ny = /\.innhold\s*\{\s*--sq-spalte:\s*([^;]+);/.exec(ui)?.[1]?.trim()
+    const gammel = /\.innhold \.kort\s*\{[^}]*max-width:\s*([^;]+);/.exec(globals)?.[1]?.trim()
+
+    expect(ny, 'fant ikke standardbredden --sq-spalte').toBeDefined()
+    expect(gammel, 'fant ikke den gamle .innhold .kort-bredden').toBeDefined()
+    expect(ny, `--sq-spalte er ${ny}, men den gamle kortbredden er ${gammel}`)
+      .toBe(gammel)
+  })
+
   it('hver side som bruker rammen står i mønsterkartet', () => {
     // Uten mønster får siden `smal` av sikkerhetsgrunner. Det er trygt,
     // men det er ikke en beslutning — og en analysesidesom havner der

@@ -10,22 +10,28 @@ import { REDAKTOR_OKTFIL } from './eier'
 // åtte mønstre entydig; se `SPALTE` i src/lib/redesign/monstre.ts.
 //
 // ---------------------------------------------------------------------
-// «FØR» ER IKKE EN GAMMEL SKJERMDUMP — DET ER NABOSIDA
+// FASITEN ER KJEDEN, IKKE NABOSIDA. DET LÆRTE JEG AV TO RØDE KJØRINGER.
 //
-// De ikke-migrerte sidene kjører fortsatt den gamle mekanismen. Derfor
-// måles hver migrert side mot en søsterside i samme mønster som ikke er
-// rørt: er de like brede, har rammen bevart oppførselen i stedet for å
-// finne på en ny. Det holder også etter at noen endrer standardbredden —
-// et tall jeg skriver ned her ville ikke gjort det.
+// Første utgave målte hver migrert side mot en urørt søsterside i samme
+// mønster — «er de like brede, har vi ikke endret noe». Den feilet to
+// ganger, og ingen av gangene på grunn av kontrakten:
 //
-//   migrert                            søster (urørt)     forventning
-//   /salg                    analyse   /timesalg          LIK bredde
-//   /rutiner/oppsett   innstillinger   /persondata        LIK bredde
-//   /produksjonsplan/treffsikkerhet    /salg              LIK — se under
+//   /ansatte mot /persondata    436 px avvik
+//   /rutiner/oppsett mot /persondata   forutsetningen brast: 1316 px
 //
-// Den siste er pilotens eneste tilsiktede endring: 12 av 15 analysesider
-// var allerede fullbredde, denne var en av de tre som ikke var det, fordi
-// den brukte kort. Den kommer hjem til familien sin.
+// Begge er samme feil. /persondata gir 1316 px for butikksjefen — hun
+// ser ingen `.kort` der i det hele tatt — og 880 for eieren. Baselinen
+// var altså ikke en konstant, men en funksjon av hvem som ser og hvilke
+// data som finnes. Og for en rute der bredden SKAL endres, beviser en
+// søstersammenligning uansett ingenting.
+//
+// Nå måles kjeden absolutt, per rute:
+//
+//   rute → data-bredde → SPALTE → ramme == (bred ? spalta : min(880, spalta))
+//
+// Påstanden «vi endret ikke det som allerede var riktig» flyttet til
+// `sideramme.test.ts`, der den er deterministisk: den nye standard-
+// bredden må være NØYAKTIG det samme tallet som `.innhold .kort` ga.
 //
 // ---------------------------------------------------------------------
 // TILGJENGELIGHET MÅLES IKKE HER
@@ -39,7 +45,14 @@ import { REDAKTOR_OKTFIL } from './eier'
 
 const DATA = { epost: 'analyse@test.sentiqa.no', passord: 'test-analyse-2026' }
 
-/** `.innhold .kort { max-width: 880px }` i globals.css — den gamle grensa. */
+/**
+ * Den smale spalta.
+ *
+ * Samme tall som den gamle regelen `.innhold .kort { max-width: 880px }`,
+ * og det er ikke en tilfeldighet: `sideramme.test.ts` krever at
+ * `--sq-spalte` og den gamle kortbredden er identiske. Endrer noen den
+ * ene, sier vitest fra før denne fila i det hele tatt kjører.
+ */
 const SMAL = 880
 
 async function loggInn(page: Page) {
@@ -95,27 +108,6 @@ async function bevisBredde(page: Page, sti: string, ventet: 'smal' | 'bred') {
   return { ramme, rom }
 }
 
-/**
- * Spalta på en URØRT side — altså «før».
- *
- * Har sida kort, er 880 px-regelen i kraft og kortet ER spalta. Har den
- * ikke kort, er det ingenting som begrenser bredden, og spalta er alt
- * `.innhold` gir bort innenfor sin egen padding. To former, fordi det
- * nettopp var to former før rammen fantes.
- */
-async function gammelSpalte(page: Page): Promise<number> {
-  const kort = page.locator('.innhold > .kort, .innhold .kort').first()
-  if (await kort.count()) {
-    await expect(kort).toBeVisible()
-    return (await kort.boundingBox())!.width
-  }
-  return page.evaluate(() => {
-    const el = document.querySelector('main.innhold')!
-    const s = getComputedStyle(el)
-    return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
-  })
-}
-
 test.describe('sideramme — bredden følger mønsteret', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 1000 })
@@ -133,48 +125,13 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     await expect(page.locator('main.innhold')).toHaveAttribute('data-bredde', 'smal')
   })
 
-  test('/salg beholder bredden til den urørte /timesalg', async ({ page }) => {
-    await page.goto('/timesalg')
-    const foer = await gammelSpalte(page)
-    await page.goto('/salg')
-    const etter = await rammebredde(page)
-
-    expect(foer, 'forutsetning: /timesalg er fullbredde i dag').toBeGreaterThan(SMAL)
-    expect(Math.abs(etter - foer)).toBeLessThan(2)
-  })
-
-  test('/rutiner/oppsett beholder bredden til den urørte /persondata', async ({ page }) => {
-    await page.goto('/persondata')
-    const foer = await gammelSpalte(page)
-    await page.goto('/rutiner/oppsett')
-    const etter = await rammebredde(page)
-
-    expect(foer, 'forutsetning: /persondata er 880 px i dag').toBeLessThanOrEqual(SMAL)
-    expect(Math.abs(etter - foer)).toBeLessThan(2)
-  })
-
-  test('/produksjonsplan/treffsikkerhet kommer hjem til analysefamilien', async ({ page }) => {
-    await page.goto('/salg')
-    const familien = await rammebredde(page)
-    await page.goto('/produksjonsplan/treffsikkerhet')
-    const naa = await rammebredde(page)
-
-    expect(naa, 'den var 880 px fordi den brukte kort, ikke fordi noen mente det')
-      .toBeGreaterThan(SMAL)
-    expect(Math.abs(naa - familien)).toBeLessThan(2)
-  })
-
   // -------------------------------------------------------------------
-  // DE NYE MØNSTRENE MÅLES ABSOLUTT, IKKE MOT EN SØSTER
+  // ÉN PÅSTAND PER RUTE, OG DEN ER ABSOLUTT
   //
-  // For /salg og /rutiner/oppsett er påstanden «ingenting endret seg», og
-  // da er nabosida riktig fasit. For /utsolgt og /ansatte er påstanden
-  // den motsatte: dagens bredde var tilfeldig og SKAL endres. Da beviser
-  // en søstersammenligning ingenting, og kjeden må måles for seg.
-  //
-  // Første utgave sammenlignet /ansatte mot /persondata og var rød med
-  // 436 px avvik. Den sa ikke hvilket av de to tallene som var galt —
-  // derfor står begge i meldinga nå.
+  // Både rutene som skal endre bredde og de som ikke skal, måles med
+  // samme fasit — se `bevisBredde`. Feiler en av dem, står målt bredde,
+  // tilgjengelig spalte og forventet tall i meldinga, så neste leser
+  // slipper å gjette hvilket av tallene som var galt. Det måtte jeg.
   // -------------------------------------------------------------------
 
   test('/utsolgt: dataliste → bred → målt', async ({ page }) => {
