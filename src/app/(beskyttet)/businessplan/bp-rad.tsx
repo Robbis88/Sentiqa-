@@ -172,6 +172,11 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           butikksjefen etter et svinn som ikke finnes. */}
       {(rad.teoretisk_brutto_pst != null || rad.faktisk_brutto_ytd_pst != null
         || rad.bp_brutto_ytd_pst != null) && (
+        /* PERIODEN MAATTE STAA. Tallene OVER dette punktet er
+           MAANEDEN - «13 449 kr bak plan», «-12,0 % mot forventet».
+           Alt under er HITTIL I AAR. To tidsrom paa samme kort, uten et
+           ord om hvilket som er hvilket, var grunnen til at kortet ikke
+           lot seg lese. Overskriften paa marginlinja sier det naa. */
         <dl className="bp-brutto">
           <div>
             <dt>Kassen, perfekt dag</dt>
@@ -215,14 +220,32 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           </div>
           {rad.brutto_mot_bp_pp != null && (
             <div className="bp-gap">
-              <dt>
-                {rad.brutto_mot_bp_pp < 0 ? 'Å dekke inn' : 'Over planen'}
-              </dt>
+              {/* FORTEGNET BLE KASTET BORT, OG DE TO TALLENE KAN PEKE
+                  HVER SIN VEI.
+                  Ordet ble valgt av `pp`, mens `Math.abs()` skjulte
+                  fortegnet paa `kr`. Lone, bilvask, august 2026:
+                  pp = 0,0 og kr = -9 089. Kortet sa «Over planen ·
+                  0,0 pp · 9 089 kr» - mens de 9 089 kronene laa BAK
+                  planen. Den som leste det, leste at det gikk bra.
+
+                  De to maaler heller ikke det samme: `pp` er marginen
+                  per krone, `kr` er hele bruttofortjeneste-differansen,
+                  som blander margin OG volum. En avdeling kan tjene mer
+                  per krone og likevel ha tjent faerre kroner, fordi den
+                  solgte mindre. Derfor faar de hver sin retning. */}
+              <dt>Margin mot planen · hittil i år</dt>
               <dd>
                 <Status nivaa={bruttoAlvor(rad.brutto_mot_bp_indeks)}>
-                  {`${Math.abs(rad.brutto_mot_bp_pp).toFixed(1).replace('.', ',')} pp`}
-                  {rad.brutto_mot_bp_kr != null
-                    && ` · ${kr.format(Math.abs(rad.brutto_mot_bp_kr))}`}
+                  {`${Math.abs(rad.brutto_mot_bp_pp).toFixed(1).replace('.', ',')} pp `}
+                  {rad.brutto_mot_bp_pp < 0 ? 'under' : 'over'}
+                  {rad.brutto_mot_bp_kr != null && (
+                    <>
+                      {' · '}
+                      {kr.format(Math.abs(rad.brutto_mot_bp_kr))}
+                      {' i bruttofortjeneste '}
+                      {rad.brutto_mot_bp_kr < 0 ? 'bak' : 'over'}
+                    </>
+                  )}
                 </Status>
               </dd>
             </div>
@@ -246,6 +269,32 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           feilpris og det som gis bort. På varm drikke er den normalt stor
           fordi kaffeavtaler gir kopper uten et salg bak seg. Målestokken
           over er planen, ikke kassen.
+        </p>
+      )}
+
+      {/* KASSA ER IKKE TAKET NÅR INNTEKTEN ALDRI GÅR OVER KASSA.
+          Robert: bilvask har TO inntekter — én over kassa, og
+          abonnementsvask som bare finnes i regnskapsrapporten.
+          «Kassen, perfekt dag» regnes fra salgsstatistikken og ser bare
+          den første; «Regnskapet viser» inneholder begge.
+
+          Målt 2026 hittil, bruttofortjeneste fra kassa mot viewets tall:
+
+            Lone           485 405  mot   612 294   +23 %
+            Laguneparken 1 491 898  mot 1 631 763    +8 %
+            Varden       1 656 056  mot 1 750 441    +5 %
+            Bønes        1 408 771  mot 1 565 349   +10 %
+
+          Andelen varierer med hvor mange abonnenter stasjonen har. Jeg
+          leste først differansen som mulig dobbelttelling — den er
+          tvert imot inntekt kassa aldri ser, og regnskapet kan derfor
+          lovlig ligge OVER «taket». Det er umulig i enhver annen
+          avdeling, og derfor verdt å si her. */}
+      {rad.gruppe_kode === '210' && (
+        <p className="bp-grunnlag">
+          Bilvask har to inntekter: over kassa, og abonnement som bare
+          finnes i regnskapet. «Kassen, perfekt dag» ser bare den første,
+          så regnskapet kan ligge over den uten at noe er galt.
         </p>
       )}
 
