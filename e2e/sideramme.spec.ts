@@ -152,20 +152,20 @@ test.describe('sideramme — bredden følger mønsteret', () => {
   })
 
   test('rammen holder seg innenfor spalta på liten skjerm', async ({ page }) => {
-    // FØRSTE UTGAVE AV DENNE TESTEN MÅLTE FEIL TING, OG DEN FANT EN ANNENS FEIL
+    // DENNE MÅLER RAMMENS EGET ANSVAR, IKKE SIDAS
     //
-    // Den målte `document.scrollWidth` og var rød på /salg med 129 px. Det
-    // er en ekte feil, men den er ikke rammens: `Datatabell` rendrer
-    // `<div className="tabellramme">` som scroll-container, og den divven
-    // har ingen CSS-regel i det hele tatt. På mobil reddes kortbaserte
-    // sider av `.kort { overflow-x: auto }` i globals.css; sider som
-    // bruker `Datatabell` bart — som /salg — har ingen slik container.
-    // Feilen er eldre enn piloten og ligger i `Datatabell`, ikke her.
+    // Rammen skal aldri selv bli bredere enn spalta den fikk. Blir den
+    // det, er det `max-width` uten `width: 100%`, eller flex-barn med
+    // `min-width: auto` som drar den ut — begge deler ville vært rammens
+    // skyld. At innholdet inni renner over er et annet spørsmål, og det
+    // stilles av `ingenDokumentrulling`.
     //
-    // Rammens eget ansvar er smalere og måles derfor presist: den skal
-    // aldri selv bli bredere enn spalta den fikk. Blir den det, er det
-    // `max-width` uten `width: 100%`, eller flex-barn med `min-width:
-    // auto` som drar den ut — begge deler ville vært rammens skyld.
+    // (Første utgave målte `document.scrollWidth` her og var rød på /salg
+    // med 129 px. Jeg forklarte det med `.tabellramme` — se side.tsx. Den
+    // forklaringen holdt ikke: /skills gir NØYAKTIG samme 129 px uten å ha
+    // en tabell i det hele tatt. Derfor navngir `dokumentoverflyt` nå
+    // elementet i stedet for å telle piksler, så neste diagnose bygger på
+    // en måling og ikke på min gjetning.)
     await page.setViewportSize({ width: 390, height: 844 })
     for (const sti of ['/salg', '/rutiner/oppsett', '/produksjonsplan/treffsikkerhet', '/utsolgt', '/ansatte']) {
       await page.goto(sti)
@@ -311,10 +311,56 @@ async function utenforRammen(page: Page): Promise<string[]> {
   })
 }
 
-/** Ruller dokumentet sideveis? */
-function dokumentoverflyt(page: Page): Promise<number> {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+/**
+ * Ruller dokumentet sideveis — og i så fall, HVEM gjør det?
+ *
+ * Et rent pikseltall er ubrukelig når man skal finne årsaken: /salg og
+ * /skills ga begge nøyaktig 129 px, på to sider uten felles innhold. Da
+ * er spørsmålet «hvilket element», ikke «hvor mange piksler», og det
+ * spørsmålet skal testen svare på selv i stedet for å sende meg på jakt.
+ *
+ * Bare de YTTERSTE synderne rapporteres: har et barn skjøvet ut sin
+ * forelder, er det forelderen som står i veien for å forstå, ikke de
+ * femten etterkommerne som arver bredden.
+ */
+async function dokumentoverflyt(page: Page): Promise<{ px: number; hvem: string[] }> {
+  return page.evaluate(() => {
+    const rot = document.documentElement
+    const px = rot.scrollWidth - rot.clientWidth
+    if (px <= 1) return { px, hvem: [] }
+    const grense = rot.clientWidth
+    const skyldige: Element[] = []
+    for (const el of Array.from(document.body.querySelectorAll('*'))) {
+      const s = getComputedStyle(el)
+      if (s.display === 'none' || s.visibility === 'hidden') continue
+      if (s.position === 'fixed') continue
+      const b = el.getBoundingClientRect()
+      if (b.width === 0 && b.height === 0) continue
+      if (b.right <= grense + 1) continue
+      // Har forelderen allerede samme problem, er det den som er saken.
+      if (skyldige.some((s2) => s2.contains(el))) continue
+      skyldige.push(el)
+    }
+    return {
+      px,
+      hvem: skyldige.slice(0, 6).map((el) => {
+        const b = el.getBoundingClientRect()
+        const s = getComputedStyle(el)
+        const navn = el.tagName.toLowerCase()
+          + (typeof el.className === 'string' && el.className.trim()
+            ? '.' + el.className.trim().split(/\s+/).join('.') : '')
+        return `${navn} [${Math.round(b.left)}→${Math.round(b.right)}] `
+          + `w=${Math.round(b.width)} min-w=${s.minWidth} overflow-x=${s.overflowX}`
+      }),
+    }
+  })
+}
+
+/** Kort påstand: dokumentet ruller ikke — og sier hvem hvis det gjør det. */
+async function ingenDokumentrulling(page: Page, sti: string) {
+  const { px, hvem } = await dokumentoverflyt(page)
+  expect(px, `${sti} ruller ${px} px sideveis. Ytterste syndere:\n  ${hvem.join('\n  ')}`)
+    .toBeLessThanOrEqual(1)
 }
 
 test.describe('bølge 2 — liste blir smal', () => {
@@ -341,8 +387,7 @@ test.describe('bølge 2 — liste blir smal', () => {
       await page.goto(sti)
       await expect(page.locator('.sq-sideramme')).toBeVisible()
       expect(await utenforRammen(page), `${sti}: innhold utenfor rammen`).toEqual([])
-      expect(await dokumentoverflyt(page), `${sti}: dokumentet ruller sideveis`)
-        .toBeLessThanOrEqual(1)
+      await ingenDokumentrulling(page, sti)
     }
   })
 
@@ -356,8 +401,7 @@ test.describe('bølge 2 — liste blir smal', () => {
       expect(ramme, `${sti}: rammen er bredere enn spalta på mobil`)
         .toBeLessThanOrEqual(rom + 1)
       expect(await utenforRammen(page), `${sti}: innhold utenfor rammen på mobil`).toEqual([])
-      expect(await dokumentoverflyt(page), `${sti}: ruller sideveis på 390 px`)
-        .toBeLessThanOrEqual(1)
+      await ingenDokumentrulling(page, sti)
     }
   })
 
