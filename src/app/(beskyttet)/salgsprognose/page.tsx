@@ -12,6 +12,7 @@ import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
 import { Signal, Status } from '@/components/ui/status'
 import Link from 'next/link'
+import { Sideramme } from '@/components/ui/sideramme'
 
 const datoLang = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Oslo' })
 
@@ -33,7 +34,7 @@ const SIGNALER: { navn: string; status: 'live' | 'kommer' }[] = [
 
 export default async function SalgsprognoseSide({ searchParams }: { searchParams: Promise<{ stasjon?: string }> }) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Salgsprognosen er for eier og butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Salgsprognosen er for eier og butikksjef.</p></Sideramme>
   const sp = await searchParams
 
   const supabase = await lagSupabaseServerKlient()
@@ -43,13 +44,13 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   const liste = stasjoner ?? []
   if (liste.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Salgsprognose" undertittel="Forventet salg i morgen, per kategori." />
         <Tomtilstand
           tittel="Ingen stasjoner tilgjengelig"
           forklaring="Prognosen regnes per stasjon. Så snart du har tilgang til minst én, ser du den her."
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -109,7 +110,7 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Salgsprognose"
         undertittel={svar ? `${svar}. ${kontekst}` : kontekst}
@@ -210,6 +211,6 @@ export default async function SalgsprognoseSide({ searchParams }: { searchParams
           står det blant meldingene over.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

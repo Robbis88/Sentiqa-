@@ -6,6 +6,7 @@ import { TYPE_ETIKETT, FREKVENS_ETIKETT } from '@/lib/ikmat/standard'
 import { leggTilPunkt, settOppStandard } from '../handlinger'
 import { IkPunktListe, type Punkt } from './ik-punkt-liste'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 const TYPER = ['kjol', 'frys', 'oppvarming', 'varmholding', 'skyllevann', 'annet']
 const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
@@ -13,7 +14,7 @@ const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
 export default async function IkOppsettSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>IK-mat-oppsett gjøres av eier eller butikksjef.</p>
+    return <Sideramme><p>IK-mat-oppsett gjøres av eier eller butikksjef.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const [{ data: stasjoner }, { data: punkter }] = await Promise.all([
@@ -40,7 +41,7 @@ export default async function IkOppsettSide() {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="IK-mat · oppsett"
         undertittel={svar}
@@ -91,6 +92,6 @@ export default async function IkOppsettSide() {
           </section>
         )
       })}
-    </>
+    </Sideramme>
   )
 }

@@ -7,6 +7,7 @@ import { kr, manedAar } from '@/lib/format'
 import { Forklaring, Sidehode, Tomtilstand } from '@/components/ui/side'
 import { delEtterKobling, sorterEtterAvvik, sumBakPlan } from '@/lib/regnskap/bp-dom'
 import { BpAvdeling, type BpRad } from './bp-rad'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // «Ligger vi i rute mot businessplanen?»
@@ -46,7 +47,7 @@ export default async function BusinessplanSide(
   // - og en vakt som ikke forstaar det den ser, sier fra i stedet for
   // aa anta at alt er i orden. Den gjorde nettopp det.
   if (!erLeder(bruker.rolle)) {
-    return <p>Kun eier og butikksjef har tilgang til businessplanen.</p>
+    return <Sideramme><p>Kun eier og butikksjef har tilgang til businessplanen.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -70,13 +71,13 @@ export default async function BusinessplanSide(
 
   if (!stasjon) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Businessplan" undertittel="Ligger vi i rute?" />
         <Tomtilstand
           tittel="Ingen stasjon valgt"
           forklaring="Velg en butikk i toppstripen. «Bak plan» summert over flere butikker sier ingenting om hvor man skal gjøre noe."
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -109,14 +110,14 @@ export default async function BusinessplanSide(
 
   if (alle.length === 0 || medDom.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Businessplan" undertittel="Ligger vi i rute?" />
         <Tomtilstand
           tittel="Ingen businessplan for denne måneden"
           forklaring="Businessplanen lastes opp én gang i året og fordeles per måned og avdeling. Er den ikke lastet inn ennå, finnes det ingenting å måle mot."
           handling={<a className="sq-knapp" href="/import">Til import</a>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -144,7 +145,7 @@ export default async function BusinessplanSide(
   const verst = bakPlan[0]
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={sumBak < 0
           ? `${kr.format(Math.abs(Math.round(sumBak)))} bak plan hittil i ${manedAar.format(new Date(maned)).toLowerCase()}`
@@ -200,6 +201,6 @@ export default async function BusinessplanSide(
           med 20 dager av planen.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

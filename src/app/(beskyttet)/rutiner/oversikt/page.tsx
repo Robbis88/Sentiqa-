@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { beregnRutinestat, type Rutinestat } from '@/lib/rutinestat'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
+import { Sideramme } from '@/components/ui/sideramme'
 
 /**
  * Samme tre trinn som for - gronn/gul/rod - men uttrykt i systemets
@@ -20,7 +21,7 @@ function ordFor(p: number): string {
 export default async function RutineOversikt() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Kun eier/butikksjef har tilgang til oversikten.</p>
+    return <Sideramme><p>Kun eier/butikksjef har tilgang til oversikten.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -49,7 +50,7 @@ export default async function RutineOversikt() {
       + (verst && rader.length > 1 ? `. Svakest: ${verst.navn} (${verst.stat.prosent} %)` : '')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode tittel="Rutiner — oversikt" undertittel={svar} />
 
       {rader.length === 0 ? (
@@ -103,6 +104,6 @@ export default async function RutineOversikt() {
           mens den pågår.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

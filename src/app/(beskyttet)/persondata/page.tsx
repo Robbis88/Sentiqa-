@@ -6,6 +6,7 @@ import { HANDLING_TEKST, type Handling } from '@/lib/personvern/logg'
 import { FristSkjema, SlettSkjema } from './skjemaer'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Sok = Promise<{ stasjon?: string }>
 
@@ -13,7 +14,7 @@ type Person = { stasjon_id: string; ansatt_nr: string; navn: string; sist_aktivi
 
 export default async function PersonvernSide({ searchParams }: { searchParams: Sok }) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Personvern er for butikksjef og eier.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Personvern er for butikksjef og eier.</p></Sideramme>
   const eier = bruker.rolle === 'retailer_admin'
 
   const sok = await searchParams
@@ -24,7 +25,7 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
     .from('stasjoner').select('id, navn, butikknummer')
     .is('slettet_tid', null).order('butikknummer')
   const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
-  if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
+  if (alle.length === 0) return <Sideramme><p>Ingen stasjoner registrert.</p></Sideramme>
   // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
   // saa en delt lenke viser det den lovet.
   const valgtId = await husketStasjon(alle, sok.stasjon)
@@ -62,7 +63,7 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
   ].join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode tittel="Personvern" undertittel={svar} />
 
       <section className="kort">
@@ -207,6 +208,6 @@ export default async function PersonvernSide({ searchParams }: { searchParams: S
           hva som sto der.
         </p>
       </section>
-    </>
+    </Sideramme>
   )
 }

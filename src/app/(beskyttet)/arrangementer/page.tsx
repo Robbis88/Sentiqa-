@@ -5,13 +5,14 @@ import { leggTilArrangement, bekreftArrangement, forkastArrangement, leggTilKale
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Arr = { id: string; dato: string; navn: string; faktor: number; stasjon_id: string | null; status: string }
 type Kilde = { id: string; navn: string; ical_url: string; standard_faktor: number; stasjon_ider: string[] | null }
 
 export default async function ArrangementerSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return <p>Arrangementer styres av eier.</p>
+  if (bruker.rolle !== 'retailer_admin') return <Sideramme><p>Arrangementer styres av eier.</p></Sideramme>
 
   const supabase = await lagSupabaseServerKlient()
   const idag = iDag()
@@ -51,7 +52,7 @@ export default async function ArrangementerSide() {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Arrangementer"
         undertittel={svar}
@@ -167,6 +168,6 @@ export default async function ArrangementerSide() {
           tom til den brukes, og det er en gyldig tilstand.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

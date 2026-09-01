@@ -10,6 +10,7 @@ import { behandleJobb } from '@/lib/import/behandle'
 import { nesteSteg, onboardingsteg, type Kildemaaling } from '@/lib/onboarding'
 import { Sidehode, Datatabell } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Regnskaps-import utløser tung AI (Opus + fokus), og «Behandle alle» kan kjøre
 // mange filer — gi handlingen god tid.
@@ -127,7 +128,7 @@ export default async function ImportSide(
 ) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier har tilgang til import.</p>
+    return <Sideramme><p>Kun eier har tilgang til import.</p></Sideramme>
   }
 
   const naa = new Date()
@@ -171,7 +172,7 @@ export default async function ImportSide(
   const feiler = jobber.filter((j) => j.status === 'feilet').length
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Import"
         undertittel={[
@@ -316,6 +317,6 @@ export default async function ImportSide(
           </table>
         )}
       </section>
-    </>
+    </Sideramme>
   )
 }

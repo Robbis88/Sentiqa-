@@ -11,13 +11,14 @@ import { hentDagvindu, sisteDag } from '@/lib/dagvindu'
 import { Dagsvelger } from '@/components/ui/periode'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr } from '@/lib/format'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Rad = { stasjon_id: string; time: string; salg: number | null; inne_kunder: number | null; ute_kunder: number | null }
 
 export default async function TimesalgSide({ searchParams }: { searchParams: Promise<{ stasjon?: string; dato?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til timesalg.</p>
+    return <Sideramme><p>Du har ikke tilgang til timesalg.</p></Sideramme>
   }
 
   const sp = await searchParams
@@ -33,14 +34,14 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
 
   if (!dato) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Timesalg" undertittel="Når på døgnet pengene kommer inn." />
         <Tomtilstand
           tittel="Ingen timesalgsdata ennå"
           forklaring="Last opp en timesalgsrapport under Import, så ser du døgnet time for time — og hvilke timer som faktisk bærer dagen."
           handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -90,7 +91,7 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
   const vindu = await hentDagvindu(supabase, 'timesalg', dato)
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Timesalg"
         undertittel={topp
@@ -131,6 +132,6 @@ export default async function TimesalgSide({ searchParams }: { searchParams: Pro
           krever ikke folk bak disken.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

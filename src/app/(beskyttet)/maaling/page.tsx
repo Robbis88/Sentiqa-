@@ -8,6 +8,7 @@ import { slettMalekort } from './handlinger'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,10 +39,10 @@ export default async function MalingSide() {
 
   if (!erAdmin && !erButikksjef) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Måling" />
         <p className="undertittel">Måling er for eier og butikksjef.</p>
-      </>
+      </Sideramme>
     )
   }
 
@@ -80,13 +81,13 @@ export default async function MalingSide() {
   // og forskjellen er hele grunnen til at dette tok en time aa finne.
   if (stFeil) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Måling" />
         <p className="undertittel">
           Kunne ikke hente stasjonene ({stFeil.message}). Målekortene kan ikke
           regnes ut før det er rettet.
         </p>
-      </>
+      </Sideramme>
     )
   }
 
@@ -133,7 +134,7 @@ export default async function MalingSide() {
     : 'Slik ligger butikken din an mot de andre, og mot samme periode i fjor.'
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Måling"
         undertittel={svar ? `${svar}. ${undertittel}` : undertittel}
@@ -196,6 +197,6 @@ export default async function MalingSide() {
           {erAdmin ? ' Du velger selv om butikksjefene får se navnene på de andre butikkene eller bare sin egen plassering.' : ''}
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

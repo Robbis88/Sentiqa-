@@ -5,6 +5,7 @@ import { manedAar } from '@/lib/format'
 import { GenererKnapp } from './generer-knapp'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Signal } from '@/components/ui/status'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // «Generer fokuspunkter» (AI per stasjon) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -21,7 +22,7 @@ type Punkt = {
 export default async function FokusSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til fokuspunkter.</p>
+    return <Sideramme><p>Du har ikke tilgang til fokuspunkter.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -53,7 +54,7 @@ export default async function FokusSide() {
   }
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Fokus"
         undertittel={siste
@@ -112,6 +113,6 @@ export default async function FokusSide() {
           </section>
         ))
       )}
-    </>
+    </Sideramme>
   )
 }

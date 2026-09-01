@@ -12,6 +12,7 @@ import {
 import {
   analyser, royaltyandel, royaltyEndring, type Funn, type Aarstall,
 } from '@/lib/bp/analyse'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // "HVA BETYR DEN NYE BP-EN FOR OSS?"
@@ -116,7 +117,7 @@ export default async function BpSammenlign(
   // Eierens data. BP-en baerer royaltysats, fastloenn og kjedens
   // kostnadsramme - butikksjefen ser sin maanedsramme i `/bemanning`.
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier har tilgang til BP-sammenligningen.</p>
+    return <Sideramme><p>Kun eier har tilgang til BP-sammenligningen.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -124,7 +125,7 @@ export default async function BpSammenlign(
 
   if (aarganger.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Sammenlign BP" />
         <Tomtilstand
           tittel="Ingen BP er lastet inn ennå"
@@ -135,7 +136,7 @@ export default async function BpSammenlign(
           }
           handling={<Link href="/import">Gå til Import</Link>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -155,7 +156,7 @@ export default async function BpSammenlign(
   if (fraAar === undefined) {
     const alene = await hentAarstall(supabase, tilAar)
     return (
-      <>
+      <Sideramme>
         <Sidehode
           tittel={`Businessplan ${tilAar}`}
           undertittel="Bare én årgang er lastet inn, så det finnes ingenting å sammenligne mot ennå."
@@ -174,7 +175,7 @@ export default async function BpSammenlign(
             stiller siden den mot denne og sier hva som er endret.
           </p>
         </Forklaring>
-      </>
+      </Sideramme>
     )
   }
 
@@ -202,7 +203,7 @@ export default async function BpSammenlign(
 
   if (!fjor || !iAar || valgte.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Sammenlign BP" />
         <Tomtilstand
           tittel={`Ingen stasjon kan sammenlignes mellom ${fraAar} og ${tilAar}`}
@@ -215,7 +216,7 @@ export default async function BpSammenlign(
                 + 'årganger. Ellers ville et oppkjøp blitt målt som vekst.'
           }
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -262,7 +263,7 @@ export default async function BpSammenlign(
     : valgte.map((id) => navnFor.get(id) ?? id).join(', ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={`BP ${tilAar} mot BP ${fraAar}`}
         merke={hvem}
@@ -461,6 +462,6 @@ export default async function BpSammenlign(
           ikke kan belegge.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

@@ -5,13 +5,14 @@ import { leggTilPunkt, veksle, slettPunkt } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Punkt = { id: string; tittel: string; gjentakende: boolean; fullfort_tid: string | null }
 
 export default async function MinSjekkliste() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Personlig sjekkliste er for eier/butikksjef.</p>
+    return <Sideramme><p>Personlig sjekkliste er for eier/butikksjef.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -36,7 +37,7 @@ export default async function MinSjekkliste() {
       : `${alle.length - gjortAntall} igjen av ${alle.length}`
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Min sjekkliste"
         undertittel={`${svar}. Kun du ser den, og daglige punkter nullstilles hver dag.`}
@@ -84,6 +85,6 @@ export default async function MinSjekkliste() {
           </ul>
         )}
       </section>
-    </>
+    </Sideramme>
   )
 }

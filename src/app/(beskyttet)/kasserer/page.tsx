@@ -14,6 +14,7 @@ import {
   byggAlle, totaltFor, nokGrunnlag, MIN_BONGER,
   type Kassererrad, type Kassererbilde,
 } from '@/lib/kasserer/rate'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // Kasserer: hva kassa gjorde, ikke hvem som er mistenkt.
@@ -56,7 +57,7 @@ function Rate({ v, bonger }: { v: number | null; bonger: number }) {
 export default async function KassererSide({ searchParams }: { searchParams: Promise<Sok> }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til kassererstatistikk.</p>
+    return <Sideramme><p>Du har ikke tilgang til kassererstatistikk.</p></Sideramme>
   }
 
   const sp = await searchParams
@@ -96,14 +97,14 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
 
   if (maaneder.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Kasserer" undertittel="Retur, makulering og sletting i kassa, per måned." />
         <Tomtilstand
           tittel="Ingen kassererdata ennå"
           forklaring="Kassererstatistikk kommer fra St1-rapporten CashierStatistics."
           handling={<Knapp><Link href="/import">Gå til import</Link></Knapp>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -136,7 +137,7 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
   }
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Kasserer"
         undertittel={`${erStasjon ? navnFor.get(valgtStasjon!) : 'Alle stasjoner'} · ${manedAar.format(new Date(valgtMaaned))}`}
@@ -317,7 +318,7 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
           + 'Del opp i makulert, retur og slettet, og se på avvik per 100 bonger. '
           + 'Ikke rangér kasserere mot hverandre.'}
       />
-    </>
+    </Sideramme>
   )
 }
 

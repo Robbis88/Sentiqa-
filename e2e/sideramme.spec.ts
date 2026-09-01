@@ -585,3 +585,51 @@ test.describe('bølge 4 — analyse og dashbord blir brede', () => {
       .toBeLessThanOrEqual(m.rom + 1)
   })
 })
+
+// =====================================================================
+// PULJE 1 — 24 RUTER SOM ALLE GIR SAMME BREDDE SOM FOER
+//
+// Ingen av dem endrer noe brukeren ser. Det er hele poenget: de var
+// riktige ved SAMMENTREFF - fordi de tilfeldigvis brukte (eller ikke
+// brukte) `.kort`, og `.innhold .kort` tilfeldigvis var enig med
+// `SPALTE`. Etter migreringen kommer bredden fra moensteret, og
+// vaktene gjelder dem.
+//
+// Derfor maales et TVERRSNITT, ikke alle 24: paastanden er at kjeden
+// holder for hver moenster/bredde-kombinasjon, og en rute til av samme
+// sort beviser ikke noe nytt. Utvalget dekker begge bredder og fem
+// moenstre, og alle er naabare for butikksjefen.
+// =====================================================================
+
+const PULJE1: [string, 'smal' | 'bred'][] = [
+  ['/timesalg', 'bred'],      // analyse
+  ['/kasserer', 'bred'],      // analyse, med tabell
+  ['/premier', 'bred'],       // dataliste
+  ['/lonn', 'smal'],          // arbeidsflyt, med tabell
+  ['/opplaring', 'smal'],     // arbeidsflyt
+  ['/persondata', 'smal'],    // innstillinger, med tabell
+]
+
+test.describe('pulje 1 — kjeden holder der ingenting endres', () => {
+  test.beforeEach(async ({ page }) => {
+    await loggInn(page)
+  })
+
+  test('desktop 1600 px', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 })
+    for (const [sti, ventet] of PULJE1) {
+      const m = await bevisSide(page, sti, ventet)
+      if (ventet === 'smal') expect(Math.round(m.ramme), sti).toBe(SMAL)
+      else expect(m.ramme, sti).toBeGreaterThan(SMAL)
+    }
+  })
+
+  test('mobil 390 px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const [sti, ventet] of PULJE1) {
+      const m = await bevisSide(page, sti, ventet)
+      expect(m.ramme, `${sti}: bredere enn spalta på mobil`)
+        .toBeLessThanOrEqual(m.rom + 1)
+    }
+  })
+})

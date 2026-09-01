@@ -11,6 +11,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Oppgave = { id: string; kategori: string; tittel: string; beskrivelse: string | null; estimert_min: number | null }
 type Periode = { id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; forventet_slutt: string | null; fullfort_tid: string | null }
@@ -20,7 +21,7 @@ type Skift = { id: string; dato: string; start_tid: string | null; slutt_tid: st
 export default async function OpplaringSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'butikksjef') {
-    return <p>Opplæring av nyansatte håndteres av butikksjefen for sin butikk.</p>
+    return <Sideramme><p>Opplæring av nyansatte håndteres av butikksjefen for sin butikk.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
@@ -92,7 +93,7 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Opplæring"
         undertittel={totalOppgaver === 0
@@ -256,6 +257,6 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
           </section>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

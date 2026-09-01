@@ -4,13 +4,14 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang } from '@/lib/format'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Runde = { id: string; start_dato: string; slutt_dato: string; status: string; notat: string | null; puls_sporsmal: { tekst: string; kategori: string } | null }
 type Svar = { skala: number | null; kommentar: string | null; stasjon_id: string }
 
 export default async function RundeResultat({ params }: { params: Promise<{ id: string }> }) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Ingen tilgang.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Ingen tilgang.</p></Sideramme>
   const { id } = await params
   const supabase = await lagSupabaseServerKlient()
 
@@ -19,7 +20,7 @@ export default async function RundeResultat({ params }: { params: Promise<{ id: 
     supabase.from('puls_svar').select('skala, kommentar, stasjon_id').eq('runde_id', id).overrideTypes<Svar[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
   ])
-  if (!runde) return <p>Fant ikke målingen.</p>
+  if (!runde) return <Sideramme><p>Fant ikke målingen.</p></Sideramme>
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 
   // Per stasjon: antall, sum, fordeling [1..5]
@@ -48,7 +49,7 @@ export default async function RundeResultat({ params }: { params: Promise<{ id: 
     : `snitt ${totSnitt} av 5 på ${totAntall} ${totAntall === 1 ? 'svar' : 'svar'}`
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={runde.puls_sporsmal?.tekst ?? 'Måling'}
         undertittel={`${erAktiv ? 'Tar imot svar' : 'Avsluttet'} · ${svarTekst} · ${runde.puls_sporsmal?.kategori} · ${periode}`}
@@ -94,6 +95,6 @@ export default async function RundeResultat({ params }: { params: Promise<{ id: 
           </ul>
         </section>
       )}
-    </>
+    </Sideramme>
   )
 }
