@@ -15,6 +15,7 @@ import { AdminDashbord } from '../admin-dashbord'
 import { ButikksjefDashbord } from '../butikksjef-dashbord'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Dashbordet kan gjøre litt tyngre oppslag (regnskap/ukerapport) — gi rom.
 export const maxDuration = 60
@@ -215,12 +216,12 @@ export default async function OversiktSide(
   // stedet for portefoljen. En portefolje av en ting er stasjonen, og
   // skallet sier det samme.
   if (bruker.rolle === 'retailer_admin' && valgt === null) {
-    return <AdminDashbord bruker={bruker} idag={iDag()} />
+    return <Sideramme><AdminDashbord bruker={bruker} idag={iDag()} /></Sideramme>
   }
 
   // Eierens drill-down og butikksjefens operative bilde er den SAMME
   // flata med den samme stasjonen - forskjellen er bare hvordan de kom
   // hit. `valgt` kan vaere null for en butikksjef uten stasjoner i det
   // hele tatt; da faller vi tilbake til RLS-omfanget, som foer.
-  return <ButikksjefDashbord bruker={bruker} bareStasjon={valgt ?? undefined} />
+  return <Sideramme><ButikksjefDashbord bruker={bruker} bareStasjon={valgt ?? undefined} /></Sideramme>
 }

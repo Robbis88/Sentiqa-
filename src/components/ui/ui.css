@@ -136,6 +136,21 @@
 .sq-sidehode-tekst { min-width: 0; }
 .sq-sidehode h1 { margin: 0 0 var(--luft-1); }
 .sq-sidehode .undertittel { margin: 0; max-width: 62ch; }
+/* FUNN E, 2026-09-01 - IKKE RETTET, EGEN SAK
+   `flex-shrink: 0` og `flex-wrap: wrap` staar i motstrid HER, paa samme
+   element. Shrinken hindrer forelderen i aa begrense bredden, saa
+   elementet blir max-content bredt - og da slaar dets egen wrap aldri
+   inn. Wrappen er med andre ord slaatt av av linja under den.
+
+   Maalt paa /oversikt, 390 px skjerm: handlingsblokka er 582 px i en
+   362 px ramme. Den treffer HVER side med brede nok handlinger, siden
+   dette er `Sidehode` sin delte regel - /oversikt er bare den foerste
+   som har nok innhold i toppen til aa vise det.
+
+   Minste retting: `min-width: 0` her (da kan forelderen krympe den, og
+   wrappen slaar inn), ELLER fjern `flex-shrink: 0`. En linje.
+   Se `PULJE2_MOBIL`-unntaket i e2e/sideramme.spec.ts, som skal strykes
+   naar dette rettes. */
 .sq-sidehode-handlinger {
   display: flex;
   gap: var(--luft-2);

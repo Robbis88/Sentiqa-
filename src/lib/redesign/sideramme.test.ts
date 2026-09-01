@@ -426,6 +426,15 @@ const BREDDEUNNTAK: Record<string, string> = {
     + '«07:00» havner på to linjer.',
   '.stilling-rad input':
     'Antallsfelt per stilling.',
+  // --- Pulje 2. Seks komponentmål fra IK-mat og sjekkpunkt. Tre av dem
+  //     er nettbrettets trykkflater, ikke spalter: 44 px er minstemålet
+  //     for en finger, 56 px er nettbrettets egen forstørrelse av det.
+  '.kryss': 'Avkryssingsboks. 44 px er minste trykkflate.',
+  '.tablet .kryss': 'Samme, forstørret for nettbrettet.',
+  '.tablet .ik-form input': 'Tallfelt på nettbrettet — brukes med hansker.',
+  '.ik-form input': 'Samme felt på desktop.',
+  '.maaling-input input': 'Temperaturmålingen. Fire tegn og et komma.',
+  '.tmaal-felt button': 'Knappen ved siden av det feltet.',
   // --- Pulje 1. Tolv komponentmål fra 24 ruter. Ingen av dem er en
   //     spalte: skjemabredder, feltbredder og merkelapper.
   '.malekort-skjema': 'Målekortskjemaets lesbare bredde.',
@@ -601,12 +610,6 @@ const UTENFOR: Record<string, string> = {
  */
 const VENTER: string[] = [
   '/abonnement',
-  '/dekning',
-  '/ikmat',
-  '/ikmat/maaling',
-  '/mine-opplysninger',
-  '/oversikt',
-  '/sjekkpunkt',
 ]
 
 describe('porten: ingen ny side uten ramme', () => {

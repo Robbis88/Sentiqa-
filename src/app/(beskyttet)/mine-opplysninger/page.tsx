@@ -7,6 +7,7 @@ import {
 import { BekreftSkjema } from './bekreft'
 import { Status } from '@/components/ui/status'
 import { Sidehode } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Informasjonsplikten etter aml. § 9-2 andre ledd, gjort til en side.
 //
@@ -33,7 +34,7 @@ export default async function MineOpplysninger() {
   const trengerBekreftelse = maaBekrefte(bekreftet)
 
   return (
-    <>
+    <Sideramme>
       {/* Sidehodet sier tilstanden — lest eller ikke — i stedet for at den
           bare finnes som et kort lenger ned. På en detaljside er «hvilken
           tilstand er dette i» nivå 1, og her er tilstanden hele poenget:
@@ -107,6 +108,6 @@ export default async function MineOpplysninger() {
         Versjon {KONTROLLTILTAK_VERSJON}. Endres teksten vesentlig, blir du bedt om
         å lese den på nytt.
       </p>
-    </>
+    </Sideramme>
   )
 }
