@@ -29,6 +29,16 @@ type Hullrad = {
   datoer: string[]
 }
 
+/**
+ * Datasettene som kommer EN FIL PER DAG.
+ *
+ * Svinn staar utenfor: det foeres naar noe kastes, ikke daglig, saa
+ * «manglende dager» gir ikke mening. Foerste kjoering av /dekning talte
+ * 538 svinndager som hull og skjoev de fire ekte funnene under seg. Se
+ * migrasjon 0159.
+ */
+const DAGLIGE = new Set(['daglig_salg', 'kassererstatistikk', 'timesalg'])
+
 const MAANEDER = 14 // år-mot-år trenger ~13–14 mnd historikk
 const UKEDAG = ['sø', 'ma', 'ti', 'on', 'to', 'fr', 'lø']
 
@@ -142,7 +152,16 @@ export default async function DekningSide() {
           Ingen dom paa `bra` her: et datasett uten huller er
           utgangspunktet, ikke en seier. */}
       <div className="sq-nokkelrad">
-        {oppsummering.map((d) => {
+        {/* SVINN HAR INGEN TELLER HER, OG DET ER MED VILJE.
+            Det foeres NAAR noe kastes - mat igjen ved stengetid - ikke
+            hver dag. En dag uten svinnfoering er en normal dag. Sto det
+            en teller her, ville den vist «0 stasjonsdager som mangler»
+            etter at svinn ble tatt ut av `v_datohull`, og dermed paastaatt
+            at datasettet er komplett. Bedre ingen teller enn en som lyver.
+
+            Svinn staar fortsatt i maanedsrutenettet under: «kom det svinn
+            den maaneden» ER et meningsfullt spoersmaal. */}
+        {oppsummering.filter((d) => DAGLIGE.has(d.key)).map((d) => {
           // STASJONSDAGER, IKKE KJEDEDAGER.
           //
           // Sto dette paa kjedenivaa, ville tellerne sagt «0 dager
@@ -281,6 +300,12 @@ export default async function DekningSide() {
           Grønt er full måned, gult er delvis, rødt er ingenting. I dagrutenettet er
           en tom celle dagen i dag — den er ikke lastet opp ennå, og skal ikke telles
           som et hull.
+        </p>
+        <p>
+          <strong>Svinn telles ikke som hull.</strong> Det føres når noe kastes —
+          mat igjen ved stengetid — ikke hver dag, så en dag uten svinnføring er
+          en normal dag. Månedsrutenettet under viser fortsatt om det kom svinn
+          den måneden.
         </p>
         <p>
           Hull fikses ved å laste opp filen for datoen på nytt under Import.
