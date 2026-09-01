@@ -4,6 +4,7 @@ import { settOppStandard, leggTilMerke, slettMerke, tildelMerke, fjernTildeling 
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Merke = { id: string; navn: string; emoji: string; beskrivelse: string | null }
 type Ansatt = { id: string; navn: string; stasjon_id: string }
@@ -11,7 +12,7 @@ type Tildelt = { id: string; merke_id: string; ansatt_id: string; merker: { navn
 
 export default async function MerkerSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle === 'plattform_redaktor') return <p>Ingen tilgang.</p>
+  if (bruker.rolle === 'plattform_redaktor') return <Sideramme><p>Ingen tilgang.</p></Sideramme>
   const erLeder = bruker.rolle === 'retailer_admin' || bruker.rolle === 'butikksjef'
 
   const supabase = await lagSupabaseServerKlient()
@@ -57,7 +58,7 @@ export default async function MerkerSide() {
   ) : undefined
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Merker"
         undertittel={tildelt === 0
@@ -128,6 +129,6 @@ export default async function MerkerSide() {
           </div>
         </details>
       )}
-    </>
+    </Sideramme>
   )
 }

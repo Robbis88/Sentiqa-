@@ -6,13 +6,14 @@ import { registrerSkills, slettSkills } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Score = { id: string; stasjon_id: string; prosent: number; kommentar: string | null; registrert_tid: string }
 const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyle: 'short' })
 
 export default async function SkillsSide() {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Kun eier/butikksjef.</p></Sideramme>
   const supabase = await lagSupabaseServerKlient()
   const [{ data: scorer }, { data: stasjoner }] = await Promise.all([
     supabase.from('skills_score').select('id, stasjon_id, prosent, kommentar, registrert_tid').order('registrert_tid', { ascending: false }).limit(50).overrideTypes<Score[]>(),
@@ -44,7 +45,7 @@ export default async function SkillsSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Skills-score"
         undertittel="Teamets score fra treningsappen. Vises på nettbrettet."
@@ -76,6 +77,6 @@ export default async function SkillsSide() {
           ))}
         </Liste>
       )}
-    </>
+    </Sideramme>
   )
 }

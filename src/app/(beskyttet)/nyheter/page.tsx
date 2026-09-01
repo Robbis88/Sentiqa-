@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Innlegg = { id: string; tittel: string; innhold: string; publisert_tid: string | null }
 
@@ -21,7 +22,7 @@ export default async function NyheterSide() {
   const innlegg = data ?? []
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Nyheter fra Sentiqa"
         undertittel="Oppdateringer, kampanjer og tips."
@@ -47,6 +48,6 @@ export default async function NyheterSide() {
           ))}
         </ul>
       )}
-    </>
+    </Sideramme>
   )
 }

@@ -8,12 +8,13 @@ import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Sporsmal = { id: string; kategori: string; tekst: string; aktiv: boolean }
 
 export default async function SporsmalSide() {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Ingen tilgang.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Ingen tilgang.</p></Sideramme>
   const supabase = await lagSupabaseServerKlient()
   const { data: sporsmal } = await supabase.from('puls_sporsmal').select('id, kategori, tekst, aktiv').is('slettet_tid', null).order('sortering').overrideTypes<Sporsmal[]>()
 
@@ -30,7 +31,7 @@ export default async function SporsmalSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Puls-spørsmål"
         undertittel={liste.length === 0
@@ -78,6 +79,6 @@ export default async function SporsmalSide() {
           ))}
         </Liste>
       )}
-    </>
+    </Sideramme>
   )
 }

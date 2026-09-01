@@ -9,13 +9,14 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { Status } from '@/components/ui/status'
 import { NyRundeSkjema, type PulsSporsmal } from './ny-skjema'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: string; status: string; puls_sporsmal: { tekst: string; kategori: string } | null }
 
 export default async function PulsSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Puls administreres av eier/butikksjef. Ansatte svarer på tableten.</p>
+    return <Sideramme><p>Puls administreres av eier/butikksjef. Ansatte svarer på tableten.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const { data: runder } = await supabase
@@ -65,7 +66,7 @@ export default async function PulsSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Puls"
         undertittel={liste.length === 0
@@ -115,6 +116,6 @@ export default async function PulsSide() {
           })}
         </ul>
       )}
-    </>
+    </Sideramme>
   )
 }

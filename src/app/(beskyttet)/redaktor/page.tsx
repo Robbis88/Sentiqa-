@@ -6,6 +6,7 @@ import { Status } from '@/components/ui/status'
 import { NyttInnlegg } from './ny-innlegg'
 import { settPublisert, slettInnlegg } from './handlinger'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Innlegg = {
   id: string
@@ -20,7 +21,7 @@ const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyl
 
 export default async function RedaktorSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'plattform_redaktor') return <p>Kun plattform-redaktør har tilgang her.</p>
+  if (bruker.rolle !== 'plattform_redaktor') return <Sideramme><p>Kun plattform-redaktør har tilgang her.</p></Sideramme>
 
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
@@ -38,7 +39,7 @@ export default async function RedaktorSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Publisering"
         undertittel={innlegg.length === 0
@@ -87,6 +88,6 @@ export default async function RedaktorSide() {
           ))}
         </ul>
       )}
-    </>
+    </Sideramme>
   )
 }

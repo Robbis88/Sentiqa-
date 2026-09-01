@@ -8,13 +8,14 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyBruker } from './ny-bruker'
 import { fjernBruker } from './handlinger'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Profil = { id: string; fullt_navn: string | null; rolle: string }
 type Kobling = { profil_id: string; stasjon_id: string }
 
 export default async function BrukereSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return <p>Kun eier kan administrere brukere.</p>
+  if (bruker.rolle !== 'retailer_admin') return <Sideramme><p>Kun eier kan administrere brukere.</p></Sideramme>
 
   const supabase = await lagSupabaseServerKlient()
   const [{ data: profiler }, { data: koblinger }, { data: stasjoner }] = await Promise.all([
@@ -49,7 +50,7 @@ export default async function BrukereSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Brukere"
         undertittel={liste.length === 0
@@ -91,6 +92,6 @@ export default async function BrukereSide() {
           ))}
         </Liste>
       )}
-    </>
+    </Sideramme>
   )
 }

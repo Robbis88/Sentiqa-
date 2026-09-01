@@ -327,6 +327,9 @@ const BREDDEUNNTAK: Record<string, string> = {
     + 'et mål for innholdet, ikke for sida.',
   '.sq-skjema':
     'Samme: bemanningsskjemaets egen lesbare bredde.',
+  '.sq-smalt-felt':
+    'Et bevisst smalt tallfelt — navnet sier det. Komponentmål. '
+    + 'Forutsagt av baselinen før /merker ble migrert, og dukket opp der.',
   '.rutine-form input[type="text"], .rutine-form input:not([type])':
     'Minstebredde på skjemafelt så de ikke kollapser i en flex-rad. '
     + 'Komponentmål. Kom fram da /kampanjer ble migrert.',

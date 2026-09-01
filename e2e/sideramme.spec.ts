@@ -204,10 +204,25 @@ test.describe('sideramme — bredden følger mønsteret', () => {
 // avvises paa /salg fordi hun staar utenfor alle kjeder, og butikksjef
 // og nettbrett avvises paa /plattform. Den dekningen dupliseres ikke.
 //
-// /trafikk uten service-noekkel i miljoeet rendrer «Mangler
-// service-noekkel» - ogsaa den innenfor rammen, med vilje. Da maaler
-// testen fortsatt riktig kjede, i stedet for aa flake paa hva miljoeet
-// tilfeldigvis har.
+// ---------------------------------------------------------------------
+// TESTMILJOEBEGRENSNING — LES DENNE FOER DU STOLER PAA DEKNINGEN
+//
+// CI har ingen service-noekkel. Begge disse sidene leser paa tvers av
+// kjeder med `lagSupabaseAdminKlient()`, og uten noekkelen faller de til
+// «Mangler service-noekkel» - som ogsaa er pakket inn i rammen, med
+// vilje, saa maalingen treffer riktig kjede uansett.
+//
+// KONSEKVENSEN, SAGT RETT UT:
+//
+//   BEVIST   /kampanjer og /trafikk klassifiseres som `dataliste`
+//   BEVIST   `dataliste` gir `bred`
+//   BEVIST   rammen blir faktisk bred i nettleseren
+//   IKKE     at tabellinnholdet deres rendrer riktig i bred visning
+//
+// Det siste er kun bevist paa /utsolgt, som har ekte data i CI. Les
+// derfor ikke «tre datalister maalt» som «tre tabeller maalt».
+//
+// Dette er et testmiljoefunn, ikke et layoutfunn, og det loeses ikke her.
 // =====================================================================
 
 test.describe('sideramme — plattform-redaktørens datalister', () => {
@@ -240,5 +255,118 @@ test.describe('sideramme — plattform-redaktørens datalister', () => {
       })
       expect(ramme, `${sti}: rammen er bredere enn spalta`).toBeLessThanOrEqual(rom + 1)
     }
+  })
+})
+
+// =====================================================================
+// BOELGE 2 — 13 LISTER FRA TILFELDIG FULLBREDDE TIL `liste = smal`
+//
+// Dette er den stoerste visuelle endringen i migreringen: alle 13 gaar
+// fra fullbredde til 880 px. Derfor maales fire representative
+// strukturer, ikke en representant:
+//
+//   /skills     Rad/Liste - den delte primitiven
+//   /puls       hjemmelaget radklasse i barnefil
+//   /varsler    mye metadata og handlinger per rad
+//   /nyheter    lang tekst (sq-innlegg)
+//
+// Ingen av de fire har tabell, saa den kjente `.tabellramme`-overflyten
+// forstyrrer ikke maalingen. Det er med vilje: skal en av dem rulle
+// sideveis, er det den nye bredden som gjorde det.
+//
+// HVA SOM FAKTISK MAALES
+//
+// «Handlinger forsvinner ikke utenfor rammen», «lange tekster bryter» og
+// «metadata kolliderer ikke» er tre spoersmaal med ett felles maal: ikke
+// noe SKAL stikke utenfor rammen. `utenforRammen()` maaler nettopp det,
+// paa hvert eneste synlige etterkommerelement, og navngir synderen.
+// Absolutt- og fastposisjonerte elementer er utelatt - et sidepanel eller
+// en meny SKAL kunne ligge utenfor spalta.
+// =====================================================================
+
+const BOELGE2 = ['/skills', '/puls', '/varsler', '/nyheter']
+
+/** Synlige etterkommere som stikker utenfor rammen sin. */
+async function utenforRammen(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const ramme = document.querySelector('.sq-sideramme')
+    if (!ramme) return ['fant ingen .sq-sideramme']
+    const r = ramme.getBoundingClientRect()
+    const ut: string[] = []
+    for (const el of Array.from(ramme.querySelectorAll('*'))) {
+      const s = getComputedStyle(el)
+      if (s.position === 'absolute' || s.position === 'fixed') continue
+      if (s.display === 'none' || s.visibility === 'hidden') continue
+      const b = el.getBoundingClientRect()
+      if (b.width === 0 && b.height === 0) continue
+      if (b.right > r.right + 1 || b.left < r.left - 1) {
+        const navn = el.tagName.toLowerCase()
+          + (el.className && typeof el.className === 'string'
+            ? '.' + el.className.trim().split(/\s+/).join('.') : '')
+        ut.push(`${navn} (${Math.round(b.left)}–${Math.round(b.right)} mot rammens `
+          + `${Math.round(r.left)}–${Math.round(r.right)})`)
+      }
+    }
+    return ut.slice(0, 5)
+  })
+}
+
+/** Ruller dokumentet sideveis? */
+function dokumentoverflyt(page: Page): Promise<number> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+}
+
+test.describe('bølge 2 — liste blir smal', () => {
+  test.beforeEach(async ({ page }) => {
+    await loggInn(page)
+  })
+
+  for (const bredde of [1440, 1600]) {
+    test(`kjeden holder på ${bredde} px`, async ({ page }) => {
+      await page.setViewportSize({ width: bredde, height: 1000 })
+      for (const sti of BOELGE2) {
+        const { ramme, rom } = await bevisBredde(page, sti, 'smal')
+        // Spalta er romslig nok paa begge bredder, saa rammen skal treffe
+        // 880 - ikke bare «ikke mer enn».
+        expect(rom, `${sti}: spalta er bare ${Math.round(rom)} px`).toBeGreaterThan(SMAL)
+        expect(Math.round(ramme), `${sti} på ${bredde} px`).toBe(SMAL)
+      }
+    })
+  }
+
+  test('ingenting stikker utenfor rammen på desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    for (const sti of BOELGE2) {
+      await page.goto(sti)
+      await expect(page.locator('.sq-sideramme')).toBeVisible()
+      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen`).toEqual([])
+      expect(await dokumentoverflyt(page), `${sti}: dokumentet ruller sideveis`)
+        .toBeLessThanOrEqual(1)
+    }
+  })
+
+  test('rammen og innholdet holder seg innenfor mobilviewporten', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const sti of BOELGE2) {
+      await page.goto(sti)
+      await expect(page.locator('.sq-sideramme')).toBeVisible()
+      const rom = await tilgjengelig(page)
+      const ramme = await rammebredde(page)
+      expect(ramme, `${sti}: rammen er bredere enn spalta på mobil`)
+        .toBeLessThanOrEqual(rom + 1)
+      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen på mobil`).toEqual([])
+      expect(await dokumentoverflyt(page), `${sti}: ruller sideveis på 390 px`)
+        .toBeLessThanOrEqual(1)
+    }
+  })
+
+  test('avvisningssida har samme bredde som sida den avviser', async ({ page }) => {
+    // /kunnskap og /redaktor avviser butikksjefen. Foer boelge 2 fikk hun
+    // fullbredde der og 880 px paa sidene hun har tilgang til - samme rute,
+    // to bredder, avhengig av hvem som ser. Avvisningen er ogsaa en tilstand
+    // av sida, og har naa sidas kontrakt.
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await bevisBredde(page, '/kunnskap', 'smal')
   })
 })
