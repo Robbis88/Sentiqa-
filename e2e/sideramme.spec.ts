@@ -63,50 +63,28 @@ async function loggInn(page: Page) {
   await expect(page).not.toHaveURL(/\/logg-inn/, { timeout: 15_000 })
 }
 
-/** Spalta på en MIGRERT side: rammen eier bredden, så rammen måles. */
-async function rammebredde(page: Page): Promise<number> {
-  const ramme = page.locator('.sq-sideramme')
-  await expect(ramme, 'siden er ikke migrert til Sideramme').toHaveCount(1)
-  await expect(ramme).toBeVisible()
-  return (await ramme.boundingBox())!.width
-}
-
 /**
- * Plassen `.innhold` faktisk gir bort, innenfor sin egen padding.
+ * Beviser bredden for én rute: rute → Monster → SPALTE → målt bredde.
  *
- * Dette er fasiten en `bred` side skal fylle, og taket en `smal` side
- * ikke kan overstige. Den leses fra sida i stedet for å skrives ned her,
- * så tallet holder når sidemenyen eller paddingen endrer seg.
- */
-function tilgjengelig(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const el = document.querySelector('main.innhold')!
-    const s = getComputedStyle(el)
-    return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight)
-  })
-}
-
-/**
- * Beviser hele kjeden for én rute: rute → Monster → SPALTE → målt bredde.
- *
- * En `smal` side skal være nøyaktig 880 px, eller hele spalta hvis den er
- * trangere enn det. En `bred` side skal fylle spalta. Ingen søsterside er
- * involvert — påstanden er absolutt, og gjelder også for ruter der dagens
- * bredde var tilfeldig og SKAL endres.
+ * Leser fra `maal()` som alt annet, så det finnes bare ett sted som vet
+ * hvilke elementer som teller. Denne påstår KUN bredde — `bevisSide`
+ * legger til overflyt- og plasskontrollene.
  */
 async function bevisBredde(page: Page, sti: string, ventet: 'smal' | 'bred') {
   await page.goto(sti)
   await expect(page.locator('main.innhold'), sti).toHaveAttribute('data-bredde', ventet)
-  const rom = await tilgjengelig(page)
-  const ramme = await rammebredde(page)
-  const fasit = ventet === 'bred' ? rom : Math.min(SMAL, rom)
+  await expect(page.locator('.sq-sideramme'), `${sti}: ikke migrert`).toHaveCount(1)
+  await expect(page.locator('.sq-sideramme')).toBeVisible()
+  const m = await maal(page)
+  const fasit = ventet === 'bred' ? m.rom : Math.min(SMAL, m.rom)
   expect(
-    Math.abs(ramme - fasit),
-    `${sti} (${ventet}): rammen er ${Math.round(ramme)} px, spalta gir ${Math.round(rom)} px, `
-    + `fasit ${Math.round(fasit)} px`,
+    Math.abs(m.ramme - fasit),
+    `${sti} (${ventet}): rammen er ${Math.round(m.ramme)} px, spalta gir `
+    + `${Math.round(m.rom)} px, fasit ${Math.round(fasit)} px`,
   ).toBeLessThan(2)
-  return { ramme, rom }
+  return m
 }
+
 
 test.describe('sideramme — bredden følger mønsteret', () => {
   test.beforeEach(async ({ page }) => {
@@ -158,12 +136,12 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     // det, er det `max-width` uten `width: 100%`, eller flex-barn med
     // `min-width: auto` som drar den ut — begge deler ville vært rammens
     // skyld. At innholdet inni renner over er et annet spørsmål, og det
-    // stilles av `ingenSideoverflyt`.
+    // stilles av `maal().dokumentIRammen`.
     //
     // (Første utgave målte `document.scrollWidth` her og var rød på /salg
     // med 129 px. Jeg forklarte det med `.tabellramme` — se side.tsx. Den
     // forklaringen holdt ikke: /skills gir NØYAKTIG samme 129 px uten å ha
-    // en tabell i det hele tatt. Derfor navngir `dokumentoverflyt` nå
+    // en tabell i det hele tatt. Derfor navngir måleren nå
     // elementet i stedet for å telle piksler, så neste diagnose bygger på
     // en måling og ikke på min gjetning.)
     await page.setViewportSize({ width: 390, height: 844 })
@@ -197,7 +175,7 @@ test.describe('sideramme — bredden følger mønsteret', () => {
 //     if (bruker.rolle !== 'plattform_redaktor') return <p>...</p>
 //
 // FOER den innpakkede returen. Uten ekte tilgang finnes det ingen
-// `.sq-sideramme` aa maale, og `rammebredde()` feiler paa antallet. Det
+// `.sq-sideramme` aa maale, og `bevisBredde` feiler paa antallet. Det
 // er derfor ingen egen tilgangstest her.
 //
 // Hva rollen IKKE naar er allerede bevist i port0-4b.spec.ts: hun
@@ -280,7 +258,7 @@ test.describe('sideramme — plattform-redaktørens datalister', () => {
 //
 // «Handlinger forsvinner ikke utenfor rammen», «lange tekster bryter» og
 // «metadata kolliderer ikke» er tre spoersmaal med ett felles maal: ikke
-// noe SKAL stikke utenfor rammen. `utenforRammen()` maaler nettopp det,
+// noe SKAL stikke utenfor rammen. `maal().utenfor` maaler nettopp det,
 // paa hvert eneste synlige etterkommerelement, og navngir synderen.
 // Absolutt- og fastposisjonerte elementer er utelatt - et sidepanel eller
 // en meny SKAL kunne ligge utenfor spalta.
@@ -288,138 +266,175 @@ test.describe('sideramme — plattform-redaktørens datalister', () => {
 
 const BOELGE2 = ['/skills', '/puls', '/varsler', '/nyheter']
 
-/** Synlige etterkommere som stikker utenfor rammen sin. */
-async function utenforRammen(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const ramme = document.querySelector('.sq-sideramme')
-    if (!ramme) return ['fant ingen .sq-sideramme']
-    const r = ramme.getBoundingClientRect()
-    const ut: string[] = []
 
-    /**
-     * Ligger elementet i en bevisst vannrett rullebane?
-     *
-     * `getBoundingClientRect()` rapporterer et elements FULLE bredde,
-     * ogsaa naar det ligger i en scrollport og bare delvis er synlig. En
-     * 546 px tabell som ruller pent i sitt eget kort saa derfor ut som
-     * innhold utenfor rammen, og felte /produksjonsplan paa mobil. Det er
-     * mekanismen som virker, ikke en feil.
-     */
-    const iRullebane = (el: Element): boolean => {
+// =====================================================================
+// ÉN MÅLER, FORDI JEG SKREV DEN SAMME FEILEN TRE GANGER
+//
+// `utenforRammen`, `dokumentoverflyt` og `trangtInnhold` var tre
+// funksjoner med hver sin kopi av «hvilke elementer teller». Alle tre
+// manglet det samme: at et element inne i en VANNRETT RULLEBANE skal
+// være bredere enn rammen — det er hele poenget med en rullebane.
+//
+// Jeg oppdaget mangelen én funksjon om gangen, og hver CI-kjøring
+// avslørte den neste kopien. Tre røde kjøringer for én misforståelse.
+// Derfor er de nå én måling med ett felles regelsett; en fjerde kopi
+// finnes ikke å glemme.
+//
+// ---------------------------------------------------------------------
+// HVA SOM IKKE TELLER, OG HVORFOR
+//
+// Hvert unntak er en dør ut av målingen. Udokumentert blir de over tid
+// til en «alt er greit»-ventil — testen ser grønn ut mens den måler
+// ingenting. Derfor står de her med grunn:
+//
+// 1. UTENFOR FLYTEN — `position: absolute | fixed`
+//    Deltar ikke i spaltas layout. `.sq-skjult` er nettopp dette: 132 px
+//    tekst i en 1 px boks, med vilje, så skjermlesere får den og øyet
+//    ikke. Uten unntaket felte den /produksjonsplan i CI.
+//
+// 2. I EN BEVISST RULLEBANE — `overflow-x: auto | scroll` på elementet
+//    ELLER en forfar. `.kort { overflow-x: auto }` på mobil er systemets
+//    dokumenterte måte å bære brede tabeller på. `.pp-tabell` er 546 px
+//    i en 362 px ramme og ruller i kortet sitt. Det er mekanismen som
+//    virker. FORFAR-SJEKKEN er det som skiller den fra en ekte overflyt,
+//    og det var den jeg glemte tre ganger.
+//
+// 3. IKKE LAGT UT — `display: none`, `visibility: hidden`, null størrelse.
+//    Det finnes ingen boks å ikke få plass i.
+//
+// 4. `clientWidth === 0` — DEN FARLIGSTE, og bare for «trangt».
+//    En kollapset boks vil ALDRI rapportere at innholdet ikke får plass.
+//    Unntaket er nødvendig, men et element som feilaktig er null bredt
+//    går stille forbi. Faller en side sammen slik, må `utenfor` eller
+//    `dokument` ta den — ikke `trangt`.
+//
+// Sikkerhetsnettet under alle fire er `dokument`: den måler det brukeren
+// faktisk merker, at siden ruller sideveis.
+// =====================================================================
+
+type Maaling = {
+  /** Rammens egen bredde, og spalta den fikk. */
+  ramme: number
+  rom: number
+  /** Synlige etterkommere som stikker utenfor rammen. */
+  utenfor: string[]
+  /** Innhold som ikke får plass i sin egen boks. */
+  trangt: string[]
+  /** Dokumentets sideveis overflyt, og hvem som forårsaker den. */
+  dokumentPx: number
+  /** Ytterste syndere — hele dokumentet, inkludert skallet. */
+  dokumentAlle: string[]
+  /** …og de av dem som ligger inne i rammen. Bare disse er sidas ansvar. */
+  dokumentIRammen: string[]
+}
+
+async function maal(page: Page): Promise<Maaling> {
+  return page.evaluate(() => {
+    const rot = document.documentElement
+    const innhold = document.querySelector('main.innhold')!
+    const ramme = document.querySelector('.sq-sideramme')
+    if (!ramme) throw new Error('fant ingen .sq-sideramme')
+
+    const cs = getComputedStyle(innhold)
+    const rom = innhold.clientWidth
+      - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    const rammeBoks = ramme.getBoundingClientRect()
+
+    const iRullebane = (el: Element, stopp: Element | null): boolean => {
       let n: Element | null = el
-      while (n && n !== ramme.parentElement) {
+      while (n && n !== stopp) {
         const o = getComputedStyle(n).overflowX
         if (o === 'auto' || o === 'scroll') return true
         n = n.parentElement
       }
       return false
     }
+    const navnet = (el: Element) =>
+      el.tagName.toLowerCase()
+      + (typeof el.className === 'string' && el.className.trim()
+        ? '.' + el.className.trim().split(/\s+/).join('.') : '')
 
+    const utenfor: string[] = []
+    const trangt: string[] = []
     for (const el of Array.from(ramme.querySelectorAll('*'))) {
       const s = getComputedStyle(el)
       if (s.position === 'absolute' || s.position === 'fixed') continue
       if (s.display === 'none' || s.visibility === 'hidden') continue
-      if (iRullebane(el)) continue
+      if (iRullebane(el, ramme.parentElement)) continue
+
       const b = el.getBoundingClientRect()
-      if (b.width === 0 && b.height === 0) continue
-      if (b.right > r.right + 1 || b.left < r.left - 1) {
-        const navn = el.tagName.toLowerCase()
-          + (el.className && typeof el.className === 'string'
-            ? '.' + el.className.trim().split(/\s+/).join('.') : '')
-        ut.push(`${navn} (${Math.round(b.left)}–${Math.round(b.right)} mot rammens `
-          + `${Math.round(r.left)}–${Math.round(r.right)})`)
+      if (b.width !== 0 || b.height !== 0) {
+        if (b.right > rammeBoks.right + 1 || b.left < rammeBoks.left - 1) {
+          utenfor.push(`${navnet(el)} (${Math.round(b.left)}–${Math.round(b.right)} mot `
+            + `rammens ${Math.round(rammeBoks.left)}–${Math.round(rammeBoks.right)})`)
+        }
+      }
+      if (el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1) {
+        trangt.push(`${navnet(el)}: innhold ${el.scrollWidth} px i en boks på `
+          + `${el.clientWidth} px (white-space: ${s.whiteSpace})`)
       }
     }
-    return ut.slice(0, 5)
-  })
-}
 
-/**
- * Ruller dokumentet sideveis — og i så fall, HVEM gjør det?
- *
- * Et rent pikseltall er ubrukelig når man skal finne årsaken: /salg og
- * /skills ga begge nøyaktig 129 px, på to sider uten felles innhold. Da
- * er spørsmålet «hvilket element», ikke «hvor mange piksler», og det
- * spørsmålet skal testen svare på selv i stedet for å sende meg på jakt.
- *
- * Bare de YTTERSTE synderne rapporteres: har et barn skjøvet ut sin
- * forelder, er det forelderen som står i veien for å forstå, ikke de
- * femten etterkommerne som arver bredden.
- */
-async function dokumentoverflyt(
-  page: Page,
-): Promise<{ px: number; hvem: string[]; iRammen: string[] }> {
-  return page.evaluate(() => {
-    const rot = document.documentElement
-    const px = rot.scrollWidth - rot.clientWidth
-    if (px <= 1) return { px, hvem: [] as string[], iRammen: [] as string[] }
-    const grense = rot.clientWidth
-    const skyldige: Element[] = []
-    for (const el of Array.from(document.body.querySelectorAll('*'))) {
-      const s = getComputedStyle(el)
-      if (s.display === 'none' || s.visibility === 'hidden') continue
-      if (s.position === 'fixed') continue
-      const b = el.getBoundingClientRect()
-      if (b.width === 0 && b.height === 0) continue
-      if (b.right <= grense + 1) continue
-      // Har forelderen allerede samme problem, er det den som er saken.
-      if (skyldige.some((s2) => s2.contains(el))) continue
-      skyldige.push(el)
+    const dokumentPx = rot.scrollWidth - rot.clientWidth
+    const alle: Element[] = []
+    if (dokumentPx > 1) {
+      for (const el of Array.from(document.body.querySelectorAll('*'))) {
+        const s = getComputedStyle(el)
+        if (s.display === 'none' || s.visibility === 'hidden') continue
+        if (s.position === 'fixed') continue
+        if (iRullebane(el, document.body)) continue
+        const b = el.getBoundingClientRect()
+        if (b.width === 0 && b.height === 0) continue
+        if (b.right <= rot.clientWidth + 1) continue
+        if (alle.some((f) => f.contains(el))) continue
+        alle.push(el)
+      }
     }
-    const ramme = document.querySelector('.sq-sideramme')
     const beskriv = (el: Element) => {
       const b = el.getBoundingClientRect()
       const s = getComputedStyle(el)
-      const navn = el.tagName.toLowerCase()
-        + (typeof el.className === 'string' && el.className.trim()
-          ? '.' + el.className.trim().split(/\s+/).join('.') : '')
-      return `${navn} [${Math.round(b.left)}→${Math.round(b.right)}] `
+      return `${navnet(el)} [${Math.round(b.left)}→${Math.round(b.right)}] `
         + `w=${Math.round(b.width)} min-w=${s.minWidth} overflow-x=${s.overflowX}`
     }
+
     return {
-      px,
-      hvem: skyldige.slice(0, 6).map(beskriv),
-      iRammen: skyldige.filter((el) => ramme?.contains(el)).slice(0, 6).map(beskriv),
+      ramme: rammeBoks.width,
+      rom,
+      utenfor: utenfor.slice(0, 6),
+      trangt: trangt.slice(0, 6),
+      dokumentPx,
+      dokumentAlle: alle.slice(0, 6).map(beskriv),
+      dokumentIRammen: alle.filter((el) => ramme.contains(el)).slice(0, 6).map(beskriv),
     }
   })
 }
 
-/**
- * Ingenting PÅ SIDA skyver dokumentet sideveis.
- *
- * ---------------------------------------------------------------------
- * HVORFOR DENNE MÅLER RAMMENS SUBTRE OG IKKE HELE DOKUMENTET
- *
- * Første utgave målte hele dokumentet og var rød på /skills med 129 px.
- * Da testen ble bedt om å navngi synderne, var ingen av dem på sida:
- *
- *     span.rolle-pip   [318→399]   Toppstripe
- *     a.klokke-lenke   [378→414]   Toppstripe
- *     form             [430→519]   Toppstripe   ← 519 − 390 = 129
- *     a.sq-fane        [338→444]   Fanerad
- *
- * Skallet, ikke innholdet. `.toppstripe` er `display: grid`
- * (globals.css:446), men mobilregelen på linje 555 setter `flex-wrap:
- * wrap` — som ikke gjør noe på en grid-container. De tre kolonnene
- * `minmax(0,1fr) auto minmax(0,1fr)` står side ved side på 390 px
- * uansett. Regelen ser riktig ut og er inert.
- *
- * Det forklarer også /salg sine 129 px, som jeg tidligere tilskrev
- * `.tabellramme`. Samme tall, samme årsak, og forklaringen min var feil.
- *
- * Funnet er eldre enn Sideramme og hører ikke til denne migreringen.
- * Derfor svarer denne påstanden for det rammen faktisk eier: at ingen
- * ETTERKOMMER AV RAMMEN skyver dokumentet. Skallets overflyt rapporteres
- * som kontekst i meldinga, så den ikke blir glemt.
- */
-async function ingenSideoverflyt(page: Page, sti: string) {
-  const { px, hvem, iRammen } = await dokumentoverflyt(page)
+/** Alle påstandene en migrert side skal bestå, på gjeldende viewport. */
+async function bevisSide(page: Page, sti: string, ventet: 'smal' | 'bred') {
+  await page.goto(sti)
+  await expect(page.locator('main.innhold'), sti).toHaveAttribute('data-bredde', ventet)
+  await expect(page.locator('.sq-sideramme'), `${sti}: ikke migrert`).toHaveCount(1)
+  await expect(page.locator('.sq-sideramme')).toBeVisible()
+
+  const m = await maal(page)
+  const fasit = ventet === 'bred' ? m.rom : Math.min(SMAL, m.rom)
   expect(
-    iRammen,
-    `${sti}: innhold i rammen skyver dokumentet (${px} px totalt).\n`
-    + `  I rammen:\n    ${iRammen.join('\n    ')}\n`
-    + `  Alle syndere:\n    ${hvem.join('\n    ')}`,
+    Math.abs(m.ramme - fasit),
+    `${sti} (${ventet}): rammen er ${Math.round(m.ramme)} px, spalta gir `
+    + `${Math.round(m.rom)} px, fasit ${Math.round(fasit)} px`,
+  ).toBeLessThan(2)
+
+  expect(m.utenfor, `${sti}: innhold utenfor rammen:\n  ${m.utenfor.join('\n  ')}`)
+    .toEqual([])
+  expect(m.trangt, `${sti}: innhold uten plass i sin egen boks:\n  ${m.trangt.join('\n  ')}`)
+    .toEqual([])
+  expect(
+    m.dokumentIRammen,
+    `${sti}: innhold i rammen skyver dokumentet (${m.dokumentPx} px totalt).\n`
+    + `  I rammen:\n    ${m.dokumentIRammen.join('\n    ')}\n`
+    + `  Alle syndere (skallet inkludert):\n    ${m.dokumentAlle.join('\n    ')}`,
   ).toEqual([])
+  return m
 }
 
 test.describe('bølge 2 — liste blir smal', () => {
@@ -431,142 +446,53 @@ test.describe('bølge 2 — liste blir smal', () => {
     test(`kjeden holder på ${bredde} px`, async ({ page }) => {
       await page.setViewportSize({ width: bredde, height: 1000 })
       for (const sti of BOELGE2) {
-        const { ramme, rom } = await bevisBredde(page, sti, 'smal')
-        // Spalta er romslig nok paa begge bredder, saa rammen skal treffe
-        // 880 - ikke bare «ikke mer enn».
-        expect(rom, `${sti}: spalta er bare ${Math.round(rom)} px`).toBeGreaterThan(SMAL)
-        expect(Math.round(ramme), `${sti} på ${bredde} px`).toBe(SMAL)
+        const m = await bevisSide(page, sti, 'smal')
+        // Spalta er romslig nok på begge bredder, så rammen skal TREFFE
+        // 880 — ikke bare «ikke mer enn».
+        expect(m.rom, `${sti}: spalta er bare ${Math.round(m.rom)} px`).toBeGreaterThan(SMAL)
+        expect(Math.round(m.ramme), `${sti} på ${bredde} px`).toBe(SMAL)
       }
     })
   }
 
-  test('ingenting stikker utenfor rammen på desktop', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 1000 })
-    for (const sti of BOELGE2) {
-      await page.goto(sti)
-      await expect(page.locator('.sq-sideramme')).toBeVisible()
-      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen`).toEqual([])
-      await ingenSideoverflyt(page, sti)
-    }
-  })
-
-  test('rammen og innholdet holder seg innenfor mobilviewporten', async ({ page }) => {
+  test('mobil: rammen og innholdet holder seg innenfor viewporten', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     for (const sti of BOELGE2) {
-      await page.goto(sti)
-      await expect(page.locator('.sq-sideramme')).toBeVisible()
-      const rom = await tilgjengelig(page)
-      const ramme = await rammebredde(page)
-      expect(ramme, `${sti}: rammen er bredere enn spalta på mobil`)
-        .toBeLessThanOrEqual(rom + 1)
-      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen på mobil`).toEqual([])
-      await ingenSideoverflyt(page, sti)
+      const m = await bevisSide(page, sti, 'smal')
+      expect(m.ramme, `${sti}: rammen er bredere enn spalta på mobil`)
+        .toBeLessThanOrEqual(m.rom + 1)
     }
   })
 
   test('avvisningssida har samme bredde som sida den avviser', async ({ page }) => {
-    // /kunnskap og /redaktor avviser butikksjefen. Foer boelge 2 fikk hun
-    // fullbredde der og 880 px paa sidene hun har tilgang til - samme rute,
-    // to bredder, avhengig av hvem som ser. Avvisningen er ogsaa en tilstand
-    // av sida, og har naa sidas kontrakt.
+    // /kunnskap avviser butikksjefen. Før bølge 2 fikk hun fullbredde der
+    // og 880 px på sidene hun har tilgang til — samme rute, to bredder,
+    // avhengig av hvem som ser. Avvisningen er også en tilstand av sida.
     await page.setViewportSize({ width: 1440, height: 1000 })
-    await bevisBredde(page, '/kunnskap', 'smal')
+    await bevisSide(page, '/kunnskap', 'smal')
   })
 })
 
 // =====================================================================
-// BOELGE 3 — ARBEIDSFLYT
+// BØLGE 3 — ARBEIDSFLYT
 //
-//   /avvik            er en `redirect('/ikmat')`. Ingen UI, ingen bredde.
-//                     Ikke migrert, og kan ikke maales.
+//   /avvik            er en `redirect('/ikmat')`. Ingen UI, ingen bredde,
+//                     ingenting å migrere eller måle.
 //   /bemanning        ukekalender: 7 dagkolonner + fast klokkekolonne
-//   /produksjonsplan  7 faste kolonner, to skjules paa mobil
+//   /produksjonsplan  7 faste kolonner, to skjules på mobil.
+//                     DUAL-SHELL: samme rute serverer også TabletSkall,
+//                     og den grenen er med vilje ikke pakket inn.
 //
 // DEN KRITISKE: /bemanning KOMPRIMERES, DEN FLYTER IKKE OVER
 //
-// `.bem-kalender` har `table-layout: fixed`. Ved 1316 px faar hver dag
-// ~178 px, ved 880 ~115 px. Tabellen stikker ALDRI utenfor - den bare
-// klemmes. Derfor ville `utenforRammen` sagt «alt i orden» selv om
-// innholdet var uleselig, og et oeyemaal er ikke et kriterium.
-//
-// `trangtInnhold()` maaler det mekaniske spoersmaalet i stedet: finnes
-// det innhold som IKKE FAAR PLASS i sin egen boks - altsaa `scrollWidth`
-// stoerre enn `clientWidth`? Det skjer naar tekst ikke kan brytes
-// (`white-space: nowrap`, lange ubrutte ord). Da passer innholdet
-// faktisk ikke, og det er noe annet enn at det er trangt.
+// `.bem-kalender` har `table-layout: fixed`. Ved 1316 px får hver dag
+// ~178 px, ved 880 ~115 px. Tabellen stikker ALDRI utenfor — den bare
+// klemmes. Et øyemål er ikke et kriterium, så `maal().trangt` stiller
+// det mekaniske spørsmålet i stedet: finnes det innhold som ikke får
+// plass i sin egen boks?
 // =====================================================================
 
 const BOELGE3 = ['/bemanning', '/produksjonsplan']
-
-/**
- * Innhold som ikke får plass i sin egen boks, inne i rammen.
- *
- * =====================================================================
- * FIRE UNNTAK, OG DE SKAL IKKE VOKSE UTEN SAMME BEHANDLING
- * =====================================================================
- *
- * Hvert unntak er en dør ut av målingen. Skrives de ikke ned, blir de
- * over tid til en «alt er greit»-ventil, og da måler testen ingenting
- * mens den ser grønn ut. Derfor står de her med grunn, ikke bare i koden:
- *
- * 1. UTENFOR FLYTEN — `position: absolute | fixed`
- *    Elementet deltar ikke i spaltas layout, så «får det plass» er ikke
- *    et spørsmål om bredden. `.sq-skjult` er nettopp dette: 132 px tekst
- *    i en 1 px boks, med vilje, så skjermlesere får den og øyet ikke.
- *    Uten unntaket felte den /produksjonsplan i CI.
- *
- * 2. INNE I EN BEVISST RULLEBANE — `overflow-x: auto | scroll`, på
- *    elementet selv ELLER en forfar opp til rammen.
- *    `.kort { overflow-x: auto }` på mobil er systemets dokumenterte
- *    måte å håndtere brede tabeller på. `.pp-tabell` er 546 px i en 362
- *    px ramme og RULLER i kortet sitt — det er mekanismen som virker,
- *    ikke en feil. Forfar-sjekken er det som skiller de to.
- *
- * 3. IKKE LAGT UT — `display: none`, `visibility: hidden`, null størrelse.
- *    Det finnes ingen boks å ikke få plass i.
- *
- * 4. `clientWidth === 0` — DEN FARLIGSTE.
- *    En kollapset boks vil ALDRI rapportere at innholdet ikke får plass,
- *    for forholdet er meningsløst. Unntaket er nødvendig, men det betyr
- *    at et element som feilaktig er null bredt går stille forbi. Faller
- *    en side sammen på den måten, må den fanges av `utenforRammen` eller
- *    `ingenSideoverflyt` — ikke av denne.
- *
- * Sikkerhetsnettet under alle fire: `ingenSideoverflyt` måler det
- * brukeren faktisk merker — at dokumentet ruller sideveis.
- */
-async function trangtInnhold(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const ramme = document.querySelector('.sq-sideramme')
-    if (!ramme) return ['fant ingen .sq-sideramme']
-
-    const iRullebane = (el: Element): boolean => {
-      let n: Element | null = el
-      while (n && n !== ramme.parentElement) {
-        const o = getComputedStyle(n).overflowX
-        if (o === 'auto' || o === 'scroll') return true
-        n = n.parentElement
-      }
-      return false
-    }
-
-    const ut: string[] = []
-    for (const el of Array.from(ramme.querySelectorAll('*'))) {
-      const s = getComputedStyle(el)
-      if (s.position === 'absolute' || s.position === 'fixed') continue   // 1
-      if (iRullebane(el)) continue                                        // 2
-      if (s.display === 'none' || s.visibility === 'hidden') continue     // 3
-      if (el.clientWidth === 0) continue                                  // 4
-      if (el.scrollWidth <= el.clientWidth + 1) continue
-      const navn = el.tagName.toLowerCase()
-        + (typeof el.className === 'string' && el.className.trim()
-          ? '.' + el.className.trim().split(/\s+/).join('.') : '')
-      ut.push(`${navn}: innhold ${el.scrollWidth} px i en boks på ${el.clientWidth} px`
-        + ` (white-space: ${s.whiteSpace})`)
-    }
-    return ut.slice(0, 6)
-  })
-}
 
 test.describe('bølge 3 — arbeidsflyt blir smal', () => {
   test.beforeEach(async ({ page }) => {
@@ -577,36 +503,19 @@ test.describe('bølge 3 — arbeidsflyt blir smal', () => {
     test(`kjeden holder på ${bredde} px`, async ({ page }) => {
       await page.setViewportSize({ width: bredde, height: 1000 })
       for (const sti of BOELGE3) {
-        const { ramme, rom } = await bevisBredde(page, sti, 'smal')
-        expect(rom, `${sti}: spalta er bare ${Math.round(rom)} px`).toBeGreaterThan(SMAL)
-        expect(Math.round(ramme), `${sti} på ${bredde} px`).toBe(SMAL)
+        const m = await bevisSide(page, sti, 'smal')
+        expect(m.rom, `${sti}: spalta er bare ${Math.round(m.rom)} px`).toBeGreaterThan(SMAL)
+        expect(Math.round(m.ramme), `${sti} på ${bredde} px`).toBe(SMAL)
       }
     })
   }
 
-  test('innholdet får plass ved 880 px — ikke bare trangt, men plass', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 1000 })
-    for (const sti of BOELGE3) {
-      await page.goto(sti)
-      await expect(page.locator('.sq-sideramme')).toBeVisible()
-      const trangt = await trangtInnhold(page)
-      expect(trangt, `${sti}: innhold som ikke får plass ved 880 px:\n  ${trangt.join('\n  ')}`)
-        .toEqual([])
-      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen`).toEqual([])
-      await ingenSideoverflyt(page, sti)
-    }
-  })
-
   test('mobil: rammen og innholdet holder seg innenfor viewporten', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     for (const sti of BOELGE3) {
-      await page.goto(sti)
-      await expect(page.locator('.sq-sideramme')).toBeVisible()
-      const rom = await tilgjengelig(page)
-      expect(await rammebredde(page), `${sti}: rammen er bredere enn spalta på mobil`)
-        .toBeLessThanOrEqual(rom + 1)
-      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen på mobil`).toEqual([])
-      await ingenSideoverflyt(page, sti)
+      const m = await bevisSide(page, sti, 'smal')
+      expect(m.ramme, `${sti}: rammen er bredere enn spalta på mobil`)
+        .toBeLessThanOrEqual(m.rom + 1)
     }
   })
 })
