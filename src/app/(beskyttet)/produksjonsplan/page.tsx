@@ -17,6 +17,7 @@ import { stasjonFraUrl } from '@/lib/stasjonsvalg'
 import { Signal } from '@/components/ui/status'
 import { Felt } from '@/components/ui/felt'
 import { Knapp } from '@/components/ui/knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // Pilot C: arbeidsflytmonsteret paa primitivene.
@@ -99,7 +100,7 @@ export default async function ProduksjonsplanSide({
   }
 
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til produksjonsplan.</p>
+    return <Sideramme><p>Du har ikke tilgang til produksjonsplan.</p></Sideramme>
   }
   const sp = await searchParams
 
@@ -290,18 +291,18 @@ export default async function ProduksjonsplanSide({
   // noe systemet kan mene - saa de to maa se forskjellige ut.
   if (ikkeKonfigurert) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Produksjonsplan" undertittel="Venter paa oppsett" />
         <Tomtilstand
           tittel="Ikke satt opp for kjeden ennaa"
           forklaring={IKKE_KONFIGURERT_TEKST}
         />
-      </>
+      </Sideramme>
     )
   }
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Produksjonsplan"
         undertittel={svar ? `${svar}. ${dagTekst}` : dagTekst || 'Velg stasjon og dag.'}
@@ -371,6 +372,6 @@ export default async function ProduksjonsplanSide({
           </Forklaring>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

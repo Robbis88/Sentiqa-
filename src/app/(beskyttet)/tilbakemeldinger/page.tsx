@@ -6,6 +6,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Status, type Statusnivaa } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Tilbake = { id: string; stasjon_id: string; alvorlighet: string; tekst: string; involvert_beskrivelse: string | null; opprettet_tid: string; lest_tid: string | null }
 
@@ -32,7 +33,7 @@ const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyl
 
 export default async function TilbakemeldingerSide() {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Kun eier/butikksjef.</p></Sideramme>
   const supabase = await lagSupabaseServerKlient()
   const [{ data: meldinger }, { data: stasjoner }] = await Promise.all([
     supabase.from('tilbakemelding').select('id, stasjon_id, alvorlighet, tekst, involvert_beskrivelse, opprettet_tid, lest_tid').order('opprettet_tid', { ascending: false }).limit(100).overrideTypes<Tilbake[]>(),
@@ -44,7 +45,7 @@ export default async function TilbakemeldingerSide() {
   const liste = meldinger ?? []
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Tilbakemeldinger fra ansatte"
         undertittel={uleste === 0
@@ -86,6 +87,6 @@ export default async function TilbakemeldingerSide() {
           })}
         </Liste>
       )}
-    </>
+    </Sideramme>
   )
 }

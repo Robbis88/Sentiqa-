@@ -10,6 +10,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Knapp } from '@/components/ui/knapp'
 import { Felt } from '@/components/ui/felt'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // SIGNERTE URL-ER MED 24 TIMERS LEVETID, aldri offentlige lenker.
 //
@@ -34,7 +35,7 @@ type Rad = {
 
 export default async function AnvisningerSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle === 'plattform_redaktor') return <p>Ingen tilgang.</p>
+  if (bruker.rolle === 'plattform_redaktor') return <Sideramme><p>Ingen tilgang.</p></Sideramme>
   const erLeder = bruker.rolle === 'retailer_admin' || bruker.rolle === 'butikksjef'
 
   const supabase = await lagSupabaseServerKlient()
@@ -143,7 +144,7 @@ export default async function AnvisningerSide() {
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
   return (
-    <>
+    <Sideramme>
       {paaNettbrett ? (
         <TabletHode tittel={o('Anvisninger')} undertittel={o('Slå opp når du trenger det.')} />
       ) : (
@@ -205,6 +206,6 @@ export default async function AnvisningerSide() {
           </Link>
         </nav>
       )}
-    </>
+    </Sideramme>
   )
 }

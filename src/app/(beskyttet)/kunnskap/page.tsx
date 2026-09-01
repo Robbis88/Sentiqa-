@@ -6,6 +6,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Knapp } from '@/components/ui/knapp'
 import { Felt, Velg } from '@/components/ui/felt'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Artikkel = { id: string; kategori: string; tittel: string; innhold: string; kilde: string | null }
 
@@ -28,7 +29,7 @@ const KAT_NAVN: Record<string, string> = Object.fromEntries(KATEGORIER)
 export default async function KunnskapSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'plattform_redaktor') {
-    return <p>Kunnskapsbasen vedlikeholdes av plattform-redaktøren. Ansatte og ledere får svar gjennom AI-assistenten.</p>
+    return <Sideramme><p>Kunnskapsbasen vedlikeholdes av plattform-redaktøren. Ansatte og ledere får svar gjennom AI-assistenten.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase.from('kunnskap').select('id, kategori, tittel, innhold, kilde').is('slettet_tid', null).order('kategori').order('tittel').overrideTypes<Artikkel[]>()
@@ -64,7 +65,7 @@ export default async function KunnskapSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Kunnskapsbase"
         undertittel={artikler.length === 0
@@ -103,6 +104,6 @@ export default async function KunnskapSide() {
           ))}
         </ul>
       )}
-    </>
+    </Sideramme>
   )
 }

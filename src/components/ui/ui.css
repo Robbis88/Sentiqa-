@@ -962,3 +962,57 @@
   font-weight: 700;
   color: var(--natt-tekst);
 }
+
+/* =====================================================================
+   SIDERAMME - innholdsspalten
+   ---------------------------------------------------------------------
+   Bredden kommer fra `data-bredde` paa `.innhold`, som skallet setter fra
+   rutens moenster (`SPALTE` i src/lib/redesign/monstre.ts). Standarden er
+   smal; `bred` er unntaket som maa uttales. Setter noen `data-bredde` til
+   en verdi som ikke finnes her, blir siden smal - ikke ustylet - og det er
+   det trygge utfallet.
+
+   `.sq-sideramme` eier ogsaa den vertikale rytmen. Derfor nulles kortenes
+   egen toppmarg og maksbredde inni rammen: begge stammer fra tiden da
+   `.kort` var det eneste som bestemte bredde, og to eiere av samme mål er
+   nettopp problemet rammen loeser.
+   ===================================================================== */
+
+.innhold { --sq-spalte: 880px; }
+.innhold[data-bredde='bred'] { --sq-spalte: none; }
+
+/* ALLE REGLENE ER SCOPET TIL `.innhold`, OG DET ER IKKE PYNT.
+   ---------------------------------------------------------------------
+   13 sider forgrener paa `butikkbruker_tablet` og rendrer da i
+   TabletSkall, som ikke har `.innhold` i det hele tatt. /anvisninger er
+   en av dem, og den ble migrert i boelge 2 - saa nettbrettet fikk en
+   `display: flex` med 1,5 rem mellomrom det ikke hadde foer. Maksbredden
+   forsvant riktignok av seg selv (`var(--sq-spalte)` er udefinert der, og
+   en ugyldig verdi faller til `none`), men flex og gap gjorde det ikke.
+   En stille layoutendring i et skall ingen test dekket.
+
+   Scopet til `.innhold` er rammen inert utenfor desktopskallet. Da kan en
+   dual-shell rute migreres uten aa dra desktopgeometri med seg inn paa
+   nettbrettet - ogsaa de som ennaa ikke er migrert. */
+.innhold .sq-sideramme {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-5);
+  width: 100%;
+  max-width: var(--sq-spalte);
+}
+
+/* Et flex-barn har `min-width: auto` og krymper derfor ikke under sitt
+   eget min-content. En bred tabell ville dratt spalta ut - noe den samme
+   tabellen i en vanlig blokk ikke gjoer. `.sq-nokkeltall` traff paa dette
+   for og loeste det for seg selv; her loeses det for alle barn, slik at
+   rammen aldri kan bli AARSAKEN til sideveis rulling. Om innholdet selv
+   flyter over, er det innholdets sak. */
+.innhold .sq-sideramme > * { min-width: 0; }
+
+/* Vinner over baade `.innhold .kort` og `.kort + .kort` i globals.css. */
+.innhold .sq-sideramme > .kort,
+.innhold .sq-sideramme > .kort + .kort {
+  max-width: none;
+  margin-top: 0;
+}

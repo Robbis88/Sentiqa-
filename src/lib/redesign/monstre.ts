@@ -1,5 +1,5 @@
 // =====================================================================
-// Åtte mønstre, 68 ruter.
+// Ni mønstre, 68 ruter.
 //
 // Poenget med å klassifisere før man redesigner: uten det blir hver side
 // løst for seg, og systemet ender som 68 sider bygget på 68 tidspunkt —
@@ -19,6 +19,7 @@
 export type Monster =
   | 'dashbord'      // Rollens samlede bilde. Oppmerksomhet først.
   | 'liste'         // Mange av samme sort. Skanne og handle.
+  | 'dataliste'     // Som liste, men radene sammenlignes på tvers av kolonner.
   | 'detalj'        // Én ting i dybden.
   | 'arbeidsflyt'   // En rekkefølge med et mål og en slutt.
   | 'analyse'       // Forstå hvorfor tallene ser slik ut.
@@ -26,6 +27,101 @@ export type Monster =
   | 'opprett'       // Skal bli sidepanel, ikke egen side.
   | 'tablet'        // Arbeidsverktøy i butikken. Egne regler.
   | 'utenfor'       // Før innlogging. Eget formspråk, rører vi ikke nå.
+
+/**
+ * Hvor bred innholdsspalten er i hvert moenster.
+ *
+ * ---------------------------------------------------------------------
+ * MAALT FOER VALGT, 2026-08-31
+ *
+ * Bredden var ikke bestemt noe sted. Den falt ut av om siden tilfeldigvis
+ * brukte `className="kort"` - `.innhold .kort { max-width: 880px }` i
+ * globals.css er den eneste breddereglen i systemet, og den er udokumentert.
+ * Telt over alle 71 sider:
+ *
+ *     moenster        ruter   880px   full    entydig
+ *     detalj              5       5      0    JA
+ *     innstillinger       5       4      1    nei
+ *     arbeidsflyt        10       7      3    nei
+ *     analyse            15       3     12    nei
+ *     liste              22       6     16    nei
+ *
+ * Bare `detalj` var entydig. Bredden var altsaa ikke et moenster, men et
+ * utfall. Tabellen under gjoer den til et valg.
+ *
+ * Der flertallet og innholdet er enige, foelger tabellen flertallet - det
+ * bevarer noe som allerede fungerer. `liste` er unntaket, og det er maalt
+ * fram, ikke ment fram: se neste avsnitt.
+ *
+ * ---------------------------------------------------------------------
+ * `liste` VAR OMSTRIDT, OG BLE MAALT
+ *
+ * 16 av 22 var fullbredde. Men det var IKKE fordi innholdet krevde det:
+ * kolonnetallet over de 22 rutene er
+ *
+ *     6 6 6 5 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ *
+ * - en klippe, ikke en overgang. Ingen rute ligger imellom, og ingen av
+ * dem bruker et flerspaltet kortrutenett. Fem ruter har tabellarisk
+ * innhold; sytten har ingen kolonner i det hele tatt (maalt gjennom
+ * lokale importer, saa en tabell i en barnekomponent teller med).
+ *
+ * Dagens bredde var motsatt av behovet: 14 av 17 som ikke trenger bredde
+ * var brede, og 3 av 5 som trenger den var 880. `liste = bred` ville
+ * kodifisert et uhell.
+ *
+ * Skillet var alt latent her: `liste` sin gamle `nivaa4` het «Kolonner de
+ * fleste ikke trenger», og den linja gir bare mening for en tabell.
+ * Moensteret var skrevet for de fem. Naa heter de `dataliste`.
+ *
+ * MARKUP GA EVIDENSEN, MEN `Monster` ER KONTRAKTEN. Det finnes ingen
+ * automatikk som sier «har <table> - altsaa dataliste»: det ville gjort
+ * en presentasjonsdetalj til produktmodell. `/ansatte` og `/brukere` er
+ * registerlister som KUNNE vaert tabeller, og de staar med vilje som
+ * `liste` - endrer innholdsformen seg, endres moensteret samtidig.
+ *
+ * ---------------------------------------------------------------------
+ * DENNE TABELLEN ER `Record<Monster, Bredde>` MED VILJE
+ *
+ * Legger noen til et moenster uten aa ta stilling til bredden, kompilerer
+ * ikke koden. Det er billigere enn en vakt som oppdager det etterpaa.
+ */
+export type Bredde = 'smal' | 'bred'
+
+export const SPALTE: Record<Monster, Bredde> = {
+  dashbord: 'bred',      // Mange kort ved siden av hverandre.
+  liste: 'smal',         // 17 ruter uten en eneste kolonne. Maalt, se over.
+  dataliste: 'bred',     // 4-6 kolonner som sammenlignes paa tvers.
+  detalj: 'smal',        // 5 av 5 er smale i dag. Eneste entydige.
+  arbeidsflyt: 'smal',   // 7 av 10. En rekkefoelge leses, den skannes ikke.
+  analyse: 'bred',       // 12 av 15. Tabellene trenger plassen.
+  innstillinger: 'smal', // 4 av 5. Skjemafelter blir uleselige brede.
+  opprett: 'smal',       // Skal bli sidepanel. Smal er riktig uansett.
+  tablet: 'bred',        // Eget skall (TabletSkall), roeres ikke naa.
+  utenfor: 'smal',       // Innloggingssidene, sentrert og smale allerede.
+}
+
+/**
+ * Moensteret for en faktisk URL - ogsaa naar den har et dynamisk segment.
+ *
+ * `RUTEMONSTER` har `/kontrakt/[id]`, men nettleseren ber om
+ * `/kontrakt/9f2c-...`. Uten denne oversettelsen faller hver detaljside
+ * tilbake til standardbredden, og det ville sett ut som om den virket.
+ */
+export function monsterFor(sti: string): Monster | null {
+  const rein = sti.replace(/\/+$/, '') || '/'
+  const direkte = RUTEMONSTER[rein]
+  if (direkte) return direkte
+
+  const deler = rein.split('/')
+  for (let i = deler.length - 1; i > 0; i--) {
+    const forsok = [...deler]
+    forsok[i] = '[id]'
+    const treff = RUTEMONSTER[forsok.join('/')]
+    if (treff) return treff
+  }
+  return null
+}
 
 export type Monsterspek = {
   navn: string
@@ -52,9 +148,19 @@ export const MONSTRE: Record<Monster, Monsterspek> = {
     nivaa1: 'Hvor mange, og hvor mange av dem krever noe av meg.',
     nivaa2: 'Søk, filter og «Ny …» — sistnevnte åpner sidepanel.',
     nivaa3: 'Radene, med status som kan leses på avstand.',
-    nivaa4: 'Kolonner de fleste ikke trenger.',
+    nivaa4: 'Det som gjør raden entydig — stilling, dato, nummer.',
     fella: 'Å åpne med skjemaet for å opprette. Det er den sjeldneste '
       + 'handlingen på siden, og den står øverst på /ansatte i dag.',
+  },
+  dataliste: {
+    navn: 'Dataliste',
+    nivaa1: 'Hvor mange, og hvor mange av dem krever noe av meg.',
+    nivaa2: 'Søk og filter — det som avgjør hvilke rader som vises.',
+    nivaa3: 'Tabellen. Kolonnene man faktisk sammenligner på tvers av.',
+    nivaa4: 'Kolonner de fleste ikke trenger.',
+    fella: 'Å legge til en kolonne fordi det er plass. Bredden er et '
+      + 'budsjett, ikke en invitasjon — og den kolonnen som skyver '
+      + 'identiteten ut av synsfeltet har gjort raden uleselig.',
   },
   detalj: {
     navn: 'Detaljside',
@@ -191,7 +297,7 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // --- Liste ---
   '/ansatte': 'liste',
   '/brukere': 'liste',
-  '/stasjoner': 'liste',
+  '/stasjoner': 'dataliste',   // Datatabell, 6 kolonner
   '/oppgaver': 'liste',
   '/varsler': 'liste',
   '/nyheter': 'liste',
@@ -200,20 +306,20 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/kunnskap': 'liste',
   '/anvisninger': 'liste',
   '/merker': 'liste',
-  '/premier': 'liste',
+  '/premier': 'dataliste',   // Datatabell 4 kol + Rad-lister; tabellen er det bredeste
   '/skills': 'liste',
   '/konkurranser': 'liste',
   '/arrangementer': 'liste',
-  '/kampanjer': 'liste',
+  '/kampanjer': 'dataliste',   // ra <table>, 6 kolonner
   '/redaktor': 'liste',
   '/puls': 'liste',
   '/puls/sporsmal': 'liste',
-  '/utsolgt': 'liste',
+  '/utsolgt': 'dataliste',   // ra <table>, 5 kolonner
   '/fokus': 'liste',
   // Sto som 'analyse'. Siden analyserer ingenting — den kobler hver
   // stasjon til nærmeste bilteller og skrur måling på. Nivå 1 er «hvor
   // mange, og hvor mange mangler noe», altså listemønsteret.
-  '/trafikk': 'liste',
+  '/trafikk': 'dataliste',   // Datatabell, 6 kolonner
 
   // --- Detalj ---
   '/kontrakt/[id]': 'detalj',

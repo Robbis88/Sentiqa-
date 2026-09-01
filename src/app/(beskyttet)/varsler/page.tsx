@@ -7,6 +7,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Varsel = {
   id: string
@@ -35,7 +36,7 @@ export default async function VarslerSide() {
   const uleste = varsler.filter((v) => !v.lest).length
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Varsler"
         undertittel={uleste === 0
@@ -87,6 +88,6 @@ export default async function VarslerSide() {
           ))}
         </Liste>
       )}
-    </>
+    </Sideramme>
   )
 }

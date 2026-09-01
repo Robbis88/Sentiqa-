@@ -6,6 +6,7 @@ import { leggTilSkjema, slettSkjema } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean }
@@ -61,7 +62,7 @@ export default async function OppsettSide() {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Rutineoppsett"
         undertittel={svar}
@@ -117,6 +118,6 @@ export default async function OppsettSide() {
           </details>
         </section>
       ))}
-    </>
+    </Sideramme>
   )
 }

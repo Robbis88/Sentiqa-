@@ -9,6 +9,7 @@ import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
 import { Velg } from '@/components/ui/felt'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Melding = { id: string; stasjon_id: string | null; tekst: string; viktig: boolean; opprettet_tid: string }
 
@@ -17,7 +18,7 @@ const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyl
 export default async function MeldingerSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Kun eier/butikksjef kan sende meldinger.</p>
+    return <Sideramme><p>Kun eier/butikksjef kan sende meldinger.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const [{ data: meldinger }, { data: stasjoner }] = await Promise.all([
@@ -55,7 +56,7 @@ export default async function MeldingerSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Meldinger til nettbrettet"
         undertittel={liste.length === 0
@@ -89,6 +90,6 @@ export default async function MeldingerSide() {
           ))}
         </Liste>
       )}
-    </>
+    </Sideramme>
   )
 }

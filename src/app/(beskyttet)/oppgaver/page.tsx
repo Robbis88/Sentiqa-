@@ -11,6 +11,7 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyOppgave } from './ny-oppgave'
 import { veksleOppgave, slettOppgave } from './handlinger'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Oppgave = {
   id: string
@@ -25,7 +26,7 @@ type Oppgave = {
 export default async function OppgaverSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til oppgaver.</p>
+    return <Sideramme><p>Du har ikke tilgang til oppgaver.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -98,7 +99,7 @@ export default async function OppgaverSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Oppgaver"
         undertittel={apne.length === 0
@@ -131,6 +132,6 @@ export default async function OppgaverSide() {
           <Liste merkelapp="Fullførte oppgaver">{fullfort.map(rad)}</Liste>
         </Forklaring>
       )}
-    </>
+    </Sideramme>
   )
 }

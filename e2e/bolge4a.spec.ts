@@ -23,9 +23,14 @@ const SJEFENS = ['/lonn', '/kontrakt', '/opplaring', '/ikmat', '/ikmat/oppsett',
  * Eierens ruter i 4A - krever TOTP.
  *
  * /plattform staar IKKE her: den er plattform-redaktorens, ikke
- * eierens (`rolle !== 'plattform_redaktor'` avviser henne). Den rollen
- * tvinges ogsaa gjennom TOTP, og seeden har ingen slik bruker - det er
- * neste testhull, og det er notert framfor aa dekkes over.
+ * eierens (`rolle !== 'plattform_redaktor'` avviser henne).
+ *
+ * RETTET 2026-08-31: her sto det at «seeden har ingen slik bruker». Det
+ * var sant da det ble skrevet og ble usant da redaktoeren kom inn med
+ * port0-4b - hun ligger i supabase/seed.sql, rulles inn i TOTP av
+ * eier.setup.ts, og naas gjennom REDAKTOR_OKTFIL. Kommentaren fikk meg
+ * til aa foreslaa aa seede en bruker som alt fantes. En beskrivelse som
+ * ser riktig ut mens den er feil koster mer enn ingen beskrivelse.
  */
 const EIERENS = ['/import', '/persondata', '/abonnement', '/regnskap']
 
