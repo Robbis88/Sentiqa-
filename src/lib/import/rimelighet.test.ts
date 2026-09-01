@@ -78,10 +78,21 @@ describe('rimelighet', () => {
     const soendag = vurderDag(den('2026-08-30'), foer('2026-08-30'))
     expect(soendag, '30. august er en normal soendag').toBeNull()
 
-    // …og en soendag paa tirsdagsnivaa ER et funn.
-    const halv = vurderDag({ dato: '2026-08-30', kroner: 40000 }, foer('2026-08-30'))
-    expect(halv, 'en soendag paa 40 000 skal fanges').not.toBeNull()
-    expect(halv!.slag).toBe('for_lavt')
+    // Og her er beviset paa at grupperingen betyr noe: 10 000 kr.
+    //
+    //   mot soendagsmedianen 92 000  ->  11 %  ->  FANGET
+    //   mot tirsdagsmedianen 38 000  ->  26 %  ->  ville sluppet unna
+    //
+    // Samme belop, to svar. Uten ukedagsgrupperingen ville en soendag
+    // som mistet 89 % av salget sett normal ut.
+    //
+    // (Foerste utgave brukte 40 000 her, skrevet mens terskelen var 0,5.
+    // Med 0,2 er 40 000 en STILLE soendag, ikke en oedelagt en - og det
+    // er riktig. Testen maalte terskelen, ikke grupperingen.)
+    const oedelagt = vurderDag({ dato: '2026-08-30', kroner: 10000 }, foer('2026-08-30'))
+    expect(oedelagt, 'en soendag paa 10 000 skal fanges').not.toBeNull()
+    expect(oedelagt!.slag).toBe('for_lavt')
+    expect(Math.round(oedelagt!.median)).toBeGreaterThan(80000)
   })
 
   it('KANARIFUGL: fanger en maanedsfil lastet paa en enkelt dato', () => {
@@ -152,5 +163,68 @@ describe('rimelighet', () => {
       { dato: '2026-08-18', kroner: 0 },
     ]
     expect(vurderDag({ dato: '2026-08-25', kroner: 500 }, nuller)).toBeNull()
+  })
+})
+
+// =====================================================================
+// DE ELLEVE EKTE STILLE DAGENE
+//
+// En skanning 13 maaneder bakover over alle fem stasjoner, med terskelen
+// paa 0,5, ga elleve treff. INGEN av dem var tapte data - alle hadde
+// normalt antall rader (66-125). To var julaften og nyttaarsaften, resten
+// enkeltlordager.
+//
+// De staar her fordi de er det VANSKELIGE tilfellet: en vakt som roper om
+// disse blir slaatt av, og da beskytter den ingenting. Terskelen ble
+// derfor flyttet til 0,2 - og disse elleve er beviset paa at den er
+// riktig satt.
+//
+// Tallene er de faktiske avvikene fra skanningen.
+// =====================================================================
+const STILLE_DAGER: { navn: string; kroner: number; median: number }[] = [
+  { navn: '2025-12-24 Dale (julaften)', kroner: 6103, median: 27053 },
+  { navn: '2025-08-30 Dale', kroner: 13998, median: 40418 },
+  { navn: '2025-09-20 Dale', kroner: 13046, median: 34153 },
+  { navn: '2025-10-11 Dale', kroner: 12904, median: 30143 },
+  { navn: '2026-07-11 Boenes', kroner: 8894, median: 20250 },
+  { navn: '2026-07-25 Boenes', kroner: 8596, median: 19275 },
+  { navn: '2026-03-28 Varden', kroner: 13808, median: 29908 },
+  { navn: '2025-10-04 Lone', kroner: 10439, median: 22494 },
+  { navn: '2025-12-31 Dale (nyttaarsaften)', kroner: 12975, median: 26786 },
+  { navn: '2026-07-30 Boenes', kroner: 9464, median: 19249 },
+  { navn: '2025-12-31 Lone (nyttaarsaften)', kroner: 7809, median: 15728 },
+]
+
+describe('terskelen, prøvd mot 13 måneder med ekte data', () => {
+  // Bygger en historikk der medianen blir nøyaktig `median`: fire like
+  // dager gir samme median som ett tall, og ukedagen holdes lik.
+  const historikkMed = (median: number, ukedag: string) =>
+    [0, 7, 14, 21].map((n) => ({
+      dato: new Date(Date.UTC(2026, 4, Number(ukedag) + n)).toISOString().slice(0, 10),
+      kroner: median,
+    }))
+
+  it('KANARIFUGL: tier om alle elleve ekte stille dager', () => {
+    const roper: string[] = []
+    for (const d of STILLE_DAGER) {
+      const hist = historikkMed(d.median, '4')
+      const dagen = { dato: '2026-05-32'.replace('32', '25'), kroner: d.kroner }
+      // Samme ukedag som historikken: 25. mai 2026 er en mandag, og
+      // historikken over starter på 4. mai, også mandag.
+      const funn = vurderDag(dagen, hist)
+      if (funn) roper.push(`${d.navn}: ${Math.round(funn.avvik * 100)} %`)
+    }
+    expect(roper, `vakten roper om ekte stille dager:\n  ${roper.join('\n  ')}`)
+      .toEqual([])
+  })
+
+  it('KANARIFUGL: og feller likevel 25. august', () => {
+    // Marginen er hele poenget. Verste ekte stille dag var -77 %,
+    // den ødelagte lå på -98 %. Slipper denne gjennom samtidig som
+    // testen over er grønn, er terskelen satt for løst.
+    const funn = vurderDag(den('2026-08-25'), foer('2026-08-25'))
+    expect(funn, '25. august slipper gjennom med den nye terskelen')
+      .not.toBeNull()
+    expect(Math.round(funn!.avvik * 100)).toBeLessThan(-95)
   })
 })

@@ -53,12 +53,34 @@ export type Funn = {
 /**
  * Under dette regnes dagen som mistenkelig lav.
  *
- * 0,5 = halvparten av medianen. Robert foreslo 50 %, og målingene over
- * viser at det er trygt: den strammeste ukedagen varierer under 5 %, den
- * løseste rundt 20 %. Ekte stengt eller halv dag er sjeldent, og skal
- * uansett kvitteres — ikke skjules.
+ * ---------------------------------------------------------------------
+ * 0,5 VAR FEIL TERSKEL, OG DET BLE MÅLT
+ *
+ * Første utgave sto på 0,5 — Roberts forslag, og jeg satte det uten å ha
+ * data å prøve det mot. En skanning 13 måneder bakover over alle fem
+ * stasjoner ga elleve treff, og INGEN av dem var tapte data:
+ *
+ *   2025-12-24  Dale   -77 %   66 rader   julaften
+ *   2025-12-31  Dale   -52 %  122 rader   nyttårsaften
+ *   2025-12-31  Lone   -50 %   99 rader   nyttårsaften
+ *   + åtte enkeltlørdager, alle med 83-125 rader
+ *
+ * Alle hadde normalt ANTALL RADER. Det var stille dager, ikke ødelagte
+ * importer. En vakt som roper elleve ganger på 13 måneder om ting som er
+ * i orden, blir slått av — og da beskytter den ingenting.
+ *
+ * Den ekte feilen lå på -98 % med 8 rader mot normalt ~300. Mellom -77 %
+ * (verste ekte stille dag) og -98 % (den ødelagte) er det god plass.
+ * 0,2 ligger midt imellom: den fanger 25. august med margin, og tier om
+ * alle elleve.
+ *
+ * Det koster oss teoretisk en import som mister 50-80 % av radene uten å
+ * miste mer. Den ville sluppet gjennom nå. Det er en bevisst avveining:
+ * en vakt som blir lest er verdt mer enn en som fanger alt og ignoreres.
+ * Radtallet i meldingen er der for at den som leser skal se forskjellen
+ * med en gang.
  */
-const FOR_LAVT = 0.5
+const FOR_LAVT = 0.2
 
 /**
  * Over dette er dagen mistenkelig høy.
