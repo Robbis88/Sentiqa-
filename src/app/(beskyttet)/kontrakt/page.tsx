@@ -11,6 +11,7 @@ import { AnsattkortSkjema, MalSkjema, StandardfeltSkjema } from './skjemaer'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Sok = Promise<{ stasjon?: string; ansatt?: string; form?: string; rolle?: string }>
 
@@ -26,7 +27,7 @@ const dato = (iso: string | null) =>
 
 export default async function KontraktSide({ searchParams }: { searchParams: Sok }) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Arbeidsavtaler er for butikksjef og eier.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Arbeidsavtaler er for butikksjef og eier.</p></Sideramme>
   const eier = bruker.rolle === 'retailer_admin'
 
   const sok = await searchParams
@@ -38,7 +39,7 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
     .is('slettet_tid', null).order('butikknummer')
   const alle = (stasjoner ?? []) as
     { id: string; navn: string; butikknummer: string; adresse: string | null }[]
-  if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
+  if (alle.length === 0) return <Sideramme><p>Ingen stasjoner registrert.</p></Sideramme>
   // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
   // saa en delt lenke viser det den lovet.
   const valgtId = await husketStasjon(alle, sok.stasjon)
@@ -153,7 +154,7 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
           : 'Klar å skrive — alle felt er fylt fra data vi har'
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Arbeidsavtaler"
         undertittel={person
@@ -384,6 +385,6 @@ export default async function KontraktSide({ searchParams }: { searchParams: Sok
           </section>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

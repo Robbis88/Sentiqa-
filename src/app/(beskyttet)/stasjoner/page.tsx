@@ -6,6 +6,7 @@ import { settTerskel, settStasjonstype, settPosisjon, settVaerfolsomhet } from '
 import { Sidehode, Tomtilstand, Datatabell } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Knapp } from '@/components/ui/knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 const TYPER: [string, string][] = [
   ['utfart', 'Utfart'],
@@ -33,7 +34,7 @@ type Stasjon = {
 export default async function StasjonerSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier har tilgang til stasjoner.</p>
+    return <Sideramme><p>Kun eier har tilgang til stasjoner.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -47,7 +48,7 @@ export default async function StasjonerSide() {
   const stasjoner = data ?? []
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Stasjoner"
         undertittel={stasjoner.length === 0
@@ -160,6 +161,6 @@ export default async function StasjonerSide() {
             </tbody>
         </Datatabell>
       )}
-    </>
+    </Sideramme>
   )
 }

@@ -192,7 +192,20 @@ describe('Sideramme: bredden kommer fra mønsteret', () => {
       const lin = k.split(/\r?\n/)
       const start = lin.findIndex((l) => l.startsWith('export default'))
       if (start < 0) continue
-      for (let i = start; i < lin.length; i++) {
+      // SLUTT VED NESTE TOPPNIVÅDEKLARASJON.
+      //
+      // /kasserer har `function Kroner({ v }) { return <>…</> }` under
+      // sideKomponenten. Den returnerer helt riktig et fragment — den er
+      // en hjelpekomponent, ikke en returvei ut av sida. Skannet man til
+      // filslutt, ble hver slik hjelper et falskt funn.
+      let slutt = lin.length
+      for (let i = start + 1; i < lin.length; i++) {
+        if (/^(export |function |async function |const |type |interface )/.test(lin[i])) {
+          slutt = i
+          break
+        }
+      }
+      for (let i = start; i < slutt; i++) {
         const enLinje = /^\s*return\s*<>/.test(lin[i])
         const flere = /^\s*return \($/.test(lin[i]) && lin[i + 1]?.trim() === '<>'
         if (!enLinje && !flere) continue
@@ -413,6 +426,22 @@ const BREDDEUNNTAK: Record<string, string> = {
     + '«07:00» havner på to linjer.',
   '.stilling-rad input':
     'Antallsfelt per stilling.',
+  // --- Pulje 1. Tolv komponentmål fra 24 ruter. Ingen av dem er en
+  //     spalte: skjemabredder, feltbredder og merkelapper.
+  '.malekort-skjema': 'Målekortskjemaets lesbare bredde.',
+  '.skjema-rediger, .rutine-rediger': 'Samme, for redigeringsskjemaene.',
+  '.resultat': 'Resultatboksen etter en import — 320 px er dens egen form.',
+  '.sq-smal-flate': 'En bevisst smal flate. Navnet sier det.',
+  '.sq-mellomfelt': 'Mellomstort inntastingsfelt i skalaen liten/mellom/bred.',
+  '.sq-rutenett-gruppe input': 'Tallfelt i et rutenett av grupper.',
+  '.rediger-form input[name="navn"], .rediger-form input[name="tekst"]':
+    'Minstebredde så tekstfeltene ikke kollapser i en flex-rad.',
+  '.rediger-form input[name="min_temp"], .rediger-form input[name="max_temp"]':
+    'Temperaturfelt — to siffer og et komma.',
+  '.ik-punkt-rad input[inputmode="decimal"]': 'Måleverdien på et IK-punkt.',
+  '.fordeling span': 'Tallet i en fordelingslinje, så søylene står i flukt.',
+  '.rangering-plass': 'Plassnummeret i en rangering. Ikon, ikke spalte.',
+  '.rang-badge': 'Samme, som merke.',
   // --- Kom fram i bølge 4 (/analyse, /plattform). Komponentmål.
   '.stasjonsvelger select':
     'Nedtrekkslista med stasjonsnavn. 15 rem så «Laguneparken» ikke '
@@ -572,36 +601,12 @@ const UTENFOR: Record<string, string> = {
  */
 const VENTER: string[] = [
   '/abonnement',
-  '/arrangementer',
-  '/businessplan',
-  '/businessplan/sammenlign',
   '/dekning',
-  '/fokus',
   '/ikmat',
   '/ikmat/maaling',
-  '/ikmat/oppsett',
-  '/import',
-  '/kasserer',
-  '/konkurranser',
-  '/kontrakt',
-  '/lonn',
-  '/maaling',
   '/mine-opplysninger',
-  '/opplaring',
   '/oversikt',
-  '/persondata',
-  '/premier',
-  '/puls/[id]',
-  '/regnskap',
-  '/rutiner/min',
-  '/rutiner/oppsett/[id]',
-  '/rutiner/oversikt',
-  '/salgsprognose',
   '/sjekkpunkt',
-  '/stasjoner',
-  '/svinn',
-  '/timeregnskap',
-  '/timesalg',
 ]
 
 describe('porten: ingen ny side uten ramme', () => {

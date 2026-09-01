@@ -8,6 +8,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { Status } from '@/components/ui/status'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Konk = {
   id: string
@@ -25,7 +26,7 @@ type Konk = {
 export default async function KonkurranserSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til konkurranser.</p>
+    return <Sideramme><p>Du har ikke tilgang til konkurranser.</p></Sideramme>
   }
   const erEier = bruker.rolle === 'retailer_admin'
 
@@ -55,7 +56,7 @@ export default async function KonkurranserSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Konkurranser"
         undertittel={konkurranser.length === 0
@@ -120,6 +121,6 @@ export default async function KonkurranserSide() {
           )
         })
       )}
-    </>
+    </Sideramme>
   )
 }

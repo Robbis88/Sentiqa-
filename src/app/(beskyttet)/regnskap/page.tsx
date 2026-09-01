@@ -13,6 +13,7 @@ import { AiKontekst } from '../ai-kontekst'
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
 import { motBudsjett, storsteAvvik, svaret, type Driver } from '@/lib/regnskap/mot-budsjett'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Linje = {
   seksjon: string
@@ -55,7 +56,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     return <RegnskapButikksjef bruker={bruker} periode={sp.periode} butikknummer={sp.butikknummer} />
   }
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier/butikksjef har tilgang til regnskap.</p>
+    return <Sideramme><p>Kun eier/butikksjef har tilgang til regnskap.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -68,14 +69,14 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
 
   if (liste.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Regnskap" undertittel="Resultatet målt mot budsjettet." />
         <Tomtilstand
           tittel="Ingen regnskapsdata ennå"
           forklaring="Last opp regnskapsrapporten under Import og trykk Behandle, så fylles siden."
           handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -221,7 +222,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const omfang = erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Regnskap"
         undertittel={svar ? `${svar}. ${periodeTekst} · ${omfang}` : `${periodeTekst} · ${omfang}`}
@@ -375,6 +376,6 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
             </tbody>
         </Datatabell>
       )}
-    </>
+    </Sideramme>
   )
 }

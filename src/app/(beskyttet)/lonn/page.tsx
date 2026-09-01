@@ -54,6 +54,7 @@ const LONNSARTNAVN: Record<string, string> = {
 
 import { Maanedsvelger } from '@/components/ui/periode'
 import { lesMaaned, maanedNokkel, delMaaned, maanederRundt } from '@/lib/periode'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string }>
 
@@ -73,7 +74,7 @@ function nivaaFraKlasse(k: string): Statusnivaa {
 
 export default async function LonnSide({ searchParams }: { searchParams: Sok }) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Lønnsgrunnlaget er for butikksjef og eier.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Lønnsgrunnlaget er for butikksjef og eier.</p></Sideramme>
 
   const sok = await searchParams
   const supabase = await lagSupabaseServerKlient()
@@ -82,7 +83,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     .from('stasjoner').select('id, navn, butikknummer, stempling_kilde')
     .is('slettet_tid', null).order('butikknummer')
   const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
-  if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
+  if (alle.length === 0) return <Sideramme><p>Ingen stasjoner registrert.</p></Sideramme>
 
   // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
   // saa en delt lenke viser det den lovet.
@@ -235,7 +236,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
           : `${fordeling.uavklart.length} ${fordeling.uavklart.length === 1 ? 'ansatt mangler' : 'ansatte mangler'} lønnsform — fila lages ikke før det er avklart`
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Lønnsgrunnlag"
         undertittel={`${svar}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
@@ -653,6 +654,6 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
           </section>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

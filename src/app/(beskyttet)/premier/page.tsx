@@ -9,13 +9,14 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
 import { Knapp } from '@/components/ui/knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Bruk = { id: string; stasjon_id: string; beskrivelse: string; belop_kr: number; dato: string }
 type Tildeling = { id: string; stasjon_id: string; beskrivelse: string; belop_kr: number; dato: string; utbetalt: boolean }
 
 export default async function PremierSide() {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Kun eier/butikksjef.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Kun eier/butikksjef.</p></Sideramme>
   const erAdmin = bruker.rolle === 'retailer_admin'
   const supabase = await lagSupabaseServerKlient()
   const [{ data: stasjoner }, { data: tildelinger }, { data: bruk }] = await Promise.all([
@@ -90,7 +91,7 @@ export default async function PremierSide() {
   )
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Premiesaldo"
         undertittel={`${kr.format(samletIgjen)} igjen å bruke. Vunnet fra konkurranser og tildelinger, minus det som er brukt.`}
@@ -188,6 +189,6 @@ export default async function PremierSide() {
           </Liste>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

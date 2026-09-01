@@ -8,6 +8,7 @@ import { RutineListe } from './rutine-liste'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; paakrevd_bilde: boolean; ikmat_frekvens: string | null }
@@ -32,14 +33,14 @@ function Ukedager({ valgt }: { valgt: number[] }) {
 export default async function SkjemaEditor({ params }: { params: Promise<{ id: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'butikksjef') {
-    return <p>Rutineoppsett gjøres av butikksjefen. <Link href="/rutiner/oversikt">Til rutineoversikt</Link>.</p>
+    return <Sideramme><p>Rutineoppsett gjøres av butikksjefen. <Link href="/rutiner/oversikt">Til rutineoversikt</Link>.</p></Sideramme>
   }
   const { id } = await params
   const supabase = await lagSupabaseServerKlient()
   const { data: skjema } = await supabase
     .from('rutineskjemaer').select('id, stasjon_id, vakttype, navn, tid_start, tid_slutt, ukedager')
     .eq('id', id).is('slettet_tid', null).maybeSingle<Skjema>()
-  if (!skjema) return <p>Fant ikke skjemaet. <Link href="/rutiner/oppsett">Tilbake</Link></p>
+  if (!skjema) return <Sideramme><p>Fant ikke skjemaet. <Link href="/rutiner/oppsett">Tilbake</Link></p></Sideramme>
 
   const { data: rutinerData } = await supabase
     .from('rutiner').select('id, tittel, beskrivelse, ukedager, paakrevd_bilde, ikmat_frekvens')
@@ -58,7 +59,7 @@ export default async function SkjemaEditor({ params }: { params: Promise<{ id: s
     : dagerKort((skjema.ukedager ?? []) as number[])
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={`${VAKTTYPE_ETIKETT[skjema.vakttype]}${skjema.navn ? ` · ${skjema.navn}` : ''}`}
         undertittel={`${totalt} ${totalt === 1 ? 'rutine' : 'rutiner'} · ${skjema.tid_start.slice(0, 5)}–${skjema.tid_slutt.slice(0, 5)} · ${dager}`}
@@ -147,6 +148,6 @@ export default async function SkjemaEditor({ params }: { params: Promise<{ id: s
           <button type="submit" className="sq-knapp primar">Lagre endringer</button>
         </form>
       </section>
-    </>
+    </Sideramme>
   )
 }

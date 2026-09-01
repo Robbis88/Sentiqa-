@@ -4,6 +4,7 @@ import { Forklaring, Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { kr } from '@/lib/format'
 import { bruttoKrav, kravtekst } from '@/lib/bemanning/timekrav'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // «Har vi råd til timene vi bruker?»
@@ -76,7 +77,7 @@ const t0 = (v: number | null) => (v == null ? '—' : Math.round(v).toLocaleStri
 export default async function TimeregnskapSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier har tilgang til timeregnskapet.</p>
+    return <Sideramme><p>Kun eier har tilgang til timeregnskapet.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -107,7 +108,7 @@ export default async function TimeregnskapSide() {
 
   if (medBrutto.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Timeregnskap" undertittel="Har vi råd til timene?" />
         <Tomtilstand
           tittel="Ingenting å gjøre opp ennå"
@@ -117,7 +118,7 @@ export default async function TimeregnskapSide() {
             + 'første finnes det ingen ramme å måle mot.'}
           handling={<a className="sq-knapp" href="/import">Til import</a>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -174,7 +175,7 @@ export default async function TimeregnskapSide() {
   const uavklarte = sortert.reduce((s, p) => s + p.uavklart, 0)
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={sumOver > 0
           ? `${t0(sumOver)} timer brukt uten dekning i brutto`
@@ -338,6 +339,6 @@ export default async function TimeregnskapSide() {
           aldri kassens egen.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

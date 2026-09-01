@@ -14,6 +14,7 @@ import {
   byggMaaned, sammenlignbare,
   type Svinnrad, type Dekningsrad, type Maanedsbilde,
 } from '@/lib/svinn/maaned'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
 // Svinn: kost mot kost, per maaned.
@@ -95,7 +96,7 @@ function dekningsord(na: Maanedsbilde, for_: Maanedsbilde): string {
 
 export default async function SvinnSide({ searchParams }: { searchParams: Promise<Sok> }) {
   const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) return <p>Du har ikke tilgang til svinn.</p>
+  if (!erLeder(bruker.rolle)) return <Sideramme><p>Du har ikke tilgang til svinn.</p></Sideramme>
 
   const sp = await searchParams
   const supabase = await lagSupabaseServerKlient()
@@ -146,7 +147,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
 
   if (maaneder.length === 0) {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Svinn" undertittel="Registrert svinn til kostpris, per måned." />
         {/* En tomtilstand som ikke tilbyr veien videre er en blindvei.
             Lenka til /import laa i den gamle sida; vakthunden fanget at
@@ -156,7 +157,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
           forklaring="Svinn kommer fra St1-rapport 0452 Varetransaksjonsliste."
           handling={<Knapp><a href="/import">Gå til import</a></Knapp>}
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -243,7 +244,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Svinn"
         undertittel={`${erStasjon ? navnFor.get(valgtStasjon!) : 'Alle stasjoner'} · ${manedAar.format(new Date(valgtMaaned))}`}
@@ -501,6 +502,6 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
         tekst="Forklar svinnet denne måneden"
         sporsmal={`Hvordan ligger vi an på svinn i ${manedAar.format(new Date(valgtMaaned))}? Bruk svinn til kostpris mot varekost på solgte varer.`}
       />
-    </>
+    </Sideramme>
   )
 }
