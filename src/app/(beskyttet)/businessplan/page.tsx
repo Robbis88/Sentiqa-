@@ -6,7 +6,7 @@ import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr, manedAar } from '@/lib/format'
 import { Forklaring, Sidehode, Tomtilstand } from '@/components/ui/side'
 import { delEtterKobling, sorterEtterAvvik, sumBakPlan } from '@/lib/regnskap/bp-dom'
-import { BpAvdeling, type BpRad } from './bp-rad'
+import { BpAvdeling, type BpRad, type Abonnement } from './bp-rad'
 import { Sideramme } from '@/components/ui/sideramme'
 
 // =====================================================================
@@ -90,6 +90,25 @@ export default async function BusinessplanSide(
 
   const alle = rader ?? []
 
+  // BILVASK HAR TO INNTEKTER, OG BARE DEN.
+  //
+  // En over kassa, og abonnementsvask som bare finnes i regnskapet.
+  // Derfor sammenligner kortet to ulike inntektsgrunnlag for nettopp
+  // den avdelingen: «Kassen, perfekt dag» ser bare kassa, «Regnskapet
+  // viser» ser begge. I enhver annen avdeling er kassa et tak; her kan
+  // regnskapet ligge over det uten at noe er galt.
+  //
+  // Vi HAR tallet for avlagte maaneder - regnskapets omsetning minus
+  // kassas - saa kortet kan si det med kroner i stedet for aa be leseren
+  // ta det paa tro. Se migrasjon 0160.
+  const { data: aboRad } = await supabase
+    .from('v_bilvask_abonnement')
+    .select('aar, maaneder, kasse_kr, regnskap_kr, abonnement_kr, abonnement_pst')
+    .eq('stasjon_id', stasjon)
+    .order('aar', { ascending: false })
+    .limit(1)
+    .maybeSingle<Abonnement>()
+
   // Nyeste maaned foerst - den inneveaerende er den operative.
   const maned = alle.map((r) => r.maned).sort().reverse()[0]
   const iMnd = alle.filter((r) => r.maned === maned)
@@ -158,7 +177,7 @@ export default async function BusinessplanSide(
 
       <section className="bp-liste">
         {sortert.map((r) => (
-          <BpAvdeling key={r.gruppe_kode} rad={r} />
+          <BpAvdeling key={r.gruppe_kode} rad={r} abo={aboRad ?? null} />
         ))}
       </section>
 
