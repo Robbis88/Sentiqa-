@@ -270,9 +270,11 @@ test.describe('sideramme — plattform-redaktørens datalister', () => {
 //   /varsler    mye metadata og handlinger per rad
 //   /nyheter    lang tekst (sq-innlegg)
 //
-// Ingen av de fire har tabell, saa den kjente `.tabellramme`-overflyten
-// forstyrrer ikke maalingen. Det er med vilje: skal en av dem rulle
-// sideveis, er det den nye bredden som gjorde det.
+// Ingen av de fire har tabell. Det var med vilje - da kan et tabellbredt
+// innhold ikke forveksles med en breddefeil. (Utvalget ble gjort mens jeg
+// trodde `.tabellramme` forklarte dokumentrullingen paa /salg. Den
+// forklaringen er motbevist, men kriteriet er fortsatt riktig av en annen
+// grunn: en tabell er det bredeste et innhold kan bli.)
 //
 // HVA SOM FAKTISK MAALES
 //

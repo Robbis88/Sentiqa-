@@ -552,6 +552,22 @@ button.logg-ut:hover { color: var(--tekst); }
     width: 2.5rem; height: 2.5rem; border: 1px solid var(--kant); border-radius: 8px;
     background: var(--kort); cursor: pointer; color: var(--tekst);
   }
+  /* FUNN D, 2026-09-01 — IKKE RETTET, EGEN SAK
+     `flex-wrap` gjoer INGENTING her. `.toppstripe` er `display: grid`
+     (linje 446), ikke flex, saa denne linja har aldri hatt effekt. De tre
+     kolonnene `minmax(0,1fr) auto minmax(0,1fr)` staar side ved side ogsaa
+     paa 390 px, og innholdet skyver dokumentet 129 px utenfor viewporten
+     paa HVER innlogget side. Maalt i e2e/sideramme.spec.ts:
+
+       span.rolle-pip [318-399]  a.klokke-lenke [378-414]
+       form [430-519]            a.sq-fane [338-444]
+
+     Formen er den samme som en vakt som slutter aa se: regelen ser riktig
+     ut, staar der den skal, og er inert.
+
+     Minste retting: gi `.toppstripe` `display: flex` her, ELLER behold
+     grid og sett `grid-template-columns: 1fr auto`. Ikke gjort som del av
+     Sideramme-migreringen - feilen er eldre og er ikke en breddefeil. */
   .toppstripe { padding-left: 3.5rem; flex-wrap: wrap; gap: 0.4rem 0.75rem; }
   .bruker { font-size: 0.8rem; }
   .innhold { padding: 1rem 0.9rem; }
