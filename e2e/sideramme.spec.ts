@@ -426,10 +426,21 @@ async function bevisSide(page: Page, sti: string, ventet: 'smal' | 'bred') {
   expect(m.trangt, `${sti}: innhold uten plass i sin egen boks:\n  ${m.trangt.join('\n  ')}`)
     .toEqual([])
   expect(
-    m.dokumentIRammen,
-    `${sti}: innhold i rammen skyver dokumentet (${m.dokumentPx} px totalt).\n`
-    + `  I rammen:\n    ${m.dokumentIRammen.join('\n    ')}\n`
-    + `  Alle syndere (skallet inkludert):\n    ${m.dokumentAlle.join('\n    ')}`,
+    m.dokumentAlle,
+    // STRAMMET 2026-09-01, DA AARSAKEN FORSVANT.
+    //
+    // Denne målte lenge bare rammens eget subtre. Grunnen var Funn D:
+    // toppstripa skjøv dokumentet 129 px på hver innlogget side, og en
+    // påstand om HELE dokumentet ville gjort skallets gamle feil til
+    // migreringens. Nå er Funn D rettet, og da skal kravet tilbake — ikke
+    // fordi det er strengere, men fordi det igjen er sant.
+    //
+    // Ingenting skal skyve dokumentet sideveis. Skjer det, står det
+    // navngitt her med koordinater, og da er det et funn — ikke en
+    // ubehagelig test.
+    `${sti}: noe skyver dokumentet sideveis (${m.dokumentPx} px).\n`
+    + `  Ytterste syndere:\n    ${m.dokumentAlle.join('\n    ')}\n`
+    + `  …av dem i rammen:\n    ${m.dokumentIRammen.join('\n    ') || '(ingen)'}`,
   ).toEqual([])
   return m
 }
@@ -621,35 +632,9 @@ test.describe('pulje 1 — kjeden holder der ingenting endres', () => {
     }
   })
 
-  /**
-   * Mobilmålingen, minus én rute — og grunnen er ikke bredden.
-   *
-   * =====================================================================
-   * /kasserer FALLER PÅ FUNN A, IKKE PÅ KONTRAKTEN
-   *
-   * Den har tre `Datatabell` og INGEN kort. `Datatabell` rendrer
-   * `<div className="tabellramme">` som scroll-container, og den divven
-   * har ingen CSS-regel i systemet. På 390 px blir tabellen 668 px bred
-   * i en 362 px ramme, og ingenting rundt den ruller.
-   *
-   * /lonn og /persondata har nøyaktig samme tabeller, men slipper unna
-   * fordi deres står i `.kort`, og `.kort { overflow-x: auto }` gjelder
-   * på mobil. Forskjellen er altså hvilken beholder noen tilfeldigvis
-   * valgte — samme form som breddeproblemet dette arbeidet løser.
-   *
-   * Bredden er riktig: rammen måler det den skal, og desktoptesten over
-   * er grønn for /kasserer. Det som feiler er en eldre defekt, og den
-   * skal ikke rettes inne i en migrering.
-   *
-   * UNNTAKET SKAL DØ. Får `.tabellramme` sin `overflow-x: auto`, blir
-   * denne linja overflødig, og da skal /kasserer inn i lista igjen.
-   * =====================================================================
-   */
-  const PULJE1_MOBIL = PULJE1.filter(([sti]) => sti !== '/kasserer')
-
   test('mobil 390 px', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    for (const [sti, ventet] of PULJE1_MOBIL) {
+    for (const [sti, ventet] of PULJE1) {
       const m = await bevisSide(page, sti, ventet)
       expect(m.ramme, `${sti}: bredere enn spalta på mobil`)
         .toBeLessThanOrEqual(m.rom + 1)
@@ -702,23 +687,28 @@ test.describe('pulje 2 — de vanskelige seks', () => {
   })
 
   /**
-   * Mobilmålingen, minus /oversikt — og grunnen er ikke bredden.
+   * Mobilmålingen, minus /oversikt — og nå på grunn av Funn F.
    *
    * =====================================================================
-   * /oversikt FALLER PÅ FUNN E, I `Sidehode`
+   * FUNN E BLE RETTET, OG DA KOM FUNN F FRAM UNDER
    *
-   * `.sq-sidehode-handlinger` har både `flex-wrap: wrap` og
-   * `flex-shrink: 0`. De står i motstrid: shrinken hindrer forelderen i å
-   * begrense bredden, så elementet blir max-content bredt og dets egen
-   * wrap slår aldri inn. Målt: 582 px i en 362 px ramme.
+   * Før: `div.sq-sidehode-handlinger` OG statuspilla inni den lå begge
+   * utenfor rammen. `flex-shrink: 0` hindret blokka i å krympe, så den
+   * ble rapportert som synderen.
    *
-   * Det er en delt regel i designsystemet, ikke noe /oversikt gjør galt.
-   * Ruta er bare den første med nok innhold i toppen til å vise det —
-   * en kritisk statuspille pluss knappene. Rammen måler riktig, og
-   * desktoptesten er grønn.
+   * Etter at den ble fjernet, krymper og bryter blokka som den skal — og
+   * igjen står ett enkelt barn: `span.sq-status.sq-status-kritisk`, 582 px
+   * i en 362 px ramme, helt alene.
    *
-   * UNNTAKET SKAL DØ når `.sq-sidehode-handlinger` får `min-width: 0`
-   * (eller mister `flex-shrink: 0`). Da skal /oversikt inn igjen.
+   * `Ferskhetsstatus` legger en hel setning i en `white-space: nowrap`-
+   * pille: «Siste salgsdag 1. september 2026 · …». `Status` er laget for
+   * KORT tilstand — se `Rad` sin `status`-slot. Regelen er ikke inert som
+   * A, D og E var; primitiven brukes til noe annet enn den er for.
+   *
+   * Løsningen er derfor et innholdsvalg — kortere tekst, eller datoen ut
+   * av sidehodet — og den beslutningen hører ikke hjemme i en migrering.
+   *
+   * UNNTAKET SKAL DØ når Funn F er avgjort. Se globals.css.
    * =====================================================================
    */
   const PULJE2_MOBIL = PULJE2.filter(([sti]) => sti !== '/oversikt')

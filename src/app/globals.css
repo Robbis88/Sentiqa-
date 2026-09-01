@@ -568,7 +568,22 @@ button.logg-ut:hover { color: var(--tekst); }
      Minste retting: gi `.toppstripe` `display: flex` her, ELLER behold
      grid og sett `grid-template-columns: 1fr auto`. Ikke gjort som del av
      Sideramme-migreringen - feilen er eldre og er ikke en breddefeil. */
-  .toppstripe { padding-left: 3.5rem; flex-wrap: wrap; gap: 0.4rem 0.75rem; }
+  /* FUNN D, RETTET 2026-09-01.
+     Her sto `flex-wrap: wrap` uten at elementet var flex - `.toppstripe`
+     er `display: grid` (linje 446). Linja hadde derfor aldri hatt
+     effekt, og de tre kolonnene `minmax(0,1fr) auto minmax(0,1fr)` sto
+     side ved side ogsaa paa 390 px. Innholdet skjoev dokumentet 129 px
+     utenfor viewporten paa HVER innlogget side.
+
+     `display: flex` gjoer regelen selvkonsistent: baade `flex-wrap` og
+     den tovers `gap`-en under er flex-erklaeringer, saa det var aapenbart
+     hva som var ment. Nu virker de. */
+  .toppstripe {
+    display: flex;
+    padding-left: 3.5rem;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.75rem;
+  }
   .bruker { font-size: 0.8rem; }
   .innhold { padding: 1rem 0.9rem; }
   .innhold .kort { max-width: none; }
@@ -2182,6 +2197,25 @@ button.liten { min-height: 40px; }
 /* --- Status --------------------------------------------------------
    Fargelegger ALDRI raden. Prikken og teksten bærer det.
    `normal` har ingen farge i det hele tatt — det er hele poenget. */
+/* FUNN F, 2026-09-01 - IKKE RETTET, EGEN SAK
+   `white-space: nowrap` er riktig for en STATUS: «3 avvik» skal ikke
+   brytes mellom tallet og ordet. Men `Ferskhetsstatus` legger en hel
+   setning i pilla - «Siste salgsdag 1. september 2026 · <tekst>» - og
+   den kan ikke brytes noe sted. Maalt paa /oversikt, 390 px: 582 px i
+   en 362 px ramme.
+
+   Funnet var skjult bak Funn E: saa lenge handlingsblokka rundt heller
+   ikke broet, var det den som ble rapportert. Da E ble rettet, kom
+   dette fram under.
+
+   Dette er ikke en inert regel som A, D og E - regelen virker som den
+   skal. Det er en primitiv som brukes til noe annen enn den er laget
+   for. `Status` er for KORT tilstand; se `Rad` sin `status`-slot.
+
+   Loesningen er derfor et innholdsvalg, ikke en CSS-linje: kortere
+   tekst i pilla, eller flytte datoen ut av sidehodet. Den beslutningen
+   hoerer ikke hjemme i en migrering. Se unntaket i
+   e2e/sideramme.spec.ts. */
 .sq-status {
   display: inline-flex;
   align-items: center;
