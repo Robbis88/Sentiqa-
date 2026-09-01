@@ -3,6 +3,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, manedAar, ramsOpp } from '@/lib/format'
 import { Sidehode, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Aldri cache — datadekning skal alltid speile basen med en gang.
 export const dynamic = 'force-dynamic'
@@ -34,7 +35,7 @@ function dagerIMaaned(ym: string, idag: string): string[] {
 export default async function DekningSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Datadekning er en eier-oversikt.</p>
+    return <Sideramme><p>Datadekning er en eier-oversikt.</p></Sideramme>
   }
   const supabase = await lagSupabaseServerKlient()
   const idag = iDag()
@@ -90,7 +91,7 @@ export default async function DekningSide() {
     : `Alle datasett rekker 13 måneder tilbake, nok for år-mot-år`
 
   return (
-    <>
+    <Sideramme>
       <Sidehode tittel="Datadekning" undertittel={`${svar}. ${historikk}.`} />
 
       {/* FARGEN VAR DEN ENESTE FORSKJELLEN. Tallet sto gront naar det
@@ -204,6 +205,6 @@ export default async function DekningSide() {
           {' '}{MAANEDER} måneder bakover.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

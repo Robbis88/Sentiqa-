@@ -656,3 +656,104 @@ test.describe('pulje 1 — kjeden holder der ingenting endres', () => {
     }
   })
 })
+
+// =====================================================================
+// PULJE 2 — DE SEKS SOM IKKE TAALTE EN MIGRATOR
+//
+// Hver linje ble pekt ut for haand, fordi «return <noe>» ikke er nok
+// informasjon i disse filene:
+//
+//   /oversikt          returnerer BARE komponenter, og en av dem er
+//                      nettbrettets <TabletHjem/>. En heuristikk paa
+//                      `return <smaabokstav` ville ikke sett noen av dem.
+//   /dekning           har `return <th>` og `return <td>` dypt inne i
+//                      noestede .map()-kall. Det var denne formen som
+//                      lagde ugyldig DOM i /bemanning i boelge 3.
+//   /sjekkpunkt        egen nettbrettgren — hoppet over
+//   /ikmat, /ikmat/maaling, /mine-opplysninger
+//                      DELT retur: samme JSX for begge skall. Rammen
+//                      havner derfor ogsaa i TabletSkall, men er inert
+//                      der siden CSS-en er scopet til `.innhold`. Det er
+//                      nettopp den scopingen som gjoer disse migrerbare.
+//
+// Ingen av de seks endrer bredde for brukeren.
+// =====================================================================
+
+const PULJE2: [string, 'smal' | 'bred'][] = [
+  ['/oversikt', 'bred'],            // dashbord
+  ['/sjekkpunkt', 'smal'],          // arbeidsflyt
+  ['/ikmat', 'smal'],               // arbeidsflyt
+  ['/ikmat/maaling', 'smal'],       // detalj
+  ['/mine-opplysninger', 'smal'],   // detalj
+]
+
+test.describe('pulje 2 — de vanskelige seks', () => {
+  test.beforeEach(async ({ page }) => {
+    await loggInn(page)
+  })
+
+  test('desktop 1600 px', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 })
+    for (const [sti, ventet] of PULJE2) {
+      const m = await bevisSide(page, sti, ventet)
+      if (ventet === 'smal') expect(Math.round(m.ramme), sti).toBe(SMAL)
+      else expect(m.ramme, sti).toBeGreaterThan(SMAL)
+    }
+  })
+
+  test('mobil 390 px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const [sti, ventet] of PULJE2) {
+      const m = await bevisSide(page, sti, ventet)
+      expect(m.ramme, `${sti}: bredere enn spalta på mobil`)
+        .toBeLessThanOrEqual(m.rom + 1)
+    }
+  })
+
+})
+
+test.describe('pulje 2 — nettbrettet skal ikke merke rammen', () => {
+  // DEN VIKTIGSTE PÅSTANDEN I PULJE 2, OG DEN KREVER EN EKTE
+  // NETTBRETTSESJON.
+  //
+  // Tre av rutene deler retur mellom skallene, så `.sq-sideramme` finnes
+  // i nettbrettets DOM. Den skal være uten virkning: TabletSkall har
+  // ingen `.innhold`, og reglene er scopet dit. Blir scopet fjernet, får
+  // nettbrettet `display: flex` med 1,5 rem mellomrom — nøyaktig
+  // regresjonen fra bølge 2, som ingen test så den gangen.
+  //
+  // FØRSTE UTGAVE AV DENNE TESTEN LOGGET INN SOM BUTIKKSJEF. Da får man
+  // aldri TabletSkall, så den fant ingen ramme og passerte tomt. En test
+  // som ikke kan feile beviser ingenting.
+  const NETTBRETT = { epost: 'nettbrett@test.sentiqa.no', passord: 'test-nettbrett-2026' }
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 1366 })
+    await page.goto('/logg-inn')
+    await page.fill('input[name="epost"]', NETTBRETT.epost)
+    await page.fill('input[name="passord"]', NETTBRETT.passord)
+    await page.click('button[type="submit"]')
+    await expect(page).not.toHaveURL(/\/logg-inn/, { timeout: 15_000 })
+  })
+
+  test('rammen er inert i TabletSkall', async ({ page }) => {
+    // /ikmat deler retur mellom skallene, så rammen ER i DOM-en her.
+    await page.goto('/ikmat')
+    const funn = await page.evaluate(() => {
+      const r = document.querySelector('.sq-sideramme')
+      const skall = Boolean(document.querySelector('main.innhold'))
+      return r
+        ? { finnes: true, display: getComputedStyle(r).display, desktopskall: skall }
+        : { finnes: false, display: '', desktopskall: skall }
+    })
+
+    // Forutsetningen: dette ER nettbrettskallet, ikke desktopskallet.
+    expect(funn.desktopskall, 'dette er ikke TabletSkall — testen måler feil skall')
+      .toBe(false)
+    // Og rammen, om den er der, skal ikke ha fått reglene sine.
+    if (funn.finnes) {
+      expect(funn.display, 'rammen er aktiv i TabletSkall — scopet er borte')
+        .not.toBe('flex')
+    }
+  })
+})

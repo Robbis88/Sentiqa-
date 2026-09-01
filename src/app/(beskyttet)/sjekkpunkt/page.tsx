@@ -8,6 +8,7 @@ import { Sidepanel } from '@/components/ui/sidepanel'
 import { TabletSjekk, type Punkt as TabletPunkt } from './tablet-sjekk'
 import { TabletHode } from '../tablet-hode'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Sjekk = {
   id: string
@@ -19,7 +20,7 @@ type Sjekk = {
 
 export default async function SjekkpunktSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle === 'plattform_redaktor') return <p>Du har ikke tilgang til sjekkpunkter.</p>
+  if (bruker.rolle === 'plattform_redaktor') return <Sideramme><p>Du har ikke tilgang til sjekkpunkter.</p></Sideramme>
 
   const supabase = await lagSupabaseServerKlient()
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
@@ -97,7 +98,7 @@ export default async function SjekkpunktSide() {
   }
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Sjekkpunkt"
         undertittel={`${svarTekst} · ${datoLang.format(new Date(idag))}`}
@@ -155,6 +156,6 @@ export default async function SjekkpunktSide() {
           </section>
         ))
       )}
-    </>
+    </Sideramme>
   )
 }

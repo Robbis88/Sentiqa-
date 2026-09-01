@@ -8,6 +8,7 @@ import { registrerAvlesning, settOppStandard } from './handlinger'
 import { AvvikDel } from '../avvik/avvik-del'
 import { TabletIkMat } from './tablet-ikmat'
 import { TabletHode } from '../tablet-hode'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Punkt = {
   id: string
@@ -97,14 +98,14 @@ export default async function IkMatSide() {
 
   if (paaNettbrett) {
     return (
-      <>
+      <Sideramme>
         <TabletHode
           tittel={svar}
           undertittel="Er noe utenfor kravet, opprettes et avvik automatisk når du fyller inn strakstiltak."
         />
         <TabletIkMat stasjoner={tabletGrupper} />
         <AvvikDel />
-      </>
+      </Sideramme>
     )
   }
 
@@ -113,7 +114,7 @@ export default async function IkMatSide() {
   // `.tablet-hode` er borte herfra: den bruker nettbrettets farger, laget
   // for moerkt underlag, og ga 1,9:1 paa lederens lyse side.
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={svar}
         undertittel="IK-mat og avvik. Utenfor kravet flagges som avvik og varsler automatisk."
@@ -183,6 +184,6 @@ export default async function IkMatSide() {
       })}
 
       <AvvikDel />
-    </>
+    </Sideramme>
   )
 }

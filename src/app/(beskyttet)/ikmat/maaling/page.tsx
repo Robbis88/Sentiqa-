@@ -9,6 +9,7 @@ import { MaalingListe, type Punkt, type Logget } from './maaling-liste'
 import { TabletMaaling } from './tablet-maaling'
 import { TabletHode } from '../../tablet-hode'
 import { Sidehode } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 const FREKVENSER = ['daglig', 'to_ukentlig', 'ukentlig']
 
@@ -36,7 +37,7 @@ export default async function MaalingSide({ searchParams }: { searchParams: Prom
     liste, stasjonFraUrl(sok, liste),
     tillatAlleFor('/ikmat/maaling', bruker.rolle, liste.length),
   )
-  if (!stasjon) return <p>Ingen stasjon tildelt. <Link href="/rutiner">Tilbake til vakta</Link></p>
+  if (!stasjon) return <Sideramme><p>Ingen stasjon tildelt. <Link href="/rutiner">Tilbake til vakta</Link></p></Sideramme>
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
 
   const [{ data: punkter }, { data: avles }, { data: st }] = await Promise.all([
@@ -75,7 +76,7 @@ export default async function MaalingSide({ searchParams }: { searchParams: Prom
 
   if (paaNettbrett) {
     return (
-      <>
+      <Sideramme>
         <TabletHode
           tittel={status}
           undertittel={[FREKVENS_ETIKETT[frekvens], utenfor > 0 ? `${utenfor} utenfor kravet` : null]
@@ -86,12 +87,12 @@ export default async function MaalingSide({ searchParams }: { searchParams: Prom
           logget={logget}
           frekvensEtikett={FREKVENS_ETIKETT[frekvens]}
         />
-      </>
+      </Sideramme>
     )
   }
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel={`IK-mat · ${FREKVENS_ETIKETT[frekvens]}`}
         undertittel={[
@@ -106,6 +107,6 @@ export default async function MaalingSide({ searchParams }: { searchParams: Prom
         <p className="undertittel">Mål hver enhet og lagre. Er noe utenfor kravet, fyll inn strakstiltak — da opprettes et avvik automatisk.</p>
         <MaalingListe punkter={(punkter ?? []).map((p) => ({ id: p.id, navn: p.navn, min_temp: p.min_temp, max_temp: p.max_temp }))} logget={logget} />
       </section>
-    </>
+    </Sideramme>
   )
 }
