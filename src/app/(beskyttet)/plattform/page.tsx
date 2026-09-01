@@ -8,26 +8,27 @@ import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePerman
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // Plattform-eierens tverr-tenant-oversikt: hvem bruker systemet, omfang og hva
 // du skal fakturere — pluss onboarding og avslutning. Service-role (leser på
 // tvers av kjeder) — derfor streng gate på plattform_redaktor FØR admin-klienten.
 export default async function PlattformSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'plattform_redaktor') return <p>Plattform-oversikten er for plattform-eier.</p>
+  if (bruker.rolle !== 'plattform_redaktor') return <Sideramme><p>Plattform-oversikten er for plattform-eier.</p></Sideramme>
 
   let admin
   try {
     admin = lagSupabaseAdminKlient()
   } catch {
     return (
-      <>
+      <Sideramme>
         <Sidehode tittel="Plattform" />
         <Tomtilstand
           tittel="Mangler service-nøkkel"
           forklaring="Plattform-oversikten leser på tvers av kjeder og trenger SUPABASE_SERVICE_ROLE_KEY i miljøet. Uten den kan ingen kjeder vises."
         />
-      </>
+      </Sideramme>
     )
   }
 
@@ -81,7 +82,7 @@ export default async function PlattformSide() {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Plattform"
         undertittel={[
@@ -198,6 +199,6 @@ export default async function PlattformSide() {
           legges inn på vegne av kunden under Stasjoner etterpå.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

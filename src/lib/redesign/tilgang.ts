@@ -124,7 +124,26 @@ function blokkgrener(kilde: string): { haandtert: Rolle[]; nektet: Rolle[] } {
   return { haandtert, nektet }
 }
 
-export function avvisteRoller(kilde: string): Avvisning {
+export function avvisteRoller(raaKilde: string): Avvisning {
+  // =====================================================================
+  // RAMMEN ER IKKE INNHOLD, OG DEN SKAL IKKE TELLE SOM DET
+  //
+  // Hele denne fila skiller på ÉN ting: returnerer grenen en KOMPONENT
+  // (stor forbokstav), er det rollens egen visning; returnerer den bare
+  // tekst, er det en avvisning.
+  //
+  // Da Sideramme-migreringen pakket portnerne — `return <p>Kun eier.</p>`
+  // ble `return <Sideramme><p>Kun eier.</p></Sideramme>` — begynte hver
+  // eneste portner å se ut som en komponentgren. Vakten falt fra 40+
+  // funn til 38, og bare fordi den har en kanarifugl på antallet sa den
+  // fra. Uten den ville menyen kunnet love tilgang sidene avviser, med en
+  // grønn vakt ved siden av.
+  //
+  // `Sideramme` er en layoutramme, ikke innhold. Den fjernes før
+  // analysen, så spørsmålet «tekst eller komponent» handler om det siden
+  // faktisk viser.
+  // =====================================================================
+  const kilde = raaKilde.replace(/<\/?Sideramme>/g, '')
   const nektede = new Set<Rolle>()
 
   // REKKEFØLGE ER ALT. /regnskap håndterer butikksjefen i en gren som
