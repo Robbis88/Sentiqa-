@@ -30,6 +30,7 @@ import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
+import { vurderDag, UKER_TILBAKE } from './rimelighet'
 import { vurderDublett } from './dublett'
 import { lagKaffevarsel } from '@/lib/kaffesvinn'
 
@@ -511,7 +512,77 @@ async function lagreSalgsstatistikk(
     }
   }
   if (rader.length > 0) await skrivBatch(supabase, 'daglig_salg', rader, 'retailer_id,stasjon_id,dato,ean')
+
+  // Er dagen rimelig? Se `varsleOmUrimeligDag` - den svarer paa noe
+  // verken statusen, dekningen eller dublettsjekken kan svare paa.
+  const berorte = [...new Set(
+    r.stasjoner.map((st) => medNummer.get(st.butikknummer)).filter((x): x is string => Boolean(x)),
+  )]
+  for (const stasjonId of berorte) {
+    await varsleOmUrimeligDag(supabase, retailerId, stasjonId, r.dato)
+  }
+
   return { antallRader: rader.length, umatchet }
+}
+
+// =====================================================================
+// «DAGEN FINNES» ER IKKE DET SAMME SOM «DAGEN ER RIKTIG»
+//
+// 25. august 2026, Laguneparken: 8 rader, 676 kr, status «parset».
+// Nabotirsdagene laa paa 37-39 000. Alt saa riktig ut - riktig stasjon,
+// riktig dato, groenn import - og 44 578 kr manglet i rapportene.
+//
+// Denne sjekken blokkerer ikke. En dag KAN vaere halvert av ekte
+// grunner: stengt for oppussing, stroembrudd, en helligdag vi ikke
+// kjenner. Da skal tallet inn, bare med et flagg. AA avvise ekte data
+// fordi de er uvanlige ville vaert en verre feil enn den vi retter.
+//
+// Den er heller ikke i veien for importen: feiler den, sluker vi det.
+// En import som lykkes skal ikke bli staaende som feilet fordi VAKTEN
+// snublet - det ville vaert samme form som «Behandle»-knappen som
+// skriver «feilet» over en vellykket jobb.
+// =====================================================================
+async function varsleOmUrimeligDag(
+  supabase: Klient,
+  retailerId: string,
+  stasjonId: string,
+  dato: string,
+): Promise<void> {
+  try {
+    const fra = new Date(`${dato}T12:00:00Z`)
+    fra.setUTCDate(fra.getUTCDate() - (UKER_TILBAKE + 1) * 7)
+
+    const { data } = await supabase
+      .from('v_butikksalg_dag')
+      .select('dato, kroner')
+      .eq('stasjon_id', stasjonId)
+      .gte('dato', fra.toISOString().slice(0, 10))
+      .lte('dato', dato)
+      .order('dato', { ascending: false })
+      .overrideTypes<{ dato: string; kroner: number }[]>()
+
+    const dager = (data ?? []).map((d) => ({ dato: d.dato, kroner: Number(d.kroner) }))
+    const iDagRad = dager.find((d) => d.dato === dato)
+    if (!iDagRad) return
+
+    const funn = vurderDag(iDagRad, dager.filter((d) => d.dato !== dato))
+    if (!funn) return
+
+    const { data: st } = await supabase
+      .from('stasjoner').select('navn').eq('id', stasjonId)
+      .maybeSingle<{ navn: string }>()
+
+    await opprettVarsel(supabase, {
+      retailer_id: retailerId,
+      stasjon_id: stasjonId,
+      type: 'import_avvik',
+      tittel: `${st?.navn ?? 'Stasjonen'}: uvanlig salgsdag ${dato}`,
+      tekst: funn.tekst,
+      lenke: '/dekning',
+    })
+  } catch {
+    // Med vilje stille. Se blokkkommentaren over.
+  }
 }
 
 async function lagreTimesalg(
