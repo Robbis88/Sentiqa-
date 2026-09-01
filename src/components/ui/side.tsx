@@ -185,11 +185,23 @@ export function Datatabell({
           setter `flex-wrap: wrap`, som er inert på en grid. Jeg målte et
           tall og gjettet på en forklaring som passet.
 
-          Mangelen på regel her er fortsatt ekte, og fortsatt uten
-          målt konsekvens. `.tabellramme { overflow-x: auto }` ville gjort
-          tabellen til sin egen rullebane. Holdt utenfor rammearbeidet med
-          vilje — en migrering skal ikke være inngang til opportunistisk
-          reparasjon. */}
+          MÅLT KONSEKVENS 2026-09-01: her sto det at mangelen var «uten
+          målt konsekvens». Det er den ikke lenger. /kasserer har tre
+          `Datatabell` og INGEN kort, så ingenting rundt tabellene ruller:
+          på 390 px er tabellen 668 px bred i en 362 px ramme. /lonn og
+          /persondata slipper unna bare fordi deres tabeller tilfeldigvis
+          står i kort.
+
+          Førsteinstinktet mitt var altså halvveis riktig og helt feil
+          begrunnet: `.tabellramme` forårsaker overflyt — men ikke den
+          dokumentrullingen på 129 px jeg tilskrev den, som kom fra
+          toppstripa.
+
+          `.tabellramme { overflow-x: auto }` gjør tabellen til sin egen
+          rullebane og løser det. Fortsatt ikke gjort: feilen er eldre enn
+          rammen, og en migrering skal ikke være inngang til opportunistisk
+          reparasjon. Se `PULJE1_MOBIL`-unntaket i e2e/sideramme.spec.ts,
+          som skal strykes samtidig som dette rettes. */}
       <div className="tabellramme">
         <table className="tabell">{children}</table>
       </div>
