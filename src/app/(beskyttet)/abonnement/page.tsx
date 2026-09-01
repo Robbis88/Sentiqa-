@@ -4,6 +4,7 @@ import { kr } from '@/lib/format'
 import { beregnAbonnement } from '@/lib/pris'
 import { settAbonnement } from './handlinger'
 import { Sidehode, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Retailer = {
   navn: string
@@ -15,7 +16,7 @@ type Retailer = {
 
 export default async function AbonnementSide() {
   const bruker = await hentInnloggetBruker()
-  if (bruker.rolle !== 'retailer_admin') return <p>Kun eier har tilgang til abonnement.</p>
+  if (bruker.rolle !== 'retailer_admin') return <Sideramme><p>Kun eier har tilgang til abonnement.</p></Sideramme>
 
   const supabase = await lagSupabaseServerKlient()
   const [{ data: retailer }, { count }] = await Promise.all([
@@ -42,7 +43,7 @@ export default async function AbonnementSide() {
   ].filter(Boolean).join(' · ')
 
   return (
-    <>
+    <Sideramme>
       <Sidehode tittel="Abonnement" undertittel={`${retailer?.navn ?? 'Kjeden'} · ${svar}`} />
 
       <div className="sq-nokkelrad">
@@ -88,7 +89,11 @@ export default async function AbonnementSide() {
         <p className="undertittel">
           Faktura sendes elektronisk på EHF til org.nr <strong>{retailer?.org_nr ?? '— mangler —'}</strong> via PEPPOL.
         </p>
-        <form action={settAbonnement} className="skjema" style={{ maxWidth: 460 }}>
+        {/* Bredden laa som `style={{ maxWidth: 460 }}`. `.sq-smal-flate` er
+            NOEYAKTIG samme verdi og gjoer ingenting annet, saa visningen
+            er uendret - men bredden staar naa i CSS der resten av
+            systemet har sin, og vakten kan lese den. */}
+        <form action={settAbonnement} className="skjema sq-smal-flate">
           <label className="felt">
             <span>Faktura-e-post (kopi/kontakt)</span>
             <input name="faktura_epost" type="email" defaultValue={retailer?.faktura_epost ?? ''} placeholder="regnskap@firma.no" />
@@ -120,6 +125,6 @@ export default async function AbonnementSide() {
           er en kopi og en kontakt, ikke der fakturaen sendes.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }
