@@ -10,6 +10,7 @@
     "/bemanning",
     "/brukere",
     "/businessplan",
+    "/businessplan/sammenlign",
     "/databehandleravtale",
     "/dekning",
     "/fokus",
@@ -96,6 +97,7 @@
       "/bemanning",
       "/brukere",
       "/businessplan",
+      "/businessplan/sammenlign",
       "/dekning",
       "/fokus",
       "/ikmat",
@@ -341,7 +343,8 @@
       "loggLagd",
       "publiser",
       "setLinje",
-      "setNotat"
+      "setNotat",
+      "setProsent"
     ],
     "/produksjonsplan/treffsikkerhet": [
       "oppdaterTreffsikkerhet"
@@ -502,6 +505,15 @@
       "Ingen businessplan for denne måneden",
       "Ingen stasjon valgt",
       "dynamisk:navn"
+    ],
+    "/businessplan/sammenlign": [
+      "CR-salg per varegruppe · ${valgte.length === 1 ? hvem : 'alle valgte samlet'}",
+      "Hva tallene betyr",
+      "Ingen BP er lastet inn ennå",
+      "Ingen stasjon kan sammenlignes mellom ${fraAar} og ${tilAar}",
+      "Kostnader per konto · ${valgte.length === 1 ? hvem : 'alle valgte samlet'}",
+      "Timer og timekost",
+      "dynamisk:f.tittel"
     ],
     "/dekning": [
       "Måned for måned"
@@ -673,6 +685,8 @@
       "Tildelinger"
     ],
     "/produksjonsplan": [
+      "Driftsregler for stasjonen",
+      "Ikke satt opp for kjeden ennaa",
       "Ingen produksjonssalg registrert",
       "Notat til de ansatte",
       "Produksjon",
@@ -848,6 +862,9 @@
     "/businessplan": [
       "/import"
     ],
+    "/businessplan/sammenlign": [
+      "/import"
+    ],
     "/ikmat/maaling": [
       "/rutiner"
     ],
@@ -856,6 +873,9 @@
     ],
     "/ikmat": [
       "/ikmat/oppsett"
+    ],
+    "/import": [
+      "/import"
     ],
     "/kasserer": [
       "/import"

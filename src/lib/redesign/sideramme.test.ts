@@ -254,11 +254,19 @@ describe('Sideramme: bredden kommer fra mønsteret', () => {
   it('ingen migrert side setter sin egen bredde', () => {
     // Poenget med rammen er at bredden har én eier. En side som legger på
     // `max-width` selv har tatt den tilbake, og da er vi der vi startet.
+    // KOMMENTARENE MÅ STRIPPES. Tredje gang en vakt her har lest sin
+    // egen prosa: da /abonnement fikk bredden sin flyttet til CSS,
+    // forklarte kommentaren hva som ble fjernet — og skrev dermed
+    // `maxWidth` inn i fila igjen. Vakten skal måle kode, ikke tekst om
+    // kode. (De to andre gangene: scope-vakten som krevde `}` foran
+    // selektoren, og breddevakten som traff sin egen `.tabellramme`.)
+    const utenKommentar = (s: string) =>
+      s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     const synder: string[] = []
     for (const p of sider(APP)) {
       const k = readFileSync(p, 'utf8')
       if (!/\bSideramme\b/.test(k)) continue
-      if (/max-?[Ww]idth/.test(k)) synder.push(ruteFor(p))
+      if (/max-?[Ww]idth/.test(utenKommentar(k))) synder.push(ruteFor(p))
     }
     expect(synder, `setter egen bredde inni Sideramme: ${synder.join(', ')}`).toEqual([])
   })
@@ -609,7 +617,6 @@ const UTENFOR: Record<string, string> = {
  * stillhet.
  */
 const VENTER: string[] = [
-  '/abonnement',
 ]
 
 describe('porten: ingen ny side uten ramme', () => {
