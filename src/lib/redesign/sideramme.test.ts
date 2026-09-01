@@ -523,3 +523,133 @@ describe('lokalt breddeansvar', () => {
       .toEqual([])
   })
 })
+
+// =====================================================================
+// PORTEN — EN NY SIDE SKAL IKKE KUNNE SNIKE SEG INN UTEN RAMME
+//
+// Vaktene over gjelder bare sider som ALLEREDE bruker `Sideramme`. Det
+// betyr at en helt ny side arver ingenting: den kan settes opp uten
+// ramme, faa bredden sin av om den tilfeldigvis bruker `.kort`, og
+// ingenting sier fra. Det er nøyaktig tilstanden hele dette arbeidet
+// startet med — bare i småformat, én side om gangen.
+//
+// Denne porten lukker det. Hver side i desktopskallet skal enten bruke
+// rammen, eller staa oppfoert under med en grunn.
+//
+// LISTA ER EN SKRALLE: DEN KAN KRYMPE, ALDRI VOKSE.
+//
+// `VENTER` er de 31 rutene som ennaa ikke er migrert. Alle gir i dag
+// NØYAKTIG samme bredde som kontrakten ville gitt — de er riktige ved
+// sammentreff, ikke ved regel. Migreres en, strykes den her, og testen
+// under krever at antallet gaar ned og aldri opp.
+//
+// `UTENFOR` er de som aldri skal migreres, med begrunnelse. De er ikke
+// gjeld, de er avklarte.
+// =====================================================================
+
+/** Aldri migrert — de bor ikke i desktopskallet. */
+const UTENFOR: Record<string, string> = {
+  '/avvik':
+    'Ren `redirect(\'/ikmat\')`. Rendrer aldri noe, saa den har ingen '
+    + 'bredde aa ha.',
+  '/sikkerhet':
+    'Ligger paa src/app/sikkerhet/page.tsx — UTENFOR (beskyttet). Den '
+    + 'rendrer sin egen `<main className="logg-inn">` med '
+    + '`.kort.sq-smal-flate` og `auth-bunn`: innloggingsflatens '
+    + 'formspraak, ikke desktopskallets. Uten `.innhold` finnes ingen '
+    + '`--sq-spalte`, saa en ramme der ville vaert inert. `RUTEMONSTER` '
+    + 'kaller den `innstillinger`; det er feil klassifisering, ikke feil '
+    + 'bredde, og staar som eget funn.',
+}
+
+/**
+ * Ennaa ikke migrert. Skal krympe.
+ *
+ * Alle gir i dag samme bredde som kontrakten ville gitt. Risikoen ved aa
+ * la dem staa er ikke at de er gale naa, men at ingenting hindrer at de
+ * blir det: fjerner noen et `.kort` fra /kontrakt, blir den fullbredde i
+ * stillhet.
+ */
+const VENTER: string[] = [
+  '/abonnement',
+  '/arrangementer',
+  '/businessplan',
+  '/businessplan/sammenlign',
+  '/dekning',
+  '/fokus',
+  '/ikmat',
+  '/ikmat/maaling',
+  '/ikmat/oppsett',
+  '/import',
+  '/kasserer',
+  '/konkurranser',
+  '/kontrakt',
+  '/lonn',
+  '/maaling',
+  '/mine-opplysninger',
+  '/opplaring',
+  '/oversikt',
+  '/persondata',
+  '/premier',
+  '/puls/[id]',
+  '/regnskap',
+  '/rutiner/min',
+  '/rutiner/oppsett/[id]',
+  '/rutiner/oversikt',
+  '/salgsprognose',
+  '/sjekkpunkt',
+  '/stasjoner',
+  '/svinn',
+  '/timeregnskap',
+  '/timesalg',
+]
+
+describe('porten: ingen ny side uten ramme', () => {
+  /** Sider i desktopskallet — tablet, utenfor og opprett har egne skall. */
+  function desktopsider(): { rute: string; harRamme: boolean }[] {
+    const ut: { rute: string; harRamme: boolean }[] = []
+    for (const p of sider(APP)) {
+      const r = ruteFor(p)
+      const m = RUTEMONSTER[r]
+      if (!m || m === 'tablet' || m === 'utenfor' || m === 'opprett') continue
+      ut.push({ rute: r, harRamme: /\bSideramme\b/.test(readFileSync(p, 'utf8')) })
+    }
+    return ut
+  }
+
+  it('hver side bruker rammen, venter i køen, eller er avklart', () => {
+    const ukjente = desktopsider()
+      .filter((s) => !s.harRamme)
+      .filter((s) => !VENTER.includes(s.rute) && !(s.rute in UTENFOR))
+      .map((s) => s.rute)
+    expect(
+      ukjente,
+      'Nye sider i desktopskallet uten Sideramme. Bredden deres kommer da '
+      + 'fra om de tilfeldigvis bruker `.kort`, og ingen vakt ser den. '
+      + `Bruk rammen, eller før dem inn med grunn: ${ukjente.join(', ')}`,
+    ).toEqual([])
+  })
+
+  it('køen krymper — den vokser aldri', () => {
+    // En skralle. Migreres en rute, strykes den fra VENTER. Legger noen
+    // til en NY rute her i stedet for å bruke rammen, er vi tilbake til
+    // to breddemekanismer, og lista blir en unnskyldning i stedet for en
+    // nedtelling.
+    const faktisk = desktopsider().filter((s) => !s.harRamme).map((s) => s.rute)
+    const spoekelser = VENTER.filter((r) => !faktisk.includes(r))
+    expect(
+      spoekelser,
+      `står i køen, men bruker allerede rammen — stryk dem: ${spoekelser.join(', ')}`,
+    ).toEqual([])
+  })
+
+  it('KANARIFUGL: porten ser faktisk sidene', () => {
+    // Uten denne ville «ingen ukjente» også vært svaret hvis
+    // `desktopsider()` returnerte tom liste — og det er nøyaktig formen
+    // på en vakt som slutter å se.
+    const alle = desktopsider()
+    expect(alle.length, 'porten finner nesten ingen sider').toBeGreaterThan(50)
+    expect(alle.filter((s) => s.harRamme).length, 'porten ser ingen migrerte sider')
+      .toBeGreaterThan(20)
+  })
+})
