@@ -155,18 +155,22 @@
   display: flex;
   gap: var(--luft-2);
   flex-wrap: wrap;
-  flex-shrink: 0;
-  /* FUNN E, RETTET 2026-09-01.
-     `flex-shrink: 0` og `flex-wrap: wrap` sto i motstrid: shrinken
-     hindret forelderen i aa begrense bredden, saa elementet ble
-     max-content bredt og dets EGEN wrap slo aldri inn. Wrappen var
-     slaatt av av linja over seg.
+  /* FUNN E, RETTET 2026-09-01 - I ANDRE FORSOEK.
+     Her sto `flex-shrink: 0` sammen med `flex-wrap: wrap`, og de to sto
+     i motstrid: shrinken hindret forelderen i aa begrense bredden, saa
+     elementet ble max-content bredt - og da slo dets EGEN wrap aldri
+     inn. Wrappen var slaatt av av linja under seg.
 
-     `min-width: 0` loeser det uten aa gi slipp paa `flex-shrink: 0`:
-     handlingene blir fortsatt ikke klemt sammen naar det er plass, men
-     naar det IKKE er plass, kan de bryte til neste linje slik regelen
-     alltid har lovet. Maalt paa /oversikt: 582 px i en 362 px ramme
-     foer, innenfor etter. */
+     FOERSTE FORSOEK LA TIL `min-width: 0` OG BEHOLDT `flex-shrink: 0`.
+     Det virket ikke, og CI ga samme tall som foer: 582 px i en 362 px
+     ramme. `min-width: 0` fjerner MINSTEGULVET for et flex-element, men
+     `flex-shrink: 0` gjoer at elementet aldri krymper i det hele tatt -
+     og da har gulvet ingen betydning. Jeg blandet de to mekanismene.
+
+     Riktig retting er aa la elementet krympe. Da faller det inn paa
+     linjebredden, og wrappen bryter knappene slik regelen alltid har
+     lovet. `min-width: 0` staar igjen fordi et flex-barn ellers har et
+     automatisk min-content-gulv som ville stoppet krympingen halvveis. */
   min-width: 0;
 }
 
