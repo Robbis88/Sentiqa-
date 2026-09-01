@@ -101,6 +101,33 @@ describe('Sideramme: bredden kommer fra mønsteret', () => {
       .toMatch(/\.sq-sideramme\s*\{[^}]*max-width:\s*var\(--sq-spalte\)/)
   })
 
+  it('KANARIFUGL: rammens regler er scopet til .innhold', () => {
+    // EN EKTE REGRESJON JEG SELV LAGDE I BØLGE 2.
+    //
+    // 13 sider forgrener på `butikkbruker_tablet` og rendrer da i
+    // TabletSkall, som ikke har `.innhold`. /anvisninger er en av dem og
+    // ble migrert — så nettbrettet fikk `display: flex` med 1,5 rem
+    // mellomrom det ikke hadde før. Maksbredden forsvant av seg selv
+    // (`var(--sq-spalte)` er udefinert der), men flex og gap gjorde ikke
+    // det. En stille layoutendring i et skall ingen test dekket.
+    //
+    // Scopet til `.innhold` er rammen inert utenfor desktopskallet.
+    // Fjerner noen scopet, lekker desktopgeometri inn på nettbrettet
+    // igjen — og siden nettbrettsidene fortsatt rendrer, ville ingenting
+    // sagt fra.
+    // Kommentarene MÅ strippes først. Første utgave av denne kontrollen
+    // krevde `}` eller filstart foran selektoren — og regelen står etter
+    // en blokk-kommentar. Den var blind i samme øyeblikk den ble skrevet,
+    // og kanarifuglen viste det med en gang.
+    const css = les('src', 'components', 'ui', 'ui.css').replace(/\/\*[\s\S]*?\*\//g, '')
+    const uscopet = [...css.matchAll(/([^{}]+)\{[^{}]*\}/g)]
+      .map((m) => m[1].trim().replace(/\s+/g, ' '))
+      .filter((sel) => /(^|[\s,])\.sq-sideramme\b/.test(sel))
+      .filter((sel) => sel.split(',').some((s) => !s.trim().startsWith('.innhold')))
+    expect(uscopet, `disse gjelder også i TabletSkall: ${uscopet.join(' | ')}`)
+      .toEqual([])
+  })
+
   it('den smale spalta er NØYAKTIG den gamle kortbredden', () => {
     // DETTE ERSTATTER EN NETTLESERTEST SOM MÅLTE FEIL TING.
     //
@@ -168,11 +195,47 @@ describe('Sideramme: bredden kommer fra mønsteret', () => {
       for (let i = start; i < lin.length; i++) {
         const enLinje = /^\s*return\s*<>/.test(lin[i])
         const flere = /^\s*return \($/.test(lin[i]) && lin[i + 1]?.trim() === '<>'
-        if (enLinje || flere) synder.push(`${ruteFor(p)}:${i + 1}`)
+        if (!enLinje && !flere) continue
+        // ET ANNET SKALL ER IKKE ET HULL I DETTE.
+        //
+        // 13 sider forgrener på `butikkbruker_tablet` og rendrer da i
+        // TabletSkall, som ikke har `.innhold`. /produksjonsplan gjør det
+        // midt i samme komponent. Den returen SKAL være naken — en
+        // Sideramme der ville vært desktopgeometri i feil skall.
+        // Markøren er nettbrettets eget formspråk: `tablet-`-klasser og
+        // `<Tablet…>`-komponenter.
+        const blokk = lin.slice(i, i + 30).join('\n')
+        if (/className="tablet-|<Tablet[A-Z]/.test(blokk)) continue
+        synder.push(`${ruteFor(p)}:${i + 1}`)
       }
     }
     expect(synder, `returnerer et nakent fragment i stedet for Sideramme: ${synder.join(', ')}`)
       .toEqual([])
+  })
+
+  it('rammen står aldri der bare et tabellelement kan stå', () => {
+    // ENDA EN FEIL MIGRATOREN MIN GJORDE, OG SOM tsc GODTOK.
+    //
+    // /bemanning har en kalender bygget av nøstede `.map()`-kall, og inni
+    // en av dem sto `if (!c) return <td …>—</td>`. Heuristikken min for
+    // «tidlig retur» så bare `return <småbokstav`, ikke hvor dypt den lå,
+    // og pakket den i en Sideramme. Det gir en `<div>` inni en `<tr>` —
+    // ugyldig markup som ville brutt kalenderen. JSX-typene sier ingenting
+    // om hvilke elementer som kan være barn av hvilke, så tsc var grønn.
+    //
+    // En ramme er sidas ytterste beholder. Står den rundt et `<td>`, er
+    // den ikke det, og noe har gått galt i migreringen.
+    const forbudt = /<Sideramme>\s*<(td|tr|th|tbody|thead|tfoot|caption|li|option|dt|dd)\b/
+    const synder: string[] = []
+    for (const p of sider(APP)) {
+      const k = readFileSync(p, 'utf8')
+      if (!/\bSideramme\b/.test(k)) continue
+      k.split(/\r?\n/).forEach((l, i) => {
+        if (forbudt.test(l)) synder.push(`${ruteFor(p)}:${i + 1}`)
+      })
+    }
+    expect(synder, `Sideramme rundt et element som bare hører hjemme i en `
+      + `tabell eller liste: ${synder.join(', ')}`).toEqual([])
   })
 
   it('ingen migrert side setter sin egen bredde', () => {
@@ -327,6 +390,32 @@ const BREDDEUNNTAK: Record<string, string> = {
     + 'et mål for innholdet, ikke for sida.',
   '.sq-skjema':
     'Samme: bemanningsskjemaets egen lesbare bredde.',
+  // --- Kom fram i bølge 3, alle komponentmål i /bemanning og
+  //     /produksjonsplan. Ingen av dem er en spalte.
+  '.stepper button':
+    'Pluss/minus-knappen i en teller. Trykkflate, ikke spalte.',
+  '.stepper input':
+    'Tallfeltet mellom dem. Bredt nok til fire siffer.',
+  '.varsel-dott':
+    '9 px prikk som sier «her er noe nytt». Et ikon.',
+  '.tablet-melding-merke':
+    'Merkelapp på nettbrettet. Minstebredde så korte ord ikke gir en '
+    + 'trykkflate på to bokstaver.',
+  '.pp-regel-inn input':
+    'Tallfelt i produksjonsregelen.',
+  '.pp-gruppe-regel input':
+    'Samme, per varegruppe.',
+  '.sq-ukedager input':
+    '18 px avkrysningsboks per ukedag.',
+  '.bem-kalender th:first-child, .bem-kalender td:first-child':
+    'Klokkeslettkolonnen i bemanningskalenderen. `table-layout: fixed` '
+    + 'krever at den er satt — uten den fordeles bredden likt og '
+    + '«07:00» havner på to linjer.',
+  '.stilling-rad input':
+    'Antallsfelt per stilling.',
+  '.sq-skjult':
+    'Teksten som bare skjermlesere skal ha. 1 px er hele poenget — den '
+    + 'skal ut av synsfeltet uten å forsvinne fra tilgjengelighetstreet.',
   '.sq-smalt-felt':
     'Et bevisst smalt tallfelt — navnet sier det. Komponentmål. '
     + 'Forutsagt av baselinen før /merker ble migrert, og dukket opp der.',

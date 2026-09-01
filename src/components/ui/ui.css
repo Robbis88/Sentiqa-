@@ -981,7 +981,20 @@
 .innhold { --sq-spalte: 880px; }
 .innhold[data-bredde='bred'] { --sq-spalte: none; }
 
-.sq-sideramme {
+/* ALLE REGLENE ER SCOPET TIL `.innhold`, OG DET ER IKKE PYNT.
+   ---------------------------------------------------------------------
+   13 sider forgrener paa `butikkbruker_tablet` og rendrer da i
+   TabletSkall, som ikke har `.innhold` i det hele tatt. /anvisninger er
+   en av dem, og den ble migrert i boelge 2 - saa nettbrettet fikk en
+   `display: flex` med 1,5 rem mellomrom det ikke hadde foer. Maksbredden
+   forsvant riktignok av seg selv (`var(--sq-spalte)` er udefinert der, og
+   en ugyldig verdi faller til `none`), men flex og gap gjorde det ikke.
+   En stille layoutendring i et skall ingen test dekket.
+
+   Scopet til `.innhold` er rammen inert utenfor desktopskallet. Da kan en
+   dual-shell rute migreres uten aa dra desktopgeometri med seg inn paa
+   nettbrettet - ogsaa de som ennaa ikke er migrert. */
+.innhold .sq-sideramme {
   display: flex;
   flex-direction: column;
   gap: var(--luft-5);
@@ -995,7 +1008,7 @@
    for og loeste det for seg selv; her loeses det for alle barn, slik at
    rammen aldri kan bli AARSAKEN til sideveis rulling. Om innholdet selv
    flyter over, er det innholdets sak. */
-.sq-sideramme > * { min-width: 0; }
+.innhold .sq-sideramme > * { min-width: 0; }
 
 /* Vinner over baade `.innhold .kort` og `.kort + .kort` i globals.css. */
 .innhold .sq-sideramme > .kort,

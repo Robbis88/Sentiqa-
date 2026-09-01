@@ -452,3 +452,94 @@ test.describe('bølge 2 — liste blir smal', () => {
     await bevisBredde(page, '/kunnskap', 'smal')
   })
 })
+
+// =====================================================================
+// BOELGE 3 — ARBEIDSFLYT
+//
+//   /avvik            er en `redirect('/ikmat')`. Ingen UI, ingen bredde.
+//                     Ikke migrert, og kan ikke maales.
+//   /bemanning        ukekalender: 7 dagkolonner + fast klokkekolonne
+//   /produksjonsplan  7 faste kolonner, to skjules paa mobil
+//
+// DEN KRITISKE: /bemanning KOMPRIMERES, DEN FLYTER IKKE OVER
+//
+// `.bem-kalender` har `table-layout: fixed`. Ved 1316 px faar hver dag
+// ~178 px, ved 880 ~115 px. Tabellen stikker ALDRI utenfor - den bare
+// klemmes. Derfor ville `utenforRammen` sagt «alt i orden» selv om
+// innholdet var uleselig, og et oeyemaal er ikke et kriterium.
+//
+// `trangtInnhold()` maaler det mekaniske spoersmaalet i stedet: finnes
+// det innhold som IKKE FAAR PLASS i sin egen boks - altsaa `scrollWidth`
+// stoerre enn `clientWidth`? Det skjer naar tekst ikke kan brytes
+// (`white-space: nowrap`, lange ubrutte ord). Da passer innholdet
+// faktisk ikke, og det er noe annet enn at det er trangt.
+// =====================================================================
+
+const BOELGE3 = ['/bemanning', '/produksjonsplan']
+
+/** Innhold som ikke får plass i sin egen boks, inne i rammen. */
+async function trangtInnhold(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const ramme = document.querySelector('.sq-sideramme')
+    if (!ramme) return ['fant ingen .sq-sideramme']
+    const ut: string[] = []
+    for (const el of Array.from(ramme.querySelectorAll('*'))) {
+      const s = getComputedStyle(el)
+      if (s.display === 'none' || s.visibility === 'hidden') continue
+      // Et element som RULLER med vilje er ikke for trangt - det er en
+      // rullebane. Bare klippet eller synlig overflyt teller.
+      if (s.overflowX === 'auto' || s.overflowX === 'scroll') continue
+      if (el.scrollWidth <= el.clientWidth + 1) continue
+      if (el.clientWidth === 0) continue
+      const navn = el.tagName.toLowerCase()
+        + (typeof el.className === 'string' && el.className.trim()
+          ? '.' + el.className.trim().split(/\s+/).join('.') : '')
+      ut.push(`${navn}: innhold ${el.scrollWidth} px i en boks på ${el.clientWidth} px`
+        + ` (white-space: ${s.whiteSpace})`)
+    }
+    return ut.slice(0, 6)
+  })
+}
+
+test.describe('bølge 3 — arbeidsflyt blir smal', () => {
+  test.beforeEach(async ({ page }) => {
+    await loggInn(page)
+  })
+
+  for (const bredde of [1440, 1600]) {
+    test(`kjeden holder på ${bredde} px`, async ({ page }) => {
+      await page.setViewportSize({ width: bredde, height: 1000 })
+      for (const sti of BOELGE3) {
+        const { ramme, rom } = await bevisBredde(page, sti, 'smal')
+        expect(rom, `${sti}: spalta er bare ${Math.round(rom)} px`).toBeGreaterThan(SMAL)
+        expect(Math.round(ramme), `${sti} på ${bredde} px`).toBe(SMAL)
+      }
+    })
+  }
+
+  test('innholdet får plass ved 880 px — ikke bare trangt, men plass', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    for (const sti of BOELGE3) {
+      await page.goto(sti)
+      await expect(page.locator('.sq-sideramme')).toBeVisible()
+      const trangt = await trangtInnhold(page)
+      expect(trangt, `${sti}: innhold som ikke får plass ved 880 px:\n  ${trangt.join('\n  ')}`)
+        .toEqual([])
+      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen`).toEqual([])
+      await ingenSideoverflyt(page, sti)
+    }
+  })
+
+  test('mobil: rammen og innholdet holder seg innenfor viewporten', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const sti of BOELGE3) {
+      await page.goto(sti)
+      await expect(page.locator('.sq-sideramme')).toBeVisible()
+      const rom = await tilgjengelig(page)
+      expect(await rammebredde(page), `${sti}: rammen er bredere enn spalta på mobil`)
+        .toBeLessThanOrEqual(rom + 1)
+      expect(await utenforRammen(page), `${sti}: innhold utenfor rammen på mobil`).toEqual([])
+      await ingenSideoverflyt(page, sti)
+    }
+  })
+})

@@ -33,6 +33,7 @@ const kl = (t: number) => `${String(t).padStart(2, '0')}:00`
 
 import { Maanedsvelger } from '@/components/ui/periode'
 import { lesMaaned, maanedNokkel, delMaaned, maanederRundt } from '@/lib/periode'
+import { Sideramme } from '@/components/ui/sideramme'
 
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string; uke?: string }>
 
@@ -264,7 +265,7 @@ async function hentProfil(
 export default async function BemanningSide({ searchParams }: { searchParams: Sok }) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Bemanningsplanen er for butikksjef og eier.</p>
+    return <Sideramme><p>Bemanningsplanen er for butikksjef og eier.</p></Sideramme>
   }
   const sok = await searchParams
   const supabase = await lagSupabaseServerKlient()
@@ -273,7 +274,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
     .from('stasjoner').select('id, navn, butikknummer')
     .is('slettet_tid', null).order('butikknummer')
   const alle = (stasjoner ?? []) as { id: string; navn: string; butikknummer: string }[]
-  if (alle.length === 0) return <p>Ingen stasjoner registrert.</p>
+  if (alle.length === 0) return <Sideramme><p>Ingen stasjoner registrert.</p></Sideramme>
 
   // Stasjonen velges i toppstripen og huskes. URL-en vinner fortsatt,
   // saa en delt lenke viser det den lovet.
@@ -580,7 +581,7 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
   })
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Bemanning"
         undertittel={`${steg.tittel}. ${MND[maned - 1]} ${ar} · ${valgt.butikknummer} ${valgt.navn}`}
@@ -1163,6 +1164,6 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
           </Sidepanel>
         </div>
       </section>
-    </>
+    </Sideramme>
   )
 }
