@@ -17,6 +17,18 @@ const DATASETT = [
   { key: 'synlig_svinn', navn: 'Svinn' },
 ] as const
 
+type Hullrad = {
+  datasett: string
+  datasett_navn: string
+  butikknummer: string
+  stasjon_navn: string
+  hull: number
+  hull_hverdag: number
+  forste: string
+  siste: string
+  datoer: string[]
+}
+
 const MAANEDER = 14 // år-mot-år trenger ~13–14 mnd historikk
 const UKEDAG = ['sø', 'ma', 'ti', 'on', 'to', 'fr', 'lø']
 
@@ -79,13 +91,41 @@ export default async function DekningSide() {
     const b = new Date(`${idag}T12:00:00Z`)
     return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth())
   }
-  const totalMangler = oppsummering.reduce((s, d) => s + d.mangler, 0)
-  const verst = oppsummering.reduce((a, d) => (d.mangler > a.mangler ? d : a))
   const forKort = oppsummering.filter((d) => !d.eldste || manederTilbake(d.eldste) < 13)
 
-  const svar = totalMangler === 0
+  // ============================================================
+  // NIVÅ 1 MÅ VÆRE STASJONSNIVÅ, ELLERS LYVER DEN
+  //
+  // Tallene over kommer fra `v_datodekning`, som grupperer på
+  // (retailer_id, dato). Har fire av fem stasjoner data en dag, står
+  // dagen som dekket — selv om den femte mangler.
+  //
+  // Laguneparken manglet 26. og 27. august 2026. Denne siden sa «Ingen
+  // huller de siste 14 månedene». Den ble oppdaget ved å sammenligne en
+  // månedsfil fra St1 mot Sentiqa for hånd.
+  //
+  // `v_datohull` (0158) svarer per STASJON, og gir hullene ferdig
+  // aggregert — fire datasett ganger antall stasjoner, uansett hvor
+  // mange hull det er. Å legge stasjon inn i det gamle viewet ville
+  // sprengt PostgREST sin 1000-radsgrense og vist FÆRRE hull enn det
+  // finnes.
+  // ============================================================
+  const { data: hullRader } = await supabase
+    .from('v_datohull')
+    .select('datasett, datasett_navn, butikknummer, stasjon_navn, hull, hull_hverdag, forste, siste, datoer')
+    .order('hull_hverdag', { ascending: false })
+    .overrideTypes<Hullrad[]>()
+  const hull = hullRader ?? []
+
+  const stasjonsdager = hull.reduce((t, h) => t + Number(h.hull), 0)
+  const hverdager = hull.reduce((t, h) => t + Number(h.hull_hverdag), 0)
+  const verstStasjon = hull[0]
+
+  const svar = stasjonsdager === 0
     ? `Ingen huller de siste ${MAANEDER} månedene`
-    : `${totalMangler} ${totalMangler === 1 ? 'dag' : 'dager'} mangler, flest på ${verst.navn} (${verst.mangler})`
+    : `${stasjonsdager} stasjonsdager mangler`
+      + (hverdager > 0 ? `, ${hverdager} av dem på hverdager` : ' — alle i helg')
+      + (verstStasjon ? `. Flest på ${verstStasjon.stasjon_navn} (${verstStasjon.datasett_navn})` : '')
   const historikk = forKort.length > 0
     ? `${ramsOpp(forKort.map((d) => d.navn))} har under 13 måneders historikk — for kort for år-mot-år`
     : `Alle datasett rekker 13 måneder tilbake, nok for år-mot-år`
@@ -102,18 +142,68 @@ export default async function DekningSide() {
           Ingen dom paa `bra` her: et datasett uten huller er
           utgangspunktet, ikke en seier. */}
       <div className="sq-nokkelrad">
-        {oppsummering.map((d) => (
-          <Nokkeltall
-            key={d.key}
-            merkelapp={`${d.navn} — dager som mangler`}
-            verdi={String(d.mangler)}
-            sammenlignet={d.mangler === 0
-              ? (d.eldste ? `komplett fra ${d.eldste}` : 'ingen data')
-              : `av ${MAANEDER} måneder${d.eldste ? ` · fra ${d.eldste}` : ''}`}
-            bra={d.mangler === 0 ? undefined : false}
-          />
-        ))}
+        {oppsummering.map((d) => {
+          // STASJONSDAGER, IKKE KJEDEDAGER.
+          //
+          // Sto dette paa kjedenivaa, ville tellerne sagt «0 dager
+          // mangler» rett ved siden av en tabell full av hull - og da
+          // motsier siden seg selv. En dag som mangler hos to stasjoner
+          // er to stasjonsdager, for det er to filer som maa lastes opp.
+          const mine = hull.filter((h) => h.datasett === d.key)
+          const mangler = mine.reduce((t, h) => t + Number(h.hull), 0)
+          const stasjoner = mine.length
+          return (
+            <Nokkeltall
+              key={d.key}
+              merkelapp={`${d.navn} — stasjonsdager som mangler`}
+              verdi={String(mangler)}
+              sammenlignet={mangler === 0
+                ? (d.eldste ? `komplett fra ${d.eldste}` : 'ingen data')
+                : `på ${stasjoner} ${stasjoner === 1 ? 'stasjon' : 'stasjoner'}`
+                  + `${d.eldste ? ` · fra ${d.eldste}` : ''}`}
+              bra={mangler === 0 ? undefined : false}
+            />
+          )
+        })}
       </div>
+
+      {/* NIVÅ 2 — HANDLINGEN. Hvilken stasjon, hvilket datasett,
+          hvilke dager. Det er dette man trenger for å laste opp det som
+          mangler, og det var akkurat det siden ikke kunne si før.
+
+          Hverdager først: en søndag kan være ekte stengt, men en rekke
+          hverdager hos én stasjon er alltid en import som mangler. */}
+      {hull.length > 0 && (
+        <Datatabell tittel="Hull per stasjon" antall={hull.length}>
+          <thead>
+            <tr>
+              <th>Stasjon</th>
+              <th>Datasett</th>
+              <th>Dager</th>
+              <th>Hverdager</th>
+              <th>Datoer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hull.map((h) => (
+              <tr key={`${h.datasett}-${h.butikknummer}`}>
+                <td>{h.butikknummer} {h.stasjon_navn}</td>
+                <td>{h.datasett_navn}</td>
+                <td>{h.hull}</td>
+                <td>
+                  {Number(h.hull_hverdag) > 0
+                    ? <Status nivaa="handling">{h.hull_hverdag}</Status>
+                    : '0'}
+                </td>
+                <td className="undertittel">
+                  {h.datoer.slice(0, 12).join(', ')}
+                  {h.datoer.length > 12 ? ` … +${Number(h.hull) - 12}` : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Datatabell>
+      )}
 
       {/* EKTE SAMMENLIGNINGSMATRISE. Her leses rad mot rad (maaned mot
           maaned) OG kolonne mot kolonne (datasett mot datasett). Den
