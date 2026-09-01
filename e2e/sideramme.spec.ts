@@ -295,10 +295,31 @@ async function utenforRammen(page: Page): Promise<string[]> {
     if (!ramme) return ['fant ingen .sq-sideramme']
     const r = ramme.getBoundingClientRect()
     const ut: string[] = []
+
+    /**
+     * Ligger elementet i en bevisst vannrett rullebane?
+     *
+     * `getBoundingClientRect()` rapporterer et elements FULLE bredde,
+     * ogsaa naar det ligger i en scrollport og bare delvis er synlig. En
+     * 546 px tabell som ruller pent i sitt eget kort saa derfor ut som
+     * innhold utenfor rammen, og felte /produksjonsplan paa mobil. Det er
+     * mekanismen som virker, ikke en feil.
+     */
+    const iRullebane = (el: Element): boolean => {
+      let n: Element | null = el
+      while (n && n !== ramme.parentElement) {
+        const o = getComputedStyle(n).overflowX
+        if (o === 'auto' || o === 'scroll') return true
+        n = n.parentElement
+      }
+      return false
+    }
+
     for (const el of Array.from(ramme.querySelectorAll('*'))) {
       const s = getComputedStyle(el)
       if (s.position === 'absolute' || s.position === 'fixed') continue
       if (s.display === 'none' || s.visibility === 'hidden') continue
+      if (iRullebane(el)) continue
       const b = el.getBoundingClientRect()
       if (b.width === 0 && b.height === 0) continue
       if (b.right > r.right + 1 || b.left < r.left - 1) {
@@ -477,20 +498,66 @@ test.describe('bølge 2 — liste blir smal', () => {
 
 const BOELGE3 = ['/bemanning', '/produksjonsplan']
 
-/** Innhold som ikke får plass i sin egen boks, inne i rammen. */
+/**
+ * Innhold som ikke får plass i sin egen boks, inne i rammen.
+ *
+ * =====================================================================
+ * FIRE UNNTAK, OG DE SKAL IKKE VOKSE UTEN SAMME BEHANDLING
+ * =====================================================================
+ *
+ * Hvert unntak er en dør ut av målingen. Skrives de ikke ned, blir de
+ * over tid til en «alt er greit»-ventil, og da måler testen ingenting
+ * mens den ser grønn ut. Derfor står de her med grunn, ikke bare i koden:
+ *
+ * 1. UTENFOR FLYTEN — `position: absolute | fixed`
+ *    Elementet deltar ikke i spaltas layout, så «får det plass» er ikke
+ *    et spørsmål om bredden. `.sq-skjult` er nettopp dette: 132 px tekst
+ *    i en 1 px boks, med vilje, så skjermlesere får den og øyet ikke.
+ *    Uten unntaket felte den /produksjonsplan i CI.
+ *
+ * 2. INNE I EN BEVISST RULLEBANE — `overflow-x: auto | scroll`, på
+ *    elementet selv ELLER en forfar opp til rammen.
+ *    `.kort { overflow-x: auto }` på mobil er systemets dokumenterte
+ *    måte å håndtere brede tabeller på. `.pp-tabell` er 546 px i en 362
+ *    px ramme og RULLER i kortet sitt — det er mekanismen som virker,
+ *    ikke en feil. Forfar-sjekken er det som skiller de to.
+ *
+ * 3. IKKE LAGT UT — `display: none`, `visibility: hidden`, null størrelse.
+ *    Det finnes ingen boks å ikke få plass i.
+ *
+ * 4. `clientWidth === 0` — DEN FARLIGSTE.
+ *    En kollapset boks vil ALDRI rapportere at innholdet ikke får plass,
+ *    for forholdet er meningsløst. Unntaket er nødvendig, men det betyr
+ *    at et element som feilaktig er null bredt går stille forbi. Faller
+ *    en side sammen på den måten, må den fanges av `utenforRammen` eller
+ *    `ingenSideoverflyt` — ikke av denne.
+ *
+ * Sikkerhetsnettet under alle fire: `ingenSideoverflyt` måler det
+ * brukeren faktisk merker — at dokumentet ruller sideveis.
+ */
 async function trangtInnhold(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const ramme = document.querySelector('.sq-sideramme')
     if (!ramme) return ['fant ingen .sq-sideramme']
+
+    const iRullebane = (el: Element): boolean => {
+      let n: Element | null = el
+      while (n && n !== ramme.parentElement) {
+        const o = getComputedStyle(n).overflowX
+        if (o === 'auto' || o === 'scroll') return true
+        n = n.parentElement
+      }
+      return false
+    }
+
     const ut: string[] = []
     for (const el of Array.from(ramme.querySelectorAll('*'))) {
       const s = getComputedStyle(el)
-      if (s.display === 'none' || s.visibility === 'hidden') continue
-      // Et element som RULLER med vilje er ikke for trangt - det er en
-      // rullebane. Bare klippet eller synlig overflyt teller.
-      if (s.overflowX === 'auto' || s.overflowX === 'scroll') continue
+      if (s.position === 'absolute' || s.position === 'fixed') continue   // 1
+      if (iRullebane(el)) continue                                        // 2
+      if (s.display === 'none' || s.visibility === 'hidden') continue     // 3
+      if (el.clientWidth === 0) continue                                  // 4
       if (el.scrollWidth <= el.clientWidth + 1) continue
-      if (el.clientWidth === 0) continue
       const navn = el.tagName.toLowerCase()
         + (typeof el.className === 'string' && el.className.trim()
           ? '.' + el.className.trim().split(/\s+/).join('.') : '')
