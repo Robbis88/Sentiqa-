@@ -31,6 +31,7 @@ import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel } from '@/lib/varsler'
 import { vurderDag, UKER_TILBAKE } from './rimelighet'
+import { berorteUker } from './ukecache'
 import { vurderDublett } from './dublett'
 import { lagKaffevarsel } from '@/lib/kaffesvinn'
 
@@ -519,10 +520,49 @@ async function lagreSalgsstatistikk(
     r.stasjoner.map((st) => medNummer.get(st.butikknummer)).filter((x): x is string => Boolean(x)),
   )]
   for (const stasjonId of berorte) {
+    await forkastUkecache(supabase, stasjonId, r.dato)
     await varsleOmUrimeligDag(supabase, retailerId, stasjonId, r.dato)
   }
 
   return { antallRader: rader.length, umatchet }
+}
+
+// =====================================================================
+// EN CACHE UTEN INVALIDERING BLIR STILLE FEIL
+//
+// `uke_rapport` skrives en gang per (stasjon, uke) og leses med
+// `if (c) bruk cachen`. Den regner aldri om. Da 25. august 2026 ble
+// importert paa nytt for Laguneparken, ble uka 24.-30. august staaende
+// med de gamle tallene - og AI-sammendraget var skrevet paa grunnlag av
+// dem.
+//
+// Vi ryddet det opp for haand en gang. Naa gjoer importen det selv.
+//
+// To uker, ikke en: ukerapporten sammenligner mot `mandag - 364`, saa
+// en endret dag i fjor gjoer AARETS uke like feil gjennom
+// `omsetning_ifjor`. Se ukecache.ts.
+//
+// Sletting og ikke oppdatering: raden inneholder ogsaa `avdelinger`,
+// `brutto`, fjoraarstallene og AI-teksten. AA rette bare omsetningen
+// ville gitt en rad der ett tall stemmer og resten ikke gjoer.
+// =====================================================================
+async function forkastUkecache(
+  supabase: Klient,
+  stasjonId: string,
+  dato: string,
+): Promise<void> {
+  try {
+    await supabase
+      .from('uke_rapport')
+      .delete()
+      .eq('stasjon_id', stasjonId)
+      .in('uke_mandag', berorteUker(dato))
+  } catch {
+    // Stille, av samme grunn som rimelighetssjekken: en vellykket import
+    // skal ikke bli staaende som feilet fordi opprydningen snublet. Blir
+    // cachen staaende, er den feil - men dataene er riktige, og neste
+    // import av samme uke rydder den.
+  }
 }
 
 // =====================================================================
