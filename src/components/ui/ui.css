@@ -156,6 +156,18 @@
   gap: var(--luft-2);
   flex-wrap: wrap;
   flex-shrink: 0;
+  /* FUNN E, RETTET 2026-09-01.
+     `flex-shrink: 0` og `flex-wrap: wrap` sto i motstrid: shrinken
+     hindret forelderen i aa begrense bredden, saa elementet ble
+     max-content bredt og dets EGEN wrap slo aldri inn. Wrappen var
+     slaatt av av linja over seg.
+
+     `min-width: 0` loeser det uten aa gi slipp paa `flex-shrink: 0`:
+     handlingene blir fortsatt ikke klemt sammen naar det er plass, men
+     naar det IKKE er plass, kan de bryte til neste linje slik regelen
+     alltid har lovet. Maalt paa /oversikt: 582 px i en 362 px ramme
+     foer, innenfor etter. */
+  min-width: 0;
 }
 
 /* --- Faner ---------------------------------------------------------
@@ -244,6 +256,26 @@
   gap: var(--luft-3);
 }
 .sq-datatabell-topp h3 { margin: 0; font-size: var(--tekst-tittel); }
+
+/* --- Tabellramme --------------------------------------------------
+   FUNN A, RETTET 2026-09-01.
+
+   `Datatabell` har alltid rendret `<div className="tabellramme">` rundt
+   tabellen sin - en div navngitt som en ramme, uten en eneste
+   CSS-regel. Den saa ut som en rullebane og var det ikke.
+
+   Konsekvensen var maalbar: /kasserer har tre Datatabell og ingen kort,
+   saa paa 390 px var tabellen 668 px i en 362 px ramme og skjoev hele
+   dokumentet sideveis. /lonn og /persondata slapp unna bare fordi deres
+   tabeller tilfeldigvis sto i `.kort`, der `overflow-x: auto` gjelder
+   paa mobil. Riktig ved sammentreff, ikke ved regel - samme form som
+   breddeproblemet Sideramme loeste.
+
+   Naa er tabellen sin egen rullebane, uavhengig av hvilken beholder
+   noen valgte rundt den. `min-width: 0` er noedvendig fordi rammen er en
+   flex-kolonne: uten den krymper ikke containeren under sitt eget
+   min-content, og da ruller den aldri. */
+.tabellramme { overflow-x: auto; min-width: 0; }
 
 /* --- Innleggsliste -------------------------------------------------
    Hvert innlegg var et eget kort. Da betyr kortet ingenting — en liste

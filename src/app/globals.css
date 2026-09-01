@@ -568,7 +568,22 @@ button.logg-ut:hover { color: var(--tekst); }
      Minste retting: gi `.toppstripe` `display: flex` her, ELLER behold
      grid og sett `grid-template-columns: 1fr auto`. Ikke gjort som del av
      Sideramme-migreringen - feilen er eldre og er ikke en breddefeil. */
-  .toppstripe { padding-left: 3.5rem; flex-wrap: wrap; gap: 0.4rem 0.75rem; }
+  /* FUNN D, RETTET 2026-09-01.
+     Her sto `flex-wrap: wrap` uten at elementet var flex - `.toppstripe`
+     er `display: grid` (linje 446). Linja hadde derfor aldri hatt
+     effekt, og de tre kolonnene `minmax(0,1fr) auto minmax(0,1fr)` sto
+     side ved side ogsaa paa 390 px. Innholdet skjoev dokumentet 129 px
+     utenfor viewporten paa HVER innlogget side.
+
+     `display: flex` gjoer regelen selvkonsistent: baade `flex-wrap` og
+     den tovers `gap`-en under er flex-erklaeringer, saa det var aapenbart
+     hva som var ment. Nu virker de. */
+  .toppstripe {
+    display: flex;
+    padding-left: 3.5rem;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.75rem;
+  }
   .bruker { font-size: 0.8rem; }
   .innhold { padding: 1rem 0.9rem; }
   .innhold .kort { max-width: none; }
