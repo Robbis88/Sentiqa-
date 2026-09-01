@@ -171,37 +171,46 @@ export function Datatabell({
           {antall !== undefined && <span className="undertittel">{antall}</span>}
         </div>
       )}
-      {/* FUNN 2026-08-31, IKKE RETTET: `.tabellramme` har ingen CSS-regel.
-          Div-en ser ut som en scroll-container og er det ikke. På mobil
-          reddes kortbaserte sider av `.kort { overflow-x: auto }` i
-          globals.css — en side som bruker `Datatabell` uten kort har
-          ingen slik container.
+      {/* ===================================================================
+          FUNN A — `.tabellramme` ER EN SCROLL-CONTAINER UTEN KONTRAKT
+          Målt 2026-09-01. Ikke rettet: egen sak, eldre enn Sideramme.
+          ===================================================================
 
-          RETTET PÅSTAND 2026-09-01: her sto det at dette forklarte de
-          129 pikslene /salg rullet sideveis på mobil. Det gjorde det
-          ikke. /skills gir nøyaktig samme 129 px uten å ha en tabell, og
-          da testen ble bedt om å navngi synderne, var alle fire i
-          skallet — `.toppstripe` er `display: grid`, men mobilregelen
-          setter `flex-wrap: wrap`, som er inert på en grid. Jeg målte et
-          tall og gjettet på en forklaring som passet.
+          Klassen har ingen CSS-regel noe sted i systemet. Div-en ser ut
+          som en rullebane for brede tabeller og er det ikke.
 
-          MÅLT KONSEKVENS 2026-09-01: her sto det at mangelen var «uten
-          målt konsekvens». Det er den ikke lenger. /kasserer har tre
-          `Datatabell` og INGEN kort, så ingenting rundt tabellene ruller:
-          på 390 px er tabellen 668 px bred i en 362 px ramme. /lonn og
-          /persondata slipper unna bare fordi deres tabeller tilfeldigvis
-          står i kort.
+          KONSEKVENS, MÅLT:
+            /kasserer   3 × Datatabell, INGEN kort
+                        390 px skjerm → tabellen er 668 px i en 362 px ramme
+            /lonn       samme tabeller, men i `.kort` → ruller
+            /persondata samme, i `.kort` → ruller
 
-          Førsteinstinktet mitt var altså halvveis riktig og helt feil
-          begrunnet: `.tabellramme` forårsaker overflyt — men ikke den
-          dokumentrullingen på 129 px jeg tilskrev den, som kom fra
-          toppstripa.
+          Forskjellen er altså hvilken beholder noen tilfeldigvis valgte:
+          `.kort { overflow-x: auto }` i globals.css redder de kortbaserte
+          sidene, og bare dem. Det er samme form som breddeproblemet
+          Sideramme løser — riktig ved sammentreff, ikke ved regel.
 
-          `.tabellramme { overflow-x: auto }` gjør tabellen til sin egen
-          rullebane og løser det. Fortsatt ikke gjort: feilen er eldre enn
-          rammen, og en migrering skal ikke være inngang til opportunistisk
-          reparasjon. Se `PULJE1_MOBIL`-unntaket i e2e/sideramme.spec.ts,
-          som skal strykes samtidig som dette rettes. */}
+          MINSTE LØSNING: `.tabellramme { overflow-x: auto }` i ui.css.
+          Én linje. Den gjør tabellen til sin egen rullebane og gjør
+          samtidig kortregelen overflødig for tabeller.
+
+          NÅR DEN RETTES skal `PULJE1_MOBIL`-unntaket i
+          e2e/sideramme.spec.ts strykes og /kasserer inn i mobilmålingen
+          igjen. Unntaket finnes bare på grunn av denne mangelen.
+
+          ---------------------------------------------------------------
+          TIDLIGERE FORKLARINGER HER VAR FEIL, OG DE ER FJERNET
+
+          Jeg skrev først at denne mangelen forårsaket 129 px
+          dokumentrulling på /salg. Det stemte ikke: /skills gir samme
+          tall uten tabell, og målingen navnga fire elementer i skallet.
+          Årsaken der er Funn D — `.toppstripe` er `display: grid`, men
+          mobilregelen setter `flex-wrap: wrap`, som er inert på en grid.
+          To ulike feil med samme symptom.
+
+          Setningen står igjen som én advarsel, ikke som historikk: et
+          tall og en forklaring som passer er ikke det samme som en målt
+          årsak. ================================================== */}
       <div className="tabellramme">
         <table className="tabell">{children}</table>
       </div>

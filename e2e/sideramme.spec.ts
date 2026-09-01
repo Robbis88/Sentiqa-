@@ -139,11 +139,9 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     // stilles av `maal().dokumentIRammen`.
     //
     // (Første utgave målte `document.scrollWidth` her og var rød på /salg
-    // med 129 px. Jeg forklarte det med `.tabellramme` — se side.tsx. Den
-    // forklaringen holdt ikke: /skills gir NØYAKTIG samme 129 px uten å ha
-    // en tabell i det hele tatt. Derfor navngir måleren nå
-    // elementet i stedet for å telle piksler, så neste diagnose bygger på
-    // en måling og ikke på min gjetning.)
+    // med 129 px. Årsaken er Funn D — toppstripa, se globals.css — og
+    // ikke sida. Derfor navngir måleren nå elementet i stedet for å telle
+    // piksler.)
     await page.setViewportSize({ width: 390, height: 844 })
     for (const sti of ['/salg', '/rutiner/oppsett', '/produksjonsplan/treffsikkerhet', '/utsolgt', '/ansatte']) {
       await page.goto(sti)
@@ -248,11 +246,10 @@ test.describe('sideramme — plattform-redaktørens datalister', () => {
 //   /varsler    mye metadata og handlinger per rad
 //   /nyheter    lang tekst (sq-innlegg)
 //
-// Ingen av de fire har tabell. Det var med vilje - da kan et tabellbredt
-// innhold ikke forveksles med en breddefeil. (Utvalget ble gjort mens jeg
-// trodde `.tabellramme` forklarte dokumentrullingen paa /salg. Den
-// forklaringen er motbevist, men kriteriet er fortsatt riktig av en annen
-// grunn: en tabell er det bredeste et innhold kan bli.)
+// Ingen av de fire har tabell. Det var med vilje: en tabell er det
+// bredeste et innhold kan bli, saa da kan tabellbredde ikke forveksles
+// med en breddefeil. Funn A i side.tsx viser hva som skjer naar en tabell
+// IKKE har en rullebane rundt seg - /kasserer.
 //
 // HVA SOM FAKTISK MAALES
 //
