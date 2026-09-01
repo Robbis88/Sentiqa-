@@ -2197,6 +2197,25 @@ button.liten { min-height: 40px; }
 /* --- Status --------------------------------------------------------
    Fargelegger ALDRI raden. Prikken og teksten bærer det.
    `normal` har ingen farge i det hele tatt — det er hele poenget. */
+/* FUNN F, 2026-09-01 - IKKE RETTET, EGEN SAK
+   `white-space: nowrap` er riktig for en STATUS: «3 avvik» skal ikke
+   brytes mellom tallet og ordet. Men `Ferskhetsstatus` legger en hel
+   setning i pilla - «Siste salgsdag 1. september 2026 · <tekst>» - og
+   den kan ikke brytes noe sted. Maalt paa /oversikt, 390 px: 582 px i
+   en 362 px ramme.
+
+   Funnet var skjult bak Funn E: saa lenge handlingsblokka rundt heller
+   ikke broet, var det den som ble rapportert. Da E ble rettet, kom
+   dette fram under.
+
+   Dette er ikke en inert regel som A, D og E - regelen virker som den
+   skal. Det er en primitiv som brukes til noe annen enn den er laget
+   for. `Status` er for KORT tilstand; se `Rad` sin `status`-slot.
+
+   Loesningen er derfor et innholdsvalg, ikke en CSS-linje: kortere
+   tekst i pilla, eller flytte datoen ut av sidehodet. Den beslutningen
+   hoerer ikke hjemme i en migrering. Se unntaket i
+   e2e/sideramme.spec.ts. */
 .sq-status {
   display: inline-flex;
   align-items: center;
