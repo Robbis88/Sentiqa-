@@ -174,15 +174,22 @@ export function Datatabell({
       {/* FUNN 2026-08-31, IKKE RETTET: `.tabellramme` har ingen CSS-regel.
           Div-en ser ut som en scroll-container og er det ikke. På mobil
           reddes kortbaserte sider av `.kort { overflow-x: auto }` i
-          globals.css — men en side som bruker `Datatabell` uten kort, som
-          /salg, har ingen vannrett scroll og ruller hele dokumentet i
-          stedet (målt: 129 px på 390 px skjerm).
+          globals.css — en side som bruker `Datatabell` uten kort har
+          ingen slik container.
 
-          Rettingen hører hjemme her, ikke i Sideramme: `.tabellramme
-          { overflow-x: auto }` gjør tabellen til sin egen rullebane og
-          gjør samtidig kortregelen overflødig. Den er holdt utenfor
-          rammearbeidet med vilje — feilen er eldre, og en pilot skal ikke
-          være inngang til opportunistisk reparasjon. */}
+          RETTET PÅSTAND 2026-09-01: her sto det at dette forklarte de
+          129 pikslene /salg rullet sideveis på mobil. Det gjorde det
+          ikke. /skills gir nøyaktig samme 129 px uten å ha en tabell, og
+          da testen ble bedt om å navngi synderne, var alle fire i
+          skallet — `.toppstripe` er `display: grid`, men mobilregelen
+          setter `flex-wrap: wrap`, som er inert på en grid. Jeg målte et
+          tall og gjettet på en forklaring som passet.
+
+          Mangelen på regel her er fortsatt ekte, og fortsatt uten
+          målt konsekvens. `.tabellramme { overflow-x: auto }` ville gjort
+          tabellen til sin egen rullebane. Holdt utenfor rammearbeidet med
+          vilje — en migrering skal ikke være inngang til opportunistisk
+          reparasjon. */}
       <div className="tabellramme">
         <table className="tabell">{children}</table>
       </div>

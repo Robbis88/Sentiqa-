@@ -158,7 +158,7 @@ test.describe('sideramme — bredden følger mønsteret', () => {
     // det, er det `max-width` uten `width: 100%`, eller flex-barn med
     // `min-width: auto` som drar den ut — begge deler ville vært rammens
     // skyld. At innholdet inni renner over er et annet spørsmål, og det
-    // stilles av `ingenDokumentrulling`.
+    // stilles av `ingenSideoverflyt`.
     //
     // (Første utgave målte `document.scrollWidth` her og var rød på /salg
     // med 129 px. Jeg forklarte det med `.tabellramme` — se side.tsx. Den
@@ -323,11 +323,13 @@ async function utenforRammen(page: Page): Promise<string[]> {
  * forelder, er det forelderen som står i veien for å forstå, ikke de
  * femten etterkommerne som arver bredden.
  */
-async function dokumentoverflyt(page: Page): Promise<{ px: number; hvem: string[] }> {
+async function dokumentoverflyt(
+  page: Page,
+): Promise<{ px: number; hvem: string[]; iRammen: string[] }> {
   return page.evaluate(() => {
     const rot = document.documentElement
     const px = rot.scrollWidth - rot.clientWidth
-    if (px <= 1) return { px, hvem: [] }
+    if (px <= 1) return { px, hvem: [] as string[], iRammen: [] as string[] }
     const grense = rot.clientWidth
     const skyldige: Element[] = []
     for (const el of Array.from(document.body.querySelectorAll('*'))) {
@@ -341,26 +343,60 @@ async function dokumentoverflyt(page: Page): Promise<{ px: number; hvem: string[
       if (skyldige.some((s2) => s2.contains(el))) continue
       skyldige.push(el)
     }
+    const ramme = document.querySelector('.sq-sideramme')
+    const beskriv = (el: Element) => {
+      const b = el.getBoundingClientRect()
+      const s = getComputedStyle(el)
+      const navn = el.tagName.toLowerCase()
+        + (typeof el.className === 'string' && el.className.trim()
+          ? '.' + el.className.trim().split(/\s+/).join('.') : '')
+      return `${navn} [${Math.round(b.left)}→${Math.round(b.right)}] `
+        + `w=${Math.round(b.width)} min-w=${s.minWidth} overflow-x=${s.overflowX}`
+    }
     return {
       px,
-      hvem: skyldige.slice(0, 6).map((el) => {
-        const b = el.getBoundingClientRect()
-        const s = getComputedStyle(el)
-        const navn = el.tagName.toLowerCase()
-          + (typeof el.className === 'string' && el.className.trim()
-            ? '.' + el.className.trim().split(/\s+/).join('.') : '')
-        return `${navn} [${Math.round(b.left)}→${Math.round(b.right)}] `
-          + `w=${Math.round(b.width)} min-w=${s.minWidth} overflow-x=${s.overflowX}`
-      }),
+      hvem: skyldige.slice(0, 6).map(beskriv),
+      iRammen: skyldige.filter((el) => ramme?.contains(el)).slice(0, 6).map(beskriv),
     }
   })
 }
 
-/** Kort påstand: dokumentet ruller ikke — og sier hvem hvis det gjør det. */
-async function ingenDokumentrulling(page: Page, sti: string) {
-  const { px, hvem } = await dokumentoverflyt(page)
-  expect(px, `${sti} ruller ${px} px sideveis. Ytterste syndere:\n  ${hvem.join('\n  ')}`)
-    .toBeLessThanOrEqual(1)
+/**
+ * Ingenting PÅ SIDA skyver dokumentet sideveis.
+ *
+ * ---------------------------------------------------------------------
+ * HVORFOR DENNE MÅLER RAMMENS SUBTRE OG IKKE HELE DOKUMENTET
+ *
+ * Første utgave målte hele dokumentet og var rød på /skills med 129 px.
+ * Da testen ble bedt om å navngi synderne, var ingen av dem på sida:
+ *
+ *     span.rolle-pip   [318→399]   Toppstripe
+ *     a.klokke-lenke   [378→414]   Toppstripe
+ *     form             [430→519]   Toppstripe   ← 519 − 390 = 129
+ *     a.sq-fane        [338→444]   Fanerad
+ *
+ * Skallet, ikke innholdet. `.toppstripe` er `display: grid`
+ * (globals.css:446), men mobilregelen på linje 555 setter `flex-wrap:
+ * wrap` — som ikke gjør noe på en grid-container. De tre kolonnene
+ * `minmax(0,1fr) auto minmax(0,1fr)` står side ved side på 390 px
+ * uansett. Regelen ser riktig ut og er inert.
+ *
+ * Det forklarer også /salg sine 129 px, som jeg tidligere tilskrev
+ * `.tabellramme`. Samme tall, samme årsak, og forklaringen min var feil.
+ *
+ * Funnet er eldre enn Sideramme og hører ikke til denne migreringen.
+ * Derfor svarer denne påstanden for det rammen faktisk eier: at ingen
+ * ETTERKOMMER AV RAMMEN skyver dokumentet. Skallets overflyt rapporteres
+ * som kontekst i meldinga, så den ikke blir glemt.
+ */
+async function ingenSideoverflyt(page: Page, sti: string) {
+  const { px, hvem, iRammen } = await dokumentoverflyt(page)
+  expect(
+    iRammen,
+    `${sti}: innhold i rammen skyver dokumentet (${px} px totalt).\n`
+    + `  I rammen:\n    ${iRammen.join('\n    ')}\n`
+    + `  Alle syndere:\n    ${hvem.join('\n    ')}`,
+  ).toEqual([])
 }
 
 test.describe('bølge 2 — liste blir smal', () => {
@@ -387,7 +423,7 @@ test.describe('bølge 2 — liste blir smal', () => {
       await page.goto(sti)
       await expect(page.locator('.sq-sideramme')).toBeVisible()
       expect(await utenforRammen(page), `${sti}: innhold utenfor rammen`).toEqual([])
-      await ingenDokumentrulling(page, sti)
+      await ingenSideoverflyt(page, sti)
     }
   })
 
@@ -401,7 +437,7 @@ test.describe('bølge 2 — liste blir smal', () => {
       expect(ramme, `${sti}: rammen er bredere enn spalta på mobil`)
         .toBeLessThanOrEqual(rom + 1)
       expect(await utenforRammen(page), `${sti}: innhold utenfor rammen på mobil`).toEqual([])
-      await ingenDokumentrulling(page, sti)
+      await ingenSideoverflyt(page, sti)
     }
   })
 
