@@ -7,6 +7,7 @@ import { AnalyseKnapp } from './generer-knapp'
 import { PeriodeVelger } from '../periode-velger'
 import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
 import { Signal, Status, type Statusnivaa } from '@/components/ui/status'
+import { Sideramme } from '@/components/ui/sideramme'
 
 // «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
 export const maxDuration = 60
@@ -21,7 +22,7 @@ const PRIO_TEKST: Record<string, string> = { hoy: 'HØY', medium: 'MEDIUM', lav:
 export default async function AnalyseSide({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') {
-    return <p>Kun eier har tilgang til regnskapsanalysen.</p>
+    return <Sideramme><p>Kun eier har tilgang til regnskapsanalysen.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -123,7 +124,7 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
     : null
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Regnskapsanalyse"
         undertittel={[svar, periodeTekst].filter(Boolean).join('. ') || 'Ingen analyse ennå'}
@@ -255,6 +256,6 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
           </Forklaring>
         </>
       )}
-    </>
+    </Sideramme>
   )
 }

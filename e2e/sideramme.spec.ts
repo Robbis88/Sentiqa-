@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { REDAKTOR_OKTFIL } from './eier'
+import { OKTFIL, REDAKTOR_OKTFIL } from './eier'
 
 // =====================================================================
 // SIDERAMMEN — MÅLT, IKKE RESONNERT
@@ -517,5 +517,71 @@ test.describe('bølge 3 — arbeidsflyt blir smal', () => {
       expect(m.ramme, `${sti}: rammen er bredere enn spalta på mobil`)
         .toBeLessThanOrEqual(m.rom + 1)
     }
+  })
+})
+
+// =====================================================================
+// BOELGE 4 — DE SISTE FIRE, OG DEN ENE SOM IKKE SKAL MIGRERES
+//
+// Denne boelgen gaar MOTSATT VEI av 2 og 3: alle tre var 880 px (de
+// bruker kort) og skal bli brede. Det er foerste gang kontrakten
+// UTVIDER en spalte i stedet for aa stramme den, saa fasiten
+// `ramme == rom` er den som proeves.
+//
+//   /analyse      analyse   880 -> bred   eier (retailer_admin, TOTP)
+//   /lederstotte  analyse   880 -> bred   butikksjef
+//   /plattform    dashbord  880 -> bred   plattform-redaktoer (TOTP)
+//
+// /sikkerhet ER IKKE MED, OG DET ER ET FUNN
+//
+// Den ligger paa `src/app/sikkerhet/page.tsx` - UTENFOR `(beskyttet)`.
+// Den rendrer sin egen `<main className="logg-inn">` med
+// `.kort.sq-smal-flate` og `<footer className="auth-bunn">`, altsaa
+// innloggingsflatens formspraak. Det er en autentiseringsside, ikke en
+// innstillingsside i desktopskallet: den har verken `.innhold` eller
+// `data-bredde`, og en Sideramme der ville vaert inert.
+//
+// `RUTEMONSTER` sier `innstillinger`. Det er feil klassifisering, ikke
+// feil bredde - og etter regelen skal det rapporteres, ikke lappes.
+// =====================================================================
+
+test.describe('bølge 4 — analyse og dashbord blir brede', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 })
+  })
+
+  test('/lederstotte: analyse → bred → målt', async ({ page }) => {
+    await loggInn(page)
+    await bevisSide(page, '/lederstotte', 'bred')
+  })
+
+  test.describe('eierens flate', () => {
+    test.use({ storageState: OKTFIL })
+    test('/analyse: analyse → bred → målt', async ({ page }) => {
+      await page.setViewportSize({ width: 1600, height: 1000 })
+      const m = await bevisSide(page, '/analyse', 'bred')
+      // Den VAR 880 px. Nå skal den fylle spalta, som er bredere.
+      expect(m.ramme, '/analyse fyller ikke spalta').toBeGreaterThan(SMAL)
+    })
+  })
+
+  test.describe('plattform-redaktørens flate', () => {
+    test.use({ storageState: REDAKTOR_OKTFIL })
+    test('/plattform: dashbord → bred → målt', async ({ page }) => {
+      await page.setViewportSize({ width: 1600, height: 1000 })
+      const m = await bevisSide(page, '/plattform', 'bred')
+      expect(m.ramme, '/plattform fyller ikke spalta').toBeGreaterThan(SMAL)
+    })
+  })
+
+  test('mobil: de brede kollapser til viewporten', async ({ page }) => {
+    // En `bred` side har ingen maksbredde. Da er det `width: 100%` og
+    // `min-width: 0` på barna som holder den inne — nettopp det som
+    // manglet da rammen ble skrevet.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await loggInn(page)
+    const m = await bevisSide(page, '/lederstotte', 'bred')
+    expect(m.ramme, '/lederstotte er bredere enn spalta på mobil')
+      .toBeLessThanOrEqual(m.rom + 1)
   })
 })

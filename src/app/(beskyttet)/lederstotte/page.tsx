@@ -5,6 +5,7 @@ import { manedAar } from '@/lib/format'
 import type { Lederstotte } from '@/lib/ai/lederstotte'
 import { GenererKnapp } from './generer-knapp'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sideramme } from '@/components/ui/sideramme'
 
 const STATUS_TEKST: Record<string, string> = { gronn: 'Sterkt', gul: 'På god vei', bla: 'Utviklingspotensial' }
 
@@ -13,7 +14,7 @@ type Rad = { stasjon_id: string; periode: string; rapport: Lederstotte }
 export default async function LederstotteSide() {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) {
-    return <p>Du har ikke tilgang til lederstøtte.</p>
+    return <Sideramme><p>Du har ikke tilgang til lederstøtte.</p></Sideramme>
   }
 
   const supabase = await lagSupabaseServerKlient()
@@ -54,7 +55,7 @@ export default async function LederstotteSide() {
   const periodeTekst = siste ? manedAar.format(new Date(siste.periode)) : 'Ingen rapporter ennå'
 
   return (
-    <>
+    <Sideramme>
       <Sidehode
         tittel="Lederstøtte"
         undertittel={svar ? `${svar}. ${periodeTekst}` : periodeTekst}
@@ -107,6 +108,6 @@ export default async function LederstotteSide() {
           hjemme i en personalsak uten at noen har snakket med den det gjelder først.
         </p>
       </Forklaring>
-    </>
+    </Sideramme>
   )
 }

@@ -413,6 +413,14 @@ const BREDDEUNNTAK: Record<string, string> = {
     + '«07:00» havner på to linjer.',
   '.stilling-rad input':
     'Antallsfelt per stilling.',
+  // --- Kom fram i bølge 4 (/analyse, /plattform). Komponentmål.
+  '.stasjonsvelger select':
+    'Nedtrekkslista med stasjonsnavn. 15 rem så «Laguneparken» ikke '
+    + 'klippes — et innholdsmål for kontrollen, ikke for sida.',
+  '.spinner':
+    'Lastesirkelen. `0.9em` følger tekststørrelsen den står i.',
+  '.laster-side .spinner':
+    'Samme sirkel, større når den er sidas eneste innhold.',
   '.sq-skjult':
     'Teksten som bare skjermlesere skal ha. 1 px er hele poenget — den '
     + 'skal ut av synsfeltet uten å forsvinne fra tilgjengelighetstreet.',
