@@ -1,9 +1,9 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { tilLonnslinjer, LONNSART } from '@/lib/lonn/tidsband'
+import { tilLonnslinjer, LONNSART, delVakt } from '@/lib/lonn/tidsband'
 import { vismaFilnavn } from '@/lib/lonn/vismafil'
-import { vurderSats } from '@/lib/lonn/tariff'
+import { vurderSats, TIMER_PER_UKE, type Skiftordning } from '@/lib/lonn/tariff'
 import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
 import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { hentAapneVakter } from '@/lib/stempling/aapne'
@@ -17,6 +17,7 @@ import { TimesatsFelt } from './timesats-felt'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
+import { finnOvertid, heleUkerRundt } from '@/lib/lonn/overtid'
 import Link from 'next/link'
 
 const MND = ['januar', 'februar', 'mars', 'april', 'mai', 'juni',
@@ -58,6 +59,11 @@ import { Sideramme } from '@/components/ui/sideramme'
 
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string }>
 
+// Dag og maaned til overtidsvarselet. UTC, fordi noekkelen er en ren
+// ISO-dato uten klokkeslett - lokal tolkning ville flyttet den en dag.
+const dagMaaned = new Intl.DateTimeFormat('nb-NO', {
+  day: 'numeric', month: 'short', timeZone: 'UTC',
+})
 const tall = new Intl.NumberFormat('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 
@@ -108,18 +114,26 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // v_stempling_aktiv: kilden som teller for stasjonen (0111). Se
   // kommentaren i /api/lonn/visma — tabellen direkte ville doblet timene
   // under parallellkjoring.
+  //
+  // HELE UKER, IKKE BARE MAANEDEN. Ukegrensen for overtid maales per
+  // ISO-uke, og en uke som starter i forrige maaned ville telt for lite
+  // — da UTEBLIR et funn som burde vaert der, og det er den farlige
+  // retningen aa ta feil i. Alt annet paa sida bruker `rader`, som er
+  // maaneden alene.
+  const vindu = heleUkerRundt(ar, maned)
   const { data: stempl } = await supabase
     .from('v_stempling_aktiv')
     .select('ansatt_nr, ansatt_navn, dato, fra_tid, til_tid, pause_fra, pause_til')
     .eq('stasjon_id', valgt.id)
     .eq('betalt', true)
-    .gte('dato', fra)
-    .lte('dato', til)
+    .gte('dato', vindu.fra)
+    .lte('dato', vindu.til)
     .order('dato')
-  const rader = (stempl ?? []) as {
+  const alleUker = (stempl ?? []) as {
     ansatt_nr: string; ansatt_navn: string; dato: string; fra_tid: string; til_tid: string
     pause_fra: string | null; pause_til: string | null
   }[]
+  const rader = alleUker.filter((r) => r.dato >= fra && r.dato <= til)
 
   const navnFor = new Map(rader.map((r) => [r.ansatt_nr, r.ansatt_navn]))
   // Samme pausevindu som fila (0150) - sida og eksporten skal aldri
@@ -136,13 +150,48 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // Bekreftede stillinger og satser — til tariffkontrollen.
   const { data: avtaler } = await supabase
     .from('ansatt_avtale')
-    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale, lonnsform')
+    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale, lonnsform, skiftordning')
     .eq('stasjon_id', valgt.id)
   const avtale = new Map(
     ((avtaler ?? []) as
       { ansatt_nr: string; stillingsprosent: number | null; timesats: number | null
-        har_rammeavtale: boolean; lonnsform: Lonnsform | null }[])
+        har_rammeavtale: boolean; lonnsform: Lonnsform | null
+        skiftordning: Skiftordning | null }[])
       .map((a) => [a.ansatt_nr, a]))
+
+  // -------------------------------------------------------------------
+  // OVERTID: FINNES, BEREGNES IKKE
+  //
+  // Fila eksporterer hver time som ordinaer — lonnsart 2 pluss tidsbaand.
+  // Det finnes ingen overtidsart, og satsen staar i Energiavtalen, ikke i
+  // koden. Et paaslag valgt her ville vaert et tall noen fikk utbetalt.
+  //
+  // Saa sida sier fra i stedet. Det er ikke en halv loesning: 59,50
+  // ordinaere timer paa fire dager gikk ut i fila uten at noe reagerte,
+  // og forskjellen paa det og dette er at noen ser det.
+  //
+  // MINUTTENE KOMMER FRA `delVakt`, samme funksjon som fila bruker.
+  // Regnet vi dem her, ville pausevinduet vaert trukket fra to steder
+  // med hver sin utregning — og da kan sida og fila si ulike ting.
+  const overtid = finnOvertid(
+    alleUker.map((r) => ({
+      ansattNr: r.ansatt_nr,
+      dato: r.dato,
+      minutter: delVakt({
+        dato: r.dato,
+        fraTid: r.fra_tid.slice(0, 5),
+        tilTid: r.til_tid.slice(0, 5),
+        pauseFraTid: r.pause_fra?.slice(0, 5) ?? null,
+        pauseTilTid: r.pause_til?.slice(0, 5) ?? null,
+      }).get(LONNSART.timelonn) ?? 0,
+    })),
+    (nr) => avtale.get(nr)?.skiftordning ?? null,
+  )
+  // Ukesfunn beholdes selv om uka starter i forrige maaned — den uka
+  // hoerer til begge visningene. Dagsfunn utenfor maaneden hoerer til
+  // sin egen maaned og ville vaert stoey her.
+  const overtidIMnd = overtid.filter(
+    (f) => f.slag === 'uke' || (f.noekkel >= fra && f.noekkel <= til))
 
   // Fastlønnede og tilkallingsvikarer skal ikke i fila. Det var hele
   // avviket på Bønes i mai: 191,68 timer, butikksjefen og Carmen.
@@ -276,6 +325,48 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                     mangler timene hennes, og det oppdages først på
                     kontoutskriften. Prøv igjen, og si fra hvis det står.
                   </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {overtidIMnd.length > 0 && (
+            <section className="kort oppmerksomhet">
+              <div className="varsel gul">
+                <span className="varsel-dott" aria-hidden />
+                <div className="varsel-tekst">
+                  <div className="varsel-topp">
+                    <strong>
+                      {new Set(overtidIMnd.map((f) => f.ansattNr)).size}{' '}
+                      {new Set(overtidIMnd.map((f) => f.ansattNr)).size === 1
+                        ? 'ansatt har' : 'ansatte har'}{' '}
+                      timer over alminnelig arbeidstid
+                    </strong>
+                  </div>
+                  <p className="varsel-detalj">
+                    Sentiqa beregner ikke overtid. Timene under går ut i lønnsfila
+                    som ordinære — satsen står i Energiavtalen, ikke i systemet, og
+                    et påslag valgt her ville vært et tall noen fikk utbetalt.
+                    Grensene er 9 t per dag (aml. § 10-4) og{' '}
+                    {tall.format(TIMER_PER_UKE.ordinaer)} t per uke
+                    ({tall.format(TIMER_PER_UKE.to_skift)} t på to skift).
+                  </p>
+                  <ul className="rutine-liste">
+                    {overtidIMnd.map((f) => (
+                      <li key={`${f.ansattNr}|${f.slag}|${f.noekkel}`}>
+                        <div className="rutine-tekst">
+                          <strong>{navnFor.get(f.ansattNr) ?? f.ansattNr}</strong>
+                          <span className="undertittel">
+                            {' '}· {f.slag === 'uke' ? 'uke fra' : ''}{' '}
+                            {dagMaaned.format(new Date(`${f.noekkel}T00:00:00Z`))}
+                            {' '}· {tall.format(f.timer)} t av {tall.format(f.grense)}
+                            {f.antattOrdinaer ? ' (skiftordning ikke satt)' : ''}
+                          </span>
+                        </div>
+                        <strong>+{tall.format(f.over)} t</strong>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </section>
