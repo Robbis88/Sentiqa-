@@ -11,6 +11,7 @@ import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
+import { manglendeStasjoner, dekningsnotat, erDaglig } from './stasjonsdekning'
 import { bruttoKurve, timelonnKurve, maanedsrammer } from '@/lib/bp/fordeling'
 import { parseDelingsfil } from '@/lib/parsere/delingsfil'
 import { arknavn } from '@/lib/parsere/xlsx-rader'
@@ -39,7 +40,36 @@ import { lagKaffevarsel } from '@/lib/kaffesvinn'
 // brukersesjonen, e-post-webhooken bruker service-role. Ingen session/revalidate
 // her, så den kan kjøres fra begge.
 type Klient = SupabaseClient
-type Lagring = { antallRader: number; umatchet: string[]; notat?: string | null }
+/**
+ * Merknaden om stasjoner som ikke var i fila.
+ *
+ * Bare for datasett som kommer EN FIL PER DAG. For regnskap, BP og svinn
+ * er en stasjon uten rader helt normalt, og en merknad ville vaert stoey
+ * - og stoey laerer folk aa se bort fra merknader.
+ */
+function stasjonsmerknad(
+  rapporttype: Rapporttype,
+  res: Lagring,
+  stasjoner: { id: string; navn: string; butikknummer: string }[],
+): string | null {
+  if (!erDaglig(rapporttype) || !res.truffet || res.antallRader === 0) return null
+  return dekningsnotat(manglendeStasjoner(res.truffet, stasjoner))
+}
+
+type Lagring = {
+  antallRader: number
+  umatchet: string[]
+  notat?: string | null
+  /**
+   * Stasjons-id-ene lagringen faktisk skrev noe for.
+   *
+   * `umatchet` fanger en stasjon i fila vi ikke kjenner. Dette fanger
+   * speilbildet - en stasjon vi kjenner som ikke er i fila - og det er
+   * det farligste av de to: en ukjent stasjon roper, en manglende tier.
+   * Se `stasjonsdekning.ts`.
+   */
+  truffet?: string[]
+}
 
 // Skriver rader i batcher (ikke én diger insert) — holder hvert kall raskt og
 // under grensene, så store/mange filer ikke timer ut. Feiler en batch, sies
@@ -328,6 +358,10 @@ export async function behandleJobbKjerne(
           res.umatchet.length > 0
             ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}`
             : null,
+          // SPEILBILDET AV `umatchet`. En stasjon vi kjenner som IKKE er i
+          // fila - Laguneparken 26. og 27. august 2026 - lot importen
+          // melde «parset» uten at noe manglet paa papiret.
+          stasjonsmerknad(rapporttype, res, oppslag.stasjoner),
           res.notat ?? null,
         ].filter(Boolean).join(' · ') || null,
       })
@@ -487,7 +521,13 @@ export async function lagreForhandsparset(
     await supabase.from('import_jobber').update({
       status: res.antallRader === 0 ? 'feilet' : 'parset',
       gjelder_dato: dato, antall_rader: res.antallRader, parset_tid: new Date().toISOString(),
-      feilmelding: res.umatchet.length > 0 ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}` : null,
+      feilmelding: [
+        res.umatchet.length > 0
+          ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}`
+          : null,
+        stasjonsmerknad(payload.type, res, oppslag.stasjoner),
+        res.notat ?? null,
+      ].filter(Boolean).join(' · ') || null,
     }).eq('id', jobbId)
     if (payload.type === 'regnskap_resultat') {
       after(async () => {
@@ -571,7 +611,7 @@ async function lagreSalgsstatistikk(
       + `ble ikke lagret (${Math.round(r.utenEan.kroner)} kr)`
     : null
 
-  return { antallRader: rader.length, umatchet, notat }
+  return { antallRader: rader.length, umatchet, notat, truffet: rader.map((r) => r.stasjon_id as string) }
 }
 
 // =====================================================================
@@ -696,7 +736,7 @@ async function lagreTimesalg(
     }
   }
   if (rader.length > 0) await skrivBatch(supabase, 'timesalg', rader, 'retailer_id,stasjon_id,dato,time')
-  return { antallRader: rader.length, umatchet }
+  return { antallRader: rader.length, umatchet, truffet: rader.map((r) => r.stasjon_id as string) }
 }
 
 async function lagreKasserer(
@@ -724,7 +764,7 @@ async function lagreKasserer(
     }
   }
   if (rader.length > 0) await skrivBatch(supabase, 'kassererstatistikk', rader, 'retailer_id,stasjon_id,dato,kasserer_nr')
-  return { antallRader: rader.length, umatchet }
+  return { antallRader: rader.length, umatchet, truffet: rader.map((r) => r.stasjon_id as string) }
 }
 
 async function lagreSvinn(
