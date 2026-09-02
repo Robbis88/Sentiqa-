@@ -1,5 +1,6 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { generer, genererHeleAaret } from './handlinger'
 
 // aar = år for «hele året»-analysen. maaneder = alle opplastede regnskaps-
@@ -9,12 +10,25 @@ export function AnalyseKnapp({ aar, maaneder = [] }: { aar?: string; maaneder?: 
   const [venter, start] = useTransition()
   const [melding, setMelding] = useState<string | null>(null)
   const [mnd, setMnd] = useState(maaneder[0]?.verdi ?? '')
+  const router = useRouter()
 
-  const kjor = (fn: () => Promise<{ ok: boolean; grunn?: string }>) =>
+  // KVITTERING FOERST, SIDE ETTERPAA. Handlingen revaliderer ikke lenger
+  // sin egen rute (se handlinger.ts); oppdateringen skjer her, ETTER at
+  // svaret er vist. Uten det rekkefoelgeskiftet staar knappen og spinner
+  // paa noe som alt er ferdig.
+  const kjor = (fn: () => Promise<{ ok: boolean; grunn?: string; hoppet?: boolean }>) =>
     start(async () => {
       setMelding(null)
       const res = await fn()
-      setMelding(res.ok ? 'Analyse oppdatert.' : `Kunne ikke kjøre: ${res.grunn}`)
+      // «Analyse oppdatert» ble sagt ogsaa naar vakten hoppet over
+      // kjoeringen. To utfall skal ikke kvitteres likt - samme regel som
+      // i `bekreftLest`.
+      setMelding(
+        !res.ok ? `Kunne ikke kjøre: ${res.grunn}`
+          : res.hoppet ? 'Analysen ble kjørt for et øyeblikk siden — henter den.'
+          : 'Analyse oppdatert.',
+      )
+      router.refresh()
     })
 
   return (

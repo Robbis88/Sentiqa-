@@ -10,7 +10,11 @@ import { Signal, Status, type Statusnivaa } from '@/components/ui/status'
 import { Sideramme } from '@/components/ui/sideramme'
 
 // «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
-export const maxDuration = 60
+// AI-analysen av en hel maaned kan bruke mer enn ett minutt. Gaar den
+// over, kommer det INGEN feilmelding - handlingen blir avbrutt, og
+// knappen ble bare staaende. Sammen med egen-rute-revalideringen (rettet
+// i handlinger.ts) var det umulig aa se hva som skjedde.
+export const maxDuration = 300
 
 type Svinn = { stasjon_id: string; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
 
@@ -76,10 +80,14 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
 
   // Alle opplastede regnskaps-måneder (også uten analyse ennå) — så du kan kjøre
   // analyse for hvilken som helst måned, ikke bare den siste.
+  //
+  // FRA VIEWET (0166). `limit(2000)` sto her og flyttet bare taket:
+  // spørringen hentet LINJER for å telle MÅNEDER, og med nok historikk
+  // faller de eldste ut. Viewet gir én rad per måned.
   const { data: regnPer } = await supabase
-    .from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false }).limit(2000)
+    .from('v_regnskapsperioder').select('periode').order('periode', { ascending: false })
     .overrideTypes<{ periode: string }[]>()
-  const regnskapMnd = [...new Set((regnPer ?? []).map((p) => p.periode))].map((p) => ({ verdi: p.slice(0, 7), navn: `${manedNavn(p)} ${p.slice(0, 4)}` }))
+  const regnskapMnd = (regnPer ?? []).map(({ periode: p }) => ({ verdi: p.slice(0, 7), navn: `${manedNavn(p)} ${p.slice(0, 4)}` }))
 
   const a = data?.rapport
 

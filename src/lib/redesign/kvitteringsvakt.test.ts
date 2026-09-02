@@ -269,11 +269,21 @@ function ruterMedEgenrevalidering(): { rute: string; katalog: string }[] {
       // Det som gjor koblingen skadelig er at en klient holder paa
       // ventetilstand og svar TVERS OVER overgangen. Det er nettopp det
       // begge disse krokene gjor.
+      // TRE KROKER, IKKE TO. `useTransition` sto ikke her, og det var et
+      // ekte hull: `/analyse` holdt ventetilstanden gjennom en
+      // AI-analyse som kunne ta minutter, mens handlingen revaliderte
+      // sin egen rute. Vakten var GROENN hele tiden - den saa aldri
+      // ruta, fordi knappen brukte den tredje kroken.
+      //
+      // `start()` pakker den asynkrone handlingen paa noeyaktig samme
+      // maate som de to andre: `venter` er sann til overgangen er over,
+      // og revalideringen er en del av overgangen.
       const harTilstand = readdirSync(katalog)
         .filter((f) => f.endsWith('.tsx'))
         .some((f) => {
           const k = readFileSync(join(katalog, f), 'utf8')
           return k.includes('useActionState') || k.includes('useKvittering')
+            || k.includes('useTransition')
         })
       if (harTilstand) ut.push({ rute, katalog })
     }

@@ -1,15 +1,19 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { genererRegnskapsanalyse, genererRegnskapsanalyseHittil } from '@/lib/ai/regnskapsanalyse'
 
+// INGEN `revalidatePath` HER. Den sto paa EGEN rute, og da blir
+// ruteroppdateringen en del av overgangen `useTransition` venter paa:
+// serveren er ferdig, men knappen staar og spinner til hele sida har
+// tegnet seg om. Paa en AI-analyse er det minutter.
+//
+// Samme kobling som ble maalt i Playwright-sporet 2026-08-29 og rettet i
+// PR #114 - der med `useKvittering`. Her holder `router.refresh()` i
+// knappen ETTER at svaret er kommet: kvittering foerst, liste etterpaa.
+
 export async function generer(periode?: string) {
-  const res = await genererRegnskapsanalyse(periode)
-  revalidatePath('/analyse')
-  return res
+  return genererRegnskapsanalyse(periode)
 }
 
 export async function genererHeleAaret(aar?: string) {
-  const res = await genererRegnskapsanalyseHittil(aar)
-  revalidatePath('/analyse')
-  return res
+  return genererRegnskapsanalyseHittil(aar)
 }

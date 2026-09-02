@@ -62,10 +62,19 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const supabase = await lagSupabaseServerKlient()
 
   // Alle perioder (rød tråd) — velg via ?periode=YYYY-MM, ellers siste.
+  //
+  // FRA VIEWET, IKKE FRA LINJENE (0166). Før stod det
+  // `.from('regnskapslinjer').select('periode')` uten grense, og
+  // PostgREST stopper på 1000 rader: svaret var de nyeste tusen LINJENE,
+  // ikke alle månedene. De eldste månedene fantes derfor ikke i
+  // velgeren, og «hent opp en gammel måned» kunne ikke virke.
+  //
+  // Samme feil som `0090` ble skrevet for å rette et annet sted:
+  // tellingen hører hjemme der radene er.
   const { data: perioder } = await supabase
-    .from('regnskapslinjer').select('periode').is('stasjon_id', null).order('periode', { ascending: false })
+    .from('v_regnskapsperioder').select('periode').order('periode', { ascending: false })
     .overrideTypes<{ periode: string }[]>()
-  const liste = [...new Set((perioder ?? []).map((p) => p.periode))]
+  const liste = (perioder ?? []).map((p) => p.periode)
 
   if (liste.length === 0) {
     return (
