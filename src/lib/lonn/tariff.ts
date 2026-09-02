@@ -264,3 +264,72 @@ export function vurderSats(sats: number, bok = TARIFF_2025_07): Satsvurdering {
       + 'ikke ble justert ved forrige oppgjør.',
   }
 }
+
+// =====================================================================
+// SATSEN RØPER ORDNINGEN
+//
+// Robert, 2026-09-02: «nesten alle jobber to skift utenom butikksjefer».
+// Står `skiftordning` tomt på dem, gjør systemet to feil samtidig:
+//
+//   overtid       ukegrensen blir 37,5 i stedet for 35,5, og detektoren
+//                 UNDER-rapporterer — den retningen antakelsen aldri
+//                 skulle ta (se `overtid.ts`)
+//   tariff        satsen sammenlignes mot ordinærkolonnen, så en riktig
+//                 avlønnet 2-skift-ansatt ser ut som «over tariff»
+//
+// Men vi trenger ikke spørre: TIMESATSEN VET DET ALLEREDE. Ingen sats i
+// arket finnes i begge kolonnene, og nærmeste avstand mellom en ordinær
+// og en skiftsats er 4 øre. Treffer satsen bare i skiftkolonnen, går
+// personen to skift — uansett hva feltet sier.
+//
+// DEN PÅSTÅR IKKE NOE NÅR DEN IKKE VET. Ingen tarifftreff (lokal avtale,
+// sats som aldri ble justert) gir null. Treff i begge kolonnene ville
+// også gitt null — det finnes bare ikke i denne boka, og testen holder
+// den forutsetningen i live.
+// =====================================================================
+
+export type Skiftavvik = {
+  /** `ikke_satt`: feltet er tomt. `motsier`: feltet sier noe annet enn satsen. */
+  slag: 'ikke_satt' | 'motsier'
+  /** Ordningen satsen peker på. */
+  antydet: Skiftordning
+  registrert: Skiftordning | null
+  melding: string
+}
+
+/**
+ * Sier fra når timesatsen og den registrerte skiftordningen ikke henger sammen.
+ *
+ * Null når det ikke er noe å si: satsen stemmer med feltet, satsen finnes
+ * ikke i tariffen, eller den er tvetydig.
+ */
+export function vurderSkiftordning(
+  sats: number,
+  registrert: Skiftordning | null,
+  bok = TARIFF_2025_07,
+): Skiftavvik | null {
+  const treff = plasserSats(sats, bok)
+  if (treff.length === 0) return null
+
+  const ordninger = [...new Set(treff.map((t) => t.skift))]
+  // Tvetydig sats: da vet vi ikke, og da sier vi ingenting.
+  if (ordninger.length !== 1) return null
+
+  const antydet = ordninger[0]
+  if (registrert === antydet) return null
+
+  const navn = SKIFTNAVN[antydet]
+  return registrert === null
+    ? {
+        slag: 'ikke_satt', antydet, registrert,
+        // Norsk desimaltegn. `${TIMER_PER_UKE.ordinaer}` gir «37.5», og et
+        // punktum i en loennstekst leser som en skrivefeil.
+        melding: `Timesatsen er ${navn}-satsen, men arbeidstid er ikke satt. `
+          + `Overtidsgrensen regnes som ${SKIFTNAVN.ordinaer} til den er det.`,
+      }
+    : {
+        slag: 'motsier', antydet, registrert,
+        melding: `Timesatsen er ${navn}-satsen, men arbeidstid står som `
+          + `${SKIFTNAVN[registrert]}. Én av dem er feil.`,
+      }
+}

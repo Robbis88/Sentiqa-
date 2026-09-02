@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   plasserSats, vurderSats, TIMER_PER_UKE, TARIFF_2025_07,
-  omregnet, LEDENDE_TILLEGG, TRINN_BAND, type Skiftordning,
-} from './tariff'
+  omregnet, LEDENDE_TILLEGG, TRINN_BAND, type Skiftordning, vurderSkiftordning } from './tariff'
 
 describe('tariffsatser', () => {
   test('fire uketimetall, ikke to (§ 2.7.1.1)', () => {
@@ -191,5 +190,100 @@ describe('vurderSats', () => {
     // Et oppgjør i august med virkning fra 1. april betyr at avsluttede
     // perioder må kunne regnes om. Da må satsene være datert.
     expect(TARIFF_2025_07.gyldigFra).toBe('2025-07-01')
+  })
+})
+
+// =====================================================================
+// SATSEN ROEPER ORDNINGEN
+//
+// «Nesten alle jobber to skift utenom butikksjefer» (Robert 2026-09-02).
+// Staar feltet tomt, blir ukegrensen for overtid 37,5 i stedet for 35,5,
+// og detektoren UNDER-rapporterer - den retningen antakelsen aldri
+// skulle ta.
+// =====================================================================
+describe('vurderSkiftordning', () => {
+  test('KANARIFUGL: ingen sats finnes i BEGGE kolonnene', () => {
+    // Hele sjekken hviler paa dette. Fantes en sats i begge, ville den
+    // paastaatt en ordning den ikke kan vite - og en 4-oeres avstand er
+    // det som gjoer `plasserSats` sin 0,005-toleranse trygg.
+    const alle = Object.values(TARIFF_2025_07.satser).flatMap((g) => Object.values(g))
+    const ord = new Set(alle.map((t) => t.ordinaer))
+    const skift = new Set(alle.map((t) => t.to_skift))
+    expect([...ord].filter((x) => skift.has(x)), 'en sats finnes i begge kolonner').toEqual([])
+    const naermest = Math.min(...[...ord].flatMap((a) => [...skift].map((b) => Math.abs(a - b))))
+    expect(naermest, 'kolonnene ligger for taett til aa skilles').toBeGreaterThan(0.01)
+  })
+
+  test('skiftsats uten registrert ordning sier fra', () => {
+    // 196,02 er butikkpersonells to-skift-sats.
+    const a = vurderSkiftordning(196.02, null)
+    expect(a?.slag).toBe('ikke_satt')
+    expect(a?.antydet).toBe('to_skift')
+    expect(a?.melding).toContain('ordinær')
+  })
+
+  test('skiftsats mot registrert ordinaer er en motsigelse', () => {
+    const a = vurderSkiftordning(196.02, 'ordinaer')
+    expect(a?.slag).toBe('motsier')
+    expect(a?.melding).toMatch(/Én av dem er feil/)
+  })
+
+  test('den andre veien ogsaa', () => {
+    // 185,58 er ordinaersatsen. Staar den ansatte som to skift, er noe galt.
+    const a = vurderSkiftordning(185.58, 'to_skift')
+    expect(a?.slag).toBe('motsier')
+    expect(a?.antydet).toBe('ordinaer')
+  })
+
+  test('stemmer satsen med feltet, er det ingenting aa si', () => {
+    expect(vurderSkiftordning(196.02, 'to_skift')).toBeNull()
+    expect(vurderSkiftordning(185.58, 'ordinaer')).toBeNull()
+  })
+
+  test('en sats som finnes i BEGGE kolonnene gir ingen paastand', () => {
+    // Kan ikke skje med dagens ark - derfor en syntetisk bok. Uten den
+    // ville vakten vaert uproevbar: aa fjerne regelen endrer ingenting
+    // saa lenge kolonnene ikke kolliderer, og da maaler testen bare
+    // forutsetningen i stedet for regelen.
+    //
+    // Et fremtidig oppgjoer KAN gi en kollisjon. Da skal sjekken tie, ikke
+    // gjette hvilken kolonne den ansatte hoerer til.
+    const tvetydig: typeof TARIFF_2025_07 = {
+      gyldigFra: '2099-01-01',
+      satser: {
+        II_butikk: {
+          0: { ordinaer: 200, to_skift: 211.87, skift_36_5: 205, skift_33_5: 224 },
+          1: { ordinaer: 190, to_skift: 200, skift_36_5: 195, skift_33_5: 213 },
+        },
+        I_ledende: {},
+        IV_under18: {},
+      },
+    }
+    // 200 er ordinaer paa trinn 0 og to_skift paa trinn 1.
+    expect(vurderSkiftordning(200, null, tvetydig)).toBeNull()
+    // Kontroll: en entydig sats i samme bok svarer fortsatt.
+    expect(vurderSkiftordning(211.87, null, tvetydig)?.antydet).toBe('to_skift')
+  })
+
+  test('KANARIFUGL: en sats uten tarifftreff paastaar ingenting', () => {
+    // En lokal avtale eller en sats som aldri ble justert. Sjekken skal
+    // tie, ikke gjette - ellers ville hver eneste ansatt utenfor tabellen
+    // faatt en paastand om arbeidstid.
+    expect(vurderSkiftordning(210.00, null)).toBeNull()
+    expect(vurderSkiftordning(0, null)).toBeNull()
+  })
+
+  test('ledende personells skiftsats gjenkjennes ogsaa', () => {
+    // 201,31 er gruppe I, trinn 0 og 1.
+    const a = vurderSkiftordning(201.31, null)
+    expect(a?.antydet).toBe('to_skift')
+  })
+
+  test('de nye 36,5- og 33,5-ordningene forveksles ikke med to skift', () => {
+    // De er regnet ut (0164), ikke lest av arket - men de skal fortsatt
+    // peke paa sin EGEN ordning naar de treffer.
+    const t = TARIFF_2025_07.satser.II_butikk[2]
+    expect(vurderSkiftordning(t.skift_33_5, null)?.antydet).toBe('skift_33_5')
+    expect(vurderSkiftordning(t.skift_36_5, null)?.antydet).toBe('skift_36_5')
   })
 })

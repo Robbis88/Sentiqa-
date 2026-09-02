@@ -3,7 +3,7 @@ import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { tilLonnslinjer, LONNSART, delVakt } from '@/lib/lonn/tidsband'
 import { vismaFilnavn } from '@/lib/lonn/vismafil'
-import { vurderSats, TIMER_PER_UKE, type Skiftordning } from '@/lib/lonn/tariff'
+import { vurderSats, vurderSkiftordning, TIMER_PER_UKE, type Skiftordning } from '@/lib/lonn/tariff'
 import { vurderEksponering, ALVOR } from '@/lib/ansatt/eksponering'
 import { delEtterLonnsform, UTELATT_FORDI, type Lonnsform } from '@/lib/lonn/lonnsform'
 import { hentAapneVakter } from '@/lib/stempling/aapne'
@@ -682,6 +682,14 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                   {[...perAnsatt].sort((a, b) => b[1] - a[1]).map(([nr, t]) => {
                     const a = avtale.get(nr)
                     const v = a?.timesats != null ? vurderSats(Number(a.timesats)) : null
+                    // SATSEN ROEPER ORDNINGEN. Staar `skiftordning` tomt paa en
+                    // som gaar to skift, blir ukegrensen for overtid 37,5 i
+                    // stedet for 35,5 — og detektoren UNDER-rapporterer.
+                    // Timesatsen vet det allerede: ingen sats i arket finnes i
+                    // begge kolonnene.
+                    const skift = a?.timesats != null
+                      ? vurderSkiftordning(Number(a.timesats), a.skiftordning ?? null)
+                      : null
                     const klasse = v?.status === 'under' ? 'rod'
                       : v?.status === 'mellom' ? 'gul'
                         : v?.status === 'tariff' ? 'gronn' : 'noytral'
@@ -726,6 +734,20 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                             </>
                           ) : (
                             <span className="undertittel">Timesats ikke registrert</span>
+                          )}
+                          {/* En egen linje, ikke en farge til: dette er et
+                              ANNET spoersmaal enn om satsen er tariff. Den
+                              kan vaere helt riktig og likevel hoere til en
+                              arbeidstid som ikke er registrert. */}
+                          {skift && (
+                            <>
+                              <br />
+                              <Status nivaa="endring">
+                                {skift.slag === 'ikke_satt' ? 'Arbeidstid mangler' : 'Arbeidstid motsier satsen'}
+                              </Status>
+                              <br />
+                              <span className="undertittel">{skift.melding}</span>
+                            </>
                           )}
                         </td>
                       </tr>
