@@ -89,7 +89,17 @@ const prosent = (v: number | null) =>
 
 const pst = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')} %`
 
-export function BpAvdeling({ rad }: { rad: BpRad }) {
+/** Bilvask delt i kassa og abonnement. Se migrasjon 0160. */
+export type Abonnement = {
+  aar: string
+  maaneder: number
+  kasse_kr: number
+  regnskap_kr: number
+  abonnement_kr: number
+  abonnement_pst: number | null
+}
+
+export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }) {
   const navn = rad.gruppe_navn ?? rad.gruppe_kode
   const kommende = rad.periode_status === 'kommende'
 
@@ -290,11 +300,26 @@ export function BpAvdeling({ rad }: { rad: BpRad }) {
           tvert imot inntekt kassa aldri ser, og regnskapet kan derfor
           lovlig ligge OVER «taket». Det er umulig i enhver annen
           avdeling, og derfor verdt å si her. */}
-      {rad.gruppe_kode === '210' && (
+      {/* SETNINGEN BLE ET TALL.
+          Foerste utgave sa bare AT bilvask har to inntekter. Naa staar
+          begge, for vi har dem: regnskapets omsetning minus kassas, over
+          de avlagte maanedene.
+
+          Ingen anslag for inneveaerende maaned. Andelen svinger 24,5-39,4
+          % paa Lone alene, den er ulik per stasjon (16-29 %), og Varden
+          hadde hallen stengt fem uker i juni - da faller forutsetningen
+          helt bort. Et paaslag ville lagt til abonnementsinntekt for uker
+          det ikke var noe aa abonnere paa. */}
+      {rad.gruppe_kode === '210' && abo && (
         <p className="bp-grunnlag">
-          Bilvask har to inntekter: over kassa, og abonnement som bare
-          finnes i regnskapet. «Kassen, perfekt dag» ser bare den første,
-          så regnskapet kan ligge over den uten at noe er galt.
+          Bilvask har to inntekter. Over {abo.maaneder} avlagte måneder kom{' '}
+          <strong>{kr.format(abo.kasse_kr)}</strong> over kassa og{' '}
+          <strong>{kr.format(abo.abonnement_kr)}</strong> fra abonnement
+          {abo.abonnement_pst != null
+            && ` (${abo.abonnement_pst.toFixed(0)} %)`}, til sammen{' '}
+          {kr.format(abo.regnskap_kr)}. «Kassen, perfekt dag» ser bare den
+          første, så regnskapet kan ligge over den uten at noe er galt.
+          Abonnementet for inneværende måned kommer når måneden avlegges.
         </p>
       )}
 
