@@ -1084,12 +1084,40 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-tabell td { vertical-align: middle; }
 
 /* Driftsreglene (0149): start- og marginprosent. */
-.pp-regelrad { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end; }
-.pp-regel { flex: 0 1 15rem; }
+/* SAMME FEIL, ANDRE ENDE: `align-items: flex-end` la BUNNENE paa linje.
+   Hjelpeteksten under «Margin over forslaget» brytes til to linjer, saa
+   den kolonnen er en tekstlinje hoeyere - og bunnjusteringen dyttet dens
+   egen etikett og dens eget felt opp. Etikettene sto 29px fra hverandre.
+
+   Subgrid gir etikett, felt og hjelpetekst hver sin rad i den ytre
+   ruta. Da er justeringen strukturell: den holder uansett hvor mange
+   linjer en hjelpetekst eller en etikett tar. `align-items: start`
+   ville sett riktig ut i dag og brukket foerste gang en etikett brytes.
+
+   Radavstanden maa vaere den samme her og i `.felt` (0.3rem), ellers
+   ligger ikke sporene til subgriden paa de samme stedene. */
+.pp-regelrad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 15rem);
+  grid-template-rows: auto auto auto;
+  row-gap: 0.3rem;
+  column-gap: 1.5rem;
+  justify-content: start;
+}
+.pp-regel { display: grid; grid-template-rows: subgrid; grid-row: span 3; }
 .pp-regel-inn { display: flex; align-items: center; gap: 0.4rem; }
 .pp-regel-inn input { width: 4.5rem; text-align: right; font-variant-numeric: tabular-nums; }
 .pp-regel-enhet { color: var(--tekst-svak); font-weight: 600; }
-.pp-regel-handling { display: flex; flex-direction: column; gap: 0.4rem; }
+/* HANDLINGEN ER IKKE ET TREDJE FELT. Den sto i feltraden og hadde
+   ingen etikett, saa den la seg paa en tredje hoeyde uansett hvordan
+   raden ble justert. Den hoerer under reglene, ikke ved siden av dem. */
+.pp-regel-handling {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: var(--luft-3);
+}
 /* Avvik per varegruppe. Tomt felt arver, saa plassholderen viser hva
    standarden er — ellers ser et tomt felt ut som «null prosent». */
 .pp-gruppe-regel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 0.8rem; }
@@ -2372,13 +2400,23 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 /* --- Ansattlista (pilot A) -----------------------------------------
    Toppen av en liste: søk til venstre, filter til høyre. Samme
    rekkefølge overalt, så man slutter å lete etter dem. */
+/* EN KONTROLLRAD JUSTERER KONTROLLER, IKKE BLOKKER.
+   `align-items: center` sentrerte den bare knappen mot HELE naboen -
+   etikett + felt, ~66px - i stedet for mot feltet. Knappens midte havnet
+   11px over feltets, og «Dag [03.09.2026] [Vis dagen]» sto skjevt.
+   Bunnjustering treffer kontrollen uansett hvor hoey etiketten over den
+   er, og er derfor ikke avhengig av at teksten holder seg paa en linje.
+
+   Hoeyden foelger med: feltene er 44px (`.felt input`), `.sq-knapp` er
+   40px. Bunnjustert ville de fortsatt vaert to ulike bokser. */
 .sq-listetopp {
   display: flex;
-  align-items: center;
+  align-items: end;
   gap: var(--luft-3);
   flex-wrap: wrap;
   margin-bottom: var(--luft-3);
 }
+.sq-listetopp .sq-knapp { min-height: 44px; }
 .sq-listetall { margin: 0 0 var(--luft-2); font-size: var(--tekst-liten); }
 
 /* Bekreftelse på en destruktiv handling, i raden. Ikke en modal: den

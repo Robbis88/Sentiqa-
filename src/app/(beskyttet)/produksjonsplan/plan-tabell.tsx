@@ -207,15 +207,33 @@ export function PlanTabell({
             </span>
             <span className="undertittel">Forslaget treffer forventet salg. Dette er påslaget du velger.</span>
           </label>
-          {/* IKKE EN <Status>. Sida har én status — om planen er
-              publisert — og den er det e2e-testen peker på. Dette er en
-              forklaring til en knapp, ikke et signal om tilstand. Bruker
-              man signalprimitivet til bildetekster, slutter det å bety
-              noe. */}
-          <div className="pp-regel-handling">
-            <Knapp onClick={brukPaaPlanen}>Bruk på hele planen</Knapp>
-            <span className="undertittel">Endrer dagens tall nå</span>
-          </div>
+        </div>
+        {/* HANDLINGEN UNDER REGLENE, IKKE I RADEN MED DEM. Den er ikke et
+            tredje felt, og den har ingen etikett — sto den i feltraden,
+            la den seg på en tredje høyde uansett justering.
+
+            IKKE EN <Status>. Sida har én status — om planen er
+            publisert — og den er det e2e-testen peker på. Dette er en
+            forklaring til en knapp, ikke et signal om tilstand. Bruker
+            man signalprimitivet til bildetekster, slutter det å bety
+            noe. */}
+        <div className="pp-regel-handling">
+          {/* TEKSTEN STO FEIL VEI. «Bruk på hele planen / Endrer dagens
+              tall nå» leste som «trykk her, ellers skjer ingenting» —
+              og det motsatte er sant. Prosenten lagres i det den
+              skrives, og serveren regner den inn i hver linje ingen har
+              tatt stilling til, både i dag og på hver dag framover
+              (`l?.planlagt ?? medMargin(...)` i page.tsx).
+
+              Knappen finnes for det ENE tilfellet regelen ikke dekker:
+              linjene noen HAR rørt. Den overskriver dem. Det er den ene
+              tingen resten av sida verner om, så det må stå på knappen.
+
+              Merk hva 0 % gjør: planlagt settes til forslaget på alle
+              linjer, og `startAntall` returnerer 0 — hele morgenskiftet
+              nulles. Derfor «skriv over», ikke «bruk». */}
+          <Knapp onClick={brukPaaPlanen}>Skriv over dagens tall</Knapp>
+          <span className="undertittel">Også linjer du har justert selv</span>
         </div>
       </section>
 

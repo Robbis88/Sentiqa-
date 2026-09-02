@@ -113,11 +113,11 @@ test.describe('kontrollrader staar paa linje', () => {
     expect(Math.abs(f0.y - f1.y), 'Prosentfeltene staar ikke paa samme linje').toBeLessThanOrEqual(SLINGRING)
   })
 
-  test('«Bruk på hele planen» staar under reglene, ikke i raden med dem', async ({ page }) => {
+  test('«Skriv over dagens tall» staar under reglene, ikke i raden med dem', async ({ page }) => {
     await page.goto(PLAN)
 
     const rad = await boks(page.locator('.pp-regelrad'), 'Regelraden')
-    const knapp = await boks(page.getByRole('button', { name: 'Bruk på hele planen' }), '«Bruk på hele planen»')
+    const knapp = await boks(page.getByRole('button', { name: 'Skriv over dagens tall' }), '«Skriv over dagens tall»')
 
     // Handlingen er ikke et tredje felt. Sto den i raden, hadde den ingen
     // etikett aa justere etter og la seg paa en tredje hoeyde uansett.
