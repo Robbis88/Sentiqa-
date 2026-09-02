@@ -60,11 +60,15 @@ export function omregnet(grunnlonn: number, ordning: Skiftordning): number {
  * Ledende personell «skal ligge minst kr 5,- over minstelønnssatsene»
  * (§ 19.2).
  *
- * DET ER ET GULV, IKKE EN EGEN SKALA — og derfor avledes gruppe I nå av
- * butikkpersonell i stedet for å skrives av. Avskriften hadde bare to av
- * seks trinn, og det ene av dem, 190,52, lå UNDER gulvet. En sats under
- * minstelønn som meldes som «på tariff» er den feilen ingen ser før den
- * ansatte gjør det selv.
+ * Den gamle avskriften hadde bare to av sju trinn, og det ene, 190,52, laa
+ * UNDER gulvet. En sats under minstelønn meldt som «paa tariff» er den
+ * feilen ingen ser før den ansatte gjoer det selv.
+ *
+ * BRUKES SOM KONTROLL, IKKE SOM GENERATOR. Gruppe I skrives av fra arket
+ * (se `LEST`), og testen kontrollerer at hver ordinaersats er
+ * butikkpersonell + denne. Aa AVLEDE gruppen ga ett oere for mye paa tre
+ * av sju trinn i skiftkolonnen - arkets egen avrunding lar seg ikke
+ * gjenskape.
  */
 export const LEDENDE_TILLEGG = 5
 
@@ -122,9 +126,34 @@ const LEST: Record<Tariffgruppe, Record<number, { ordinaer: number; to_skift: nu
     5: { ordinaer: 200.57, to_skift: 211.87 },
     6: { ordinaer: 241.58, to_skift: 255.18 },
   },
-  // TOM MED VILJE. Gruppe I avledes av butikkpersonell + LEDENDE_TILLEGG,
-  // for alle trinn. Se kommentaren paa konstanten.
-  I_ledende: {},
+  // LEST, IKKE AVLEDET - OG DET ER EN RETTELSE.
+  //
+  // I foerste omgang ble gruppe I avledet: butikkpersonell + kr 5, og
+  // skiftkolonnen regnet om med x 37,5/35,5. Ordinaerkolonnen ble riktig
+  // paa alle sju trinn. SKIFTKOLONNEN BLE DET IKKE - trinn 0, 3 og 6 laa
+  // ett oere for hoeyt.
+  //
+  // Grunnen staar i arket selv: det har BEGGE ordinaervariantene (185,58
+  // paa trinn 0 og 185,57 paa trinn 1), og skiftkolonnen er regnet fra
+  // `.57`-varianten - derfor er den lik for trinn 0 og 1. En formel som
+  // starter fra `.58` gir ett oere mer, og arkets egen avrunding lar seg
+  // ikke gjenskape.
+  //
+  // Laerdommen er den samme som `II_butikk` bar fra foer: TRANSKRIBER
+  // KILDEN. En avledning som stemmer paa fire av sju trinn ser riktig ut.
+  //
+  // Kilde: «Tariffoppgjoer 2025», arket Robert sendte 2026-09-02.
+  // Sammenhengen holder likevel som KONTROLL: hver ordinaersats er
+  // butikkpersonell + kr 5, noeyaktig som § 19.2 sier.
+  I_ledende: {
+    0: { ordinaer: 190.58, to_skift: 201.31 },
+    1: { ordinaer: 190.57, to_skift: 201.31 },
+    2: { ordinaer: 193.57, to_skift: 204.48 },
+    3: { ordinaer: 196.58, to_skift: 207.64 },
+    4: { ordinaer: 199.57, to_skift: 210.81 },
+    5: { ordinaer: 205.57, to_skift: 217.15 },
+    6: { ordinaer: 246.58, to_skift: 260.46 },
+  },
   IV_under18: {
     0: { ordinaer: 143.33, to_skift: 151.41 },
   },
@@ -140,21 +169,13 @@ function fyllUt(lest: { ordinaer: number; to_skift: number }): Trinn {
 }
 
 function byggSatser(): Record<Tariffgruppe, Record<number, Trinn>> {
-  const butikk: Record<number, Trinn> = {}
-  const ledende: Record<number, Trinn> = {}
-  for (const [ans, lest] of Object.entries(LEST.II_butikk)) {
-    butikk[Number(ans)] = fyllUt(lest)
-    const grunn = Math.round((lest.ordinaer + LEDENDE_TILLEGG) * 100) / 100
-    ledende[Number(ans)] = {
-      ordinaer: grunn,
-      to_skift: omregnet(grunn, 'to_skift'),
-      skift_36_5: omregnet(grunn, 'skift_36_5'),
-      skift_33_5: omregnet(grunn, 'skift_33_5'),
-    }
+  const ut = {} as Record<Tariffgruppe, Record<number, Trinn>>
+  for (const gruppe of Object.keys(LEST) as Tariffgruppe[]) {
+    const trinn: Record<number, Trinn> = {}
+    for (const [ans, lest] of Object.entries(LEST[gruppe])) trinn[Number(ans)] = fyllUt(lest)
+    ut[gruppe] = trinn
   }
-  const under18: Record<number, Trinn> = {}
-  for (const [ans, lest] of Object.entries(LEST.IV_under18)) under18[Number(ans)] = fyllUt(lest)
-  return { II_butikk: butikk, I_ledende: ledende, IV_under18: under18 }
+  return ut
 }
 
 export const TARIFF_2025_07: Tariffbok = {
@@ -242,4 +263,73 @@ export function vurderSats(sats: number, bok = TARIFF_2025_07): Satsvurdering {
     melding: 'Mellom to tarifftrinn. Enten en lokal avtale, eller en sats som '
       + 'ikke ble justert ved forrige oppgjør.',
   }
+}
+
+// =====================================================================
+// SATSEN RØPER ORDNINGEN
+//
+// Robert, 2026-09-02: «nesten alle jobber to skift utenom butikksjefer».
+// Står `skiftordning` tomt på dem, gjør systemet to feil samtidig:
+//
+//   overtid       ukegrensen blir 37,5 i stedet for 35,5, og detektoren
+//                 UNDER-rapporterer — den retningen antakelsen aldri
+//                 skulle ta (se `overtid.ts`)
+//   tariff        satsen sammenlignes mot ordinærkolonnen, så en riktig
+//                 avlønnet 2-skift-ansatt ser ut som «over tariff»
+//
+// Men vi trenger ikke spørre: TIMESATSEN VET DET ALLEREDE. Ingen sats i
+// arket finnes i begge kolonnene, og nærmeste avstand mellom en ordinær
+// og en skiftsats er 4 øre. Treffer satsen bare i skiftkolonnen, går
+// personen to skift — uansett hva feltet sier.
+//
+// DEN PÅSTÅR IKKE NOE NÅR DEN IKKE VET. Ingen tarifftreff (lokal avtale,
+// sats som aldri ble justert) gir null. Treff i begge kolonnene ville
+// også gitt null — det finnes bare ikke i denne boka, og testen holder
+// den forutsetningen i live.
+// =====================================================================
+
+export type Skiftavvik = {
+  /** `ikke_satt`: feltet er tomt. `motsier`: feltet sier noe annet enn satsen. */
+  slag: 'ikke_satt' | 'motsier'
+  /** Ordningen satsen peker på. */
+  antydet: Skiftordning
+  registrert: Skiftordning | null
+  melding: string
+}
+
+/**
+ * Sier fra når timesatsen og den registrerte skiftordningen ikke henger sammen.
+ *
+ * Null når det ikke er noe å si: satsen stemmer med feltet, satsen finnes
+ * ikke i tariffen, eller den er tvetydig.
+ */
+export function vurderSkiftordning(
+  sats: number,
+  registrert: Skiftordning | null,
+  bok = TARIFF_2025_07,
+): Skiftavvik | null {
+  const treff = plasserSats(sats, bok)
+  if (treff.length === 0) return null
+
+  const ordninger = [...new Set(treff.map((t) => t.skift))]
+  // Tvetydig sats: da vet vi ikke, og da sier vi ingenting.
+  if (ordninger.length !== 1) return null
+
+  const antydet = ordninger[0]
+  if (registrert === antydet) return null
+
+  const navn = SKIFTNAVN[antydet]
+  return registrert === null
+    ? {
+        slag: 'ikke_satt', antydet, registrert,
+        // Norsk desimaltegn. `${TIMER_PER_UKE.ordinaer}` gir «37.5», og et
+        // punktum i en loennstekst leser som en skrivefeil.
+        melding: `Timesatsen er ${navn}-satsen, men arbeidstid er ikke satt. `
+          + `Overtidsgrensen regnes som ${SKIFTNAVN.ordinaer} til den er det.`,
+      }
+    : {
+        slag: 'motsier', antydet, registrert,
+        melding: `Timesatsen er ${navn}-satsen, men arbeidstid står som `
+          + `${SKIFTNAVN[registrert]}. Én av dem er feil.`,
+      }
 }
