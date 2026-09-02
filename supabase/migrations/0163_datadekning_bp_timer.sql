@@ -37,12 +37,13 @@
 -- nøyaktig feilen denne migrasjonen retter. Raden skal ikke finnes naar
 -- det ikke er noen timer aa vise til.
 --
--- GJENSTAAENDE, IKKE SKJULT: en kjede med den GAMLE malen for
--- INNEVAERENDE aar faar `timer_aar` fra delingsfila, men ingen
--- `bemanning_maned` - fordelingen etter BP-ens bruttokurve er ikke bygget
--- (se kommentaren i `lagreDelingsfil`). Etter denne migrasjonen SIER
--- lista fra om det: `bp_timer` staar groent mens `bemanning_maned` staar
--- ufullstendig. Foer sto begge groent.
+-- DE TO ER LIKEVEL IKKE SAMME SPOERSMAAL. `bp_timer` er aarsrammen,
+-- `bemanning_maned` er fordelingen paa maaneder. Da denne migrasjonen
+-- ble skrevet kunne den foerste finnes uten den andre - delingsfila
+-- skrev bare `timer_aar`. Det er lukket: `fordelFraDokument` i
+-- `import/kjerne.ts` fordeler naa fra `bp_linje`. Armene staar begge
+-- fordi de fortsatt kan svare ulikt: en BP uten timer gir maaneder uten
+-- aarsramme.
 --
 -- Taaler aa kjoeres om igjen: `create or replace view`.
 -- =====================================================================

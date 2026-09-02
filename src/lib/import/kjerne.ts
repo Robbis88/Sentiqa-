@@ -10,7 +10,8 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
-import { bpLinjer as byggLinjer } from '@/lib/bp/rader'
+import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
+import { bruttoKurve, timelonnKurve, maanedsrammer } from '@/lib/bp/fordeling'
 import { parseDelingsfil } from '@/lib/parsere/delingsfil'
 import { arknavn } from '@/lib/parsere/xlsx-rader'
 import { finnAaret } from '@/lib/bp/delingsfil-aar'
@@ -22,7 +23,6 @@ import {
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
-import { fordelPaaMaaneder } from '@/lib/bemanning'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
@@ -296,7 +296,7 @@ export async function behandleJobbKjerne(
       }
       case 'st1_delingsfil': {
         const r = parseDelingsfil(buffer)
-        res = await lagreDelingsfil(supabase, jobbId, r, oppslag.stasjoner)
+        res = await lagreDelingsfil(supabase, retailerId, jobbId, r, oppslag.stasjoner)
         break
       }
       default:
@@ -930,28 +930,28 @@ async function lagreBp(
 
     // Avlagt måned slår BP-en; åpne og framtidige måneder tar BP-tallet.
     const brutto = s.maaneder.map((m) => laast.get(`${stasjonId}|${m.maned}`) ?? m.bruttoKr)
-    const bruttoSum = brutto.reduce((a, b) => a + b, 0)
-    const timerPerMaaned = fordelPaaMaaneder(timerAar, brutto, {
+    // EN IMPLEMENTASJON, TO KALLSTEDER. Delingsfila fordeler det samme
+    // fra `bp_linje` (`fordelFraDokument`). Sto regnestykket begge
+    // steder, kunne de skli fra hverandre uten at noe sa fra.
+    const rammer = maanedsrammer(timerAar, brutto, {
       reservePst,
       sikkerhetPst: stasjonSikkerhet,
     })
 
     for (const m of s.maaneder) {
       const erLaast = laast.has(`${stasjonId}|${m.maned}`)
-      const bruttoMnd = brutto[m.maned - 1]
-      // Rå månedsramme før fradrag — det retailer ser.
-      const andel = bruttoSum > 0 ? bruttoMnd / bruttoSum : 1 / 12
+      const ramme = rammer[m.maned - 1]
       if (harTimebudsjett) budsjettRader.push({
         stasjon_id: stasjonId, ar, maned: m.maned,
-        timer: timerAar * andel,
+        timer: ramme.timer,
         lonn_kr: m.timelonnKr,
-        brutto_bp_kr: bruttoMnd,
+        brutto_bp_kr: ramme.brutto_bp_kr,
         reserve_pst: reservePst,
         oppdatert_tid: new Date().toISOString(),
       })
       if (harTimebudsjett) manedRader.push({
         stasjon_id: stasjonId, ar, maned: m.maned,
-        disponible_timer: Math.max(0, timerPerMaaned[m.maned - 1]),
+        disponible_timer: ramme.disponible_timer,
         beregnet_tid: new Date().toISOString(),
       })
 
@@ -1111,6 +1111,7 @@ function arkhint(buffer: Buffer): string {
 
 async function lagreDelingsfil(
   supabase: Klient,
+  retailerId: string,
   jobbId: string,
   r: ReturnType<typeof parseDelingsfil>,
   stasjoner: { id: string; navn: string; butikknummer: string }[],
@@ -1134,15 +1135,14 @@ async function lagreDelingsfil(
   // dokument; en delingsfil uten en BP aa henge paa er en fil vi ikke kan
   // plassere, og en tom rad ville vaert en oppfinnelse.
   //
-  // OG BARE DIT. `bemanning_aar` roeres ikke, og det er en bevisst grense:
-  // planleggeren trenger ogsaa `bemanning_budsjett` og `bemanning_maned`,
-  // som fordeles etter BP-ens bruttokurve - en `timer_aar` alene ville
-  // gitt en aarsramme uten maaneder, som ser komplett ut og ikke er det.
+  // OG SAA FORDELES DE. En `timer_aar` alene gir en aarsramme uten
+  // maaneder - den ser komplett ut og er det ikke, og planleggeren leser
+  // `bemanning_maned`, ikke `bp_aar`.
   //
-  // For Kelsar er det uten betydning: 2025 er avsluttet, og 2026 er i det
-  // nye formatet som baerer timene selv. En kjede med den GAMLE malen for
-  // INNEVAERENDE aar ville derimot staa uten timer i planleggeren - da maa
-  // fordelingen kjoeres, ikke bare aarsrammen skrives. Ikke bygget.
+  // Fordelingen sto lenge igjen som en bevisst grense: for Kelsar er den
+  // uten betydning (2025 er avsluttet, 2026 er BP26 og baerer timene
+  // selv). En kjede med den GAMLE malen for INNEVAERENDE aar sto derimot
+  // uten timer i planleggeren. `fordelFraDokument` under lukker det.
   const { data: aargangene, error: les } = await supabase
     .from('bp_aar').select('id, stasjon_id').eq('ar', ar)
   if (les) throw new ParserFeil(`Delingsfil: kunne ikke lese BP ${ar}: ${les.message}`)
@@ -1154,6 +1154,8 @@ async function lagreDelingsfil(
   const naa = new Date().toISOString()
   let skrevet = 0
   const utenAargang: string[] = []
+  // Stasjonene timene faktisk ble skrevet paa - de og bare de skal fordeles.
+  const rortAargang = new Set<string>()
   for (const s of r.stasjoner) {
     const stasjonId = kobling.get(s.butikknavn.trim().toLowerCase())
     if (!stasjonId) continue
@@ -1164,6 +1166,7 @@ async function lagreDelingsfil(
       .update({ timer_aar: s.timebudsjett, oppdatert_tid: naa, kilde_jobb_id: jobbId })
       .eq('id', radId)
     if (error) throw new ParserFeil(`Delingsfil: kunne ikke skrive timer: ${error.message}`)
+    rortAargang.add(stasjonId)
     skrevet++
   }
 
@@ -1182,7 +1185,144 @@ async function lagreDelingsfil(
   //
   // `utenAargang` er derimot handlingsdyktig: stasjonen ER vaar, men det
   // finnes ingen BP for det aaret aa skrive timene paa.
-  return { antallRader: skrevet, umatchet: utenAargang }
+  const fordelt = await fordelFraDokument(supabase, retailerId, jobbId, ar, [...rortAargang])
+  return { antallRader: skrevet + fordelt, umatchet: utenAargang }
+}
+
+// ---------------------------------------------------------------------
+// FORDELER AARSRAMMEN PAA MAANEDER, UT FRA DOKUMENTET I STEDET FOR FILA
+//
+// `lagreBp` gjoer det samme mens den har fila i haanden. Delingsfila
+// kommer etterpaa og har ingen fil - bare et aarstall og et timebudsjett
+// - saa kurven maa komme fra `bp_linje`, som er dokumentet slik fila var.
+//
+// SAMME TALL BEGGE VEIER er hele forutsetningen, og den er ikke antatt:
+// `src/lib/bp/fordeling.test.ts` beviser at `bruttoKurve(bpLinjer(s))` er
+// identisk med `s.maaneder.map(m => m.bruttoKr)`. Driver de fra
+// hverandre, faller den testen - ikke en bruker.
+//
+// MAANEDSLAASEN LESES LIKT. En avlagt maaned baerer sitt eget budsjett i
+// regnskapet, og det er det kjeden maaler mot; BP-ens tall for den
+// maaneden er historikk. Samme spoerring som i `lagreBp`.
+//
+// Skriver BARE bemanningstabellene. `bp_*`-linjene i regnskapslinjer
+// hoerer til BP-importen og roeres ikke: delingsfila sier noe om timer,
+// ingenting om omsetning.
+// ---------------------------------------------------------------------
+async function fordelFraDokument(
+  supabase: Klient,
+  retailerId: string,
+  jobbId: string,
+  ar: number,
+  stasjonIder: string[],
+): Promise<number> {
+  if (stasjonIder.length === 0) return 0
+
+  const { data: aargangene } = await supabase
+    .from('bp_aar')
+    .select('id, stasjon_id, timer_aar')
+    .eq('ar', ar)
+    .in('stasjon_id', stasjonIder)
+  const medTimer = ((aargangene ?? []) as {
+    id: string; stasjon_id: string; timer_aar: number | null
+  }[]).filter((a) => a.timer_aar !== null)
+  if (medTimer.length === 0) return 0
+
+  const { data: linjer } = await supabase
+    .from('bp_linje')
+    .select('bp_aar_id, maned, seksjon, kode, post, belop_kr')
+    .in('bp_aar_id', medTimer.map((a) => a.id))
+  const perAargang = new Map<string, Bplinje[]>()
+  for (const l of (linjer ?? []) as ({ bp_aar_id: string } & Bplinje)[]) {
+    const liste = perAargang.get(l.bp_aar_id) ?? []
+    liste.push(l)
+    perAargang.set(l.bp_aar_id, liste)
+  }
+
+  // Laaste maaneder - identisk spoerring med `lagreBp`.
+  const { data: avlagt } = await supabase
+    .from('regnskapslinjer')
+    .select('stasjon_id, periode, kode, budsjett')
+    .eq('retailer_id', retailerId)
+    .eq('seksjon', 'bruttofortjeneste')
+    .is('slettet_tid', null)
+    .not('stasjon_id', 'is', null)
+    .gte('periode', `${ar}-01-01`)
+    .lte('periode', `${ar}-12-01`)
+  const laast = new Map<string, number>()
+  for (const rad of (avlagt ?? []) as {
+    stasjon_id: string; periode: string; kode: string | null; budsjett: number | null
+  }[]) {
+    if ((rad.kode ?? '') === '40') continue // CR-rollup, ville dublert kategoriene
+    const n = `${rad.stasjon_id}|${Number.parseInt(rad.periode.slice(5, 7), 10)}`
+    laast.set(n, (laast.get(n) ?? 0) + (rad.budsjett ?? 0))
+  }
+
+  const { data: ret } = await supabase
+    .from('retailers').select('bemanning_sikkerhet_pst').eq('id', retailerId).single()
+  const sikkerhetPst = (ret as { bemanning_sikkerhet_pst: number } | null)?.bemanning_sikkerhet_pst ?? 3
+  const sykesats = await sykefravaerssats(supabase, retailerId)
+
+  // Bevar det som er satt manuelt - samme regel som i `lagreBp`.
+  const { data: eksisterende } = await supabase
+    .from('bemanning_aar')
+    .select('stasjon_id, sikkerhet_pst, fast_arsverk_timer')
+    .eq('ar', ar)
+    .in('stasjon_id', medTimer.map((a) => a.stasjon_id))
+  const fraFor = new Map(((eksisterende ?? []) as {
+    stasjon_id: string; sikkerhet_pst: number | null; fast_arsverk_timer: number
+  }[]).map((e) => [e.stasjon_id, e]))
+
+  const naa = new Date().toISOString()
+  const aarRader: Record<string, unknown>[] = []
+  const budsjettRader: Record<string, unknown>[] = []
+  const manedRader: Record<string, unknown>[] = []
+
+  for (const a of medTimer) {
+    const mine = perAargang.get(a.id) ?? []
+    const timerAar = a.timer_aar as number
+    const gammel = fraFor.get(a.stasjon_id)
+    const stasjonSikkerhet = gammel?.sikkerhet_pst ?? sikkerhetPst
+
+    // Avlagt maaned slaar BP-en; aapne og framtidige tar BP-tallet.
+    const fraDok = bruttoKurve(mine)
+    const brutto = fraDok.map((b, i) => laast.get(`${a.stasjon_id}|${i + 1}`) ?? b)
+    const lonn = timelonnKurve(mine)
+    const rammer = maanedsrammer(timerAar, brutto, {
+      reservePst: sykesats,
+      sikkerhetPst: stasjonSikkerhet,
+    })
+
+    aarRader.push({
+      stasjon_id: a.stasjon_id, ar,
+      timer_aar: timerAar,
+      fast_arsverk_timer: gammel?.fast_arsverk_timer ?? 0,
+      reserve_pst: sykesats,
+      sikkerhet_pst: stasjonSikkerhet,
+      kilde: `delingsfil ${jobbId}`,
+      oppdatert_tid: naa,
+    })
+    for (const ramme of rammer) {
+      budsjettRader.push({
+        stasjon_id: a.stasjon_id, ar, maned: ramme.maned,
+        timer: ramme.timer,
+        lonn_kr: lonn[ramme.maned - 1],
+        brutto_bp_kr: ramme.brutto_bp_kr,
+        reserve_pst: sykesats,
+        oppdatert_tid: naa,
+      })
+      manedRader.push({
+        stasjon_id: a.stasjon_id, ar, maned: ramme.maned,
+        disponible_timer: ramme.disponible_timer,
+        beregnet_tid: naa,
+      })
+    }
+  }
+
+  await skrivBatch(supabase, 'bemanning_aar', aarRader, 'stasjon_id,ar')
+  await skrivBatch(supabase, 'bemanning_budsjett', budsjettRader, 'stasjon_id,ar,maned')
+  await skrivBatch(supabase, 'bemanning_maned', manedRader, 'stasjon_id,ar,maned')
+  return aarRader.length + budsjettRader.length + manedRader.length
 }
 
 
