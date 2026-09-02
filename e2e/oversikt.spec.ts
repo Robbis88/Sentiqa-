@@ -178,7 +178,11 @@ test.describe('/oversikt for butikksjefen', () => {
     // bare er skjult, er det levert til nettleseren og lesbart - og en
     // paastand som ikke ser det, lover mer enn den holder.
     const kropp = page.locator('body')
-    await expect(kropp, 'Fant ikke sida').toContainText('Dine fokuspunkter')
+    // «Fremover» og ikke «Dine fokuspunkter»: det siste rendres BARE naar
+    // det finnes fokuspunkter, saa det var en markoer som kunne mangle av
+    // helt normale grunner. «Fremover»-seksjonen staar ogsaa naar den er
+    // tom - og den er butikksjefens, som testen under bygger paa.
+    await expect(kropp, 'Fant ikke butikksjefens bilde').toContainText('Fremover')
     for (const eiers of ['Stasjonene mot hverandre', 'Mot budsjett denne måneden', 'Stasjonsrangering']) {
       await expect(kropp, `Butikksjefen fikk eierens «${eiers}»`).not.toContainText(eiers)
     }
