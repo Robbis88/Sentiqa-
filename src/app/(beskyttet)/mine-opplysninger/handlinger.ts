@@ -4,6 +4,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { KONTROLLTILTAK_VERSJON } from '@/lib/personvern/kontrolltiltak'
 import { DUBLETT } from '@/lib/db-koder'
+import { skrivBekreftelse } from '@/lib/personvern/bekreftelse'
 
 export type Tilstand = { ok?: string; feil?: string } | undefined
 
@@ -37,11 +38,33 @@ export async function bekreftLest(_t: Tilstand, _fd: FormData): Promise<Tilstand
       .maybeSingle<{ stasjon_id: string }>()
     : { data: null }
 
+  // TO VEIER, FORDI DE TO IDENTITETENE ER ULIKE (0168).
+  //
+  // Nettbrettet skrev foer sin rad gjennom RLS, og policyen tillot da
+  // `ansatt_id` for HVILKEN SOM HELST ansatt paa stasjonen - appen
+  // skriver alltid kapselens egen id, men RLS avgjoer hva som ER mulig.
+  // En § 9-2-bekreftelse er dokumentasjon paa at en navngitt person er
+  // informert; skrives den for feil person, dokumenterer den noe som
+  // ikke har skjedd.
+  //
+  // En RPC loeser det ikke: den ser like lite av vaktkapselen som RLS.
+  // Serveren ser den - `lesAktivAnsatt` har signatur OG oppslag gjennom
+  // nettbrettets egen RLS - saa raden skrives der, med den identiteten.
+  if (ansatt) {
+    const svar = await skrivBekreftelse(
+      ansatt, bruker.retailerId, rad?.stasjon_id ?? null, KONTROLLTILTAK_VERSJON,
+    )
+    if (svar.slag === 'feil') return { feil: svar.melding }
+    return { ok: svar.slag === 'fantes' ? 'Du har bekreftet denne versjonen fra før' : 'Takk — registrert' }
+  }
+
+  // Den innloggede skriver som seg selv, gjennom RLS. `kontrolltiltak_ins`
+  // krever naa `bruker_id = auth.uid()` og lederrolle - hun er begge.
   const { error } = await supabase.from('kontrolltiltak_bekreftelse').insert({
     retailer_id: bruker.retailerId,
-    stasjon_id: rad?.stasjon_id ?? null,
-    ansatt_id: ansatt?.id ?? null,
-    bruker_id: ansatt ? null : bruker.id,
+    stasjon_id: null,
+    ansatt_id: null,
+    bruker_id: bruker.id,
     versjon: KONTROLLTILTAK_VERSJON,
   })
 

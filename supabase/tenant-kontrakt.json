@@ -913,7 +913,7 @@
     },
     {
       "tabell": "kontrolltiltak_bekreftelse",
-      "$hvorfor": "Dokumentasjon paa at informasjonsplikten om kontrolltiltak (aml. par. 9-2) er oppfylt - IKKE et samtykke. NULL STASJON ER KJEDENS: en rad uten stasjon er lederens egen bekreftelse, bundet til egen retailer og aldri global (0147). RADEN TILHOERER DEN SOM BEKREFTET: 0145 bandt bruker_id til den innloggede, stasjon_id til en stasjon vedkommende naar, og ansatt_id til en ansatt paa en slik stasjon. Foer det sjekket innsettingspolicyen bare retailer_id. TO IDENTITETER MED VILJE: butikksjefen bekrefter som seg selv (bruker_id), nettbrettet bekrefter som PERSONEN paa vakt (ansatt_id, bruker_id null). Derfor er bruker_id 'null ELLER den innloggede' - kravde policyen auth.uid() ubetinget, ville den unike indeksen (bruker_id, versjon) latt bare den foerste ansatte paa hvert nettbrett bekrefte. Ingen update- eller delete-policy og bare `grant select, insert`: en bekreftelse skal staa. Alle fire operasjonene staar her slik at matrisen BEVISER at raden ikke kan flyttes.",
+      "$hvorfor": "Dokumentasjon paa at informasjonsplikten om kontrolltiltak (aml. par. 9-2) er oppfylt - IKKE et samtykke. NULL STASJON ER KJEDENS: en rad uten stasjon er lederens egen bekreftelse, bundet til egen retailer og aldri global (0147). RADEN TILHOERER DEN SOM BEKREFTET: 0145 bandt bruker_id til den innloggede, stasjon_id til en stasjon vedkommende naar, og ansatt_id til en ansatt paa en slik stasjon. Foer det sjekket innsettingspolicyen bare retailer_id. TO IDENTITETER MED VILJE: butikksjefen bekrefter som seg selv (bruker_id), nettbrettet bekrefter som PERSONEN paa vakt (ansatt_id, bruker_id null). Derfor er bruker_id 'null ELLER den innloggede' - kravde policyen auth.uid() ubetinget, ville den unike indeksen (bruker_id, versjon) latt bare den foerste ansatte paa hvert nettbrett bekrefte. Ingen update- eller delete-policy og bare `grant select, insert`: en bekreftelse skal staa. Alle fire operasjonene staar her slik at matrisen BEVISER at raden ikke kan flyttes. Nettbrettets bekreftelse skrives SERVERSIDE med identiteten fra lesAktivAnsatt (0168) - RLS kan ikke se vaktkapselen, saa policyen tillot foer en bekreftelse for hvilken som helst ansatt paa stasjonen.",
       "$tre_identiteter": "Nettbrettet kan ikke lese sin egen bekreftelse. Den delte kontoen bekrefter som ANSATT (ansatt_id, via PIN), mens egen-grenen i policyen matcher paa bruker_id. To av de tre identitetene i systemet moetes ikke her. Se [[sentiqa-tre-identiteter]].",
       "tenant_scope": "retailer_or_station",
       "data_class": "warm",
@@ -923,9 +923,7 @@
         "update",
         "delete"
       ],
-      "tablet": {
-        "insert": "own_station"
-      },
+      "tablet": "none",
       "manager": {
         "select": "assigned_stations",
         "insert": "assigned_stations"
