@@ -90,17 +90,33 @@ test.describe('kontrollrader staar paa linje', () => {
     const kolonner = rad.locator('.pp-regel')
     await expect(kolonner, 'Raden har ikke to regelkolonner aa sammenligne').toHaveCount(2)
 
-    const a = await boks(kolonner.nth(0), 'Foerste regelkolonne')
-    const b = await boks(kolonner.nth(1), 'Andre regelkolonne')
+    // KANARIFUGL. Justeringen er bare et sporsmaal saa lenge de to
+    // hjelpetekstene tar ULIKT antall linjer - det er den brutte teksten
+    // under «Margin over forslaget» som skaper hele saken. Tar de like
+    // mange, gir start, senter og bunn samme svar, og testen bestaar uten
+    // aa maale noe. Da skal den si fra, ikke sove.
+    //
+    // MAALES SOM LINJEBOKSER, IKKE SOM HOEYDE. Foerste utgave sammenlignet
+    // kolonnenes hoeyde, og det var aa gjoere et SYMPTOM paa feilen til
+    // beviset paa at testen maaler: under den gamle flex-raden var
+    // kolonnene ulike hoeye nettopp fordi justeringen var feil. Med
+    // subgrid spenner begge over de samme tre radene og er like hoeye ved
+    // konstruksjon - kanarifuglen slo ut paa selve rettingen. Et Range
+    // over tekstinnholdet gir en rect per linjeboks, og det tallet er det
+    // samme uansett hvordan kolonnen er lagt ut.
+    const linjer = (k: Locator) =>
+      k.locator('> span:last-child').evaluate((e) => {
+        const r = document.createRange()
+        r.selectNodeContents(e)
+        return r.getClientRects().length
+      })
 
-    // KANARIFUGL. Justeringen er bare et sporsmaal saa lenge kolonnene er
-    // ULIKE hoeye - det er den brutte hjelpeteksten som skaper hele
-    // saken. Blir de like hoeye, gir start, senter og bunn samme svar, og
-    // testen bestaar uten aa maale noe. Da skal den si fra, ikke sove.
+    const [l0, l1] = [await linjer(kolonner.nth(0)), await linjer(kolonner.nth(1))]
+    expect(l0, 'Foerste hjelpetekst har ingen linjer - da staar det ingen tekst der').toBeGreaterThan(0)
     expect(
-      Math.abs(a.height - b.height),
-      'Kolonnene er like hoeye - da kan ikke denne testen skille riktig justering fra feil',
-    ).toBeGreaterThan(SLINGRING)
+      l1,
+      `Hjelpetekstene tar like mange linjer (${l0}) - da kan ikke denne testen skille riktig justering fra feil`,
+    ).not.toBe(l0)
 
     const etiketter = kolonner.locator('> span:first-child')
     const felt = rad.locator('.pp-regel-inn input')
