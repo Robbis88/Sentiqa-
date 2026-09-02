@@ -11,6 +11,15 @@ const alt = (stasjoner: number, dager: number) => KILDER.map((k) => m(k.noekkel,
 // fra 365 til 730 dager, uten at noe var galt med det de maalte.
 const RIKELIG = Math.max(...KILDER.map((k) => k.anbefaltDager)) + 1
 
+// Alt på plass, UNNTATT de nøklene som nevnes.
+//
+// Fiksturene ramset før opp kildene de ville ha på plass, og ble derfor
+// ufullstendige hver gang lista vokste: da `bp_timer` kom til, var den
+// plutselig et kritisk manglende steg i en test som handlet om noe helt
+// annet, og testen falt uten at noe var galt. Nevn det du vil MANGLE.
+const altUnntatt = (...utelatt: string[]) =>
+  KILDER.filter((k) => !utelatt.includes(k.noekkel)).map((k) => m(k.noekkel, 5, RIKELIG))
+
 describe('onboardingsteg', () => {
   test('en ny retailer mangler alt, og får vite hvor filene hentes', () => {
     const s = onboardingsteg([], 5)
@@ -45,14 +54,14 @@ describe('nesteSteg', () => {
   test('peker på det kritiske før det pene', () => {
     // Stemplinger mangler helt, men salgsstatistikk er tynn — og
     // salgsstatistikken bærer alt annet.
-    const s = onboardingsteg([m('st1_salgsstatistikk', 5, 30), m('timesalg', 5, 400),
-      m('bemanning_maned', 5, 0), m('regnskapslinjer', 5, 0)], 5)
+    const s = onboardingsteg(
+      [...altUnntatt('stempling', 'st1_salgsstatistikk'), m('st1_salgsstatistikk', 5, 30)], 5)
     expect(nesteSteg(s)!.noekkel).toBe('st1_salgsstatistikk')
   })
 
   test('helt manglende går foran tynt, når begge er kritiske', () => {
-    const s = onboardingsteg([m('st1_salgsstatistikk', 5, 400), m('timesalg', 0, 0),
-      m('bemanning_maned', 5, 0)], 5)
+    const s = onboardingsteg(
+      [...altUnntatt('timesalg', 'st1_salgsstatistikk'), m('st1_salgsstatistikk', 5, 30)], 5)
     expect(nesteSteg(s)!.noekkel).toBe('timesalg')
   })
 
