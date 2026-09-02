@@ -56,6 +56,7 @@ const LONNSARTNAVN: Record<string, string> = {
 import { Maanedsvelger } from '@/components/ui/periode'
 import { lesMaaned, maanedNokkel, delMaaned, maanederRundt } from '@/lib/periode'
 import { Sideramme } from '@/components/ui/sideramme'
+import { SkiftFraSats } from './skift-knapp'
 
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string }>
 
@@ -195,6 +196,13 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
 
   // Fastlønnede og tilkallingsvikarer skal ikke i fila. Det var hele
   // avviket på Bønes i mai: 191,68 timer, butikksjefen og Carmen.
+  // Hvor mange satsen peker entydig paa, men feltet staar tomt for. Bare
+  // `ikke_satt` — en MOTSIGELSE maa et menneske avgjoere, og telles ikke
+  // med i noe som kan settes med ett trykk.
+  const utenArbeidstid = [...avtale.values()].filter((a) =>
+    a.timesats != null
+    && vurderSkiftordning(Number(a.timesats), a.skiftordning ?? null)?.slag === 'ikke_satt').length
+
   const fordeling = delEtterLonnsform(
     linjer,
     new Map([...avtale].map(([nr, a]) => [nr, a.lonnsform ?? null])),
@@ -668,6 +676,12 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
               Den står her for å <strong>oppdage</strong> avvik, og kan derfor rettes
               når som helst — etter et oppgjør, eller når noen har skrevet feil.
             </p>
+            {/* SYSTEMET GJØR TASTINGEN, IKKE BESLUTNINGEN. Satsen peker
+                entydig på ordningen, men skiftordning er avtalefestet og
+                bestemmer overtidsgrensen — utledet automatisk ville en
+                feilført sats avgjort når overtid slår inn. Navnene står i
+                tabellen under, så den som trykker har sett hvem det gjelder. */}
+            <SkiftFraSats stasjonId={valgt.id} antall={utenArbeidstid} />
             <div className="tabellramme">
               <table className="tabell">
                 <thead>
