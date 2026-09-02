@@ -56,7 +56,11 @@ export function AnsattkortSkjema({ stasjonId, kort }: { stasjonId: string; kort:
           <select name="skiftordning" defaultValue={kort.skiftordning ?? ''}>
             <option value="">Ikke satt</option>
             <option value="ordinaer">37,5 t/uke</option>
+            {/* Alle fire fra § 2.7.1.1. `to_skift` er det gamle navnet paa
+                35,5-ordningen og beholdes fordi det staar i basen. */}
+            <option value="skift_36_5">36,5 t/uke (2-dagskift uten lørdag aften)</option>
             <option value="to_skift">35,5 t/uke (to skift)</option>
+            <option value="skift_33_5">33,5 t/uke</option>
           </select>
         </label>
         <label className="felt sq-smalt">

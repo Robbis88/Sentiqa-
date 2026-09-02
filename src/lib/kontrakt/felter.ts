@@ -1,3 +1,4 @@
+import type { Skiftordning } from '@/lib/lonn/tariff'
 // =====================================================================
 // Hvilke felt fylles av systemet, og hvilke må noen svare på?
 //
@@ -111,7 +112,7 @@ export type Grunnlag = {
     fodselsdato: string | null
     stillingsprosent: number | null
     timesats: number | null
-    skiftordning: 'ordinaer' | 'to_skift' | null
+    skiftordning: Skiftordning | null
   }
   svar: Record<string, string>
 }

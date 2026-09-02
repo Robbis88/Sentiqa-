@@ -35,6 +35,28 @@ import { TIMER_PER_UKE, type Skiftordning } from './tariff'
 // og derfor er det verdt å si fra om en uke som såvidt bikker.
 // =====================================================================
 
+// -------------------------------------------------------------------
+// FOER NOEN BYGGER BEREGNINGEN: EN TOLKNING MAA AVKLARES FOERST
+//
+// Energistasjonsoverenskomsten gir satsene - 50 % kl. 06-21 paa
+// virkedager (§ 3.1), 100 % kl. 21-06 og paa soen- og helligdager etter
+// ordinaer arbeidstids slutt (§ 3.3) - men to bestemmelser om KOMBINASJON
+// peker mot hverandre:
+//
+//   § 2.6.2  ikke ubekvemstillegg for timer det betales overtid for
+//   § 3.9    ikke overtidstillegg for timer som etter § 2.6.1 er
+//            ubekvem arbeidstid
+//
+// En overtidstime kl. 22 paa en onsdag: § 3.3 sier 100 %, § 2.6.1 sier
+// kr 22, § 2.6.2 sier at kronene faller bort, § 3.9 sier at prosentene
+// gjoer det. Hver av dem peker paa den andre.
+//
+// Det avgjoer hva ENHVER kvelds- og natteovertidstime koster, og det kan
+// ikke leses ut av teksten alene. Stilt som spoersmaal til loenn
+// 2026-09-02. Ikke gjett - denne modulen finner timene, den priser dem
+// ikke.
+// -------------------------------------------------------------------
+
 /** Alminnelig arbeidstid per dag, aml. § 10-4 (1). */
 export const TIMER_PER_DAG = 9
 
