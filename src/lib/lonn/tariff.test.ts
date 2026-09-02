@@ -66,6 +66,44 @@ describe('ledende personell er et GULV, ikke en egen skala (§ 19.2)', () => {
     }
   })
 
+  test('KANARIFUGL: skiftkolonnen er LEST, ikke regnet ut', () => {
+    // DETTE ER FEILEN SOM FAKTISK SKJEDDE. Foerste utgave avledet gruppe I
+    // helt: butikk + kr 5, og skiftkolonnen omregnet med x 37,5/35,5.
+    // Ordinaerkolonnen ble riktig paa alle sju trinn. Skiftkolonnen laa
+    // ett oere for hoeyt paa trinn 0, 3 og 6.
+    //
+    // Grunnen staar i arket: det har BEGGE ordinaervariantene (185,58 paa
+    // trinn 0, 185,57 paa trinn 1), og skiftkolonnen er regnet fra
+    // `.57`-varianten — derfor er den lik for de to trinnene. En formel
+    // som starter fra `.58` gir ett oere mer.
+    //
+    // Tallene her er skrevet av fra «Tariffoppgjoer 2025». Endres de,
+    // skal noen ha arket i haanden.
+    const fasit: Record<number, number> = {
+      0: 201.31, 1: 201.31, 2: 204.48, 3: 207.64, 4: 210.81, 5: 217.15, 6: 260.46,
+    }
+    for (const [ans, kr] of Object.entries(fasit)) {
+      expect(ledende[Number(ans)].to_skift, `ledende trinn ${ans}`).toBe(kr)
+    }
+    // Og beviset paa at den IKKE kan avledes: tre av dem ville faatt ett
+    // oere for mye. Slutter det aa vaere sant, er arket endret.
+    const avvikere = Object.keys(fasit)
+      .filter((a) => omregnet(ledende[Number(a)].ordinaer, 'to_skift') !== fasit[Number(a)])
+    expect(avvikere.sort(), 'avledningen stemmer plutselig - er arket byttet?')
+      .toEqual(['0', '3', '6'])
+  })
+
+  test('KANARIFUGL: butikkens skiftkolonne lar seg heller ikke regne ut', () => {
+    // Samme form, samme tre trinn. Uten denne kunne noen «rydde opp» ved
+    // aa avlede hele tabellen, og tallene ville flyttet seg ett oere paa
+    // satser folk faktisk faar utbetalt.
+    const b = TARIFF_2025_07.satser.II_butikk
+    expect(b[0].to_skift).toBe(196.02)
+    expect(omregnet(b[0].ordinaer, 'to_skift')).not.toBe(b[0].to_skift)
+    expect(b[6].to_skift).toBe(255.18)
+    expect(b[1].to_skift, 'trinn 0 og 1 deler skiftsats i arket').toBe(b[0].to_skift)
+  })
+
   test('KANARIFUGL: ingen ledende sats ligger under gulvet', () => {
     // Regelen er «minst». Faller en verdi under, er den ulovlig - og det
     // er nettopp det 190,52 var.
