@@ -3,6 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
 import { KONTROLLTILTAK_VERSJON } from '@/lib/personvern/kontrolltiltak'
+import { DUBLETT } from '@/lib/db-koder'
 
 export type Tilstand = { ok?: string; feil?: string } | undefined
 
@@ -43,8 +44,28 @@ export async function bekreftLest(_t: Tilstand, _fd: FormData): Promise<Tilstand
     bruker_id: ansatt ? null : bruker.id,
     versjon: KONTROLLTILTAK_VERSJON,
   })
-  // Har hun bekreftet før, finnes raden allerede. Det er ikke en feil.
-  if (error && !error.message.includes('duplicate')) return { feil: error.message }
+
+  // EN KVITTERING SKAL SI HVA SOM FAKTISK SKJEDDE.
+  //
+  // Har hun bekreftet før, finnes raden alt — de unike indeksene i `0103`
+  // er `(ansatt_id, versjon)` og `(bruker_id, versjon)`. Det er ikke en
+  // feil, men det er heller ikke en ny registrering, og «Takk —
+  // registrert» var derfor et svar systemet ikke hadde dekning for.
+  //
+  // Det er ikke en teoretisk forskjell på nettbrettet: lesepolicyen i
+  // `0147` slipper ikke nettbrettet til på sine egne rader (den matcher
+  // `bruker_id`, nettbrettet skriver `ansatt_id`), så siden spør HVER
+  // gang — og fikk «registrert» hver gang uten at noe ble skrevet.
+  //
+  // KODEN, IKKE MELDINGSTEKSTEN. `error.message.includes('duplicate')`
+  // sto her, og den er engelsk PostgREST-prosa som kan endres uten
+  // varsel. Blir den det, får den ansatte en rå databasefeil i ansiktet
+  // på en helt normal handling. `23505` er unique_violation i Postgres og
+  // endrer seg ikke.
+  if (error) {
+    if (error.code !== DUBLETT) return { feil: error.message }
+    return { ok: 'Du har bekreftet denne versjonen fra før' }
+  }
 
   return { ok: 'Takk — registrert' }
 }
