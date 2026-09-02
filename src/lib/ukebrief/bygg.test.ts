@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { describe, it, expect } from 'vitest'
-import { byggUkebrief, velgHandlinger, ukenummer, MAKS_HANDLINGER, MAKS_PER_BOLK } from './bygg'
+import { byggUkebrief, velgHandlinger, ukenummer, sisteHeleUke, MAKS_HANDLINGER, MAKS_PER_BOLK } from './bygg'
 import type { Rangert, Ukedata } from './type'
 
 function ukedata(over: Partial<Ukedata> = {}): Ukedata {
@@ -41,6 +41,30 @@ describe('ukenummer', () => {
   it('følger torsdagsregelen', () => {
     expect(ukenummer('2025-12-29')).toBe(1)
     expect(ukenummer('2026-08-24')).toBe(35)
+  })
+})
+
+describe('sisteHeleUke', () => {
+  // Uke 35 er 24.-30. august 2026, uke 36 er 31.08.-06.09.
+  const uker = ['2026-08-31', '2026-08-24', '2026-08-17']
+
+  it('tar uken som er ferdig, ikke den som er nest nyest', () => {
+    // Onsdag i uke 36: uke 36 loeper fortsatt, uke 35 er ferdig.
+    expect(sisteHeleUke(uker, '2026-09-02')).toBe('2026-08-24')
+  })
+
+  // REGRESJONEN. Stopper importen paa en soendag, er den NYESTE uken
+  // komplett - og «nest nyeste» hoppet da en uke for langt tilbake.
+  it('tar den nyeste naar den nyeste allerede er ferdig', () => {
+    expect(sisteHeleUke(['2026-08-24', '2026-08-17'], '2026-09-02')).toBe('2026-08-24')
+  })
+
+  it('faller tilbake paa den nyeste naar ingen uke er ferdig', () => {
+    expect(sisteHeleUke(['2026-08-31'], '2026-09-02')).toBe('2026-08-31')
+  })
+
+  it('gir null uten uker i det hele tatt', () => {
+    expect(sisteHeleUke([], '2026-09-02')).toBeNull()
   })
 })
 

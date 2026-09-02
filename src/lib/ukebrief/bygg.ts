@@ -51,6 +51,28 @@ export function ukenummer(isoMandag: string): number {
   return Math.round((torsdag.getTime() - nyttar.getTime()) / 86400000 / 7) + 1
 }
 
+/**
+ * Uken briefen skal handle om: den siste som er HELT FERDIG.
+ *
+ * Første utgave tok «nest nyeste uke med data», som er riktig bare når
+ * den nyeste er halv. Stopper importen på en søndag, er den nyeste uken
+ * allerede komplett — og da hoppet forvalget en uke for langt tilbake og
+ * viste uke 34 når uke 35 var ferdig og full av tall.
+ *
+ * Regelen er kalenderen, ikke posisjonen i lista: ta den nyeste uken hvis
+ * søndag har passert. `mandager` er nyeste først.
+ */
+export function sisteHeleUke(mandager: string[], idag: string): string | null {
+  for (const m of mandager) {
+    const sondag = new Date(`${m}T12:00:00Z`)
+    sondag.setUTCDate(sondag.getUTCDate() + 6)
+    if (sondag.toISOString().slice(0, 10) < idag) return m
+  }
+  // Bare halve uker å velge mellom — da er den nyeste det ærligste vi har,
+  // og `hull` forteller leseren at dagene mangler.
+  return mandager[0] ?? null
+}
+
 // --- Signalkildene ---------------------------------------------------
 
 function salgssignaler(d: Ukedata): Briefsignal[] {
