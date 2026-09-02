@@ -261,7 +261,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         })}
       </div>
 
-      <RegnskapVarsler varsler={visVarsler} />
+      <RegnskapVarsler varsler={visVarsler} aar={aktivPeriode.slice(0, 4)} />
 
       <Forklaring sporsmaal="Hvordan er tallene regnet ut?">
         <p>

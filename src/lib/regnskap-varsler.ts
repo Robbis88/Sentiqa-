@@ -23,7 +23,7 @@ import { TERSKLER } from './regnskap/terskler'
 const T = TERSKLER
 
 type Linje = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
-type Svinn = { stasjon_id: string | null; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null; kast: number | null }
+type Svinn = { stasjon_id: string | null; kode: string | null; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null; kast: number | null }
 
 const kr0 = (n: number) => `${Math.round(n).toLocaleString('nb-NO')} kr`
 const pst1 = (n: number) => `${n.toFixed(1)} %`
@@ -31,6 +31,71 @@ const pst1 = (n: number) => `${n.toFixed(1)} %`
 // Vurderingen er HITTIL I ÅR (ny start hvert år): summen jan→valgt periode, slik
 // at en enkelt minus-måned som netter ut over året ikke flagges. Status (rød/
 // gul/grønn) skal speile den røde tråden — ikke en tilfeldig måned.
+// =====================================================================
+// VAREGRUPPER SOM MOTPOSTERER HVERANDRE
+//
+// Roberts regel, foerst skrevet ned 2026-08-23: kaffen forsvinner fra
+// lageret og gir manko paa 13010. Slaas utdelingen inn, gir den et
+// tilsvarende OVERSKUDD paa 13011. Te hoerer med i samme familie - folk
+// tar te gratis ogsaa. Samme form paa vask: 21014 MASKINVASK APP selger
+// vasken, 21010 MASKINVASK forbruker den.
+//
+// Maalt paa Boenes, juli 2026:
+//
+//   13010 KAFFE          + 8 783      13011 KAFFELOJALITET  - 5 328
+//   21010 MASKINVASK     + 7 964      21014 MASKINVASK APP  -22 592
+//
+// Varsellista viste bare de positive. Maskinvask sto som roedt varsel paa
+// 7 964 kr mens gruppa hadde 14 628 kr i OVERSKUDD, og kaffe sto oeverst
+// hver maaned paa et tall som var mer enn halvert av sin egen motpost.
+//
+// `left(kode, 3)` er avdelingen - samme noekkel `v_kaffe_svinn` (0126)
+// bruker for aa nette hele varm drikke, te inkludert.
+//
+// IKKE EN GENERELL REGEL. Bare de to avdelingene Robert har bekreftet.
+// En ny avdeling skal ikke bli netto-vurdert fordi den tilfeldigvis har
+// to varegrupper - da ville en ekte manko kunne skjules av et urelatert
+// overskudd i naborgruppen.
+// =====================================================================
+export const MOTPOSTER: Record<string, string> = {
+  '130': 'Varm drikke (kaffe, te og lojalitet)',
+  '210': 'Vask (maskin og app)',
+}
+
+/** Hoerer varegruppen til en avdeling som motposterer seg selv? */
+export function erMotpost(kode: string | null): boolean {
+  return (kode ?? '').slice(0, 3) in MOTPOSTER
+}
+
+export type Motpostgruppe = {
+  stasjonId: string
+  avdeling: string
+  navn: string
+  kr: number
+  salg: number
+  pst: number
+}
+
+/** Summerer motpost-avdelingene per stasjon, saa nettoen vurderes. */
+export function nettMotposter(
+  svinn: { stasjon_id: string | null; kode: string | null; salg: number | null; usynlig_kr: number | null }[],
+): Motpostgruppe[] {
+  const ut = new Map<string, Motpostgruppe>()
+  for (const s of svinn) {
+    const avd = (s.kode ?? '').slice(0, 3)
+    if (!s.stasjon_id || !(avd in MOTPOSTER)) continue
+    const noekkel = `${s.stasjon_id}|${avd}`
+    const f = ut.get(noekkel) ?? {
+      stasjonId: s.stasjon_id, avdeling: avd, navn: MOTPOSTER[avd], kr: 0, salg: 0, pst: 0,
+    }
+    f.kr += s.usynlig_kr ?? 0
+    f.salg += s.salg ?? 0
+    ut.set(noekkel, f)
+  }
+  for (const g of ut.values()) g.pst = g.salg > 0 ? (g.kr / g.salg) * 100 : 0
+  return [...ut.values()]
+}
+
 export async function hentRegnskapVarsler(
   supabase: SupabaseClient,
   retailerId: string,
@@ -38,7 +103,7 @@ export async function hentRegnskapVarsler(
 ): Promise<RegnskapVarsel[]> {
   const fra = `${periode.slice(0, 4)}-01-01` // ny start hvert år
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
-  type SvinnRad = { stasjon_id: string | null; navn: string; salg: number | null; usynlig_kr: number | null; kast: number | null }
+  type SvinnRad = { stasjon_id: string | null; kode: string | null; navn: string; salg: number | null; usynlig_kr: number | null; kast: number | null }
   // SJEKKER `error`. `svinn_sum` manglet i produksjon fordi `0065` var
   // kjort halvveis, og varslene var stille i maanedsvis - ikke fordi det
   // ikke var svinn, men fordi kallet feilet og ingen saa det.
@@ -156,9 +221,29 @@ export async function hentRegnskapVarsler(
   }
 
   // ── Svinn per varegruppe (per stasjon) ──────────────────────────────────
+  //
+  // Se `nettMotposter` over: gruppene summeres foer de vurderes.
+  const grupper = nettMotposter(svinn ?? [])
+
+  for (const g of grupper) {
+    const navn = navnFor.get(g.stasjonId)
+    if (!navn) continue
+    if (g.kr > 0 && (g.kr >= T.mankoGul || g.pst >= T.mankoPstGul)) {
+      const rod = g.kr >= T.mankoRod || (g.pst >= T.mankoPstRod && g.kr >= T.mankoGul)
+      legg(rod ? 'rod' : 'gul', navn, `${g.navn}: ${kr0(g.kr)} usynlig manko`,
+        `${Math.round(g.pst)} % av salg — samlet for gruppen, etter at `
+        + 'motpostene er trukket fra.', g.kr, 2)
+    }
+    // Netto overskudd er ikke et funn her. I en gruppe som motposterer
+    // seg selv er et minus normaltilstanden naar utdelingen er slaatt
+    // inn - det er nettopp det som skal skje.
+  }
+
   for (const s of svinn ?? []) {
     const navn = s.stasjon_id ? navnFor.get(s.stasjon_id) : null
     if (!navn) continue
+    // Medlemmene er alt vurdert samlet over.
+    if (erMotpost(s.kode ?? null)) continue
     const krV = s.usynlig_kr ?? 0
     const pstV = s.usynlig_pst ?? 0
 
