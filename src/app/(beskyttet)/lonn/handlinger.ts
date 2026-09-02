@@ -4,6 +4,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesTimesats } from '@/lib/lonn/timesats'
+import { vurderSkiftordning, type Skiftordning } from '@/lib/lonn/tariff'
 
 export type Tilstand = { ok?: string; feil?: string } | undefined
 
@@ -79,4 +80,72 @@ export async function settLonnsform(_t: Tilstand, fd: FormData): Promise<Tilstan
   )
   if (error) return { feil: error.message }
   return { ok: 'Lagret' }
+}
+
+/**
+ * Setter arbeidstid for dem satsen peker entydig på — der feltet står tomt.
+ *
+ * SATSEN ER ET SPOR, IKKE EN BESLUTNING. Skiftordning er avtalefestet:
+ * § 2.7.1.1 krever enighet med tillitsvalgte, skriftlig oppsigelse av
+ * gjeldende ordning og skiftplan fire uker i forveien. Feltet påstår at
+ * en slik ordning FINNES — ikke at timesatsen er høy.
+ *
+ * Og det virker tilbake: feltet bestemmer overtidsgrensen. Utledet
+ * automatisk ville en feilført timesats avgjort når overtid slår inn, og
+ * feilen ville forsterket seg selv i stedet for å bli oppdaget.
+ *
+ * Derfor er dette en HANDLING lederen utløser, ikke en regel som går av
+ * seg selv. Systemet gjør tastingen; beslutningen er hennes.
+ *
+ * ---------------------------------------------------------------------
+ * RØRER ALDRI ET FELT NOEN HAR SATT
+ *
+ * Bare `ikke_satt`. En MOTSIGELSE — feltet sier ordinær, satsen sier to
+ * skift — er nettopp det et menneske må avgjøre: én av dem er feil, og
+ * hvilken kan ikke leses ut av tallene. Å overskrive den ville gjort en
+ * lønnsføring til fasit over en avtale.
+ */
+export async function settSkiftFraSats(stasjonId: string): Promise<
+  { ok: true; endret: number; hoppet: number } | { ok: false; feil: string }
+> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return { ok: false, feil: 'Ikke tilgang.' }
+  if (!z.string().uuid().safeParse(stasjonId).success) {
+    return { ok: false, feil: 'Ukjent stasjon.' }
+  }
+
+  const supabase = await lagSupabaseServerKlient()
+  const { data, error } = await supabase
+    .from('ansatt_avtale')
+    .select('ansatt_nr, navn, timesats, skiftordning')
+    .eq('stasjon_id', stasjonId)
+  if (error) return { ok: false, feil: error.message }
+
+  const rader = (data ?? []) as {
+    ansatt_nr: string; navn: string | null
+    timesats: number | null; skiftordning: Skiftordning | null
+  }[]
+
+  const skal: { ansatt_nr: string; navn: string; ordning: Skiftordning }[] = []
+  let hoppet = 0
+  for (const r of rader) {
+    if (r.timesats == null) continue
+    const v = vurderSkiftordning(Number(r.timesats), r.skiftordning ?? null)
+    if (!v) continue
+    if (v.slag === 'motsier') { hoppet++; continue }
+    skal.push({ ansatt_nr: r.ansatt_nr, navn: r.navn ?? r.ansatt_nr, ordning: v.antydet })
+  }
+
+  if (skal.length === 0) return { ok: true, endret: 0, hoppet }
+
+  const naa = new Date().toISOString()
+  const { error: se } = await supabase.from('ansatt_avtale').upsert(
+    skal.map((x) => ({
+      stasjon_id: stasjonId, ansatt_nr: x.ansatt_nr, navn: x.navn,
+      skiftordning: x.ordning, oppdatert_tid: naa,
+    })),
+    { onConflict: 'stasjon_id,ansatt_nr' },
+  )
+  if (se) return { ok: false, feil: se.message }
+  return { ok: true, endret: skal.length, hoppet }
 }
