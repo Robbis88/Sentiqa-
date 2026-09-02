@@ -8,6 +8,7 @@ import { byggSvar, type Verktoysvar } from './svar'
 import { hentScope, velgStasjoner, etikettKart, type Stasjon } from './scope'
 import { lagPeriode, idagOslo, manederIPeriode, type Periode, type Periodeinput } from './periode'
 import { les, lesAlle, erLesefeil, type Leseresultat } from './les'
+import { returerPerKasserer, type Dagsrad } from '@/lib/kasserer/returer'
 
 // =====================================================================
 // Datakatalogen AI-en resonerer over.
@@ -451,8 +452,25 @@ export const VERKTOY: Record<string, Verktoy> = {
 
   hent_kassererstatistikk: stasjonsverktoy(
     'hent_kassererstatistikk',
-    'Kassererstatistikk per stasjon: bonger, returer, makulerte og slettede linjer '
-    + 'med beløp. Relevant for spørsmål om hva som er eller ikke er slått inn på kassa.',
+    'Kassererstatistikk PER KASSERER: bonger, returer, retur per 100 bonger, '
+    + 'snittbeløp per retur, og periodens to halvdeler side om side. Bruk den på '
+    + 'spørsmål om hvem som har mest returer og om noen trender opp. '
+    + 'LES TALLET SLIK: '
+    + '(1) Returer måles PER 100 BONGER, aldri i kroner alene — kroner rangerer bare '
+    + 'den som ekspederer mest. '
+    + '(2) retur_per_100 = null betyr for tynt grunnlag (under 100 bonger); da skal '
+    + 'raten ikke nevnes, se merknad. '
+    + '(3) er_kassa er kassa selv (999999), ikke et menneske — nevn den for seg, '
+    + 'aldri i en rangering av ansatte. '
+    + '(4) navn_tvetydig betyr at nummeret bar flere navn; da peker tallet på en '
+    + 'PÅLOGGING, ikke på en person. '
+    + '(5) Et høyt NIVÅ skiller ikke personer: svingningen inni én kasserer er større '
+    + 'enn spennet mellom dem, målt på 775 kasserermåneder. Det som betyr noe er et '
+    + 'TRINN — forst_per_100 mot sist_per_100. '
+    + '(6) Lavt snitt_kr_per_retur med mange returer passer ikke en feilvare eller én '
+    + 'reklamasjon; få og store gjør det. '
+    + '(7) Si alltid at dette peker på hvor kvitteringene skal hentes (toppdager), '
+    + 'ikke hvem som har gjort noe.',
     {},
     {
       domene: 'kassererstatistikk',
@@ -463,7 +481,7 @@ export const VERKTOY: Record<string, Verktoy> = {
           supabase
             .from('kassererstatistikk')
             .select(
-              'stasjon_id, kasserer_nr, kasserer_navn, omsetning_ink_mva, bonger, '
+              'stasjon_id, kasserer_nr, kasserer_navn, dato, omsetning_ink_mva, bonger, '
               + 'retur_antall, retur_belop, makulerte_antall, makulerte_belop, '
               + 'slettede_antall, slettede_belop',
             )
@@ -477,27 +495,40 @@ export const VERKTOY: Record<string, Verktoy> = {
         ),
       stasjonAv: (r) => r.stasjon_id,
       erMaltNull: (rader) => sum(rader, 'bonger') === 0,
+      // PER KASSERER, IKKE PER STASJON.
+      //
+      // Denne grupperte paa `stasjon_id` alene og kastet `kasserer_nr` og
+      // `kasserer_navn` - som den HENTET. 2026-09-02 svarte assistenten
+      // derfor at den ikke kunne si hvem som hadde flest returer, og ba
+      // Robert gaa inn i kassesystemet etter data den hadde i haanden.
+      //
+      // Returene faar sin egen form (`returerPerKasserer`): rate per 100
+      // bonger, kassa merket, tynt grunnlag utelatt, og periodens to
+      // halvdeler ved siden av hverandre. Makulert og slettet er IKKE med
+      // der - de er 71-83 % av avvikskronene og ville druknet returene.
+      // De staar fortsatt som stasjonssum under.
       form: (rader, kart) => {
-        const per = new Map<string, Record<string, number>>()
+        const perStasjon = new Map<string, Record<string, number>>()
         for (const r of rader) {
-          const e = per.get(r.stasjon_id) ?? {
-            bonger: 0, retur_antall: 0, retur_belop: 0,
-            makulerte_antall: 0, makulerte_belop: 0,
+          const e = perStasjon.get(r.stasjon_id) ?? {
+            bonger: 0, makulerte_antall: 0, makulerte_belop: 0,
             slettede_antall: 0, slettede_belop: 0,
           }
           for (const f of Object.keys(e)) e[f] += Number(r[f as keyof Kassererrad]) || 0
-          per.set(r.stasjon_id, e)
+          perStasjon.set(r.stasjon_id, e)
         }
-        return [...per.entries()].map(([sid, e]) => ({
-          stasjon: kart.get(sid) ?? sid,
-          bonger: rund(e.bonger),
-          returer: rund(e.retur_antall),
-          retur_kr: rund(e.retur_belop),
-          makulerte: rund(e.makulerte_antall),
-          makulert_kr: rund(e.makulerte_belop),
-          slettede: rund(e.slettede_antall),
-          slettet_kr: rund(e.slettede_belop),
-        }))
+        return [
+          ...returerPerKasserer(rader as unknown as Dagsrad[], kart),
+          ...[...perStasjon.entries()].map(([sid, e]) => ({
+            stasjon: kart.get(sid) ?? sid,
+            sum_for_stasjonen: true,
+            bonger: rund(e.bonger),
+            makulerte: rund(e.makulerte_antall),
+            makulert_kr: rund(e.makulerte_belop),
+            slettede: rund(e.slettede_antall),
+            slettet_kr: rund(e.slettede_belop),
+          })),
+        ]
       },
     },
   ),
