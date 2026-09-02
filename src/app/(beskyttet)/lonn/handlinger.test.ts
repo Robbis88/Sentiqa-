@@ -53,7 +53,12 @@ describe('settSkiftFraSats', () => {
     // «Lagret» paa null endringer ser ut som en handling som virket -
     // samme feil som `bekreftLest` hadde, rettet i #150.
     expect(knapp).toMatch(/r\.endret === 0/)
-    const svar = [...knapp.matchAll(/setMelding\([\s\S]*?\)\n/g)].join(' ')
+    // `\r?\n`, ikke `\n`. Fila sjekkes ut med CRLF paa Windows, saa tegnet
+    // etter `)` er `\r` - regexen fant null treff, `svar` ble tom streng,
+    // og testen var evig roed lokalt og groenn i CI. Ingenting galt med
+    // koden den vokter. En vakt som bare virker paa ett operativsystem
+    // maaler operativsystemet.
+    const svar = [...knapp.matchAll(/setMelding\([\s\S]*?\)\r?\n/g)].join(' ')
     expect(svar).toMatch(/Ingen aa sette|Ingen å sette/)
   })
 

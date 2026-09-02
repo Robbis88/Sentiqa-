@@ -2,9 +2,9 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { datoLang } from '@/lib/format'
+import { datoLang, iDag } from '@/lib/format'
 import { hentUkedata, tilgjengeligeUker } from '@/lib/ukebrief/hent'
-import { byggUkebrief, ukenummer } from '@/lib/ukebrief/bygg'
+import { byggUkebrief, sisteHeleUke, ukenummer } from '@/lib/ukebrief/bygg'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Brev } from './brev'
@@ -70,9 +70,9 @@ export default async function UkebriefSide({ searchParams }: { searchParams: Pro
     )
   }
 
-  // Nyeste uke er som regel den inneværende og dermed ufullstendig. Brevet
-  // sendes mandag om forrige uke, så forvalget er den siste HELE uken.
-  const valgtUke = uker.includes(sp.uke ?? '') ? sp.uke! : (uker[1] ?? uker[0])
+  // Brevet sendes mandag og handler om forrige uke, så forvalget er den
+  // siste HELE uken — ikke den nest nyeste. Se `sisteHeleUke`.
+  const valgtUke = uker.includes(sp.uke ?? '') ? sp.uke! : sisteHeleUke(uker, iDag())!
   const somEpost = sp.visning === 'epost'
 
   const data = await hentUkedata(supabase, valgt, valgtUke)
@@ -109,7 +109,7 @@ export default async function UkebriefSide({ searchParams }: { searchParams: Pro
         )}
 
         <nav className="periode-trad" aria-label="Uke">
-          {uker.slice(0, 6).map((u) => (
+          {uker.slice(0, 8).map((u) => (
             <Link
               key={u}
               href={lenke({ uke: u })}
