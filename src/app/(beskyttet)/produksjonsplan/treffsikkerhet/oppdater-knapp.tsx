@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { oppdaterTreffsikkerhet } from './handlinger'
 
@@ -6,6 +7,9 @@ import { oppdaterTreffsikkerhet } from './handlinger'
 // dager × alle stasjoner) — derfor tydelig «kjører»-tilstand.
 export function OppdaterKnapp() {
   const [venter, start] = useTransition()
+  // Oppdateringen skjer HER, etter at svaret er vist - ikke i
+  // serverhandlingen. Se kvitteringsvakt.test.ts.
+  const router = useRouter()
   const [melding, setMelding] = useState<string | null>(null)
 
   return (
@@ -17,6 +21,7 @@ export function OppdaterKnapp() {
           setMelding(null)
           const r = await oppdaterTreffsikkerhet()
           setMelding(r.ok ? `✓ Oppdatert for ${r.stasjoner} stasjon(er).` : `Feil: ${r.feil}`)
+          router.refresh()
         })}
       >
         {venter ? 'Kjører backtest…' : '↻ Oppdater treffsikkerhet'}

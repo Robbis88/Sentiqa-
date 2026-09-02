@@ -1,9 +1,13 @@
 'use client'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { generer } from './handlinger'
 
 export function GenererKnapp() {
   const [venter, start] = useTransition()
+  // Oppdateringen skjer HER, etter at svaret er vist - ikke i
+  // serverhandlingen. Se kvitteringsvakt.test.ts.
+  const router = useRouter()
   const [melding, setMelding] = useState<string | null>(null)
 
   return (
@@ -19,6 +23,7 @@ export function GenererKnapp() {
                 ? `Genererte ${res.antall} fokuspunkter.`
                 : `Kunne ikke generere: ${res.grunn}`,
             )
+            router.refresh()
           })
         }
       >
