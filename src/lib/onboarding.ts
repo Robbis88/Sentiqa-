@@ -15,6 +15,8 @@
 // de siste 40 er den ene fila som gjør at bemanningsplanen virker.
 // =====================================================================
 
+import { TIMESALG_ANBEFALTE_DAGER } from './historikk'
+
 export type Kildemaaling = {
   noekkel: string
   /** Antall stasjoner som har data i det hele tatt. */
@@ -62,7 +64,12 @@ export const KILDER: Kildekrav[] = [
     navn: 'Timesalg med inne- og utekunder',
     hentesFra: 'St1-rapport 0603, daglig',
     laserOpp: 'Når på døgnet kundene faktisk er der — grunnlaget for hele bemanningsplanen.',
-    anbefaltDager: 365,
+    // IKKE 365. Bemanningen leser fra 1. januar to år tilbake
+    // (`timesalgFra`), fordi helligdagsfaktorene måles per dato og ett år
+    // gir hver rød dag én gang. Tallet sto her og i bemanningen hver for
+    // seg, og de skilte lag: 365 dager ga grønt mens halve grunnlaget
+    // manglet. Nå leser begge samme konstant.
+    anbefaltDager: TIMESALG_ANBEFALTE_DAGER,
     kritisk: true,
   },
   {
@@ -77,7 +84,13 @@ export const KILDER: Kildekrav[] = [
   {
     noekkel: 'bemanning_maned',
     navn: 'Forretningsplan (BP)',
-    hentesFra: 'Kjedens BP-fil, én gang i året',
+    // TO FILER, ETT KRAV. Delingsfila (`st1_delingsfil`) skriver timene
+    // inn i årgangen BP-fila oppretter. Uten den har rammen kroner, men
+    // ingen timer.
+    //
+    // GJENSTÅENDE: målingen teller rader i `bemanning_maned` og ser ikke
+    // om timene kom. En BP uten delingsfil viser «På plass».
+    hentesFra: 'Kjedens BP-fil og delingsfila med timer, én gang i året',
     laserOpp: 'Årets timeramme og lønnsbudsjett per stasjon.',
     anbefaltDager: 0,
     kritisk: true,
@@ -90,7 +103,64 @@ export const KILDER: Kildekrav[] = [
     anbefaltDager: 0,
     kritisk: false,
   },
+  // ---------------------------------------------------------------
+  // DE TRE SOM MANGLET.
+  //
+  // Systemet har tatt imot dem hele tiden — de står i `Rapporttype` og
+  // har hver sin lagringsarm i `import/kjerne.ts` — men onboardinglista
+  // kjente dem ikke. `onboardingsteg()` går over KILDER, så en måling
+  // uten oppføring her ble kastet i stillhet: en retailer kunne se en
+  // komplett liste og likevel ha to tomme moduler.
+  //
+  // Ingen av dem er kritiske: mangler de, mangler sin modul, og resten
+  // av systemet svarer riktig. Det er nettopp derfor de kunne bli borte.
+  // ---------------------------------------------------------------
+  {
+    noekkel: 'kassererstatistikk',
+    navn: 'Kassererstatistikk',
+    hentesFra: 'St1-rapport 0018, daglig',
+    laserOpp: 'Retur, makulert og slettet per kasse. Måler kassa, ikke personen — '
+      + 'flere ansatte deler ofte samme kassenummer.',
+    anbefaltDager: 90,
+    kritisk: false,
+  },
+  {
+    noekkel: 'svinn',
+    navn: 'Varetransaksjoner (svinn)',
+    hentesFra: 'St1-rapport 0452, ved behov',
+    laserOpp: 'Hva som faktisk kastes, ført mot kost — og hvilke varer det gjelder.',
+    // FØRES NÅR NOE KASTES, IKKE HVER DAG. En dag uten svinnføring er en
+    // normal dag. Terskelen måler at det finnes føringer i det hele tatt,
+    // ikke at hver dag har en (se migrasjon 0159).
+    anbefaltDager: 30,
+    kritisk: false,
+  },
 ]
+
+/**
+ * Hvilken kilde hver opplastbar rapporttype fyller.
+ *
+ * KILDER er prosa og skjønn — navn, gevinst, terskel. DETTE er koblingen
+ * som gjør at lista kan MÅLES mot hva systemet faktisk tar imot, og som
+ * `onboarding.dekning.test.ts` bruker til å nekte at en ny rapporttype
+ * legges til uten at noen har tatt stilling til hva den betyr for en ny
+ * retailer.
+ *
+ * Nøklene skal være hver `Rapporttype` med en lagringsarm i
+ * `import/kjerne.ts`, unntatt `ukjent`.
+ */
+export const TYPE_TIL_KILDE: Record<string, string> = {
+  st1_salgsstatistikk: 'st1_salgsstatistikk',
+  st1_salesperhour_inneute: 'timesalg',
+  st1_cashierstats: 'kassererstatistikk',
+  salgsgrid_varetrans: 'svinn',
+  regnskap_resultat: 'regnskapslinjer',
+  easyatwork_stempling: 'stempling',
+  st1_bp: 'bemanning_maned',
+  // Delingsfila skriver timene inn i årgangen BP-fila oppretter. Samme
+  // krav, to filer — ikke en egen kilde å måle dekning på.
+  st1_delingsfil: 'bemanning_maned',
+}
 
 /**
  * Setter status på hver kilde mot det som faktisk ligger inne.

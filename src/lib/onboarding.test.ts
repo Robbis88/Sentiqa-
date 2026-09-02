@@ -6,6 +6,11 @@ const m = (noekkel: string, stasjoner: number, dager: number): Kildemaaling =>
 
 const alt = (stasjoner: number, dager: number) => KILDER.map((k) => m(k.noekkel, stasjoner, dager))
 
+// «Rikelig» er ikke et tall man kan skrive ned - det er den strengeste
+// terskelen i lista. Sto det 400 her, ble testene roede da timesalg gikk
+// fra 365 til 730 dager, uten at noe var galt med det de maalte.
+const RIKELIG = Math.max(...KILDER.map((k) => k.anbefaltDager)) + 1
+
 describe('onboardingsteg', () => {
   test('en ny retailer mangler alt, og får vite hvor filene hentes', () => {
     const s = onboardingsteg([], 5)
@@ -31,7 +36,7 @@ describe('onboardingsteg', () => {
   })
 
   test('alt på plass gir ok hele veien', () => {
-    const s = onboardingsteg(alt(5, 400), 5)
+    const s = onboardingsteg(alt(5, RIKELIG), 5)
     expect(s.every((x) => x.status === 'ok')).toBe(true)
   })
 })
@@ -52,7 +57,7 @@ describe('nesteSteg', () => {
   })
 
   test('når alt er på plass er det ingen neste steg', () => {
-    expect(nesteSteg(onboardingsteg(alt(5, 400), 5))).toBeNull()
+    expect(nesteSteg(onboardingsteg(alt(5, RIKELIG), 5))).toBeNull()
   })
 
   test('rekkefølgen i KILDER avgjør når alt annet er likt', () => {

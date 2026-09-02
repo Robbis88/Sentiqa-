@@ -19,6 +19,7 @@ import { slettFastVakt, slettFravaer, slettKrav, slettVindu } from './handlinger
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { nesteSteg } from '@/lib/bemanningssteg'
+import { timesalgFra } from '@/lib/historikk'
 import { blandetLonnsform } from '@/lib/bemanning/lonnsform'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
@@ -336,11 +337,13 @@ export default async function BemanningSide({ searchParams }: { searchParams: So
       hentProfil(supabase, valgt.id, ar, maned),
       hentMaanedskunder(supabase, valgt.id, ar),
       // To år tilbake: da har vi hver røde dag minst én gang, ofte to.
-      hentDagskunder(supabase, valgt.id, `${ar - 2}-01-01`),
+      // Vinduet er delt med onboardinglista (lib/historikk.ts) — den lovet
+      // 365 dager mens denne leste 730+, og de skilte lag i stillhet.
+      hentDagskunder(supabase, valgt.id, timesalgFra(ar)),
       hentUkeprofil(supabase, valgt.id),
       hentFaktisk(supabase, valgt.id, `${ar}-${String(maned).padStart(2, '0')}-01`,
         `${ar}-${String(maned).padStart(2, '0')}-31`),
-      hentAnsattmaaneder(supabase, valgt.id, `${ar - 2}-01-01`),
+      hentAnsattmaaneder(supabase, valgt.id, timesalgFra(ar)),
       // Samme kalenderperiode to år på rad. Stasjonene endrer seg hele
       // tiden, og en plan som arver fjorårets form uten å se etter om den
       // fortsatt stemmer, blir gradvis feil uten at noen merker det.
