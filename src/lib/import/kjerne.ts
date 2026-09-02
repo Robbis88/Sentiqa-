@@ -12,6 +12,7 @@ import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
 import { manglendeStasjoner, dekningsnotat, erDaglig } from './stasjonsdekning'
+import { hoppetNotat } from '@/lib/bp/hoppede'
 import { bruttoKurve, timelonnKurve, maanedsrammer } from '@/lib/bp/fordeling'
 import { parseDelingsfil } from '@/lib/parsere/delingsfil'
 import { arknavn } from '@/lib/parsere/xlsx-rader'
@@ -921,6 +922,10 @@ async function lagreBp(
   const budsjettRader: Record<string, unknown>[] = []
   const manedRader: Record<string, unknown>[] = []
   const bpLinjer: Record<string, unknown>[] = []
+  // MAANEDENE SOM IKKE FIKK BP-LINJER. Aa hoppe over en avlagt maaned er
+  // riktig - regnskapet baerer sitt eget budsjett - men det skjedde i
+  // stillhet, og det er grunnen til at BP maa lastes foer regnskapet.
+  const hoppede: { stasjon: string; maaneder: number[] }[] = []
 
   for (const { s, stasjonId } of mine) {
     const gammel = fra_for.get(stasjonId)
@@ -978,8 +983,10 @@ async function lagreBp(
       sikkerhetPst: stasjonSikkerhet,
     })
 
+    const minehoppede: number[] = []
     for (const m of s.maaneder) {
       const erLaast = laast.has(`${stasjonId}|${m.maned}`)
+      if (erLaast) minehoppede.push(m.maned)
       const ramme = rammer[m.maned - 1]
       if (harTimebudsjett) budsjettRader.push({
         stasjon_id: stasjonId, ar, maned: m.maned,
@@ -1014,6 +1021,11 @@ async function lagreBp(
       for (const k of m.konti) {
         bpLinjer.push(bpLinje('bp_kostnad', k.kode, k.post, k.belopKr))
       }
+    }
+    if (minehoppede.length > 0) {
+      // Butikknummeret alene: `BpStasjon` baerer ikke navn, og det er
+      // uansett nummeret som staar i BP-fila.
+      hoppede.push({ stasjon: s.butikknummer, maaneder: minehoppede })
     }
   }
 
@@ -1109,6 +1121,9 @@ async function lagreBp(
       aarRader.length + budsjettRader.length + manedRader.length
       + bpLinjer.length + bpAarRader.length + dokumentLinjer.length,
     umatchet: [],
+    // EN STILLE UTELATELSE ER VERRE ENN EN SYNLIG MERKNAD. Samme
+    // mekanisme som `utenEan` og stasjonsdekningen bruker.
+    notat: hoppetNotat(hoppede, Math.max(0, ...mine.map(({ s: st }) => st.maaneder.length))),
   }
 }
 
