@@ -12,7 +12,7 @@ import { PeriodeVelger } from '../periode-velger'
 import { AiKontekst } from '../ai-kontekst'
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
-import { motBudsjett, storsteAvvik, svaret, type Driver } from '@/lib/regnskap/mot-budsjett'
+import { motBudsjett, storsteAvvik, driverne, svaret, type Driver } from '@/lib/regnskap/mot-budsjett'
 import { Sideramme } from '@/components/ui/sideramme'
 
 type Linje = {
@@ -227,6 +227,20 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     .sort((a, b) => Math.abs(b.avvik) - Math.abs(a.avvik))
   const svar = svaret(hoved.merke, motHoved, drivere[0] ?? null)
 
+  // HVA FORKLARER FORSKJELLEN — i kroner, størst først.
+  //
+  // `drivere[0]` sto i svarsetningen og ingen andre steder. Men
+  // «resultatet ligger 41 000 under» besvares ikke av ett navn: leseren
+  // vil vite hva de 41 000 består av, og det er som regel to–tre linjer.
+  //
+  // Kostnader over budsjett og inntekter under det står i samme liste.
+  // Begge er kroner, så den største vinner uansett hvilken side av
+  // regnskapet den står på — det er nettopp derfor kroner og ikke indeks.
+  const forklaringer = [
+    ...driverne(seksjon('driftskostnader'), true),
+    ...driverne(seksjon('omsetning')),
+  ].sort((a, b) => Math.abs(b.avvik) - Math.abs(a.avvik)).slice(0, 4)
+
   const periodeTekst = hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))
   const omfang = erStasjon ? (valgtNavn ?? 'valgt stasjon') : 'hele clusteret'
 
@@ -270,7 +284,38 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         })}
       </div>
 
+      {/* NIVAA 2: hva forskjellen BESTAAR AV. Sto ikke paa sida foer -
+          bare den ene verste, inne i overskriftssetningen. */}
+      {forklaringer.length > 0 && (
+        <section className="kort">
+          <h2>Hva forklarer forskjellen</h2>
+          <ul className="rgn-drivere">
+            {forklaringer.map((d) => (
+              <li key={d.post}>
+                <span className="rgn-driver-navn">{d.post}</span>
+                {/* Fortegnet staar i tallet. Nivaaet sier hva det BETYR:
+                    en kostnad over budsjett og en inntekt under det er
+                    begge negative for resultatet, og begge er `handling`. */}
+                <Status nivaa="handling">{kr.format(d.avvik)}</Status>
+              </li>
+            ))}
+          </ul>
+          <p className="undertittel sq-finstilt">
+            Målt i kroner, ikke i prosent: 40 % over på en konto til 5 000 kr er 2 000 kr,
+            mens 3 % over på personal kan være hele forklaringen.
+          </p>
+        </section>
+      )}
+
       <RegnskapVarsler varsler={visVarsler} aar={aktivPeriode.slice(0, 4)} />
+
+      {/* FORTEGNET I ORD. «−14 628 kr usynlig svinn» krever at leseren
+          kan regelen; uten den leses et minus som noe negativt. */}
+      <p className="undertittel sq-finstilt rgn-fortegn">
+        Om usynlig svinn: <strong>pluss</strong> er varer som er borte etter telling.
+        <strong> Minus</strong> er det motsatte — penger tilbake, som regel et feilslag
+        eller en registrering som rettet seg selv, ikke penger tjent.
+      </p>
 
       <Forklaring sporsmaal="Hvordan er tallene regnet ut?">
         <p>
@@ -328,7 +373,11 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         <Datatabell key={navn} tittel={SEKSJON_TITTEL[navn]}>
             <thead>
               <tr>
-                <th>Post</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th className="mob-skjul">Avvik</th><th>Index</th>
+                {/* AVVIK I KRONER STAAR IGJEN PAA MOBIL, INDEX GAAR.
+                    Foer var det motsatt: paa en telefon sto Post,
+                    Regnskap og Index - og kronene, som er det man
+                    handler paa, var skjult. */}
+                <th>Post</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th>Avvik</th><th className="mob-skjul">Index</th>
               </tr>
             </thead>
             <tbody>
@@ -339,8 +388,8 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
                     <td>{l.post}</td>
                     <td>{kr.format(l.regnskap ?? 0)}</td>
                     <td className="mob-skjul">{kr.format(l.budsjett ?? 0)}</td>
-                    <td className="mob-skjul">{kr.format(l.avvik ?? 0)}</td>
-                    <td>
+                    <td>{kr.format(l.avvik ?? 0)}</td>
+                    <td className="mob-skjul">
                       {visPip ? (
                         <Status nivaa={nivaaFraKlasse(avviksKlasse(l.index_pct!))}>
                           {prosent.format((l.index_pct ?? 0) / 100)}

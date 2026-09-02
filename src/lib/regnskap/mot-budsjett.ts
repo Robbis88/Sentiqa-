@@ -108,6 +108,42 @@ export function storsteAvvik(linjer: Budsjettlinje[], kostnad = false): Driver |
 }
 
 /**
+ * Linjene som forklarer forskjellen, størst først — i KRONER.
+ *
+ * `storsteAvvik` gir den ene verste. Den brukes i svarsetningen, og der
+ * er én nok. Men «resultatet ligger 41 000 under» besvares ikke av ett
+ * navn: leseren vil vite hva de 41 000 består av, og det er som regel
+ * to–tre linjer.
+ *
+ * KRONER, IKKE INDEKS. 40 % over på en konto til 5 000 kr er 2 000 kr;
+ * 3 % over på personal kan være hele forklaringen. Indeks er
+ * regnskapsførerens verktøy — den som skal gjøre noe med det, handler på
+ * kroner.
+ *
+ * Samme utvalg som `storsteAvvik`: summeringslinjer ute, linjer uten
+ * budsjett ute, og bare det som gjør bildet verre. En liste som blander
+ * inn det som REDDER resultatet svarer ikke på spørsmålet «hva drar».
+ */
+export function driverne(
+  linjer: Budsjettlinje[],
+  kostnad = false,
+  antall = 3,
+): Driver[] {
+  return linjer
+    .filter((l) => !/totalt$/i.test(l.post.trim()))
+    .map((l) => ({
+      post: l.post,
+      avvik: (l.regnskap ?? 0) - (l.budsjett ?? 0),
+      budsjett: l.budsjett ?? 0,
+    }))
+    .filter((l) => l.budsjett !== 0)
+    .filter((l) => (kostnad ? l.avvik > 0 : l.avvik < 0))
+    .sort((a, b) => Math.abs(b.avvik) - Math.abs(a.avvik))
+    .slice(0, antall)
+    .map(({ post, avvik }) => ({ post, avvik }))
+}
+
+/**
  * Nivå 1 på en analyseside: hele svaret som én setning på norsk.
  *
  * Driveren nevnes bare når hovedtallet faktisk er dårligere enn
