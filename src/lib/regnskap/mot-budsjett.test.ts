@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { motBudsjett, storsteAvvik, svaret, type Budsjettlinje } from './mot-budsjett'
+import { motBudsjett, storsteAvvik, svaret, type Budsjettlinje, driverne } from './mot-budsjett'
 
 const linje = (post: string, regnskap: number, budsjett: number): Budsjettlinje =>
   ({ post, regnskap, budsjett })
@@ -122,5 +122,71 @@ describe('svaret', () => {
 
   test('uten budsjett påstår vi ingenting', () => {
     expect(svaret('Resultat', motBudsjett(500_000, 0), null)).toBeNull()
+  })
+})
+
+// =====================================================================
+// «RESULTATET LIGGER 41 000 UNDER» BESVARES IKKE AV ETT NAVN
+//
+// `storsteAvvik` gir den ene verste, og i svarsetningen er én nok. Men
+// leseren vil vite hva de 41 000 BESTAAR AV - som regel to-tre linjer.
+// `driverne` er den lista, og den maales i KRONER: 40 % over paa en
+// konto til 5 000 kr er 2 000 kr, mens 3 % over paa personal kan vaere
+// hele forklaringen.
+// =====================================================================
+describe('driverne', () => {
+  const kost = [
+    { post: 'Personal', regnskap: 291500, budsjett: 258500 },   // +33 000
+    { post: 'Strøm', regnskap: 31200, budsjett: 27100 },        //  +4 100
+    { post: 'Renhold', regnskap: 18400, budsjett: 15000 },      //  +3 400
+    { post: 'Rekvisita', regnskap: 8100, budsjett: 9500 },      //  under - redder
+    { post: 'Driftskostnader totalt', regnskap: 349200, budsjett: 310100 },
+  ]
+
+  test('KANARIFUGL: størst i kroner først, ikke i prosent', () => {
+    // Renhold er 22,7 % over, personal bare 12,8 % - men personal er
+    // ti ganger så mange kroner. En liste sortert paa prosent ville
+    // pekt paa renhold, og det er feil sted aa lete.
+    const d = driverne(kost, true)
+    expect(d[0].post).toBe('Personal')
+    expect(d[0].avvik).toBe(33000)
+    expect(d.map((x) => x.post)).toEqual(['Personal', 'Strøm', 'Renhold'])
+  })
+
+  test('summeringslinja er ikke en driver', () => {
+    // «Driftskostnader totalt» er delene lagt sammen og ville alltid
+    // slaatt hver enkelt av dem.
+    expect(driverne(kost, true).map((d) => d.post)).not.toContain('Driftskostnader totalt')
+  })
+
+  test('det som REDDER resultatet er ikke med', () => {
+    // Spoersmaalet er «hva drar». En linje under budsjett drar ingenting.
+    expect(driverne(kost, true).map((d) => d.post)).not.toContain('Rekvisita')
+  })
+
+  test('paa inntektssiden er det linjene UNDER budsjett som drar', () => {
+    const oms = [
+      { post: 'Mat', regnskap: 400000, budsjett: 430000 },   // -30 000
+      { post: 'Vask', regnskap: 160000, budsjett: 150000 },  // over - redder
+    ]
+    const d = driverne(oms)
+    expect(d.map((x) => x.post)).toEqual(['Mat'])
+    expect(d[0].avvik).toBe(-30000)
+  })
+
+  test('linjer uten budsjett kan ikke avvike fra noe', () => {
+    expect(driverne([{ post: 'Ukjent', regnskap: 9000, budsjett: 0 }], true)).toEqual([])
+  })
+
+  test('antallet kan begrenses, og standarden er tre', () => {
+    expect(driverne(kost, true)).toHaveLength(3)
+    expect(driverne(kost, true, 1)).toHaveLength(1)
+  })
+
+  test('KANARIFUGL: den foerste er den samme som storsteAvvik gir', () => {
+    // De to maa vaere enige. Sier setningen oeverst «Personal drar mest»
+    // mens lista under starter et annet sted, er sida i strid med seg selv.
+    const en = storsteAvvik(kost, true)
+    expect(driverne(kost, true)[0]).toEqual(en)
   })
 })

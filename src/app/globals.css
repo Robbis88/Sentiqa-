@@ -2565,3 +2565,20 @@ a.sq-rad-lenke:hover { background: var(--bg); }
   color: var(--tekst-svak);
 }
 .anv-kort .knapperad { padding: 0 1rem 0.7rem; }
+
+/* HVA FORKLARER FORSKJELLEN (regnskap).
+   Ingen stolpe: linjene staar allerede sortert, og tallene sier
+   forholdet mellom seg selv. En stolpe her ville krevd en inline-stil
+   per rad - og designvakten sa fra, med rette. */
+.rgn-drivere { list-style: none; margin: 0; padding: 0; }
+.rgn-drivere li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--kant);
+}
+.rgn-drivere li:last-child { border-bottom: 0; }
+.rgn-driver-navn { font-weight: 500; }
+.rgn-fortegn { margin: 0 0 var(--luft-3); }
