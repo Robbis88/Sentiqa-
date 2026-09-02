@@ -68,7 +68,7 @@ describe('onboardinglista mot det systemet faktisk tar imot', () => {
     // en sammenligning mellom to tomme lister - og den er alltid sann.
     // Tallene er nedre grenser, ikke fasit: de skal kunne vokse.
     expect(rapporttyper().length, 'Fant ingen rapporttyper').toBeGreaterThanOrEqual(8)
-    expect(datadekningKilder().length, 'Fant ingen kilder i v_datadekning').toBeGreaterThanOrEqual(7)
+    expect(datadekningKilder().length, 'Fant ingen kilder i v_datadekning').toBeGreaterThanOrEqual(8)
     expect(Object.keys(TYPE_TIL_KILDE).length).toBeGreaterThanOrEqual(8)
   })
 

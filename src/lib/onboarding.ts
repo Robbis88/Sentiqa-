@@ -84,14 +84,10 @@ export const KILDER: Kildekrav[] = [
   {
     noekkel: 'bemanning_maned',
     navn: 'Forretningsplan (BP)',
-    // TO FILER, ETT KRAV. Delingsfila (`st1_delingsfil`) skriver timene
-    // inn i årgangen BP-fila oppretter. Uten den har rammen kroner, men
-    // ingen timer.
-    //
-    // GJENSTÅENDE: målingen teller rader i `bemanning_maned` og ser ikke
-    // om timene kom. En BP uten delingsfil viser «På plass».
-    hentesFra: 'Kjedens BP-fil og delingsfila med timer, én gang i året',
-    laserOpp: 'Årets timeramme og lønnsbudsjett per stasjon.',
+    // MÅNEDSFORDELINGEN, ikke årsrammen. Timebudsjettet er en egen
+    // kilde (`bp_timer`) fordi det kan komme fra to ulike filer — se der.
+    hentesFra: 'Kjedens BP-fil, én gang i året',
+    laserOpp: 'Lønnsbudsjettet fordelt på måneder — kurven planleggeren leser.',
     anbefaltDager: 0,
     kritisk: true,
   },
@@ -102,6 +98,20 @@ export const KILDER: Kildekrav[] = [
     laserOpp: 'Faktisk lønn og timer mot budsjett, og avvikene som utløser varsler.',
     anbefaltDager: 0,
     kritisk: false,
+  },
+  {
+    noekkel: 'bp_timer',
+    navn: 'Timebudsjett for året',
+    // HVILKEN FIL DET ER, AVHENGER AV MALEN — og det skal ikke bli et
+    // steg ingen kan fullføre. BP26 bærer timene selv; en kjede på nytt
+    // format skal aldri laste opp en delingsfil. Er malen den gamle
+    // (til og med BP25), står `timer_aar` som null, og timene kommer
+    // som delingsfila i stedet.
+    hentesFra: 'Følger BP-fila i det nye formatet. På den gamle malen: delingsfila med timer',
+    laserOpp: 'Kroner per time. Uten den kan lønn ikke måles mot rammen, '
+      + 'og analysen lar være å love det.',
+    anbefaltDager: 0,
+    kritisk: true,
   },
   // ---------------------------------------------------------------
   // DE TRE SOM MANGLET.
@@ -157,9 +167,10 @@ export const TYPE_TIL_KILDE: Record<string, string> = {
   regnskap_resultat: 'regnskapslinjer',
   easyatwork_stempling: 'stempling',
   st1_bp: 'bemanning_maned',
-  // Delingsfila skriver timene inn i årgangen BP-fila oppretter. Samme
-  // krav, to filer — ikke en egen kilde å måle dekning på.
-  st1_delingsfil: 'bemanning_maned',
+  // Delingsfila fyller `bp_aar.timer_aar` for kjeder på den gamle malen.
+  // Den er ikke et eget krav — kravet er at timene FINNES, og på nytt
+  // format kommer de med BP-fila.
+  st1_delingsfil: 'bp_timer',
 }
 
 /**
