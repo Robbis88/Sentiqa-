@@ -1,6 +1,7 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
+import { sisteBekreftelse } from '@/lib/personvern/bekreftelse'
 import {
   KONTROLLTILTAK_VERSJON, maaBekrefte, RETTIGHETER, TILTAK,
 } from '@/lib/personvern/kontrolltiltak'
@@ -19,16 +20,28 @@ export default async function MineOpplysninger() {
   const supabase = await lagSupabaseServerKlient()
   const ansatt = bruker.rolle === 'butikkbruker_tablet' ? await lesAktivAnsatt(supabase) : null
 
+  // TO VEIER, FORDI DE TO IDENTITETENE ER ULIKE.
+  //
+  // Den innloggede leser sin egen rad gjennom RLS — `bruker_id =
+  // auth.uid()` er foerste gren i `0147`, og den virker.
+  //
+  // Nettbrettet skriver `ansatt_id` med `bruker_id = null`, og treffer da
+  // ingen av grenene. Databasen kan ikke vite hvem som staar paa vakt:
+  // `checkInn` setter en signert kapsel og etterlater ingen rad. Derfor
+  // leses den ene raden serverside, med en identitet `lesAktivAnsatt`
+  // alt har bevist med signatur OG oppslag gjennom nettbrettets egen RLS.
+  // Se `personvern/bekreftelse.ts`.
   let bekreftet: string | null = null
-  if (ansatt || bruker.rolle !== 'butikkbruker_tablet') {
-    const sp = supabase
+  if (ansatt) {
+    bekreftet = (await sisteBekreftelse(ansatt, bruker.retailerId ?? ''))?.versjon ?? null
+  } else if (bruker.rolle !== 'butikkbruker_tablet') {
+    const { data } = await supabase
       .from('kontrolltiltak_bekreftelse')
       .select('versjon, bekreftet_tid')
+      .eq('bruker_id', bruker.id)
       .order('bekreftet_tid', { ascending: false })
       .limit(1)
-    const { data } = ansatt
-      ? await sp.eq('ansatt_id', ansatt.id).maybeSingle<{ versjon: string }>()
-      : await sp.eq('bruker_id', bruker.id).maybeSingle<{ versjon: string }>()
+      .maybeSingle<{ versjon: string }>()
     bekreftet = data?.versjon ?? null
   }
   const trengerBekreftelse = maaBekrefte(bekreftet)
