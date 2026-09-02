@@ -1280,7 +1280,7 @@
     },
     {
       "tabell": "pengepremie_bruk",
-      "$hvorfor": "Brukt pengepremie per stasjon. Nettbrettet leser den via hentHjemData, og bare feltet `belop_kr` - for aa vise hvor mye som er igjen.",
+      "$hvorfor": "Brukt pengepremie per stasjon. Nettbrettet leser summen gjennom hjem_stasjonstall() (0165) og har ingen tilgang til tabellen - `beskrivelse` sier hva pengene gikk til.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
@@ -1289,17 +1289,14 @@
         "update",
         "delete"
       ],
-      "tablet": {
-        "select": "own_station"
-      },
       "manager": "assigned_stations",
       "owner": "retailer",
-      "capability_gjeld": "KOLONNENIVAA, SAMME FORM SOM skills_score. Nettbrettet trenger `belop_kr` og faar ogsaa `beskrivelse` og `opprettet_av` - hva pengene gikk til, og hvem som foerte det. Utvei: security_invoker-view med stasjon_id og belop_kr. Ikke bygget.",
       "proberad": {
         "beskrivelse": "'Sondepremie {{unik}}'",
         "belop_kr": "500"
       },
-      "oppdaterbart": "belop_kr = 750"
+      "oppdaterbart": "belop_kr = 750",
+      "tablet": "none"
     },
     {
       "tabell": "persondata_logg",
@@ -2046,7 +2043,7 @@
     },
     {
       "tabell": "skills_score",
-      "$hvorfor": "Stasjonens skills-score. Ingen ansatt_id - scoren er paa STASJONEN, ikke personen. /skills er lederflate (retailer_admin, butikksjef). Nettbrettet leser den via hentHjemData, og bare feltet `prosent`.",
+      "$hvorfor": "Stasjonens skills-score. Ingen ansatt_id - scoren er paa STASJONEN, ikke personen. /skills er lederflate (retailer_admin, butikksjef). Nettbrettet leser prosenten gjennom hjem_stasjonstall() (0165) og har ingen tilgang til tabellen - kommentaren er lederens vurdering.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
@@ -2055,16 +2052,13 @@
         "update",
         "delete"
       ],
-      "tablet": {
-        "select": "own_station"
-      },
       "manager": "assigned_stations",
       "owner": "retailer",
-      "capability_gjeld": "KOLONNENIVAA, IKKE RAD. Nettbrettet trenger `prosent` og faar hele raden - ogsaa `kommentar` og `registrert_av`, altsaa lederens skriftlige vurdering og hvem som skrev den. Et rollepredikat duger ikke: det ville tatt bort nettbrettets legitime lesing av prosent. Et kolonnegrant duger heller ikke - butikksjefen skal se kommentaren, og granten treffer hele authenticated. Utvei: en security_invoker-view med stasjon_id og prosent til nettbrettet, og rollepredikat paa tabellen. Godkjent av Robert i PORT 1, ikke bygget.",
       "proberad": {
         "prosent": "88"
       },
-      "oppdaterbart": "prosent = 91"
+      "oppdaterbart": "prosent = 91",
+      "tablet": "none"
     },
     {
       "tabell": "stasjon_produksjon_innstilling",
