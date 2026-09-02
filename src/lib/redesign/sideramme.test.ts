@@ -393,6 +393,27 @@ describe('Sideramme-signaturen', () => {
 
 /** Regler som setter en fast bredde, og hvorfor de får lov. */
 const BREDDEUNNTAK: Record<string, string> = {
+  // Ukebriefen. Bredden ligger paa `.ub-spalte`, som page.tsx setter med
+  // en literal `className`, og ikke inne i `brev.tsx` bak et uttrykk.
+  //
+  // Grunnen er en blindsone i vakten selv: den samler klasser med
+  // /className="([^{"]*)"/ og ser derfor BARE literale strenger. En
+  // bredde bak `className={x ? 'a' : 'b'}` er usynlig for den. (Filene
+  // er ikke problemet - `kodenFor()` foelger lokale importer og leser
+  // komponentfilene.) Foerste utgave av briefen hadde nettopp en slik
+  // uttrykksklasse, og regelen gikk rett gjennom.
+  //
+  // Ikke rettet her: aa lese uttrykk krever JSX-parsing, og det er samme
+  // avveining som er dokumentert lenger oppe for inline-stiler. Notert
+  // saa den er sett og ikke utnyttet.
+  '.ub-spalte':
+    'Lesespalten i ukebriefen, ikke sidens spalte. Et brev leses fra '
+    + 'toppen; 40rem holder linjelengden naer 65 tegn, og moensterets '
+    + 'analysebredde er for bred til loepende tekst.',
+  '.ub-innboks':
+    'Rammen rundt e-postvisningen - en simulert innboks, et komponentmaal. '
+    + 'Uten den ser forhaandsvisningen ut som en side, og da er det ikke '
+    + 'lenger e-posten man vurderer.',
   '.innhold .kort':
     'Den gamle mekanismen. Nøytralisert inne i rammen av '
     + '`.innhold .sq-sideramme > .kort { max-width: none }`. Forsvinner '

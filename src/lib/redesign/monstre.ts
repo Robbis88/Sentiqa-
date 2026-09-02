@@ -269,6 +269,10 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/ikmat': 'arbeidsflyt',
 
   // --- Analyse ---
+  // /ukebrief er analyse og ikke dashbord: den svarer på ÉN ukes
+  // spørsmål — hva skjedde, hvorfor, og hva gjør jeg med det — mens et
+  // dashbord viser tilstanden nå. Nivå 1 er derfor svaret, ikke tallene.
+  '/ukebrief': 'analyse',
   '/salg': 'analyse',
   '/timesalg': 'analyse',
   '/salgsprognose': 'analyse',
