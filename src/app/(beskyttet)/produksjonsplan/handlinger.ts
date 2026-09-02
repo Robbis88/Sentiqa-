@@ -63,13 +63,40 @@ export async function publiser(stasjon_id: string, dato: string): Promise<{ ok: 
 }
 
 // Tablet: ansatte logger hvor mange som er lagd hittil (absolutt verdi).
+/**
+ * Nettbrettets ene operative handling: hvor mange som er lagd.
+ *
+ * GJENNOM `logg_lagd()`, IKKE RETT PAA TABELLEN (0167).
+ *
+ * `produksjonsplan_upd` slapp foer alle med stasjonen til paa HELE raden.
+ * Denne handlingen trenger `lagd_hittil`; raden baerer ogsaa `planlagt` -
+ * det butikksjefen har bestemt skal lages - og `start_antall` og
+ * `ekskludert`. Et kolonnegrant kunne ikke skille dem: det ville truffet
+ * butikksjefen, som skal kunne sette `planlagt` gjennom `setLinje`.
+ *
+ * Funksjonen er `security definer`, baerer tenantpredikatet selv og
+ * roerer bare de to kolonnene.
+ */
 export async function loggLagd(stasjon_id: string, dato: string, varenavn: string, lagd: number): Promise<void> {
-  await hentInnloggetBruker() // sikrer innlogget sesjon; RLS styrer tilgang
+  await hentInnloggetBruker() // sikrer innlogget sesjon; funksjonen sjekker stasjonen
   if (!stasjon_id || !dato || !varenavn) return
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('produksjonsplan_linjer')
-    .update({ lagd_hittil: Math.max(0, Math.round(lagd)), oppdatert_tid: new Date().toISOString() })
-    .eq('stasjon_id', stasjon_id).eq('dato', dato).eq('varenavn', varenavn), 'oppdatere produksjonsplan linjer')
+  // `error` LESES EKSPLISITT, ikke gjennom `maaLykkes`. Et rpc-kall som
+  // ikke sjekker feilen gjoer «funksjonen finnes ikke» om til «ingen
+  // data» — se `rpc-feil.test.ts` og `/maaling`, som sto og sa «Ingen
+  // stasjoner» i maanedsvis fordi `0075` aldri var kjoert.
+  const { data, error } = await supabase.rpc('logg_lagd', {
+    p_stasjon_id: stasjon_id, p_dato: dato, p_varenavn: varenavn,
+    p_lagd: Math.max(0, Math.round(lagd)),
+  })
+  if (error) throw new Error(`Fikk ikke logget antallet: ${error.message}`)
+  // NULL RADER ER IKKE EN SUKSESS. Funksjonen returnerer 0 baade naar
+  // stasjonen ikke er min og naar linja ikke finnes. En handling som
+  // svarer «ok» paa noe som ikke ble skrevet, ser ut som en som virket -
+  // og da teller nettbrettet videre paa et tall som aldri ble lagret.
+  if (Number(data ?? 0) === 0) {
+    throw new Error('Fikk ikke logget antallet — linja finnes ikke, eller stasjonen er ikke din.')
+  }
 }
 
 // Driftsreglene: start- og marginprosent (0149).

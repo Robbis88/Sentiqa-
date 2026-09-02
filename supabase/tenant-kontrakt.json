@@ -1463,7 +1463,7 @@
     },
     {
       "tabell": "produksjonsplan_linjer",
-      "$hvorfor": "Nettbrettets ENE operative handling: loggLagd skriver lagd_hittil. INSERT og DELETE er lederens - ingen flate i src/ sletter i det hele tatt. Strammet i 0136.",
+      "$hvorfor": "Nettbrettets ENE operative handling: loggLagd skriver lagd_hittil - gjennom `logg_lagd()` (0167), ikke rett paa tabellen. UPDATE paa tabellen er lederens: `setLinje` er en upsert og trenger den. INSERT og DELETE er ogsaa lederens - ingen flate i src/ sletter i det hele tatt. Strammet i 0136, lukket i 0167.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
@@ -1473,8 +1473,7 @@
         "delete"
       ],
       "tablet": {
-        "select": "own_station",
-        "update": "own_station"
+        "select": "own_station"
       },
       "manager": "assigned_stations",
       "owner": "retailer",
@@ -1483,12 +1482,11 @@
         "dato",
         "varenavn"
       ],
-      "capability_gjeld": "Nettbrettet har RADNIVAA-UPDATE, og RLS kan ikke skille lagd_hittil fra planlagt. En klient med tablet-sesjon kan i prinsippet forsoke aa endre mer enn UI-et tilbyr. Kolonnegrant duger ikke - det ville truffet butikksjefen, som skal kunne sette planlagt via setLinje. Lukkes med egen RPC for loggLagd, eller en kontrollert serverside skrivevei som bare tillater lagd_hittil og oppdatert_tid. Eget sikkerhetstrinn, ikke 0136.",
       "proberad": {
         "dato": "{{unik_dato}}",
         "varenavn": "'Sondevare {{unik}}'"
       },
-      "$oppdaterbart_hvorfor": "dato og varenavn inngaar begge i business_unik. lagd_hittil er dessuten noeyaktig det nettbrettet faktisk skriver.",
+      "$oppdaterbart_hvorfor": "dato og varenavn inngaar begge i business_unik. lagd_hittil er dessuten noeyaktig det nettbrettet skriver - men naa gjennom funksjonen, saa matrisen skal se UPDATE avvist for tablet.",
       "oppdaterbart": "lagd_hittil = 1"
     },
     {
