@@ -40,6 +40,9 @@ with lister as (
     -- BP-en som eget dokument (0155). Faa rader per aar, men de leses av
     -- hver analysevisning og vokser med hver aargang og hver stasjon.
     'bp_aar', 'bp_linje',
+    -- Ukebriefens utsendingslogg (0169). En rad per stasjon per uke per
+    -- mottaker, saa den vokser med drift like sikkert som salget.
+    'ukebrief_utsending',
     -- Semantisk kodemapping (0152). Faa rader, men varme: v_butikksalg
     -- joiner dem i HVER eneste salgsspoerring.
     'retailer_kodeerklaering', 'retailer_koderegel',

@@ -2376,6 +2376,35 @@
       ]
     },
     {
+      "tabell": "ukebrief_utsending",
+      "$hvorfor": "Logg over sendte ukebriefer, saa en utsending som feiler halvveis kan gjenopptas uten at noen faar brevet to ganger. Bare SELECT finnes som policy - jobben skriver som service_role, og en logg som kan redigeres i ettertid er ikke en logg. Samme form som prognose_treff (0069) og trafikk. EIERENS: den svarer paa «gikk brevene ut i morges?», som er drift for kjeden - butikksjefen har brevet sitt og har ingen bruk for aa se at det ble sendt. INGEN e-postadresse i tabellen: mottakeren er profil_id, og adressen slaas opp i auth.users foerst naar brevet sendes.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "seed_ekstra": [
+        "insert into auth.users (id, email) values ('{{seed:profil}}', 'sonde-{{n}}@kanari.local') on conflict (id) do nothing",
+        "insert into public.profiler (id, retailer_id, rolle, fullt_navn) values ('{{seed:profil}}', '{{retailer}}', 'butikksjef', 'Sondesjef {{n}}')"
+      ],
+      "proberad": {
+        "uke_mandag": "{{unik_dato}}",
+        "profil_id": "'{{seed:profil}}'",
+        "status": "'sendt'"
+      },
+      "business_unik": [
+        "stasjon_id",
+        "uke_mandag",
+        "profil_id"
+      ],
+      "business_unik_unntak": {
+        "status": "Ikke en noekkelkolonne. Den unike indeksen er PARTIELL (where status = 'sendt'), saa den sperrer bare vellykkede sendinger - et feilet forsoek skal kunne gjentas. uke_mandag varierer per forsoek, saa noekkelen er unik uansett arm."
+      }
+    },
+    {
       "tabell": "vaer",
       "$hvorfor": "Vaerdata per stasjon og dag (0015), brukt av produksjonsplanen og bemanningen. Ingen retailer_id - kjeden naas gjennom stasjonen. Hele stasjonen leser, bare eieren skriver. Policyene er allerede splittet og pakket i 0107.",
       "tenant_scope": "station",

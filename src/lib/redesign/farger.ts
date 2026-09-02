@@ -50,6 +50,14 @@ export const UNNTAK: Record<string, string> = {
   // skal ikke tvinges inn i Sentiqa-paletten — det er en markedsside,
   // ikke en arbeidsflate.
   'components/lp/lp.css': 'egen visuell verden, mønsteret utenfor',
+  // E-postklienter støtter ikke CSS-variabler, eksterne stilark eller
+  // `<style>` i noen pålitelig form — Outlook stripper det siste. Alt må
+  // stå inline på elementet, og da må fargen være en literal.
+  //
+  // Prisen er at paletten finnes to steder. Den betales i ÉN fil, med
+  // verdiene samlet i ett `F`-objekt øverst, framfor å bli spredt utover
+  // markupen. Endres `--primaer` i globals.css, skal den endres der.
+  'lib/ukebrief/epost.ts': 'e-post kan ikke lese CSS-variabler; paletten er samlet i ett objekt',
 }
 
 export function tellFarger(kilde: string): number {

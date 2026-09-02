@@ -73,6 +73,22 @@ export function sisteHeleUke(mandager: string[], idag: string): string | null {
   return mandager[0] ?? null
 }
 
+/**
+ * Uken en kjoering paa dag `idag` skal handle om: forrige hele uke.
+ *
+ * Mandagen i innevaerende uke, minus sju. Kjoerer jobben mandag morgen,
+ * er det uken som akkurat ble ferdig. Kjoerer den paa nytt onsdag — etter
+ * en feil — peker den paa NOEYAKTIG samme uke, og duplikatsperren i
+ * `ukebrief_utsending` kjenner den igjen. En regel som svarte «de siste
+ * sju dagene» ville gitt et annet brev hver gang jobben ble gjentatt.
+ */
+export function forrigeUke(idag: string): string {
+  const d = new Date(`${idag}T12:00:00Z`)
+  // 0 = soendag → mandagen er seks dager tilbake, ikke en dag fram.
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) - 7)
+  return d.toISOString().slice(0, 10)
+}
+
 // --- Signalkildene ---------------------------------------------------
 
 function salgssignaler(d: Ukedata): Briefsignal[] {

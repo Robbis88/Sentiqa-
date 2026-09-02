@@ -34,6 +34,16 @@ const skjema = z.object({
   VAKT_SIGNATUR_SECRET: z.string().min(32).optional(),
   // Vercel Cron sender denne i Authorization-headeren ved nattjobber.
   CRON_SECRET: z.string().min(1).optional(),
+  // Ukebriefen. Valgfri i skjemaet saa bygget og alle andre flater staar
+  // uten den — men utsendingen feiler LUKKET: mangler noekkelen, sendes
+  // ingenting, og jobben sier hvorfor. Aldri en stille no-op, som ville
+  // sett ut som «ingen hadde bruk for et brev denne uken».
+  RESEND_API_KEY: z.string().min(1).optional(),
+  // Avsenderadressen. Domenet maa vaere verifisert hos Resend.
+  UKEBRIEF_AVSENDER: z.string().min(3).default('Sentiqa <ukebrief@sentiqa.ai>'),
+  // Lenkene i brevet maa peke paa produksjon, ikke paa den previewen
+  // jobben tilfeldigvis kjoerte fra. Derfor eksplisitt, ikke VERCEL_URL.
+  UKEBRIEF_BASIS_URL: z.string().url().default('https://sentiqa.ai'),
 })
 
 const resultat = skjema.safeParse(process.env)
