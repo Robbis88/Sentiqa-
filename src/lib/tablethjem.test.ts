@@ -16,15 +16,18 @@ import { hentHjemData } from './tablethjem'
 type Rad = { dato: string; mat_omsetning: number; kald_drikke_omsetning: number }
 
 /**
- * Klient som svarer paa de fem spoerringene `hentHjemData` gjoer.
+ * Klient som svarer paa spoerringene `hentHjemData` gjoer.
  * Bare salgsradene betyr noe her; resten skal bare ikke velte.
+ *
+ * `skills_score` og `pengepremie_bruk` leses ikke lenger som TABELLER
+ * (0165) - nettbrettet ville faatt lederens kommentar og hva pengene gikk
+ * til paa kjoepet. De to tallene kommer fra `hjem_stasjonstall`, og
+ * `rpc` under er derfor en del av fasiten, ikke pynt.
  */
 function fakeKlient(salg: Rad[]) {
   const sett = new Set<string>()
   const svar: Record<string, unknown> = {
-    skills_score: null,
     pengepremie: [],
-    pengepremie_bruk: [],
     v_salg_per_stasjon_dag: salg,
     produksjonsplan_hode: null,
     produksjonsplan_linjer: [],
@@ -55,7 +58,16 @@ function fakeKlient(salg: Rad[]) {
         valgtePerTabell[tabell] ??= {}
         return bygg(tabell, valgtePerTabell[tabell])
       },
+      rpc(navn: string) {
+        sett.add(`rpc:${navn}`)
+        return {
+          maybeSingle: async () => ({
+            data: { skills_prosent: null, premie_brukt_kr: 0 }, error: null,
+          }),
+        }
+      },
     },
+    sett,
     valgtePerTabell,
   }
 }
@@ -116,5 +128,52 @@ describe('vekstkortet maaler mat og kald drikke', () => {
   it('gir null vekst naar det ikke finnes salg', async () => {
     const { vekst: v } = await vekst([])
     expect(v).toBeNull()
+  })
+})
+
+// =====================================================================
+// NETTBRETTET SER TALLET, IKKE VURDERINGEN (0165)
+//
+// `skills_score.prosent` kom foer med `kommentar` - butikksjefens
+// skriftlige vurdering av stasjonen - og `registrert_av`.
+// `pengepremie_bruk.belop_kr` kom med `beskrivelse`, altsaa hva pengene
+// gikk til. Nettbrettet er en DELT enhet i butikken.
+//
+// Klassifisert som capability-gjeld i Port 1, bygget 2026-09-02.
+// =====================================================================
+describe('hjemskjermen leser to tall, ikke to tabeller', () => {
+  async function kall() {
+    const { klient, sett } = fakeKlient([rad('2026-08-23', 10, 5)])
+    await hentHjemData(klient as never, 'stasjon-1')
+    return sett
+  }
+
+  it('KANARIFUGL: gaar gjennom hjem_stasjonstall', async () => {
+    // Uten denne kunne paastandene under bestaatt fordi kallet forsvant
+    // helt - og da ville hjemskjermen mangle tallene i stillhet.
+    expect([...await kall()]).toContain('rpc:hjem_stasjonstall')
+  })
+
+  it('roerer ikke skills_score eller pengepremie_bruk som tabeller', async () => {
+    const sett = await kall()
+    expect([...sett], 'leser lederens kommentar').not.toContain('skills_score')
+    expect([...sett], 'leser hva pengene gikk til').not.toContain('pengepremie_bruk')
+  })
+
+  it('leser fortsatt pengepremie selv - den har bare beloepet', async () => {
+    // Tildelingen er ikke gjeld: raden sier hvor mye stasjonen vant, og
+    // det er nettopp det nettbrettet skal vise.
+    expect([...await kall()]).toContain('pengepremie')
+  })
+
+  it('KANARIFUGL: en feil fra funksjonen svelges ikke', async () => {
+    // «Funksjonen finnes ikke» ville ellers sett ut som «ingen data», og
+    // kortet bare uteblitt - samme form som `/maaling` sto i i maanedsvis.
+    const { klient } = fakeKlient([rad('2026-08-23', 10, 5)])
+    const rpc = () => ({
+      maybeSingle: async () => ({ data: null, error: { message: 'function does not exist' } }),
+    })
+    await expect(hentHjemData({ ...klient, rpc } as never, 'stasjon-1'))
+      .rejects.toThrow(/stasjonstallene/)
   })
 })

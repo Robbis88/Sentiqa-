@@ -30,6 +30,7 @@ declare
     'gjeldende_retailer_id',
     'gjeldende_rolle',
     'har_stasjonstilgang',
+    'hjem_stasjonstall',
     'kampanje_analyse',
     'kvitter_tablet_melding',
     'lagre_puls_svar',
@@ -87,7 +88,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       25                          as forventet_av_migrasjonene
+       26                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

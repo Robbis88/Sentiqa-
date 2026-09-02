@@ -39,10 +39,25 @@ function skillsTekst(p: number): string {
 
 export async function hentHjemData(supabase: Klient, stasjonId: string): Promise<HjemData> {
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-  const [{ data: skill }, { data: tildelt }, { data: bruk }, { data: salg }, produksjon] = await Promise.all([
-    supabase.from('skills_score').select('prosent').eq('stasjon_id', stasjonId).order('registrert_tid', { ascending: false }).limit(1).maybeSingle<{ prosent: number }>(),
+  // TO TALL, IKKE TO RADER (0165).
+  //
+  // Foer leste denne `skills_score` og `pengepremie_bruk` direkte, og med
+  // `prosent` fulgte `kommentar` - butikksjefens skriftlige vurdering av
+  // stasjonen - mens `belop_kr` dro med seg `beskrivelse`, altsaa hva
+  // pengene gikk til. Nettbrettet er en DELT enhet i butikken.
+  //
+  // `hjem_stasjonstall` er `security definer` med eget tenantpredikat og
+  // returnerer noeyaktig de to tallene. Lederflatene leser tabellene som
+  // foer - de skal se kommentaren.
+  //
+  // OG FEILEN LESES. Et `rpc`-kall som ikke sjekker `error` gjoer «funksjonen
+  // finnes ikke» om til «ingen data» - det var nettopp den formen som lot
+  // `/maaling` staa og si «Ingen stasjoner» i maanedsvis fordi `0075` aldri
+  // var kjoert. Her ville symptomet vaert et hjemskjermkort som bare uteble.
+  const [{ data: tall, error: tallFeil }, { data: tildelt }, { data: salg }, produksjon] = await Promise.all([
+    supabase.rpc('hjem_stasjonstall', { p_stasjon_id: stasjonId })
+      .maybeSingle<{ skills_prosent: number | null; premie_brukt_kr: number | null }>(),
     supabase.from('pengepremie').select('belop_kr').eq('stasjon_id', stasjonId),
-    supabase.from('pengepremie_bruk').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('v_salg_per_stasjon_dag').select('dato, mat_omsetning, kald_drikke_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]>(),
     // Dagens publiserte produksjonsplan (kun hvis publisert) — fremdrift til tableten.
     (async (): Promise<HjemData['produksjon']> => {
@@ -54,11 +69,24 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     })(),
   ])
 
-  const skills = skill ? { prosent: Number(skill.prosent), tekst: skillsTekst(Number(skill.prosent)) } : null
+  // Kaster, framfor aa vise en stasjon uten tall som om den var tom.
+  // `hentHjemData` kalles fra en serverkomponent, saa feilgrensa tar den
+  // og sier fra - i motsetning til et kort som bare ikke er der.
+  if (tallFeil) {
+    throw new Error(`Fikk ikke stasjonstallene til hjemskjermen: ${tallFeil.message}`)
+  }
+
+  // `null` er ikke 0: en stasjon uten registrert score skal vise
+  // ingenting, ikke «0 %». Funksjonen gir ogsaa null naar stasjonen ikke
+  // er min - da er det riktig at kortet uteblir.
+  const prosent = tall?.skills_prosent
+  const skills = prosent != null
+    ? { prosent: Number(prosent), tekst: skillsTekst(Number(prosent)) }
+    : null
 
   // Vunnet = alle tildelinger (konkurranse-vinnere oppretter tildeling automatisk)
   const vunnet = ((tildelt ?? []) as { belop_kr: number | null }[]).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
-  const brukt = ((bruk ?? []) as { belop_kr: number | null }[]).reduce((a, r) => a + (r.belop_kr ?? 0), 0)
+  const brukt = Number(tall?.premie_brukt_kr ?? 0)
   const premie = { vunnet, brukt, igjen: vunnet - brukt }
 
   // Vekst mot fjoråret (−364 d): siste salgsdag, måneden hittil, og streak
