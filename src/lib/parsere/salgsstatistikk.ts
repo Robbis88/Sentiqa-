@@ -51,6 +51,7 @@ export async function parseSalgsstatistikk(
   const inkludererMoms = /inkluder moms:\s*true/i.test(datorad)
 
   const stasjoner: SalgsstatistikkStasjon[] = []
+  const utenEan = { antall: 0, kroner: 0 }
   let stasjon: SalgsstatistikkStasjon | null = null
   let avd = { kode: null as string | null, navn: null as string | null }
   let vomr = { kode: null as string | null, navn: null as string | null }
@@ -59,6 +60,29 @@ export async function parseSalgsstatistikk(
   for (let r = 8; r <= ws.rowCount; r++) {
     const rad = ws.getRow(r)
     const c1 = celletekst(rad.getCell(1).value).trim()
+
+    // EAN-LOES PRODUKTLINJE - MAA STAA FOER TOMRADSJEKKEN.
+    //
+    // St1 kan sende en produktlinje uten EAN: «Not Available / Unknown»
+    // under en «Unknown Unknown»-avdeling. Kolonne 1 er da TOM, saa
+    // linja ser ut som en blank rad og ble hoppet over i stillhet.
+    //
+    // Den kan ikke lagres - `daglig_salg` upserter paa (…, ean), og
+    // NULL-er teller som forskjellige i en unik indeks, saa hver
+    // reimport ville lagt til en ny rad. Men den skal TELLES: Lone
+    // manglet 70 kr av 922 056 i august 2026, og det tok en manuell
+    // avstemming mot St1 aa oppdage.
+    //
+    // Skillet mot en ekte blank rad er at navn og beloep staar der.
+    if (c1 === '' && stasjon) {
+      const navn = celletekst(rad.getCell(KOL.varenavn).value).trim()
+      const belop = celletall(rad.getCell(KOL.omsetning).value)
+      if (navn && belop) {
+        utenEan.antall += 1
+        utenEan.kroner += belop
+      }
+    }
+
     if (c1 === '') continue
 
     if (c1.startsWith('Butikk:')) {
@@ -113,5 +137,5 @@ export async function parseSalgsstatistikk(
     throw new ParserFeil('Salgsstatistikk: fant ingen stasjoner/produktrader.')
   }
 
-  return { rapporttype: 'st1_salgsstatistikk', dato, inkludererMoms, stasjoner }
+  return { rapporttype: 'st1_salgsstatistikk', dato, inkludererMoms, stasjoner, utenEan }
 }

@@ -41,6 +41,20 @@ export type SalgsstatistikkResultat = {
   dato: string // ISO yyyy-mm-dd (fra rad 3)
   inkludererMoms: boolean
   stasjoner: SalgsstatistikkStasjon[]
+  /**
+   * Linjer som ble hoppet over fordi de mangler EAN.
+   *
+   * St1-fila kan ha produktlinjer uten EAN - «Not Available / Unknown»
+   * under en «Unknown Unknown»-avdeling. De kan ikke lagres: `daglig_salg`
+   * upserter paa (retailer_id, stasjon_id, dato, ean), og Postgres regner
+   * NULL-er som forskjellige i en unik indeks, saa hver reimport ville
+   * lagt til en ny rad.
+   *
+   * AA droppe dem er derfor riktig - men det skal ikke skje i stillhet.
+   * Maalt paa Lone i august 2026: en linje, 70 kr av 922 056. Blir tallet
+   * stort, er det noe annet enn en rar enkeltlinje, og da skal noen se det.
+   */
+  utenEan: { antall: number; kroner: number }
 }
 
 // --- St1 0758 SalesPerHour (timesalg/heatmap) ---

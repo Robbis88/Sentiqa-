@@ -39,7 +39,7 @@ import { lagKaffevarsel } from '@/lib/kaffesvinn'
 // brukersesjonen, e-post-webhooken bruker service-role. Ingen session/revalidate
 // her, så den kan kjøres fra begge.
 type Klient = SupabaseClient
-type Lagring = { antallRader: number; umatchet: string[] }
+type Lagring = { antallRader: number; umatchet: string[]; notat?: string | null }
 
 // Skriver rader i batcher (ikke én diger insert) — holder hvert kall raskt og
 // under grensene, så store/mange filer ikke timer ut. Feiler en batch, sies
@@ -128,6 +128,38 @@ export async function behandleJobbKjerne(
       tekst: melding,
       lenke: '/import',
     })
+  }
+
+  // =====================================================================
+  // EN JOBB UTEN FIL KAN IKKE BEHANDLES PAA NYTT - OG SKAL IKKE PROEVE
+  //
+  // Filer som parses i NETTLESEREN lagres aldri i Storage; klienten har
+  // dem, og serveren faar bare resultatet. `klient/<uuid>-<filnavn>` er
+  // en sentinel-sti som bare finnes fordi kolonnen er NOT NULL - se
+  // `lagreForhandsparset`.
+  //
+  // «Behandle»-knappen ble likevel tilbudt paa dem. Trykket man den,
+  // satte serveren status til `behandler`, fant ingen fil, og skrev
+  // `feilet` over en jobb som hadde gaatt HELT FINT - med meldingen
+  // «Kunne ikke laste ned fil: Object not found», som peker paa
+  // lagringen mens problemet er at det aldri SKULLE ligge en fil der.
+  //
+  // Robert saa to slike rader for 26. og 27. august 2026 og trodde
+  // dataene manglet. De var inne.
+  //
+  // Statusen roeres ikke her: en vellykket import skal ikke degraderes
+  // av et forsoek som aldri kunne lykkes.
+  // =====================================================================
+  if (jobb.raa_filer.storage_sti.startsWith('klient/')) {
+    await supabase
+      .from('import_jobber')
+      .update({
+        feilmelding:
+          'Denne fila ble lest i nettleseren, så den ligger ikke lagret. '
+          + 'Last den opp på nytt for å behandle den igjen.',
+      })
+      .eq('id', jobbId)
+    return
   }
 
   await supabase.from('import_jobber').update({ status: 'behandler' }).eq('id', jobbId)
@@ -288,10 +320,16 @@ export async function behandleJobbKjerne(
         gjelder_dato: dato,
         antall_rader: res.antallRader,
         parset_tid: new Date().toISOString(),
-        feilmelding:
+        // MERKNADER, IKKE BARE FEIL. Feltet heter `feilmelding`, men
+        // det er det eneste stedet importen kan si noe til den som
+        // lastet opp - og en stille utelatelse er verre enn en synlig
+        // merknad. Se `utenEan` i salgsstatistikk-parseren.
+        feilmelding: [
           res.umatchet.length > 0
             ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}`
             : null,
+          res.notat ?? null,
+        ].filter(Boolean).join(' · ') || null,
       })
       .eq('id', jobbId)
 
@@ -524,7 +562,16 @@ async function lagreSalgsstatistikk(
     await varsleOmUrimeligDag(supabase, retailerId, stasjonId, r.dato)
   }
 
-  return { antallRader: rader.length, umatchet }
+  // EN UTELATELSE SKAL SES. Linjer uten EAN kan ikke lagres - se
+  // `utenEan` i parseren - men den som lastet opp skal faa vite at de
+  // fantes. 70 kr paa Lone i august 2026 er ubetydelig; blir tallet
+  // stort, er det noe annet enn en rar enkeltlinje.
+  const notat = r.utenEan.antall > 0
+    ? `${r.utenEan.antall} linje${r.utenEan.antall === 1 ? '' : 'r'} uten EAN `
+      + `ble ikke lagret (${Math.round(r.utenEan.kroner)} kr)`
+    : null
+
+  return { antallRader: rader.length, umatchet, notat }
 }
 
 // =====================================================================
