@@ -128,7 +128,17 @@ test.describe('butikksjefen', () => {
     // samme egenskapen sett gjennom grensesnittet - de kan vaere uenige
     // hvis en sporring gaar utenom RLS et sted.
     await page.goto('/salg')
-    const tekst = await page.locator('body').innerText()
-    expect(tekst).not.toContain('9467') // stasjon som ikke finnes i seeden
+    // TEXTCONTENT, IKKE INNERTEXT. En NEGATIV paastand paa `innerText`
+    // kan ikke skille «finnes ikke» fra «er skjult» - `innerText` gir
+    // bare RENDRET tekst. `toContainText` leser `textContent` og ser
+    // ogsaa det som ligger i DOM-en uten aa vaere synlig, og er derfor
+    // den strengere paastanden her. Se AGENTS.md.
+    //
+    // KANARIFUGL: sida maa ha lastet. Uten den positive ville paastanden
+    // under bestaatt paa en tom side - og det er nettopp det en RLS-feil
+    // IKKE ser ut som.
+    const kropp = page.locator('body')
+    await expect(kropp, 'Salgssida lastet ikke').toContainText('Salg')
+    await expect(kropp, 'Ser en stasjon utenfor egen kjede').not.toContainText('9467')
   })
 })
