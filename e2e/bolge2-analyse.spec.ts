@@ -213,9 +213,19 @@ test.describe('bolge 2 - analysefamilien', () => {
       .toHaveValue('2026-03-01')
     await expect(page.getByRole('button', { name: 'Vis måneden' })).toBeVisible()
 
-    const tekst = await page.locator('main').innerText()
-    expect(tekst).not.toMatch(/% av omsetningen/)
-    expect(tekst).not.toMatch(/Retur, makulert og slettet/)
+    // TEXTCONTENT, IKKE INNERTEXT. En NEGATIV paastand paa `innerText`
+    // kan ikke skille «finnes ikke» fra «er skjult» - `innerText` gir
+    // bare RENDRET tekst. `toContainText` leser `textContent` og ser
+    // ogsaa det som ligger i DOM-en uten aa vaere synlig, og er derfor
+    // den strengere paastanden her. Se AGENTS.md.
+    //
+    // KANARIFUGL: den positive foerst. Uten den ville begge paastandene
+    // under bestaatt hvis `main` ikke fantes i det hele tatt.
+    const hoved = page.locator('main')
+    await expect(hoved, 'Fant ikke sida - da beviser paastandene under ingenting')
+      .toContainText('Kasserer')
+    await expect(hoved).not.toContainText('% av omsetningen')
+    await expect(hoved).not.toContainText('Retur, makulert og slettet')
   })
 
   test('kassereroppgjoret staar som sammenligningsmatrise', async ({ page }) => {

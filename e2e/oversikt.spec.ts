@@ -148,20 +148,43 @@ test.describe('/oversikt for butikksjefen', () => {
   })
 
   test('D - et skjult signal holder seg skjult', async ({ page }) => {
-    const tekst = await page.locator('body').innerText()
+    // TEXTCONTENT, IKKE INNERTEXT. En NEGATIV paastand paa `innerText`
+    // kan ikke skille «finnes ikke» fra «er skjult» - `innerText` gir
+    // bare RENDRET tekst. `toContainText` leser `textContent` og ser
+    // ogsaa det som ligger i DOM-en uten aa vaere synlig, og er derfor
+    // den strengere paastanden her. Se AGENTS.md.
+    //
+    // Her betyr det noe: skjulte signaler filtreres SERVERSIDE
+    // (`signalkilder.ts`), saa de skal ikke finnes i DOM-en i det hele
+    // tatt. `innerText` ville bestaatt ogsaa om de laa der usynlige.
+    const kropp = page.locator('body')
     // Soesknene er identiske bortsett fra skjulingen. Uten det synlige
     // kunne dette beviset ikke skille «skjuling virker» fra «varsler
     // vises ikke i det hele tatt».
-    expect(tekst, 'Det synlige varselet mangler - fixturen naar ikke fram')
-      .toContain('Bemanningen er innenfor rammen')
-    expect(tekst, 'Et lukket signal er tilbake i lista')
-      .not.toContain('Skjult varsel som ikke skal vises')
+    await expect(kropp, 'Det synlige varselet mangler - fixturen naar ikke fram')
+      .toContainText('Bemanningen er innenfor rammen')
+    await expect(kropp, 'Et lukket signal er tilbake i lista')
+      .not.toContainText('Skjult varsel som ikke skal vises')
   })
 
   test('F - butikksjefen ser ikke eierens portefoljebilde', async ({ page }) => {
-    const tekst = await page.locator('body').innerText()
+    // TEXTCONTENT, IKKE INNERTEXT. En NEGATIV paastand paa `innerText`
+    // kan ikke skille «finnes ikke» fra «er skjult» - `innerText` gir
+    // bare RENDRET tekst. `toContainText` leser `textContent` og ser
+    // ogsaa det som ligger i DOM-en uten aa vaere synlig, og er derfor
+    // den strengere paastanden her. Se AGENTS.md.
+    //
+    // EN ROLLESEPARERING MAA MAALES I DOM-EN. Ligger eierens bilde der og
+    // bare er skjult, er det levert til nettleseren og lesbart - og en
+    // paastand som ikke ser det, lover mer enn den holder.
+    const kropp = page.locator('body')
+    // «Fremover» og ikke «Dine fokuspunkter»: det siste rendres BARE naar
+    // det finnes fokuspunkter, saa det var en markoer som kunne mangle av
+    // helt normale grunner. «Fremover»-seksjonen staar ogsaa naar den er
+    // tom - og den er butikksjefens, som testen under bygger paa.
+    await expect(kropp, 'Fant ikke butikksjefens bilde').toContainText('Fremover')
     for (const eiers of ['Stasjonene mot hverandre', 'Mot budsjett denne måneden', 'Stasjonsrangering']) {
-      expect(tekst, `Butikksjefen fikk eierens «${eiers}»`).not.toContain(eiers)
+      await expect(kropp, `Butikksjefen fikk eierens «${eiers}»`).not.toContainText(eiers)
     }
   })
 
@@ -215,9 +238,14 @@ test.describe('/oversikt for eieren', () => {
     await expect(page.locator('body')).toContainText('Stasjonene mot hverandre')
 
     // Butikksjefens operative bilde skal ikke staa her.
-    const tekst = await page.locator('body').innerText()
+    // TEXTCONTENT, IKKE INNERTEXT. En NEGATIV paastand paa `innerText`
+    // kan ikke skille «finnes ikke» fra «er skjult» - `innerText` gir
+    // bare RENDRET tekst. `toContainText` leser `textContent` og ser
+    // ogsaa det som ligger i DOM-en uten aa vaere synlig, og er derfor
+    // den strengere paastanden her. Se AGENTS.md.
     for (const sjefens of ['Dine fokuspunkter', 'Fremover']) {
-      expect(tekst, `Eieren fikk butikksjefens «${sjefens}»`).not.toContain(sjefens)
+      await expect(page.locator('body'), `Eieren fikk butikksjefens «${sjefens}»`)
+        .not.toContainText(sjefens)
     }
   })
 
@@ -346,8 +374,17 @@ test.describe('/oversikt foelger stasjonskonteksten', () => {
     await page.goto(`/oversikt?stasjon=${GRENSEBY}`)
     await expect(page.locator('.sq-sidehode h1')).toBeVisible({ timeout: 20_000 })
 
-    const hode = await page.locator('.sq-sidehode').first().innerText()
-    expect(hode, 'Sidehodet summerer i stedet for aa navngi').not.toContain('Dine stasjoner')
+    const sidehode = page.locator('.sq-sidehode').first()
+    // TEXTCONTENT, IKKE INNERTEXT. En NEGATIV paastand paa `innerText`
+    // kan ikke skille «finnes ikke» fra «er skjult» - `innerText` gir
+    // bare RENDRET tekst. `toContainText` leser `textContent` og ser
+    // ogsaa det som ligger i DOM-en uten aa vaere synlig, og er derfor
+    // den strengere paastanden her. Se AGENTS.md.
+    await expect(sidehode, 'Sidehodet summerer i stedet for aa navngi')
+      .not.toContainText('Dine stasjoner')
+    // Nummeret leses fortsatt som tekst - her er poenget HVILKE numre som
+    // staar der, ikke om ett bestemt mangler.
+    const hode = (await sidehode.textContent()) ?? ''
     expect([...new Set(hode.match(/(5101|5102|5103)/g) ?? [])]).toEqual(['5102'])
   })
 
