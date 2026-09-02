@@ -63,7 +63,7 @@ type Jobb = {
   feilmelding: string | null
   gjelder_dato: string | null
   opprettet_tid: string
-  raa_filer: { filnavn: string; mottakskanal: string } | null
+  raa_filer: { filnavn: string; mottakskanal: string; storage_sti: string } | null
 }
 
 // Hva ligger faktisk i basen? Måles per kilde, per stasjon — ikke som et
@@ -146,7 +146,7 @@ export default async function ImportSide(
   let sporring = supabase
     .from('import_jobber')
     .select(
-      'id, status, rapporttype, antall_rader, feilmelding, gjelder_dato, opprettet_tid, raa_filer(filnavn, mottakskanal)',
+      'id, status, rapporttype, antall_rader, feilmelding, gjelder_dato, opprettet_tid, raa_filer(filnavn, mottakskanal, storage_sti)',
     )
     .order('opprettet_tid', { ascending: false })
     .limit(50)
@@ -287,7 +287,18 @@ export default async function ImportSide(
               {jobber.map((j) => {
                 const s = STATUS_ETIKETT[j.status] ?? { tekst: j.status, klasse: 'gul' }
                 // Idempotent → tillat ny kjøring på alt unntatt det som behandles nå.
-                const kanBehandle = j.status !== 'behandler' || j.opprettet_tid < dodFrist
+                // EN KNAPP SOM IKKE KAN VIRKE, SKAL IKKE STAA DER.
+                //
+                // Filer som ble lest i NETTLESEREN ligger ikke i
+                // Storage - `klient/...` er en sentinel-sti som bare
+                // finnes fordi kolonnen er NOT NULL. Trykket man
+                // «Behandle» paa en slik jobb, skrev serveren `feilet`
+                // over en import som hadde gaatt fint, med meldingen
+                // «Object not found». Robert saa to slike rader og
+                // trodde dataene manglet.
+                const harFil = !(j.raa_filer?.storage_sti ?? '').startsWith('klient/')
+                const kanBehandle = harFil
+                  && (j.status !== 'behandler' || j.opprettet_tid < dodFrist)
                 const knappetekst = j.status === 'parset' ? 'Behandle på nytt' : 'Behandle'
                 return (
                   <tr key={j.id}>
@@ -308,6 +319,10 @@ export default async function ImportSide(
                           <input type="hidden" name="jobbId" value={j.id} />
                           <BehandleKnapp tekst={knappetekst} />
                         </form>
+                      ) : !harFil ? (
+                        <span className="undertittel">
+                          Lest i nettleseren — last opp på nytt
+                        </span>
                       ) : null}
                     </td>
                   </tr>
