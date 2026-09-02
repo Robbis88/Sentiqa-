@@ -18,7 +18,7 @@ type Sok = Promise<{ stasjon?: string; ansatt?: string; form?: string; rolle?: s
 type Avtale = {
   ansatt_nr: string; navn: string; fodselsdato: string | null
   stillingsprosent: number | null; timesats: number | null
-  skiftordning: 'ordinaer' | 'to_skift' | null
+  skiftordning: 'ordinaer' | 'skift_36_5' | 'to_skift' | 'skift_33_5' | null
   stillingstittel: string | null; har_rammeavtale: boolean
 }
 

@@ -170,7 +170,7 @@ const Ansatt = z.object({
     z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
   stillingstittel: z.union([z.literal('').transform(() => null), z.string().min(1)]),
   skiftordning: z.union([z.literal('').transform(() => null),
-    z.literal(['ordinaer', 'to_skift'])]),
+    z.literal(['ordinaer', 'skift_36_5', 'to_skift', 'skift_33_5'])]),
   har_rammeavtale: z.literal(['ja', 'nei']).default('nei').transform((v) => v === 'ja'),
 })
 

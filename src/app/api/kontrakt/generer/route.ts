@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import type { Skiftordning } from '@/lib/lonn/tariff'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
       .eq('stasjon_id', stasjonId).eq('ansatt_nr', ansattNr)
       .maybeSingle<{
         navn: string; fodselsdato: string | null; stillingsprosent: number | null
-        timesats: number | null; skiftordning: 'ordinaer' | 'to_skift' | null
+        timesats: number | null; skiftordning: Skiftordning | null
         stillingstittel: string | null
       }>(),
   ])
