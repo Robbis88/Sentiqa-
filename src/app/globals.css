@@ -2582,3 +2582,53 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .rgn-drivere li:last-child { border-bottom: 0; }
 .rgn-driver-navn { font-weight: 500; }
 .rgn-fortegn { margin: 0 0 var(--luft-3); }
+
+/* --- Ukebrief ------------------------------------------------------
+   Brevet skal leses, ikke skannes. Derfor en smal spalte, mer luft
+   mellom seksjonene enn i resten av systemet, og ingen kolonner: et
+   brev med to spalter blir et dashbord igjen. */
+.ub-velger { display: flex; flex-wrap: wrap; gap: var(--luft-4); margin-bottom: var(--luft-3); }
+
+.ub-spalte { max-width: 40rem; }
+.ub-brev { background: var(--kort); border: 1px solid var(--kant); border-radius: var(--radius-stor); padding: var(--luft-5); box-shadow: var(--skygge); }
+
+.ub-hode { margin-bottom: var(--luft-5); }
+.ub-uke { font-size: var(--tekst-liten); color: var(--tekst-svak); margin: 0 0 var(--luft-1); }
+.ub-overskrift { font-size: var(--tekst-tittel); line-height: var(--linje-tett); margin: 0 0 var(--luft-2); }
+.ub-ingress { font-size: var(--tekst-brod); color: var(--tekst); margin: 0; line-height: var(--linje-luftig); }
+
+.ub-seksjon { margin-top: var(--luft-5); }
+.ub-seksjon-tittel { font-size: var(--tekst-liten); text-transform: uppercase; letter-spacing: 0.06em; color: var(--tekst-svak); margin: 0 0 var(--luft-2); }
+
+/* Handlingene står først og ser ut som det de er: en kort liste noen
+   skal gjøre noe med. Ikke et kort, ikke en boks - en liste. */
+.ub-handlinger { background: var(--primaer-svak); border-radius: var(--radius); padding: var(--luft-3) var(--luft-4); }
+.ub-handlingsliste { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: var(--luft-2); }
+.ub-handlingsliste li { line-height: var(--linje-luftig); }
+
+.ub-funnliste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--luft-3); }
+.ub-funn { border-top: 1px solid var(--kant); padding-top: var(--luft-3); }
+.ub-funn:first-child { border-top: 0; padding-top: 0; }
+.ub-funn-topp { display: flex; justify-content: space-between; align-items: baseline; gap: var(--luft-2); }
+.ub-funn-tittel { font-weight: 600; }
+.ub-funn-tall { font-variant-numeric: tabular-nums; color: var(--tekst-svak); white-space: nowrap; }
+.ub-funn-detalj { margin: var(--luft-1) 0 var(--luft-2); color: var(--tekst-svak); line-height: var(--linje-luftig); }
+.ub-funn-bunn { display: flex; align-items: center; gap: var(--luft-2); flex-wrap: wrap; font-size: var(--tekst-liten); }
+
+/* Grunnlaget er ikke pynt. Det er forskjellen på at systemet sier noe
+   det vet, og noe det tror - og den forskjellen skal kunne ses. */
+.ub-grunnlag { padding: 0.1rem 0.45rem; border-radius: var(--radius); border: 1px solid var(--kant-sterk); color: var(--tekst-svak); }
+.ub-grunnlag-fakta { border-color: var(--gronn); color: var(--gronn); }
+.ub-grunnlag-indikasjon { border-color: var(--primaer); color: var(--primaer); }
+.ub-grunnlag-hypotese { border-color: var(--gul); color: var(--gul); }
+.ub-kilde { color: var(--tekst-svak); }
+.ub-lenke { margin-left: auto; }
+
+.ub-ikkevet { border-top: 1px solid var(--kant); padding-top: var(--luft-4); }
+.ub-ikkevet-liste { margin: 0; padding-left: 1.2rem; color: var(--tekst-svak); font-size: var(--tekst-liten); display: flex; flex-direction: column; gap: var(--luft-1); }
+
+/* E-postvisningen: en innboks rundt brevet, så bredden blir tydelig. */
+.ub-innboks { max-width: 28rem; background: var(--bg); border: 1px solid var(--kant-sterk); border-radius: var(--radius-stor); padding: var(--luft-3); }
+.ub-epost-hode { padding: 0 var(--luft-2) var(--luft-3); }
+.ub-epost-fra { font-size: var(--tekst-liten); color: var(--tekst-svak); margin: 0; }
+.ub-epost-emne { font-weight: 600; margin: 0; }
