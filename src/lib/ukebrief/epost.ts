@@ -1,4 +1,5 @@
 import type { Rangert, Ukebrief } from './type'
+import type { Skjemabilde } from './skjema'
 
 // =====================================================================
 // Ukebriefen som e-post.
@@ -29,6 +30,7 @@ const F = {
   primaer: '#2e7d6b',
   primaerSvak: '#e6f2ef',
   gronn: '#1f6152',
+  rod: '#9b2c2c',
   gul: '#7a5321',
 } as const
 
@@ -80,6 +82,34 @@ function seksjon(tittel: string, innhold: string): string {
     ${innhold}`
 }
 
+/**
+ * Ukedagsraden som e-post.
+ *
+ * `<td>` i en fast tabell, ikke grid — Outlook rendrer fortsatt med Word
+ * og stoetter verken flex eller grid. Sju smale celler er dessuten det
+ * eneste som faktisk faar plass paa en telefon uten aa brekke.
+ */
+function skjemaHtml(b: Skjemabilde): string {
+  const celle = (navn: string, tall: string, farge: string, ramme: string) => `
+    <td width="14%" align="center" style="padding:6px 2px;border:1px solid ${ramme};border-radius:6px;">
+      <div style="font-size:11px;color:${F.svak};">${navn}</div>
+      <div style="font-size:12px;font-weight:600;color:${farge};">${tall}</div>
+    </td>`
+  return `
+    <tr><td style="padding:14px 0 0;">
+      <div style="font-size:15px;font-weight:600;color:${F.tekst};">${e(b.navn)}<span
+        style="float:right;font-weight:400;color:${F.svak};">${b.prosent} % &middot; ${b.utfort} av ${b.krevd}</span></div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="2" border="0" style="margin-top:8px;">
+        <tr>${b.dager.map((d) => {
+          if (d.prosent === null) return celle(d.ukedag, '–', F.svak, F.kant)
+          if (d.prosent >= 100) return celle(d.ukedag, `${d.prosent} %`, F.gronn, F.gronn)
+          if (d.prosent < 90) return celle(d.ukedag, `${d.prosent} %`, F.rod, F.rod)
+          return celle(d.ukedag, `${d.prosent} %`, F.tekst, F.kant)
+        }).join('')}</tr>
+      </table>
+    </td></tr>`
+}
+
 export type Epost = { emne: string; html: string; tekst: string }
 
 export function tilEpost(brief: Ukebrief, basisUrl: string): Epost {
@@ -128,6 +158,7 @@ export function tilEpost(brief: Ukebrief, basisUrl: string): Epost {
         ${handlinger}
         ${seksjon('Trenger oppmerksomhet', brief.oppmerksomhet.map((s) => funnHtml(s, basisUrl)).join(''))}
         ${seksjon('Dette gikk bra', brief.bra.map((s) => funnHtml(s, basisUrl)).join(''))}
+        ${brief.skjema.length ? seksjon('Utført per dag', brief.skjema.map(skjemaHtml).join('')) : ''}
         ${ikkeVet}
         <tr><td style="padding:26px 0 0;">
           <a href="${basisUrl}/oversikt"
@@ -157,6 +188,10 @@ export function tilEpost(brief: Ukebrief, basisUrl: string): Epost {
     brief.handlinger.length ? '\nDETTE VILLE JEG TATT TAK I\n' + brief.handlinger.map((h, i) => `${i + 1}. ${h.tekst}`).join('\n') : '',
     brief.oppmerksomhet.length ? '\nTRENGER OPPMERKSOMHET\n' + brief.oppmerksomhet.map(linje).join('\n') : '',
     brief.bra.length ? '\nDETTE GIKK BRA\n' + brief.bra.map(linje).join('\n') : '',
+    brief.skjema.length ? '\nUTFØRT PER DAG\n' + brief.skjema.map((b) =>
+      `${b.navn}: ${b.prosent} % (${b.utfort} av ${b.krevd})\n  `
+      + b.dager.map((d) => `${d.ukedag} ${d.prosent === null ? '-' : `${d.prosent}%`}`).join('  '),
+    ).join('\n') : '',
     brief.viIkkeVet.length ? '\nDETTE VET VI IKKE\n' + brief.viIkkeVet.map((t) => `- ${t}`).join('\n') : '',
     `\n${basisUrl}/oversikt`,
   ].filter(Boolean).join('\n')

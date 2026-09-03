@@ -19,6 +19,7 @@
 
 import { rangerSignaler, avdelingsSignaler, pulsOverskrift, type RaaSignal } from '@/lib/signaler'
 import type { Briefsignal, Handling, Rangert, Ukebrief, Ukedata } from './type'
+import type { Skjemabilde } from './skjema'
 
 /** Fem er ikke et designvalg, det er et lesevalg. Over dette slutter en
     liste å være en prioritering og blir en oversikt. */
@@ -36,6 +37,8 @@ const VEKST_MIN_KR = 5000
 const VEKST_MIN_PP = 25
 /** Timeforbruk over rammen varsles først her — rammen er selv avledet. */
 const TIMER_MIN_AVVIK = 5
+/** Over dette er skjemaene i praksis fulgt. Under blir det en sak. */
+const TERSKEL_SKJEMA = 90
 
 const kr = (n: number) => `${Math.abs(Math.round(n)).toLocaleString('nb-NO')} kr`
 const pst = (n: number) => `${Math.abs(n).toFixed(0)} %`
@@ -293,6 +296,76 @@ function tilbakemeldingssignal(d: Ukedata): Briefsignal[] {
   }]
 }
 
+function skjemasignaler(d: Ukedata): Briefsignal[] {
+  const ut: Briefsignal[] = []
+
+  // Et «nei» paa et kritisk sjekkpunkt slaar enhver prosent. Prosenten
+  // sier at noe ikke ble kvittert; denne sier at noen kvitterte, og at
+  // svaret var nei.
+  if (d.kritiskeNei > 0) {
+    ut.push({
+      id: 'sjekkpunkt-kritisk',
+      merke: 'Sjekkpunkt',
+      tittel: d.kritiskeNei === 1 ? 'Et kritisk sjekkpunkt fikk nei' : `${d.kritiskeNei} kritiske sjekkpunkt fikk nei`,
+      endring: `${d.kritiskeNei} i uken`,
+      // Spoersmaalet staar ikke her. Det kan gjelde temperatur, sikkerhet
+      // eller noe som ikke hoerer hjemme i en innboks - og brevet kan
+      // videresendes. Samme regel som meldingene fra de ansatte.
+      detalj: 'Punktene er merket kritisk av kjeden. Hvilke det gjelder staar i Sentiqa.',
+      niva: 'kritisk',
+      lenke: '/sjekkpunkt',
+      grunnlag: 'fakta',
+      retning: 'darlig',
+      handling: 'Se hvilke kritiske sjekkpunkt som fikk nei, og hva som ble gjort med dem.',
+    })
+  }
+
+  for (const b of d.skjema) {
+    if (b.krevd === 0 || b.prosent === null) continue
+    const navn = b.navn.toLowerCase()
+
+    if (b.utfort >= b.krevd) {
+      ut.push({
+        id: `skjema-${navn}-bra`,
+        merke: b.navn,
+        tittel: `Alle ${navn} er kvittert ut`,
+        endring: '100 %',
+        detalj: `${b.krevd} av ${b.krevd} gjennom uken. Ingen dager mangler.`,
+        niva: 'info',
+        lenke: '/rutiner/oversikt',
+        grunnlag: 'fakta',
+        retning: 'bra',
+      })
+      continue
+    }
+
+    if (b.prosent >= TERSKEL_SKJEMA) continue
+
+    // Er EN dag tydelig verre, er det den som er saken - og da kan
+    // handlingen peke paa en vakt i stedet for paa «rutinene generelt».
+    const dag = b.svakesteDag
+    ut.push({
+      id: `skjema-${navn}`,
+      merke: b.navn,
+      tittel: dag ? `${b.navn} glipper paa ${dag.ukedag.toLowerCase()}dag` : `${b.navn} er ikke kvittert ut`,
+      endring: `${b.prosent} %`,
+      detalj: dag
+        ? `${b.utfort} av ${b.krevd} gjennom uken. ${dag.ukedag} ligger paa ${dag.prosent} %, `
+          + 'mens de andre dagene ligger klart hoeyere - det peker paa en vakt, ikke paa listen.'
+        : `${b.utfort} av ${b.krevd} gjennom uken. Det fordeler seg jevnt over dagene, `
+          + 'saa det ser ut som listen er for lang eller for uklar - ikke som en enkelt vakt.',
+      niva: b.prosent < 60 ? 'kritisk' : 'folg',
+      lenke: '/rutiner/oversikt',
+      grunnlag: 'fakta',
+      retning: 'darlig',
+      handling: dag
+        ? `Se hvem som gaar ${dag.ukedag.toLowerCase()}dag, og om listen rekkes paa den vakta.`
+        : `Gaa gjennom ${navn} med personalet - hvilke rekkes ikke, og hvorfor.`,
+    })
+  }
+  return ut
+}
+
 // --- Sammenstillingen ------------------------------------------------
 
 /**
@@ -345,6 +418,7 @@ export function byggUkebrief(d: Ukedata): Ukebrief {
     ...treffsignal(d),
     ...timesignal(d),
     ...tilbakemeldingssignal(d),
+    ...skjemasignaler(d),
   ]
 
   const rangerte = ranger(alle)
@@ -382,6 +456,7 @@ export function byggUkebrief(d: Ukedata): Ukebrief {
     bra,
     oppmerksomhet,
     handlinger: velgHandlinger(vist),
+    skjema: d.skjema.filter((b) => b.krevd > 0),
     viIkkeVet,
   }
 }

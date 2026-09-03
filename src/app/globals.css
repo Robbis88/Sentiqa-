@@ -2632,3 +2632,14 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .ub-epost-hode { padding: 0 var(--luft-2) var(--luft-3); }
 .ub-epost-fra { font-size: var(--tekst-liten); color: var(--tekst-svak); margin: 0; }
 .ub-epost-emne { font-weight: 600; margin: 0; }
+
+/* Ukedagsraden. Sju celler i ett blikk — spørsmålet er «hvilken dag». */
+.ub-skjema { margin-top: var(--luft-3); }
+.ub-skjema-hode { display: flex; justify-content: space-between; align-items: baseline; gap: var(--luft-2); }
+.ub-dager { list-style: none; margin: var(--luft-2) 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.ub-dag { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0.4rem 0.15rem; border: 1px solid var(--kant); border-radius: var(--radius); background: var(--kort); }
+.ub-dag-navn { font-size: var(--tekst-liten); color: var(--tekst-svak); }
+.ub-dag-tall { font-size: var(--tekst-liten); font-variant-numeric: tabular-nums; font-weight: 600; }
+.ub-dag-full { border-color: var(--gronn); color: var(--gronn); }
+.ub-dag-lav { border-color: var(--rod); color: var(--rod); }
+.ub-dag-tom .ub-dag-tall { color: var(--tekst-svak); font-weight: 400; }
