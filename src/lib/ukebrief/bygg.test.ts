@@ -173,6 +173,49 @@ describe('rutiner og sjekkpunkt', () => {
     expect(b.oppmerksomhet[0].detalj).toContain('staar i Sentiqa')
   })
 
+  // DEN EKTE SAKEN, funnet i en PDF fra en tung uke: sju funn konkurrerte
+  // om fire plasser, og «Et kritisk sjekkpunkt fikk nei» ble skjoevet ut
+  // av «3 meldinger fra de ansatte». Begge er `kritisk` uten kroner og
+  // uten dager, saa poengsummen er NOEYAKTIG lik - og da avgjorde
+  // alfabetet, fordi «3» kommer foer «E».
+  it('kapper aldri bort et kritisk funn, uansett hvor mange funn uken har', () => {
+    const b = byggUkebrief(ukedata({
+      omsetning: 300000, omsetningIfjor: 401900,      // kritisk (under -10 %)
+      bpUke: 386000,
+      utsolgt: [{ navn: 'Kaffe', taptKr: 12400, dager: 5 }],   // kritisk
+      timer: { brukt: 241, ukesramme: 203 },
+      tilbakemeldinger: { antall: 3, ulest: 2, harAlvorlig: true }, // kritisk
+      kritiskeNei: 1,                                              // kritisk
+      // -80 % mot en butikk paa -25 % gir 55 pp avvik og 32 800 kr: kritisk.
+      avdelinger: [{ kode: '20', navn: 'Bakevarer', omsetning: 8200, ifjor: 41000, vekstPst: -80 }],
+      skjema: [rutiner([1, 1, 1, 1, 0, 0, 0])],                    // 29 %: kritisk
+    }))
+    const kritiske = b.oppmerksomhet.filter((s) => s.niva === 'kritisk')
+    expect(kritiske.length, 'fiksturen maa faktisk gi flere kritiske enn taket')
+      .toBeGreaterThan(MAKS_PER_BOLK)
+    expect(b.oppmerksomhet.map((s) => s.id)).toContain('sjekkpunkt-kritisk')
+    // ... og de kritiske staar foerst, foer de mindre alvorlige.
+    expect(b.oppmerksomhet.slice(0, kritiske.length).every((s) => s.niva === 'kritisk')).toBe(true)
+  })
+
+  it('kapper fortsatt de mindre alvorlige ved taket', () => {
+    // Uten dette ville regelen over kunne «loeses» ved aa fjerne taket
+    // helt - og da er brevet en oversikt igjen.
+    const b = byggUkebrief(ukedata({
+      omsetning: 390000, omsetningIfjor: 401900,   // -3 %, folg
+      timer: { brukt: 241, ukesramme: 203 },       // folg
+      tilbakemeldinger: { antall: 2, ulest: 1, harAlvorlig: false }, // folg
+      skjema: [rutiner([2, 2, 2, 2, 2, 1, 1])],    // 86 %: folg
+      // Under 10 000 kr hver, saa de blir `folg` og ikke `kritisk`.
+      avdelinger: [
+        { kode: '20', navn: 'Bakevarer', omsetning: 12000, ifjor: 20000, vekstPst: -40 },
+        { kode: '30', navn: 'Kiosk', omsetning: 11000, ifjor: 20000, vekstPst: -45 },
+      ],
+    }))
+    expect(b.oppmerksomhet.every((s) => s.niva !== 'kritisk')).toBe(true)
+    expect(b.oppmerksomhet).toHaveLength(MAKS_PER_BOLK)
+  })
+
   it('tier om skjemaer stasjonen ikke har satt opp', () => {
     const b = byggUkebrief(ukedata({ skjema: [] }))
     expect(b.skjema).toHaveLength(0)

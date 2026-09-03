@@ -458,7 +458,26 @@ export function byggUkebrief(d: Ukedata): Ukebrief {
   ]
 
   const bra = kjent.filter((s) => s.retning === 'bra').slice(0, MAKS_PER_BOLK)
-  const oppmerksomhet = kjent.filter((s) => s.retning === 'darlig').slice(0, MAKS_PER_BOLK)
+
+  // TAKET KAN ALDRI KAPPE ET KRITISK FUNN.
+  //
+  // Bolken kappes ved fire for at brevet skal kunne leses paa et minutt.
+  // Men i en tung uke konkurrerer sju saker om plassene, og to signaler
+  // paa samme nivaa uten kroner og uten dager faar NOEYAKTIG samme
+  // poengsum — da avgjorde alfabetet. «Et kritisk sjekkpunkt fikk nei»
+  // ble skjovet ut av «3 meldinger fra de ansatte», fordi 3 kommer foer E.
+  //
+  // «Kritisk» betyr at dette maa ses. Da kan ikke et lesehensyn
+  // overstyre det: bolken utvides til aa romme alle de kritiske, og
+  // taket gjelder resten. Er det fem kritiske ting, skal brevet si fem —
+  // det er i seg selv beskjeden.
+  //
+  // Loest HER og ikke i `signaler.ts`: poengene deles med /oversikt, og
+  // dette er et spoersmaal om hva et BREV har plass til, ikke om hva som
+  // er alvorligst.
+  const darlige = kjent.filter((s) => s.retning === 'darlig')
+  const antallKritiske = darlige.filter((s) => s.niva === 'kritisk').length
+  const oppmerksomhet = darlige.slice(0, Math.max(MAKS_PER_BOLK, antallKritiske))
 
   // Handlingene plukkes fra det brevet FAKTISK VISER, ikke fra alt vi vet.
   // Bolkene kappes ved fire; plukket vi fra hele mengden, kunne en
