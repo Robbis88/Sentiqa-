@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { byggUkebrief, velgHandlinger, ukenummer, sisteHeleUke, forrigeUke, MAKS_HANDLINGER, MAKS_PER_BOLK } from './bygg'
 import type { Rangert, Ukedata } from './type'
-import { skjemabilde } from './skjema'
+import { skjemabilde, kravFraPoster } from './skjema'
 
 function ukedata(over: Partial<Ukedata> = {}): Ukedata {
   return {
@@ -125,8 +125,8 @@ const DAGER = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-
 function rutiner(perDag: number[]) {
   return skjemabilde({
     navn: 'Rutiner',
-    poster: [{ opprettet: '2026-01-01T09:00:00Z', slettet: null },
-             { opprettet: '2026-01-01T09:00:00Z', slettet: null }],
+    kravPerDato: kravFraPoster([{ opprettet: '2026-01-01T09:00:00Z', slettet: null },
+             { opprettet: '2026-01-01T09:00:00Z', slettet: null }], UKE),
     utfortPerDato: new Map(DAGER.map((d, i) => [d, perDag[i]])),
     ukeMandag: UKE,
   })

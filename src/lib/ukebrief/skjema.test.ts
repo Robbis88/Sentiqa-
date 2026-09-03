@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { skjemabilde, andel, type Skjemapost } from './skjema'
+import { skjemabilde, kravFraPoster, andel, type Skjemapost } from './skjema'
 
 // Uke 35: mandag 2026-08-24 til søndag 2026-08-30.
 const UKE = '2026-08-24'
@@ -7,7 +7,8 @@ const DAGER = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-
 const gammel: Skjemapost = { opprettet: '2026-01-01T09:00:00Z', slettet: null }
 
 const bilde = (poster: Skjemapost[], utfort: Record<string, number> = {}, sisteDag?: string) =>
-  skjemabilde({ navn: 'Rutiner', poster, utfortPerDato: new Map(Object.entries(utfort)), ukeMandag: UKE, sisteDag })
+  skjemabilde({ navn: 'Sjekkpunkt', kravPerDato: kravFraPoster(poster, UKE, sisteDag),
+    utfortPerDato: new Map(Object.entries(utfort)), ukeMandag: UKE, sisteDag })
 
 const alle = (n: number) => Object.fromEntries(DAGER.map((d) => [d, n]))
 

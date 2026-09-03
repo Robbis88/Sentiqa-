@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { skjemaAktiv, rutineGjelder, osloNaa, type OsloNaa } from './rutineskjema'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { skjemaAktiv, rutineGjelder, rutinerForDato, osloNaa, type OsloNaa, type Rutinerad } from './rutineskjema'
 
 const naa = (dato: string, ukedag: number, minutter: number): OsloNaa => ({ dato, ukedag, minutter })
 
@@ -65,3 +67,79 @@ describe('osloNaa', () => {
     expect(o.minutter).toBeGreaterThanOrEqual(0)
   })
 })
+
+// =====================================================================
+// RUTINENE SOM GJELDER EN DATO — den ene regelen.
+//
+// Den sto inne i `rutinestat.ts`, og ukebriefen fikk en egen kopi som
+// var blind for ukedager: hver rutine ble krevd hver dag. En rutine som
+// bare gaar mandag/onsdag/fredag fikk 0 % de fire andre dagene, og uken
+// saa langt verre ut enn den var.
+//
+// Ingen test fanget det, fordi alle fiksturene hadde tomme `ukedager`.
+// Derfor er nesten hver test her en med UTFYLTE ukedager.
+// =====================================================================
+
+describe('rutinerForDato', () => {
+  // 2026-08-24 er en mandag (ukedag 1), 25. tirsdag, 26. onsdag.
+  const MAN = '2026-08-24', TIR = '2026-08-25', ONS = '2026-08-26'
+  const skjema = new Map<string, number[]>([['s1', []]])
+  const rutine = (over: Partial<Rutinerad> = {}): Rutinerad =>
+    ({ id: 'r1', skjema_id: 's1', ukedager: [], opprettet_dato: '2020-01-01', ...over })
+
+  it('krever hver dag naar ingen ukedager er valgt', () => {
+    for (const d of [MAN, TIR, ONS]) {
+      expect(rutinerForDato([rutine()], skjema, d)).toEqual(['r1'])
+    }
+  })
+
+  // SELVE FEILEN. Uten denne var briefen blind.
+  it('krever bare de ukedagene rutinen faktisk har', () => {
+    const r = rutine({ ukedager: [1, 3, 5] })  // man, ons, fre
+    expect(rutinerForDato([r], skjema, MAN)).toEqual(['r1'])
+    expect(rutinerForDato([r], skjema, TIR)).toEqual([])
+    expect(rutinerForDato([r], skjema, ONS)).toEqual(['r1'])
+  })
+
+  it('lar skjemaets ukedager snevre inn, ogsaa naar rutinen er aapen', () => {
+    const bareMandag = new Map<string, number[]>([['s1', [1]]])
+    expect(rutinerForDato([rutine()], bareMandag, MAN)).toEqual(['r1'])
+    expect(rutinerForDato([rutine()], bareMandag, TIR)).toEqual([])
+  })
+
+  it('krever begge nivaaer samtidig', () => {
+    const manOns = new Map<string, number[]>([['s1', [1, 3]]])
+    const bareOns = rutine({ ukedager: [3] })
+    expect(rutinerForDato([bareOns], manOns, MAN)).toEqual([])
+    expect(rutinerForDato([bareOns], manOns, ONS)).toEqual(['r1'])
+  })
+
+  it('krever ingenting foer rutinen ble laget', () => {
+    const r = rutine({ opprettet_dato: TIR })
+    expect(rutinerForDato([r], skjema, MAN)).toEqual([])
+    expect(rutinerForDato([r], skjema, TIR)).toEqual(['r1'])
+  })
+
+  it('teller ikke en rutine uten skjema - det finnes ingen vakt aa gjoere den paa', () => {
+    expect(rutinerForDato([rutine({ skjema_id: null })], skjema, MAN)).toEqual([])
+    expect(rutinerForDato([rutine({ skjema_id: 'borte' })], skjema, MAN)).toEqual([])
+  })
+})
+
+describe('regelen finnes bare ett sted', () => {
+  // «Én sannhet, ikke to». Ukebriefen HADDE en egen kopi, og den var feil.
+  // Skriver noen en ny, skal denne si fra.
+  const les = (...p: string[]) => readFileSync(join(process.cwd(), 'src', 'lib', ...p), 'utf8')
+
+  it('ukebriefen bruker rutinerForDato, ikke sin egen utregning', () => {
+    const hent = les('ukebrief', 'hent.ts')
+    expect(hent).toContain('rutinerForDato')
+    expect(hent, 'et eget ukedagsfilter her ville vaert regelen paa nytt')
+      .not.toMatch(/ukedager\.includes/)
+  })
+
+  it('rutinestatistikken bruker den samme', () => {
+    expect(les('rutinestat.ts')).toContain('rutinerForDato')
+  })
+})
+

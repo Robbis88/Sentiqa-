@@ -6,6 +6,14 @@
 // hver av dem kvitteres én gang per dag. Kravet for en dag er derfor
 // antall skjemaer som fantes den dagen.
 //
+// KRAVET KOMMER UTENFRA, og det er ikke en detalj. Foerste utgave regnet
+// det her, som «antall skjemaer x antall dager de fantes» — og var dermed
+// BLIND FOR UKEDAGER. Rutiner har hatt `ukedager` siden `0032`, og et
+// skjema de arver fra; en rutine som bare gaar mandag/onsdag/fredag fikk
+// 0 % de fire andre dagene og dro uken kraftig ned. Regelen laa allerede
+// i `rutinestat.ts`. Naa bor den ett sted, `rutinerForDato()`, og denne
+// fila tar imot svaret i stedet for aa gjette det.
+//
 // PER DAG, IKKE BARE SAMLET. «86 % denne uken» sier at noe glapp; det
 // sier ikke hva man skal gjøre. «Søndag 40 %, resten 100 %» sier at det
 // er søndagsvakta som mangler et håndtak — og det er en handling.
@@ -71,17 +79,47 @@ export function andel(utfort: number, krevd: number): number | null {
 const SVAKESTE_MARGIN = 25
 
 /**
+ * Kravet for skjemaer som gjelder HVER dag de finnes — sjekkpunkter.
+ *
+ * Et skjema teller for en dag bare hvis det fantes ved døgnets start og
+ * fortsatt fantes ved døgnets slutt. Se toppen for hvorfor begge
+ * avrundinger går i stasjonens favør.
+ *
+ * Rutiner bruker IKKE denne: de har ukedager, og kravet deres kommer fra
+ * `rutinerForDato()`.
+ */
+export function kravFraPoster(
+  poster: Skjemapost[], ukeMandag: string, sisteDag?: string,
+): Map<string, number> {
+  const ut = new Map<string, number>()
+  for (let i = 0; i < 7; i++) {
+    const dato = leggTil(ukeMandag, i)
+    if (sisteDag && dato > sisteDag) break
+    const start = doegnstart(dato)
+    const slutt = doegnstart(leggTil(dato, 1))
+    let krevd = 0
+    for (const p of poster) {
+      if (Date.parse(p.opprettet) >= start) continue
+      if (p.slettet !== null && Date.parse(p.slettet) < slutt) continue
+      krevd++
+    }
+    ut.set(dato, krevd)
+  }
+  return ut
+}
+
+/**
  * Bygger ukebildet for én skjematype.
  *
- * `utfortPerDato` er antall kvitteringer den dagen, uansett hvilket
- * skjema — summen er det som kan sammenlignes med kravet.
+ * `kravPerDato` er hvor mange kvitteringer dagen SKULLE hatt — regnet av
+ * den som kjenner reglene for akkurat den skjematypen.
  *
  * `sisteDag` klipper uken der den slutter: en uke som fortsatt løper
  * skal ikke kreve noe av dager som ikke har vært.
  */
 export function skjemabilde(opts: {
   navn: string
-  poster: Skjemapost[]
+  kravPerDato: Map<string, number>
   utfortPerDato: Map<string, number>
   ukeMandag: string
   sisteDag?: string
@@ -90,14 +128,7 @@ export function skjemabilde(opts: {
   for (let i = 0; i < 7; i++) {
     const dato = leggTil(opts.ukeMandag, i)
     if (opts.sisteDag && dato > opts.sisteDag) break
-    const start = doegnstart(dato)
-    const slutt = doegnstart(leggTil(dato, 1))
-    let krevd = 0
-    for (const p of opts.poster) {
-      if (Date.parse(p.opprettet) >= start) continue
-      if (p.slettet !== null && Date.parse(p.slettet) < slutt) continue
-      krevd++
-    }
+    const krevd = opts.kravPerDato.get(dato) ?? 0
     // Kan ikke overstige kravet: en dag med seks kvitteringer på fem
     // rutiner er en datafeil, ikke 120 %.
     const utfort = Math.min(opts.utfortPerDato.get(dato) ?? 0, krevd)
