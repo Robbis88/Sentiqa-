@@ -39,11 +39,48 @@ export type Kildekrav = {
   kritisk: boolean
 }
 
-export type Onboardingsteg = Kildekrav & {
+/**
+ * Et krav som IKKE er en fil.
+ *
+ * `Kildekrav` beskriver noe som lastes opp: den har `hentesFra`,
+ * `anbefaltDager` og en siste dato. Men ikke alt en ny kjede maa ha paa
+ * plass er data. Ukebriefen kan ikke sendes til en stasjon uten
+ * butikksjef, og det er ikke en fil som mangler — det er et oppsett.
+ *
+ * Fram til 2026-09-03 fantes det ingen plass til slike krav. Konsekvensen
+ * var den samme som en vakt som slutter aa se: onboardingen saa komplett
+ * ut mens en modul ikke kunne gjoere jobben sin.
+ */
+export type Oppsettkrav = {
+  noekkel: string
+  navn: string
+  /** Hvor i Sentiqa det gjoeres. En setning, ikke en veiledning. */
+  gjoresI: string
+  laserOpp: string
+  kritisk: boolean
+}
+
+export type Oppsettmaaling = {
+  noekkel: string
+  /** Stasjoner der oppsettet faktisk er paa plass. */
+  stasjonerMedOppsett: number
+}
+
+export type Onboardingsteg = {
+  noekkel: string
+  navn: string
+  laserOpp: string
+  kritisk: boolean
+  /** En fil som lastes opp, eller et oppsett som gjoeres. */
+  slag: 'kilde' | 'oppsett'
+  /** Hvor det kommer fra: fila hentes her, eller oppsettet gjoeres her.
+      Ett felt, fordi det er én kolonne for leseren. */
+  hvor: string
   status: 'mangler' | 'tynt' | 'ufullstendig' | 'ok'
   beskjed: string
   stasjonerMedData: number
   stasjonerTotalt: number
+  /** 0 for oppsettskrav — de har ingen historikk aa dekke. */
   dagerDekket: number
   sisteDato: string | null
 }
@@ -191,7 +228,9 @@ export function onboardingsteg(
   return krav.map((k) => {
     const m = funn.get(k.noekkel)
     const felles = {
-      ...k,
+      noekkel: k.noekkel, navn: k.navn, laserOpp: k.laserOpp, kritisk: k.kritisk,
+      slag: 'kilde' as const,
+      hvor: k.hentesFra,
       stasjonerMedData: m?.stasjonerMedData ?? 0,
       stasjonerTotalt,
       dagerDekket: m?.dagerDekket ?? 0,
@@ -233,6 +272,67 @@ export function onboardingsteg(
         ? `${m.dagerDekket} dager for alle stasjoner.`
         : 'På plass for alle stasjoner.',
     }
+  })
+}
+
+/**
+ * Krav som ikke er filer.
+ *
+ * SKAL UTLEDES, ALDRI GJENTAS. Maalingen leser den samme koblingen
+ * utsendingen selv leser (`butikksjef_stasjoner`), saa lista og modulen
+ * ikke kan skille lag. En haandholdt hake her ville vaert en andre
+ * sannhet om det samme — se «Én sannhet, ikke to» i AGENTS.md.
+ */
+export const OPPSETT: Oppsettkrav[] = [
+  {
+    noekkel: 'butikksjef_paa_stasjon',
+    navn: 'Butikksjef på hver stasjon',
+    gjoresI: 'Brukere → Ny bruker, eller Endre stasjoner',
+    laserOpp: 'Den ukentlige lederbriefen på e-post mandag morgen. '
+      + 'En stasjon uten butikksjef har ingen å sende til.',
+    kritisk: false,
+  },
+]
+
+/**
+ * Setter status paa hvert oppsettskrav.
+ *
+ * Samme tre utfall som kildene, og med vilje samme ord: «ufullstendig»
+ * betyr det samme her — noen stasjoner er dekket, andre ikke, og det ser
+ * ferdig ut uten aa vaere det.
+ */
+export function oppsettsteg(
+  malinger: Oppsettmaaling[],
+  stasjonerTotalt: number,
+  krav: Oppsettkrav[] = OPPSETT,
+): Onboardingsteg[] {
+  const funn = new Map(malinger.map((m) => [m.noekkel, m]))
+
+  return krav.map((k) => {
+    const dekket = funn.get(k.noekkel)?.stasjonerMedOppsett ?? 0
+    const felles = {
+      noekkel: k.noekkel, navn: k.navn, laserOpp: k.laserOpp, kritisk: k.kritisk,
+      slag: 'oppsett' as const,
+      hvor: k.gjoresI,
+      stasjonerMedData: dekket,
+      stasjonerTotalt,
+      dagerDekket: 0,
+      sisteDato: null,
+    }
+
+    if (dekket === 0) {
+      return { ...felles, status: 'mangler' as const, beskjed: `Ikke satt opp ennå. ${k.gjoresI}.` }
+    }
+    if (dekket < stasjonerTotalt) {
+      const mangler = stasjonerTotalt - dekket
+      return {
+        ...felles,
+        status: 'ufullstendig' as const,
+        beskjed: `Mangler for ${mangler} av ${stasjonerTotalt} stasjoner. `
+          + 'De stasjonene blir hoppet over — og det ser ferdig ut uten å være det.',
+      }
+    }
+    return { ...felles, status: 'ok' as const, beskjed: 'På plass for alle stasjoner.' }
   })
 }
 
