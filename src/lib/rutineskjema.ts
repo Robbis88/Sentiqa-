@@ -74,6 +74,50 @@ export function rutineGjelder(
   return dagOk && ikkeForTidlig
 }
 
+export type Rutinerad = {
+  id: string
+  skjema_id: string | null
+  ukedager: number[]
+  opprettet_dato: string
+}
+
+/**
+ * Rutinene som gjelder en gitt DATO.
+ *
+ * Dette er den ene regelen, og den maa vaere det: den bestemmer
+ * nevneren i hver eneste rutineprosent. Regnes den to steder, faar
+ * statistikksida og ukebriefen ulike tall for samme uke — og da er begge
+ * mistenkelige.
+ *
+ * TO NIVAAER UKEDAG. Skjemaet velger dagene vakta finnes, rutinen kan
+ * snevre inn ytterligere. Tom liste betyr «alle dager» paa begge nivaa,
+ * ikke «ingen».
+ *
+ * En rutine uten skjema teller ikke: skjemaet baerer vakttypen, og uten
+ * det finnes det ingen vakt aa gjoere den paa.
+ *
+ * `opprettet_dato` klipper bakover. Uten den ville en rutine laget i dag
+ * blitt krevd for hele fjoraaret.
+ */
+export function rutinerForDato(
+  rutiner: Rutinerad[],
+  skjemaUkedager: Map<string, number[]>,
+  dato: string,
+): string[] {
+  const ukedag = new Date(`${dato}T12:00:00Z`).getUTCDay()
+  const ut: string[] = []
+  for (const r of rutiner) {
+    if (r.skjema_id === null) continue
+    const skjema = skjemaUkedager.get(r.skjema_id)
+    if (!skjema) continue
+    if (skjema.length > 0 && !skjema.includes(ukedag)) continue
+    if (r.ukedager.length > 0 && !r.ukedager.includes(ukedag)) continue
+    if (r.opprettet_dato > dato) continue
+    ut.push(r.id)
+  }
+  return ut
+}
+
 export const VAKTTYPER = ['morgen', 'dag', 'kveld', 'natt'] as const
 export const VAKTTYPE_ETIKETT: Record<string, string> = {
   morgen: 'Morgen', dag: 'Dag', kveld: 'Kveld', natt: 'Natt',

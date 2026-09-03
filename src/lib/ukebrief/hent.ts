@@ -3,7 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { finnUtsolgt, type Kandidatrad } from '@/lib/utsolgt'
 import { fordelBp, motpartsvindu, type Dagsrad } from '@/lib/salg/bp-per-dag'
 import { delVakt, LONNSART } from '@/lib/lonn/tidsband'
-import { skjemabilde, type Skjemabilde, type Skjemapost } from './skjema'
+import { skjemabilde, kravFraPoster, type Skjemabilde, type Skjemapost } from './skjema'
+import { rutinerForDato, type Rutinerad } from '@/lib/rutineskjema'
 import type { Ukedata } from './type'
 
 // =====================================================================
@@ -174,14 +175,17 @@ type SkjemaSvar = { skjema: Skjemabilde[]; kritiskeNei: number }
 async function hentSkjema(
   supabase: Klient, stasjonId: string, mandag: string, sondag: string,
 ): Promise<SkjemaSvar> {
-  const [rutiner, utforinger, punkter, svar] = await Promise.all([
-    supabase.from('rutiner').select('opprettet_tid, slettet_tid')
-      .eq('stasjon_id', stasjonId)
-      .or(`slettet_tid.is.null,slettet_tid.gte.${mandag}`)
-      .overrideTypes<{ opprettet_tid: string; slettet_tid: string | null }[]>(),
-    supabase.from('rutine_utforinger').select('dato')
+  const [skjemaer, rutiner, utforinger, punkter, svar] = await Promise.all([
+    // Bare aktive skjemaer. Et arkivert skjema er ikke lenger en vakt.
+    supabase.from('rutineskjemaer').select('id, ukedager')
+      .eq('stasjon_id', stasjonId).eq('aktiv', true).is('slettet_tid', null)
+      .overrideTypes<{ id: string; ukedager: number[] }[]>(),
+    supabase.from('rutiner').select('id, skjema_id, ukedager, opprettet_dato')
+      .eq('stasjon_id', stasjonId).not('skjema_id', 'is', null).is('slettet_tid', null)
+      .overrideTypes<Rutinerad[]>(),
+    supabase.from('rutine_utforinger').select('rutine_id, dato')
       .eq('stasjon_id', stasjonId).gte('dato', mandag).lte('dato', sondag)
-      .overrideTypes<{ dato: string }[]>(),
+      .overrideTypes<{ rutine_id: string; dato: string }[]>(),
     supabase.from('sjekkpunkter').select('opprettet_tid, slettet_tid')
       .eq('stasjon_id', stasjonId)
       .or(`slettet_tid.is.null,slettet_tid.gte.${mandag}`)
@@ -191,25 +195,56 @@ async function hentSkjema(
       .overrideTypes<{ dato: string; svar: boolean; sjekkpunkter: { kritisk: boolean } }[]>(),
   ])
 
-  const post = (r: { opprettet_tid: string; slettet_tid: string | null }): Skjemapost =>
-    ({ opprettet: r.opprettet_tid, slettet: r.slettet_tid })
+  const skjemaUke = new Map<string, number[]>(
+    (skjemaer.data ?? []).map((x) => [x.id, x.ukedager as unknown as number[]]))
+  // `overrideTypes` klarer ikke aa smalne int[] fra PostgREST-skjemaet.
+  const rs = (rutiner.data ?? []) as unknown as Rutinerad[]
+
+  // Utfoert per dato, som ID-er - ikke som et antall. Vi teller bare de
+  // som FAKTISK var forventet den dagen; en kvittering paa en rutine som
+  // ikke gjaldt er ikke oppfyllelse av noe.
+  const gjortPerDato = new Map<string, Set<string>>()
+  for (const u of utforinger.data ?? []) {
+    const sett = gjortPerDato.get(u.dato) ?? new Set<string>()
+    sett.add(u.rutine_id)
+    gjortPerDato.set(u.dato, sett)
+  }
+
+  const kravRutiner = new Map<string, number>()
+  const gjortRutiner = new Map<string, number>()
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(`${mandag}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + i)
+    const dato = d.toISOString().slice(0, 10)
+    // DEN ENE REGELEN. Skjemaets ukedager, rutinens egne ukedager, og
+    // datoen den ble laget. Se `rutinerForDato` - den brukes ogsaa av
+    // rutinestatistikken, saa sida og brevet kan ikke si ulike ting.
+    const forventet = rutinerForDato(rs, skjemaUke, dato)
+    kravRutiner.set(dato, forventet.length)
+    const gjort = gjortPerDato.get(dato)
+    gjortRutiner.set(dato, gjort ? forventet.filter((id) => gjort.has(id)).length : 0)
+  }
 
   const tell = (rader: { dato: string }[]) => {
     const m = new Map<string, number>()
     for (const r of rader) m.set(r.dato, (m.get(r.dato) ?? 0) + 1)
     return m
   }
+  const post = (r: { opprettet_tid: string; slettet_tid: string | null }): Skjemapost =>
+    ({ opprettet: r.opprettet_tid, slettet: r.slettet_tid })
 
   const skjema: Skjemabilde[] = []
-  if ((rutiner.data ?? []).length > 0) {
+  if (rs.length > 0) {
     skjema.push(skjemabilde({
-      navn: 'Rutiner', poster: (rutiner.data ?? []).map(post),
-      utfortPerDato: tell(utforinger.data ?? []), ukeMandag: mandag,
+      navn: 'Rutiner', kravPerDato: kravRutiner,
+      utfortPerDato: gjortRutiner, ukeMandag: mandag,
     }))
   }
   if ((punkter.data ?? []).length > 0) {
     skjema.push(skjemabilde({
-      navn: 'Sjekkpunkt', poster: (punkter.data ?? []).map(post),
+      navn: 'Sjekkpunkt',
+      // Sjekkpunkter har ingen ukedager - de gjelder hver dag de finnes.
+      kravPerDato: kravFraPoster((punkter.data ?? []).map(post), mandag),
       utfortPerDato: tell(svar.data ?? []), ukeMandag: mandag,
     }))
   }

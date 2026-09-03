@@ -1,5 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { rutinerForDato } from './rutineskjema'
 
 // Statistikk for rutineskjema: streak + periode-prosent + topputførere.
 // «Forventet» pr dato = rutiner hvis skjema- OG rutine-ukedager dekker dagens
@@ -52,17 +53,9 @@ export async function beregnRutinestat(
     if (u.ansatt_id && u.dato >= periodeFra) ansattTeller.set(u.ansatt_id, (ansattTeller.get(u.ansatt_id) ?? 0) + 1)
   }
 
-  const forventetFor = (dato: string): string[] => {
-    const d = wd(dato)
-    const ids: string[] = []
-    for (const r of rs) {
-      const su = skjemaUke.get(r.skjema_id)!
-      const skjemaOk = su.length === 0 || su.includes(d)
-      const rutineOk = r.ukedager.length === 0 || r.ukedager.includes(d)
-      if (skjemaOk && rutineOk && r.opprettet_dato <= dato) ids.push(r.id)
-    }
-    return ids
-  }
+  // Regelen bor i `rutineskjema.ts`. Den sto her, og ukebriefen fikk en
+  // egen - daarligere - kopi som ikke kjente ukedager i det hele tatt.
+  const forventetFor = (dato: string): string[] => rutinerForDato(rs, skjemaUke, dato)
 
   // Streak: i dag teller bare ved 100 %, men bryter ikke om den ikke er ferdig ennå.
   let streak = 0

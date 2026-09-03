@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { tilEpost } from './epost'
 import { byggUkebrief } from './bygg'
 import type { Ukedata } from './type'
-import { skjemabilde } from './skjema'
+import { skjemabilde, kravFraPoster } from './skjema'
 
 // =====================================================================
 // Vakt over e-posten.
@@ -85,7 +85,7 @@ describe('ukebriefen som e-post', () => {
     const dager = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30']
     const b = skjemabilde({
       navn: 'Rutiner',
-      poster: [{ opprettet: '2026-01-01T09:00:00Z', slettet: null }],
+      kravPerDato: kravFraPoster([{ opprettet: '2026-01-01T09:00:00Z', slettet: null }], '2026-08-24'),
       utfortPerDato: new Map(dager.map((d, i) => [d, i === 6 ? 0 : 1])),
       ukeMandag: '2026-08-24',
     })

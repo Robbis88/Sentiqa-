@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { lagPdf, filnavn, pdfTekst } from './pdf'
 import { byggUkebrief } from './bygg'
-import { skjemabilde } from './skjema'
+import { skjemabilde, kravFraPoster } from './skjema'
 import type { Ukedata } from './type'
 
 // =====================================================================
@@ -35,7 +35,7 @@ function fulltBrev() {
     tilbakemeldinger: { antall: 3, ulest: 2, harAlvorlig: true },
     skjema: [skjemabilde({
       navn: 'Rutiner',
-      poster: [{ opprettet: '2026-01-01T09:00:00Z', slettet: null }],
+      kravPerDato: kravFraPoster([{ opprettet: '2026-01-01T09:00:00Z', slettet: null }], '2026-08-24'),
       utfortPerDato: new Map(DAGER.map((dag, i) => [dag, i === 6 ? 0 : 1])),
       ukeMandag: '2026-08-24',
     })],
