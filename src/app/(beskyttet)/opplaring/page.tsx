@@ -14,7 +14,7 @@ import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sideramme } from '@/components/ui/sideramme'
 
 type Oppgave = { id: string; kategori: string; tittel: string; beskrivelse: string | null; estimert_min: number | null }
-type Periode = { id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; forventet_slutt: string | null; fullfort_tid: string | null }
+type Periode = { id: string; stasjon_id: string; ansatt_navn: string; ansatt_id?: string | null; start_dato: string; forventet_slutt: string | null; fullfort_tid: string | null }
 type Utfort = { periode_id: string; oppgave_id: string }
 type Skift = { id: string; dato: string; start_tid: string | null; slutt_tid: string | null; notater: string | null }
 
@@ -26,14 +26,28 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
 
-  const [{ data: oppgaver }, { data: perioder }, { data: stasjoner }, { data: utfort }] = await Promise.all([
+  const [{ data: oppgaver }, { data: perioder }, { data: stasjoner }, { data: utfort }, { data: ansatteRaa }] = await Promise.all([
     supabase.from('opplaering_oppgave').select('id, kategori, tittel, beskrivelse, estimert_min').eq('aktiv', true).is('slettet_tid', null).order('rekkefolge').overrideTypes<Oppgave[]>(),
-    supabase.from('opplaering_periode').select('id, stasjon_id, ansatt_navn, start_dato, forventet_slutt, fullfort_tid').order('start_dato', { ascending: false }).overrideTypes<Periode[]>(),
+    supabase.from('opplaering_periode').select('id, stasjon_id, ansatt_navn, ansatt_id, start_dato, forventet_slutt, fullfort_tid').order('start_dato', { ascending: false }).overrideTypes<Periode[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
     supabase.from('opplaering_utfort').select('periode_id, oppgave_id').overrideTypes<Utfort[]>(),
+    // RLS snevrer allerede til stasjonene lederen naar.
+    supabase.from('ansatte').select('id, navn, stasjon_id').is('slettet_tid', null).order('navn')
+      .overrideTypes<{ id: string; navn: string; stasjon_id: string }[]>(),
   ])
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+
+  // Gruppert paa stasjon, saa to med samme fornavn paa hver sin stasjon
+  // ikke ser like ut i lista.
+  const ansatte = ansatteRaa ?? []
+  const gruppertAnsatte = new Map<string, { id: string; navn: string }[]>()
+  for (const a of ansatte) {
+    const stasjon = navnFor.get(a.stasjon_id) ?? '—'
+    const liste = gruppertAnsatte.get(stasjon) ?? []
+    liste.push({ id: a.id, navn: a.navn })
+    gruppertAnsatte.set(stasjon, liste)
+  }
   const utfortPer = new Map<string, Set<string>>()
   for (const u of utfort ?? []) {
     const s = utfortPer.get(u.periode_id) ?? new Set<string>()
@@ -79,15 +93,41 @@ export default async function OpplaringSide({ searchParams }: { searchParams: Pr
       tittel="Ny under opplæring"
       beskrivelse="Sjekklista er den samme for alle. Forventet ferdig er valgfri, men gjør det lettere å se hvem som henger etter."
     >
+      {/* ETIKETTENE STAAR SYNLIG. Foer sto navnet som placeholder og
+          datoene bare som `aria-label` - skjermleseren hoerte dem, du
+          saa «dd/mm/yyyy» to ganger uten noe som skilte dem.
+
+          Stasjonen er borte som eget valg: den foelger av den ansatte. */}
       <form action={leggTilPeriode} className="sq-skjema">
-        <input name="ansatt_navn" placeholder="Navn på nyansatt" required />
-        <select name="stasjon_id" required defaultValue={(stasjoner ?? []).length === 1 ? stasjoner![0].id : ''}>
-          {(stasjoner ?? []).length !== 1 && <option value="" disabled>Stasjon …</option>}
-          {(stasjoner ?? []).map((s) => <option key={s.id} value={s.id}>{s.butikknummer} {s.navn}</option>)}
-        </select>
-        <input name="start_dato" type="date" aria-label="Startdato" required />
-        <input name="forventet_slutt" type="date" aria-label="Forventet ferdig" />
-        <button type="submit" className="sq-knapp primar">Legg til</button>
+        {ansatte.length === 0 ? (
+          <p className="undertittel">
+            Ingen ansatte å velge. Legg inn den nyansatte under Ansatte først —
+            opplæringen knyttes til personen, så medaljen kan lagres på henne.
+          </p>
+        ) : (
+          <>
+            <label className="felt">
+              <span>Hvem skal ha opplæring?</span>
+              <select name="ansatt_id" required defaultValue="">
+                <option value="" disabled>Velg ansatt …</option>
+                {[...gruppertAnsatte].map(([stasjon, liste]) => (
+                  <optgroup key={stasjon} label={stasjon}>
+                    {liste.map((a) => <option key={a.id} value={a.id}>{a.navn}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <label className="felt">
+              <span>Første dag</span>
+              <input name="start_dato" type="date" required />
+            </label>
+            <label className="felt">
+              <span>Forventet ferdig (valgfri)</span>
+              <input name="forventet_slutt" type="date" />
+            </label>
+            <button type="submit" className="sq-knapp primar">Legg til</button>
+          </>
+        )}
       </form>
     </Sidepanel>
   )

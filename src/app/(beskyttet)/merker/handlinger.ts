@@ -42,6 +42,37 @@ export async function leggTilMerke(formData: FormData) {
   revalidatePath('/merker')
 }
 
+/**
+ * Peker ut merket som deles ut naar en opplaering fullfoeres.
+ *
+ * NOEYAKTIG ETT PER KJEDE — den partielle unike indeksen i `0171` haandhever
+ * det. To merker med samme betydning ville tvunget koden til aa velge, og
+ * et valg mellom to like gyldige rader er et tilfeldig valg.
+ *
+ * Derfor nulles alle foerst, og saa settes den ene. Uten det ville
+ * innsettingen kollidert med indeksen og sett ut som en feil, mens det
+ * brukeren mente var «flytt den hit».
+ */
+export async function settOpplaeringsmerke(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) return
+  const id = String(formData.get('id') ?? '')
+  const supabase = await lagSupabaseServerKlient()
+
+  maaLykkes(await supabase.from('merker').update({ tildeles_ved: null })
+    .eq('retailer_id', bruker.retailerId).eq('tildeles_ved', 'opplaering_fullfort'),
+  'nullstille opplaeringsmerke')
+
+  // Tom id betyr «ingen skal deles ut automatisk», og det er et gyldig
+  // valg - da fullfoeres opplaeringer uten at noe merke gis.
+  if (id) {
+    maaLykkes(await supabase.from('merker').update({ tildeles_ved: 'opplaering_fullfort' })
+      .eq('id', id).eq('retailer_id', bruker.retailerId),
+    'sette opplaeringsmerke')
+  }
+  revalidatePath('/merker')
+}
+
 export async function slettMerke(_t: Kvittering, fd: FormData,
 ): Promise<Kvittering> {
   const bruker = await hentInnloggetBruker()

@@ -10,6 +10,8 @@ import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
 import { iDag } from '@/lib/format'
 import { TabletHjem } from '../tablet-hjem'
 import { dagensOpplaering } from '@/lib/opplaering/dagens'
+import { forklaring } from '@/lib/opplaering/synlig'
+import { osloNaa } from '@/lib/rutineskjema'
 import type { Opplaering } from '../opplaring/tablet-opplaering'
 import { AdminDashbord } from '../admin-dashbord'
 import { ButikksjefDashbord } from '../butikksjef-dashbord'
@@ -56,18 +58,31 @@ export default async function OversiktSide(
         .select('id, periode_id, dato, start_tid, slutt_tid').eq('dato', idag)
         .overrideTypes<{ id: string; periode_id: string; dato: string; start_tid: string | null; slutt_tid: string | null }[]>(),
       supabase.from('opplaering_periode')
-        .select('id, stasjon_id, ansatt_navn, start_dato, fullfort_tid').is('fullfort_tid', null)
-        .overrideTypes<{ id: string; stasjon_id: string; ansatt_navn: string; start_dato: string; fullfort_tid: string | null }[]>(),
+        .select('id, stasjon_id, ansatt_navn, ansatt_id, start_dato, fullfort_tid').is('fullfort_tid', null)
+        .overrideTypes<{ id: string; stasjon_id: string; ansatt_navn: string; ansatt_id: string | null; start_dato: string; fullfort_tid: string | null }[]>(),
       supabase.from('opplaering_oppgave')
         .select('id, kategori, tittel').eq('aktiv', true).is('slettet_tid', null).order('rekkefolge')
         .overrideTypes<{ id: string; kategori: string; tittel: string }[]>(),
     ])
-    const dagens = dagensOpplaering(oplSkift ?? [], oplPerioder ?? [], st?.id ?? null, idag)
+    // HVEM STAAR DER, OG HVA ER KLOKKA. Nettbrettet har én delt
+    // paalogging, saa identiteten kommer fra PIN-en. Uten dette ser hele
+    // vaktlaget sjekklista til den nyansatte.
+    const dagens = dagensOpplaering(oplSkift ?? [], oplPerioder ?? [], st?.id ?? null, idag, {
+      aktivAnsattId: aktiv?.id ?? null,
+      minutter: osloNaa(new Date()).minutter,
+    })
+    // Skjulte rader blir med videre som en SETNING, ikke som ingenting:
+    // en tom skjerm uten forklaring ser ut som en oedelagt tablet.
+    const opplaeringsbeskjeder = dagens
+      .map((d) => forklaring(d.synlighet, d.ansattNavn, d.tidsrom))
+      .filter((t): t is string => t !== null)
+
+    const synlige = dagens.filter((d) => d.synlighet.synlig)
     let opplaeringer: Opplaering[] = []
-    if (dagens.length > 0) {
+    if (synlige.length > 0) {
       const { data: oplUtfort } = await supabase.from('opplaering_utfort')
         .select('periode_id, oppgave_id')
-        .in('periode_id', dagens.map((d) => d.periodeId))
+        .in('periode_id', synlige.map((d) => d.periodeId))
         .limit(5000)
         .overrideTypes<{ periode_id: string; oppgave_id: string }[]>()
       const gjortPer = new Map<string, Set<string>>()
@@ -76,7 +91,7 @@ export default async function OversiktSide(
         sett.add(u.oppgave_id)
         gjortPer.set(u.periode_id, sett)
       }
-      opplaeringer = dagens.map((d) => ({
+      opplaeringer = synlige.map((d) => ({
         periodeId: d.periodeId,
         ansattNavn: d.ansattNavn,
         tidsrom: d.tidsrom,
@@ -163,7 +178,7 @@ export default async function OversiktSide(
     const sjefMeldingerO = sjefMeldinger.map((m) => ({ ...m, tittel: o(m.tittel), beskrivelse: m.beskrivelse ? o(m.beskrivelse) : null }))
     const pulsRunde = pulsTekst && runde ? { id: runde.id, tekst: o(pulsTekst) } : null
 
-    return <TabletHjem navn={aktiv?.navn} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} rutinerIgjen={rutinerIgjen} stempling={stempling} ord={ord} opplaeringer={opplaeringer} />
+    return <TabletHjem navn={aktiv?.navn} meldinger={meldingerO} sjefMeldinger={sjefMeldingerO} idag={idag} pulsRunde={pulsRunde} sjekkpunkter={sjekkO} hjem={hjem} rutinerIgjen={rutinerIgjen} stempling={stempling} ord={ord} opplaeringer={opplaeringer} opplaeringsbeskjeder={opplaeringsbeskjeder} />
   }
 
   // Plattform-eier hører hjemme i plattform-konsollen, ikke et kjede-dashbord.

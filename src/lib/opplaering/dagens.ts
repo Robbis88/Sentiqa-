@@ -32,6 +32,8 @@
 // allerede der. Da er det en endring i visningen, ikke i modellen.
 // =====================================================================
 
+import { opplaeringSynlig, type Synlighet } from './synlig'
+
 export type Skiftrad = {
   id: string
   periode_id: string
@@ -44,6 +46,8 @@ export type Perioderad = {
   id: string
   stasjon_id: string
   ansatt_navn: string
+  /** Null for perioder opprettet foer `0171`. */
+  ansatt_id?: string | null
   start_dato: string
   fullfort_tid: string | null
 }
@@ -51,9 +55,18 @@ export type Perioderad = {
 export type DagensOpplaering = {
   periodeId: string
   ansattNavn: string
+  ansattId: string | null
   /** Klokkeslettene, ferdig formatert. Null når skiftet gjelder hele dagen. */
   tidsrom: string | null
   skiftId: string
+  /**
+   * Om lista skal vises NAA — hvem som står der, og hva klokka er.
+   *
+   * Raden blir med selv når den er skjult, og det er med vilje: en tom
+   * skjerm uten forklaring ser ut som en ødelagt tablet. Nettbrettet
+   * viser `forklaring()` i stedet. Se `synlig.ts`.
+   */
+  synlighet: Synlighet
 }
 
 /** `'16:00:00'` → `'16:00'`. Postgres `time` kommer med sekunder. */
@@ -86,6 +99,9 @@ export function dagensOpplaering(
   perioder: Perioderad[],
   stasjonId: string | null,
   idag: string,
+  /** Hvem som er identifisert med PIN, og hva klokka er i Oslo. Utelatt
+      (desktop, tester av de tre gamle leddene) = ingen ny begrensning. */
+  naa?: { aktivAnsattId: string | null; minutter: number },
 ): DagensOpplaering[] {
   const periodeFor = new Map(perioder.map((p) => [p.id, p]))
 
@@ -98,6 +114,16 @@ export function dagensOpplaering(
     .map((x) => ({
       periodeId: x.p.id,
       ansattNavn: x.p.ansatt_navn,
+      ansattId: x.p.ansatt_id ?? null,
+      synlighet: naa
+        ? opplaeringSynlig({
+          periodeAnsattId: x.p.ansatt_id ?? null,
+          aktivAnsattId: naa.aktivAnsattId,
+          startTid: x.s.start_tid,
+          sluttTid: x.s.slutt_tid,
+          naaMinutter: naa.minutter,
+        })
+        : { synlig: true as const },
       tidsrom: tidsrom(x.s.start_tid, x.s.slutt_tid),
       skiftId: x.s.id,
     }))
