@@ -1,12 +1,12 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { settOppStandard, leggTilMerke, slettMerke, tildelMerke, fjernTildeling } from './handlinger'
+import { settOppStandard, leggTilMerke, slettMerke, tildelMerke, fjernTildeling, settOpplaeringsmerke } from './handlinger'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sideramme } from '@/components/ui/sideramme'
 
-type Merke = { id: string; navn: string; emoji: string; beskrivelse: string | null }
+type Merke = { id: string; navn: string; emoji: string; beskrivelse: string | null; tildeles_ved?: string | null }
 type Ansatt = { id: string; navn: string; stasjon_id: string }
 type Tildelt = { id: string; merke_id: string; ansatt_id: string; merker: { navn: string; emoji: string } | null }
 
@@ -17,7 +17,7 @@ export default async function MerkerSide() {
 
   const supabase = await lagSupabaseServerKlient()
   const [{ data: merker }, { data: ansatte }, { data: tildelte }, { data: stasjoner }] = await Promise.all([
-    supabase.from('merker').select('id, navn, emoji, beskrivelse').is('slettet_tid', null).order('sortering').overrideTypes<Merke[]>(),
+    supabase.from('merker').select('id, navn, emoji, beskrivelse, tildeles_ved').is('slettet_tid', null).order('sortering').overrideTypes<Merke[]>(),
     supabase.from('ansatte').select('id, navn, stasjon_id').eq('aktiv', true).is('slettet_tid', null).order('navn').overrideTypes<Ansatt[]>(),
     supabase.from('tildelte_merker').select('id, merke_id, ansatt_id, merker(navn, emoji)').overrideTypes<Tildelt[]>(),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
@@ -66,6 +66,30 @@ export default async function MerkerSide() {
           : `${tildelt} tildelt til ${folk.length} ansatte.`}
         handlinger={tildelPanel}
       />
+
+      {/* HVILKET MERKE BETYR «FERDIG OPPLAERT»?
+          Systemet kan ikke gjette blant kjedens egne merker, saa kjeden
+          peker det ut. Noeyaktig ett - `0171` haandhever det - og «ingen»
+          er et gyldig valg: da fullfoeres opplaeringer uten merke. */}
+      {erLeder && merkeliste.length > 0 && (
+        <section className="kort">
+          <h2>Merke for fullført opplæring</h2>
+          <p className="undertittel">
+            Deles ut automatisk når en butikksjef merker en opplæringsperiode som fullført.
+            Merket lagres på den ansatte, så det står igjen etterpå.
+          </p>
+          <form action={settOpplaeringsmerke} className="sq-skjema">
+            <label className="felt">
+              <span>Merke</span>
+              <select name="id" defaultValue={merkeliste.find((m) => m.tildeles_ved === 'opplaering_fullfort')?.id ?? ''}>
+                <option value="">Ingen — del ut for hånd</option>
+                {merkeliste.map((m) => <option key={m.id} value={m.id}>{m.navn}</option>)}
+              </select>
+            </label>
+            <button type="submit" className="sq-knapp">Lagre</button>
+          </form>
+        </section>
+      )}
 
       {erLeder && merkeliste.length === 0 && (
         <Tomtilstand

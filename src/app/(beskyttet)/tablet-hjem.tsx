@@ -69,6 +69,7 @@ export function TabletHjem({
   stempling = { slag: 'ukjent' },
   ord = {},
   opplaeringer = [],
+  opplaeringsbeskjeder = [],
 }: {
   navn?: string
   meldinger?: Melding[]
@@ -81,6 +82,12 @@ export function TabletHjem({
   stempling?: Stemplingstilstand
   ord?: Record<string, string>
   opplaeringer?: Opplaering[]
+  /**
+   * Hvorfor en opplaering IKKE vises naa - feil person, feil klokkeslett,
+   * ingen PIN. En tom skjerm uten forklaring ser ut som en oedelagt
+   * tablet, og da spoer folk butikksjefen i stedet for aa logge inn.
+   */
+  opplaeringsbeskjeder?: string[]
 }) {
   const t = (s: string) => ord[s] ?? s
 
@@ -125,6 +132,9 @@ export function TabletHjem({
           viktigste oppgave; en tom seksjon resten av uka ville vaert
           stoey. Skift-kalenderen avgjoer - den finnes ikke her. */}
       <TabletOpplaering opplaeringer={opplaeringer} />
+      {opplaeringsbeskjeder.map((t) => (
+        <p key={t} className="tablet-melding">{t}</p>
+      ))}
 
       {hjem.produksjon && hjem.produksjon.plan > 0 && (() => {
         const pst = Math.min(100, Math.round((hjem.produksjon.lagd / hjem.produksjon.plan) * 100))

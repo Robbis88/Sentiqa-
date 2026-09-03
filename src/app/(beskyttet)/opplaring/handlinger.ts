@@ -60,19 +60,40 @@ export async function slettOppgave(_t: Kvittering, fd: FormData,
 }
 
 // ---- Perioder (nyansatte) ----
+/**
+ * Ny periode — knyttet til en ANSATT, ikke til et navn.
+ *
+ * Stasjonen velges ikke lenger. Den foelger av den ansatte, og det
+ * fjerner en hel klasse feil: en nyansatt paa Boenes registrert paa
+ * Laguneparken ville faatt sjekklista si opp paa feil nettbrett, uten at
+ * noe sa fra. To felt som kan motsi hverandre er ett felt for mye.
+ *
+ * `ansatt_navn` fylles fra den ansatte og blir staaende som historikk:
+ * slettes hun senere, skal det fortsatt gaa an aa se hvem perioden gjaldt.
+ */
 export async function leggTilPeriode(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle) || !bruker.retailerId) return
-  const navn = String(formData.get('ansatt_navn') ?? '').trim()
-  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const ansattId = String(formData.get('ansatt_id') ?? '')
   const start = String(formData.get('start_dato') ?? '')
   const slutt = String(formData.get('forventet_slutt') ?? '')
-  if (!navn || !stasjonId || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return
+  if (!ansattId || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return
+
   const supabase = await lagSupabaseServerKlient()
+  // RLS avgjoer om den ansatte er vaar. Finnes hun ikke, finnes hun ikke
+  // for oss - og da skal det ikke opprettes en periode paa et navn vi
+  // aldri sjekket.
+  const { data: ansatt } = await supabase
+    .from('ansatte').select('id, navn, stasjon_id')
+    .eq('id', ansattId).is('slettet_tid', null)
+    .maybeSingle<{ id: string; navn: string; stasjon_id: string }>()
+  if (!ansatt) return
+
   maaLykkes(await supabase.from('opplaering_periode').insert({
     retailer_id: bruker.retailerId,
-    stasjon_id: stasjonId,
-    ansatt_navn: navn,
+    stasjon_id: ansatt.stasjon_id,
+    ansatt_id: ansatt.id,
+    ansatt_navn: ansatt.navn,
     start_dato: start,
     forventet_slutt: /^\d{4}-\d{2}-\d{2}$/.test(slutt) ? slutt : null,
     opprettet_av: bruker.id,
@@ -80,6 +101,29 @@ export async function leggTilPeriode(formData: FormData) {
   revalidatePath('/opplaring')
 }
 
+/**
+ * Fullfoert — og da faar hun medaljen.
+ *
+ * MERKET DELES UT HER, ikke naar siste hake settes. Det er butikksjefen
+ * som avgjoer at noen er ferdig opplaert; en sjekkliste som er haket
+ * ferdig er et grunnlag for den beslutningen, ikke beslutningen selv.
+ *
+ * Tre ting maa staa for at merket skal deles ut, og hver av dem er en
+ * grunn til aa la vaere:
+ *
+ *   perioden har en ANSATT   et navn kan ikke baere et merke
+ *   kjeden har PEKT UT et    systemet kan ikke gjette hvilket av
+ *   merke                    kjedens egne merker som betyr «ferdig»
+ *   hun har det ikke alt     `unique (merke_id, ansatt_id)`
+ *
+ * Mangler noen av dem, fullfoeres perioden likevel. Aa la fullfoeringen
+ * feile fordi ingen har pekt ut et merke ville vaert aa la pynten stoppe
+ * arbeidet.
+ *
+ * ANGRE FJERNER IKKE MERKET. Det er tildelt en person paa en dato, og en
+ * feilklikk-angring skal ikke slette noe hun har faatt. Skal det bort,
+ * gjoeres det paa /merker, av noen som mener det.
+ */
 export async function fullforPeriode(formData: FormData) {
   const bruker = await hentInnloggetBruker()
   if (!erLeder(bruker.rolle)) return
@@ -88,7 +132,35 @@ export async function fullforPeriode(formData: FormData) {
   if (!id) return
   const supabase = await lagSupabaseServerKlient()
   maaLykkes(await supabase.from('opplaering_periode').update({ fullfort_tid: til ? new Date().toISOString() : null }).eq('id', id), 'oppdatere opplaering periode')
+
+  if (til) await tildelOpplaeringsmerke(supabase, id, bruker.id)
   revalidatePath('/opplaring')
+}
+
+async function tildelOpplaeringsmerke(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+  periodeId: string,
+  brukerId: string,
+) {
+  const { data: periode } = await supabase
+    .from('opplaering_periode').select('ansatt_id, stasjon_id').eq('id', periodeId)
+    .maybeSingle<{ ansatt_id: string | null; stasjon_id: string }>()
+  if (!periode?.ansatt_id) return
+
+  const { data: merke } = await supabase
+    .from('merker').select('id').eq('tildeles_ved', 'opplaering_fullfort').is('slettet_tid', null)
+    .maybeSingle<{ id: string }>()
+  if (!merke) return
+
+  // `ignoreDuplicates`: har hun det alt, er det ikke en feil. En periode
+  // kan angres og fullfoeres igjen, og da skal hun ikke faa to.
+  maaLykkes(await supabase.from('tildelte_merker').upsert({
+    merke_id: merke.id,
+    ansatt_id: periode.ansatt_id,
+    stasjon_id: periode.stasjon_id,
+    tildelt_av: brukerId,
+    tildelt_dato: new Date().toISOString().slice(0, 10),
+  }, { onConflict: 'merke_id,ansatt_id', ignoreDuplicates: true }), 'tildele opplaeringsmerke')
 }
 
 export async function slettPeriode(_t: Kvittering, fd: FormData,
