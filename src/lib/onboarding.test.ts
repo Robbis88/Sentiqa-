@@ -1,5 +1,7 @@
-import { describe, expect, test } from 'vitest'
-import { KILDER, nesteSteg, onboardingsteg, type Kildemaaling } from './onboarding'
+import { describe, expect, it, test } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { KILDER, OPPSETT, nesteSteg, onboardingsteg, oppsettsteg, type Kildemaaling } from './onboarding'
 
 const m = (noekkel: string, stasjoner: number, dager: number): Kildemaaling =>
   ({ noekkel, stasjonerMedData: stasjoner, dagerDekket: dager, sisteDato: '2026-08-13' })
@@ -74,3 +76,71 @@ describe('nesteSteg', () => {
     expect(nesteSteg(s)!.noekkel).toBe(KILDER.find((k) => k.kritisk)!.noekkel)
   })
 })
+
+// =====================================================================
+// OPPSETTSKRAV — det som ikke er en fil.
+// =====================================================================
+
+describe('oppsettsteg', () => {
+  const krav = OPPSETT[0]
+
+  it('sier «ikke satt opp» naar ingen stasjoner har det', () => {
+    const [s] = oppsettsteg([{ noekkel: krav.noekkel, stasjonerMedOppsett: 0 }], 5)
+    expect(s.status).toBe('mangler')
+    expect(s.hvor).toBe(krav.gjoresI)
+    expect(s.slag).toBe('oppsett')
+  })
+
+  // Den viktigste tilstanden. «Tre av fem» ser ferdig ut naar man ikke
+  // teller - og de to andre stasjonene faar ingenting, i stillhet.
+  it('sier hvor mange stasjoner som mangler, ikke bare at noe mangler', () => {
+    const [s] = oppsettsteg([{ noekkel: krav.noekkel, stasjonerMedOppsett: 3 }], 5)
+    expect(s.status).toBe('ufullstendig')
+    expect(s.beskjed).toContain('2 av 5')
+  })
+
+  it('er ok foerst naar alle stasjonene er dekket', () => {
+    const [s] = oppsettsteg([{ noekkel: krav.noekkel, stasjonerMedOppsett: 5 }], 5)
+    expect(s.status).toBe('ok')
+  })
+
+  it('behandler en maaling som mangler som null, ikke som ok', () => {
+    // En kilde uten maaling er ikke «ingen problemer funnet».
+    const [s] = oppsettsteg([], 5)
+    expect(s.status).toBe('mangler')
+  })
+
+  it('tar oppsettskrav med i nesteSteg', () => {
+    const steg = oppsettsteg([{ noekkel: krav.noekkel, stasjonerMedOppsett: 0 }], 5)
+    expect(nesteSteg(steg)?.noekkel).toBe(krav.noekkel)
+  })
+})
+
+describe('hvert oppsettskrav blir faktisk maalt', () => {
+  // DETTE ER DEKNINGSSJEKKEN, og den er viktigere enn regnestykket over.
+  // `oppsettsteg()` gaar over OPPSETT; et krav ingen MAALER faar
+  // `stasjonerMedOppsett = 0` og staar evig som «mangler» - eller, verre,
+  // blir lagt til uten at noen skriver maalingen, og da lyver lista.
+  //
+  // Vakten leser importsida, som er stedet maalingene bor.
+  const side = readFileSync(
+    join(process.cwd(), 'src', 'app', '(beskyttet)', 'import', 'page.tsx'), 'utf8')
+
+  it('KANARIFUGL: vakten finner maalefunksjonen i det hele tatt', () => {
+    expect(side).toContain('maalOppsett')
+    expect(OPPSETT.length).toBeGreaterThan(0)
+  })
+
+  it('hver noekkel i OPPSETT settes av en maaling', () => {
+    const umaalte = OPPSETT.filter((k) => !side.includes(`'${k.noekkel}'`))
+    expect(umaalte.map((k) => k.noekkel),
+      'oppsettskrav som ingen maaler - de vil staa som «mangler» for alltid').toEqual([])
+  })
+
+  it('maalingen leser den samme koblingen utsendingen leser', () => {
+    // «Én sannhet, ikke to»: bytter noen denne mot en haandholdt hake,
+    // skiller lista og modulen lag i stillhet.
+    expect(side).toContain('butikksjef_stasjoner')
+  })
+})
+

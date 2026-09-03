@@ -7,7 +7,7 @@ import { settAllowlist } from './handlinger'
 import { BehandleKnapp } from './behandle-knapp'
 import { BehandleAlleKnapp } from './behandle-alle-knapp'
 import { behandleJobb } from '@/lib/import/behandle'
-import { nesteSteg, onboardingsteg, type Kildemaaling } from '@/lib/onboarding'
+import { nesteSteg, onboardingsteg, oppsettsteg, type Kildemaaling, type Oppsettmaaling } from '@/lib/onboarding'
 import { Sidehode, Datatabell } from '@/components/ui/side'
 import { Status, type Statusnivaa } from '@/components/ui/status'
 import { Sideramme } from '@/components/ui/sideramme'
@@ -77,6 +77,30 @@ type Jobb = {
 //
 // Dagene telles på stasjonen med MINST. En kilde som dekker fire stasjoner
 // godt og den femte i tre dager er ikke i mål; den femte får ingen analyse.
+/**
+ * Oppsett som ikke er filer.
+ *
+ * UTLEDET, IKKE GJENTATT. Den leser `butikksjef_stasjoner` — nøyaktig
+ * den koblingen `finnMottakere()` leser når brevet skal sendes. En
+ * håndholdt hake her ville vært en andre sannhet om det samme, og de to
+ * ville skilt lag i stillhet.
+ */
+async function maalOppsett(
+  supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
+): Promise<Oppsettmaaling[]> {
+  const { data } = await supabase
+    .from('butikksjef_stasjoner')
+    .select('stasjon_id, profiler!inner(rolle, slettet_tid)')
+    .overrideTypes<{ stasjon_id: string; profiler: { rolle: string; slettet_tid: string | null } }[]>()
+
+  const stasjoner = new Set(
+    (data ?? [])
+      .filter((r) => r.profiler?.rolle === 'butikksjef' && r.profiler?.slettet_tid === null)
+      .map((r) => r.stasjon_id),
+  )
+  return [{ noekkel: 'butikksjef_paa_stasjon', stasjonerMedOppsett: stasjoner.size }]
+}
+
 async function maalKilder(
   supabase: Awaited<ReturnType<typeof lagSupabaseServerKlient>>,
 ): Promise<Kildemaaling[]> {
@@ -156,7 +180,12 @@ export default async function ImportSide(
   const jobber = data ?? []
   const { count: antallStasjoner } = await supabase
     .from('stasjoner').select('id', { count: 'exact', head: true }).is('slettet_tid', null)
-  const steg = onboardingsteg(await maalKilder(supabase), antallStasjoner ?? 0)
+  // Kildene FOERST, oppsettet etter: filene baerer alt, og et oppsett uten
+  // data har ingenting aa gjoere. Rekkefoelgen er avhengighetenes.
+  const steg = [
+    ...onboardingsteg(await maalKilder(supabase), antallStasjoner ?? 0),
+    ...oppsettsteg(await maalOppsett(supabase), antallStasjoner ?? 0),
+  ]
   const neste = nesteSteg(steg)
   // «Behandles nå» har en grense. Kaster gjenkjenningen før statusen rekker
   // å bli satt, blir raden stående i «Leser fila …» for alltid — og da er en
@@ -185,7 +214,7 @@ export default async function ImportSide(
           ER en matrise, og blir det. */}
       <Datatabell tittel="Hva systemet har, og hva det mangler">
           <thead>
-            <tr><th>Data</th><th>Status</th><th>Hvor den hentes</th><th>Hva den gir deg</th></tr>
+            <tr><th>Data</th><th>Status</th><th>Hvor</th><th>Hva den gir deg</th></tr>
           </thead>
           <tbody>
             {steg.map((s) => (
@@ -198,7 +227,7 @@ export default async function ImportSide(
                   <br />
                   <span className="undertittel">{s.beskjed}</span>
                 </td>
-                <td className="undertittel">{s.hentesFra}</td>
+                <td className="undertittel">{s.hvor}</td>
                 <td className="undertittel">{s.laserOpp}</td>
               </tr>
             ))}
