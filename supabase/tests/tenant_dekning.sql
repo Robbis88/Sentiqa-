@@ -109,6 +109,7 @@ begin
     ('timesalg', true, false),
     ('trafikk', true, false),
     ('uke_rapport', true, false),
+    ('ukebrief_utsending', true, false),
     ('vaer', true, false),
     ('varsler', true, false);
 

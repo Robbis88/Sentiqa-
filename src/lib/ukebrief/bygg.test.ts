@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { describe, it, expect } from 'vitest'
-import { byggUkebrief, velgHandlinger, ukenummer, sisteHeleUke, MAKS_HANDLINGER, MAKS_PER_BOLK } from './bygg'
+import { byggUkebrief, velgHandlinger, ukenummer, sisteHeleUke, forrigeUke, MAKS_HANDLINGER, MAKS_PER_BOLK } from './bygg'
 import type { Rangert, Ukedata } from './type'
 
 function ukedata(over: Partial<Ukedata> = {}): Ukedata {
@@ -65,6 +65,26 @@ describe('sisteHeleUke', () => {
 
   it('gir null uten uker i det hele tatt', () => {
     expect(sisteHeleUke([], '2026-09-02')).toBeNull()
+  })
+})
+
+describe('forrigeUke', () => {
+  // Uke 36 er 31.08-06.09 2026; uke 35 er 24.-30. august.
+  it('peker paa uken som ble ferdig, uansett hvilken dag jobben kjoerer', () => {
+    for (const dag of ['2026-08-31', '2026-09-02', '2026-09-06']) {
+      expect(sisteHeleUke([forrigeUke(dag)], '2999-01-01')).toBe('2026-08-24')
+    }
+  })
+
+  // DETTE er hele poenget: en gjentatt kjoering maa treffe SAMME uke, ellers
+  // kjenner ikke duplikatsperren igjen det som alt er sendt.
+  it('gir samme uke naar jobben gjentas senere i uken', () => {
+    expect(forrigeUke('2026-09-02')).toBe(forrigeUke('2026-08-31'))
+  })
+
+  it('haandterer soendag uten aa hoppe en uke fram', () => {
+    expect(forrigeUke('2026-09-06')).toBe('2026-08-24')
+    expect(forrigeUke('2026-09-07')).toBe('2026-08-31')
   })
 })
 

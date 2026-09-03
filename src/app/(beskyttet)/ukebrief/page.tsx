@@ -8,6 +8,7 @@ import { byggUkebrief, sisteHeleUke, ukenummer } from '@/lib/ukebrief/bygg'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Brev } from './brev'
+import { ProveKnapp } from './prove-knapp'
 
 // =====================================================================
 // Ukebrief — intern forhåndsvisning.
@@ -90,7 +91,8 @@ export default async function UkebriefSide({ searchParams }: { searchParams: Pro
       <Sidehode
         tittel="Ukebrief"
         merke={`${valgt.butikknummer} ${valgt.navn}`}
-        undertittel="Forhåndsvisning. Ingenting sendes herfra."
+        undertittel="Forhåndsvisning. Automatisk utsending er ikke slått på."
+        handlinger={data === null ? undefined : <ProveKnapp stasjonId={valgt.id} uke={valgtUke} />}
       />
 
       <div className="ub-velger">
