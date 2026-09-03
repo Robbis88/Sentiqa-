@@ -1887,6 +1887,38 @@
       "oppdaterbart": "navn = 'endret av sonden'"
     },
     {
+      "tabell": "rutine_notat",
+      "$hvorfor": "Fritekst om en rutine en gitt dag. IKKE et bevis paa at den er gjort - det er rutine_utforinger, og en kommentar der ville latt en ikke-utfoert rutine telle som utfoert i hver eneste prosent. Stasjonsscopet som utfoeringene: den som kan hake av rutinen kan skrive hva som skjedde med den, og det inkluderer nettbrettet.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "read_write",
+      "manager": "assigned_stations",
+      "owner": "retailer",
+      "business_unik": [
+        "rutine_id",
+        "dato"
+      ],
+      "seed_ekstra": [
+        "insert into public.rutineskjemaer (id, retailer_id, stasjon_id, vakttype, navn, tid_start, tid_slutt) values ('{{seed:skjema}}', '{{retailer}}', '{{stasjon}}', 'morgen', 'Sondeskjema {{n}}', '06:00', '14:00')",
+        "insert into public.rutiner (id, retailer_id, stasjon_id, skjema_id, tittel) values ('{{seed:rutine}}', '{{retailer}}', '{{stasjon}}', '{{seed:skjema}}', 'Sonderutine {{n}}')"
+      ],
+      "proberad": {
+        "rutine_id": "'{{seed:rutine}}'",
+        "dato": "{{unik_dato}}",
+        "tekst": "'Sondenotat {{unik}}'"
+      },
+      "business_unik_unntak": {
+        "rutine_id": "Kommer fra en fersk forutsetningsrad i seed_ekstra, og dato varierer per forsoek - saa den sammensatte noekkelen er unik uansett."
+      },
+      "oppdaterbart": "tekst = 'Rettet notat'"
+    },
+    {
       "tabell": "rutine_utforinger",
       "$hvorfor": "Alle fire operasjonene er rene stasjonsscop uten rollepredikat. Nettbrettets arbeidsflate: haker av paa vakt.",
       "tenant_scope": "station",

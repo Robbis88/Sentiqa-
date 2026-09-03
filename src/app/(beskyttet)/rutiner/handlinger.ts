@@ -51,6 +51,43 @@ export async function kryssAvMedBilde(formData: FormData) {
   revalidatePath('/rutiner')
 }
 
+/**
+ * Notat paa en rutine for en dag.
+ *
+ * SKRIVER ALDRI TIL `rutine_utforinger`. Et notat sier noe OM dagen, ikke
+ * at rutinen er gjort - se `0170`. Lages det som en utfoering, teller den
+ * som utfoert i hver eneste prosent, og ukebriefen sender tallet ut.
+ *
+ * TOM TEKST FJERNER NOTATET. Skranken i basen nekter tom tekst, saa uten
+ * dette ville «toem feltet og lagre» gitt en feil i stedet for det den
+ * som trykket faktisk mente.
+ */
+export async function lagreNotat(formData: FormData) {
+  const bruker = await hentInnloggetBruker()
+  const rutineId = String(formData.get('rutine_id') ?? '')
+  const stasjonId = String(formData.get('stasjon_id') ?? '')
+  const dato = String(formData.get('dato') ?? '')
+  const tekst = String(formData.get('tekst') ?? '').trim()
+  if (!rutineId || !stasjonId || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return
+
+  const supabase = await lagSupabaseServerKlient()
+  if (tekst === '') {
+    maaLykkes(await supabase.from('rutine_notat').delete()
+      .eq('rutine_id', rutineId).eq('dato', dato), 'fjerne rutinenotat')
+  } else {
+    const ansatt = await lesAktivAnsatt(supabase)
+    maaLykkes(await supabase.from('rutine_notat').upsert(
+      {
+        rutine_id: rutineId, stasjon_id: stasjonId, dato, tekst,
+        ansatt_id: ansatt?.id ?? null, opprettet_av: bruker.id,
+        oppdatert_tid: new Date().toISOString(),
+      },
+      { onConflict: 'rutine_id,dato' },
+    ), 'lagre rutinenotat')
+  }
+  revalidatePath('/rutiner')
+}
+
 // AV/PAA-BRYTER, IKKE EN SLETT-KNAPP. Den staar i en ternaer sammen med
 // `kryssAv` og maa dele signatur med den. Krysset som forsvinner ER
 // kvitteringen her; en tekst ved siden av ville sagt det samme to
