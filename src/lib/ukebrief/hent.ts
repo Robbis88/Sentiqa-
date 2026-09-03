@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { finnUtsolgt, type Kandidatrad } from '@/lib/utsolgt'
 import { fordelBp, motpartsvindu, type Dagsrad } from '@/lib/salg/bp-per-dag'
 import { delVakt, LONNSART } from '@/lib/lonn/tidsband'
+import { skjemabilde, type Skjemabilde, type Skjemapost } from './skjema'
 import type { Ukedata } from './type'
 
 // =====================================================================
@@ -160,6 +161,63 @@ async function timerForUken(
   return { brukt: minutter / 60, ukesramme: mangler ? null : ramme }
 }
 
+type SkjemaSvar = { skjema: Skjemabilde[]; kritiskeNei: number }
+
+/**
+ * Rutiner og sjekkpunkter for uken.
+ *
+ * Skjemaene hentes UTEN `slettet_tid is null`. En rutine som ble slettet
+ * paa onsdag var et krav mandag og tirsdag, og aa filtrere den bort her
+ * ville gjort mandagens prosent hoeyere enn den var. `skjemabilde()`
+ * avgjoer hvilke dager hver av dem gjaldt.
+ */
+async function hentSkjema(
+  supabase: Klient, stasjonId: string, mandag: string, sondag: string,
+): Promise<SkjemaSvar> {
+  const [rutiner, utforinger, punkter, svar] = await Promise.all([
+    supabase.from('rutiner').select('opprettet_tid, slettet_tid')
+      .eq('stasjon_id', stasjonId)
+      .or(`slettet_tid.is.null,slettet_tid.gte.${mandag}`)
+      .overrideTypes<{ opprettet_tid: string; slettet_tid: string | null }[]>(),
+    supabase.from('rutine_utforinger').select('dato')
+      .eq('stasjon_id', stasjonId).gte('dato', mandag).lte('dato', sondag)
+      .overrideTypes<{ dato: string }[]>(),
+    supabase.from('sjekkpunkter').select('opprettet_tid, slettet_tid')
+      .eq('stasjon_id', stasjonId)
+      .or(`slettet_tid.is.null,slettet_tid.gte.${mandag}`)
+      .overrideTypes<{ opprettet_tid: string; slettet_tid: string | null }[]>(),
+    supabase.from('sjekkpunkt_svar').select('dato, svar, sjekkpunkter!inner(kritisk)')
+      .eq('stasjon_id', stasjonId).gte('dato', mandag).lte('dato', sondag)
+      .overrideTypes<{ dato: string; svar: boolean; sjekkpunkter: { kritisk: boolean } }[]>(),
+  ])
+
+  const post = (r: { opprettet_tid: string; slettet_tid: string | null }): Skjemapost =>
+    ({ opprettet: r.opprettet_tid, slettet: r.slettet_tid })
+
+  const tell = (rader: { dato: string }[]) => {
+    const m = new Map<string, number>()
+    for (const r of rader) m.set(r.dato, (m.get(r.dato) ?? 0) + 1)
+    return m
+  }
+
+  const skjema: Skjemabilde[] = []
+  if ((rutiner.data ?? []).length > 0) {
+    skjema.push(skjemabilde({
+      navn: 'Rutiner', poster: (rutiner.data ?? []).map(post),
+      utfortPerDato: tell(utforinger.data ?? []), ukeMandag: mandag,
+    }))
+  }
+  if ((punkter.data ?? []).length > 0) {
+    skjema.push(skjemabilde({
+      navn: 'Sjekkpunkt', poster: (punkter.data ?? []).map(post),
+      utfortPerDato: tell(svar.data ?? []), ukeMandag: mandag,
+    }))
+  }
+
+  const kritiskeNei = (svar.data ?? []).filter((r) => !r.svar && r.sjekkpunkter?.kritisk).length
+  return { skjema, kritiskeNei }
+}
+
 export async function hentUkedata(
   supabase: Klient,
   stasjon: { id: string; navn: string; butikknummer: string },
@@ -189,7 +247,7 @@ export async function hentUkedata(
   })
   const omsetningIfjor = ifjor.reduce((t, a) => t + Number(a.omsetning), 0)
 
-  const [bpUke, timer, utsolgtRaa, treffRader, meldinger, salgsdager] = await Promise.all([
+  const [bpUke, timer, utsolgtRaa, treffRader, meldinger, salgsdager, skjema] = await Promise.all([
     bpForUken(supabase, stasjon.id, mandag),
     timerForUken(supabase, stasjon.id, mandag),
     utsolgtKandidater(supabase, stasjon.id),
@@ -203,6 +261,7 @@ export async function hentUkedata(
     supabase.from('v_butikksalg').select('dato')
       .eq('stasjon_id', stasjon.id).gte('dato', mandag).lte('dato', sondag)
       .overrideTypes<{ dato: string }[]>(),
+    hentSkjema(supabase, stasjon.id, mandag, sondag),
   ])
 
   // Utsolgt regnes med SØNDAGEN som «i dag». Ser vi bakover fra dagens
@@ -239,6 +298,8 @@ export async function hentUkedata(
       ulest: mld.filter((m) => m.lest_tid === null).length,
       harAlvorlig: mld.some((m) => ALVORLIGE.has(m.alvorlighet)),
     },
+    skjema: skjema.skjema,
+    kritiskeNei: skjema.kritiskeNei,
     hull: manglerSalg > 0 ? [{ kilde: 'Salgsdata', dagerMangler: manglerSalg }] : [],
   }
 }

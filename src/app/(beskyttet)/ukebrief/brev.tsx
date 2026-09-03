@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Rangert, Ukebrief } from '@/lib/ukebrief/type'
+import type { Dagsrad, Skjemabilde } from '@/lib/ukebrief/skjema'
 
 // =====================================================================
 // Brevet.
@@ -42,6 +43,36 @@ function Funn({ s }: { s: Rangert }) {
   )
 }
 
+/** Grønn ved fullt, rød under terskelen, ellers nøytral. Fargen er en
+    andrelesing — tallet står der uansett, for den som ikke ser farge. */
+function dagsklasse(d: Dagsrad): string {
+  if (d.prosent === null) return 'ub-dag ub-dag-tom'
+  if (d.prosent >= 100) return 'ub-dag ub-dag-full'
+  if (d.prosent < 90) return 'ub-dag ub-dag-lav'
+  return 'ub-dag'
+}
+
+function Skjemarad({ b }: { b: Skjemabilde }) {
+  return (
+    <div className="ub-skjema">
+      <div className="ub-skjema-hode">
+        <span className="ub-funn-tittel">{b.navn}</span>
+        <span className="ub-funn-tall">{b.prosent} % · {b.utfort} av {b.krevd}</span>
+      </div>
+      {/* Sju celler, ikke en tabell. Spørsmålet er «hvilken dag», og det
+          svares raskest av en rad man kan se på i ett blikk. */}
+      <ul className="ub-dager">
+        {b.dager.map((d) => (
+          <li key={d.dato} className={dagsklasse(d)}>
+            <span className="ub-dag-navn">{d.ukedag}</span>
+            <span className="ub-dag-tall">{d.prosent === null ? '–' : `${d.prosent} %`}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export function Brev({ brief }: { brief: Ukebrief }) {
   return (
     <article className="ub-brev">
@@ -77,6 +108,13 @@ export function Brev({ brief }: { brief: Ukebrief }) {
           <ul className="ub-funnliste">
             {brief.bra.map((s) => <Funn key={s.id} s={s} />)}
           </ul>
+        </section>
+      )}
+
+      {brief.skjema.length > 0 && (
+        <section className="ub-seksjon">
+          <h3 className="ub-seksjon-tittel">Utført per dag</h3>
+          {brief.skjema.map((b) => <Skjemarad key={b.navn} b={b} />)}
         </section>
       )}
 

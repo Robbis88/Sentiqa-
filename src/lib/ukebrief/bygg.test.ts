@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { byggUkebrief, velgHandlinger, ukenummer, sisteHeleUke, forrigeUke, MAKS_HANDLINGER, MAKS_PER_BOLK } from './bygg'
 import type { Rangert, Ukedata } from './type'
+import { skjemabilde } from './skjema'
 
 function ukedata(over: Partial<Ukedata> = {}): Ukedata {
   return {
@@ -24,6 +25,8 @@ function ukedata(over: Partial<Ukedata> = {}): Ukedata {
     treff: { antall: 10, snittTreffPst: 90 },
     timer: { brukt: 200, ukesramme: 200 },
     tilbakemeldinger: { antall: 0, ulest: 0, harAlvorlig: false },
+    skjema: [],
+    kritiskeNei: 0,
     hull: [],
     ...over,
   }
@@ -112,6 +115,68 @@ describe('velgHandlinger', () => {
       signal({ id: 'hoy', handling: 'Først', poeng: 900 }),
     ].sort((a, b) => b.poeng - a.poeng))
     expect(ut.map((h) => h.fraSignal)).toEqual(['hoy', 'lav'])
+  })
+})
+
+const UKE = '2026-08-24'
+const DAGER = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30']
+
+/** To rutiner hele uken, med `utfort` per dag slik du angir. */
+function rutiner(perDag: number[]) {
+  return skjemabilde({
+    navn: 'Rutiner',
+    poster: [{ opprettet: '2026-01-01T09:00:00Z', slettet: null },
+             { opprettet: '2026-01-01T09:00:00Z', slettet: null }],
+    utfortPerDato: new Map(DAGER.map((d, i) => [d, perDag[i]])),
+    ukeMandag: UKE,
+  })
+}
+
+describe('rutiner og sjekkpunkt', () => {
+  it('utpeker dagen som glipper, og lar handlingen peke paa vakta', () => {
+    const b = byggUkebrief(ukedata({ skjema: [rutiner([2, 2, 2, 2, 2, 2, 0])] }))
+    const s = b.oppmerksomhet.find((x) => x.id === 'skjema-rutiner')
+    expect(s).toBeDefined()
+    expect(s!.tittel).toContain('søndag')
+    expect(b.handlinger.some((h) => h.tekst.includes('søndag'))).toBe(true)
+  })
+
+  // Ligger alle dagene likt lavt, er det listen som er saken. Et brev som
+  // utpeker en vilkaarlig dag der, sender noen til feil samtale.
+  it('utpeker ingen dag naar alle ligger likt lavt', () => {
+    const s = byggUkebrief(ukedata({ skjema: [rutiner([1, 1, 1, 1, 1, 1, 1])] }))
+      .oppmerksomhet.find((x) => x.id === 'skjema-rutiner')
+    expect(s!.tittel).toBe('Rutiner er ikke kvittert ut')
+    expect(s!.detalj).toContain('for lang eller for uklar')
+  })
+
+  it('sier ifra naar alt er kvittert ut', () => {
+    const b = byggUkebrief(ukedata({ skjema: [rutiner([2, 2, 2, 2, 2, 2, 2])] }))
+    expect(b.bra.map((x) => x.id)).toContain('skjema-rutiner-bra')
+    expect(b.handlinger).toHaveLength(0)
+  })
+
+  it('lar ukedagsraden staa i brevet, ogsaa naar alt er i orden', () => {
+    const b = byggUkebrief(ukedata({ skjema: [rutiner([2, 2, 2, 2, 2, 2, 2])] }))
+    expect(b.skjema).toHaveLength(1)
+    expect(b.skjema[0].dager.map((d) => d.ukedag))
+      .toEqual(['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'])
+  })
+
+  // Et «nei» paa et kritisk punkt slaar enhver prosent - men spoersmaalet
+  // staar aldri i brevet. Samme regel som meldingene fra de ansatte: det
+  // kan gjelde noe som ikke hoerer hjemme i en innboks.
+  it('loefter kritisk nei oeverst uten aa gjengi spoersmaalet', () => {
+    const b = byggUkebrief(ukedata({ kritiskeNei: 2, skjema: [rutiner([2, 2, 2, 2, 2, 2, 0])] }))
+    expect(b.oppmerksomhet[0].id).toBe('sjekkpunkt-kritisk')
+    expect(b.oppmerksomhet[0].niva).toBe('kritisk')
+    expect(b.oppmerksomhet[0].detalj).toContain('staar i Sentiqa')
+  })
+
+  it('tier om skjemaer stasjonen ikke har satt opp', () => {
+    const b = byggUkebrief(ukedata({ skjema: [] }))
+    expect(b.skjema).toHaveLength(0)
+    expect([...b.bra, ...b.oppmerksomhet].some((s) => s.id.startsWith('skjema-'))).toBe(false)
   })
 })
 

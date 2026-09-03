@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { tilEpost } from './epost'
 import { byggUkebrief } from './bygg'
 import type { Ukedata } from './type'
+import { skjemabilde } from './skjema'
 
 // =====================================================================
 // Vakt over e-posten.
@@ -24,6 +25,8 @@ function ukedata(over: Partial<Ukedata> = {}): Ukedata {
     treff: { antall: 10, snittTreffPst: 90 },
     timer: { brukt: 200, ukesramme: 200 },
     tilbakemeldinger: { antall: 0, ulest: 0, harAlvorlig: false },
+    skjema: [],
+    kritiskeNei: 0,
     hull: [],
     ...over,
   }
@@ -76,6 +79,24 @@ describe('ukebriefen som e-post', () => {
     const { html } = lag({ treff: null, hull: [{ kilde: 'Timesalg', dagerMangler: 2 }] })
     expect(html).toContain('Dette vet vi ikke')
     expect(html).toContain('Timesalg')
+  })
+
+  it('tar med ukedagsraden i baade html og tekst', () => {
+    const dager = ['2026-08-24', '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30']
+    const b = skjemabilde({
+      navn: 'Rutiner',
+      poster: [{ opprettet: '2026-01-01T09:00:00Z', slettet: null }],
+      utfortPerDato: new Map(dager.map((d, i) => [d, i === 6 ? 0 : 1])),
+      ukeMandag: '2026-08-24',
+    })
+    const { html, tekst } = lag({ skjema: [b] })
+    expect(html).toContain('Utført per dag')
+    for (const dag of ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']) {
+      expect(html).toContain(dag)
+      expect(tekst).toContain(dag)
+    }
+    // Sondagen er den som mangler, og det skal kunne leses uten farge.
+    expect(tekst).toContain('Søn 0%')
   })
 
   it('gir samme e-post for samme uke', () => {

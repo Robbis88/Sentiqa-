@@ -19,6 +19,7 @@
 // =====================================================================
 
 import type { RaaSignal, Signal } from '@/lib/signaler'
+import type { Skjemabilde } from './skjema'
 
 /**
  * Hvor sikkert er dette?
@@ -72,6 +73,12 @@ export type Ukedata = {
   treff: { antall: number; snittTreffPst: number } | null
   timer: { brukt: number; ukesramme: number | null }
   tilbakemeldinger: { antall: number; ulest: number; harAlvorlig: boolean }
+  /** Rutiner og sjekkpunkter, hver med sine sju dager. Tom liste betyr
+      at stasjonen ikke har satt opp noen — ikke at ingenting ble gjort. */
+  skjema: Skjemabilde[]
+  /** «Nei» paa et sjekkpunkt merket kritisk. Et tall, aldri spoersmaalet:
+      det kan gjelde noe som ikke hoerer hjemme i en innboks. */
+  kritiskeNei: number
   /** Kilder med hull i uken. Blir til «hva vi ikke vet». */
   hull: { kilde: string; dagerMangler: number }[]
 }
@@ -86,5 +93,9 @@ export type Ukebrief = {
   bra: Rangert[]
   oppmerksomhet: Rangert[]
   handlinger: Handling[]
+  /** Ukedagsraden. Staar som egen del i brevet og ikke inni et signal:
+      den svarer paa «hvilken dag», og det er et annet spoersmaal enn
+      «hva gikk galt». */
+  skjema: Skjemabilde[]
   viIkkeVet: string[]
 }
