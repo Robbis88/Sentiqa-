@@ -93,7 +93,17 @@ export default async function UkebriefSide({ searchParams }: { searchParams: Pro
         tittel="Ukebrief"
         merke={`${valgt.butikknummer} ${valgt.navn}`}
         undertittel="Forhåndsvisning. Automatisk utsending er ikke slått på."
-        handlinger={data === null ? undefined : <ProveKnapp stasjonId={valgt.id} uke={valgtUke} />}
+        handlinger={data === null ? undefined : (
+          <>
+            <a
+              className="lenke-knapp"
+              href={`/api/ukebrief/pdf?stasjon=${valgt.id}&uke=${valgtUke}`}
+            >
+              Last ned PDF
+            </a>
+            <ProveKnapp stasjonId={valgt.id} uke={valgtUke} />
+          </>
+        )}
       />
 
       <div className="ub-velger">

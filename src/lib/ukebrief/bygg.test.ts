@@ -209,6 +209,31 @@ describe('byggUkebrief', () => {
     expect(b.oppmerksomhet.length).toBeLessThanOrEqual(MAKS_PER_BOLK)
   })
 
+  // DEN VIKTIGSTE VAKTEN I FILA.
+  //
+  // Hver kilde som KAN mangle, skal si at den mangler. BP gjorde det ikke
+  // fram til 2026-09-03: `treff` og `timer` meldte «ikke maalt», mens et
+  // manglende budsjett bare forsvant - og leseren kunne ikke skille «vi
+  // ligger greit an» fra «Sentiqa vet ikke hva du skal ligge paa».
+  //
+  // Tabellen er listen over kilder som kan vaere fravaerende. Legger noen
+  // til en ny og lar den tie, faller denne.
+  it.each([
+    ['budsjett', { bpUke: null }, /budsjett/i],
+    ['produksjonstreff', { treff: null }, /treff/i],
+    ['timeramme', { timer: { brukt: 200, ukesramme: null } }, /ramme/i],
+    ['salgsdager', { hull: [{ kilde: 'Salgsdata', dagerMangler: 3 }] }, /salgsdata/i],
+  ])('sier ifra naar %s mangler, i stedet for aa tie', (_navn, over, monster) => {
+    const b = byggUkebrief(ukedata(over as Partial<Ukedata>))
+    expect(b.viIkkeVet.join(' ')).toMatch(monster)
+  })
+
+  // Og motsatt: er alt paa plass, skal ingenting staa der. En seksjon som
+  // alltid har innhold slutter aa bety noe.
+  it('tier om det den faktisk vet', () => {
+    expect(byggUkebrief(ukedata({ bpUke: 400000 })).viIkkeVet).toEqual([])
+  })
+
   it('flytter det vi ikke kan vurdere ut av funnene', () => {
     const b = byggUkebrief(ukedata({ treff: null, timer: { brukt: 200, ukesramme: null } }))
     const ider = [...b.bra, ...b.oppmerksomhet].map((s) => s.id)

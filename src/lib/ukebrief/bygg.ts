@@ -117,7 +117,27 @@ function salgssignaler(d: Ukedata): Briefsignal[] {
 
   // BP nevnes bare når den finnes. En stasjon uten budsjett for perioden
   // skal ikke få «0 kr i budsjett» presentert som et krav den bommet på.
-  if (d.bpUke !== null && d.bpUke > 0) {
+  //
+  // Men den skal HELLER IKKE forsvinne i stillhet. Fram til 2026-09-03
+  // gjorde den det: `treff` og `timer` meldte «ikke målt», mens et
+  // manglende budsjett bare ikke sto der. Leseren kunne da ikke skille
+  // «vi ligger greit an» fra «Sentiqa vet ikke hva du skal ligge på» —
+  // og det er den samme stillheten som resten av brevet er bygget mot.
+  if (d.bpUke === null || d.bpUke <= 0) {
+    ut.push({
+      id: 'bp-mangler',
+      merke: 'Budsjett',
+      tittel: 'Uken er ikke målt mot budsjett',
+      detalj:
+        'Det finnes ingen BP for minst én av månedene uken ligger i. '
+        + 'Halve uken mot budsjett ville sett ut som et krav stasjonen bommet på, '
+        + 'så da måles ingen av dagene.',
+      niva: 'info',
+      lenke: '/businessplan',
+      grunnlag: 'mangler_data',
+      retning: 'darlig',
+    })
+  } else {
     const bpDiff = d.omsetning - d.bpUke
     if (Math.abs(bpDiff) >= BP_MIN_KR) {
       const over = bpDiff > 0
