@@ -91,6 +91,7 @@ begin
     ('retailer_kodeerklaering', true, false),
     ('retailer_koderegel', true, false),
     ('retailers', true, false),
+    ('rutine_notat', true, false),
     ('rutine_utforinger', true, false),
     ('rutiner', true, false),
     ('rutineskjemaer', true, false),

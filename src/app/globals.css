@@ -2653,3 +2653,13 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .ub-torr-tom { border-color: var(--rod); }
 .ub-torr-tom .ub-funn-tall { color: var(--rod); font-weight: 600; }
 .ub-torr-detalj { flex-basis: 100%; margin: var(--luft-1) 0 0; padding-left: 1.1rem; color: var(--tekst-svak); font-size: var(--tekst-liten); }
+
+/* Notis og kommentar bak ?-ikonet. Skjemaet lover det, og en utfyllende
+   fremgangsmåte på hver linje ville gjort lista uleselig på en vakt. */
+.rutine-mer { margin-top: 0.35rem; }
+.rutine-mer > summary { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border: 1px solid var(--kant-sterk); border-radius: 999px; color: var(--tekst-svak); font-weight: 700; cursor: pointer; list-style: none; }
+.rutine-mer > summary::-webkit-details-marker { display: none; }
+.rutine-mer[open] > summary { border-color: var(--primaer); color: var(--primaer); }
+.rutine-notis { margin: 0.6rem 0 0; color: var(--tekst-svak); line-height: var(--linje-luftig); white-space: pre-wrap; }
+.rutine-notat { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem; align-items: flex-start; }
+.rutine-notat textarea { width: 100%; min-height: 3.2rem; padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: var(--radius); font: inherit; }

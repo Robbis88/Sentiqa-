@@ -43,6 +43,8 @@ with lister as (
     -- Ukebriefens utsendingslogg (0169). En rad per stasjon per uke per
     -- mottaker, saa den vokser med drift like sikkert som salget.
     'ukebrief_utsending',
+    -- Notat per rutine per dag (0170). Vokser med hver vakt.
+    'rutine_notat',
     -- Semantisk kodemapping (0152). Faa rader, men varme: v_butikksalg
     -- joiner dem i HVER eneste salgsspoerring.
     'retailer_kodeerklaering', 'retailer_koderegel',

@@ -8,7 +8,7 @@ import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu }
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { oversettMange } from '@/lib/oversett'
 import { Konfetti } from '../konfetti'
-import { kryssAv, kryssAvMedBilde, fjernKryss } from './handlinger'
+import { kryssAv, kryssAvMedBilde, fjernKryss, lagreNotat } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
 type Rutine = { id: string; skjema_id: string | null; stasjon_id: string; tittel: string; beskrivelse: string | null; ukedager: number[]; opprettet_dato: string; paakrevd_bilde: boolean; ikmat_frekvens: string | null }
@@ -68,6 +68,16 @@ export default async function RutinerSide() {
   }
   // Gjort = vanlig rutine avhuket, ELLER IK-mat-gruppe ferdig målt i dag.
   const erGjort = (r: Rutine, vaktdato: string) => (r.ikmat_frekvens ? ikmatStatus(r).ferdig : utfortMap.has(`${r.id}|${vaktdato}`))
+  // Notatene for de samme vaktdatoene. Egen tabell (0170), aldri
+  // `rutine_utforinger` - et notat betyr ikke at rutinen er gjort.
+  const notatFor = new Map<string, string>()
+  if (datoer.length > 0) {
+    const { data } = await supabase.from('rutine_notat').select('rutine_id, dato, tekst').in('dato', datoer)
+    for (const n of (data ?? []) as { rutine_id: string; dato: string; tekst: string }[]) {
+      notatFor.set(`${n.rutine_id}|${n.dato}`, n.tekst)
+    }
+  }
+
   // Batchede signerte URL-er for bildebevis (aldri i loop, §15)
   const stier = [...utfortMap.values()].filter((s): s is string => Boolean(s))
   const signertFor = new Map<string, string>()
@@ -102,6 +112,8 @@ export default async function RutinerSide() {
     'Alt klart!', '1 igjen — nesten i mål!', 'igjen', 'Ferdige',
     'Alt er gjort', 'Ingen rutiner på vakta nå', 'dager på rad',
     'Lagre bilde', 'krever bilde', 'målt', 'trykk for å måle',
+    'Mer om rutinen', 'Lagre kommentar', 'Kommentar til rutinen',
+    'Kommentar — f.eks. hva som ikke lot seg gjøre',
     // Foten som gir vei til IK-mat og Produksjon (bolge 5).
     'Mer rutinearbeid', 'IK-mat', 'Alle kontrollpunkter, gruppert',
     'Produksjon', 'Dagens plan',
@@ -233,8 +245,30 @@ export default async function RutinerSide() {
                     )}
                     <div className="rutine-tekst">
                       <strong>{o(r.tittel)}</strong>
-                      {r.beskrivelse ? <span className="undertittel"> — {o(r.beskrivelse)}</span> : null}
                       {r.paakrevd_bilde ? <span className="bilde-merke">{o('krever bilde')}</span> : null}
+                      {/* NOTISEN STAAR BAK ?-IKONET, ikke inline. Skjemaet
+                          lover det («vises bak ?-ikon paa tableten»), og
+                          en utfyllende fremgangsmaate paa hver linje ville
+                          gjort lista uleselig paa en vakt. Kommentaren
+                          ligger samme sted: den hoerer til rutinen, og skal
+                          kunne skrives ENTEN den ble gjort eller ikke. */}
+                      <details className="rutine-mer">
+                        <summary aria-label={o('Mer om rutinen') ?? 'Mer om rutinen'}>?</summary>
+                        {r.beskrivelse ? <p className="rutine-notis">{o(r.beskrivelse)}</p> : null}
+                        <form action={lagreNotat} className="rutine-notat">
+                          <input type="hidden" name="rutine_id" value={r.id} />
+                          <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
+                          <input type="hidden" name="dato" value={vindu.vaktdato} />
+                          <textarea
+                            name="tekst"
+                            rows={2}
+                            defaultValue={notatFor.get(`${r.id}|${vindu.vaktdato}`) ?? ''}
+                            placeholder={o('Kommentar — f.eks. hva som ikke lot seg gjøre') ?? ''}
+                            aria-label={o('Kommentar til rutinen') ?? 'Kommentar til rutinen'}
+                          />
+                          <button type="submit" className="sq-knapp">{o('Lagre kommentar')}</button>
+                        </form>
+                      </details>
                     </div>
                     {bildeUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
