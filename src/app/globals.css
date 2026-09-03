@@ -2643,3 +2643,13 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .ub-dag-full { border-color: var(--gronn); color: var(--gronn); }
 .ub-dag-lav { border-color: var(--rod); color: var(--rod); }
 .ub-dag-tom .ub-dag-tall { color: var(--tekst-svak); font-weight: 400; }
+
+/* Tørrkjøringen: hvem ville fått brevet. Stasjoner UTEN mottaker er
+   poenget, så de skal skille seg ut - ikke drukne i en lik liste. */
+.ub-torr { margin-top: var(--luft-5); display: flex; flex-direction: column; gap: var(--luft-2); align-items: flex-start; }
+.ub-torr-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--luft-2); width: 100%; }
+.ub-torr-rad { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--luft-2); padding: var(--luft-2) var(--luft-3); border: 1px solid var(--kant); border-radius: var(--radius); background: var(--kort); }
+.ub-torr-rad .ub-funn-tall { margin-left: auto; }
+.ub-torr-tom { border-color: var(--rod); }
+.ub-torr-tom .ub-funn-tall { color: var(--rod); font-weight: 600; }
+.ub-torr-detalj { flex-basis: 100%; margin: var(--luft-1) 0 0; padding-left: 1.1rem; color: var(--tekst-svak); font-size: var(--tekst-liten); }

@@ -9,6 +9,7 @@ import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Brev } from './brev'
 import { ProveKnapp } from './prove-knapp'
+import { Torrkjor } from './torrkjor'
 
 // =====================================================================
 // Ukebrief — intern forhåndsvisning.
@@ -153,6 +154,12 @@ export default async function UkebriefSide({ searchParams }: { searchParams: Pro
         <div className="ub-spalte">
           <Brev brief={byggUkebrief(data)} />
         </div>
+      )}
+
+      {/* Bare eier: svaret inneholder butikksjefenes adresser, og en
+          butikksjef skal ikke kunne be om dem for nabostasjonen. */}
+      {bruker.rolle === 'retailer_admin' && (
+        <div className="ub-spalte"><Torrkjor uke={valgtUke} /></div>
       )}
 
       <Forklaring sporsmaal="Hva er dette?">

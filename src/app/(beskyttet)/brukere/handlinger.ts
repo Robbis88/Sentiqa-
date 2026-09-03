@@ -72,6 +72,68 @@ export async function opprettBruker(_t: BrukerTilstand, formData: FormData): Pro
   return { ok: true }
 }
 
+/**
+ * Endrer hvilke stasjoner en butikksjef naar.
+ *
+ * Fantes ikke foer 2026-09-03: sida hadde bare opprett og fjern, saa en
+ * feilkoblet butikksjef maatte slettes og lages paa nytt - med nytt
+ * passord, og med all historikk paa profilen borte.
+ *
+ * REKKEFOELGEN ER IKKE TILFELDIG. Det fjernes foerst, legges til etterpaa.
+ * PostgREST gir ingen transaksjon, saa en av de to kan feile alene. Feiler
+ * fjerningen, har vi ikke lagt til noe enda og ingen har faatt mer enn
+ * hun skulle. Feiler tilleggene, har hun mistet noe hun skulle hatt - og
+ * det oppdages med en gang, av henne. For lite tilgang roper; for mye
+ * tilgang er stille, og det er den stille feilen som er farlig.
+ */
+export async function endreStasjoner(_t: BrukerTilstand, formData: FormData): Promise<BrukerTilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) return { feil: 'Kun eier kan endre tilganger.' }
+
+  const profilId = String(formData.get('profil_id') ?? '')
+  if (!profilId) return { feil: 'Mangler bruker.' }
+  const valgte = [...new Set(formData.getAll('stasjon_ids').map(String).filter(Boolean))]
+  // EN BUTIKKSJEF UTEN STASJONER SER UT SOM EN VANLIG BRUKER - hun logger
+  // inn, alt er tomt, og ingenting sier hvorfor. Samme grunn som ved
+  // opprettelse: null stasjoner er ikke en tilstand noen mener.
+  if (valgte.length === 0) return { feil: 'Velg minst én stasjon. Skal hun ikke ha tilgang, fjern brukeren.' }
+
+  let admin
+  try {
+    admin = lagSupabaseAdminKlient()
+  } catch {
+    return { feil: 'Tilgangsstyring er ikke aktivert (mangler service-nøkkel).' }
+  }
+
+  // Admin-klienten omgaar RLS, saa BEGGE sider maa sjekkes mot egen kjede:
+  // hvem profilen tilhoerer, og hvilke stasjoner som er vaare.
+  const { data: profil } = await admin
+    .from('profiler').select('id, rolle').eq('id', profilId)
+    .eq('retailer_id', bruker.retailerId).is('slettet_tid', null)
+    .maybeSingle<{ id: string; rolle: string }>()
+  if (!profil) return { feil: 'Fant ikke brukeren i din kjede.' }
+
+  const { data: egne } = await admin
+    .from('stasjoner').select('id')
+    .eq('retailer_id', bruker.retailerId).is('slettet_tid', null).in('id', valgte)
+    .overrideTypes<{ id: string }[]>()
+  const gyldige = (egne ?? []).map((s) => s.id)
+  if (gyldige.length !== valgte.length) return { feil: 'Én eller flere stasjoner hører ikke til din kjede.' }
+
+  const { error: fjernFeil } = await admin
+    .from('butikksjef_stasjoner').delete()
+    .eq('profil_id', profilId).not('stasjon_id', 'in', `(${gyldige.join(',')})`)
+  if (fjernFeil) return { feil: `Kunne ikke fjerne gamle tilganger: ${fjernFeil.message}` }
+
+  const { error: leggTilFeil } = await admin
+    .from('butikksjef_stasjoner')
+    .upsert(gyldige.map((sid) => ({ profil_id: profilId, stasjon_id: sid })),
+      { onConflict: 'profil_id,stasjon_id', ignoreDuplicates: true })
+  if (leggTilFeil) return { feil: `Tilganger ble fjernet, men ikke lagt til: ${leggTilFeil.message}` }
+
+  return { ok: true }
+}
+
 // SLETTER ET MENNESKE, IKKE EN RAD. Derfor gaar den via admin-klienten
 // og `auth.admin.deleteUser` - cascade fjerner profil og tilganger. Den
 // kan ikke gaa gjennom `kvitter`, som snakker PostgREST.
