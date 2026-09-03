@@ -6,6 +6,7 @@ import { Liste, Rad } from '@/components/ui/liste'
 import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyBruker } from './ny-bruker'
+import { EndreStasjoner } from './endre-stasjoner'
 import { fjernBruker } from './handlinger'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sideramme } from '@/components/ui/sideramme'
@@ -30,11 +31,15 @@ export default async function BrukereSide() {
   ])
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+  const stasjonsIderForProfil = new Map<string, string[]>()
   const stasjonerForProfil = new Map<string, string[]>()
   for (const k of koblinger ?? []) {
     const l = stasjonerForProfil.get(k.profil_id) ?? []
     l.push(navnFor.get(k.stasjon_id) ?? '—')
     stasjonerForProfil.set(k.profil_id, l)
+    const ider = stasjonsIderForProfil.get(k.profil_id) ?? []
+    ider.push(k.stasjon_id)
+    stasjonsIderForProfil.set(k.profil_id, ider)
   }
 
   const liste = profiler ?? []
@@ -86,7 +91,21 @@ export default async function BrukereSide() {
                 </Status>
               )}
               handlinger={(
-                <SlettKnapp hva={p.fullt_navn ?? 'brukeren'} handling={fjernBruker} id={p.id} merke="Fjern" />
+                <>
+                  <Sidepanel
+                    knapp="Endre stasjoner"
+                    tittel={p.fullt_navn ?? 'Bruker'}
+                    beskrivelse="Endrer hvilke stasjoner brukeren når. Endrer ikke passord eller e-post."
+                  >
+                    <EndreStasjoner
+                      profilId={p.id}
+                      navn={p.fullt_navn ?? 'brukeren'}
+                      stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
+                      valgte={stasjonsIderForProfil.get(p.id) ?? []}
+                    />
+                  </Sidepanel>
+                  <SlettKnapp hva={p.fullt_navn ?? 'brukeren'} handling={fjernBruker} id={p.id} merke="Fjern" />
+                </>
               )}
             />
           ))}
