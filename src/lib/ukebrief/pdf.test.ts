@@ -41,6 +41,7 @@ function fulltBrev() {
     })],
     kritiskeNei: 1,
     hull: [{ kilde: 'Timesalg', dagerMangler: 2 }],
+    sisteDagMedSalg: '2026-08-30',
   }
   return byggUkebrief(d)
 }

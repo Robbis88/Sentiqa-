@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { FRIST_MIN } from '../ukebrief/klar'
 import { join } from 'node:path'
 
 // =====================================================================
@@ -77,12 +78,38 @@ describe('cron-stiene i vercel.json', () => {
   // Nattjobben (03:00 UTC) henter gårsdagens salgsfil og regner ukerapport;
   // kjørte briefen før den, ville søndagen manglet i hver eneste uke.
   it('ukebriefen går mandag, og etter nattjobben', () => {
-    const brief = planer.find((p) => p.path === '/api/cron/ukebrief')
-    expect(brief, 'ukebriefen har ingen plan').toBeDefined()
-    const [, time, , , ukedag] = brief!.schedule.split(/\s+/)
-    expect(ukedag, 'ukebriefen skal gå mandag (1)').toBe('1')
-    const natt = planer.find((p) => p.path === '/api/cron/natt')!
-    expect(Number(time), 'ukebriefen må gå etter nattjobben, ellers mangler søndagen')
-      .toBeGreaterThan(Number(natt.schedule.split(/\s+/)[1]))
+    const brief = planer.filter((p) => p.path === '/api/cron/ukebrief')
+    expect(brief.length, 'ukebriefen har ingen plan').toBeGreaterThan(0)
+    const natt = Number(planer.find((p) => p.path === '/api/cron/natt')!.schedule.split(/\s+/)[1])
+    for (const b of brief) {
+      const [, time, , , ukedag] = b.schedule.split(/\s+/)
+      expect(ukedag, `«${b.schedule}» går ikke mandag`).toBe('1')
+      expect(Number(time), `«${b.schedule}» går før nattjobben`).toBeGreaterThan(natt)
+    }
+  })
+
+  // EN STILLE FEILMAATE. Briefen VENTER naar soendagens salgsfil ikke er
+  // kommet, og sender foerst naar fristen i `klar.ts` er naadd. Finnes det
+  // ingen kjoering etter fristen, blir det aldri sendt i en uke der fila
+  // er sen - og ingen ser at brevet uteble.
+  //
+  // Regnet i VINTERTID (UTC+1), som er det minste paalegget. En kjoering
+  // som naar fristen om sommeren, men ikke om vinteren, ville virket i
+  // september og sviktet i november.
+  it('en kjoering ligger etter fristen, ogsaa i vintertid', () => {
+    const timer = planer
+      .filter((p) => p.path === '/api/cron/ukebrief')
+      .map((p) => Number(p.schedule.split(/\s+/)[1]))
+    const senesteOslo = Math.max(...timer) + 1
+    expect(senesteOslo * 60,
+      `siste kjoering er ${Math.max(...timer)}:00 UTC = ${senesteOslo}:00 om vinteren, `
+      + `men fristen er ${FRIST_MIN / 60}:00. Da sendes aldri en uke med sen salgsfil.`)
+      .toBeGreaterThanOrEqual(FRIST_MIN)
+  })
+
+  it('flere kjoeringer, saa en uke med sen fil faar et nytt forsoek', () => {
+    // Duplikatsperren gjoer gjentakelse trygg; det var dét den var til for.
+    const antall = planer.filter((p) => p.path === '/api/cron/ukebrief').length
+    expect(antall, 'én kjoering gir ingen mulighet til aa vente paa fila').toBeGreaterThanOrEqual(2)
   })
 })
