@@ -92,7 +92,7 @@ export default async function UkebriefSide({ searchParams }: { searchParams: Pro
       <Sidehode
         tittel="Ukebrief"
         merke={`${valgt.butikknummer} ${valgt.navn}`}
-        undertittel="Forhåndsvisning. Automatisk utsending er ikke slått på."
+        undertittel="Går automatisk til butikksjefene mandag morgen. Her ser du det samme brevet."
         handlinger={data === null ? undefined : (
           <>
             <a
