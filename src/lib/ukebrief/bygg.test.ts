@@ -28,6 +28,7 @@ function ukedata(over: Partial<Ukedata> = {}): Ukedata {
     skjema: [],
     kritiskeNei: 0,
     hull: [],
+    sisteDagMedSalg: '2026-08-30',
     ...over,
   }
 }

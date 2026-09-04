@@ -81,6 +81,12 @@ export type Ukedata = {
   kritiskeNei: number
   /** Kilder med hull i uken. Blir til «hva vi ikke vet». */
   hull: { kilde: string; dagerMangler: number }[]
+  /**
+   * Siste dato i uken med salg, eller null. Brukes IKKE av brevet — den
+   * finnes for at utsendingen skal kunne vente paa soendagsfila i stedet
+   * for aa sende seks dager som om det var sju. Se `klar.ts`.
+   */
+  sisteDagMedSalg: string | null
 }
 
 export type Ukebrief = {

@@ -336,6 +336,7 @@ export async function hentUkedata(
     skjema: skjema.skjema,
     kritiskeNei: skjema.kritiskeNei,
     hull: manglerSalg > 0 ? [{ kilde: 'Salgsdata', dagerMangler: manglerSalg }] : [],
+    sisteDagMedSalg: [...dagerMedSalg].sort().at(-1) ?? null,
   }
 }
 

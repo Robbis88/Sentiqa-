@@ -5,6 +5,8 @@ import { env } from '@/lib/env'
 import { hentUkedata } from './hent'
 import { byggUkebrief } from './bygg'
 import { tilEpost } from './epost'
+import { klarTilSending } from './klar'
+import { osloNaa } from '@/lib/rutineskjema'
 
 // =====================================================================
 // Utsendingen.
@@ -30,6 +32,12 @@ import { tilEpost } from './epost'
 
 type Klient = SupabaseClient
 
+function leggTil(iso: string, n: number): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
 export type Mottaker = { profilId: string; epost: string; navn: string | null }
 
 export type Stasjonsresultat = {
@@ -37,6 +45,9 @@ export type Stasjonsresultat = {
   navn: string
   /** null = ingen salgsdata for uken; da sendes ingenting. */
   harBrief: boolean
+  /** Uken var ikke hel enda. Ingen rad logges, saa neste kjoering
+      forsoeker paa nytt - duplikatsperren staar ikke i veien. */
+  venter: boolean
   mottakere: number
   sendt: number
   /** Allerede sendt tidligere. Ikke en feil — det er sperren som virker. */
@@ -161,7 +172,7 @@ export async function sendUkebriefForRetailer(opts: {
   for (const stasjon of stasjoner ?? []) {
     const rad: Stasjonsresultat = {
       stasjonId: stasjon.id, navn: `${stasjon.butikknummer} ${stasjon.navn}`,
-      harBrief: false, mottakere: 0, sendt: 0, hoppet: 0, feilet: 0, meldinger: [],
+      harBrief: false, venter: false, mottakere: 0, sendt: 0, hoppet: 0, feilet: 0, meldinger: [],
     }
 
     const data = await hentUkedata(admin, stasjon, ukeMandag)
@@ -171,6 +182,25 @@ export async function sendUkebriefForRetailer(opts: {
       continue
     }
     rad.harBrief = true
+
+    // VENT PAA SOENDAGSFILA. Sendes uken paa seks dager, er brevet ikke
+    // «litt ufullstendig» - det er feil, og duplikatsperren sorger for at
+    // den riktige versjonen aldri kommer. Se `klar.ts`.
+    const sondag = leggTil(ukeMandag, 6)
+    const klar = klarTilSending({
+      sisteDagMedSalg: data.sisteDagMedSalg,
+      sisteDagIUken: sondag,
+      naaMinutter: osloNaa(new Date()).minutter,
+    })
+    if (!klar.send) {
+      rad.venter = true
+      rad.meldinger.push('Venter paa salgstall for soendag. Neste kjoering forsoeker igjen.')
+      ut.push(rad)
+      continue
+    }
+    if (klar.ufullstendig) {
+      rad.meldinger.push('Fristen er naadd uten komplette salgstall. Brevet sier selv hva som mangler.')
+    }
 
     const brief = byggUkebrief(data)
     const epost = tilEpost(brief, basisUrl)
