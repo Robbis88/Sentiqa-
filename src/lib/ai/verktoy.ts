@@ -1677,9 +1677,6 @@ export function verktoyForRolle(erAdmin: boolean): Anthropic.Tool[] {
     .map((v) => v.schema)
 }
 
-/** Alle verktøynavn — katalogvakten leser denne. */
-export const VERKTOYNAVN = Object.keys(VERKTOY)
-
 // --- Radtyper --------------------------------------------------------
 
 type Salgsrad = {

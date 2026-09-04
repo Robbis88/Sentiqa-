@@ -52,17 +52,21 @@ create policy ai_tool_log_skriv on public.ai_tool_log for insert to authenticate
 -- sjef-policyen krever stasjon_id, og en importjobb uten stasjon ville
 -- blitt usynlig for eieren.
 drop policy if exists import_jobber_admin on public.import_jobber;
+drop policy if exists import_jobber_admin_les on public.import_jobber;
 create policy import_jobber_admin_les on public.import_jobber for select to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists import_jobber_admin_ins on public.import_jobber;
 create policy import_jobber_admin_ins on public.import_jobber for insert to authenticated
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists import_jobber_admin_upd on public.import_jobber;
 create policy import_jobber_admin_upd on public.import_jobber for update to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()))
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists import_jobber_admin_del on public.import_jobber;
 create policy import_jobber_admin_del on public.import_jobber for delete to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
@@ -83,14 +87,17 @@ create policy lederstotte_les on public.lederstotte_rapporter for select to auth
   );
 
 drop policy if exists lederstotte_skriv on public.lederstotte_rapporter;
+drop policy if exists lederstotte_ins on public.lederstotte_rapporter;
 create policy lederstotte_ins on public.lederstotte_rapporter for insert to authenticated
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists lederstotte_upd on public.lederstotte_rapporter;
 create policy lederstotte_upd on public.lederstotte_rapporter for update to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()))
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists lederstotte_del on public.lederstotte_rapporter;
 create policy lederstotte_del on public.lederstotte_rapporter for delete to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
@@ -101,14 +108,17 @@ create policy opp2_periode_les on public.opplaering_periode for select to authen
   using (stasjon_id in (select public.mine_stasjoner()));
 
 drop policy if exists opp2_periode_skriv on public.opplaering_periode;
+drop policy if exists opp2_periode_ins on public.opplaering_periode;
 create policy opp2_periode_ins on public.opplaering_periode for insert to authenticated
   with check (stasjon_id in (select public.mine_stasjoner())
               and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
+drop policy if exists opp2_periode_upd on public.opplaering_periode;
 create policy opp2_periode_upd on public.opplaering_periode for update to authenticated
   using (stasjon_id in (select public.mine_stasjoner())
          and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'))
   with check (stasjon_id in (select public.mine_stasjoner())
               and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
+drop policy if exists opp2_periode_del on public.opplaering_periode;
 create policy opp2_periode_del on public.opplaering_periode for delete to authenticated
   using (stasjon_id in (select public.mine_stasjoner())
          and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
@@ -119,14 +129,17 @@ create policy pengepremie_bruk_les on public.pengepremie_bruk for select to auth
   using (stasjon_id in (select public.mine_stasjoner()));
 
 drop policy if exists pengepremie_bruk_skriv on public.pengepremie_bruk;
+drop policy if exists pengepremie_bruk_ins on public.pengepremie_bruk;
 create policy pengepremie_bruk_ins on public.pengepremie_bruk for insert to authenticated
   with check (stasjon_id in (select public.mine_stasjoner())
               and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
+drop policy if exists pengepremie_bruk_upd on public.pengepremie_bruk;
 create policy pengepremie_bruk_upd on public.pengepremie_bruk for update to authenticated
   using (stasjon_id in (select public.mine_stasjoner())
          and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'))
   with check (stasjon_id in (select public.mine_stasjoner())
               and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
+drop policy if exists pengepremie_bruk_del on public.pengepremie_bruk;
 create policy pengepremie_bruk_del on public.pengepremie_bruk for delete to authenticated
   using (stasjon_id in (select public.mine_stasjoner())
          and (select public.gjeldende_rolle()) in ('retailer_admin', 'butikksjef'));
@@ -134,13 +147,17 @@ create policy pengepremie_bruk_del on public.pengepremie_bruk for delete to auth
 -- --- personlig_kryss (0034) ------------------------------------------
 -- Privat liste, eid av brukeren selv. Hadde kun for all.
 drop policy if exists personlig_kryss_egne on public.personlig_kryss;
+drop policy if exists personlig_kryss_les on public.personlig_kryss;
 create policy personlig_kryss_les on public.personlig_kryss for select to authenticated
   using (user_id = (select auth.uid()));
+drop policy if exists personlig_kryss_ins on public.personlig_kryss;
 create policy personlig_kryss_ins on public.personlig_kryss for insert to authenticated
   with check (user_id = (select auth.uid()));
+drop policy if exists personlig_kryss_upd on public.personlig_kryss;
 create policy personlig_kryss_upd on public.personlig_kryss for update to authenticated
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
+drop policy if exists personlig_kryss_del on public.personlig_kryss;
 create policy personlig_kryss_del on public.personlig_kryss for delete to authenticated
   using (user_id = (select auth.uid()));
 
@@ -150,11 +167,14 @@ create policy produksjonsplan_hode_les on public.produksjonsplan_hode for select
   using (stasjon_id in (select public.mine_stasjoner()));
 
 drop policy if exists produksjonsplan_hode_skriv on public.produksjonsplan_hode;
+drop policy if exists produksjonsplan_hode_ins on public.produksjonsplan_hode;
 create policy produksjonsplan_hode_ins on public.produksjonsplan_hode for insert to authenticated
   with check (stasjon_id in (select public.mine_stasjoner()));
+drop policy if exists produksjonsplan_hode_upd on public.produksjonsplan_hode;
 create policy produksjonsplan_hode_upd on public.produksjonsplan_hode for update to authenticated
   using (stasjon_id in (select public.mine_stasjoner()))
   with check (stasjon_id in (select public.mine_stasjoner()));
+drop policy if exists produksjonsplan_hode_del on public.produksjonsplan_hode;
 create policy produksjonsplan_hode_del on public.produksjonsplan_hode for delete to authenticated
   using (stasjon_id in (select public.mine_stasjoner()));
 
@@ -164,11 +184,14 @@ create policy produksjonsplan_les on public.produksjonsplan_linjer for select to
   using (stasjon_id in (select public.mine_stasjoner()));
 
 drop policy if exists produksjonsplan_skriv on public.produksjonsplan_linjer;
+drop policy if exists produksjonsplan_ins on public.produksjonsplan_linjer;
 create policy produksjonsplan_ins on public.produksjonsplan_linjer for insert to authenticated
   with check (stasjon_id in (select public.mine_stasjoner()));
+drop policy if exists produksjonsplan_upd on public.produksjonsplan_linjer;
 create policy produksjonsplan_upd on public.produksjonsplan_linjer for update to authenticated
   using (stasjon_id in (select public.mine_stasjoner()))
   with check (stasjon_id in (select public.mine_stasjoner()));
+drop policy if exists produksjonsplan_del on public.produksjonsplan_linjer;
 create policy produksjonsplan_del on public.produksjonsplan_linjer for delete to authenticated
   using (stasjon_id in (select public.mine_stasjoner()));
 
@@ -189,34 +212,42 @@ create policy puls_update on public.puls_svar for update to authenticated
 
 -- --- raa_filer (0002) ------------------------------------------------
 drop policy if exists raa_filer_admin on public.raa_filer;
+drop policy if exists raa_filer_admin_les on public.raa_filer;
 create policy raa_filer_admin_les on public.raa_filer for select to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists raa_filer_admin_ins on public.raa_filer;
 create policy raa_filer_admin_ins on public.raa_filer for insert to authenticated
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists raa_filer_admin_upd on public.raa_filer;
 create policy raa_filer_admin_upd on public.raa_filer for update to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()))
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists raa_filer_admin_del on public.raa_filer;
 create policy raa_filer_admin_del on public.raa_filer for delete to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
 
 -- --- regnskapsanalyser (0010) ----------------------------------------
 drop policy if exists regnskapsanalyser_eier on public.regnskapsanalyser;
+drop policy if exists regnskapsanalyser_les on public.regnskapsanalyser;
 create policy regnskapsanalyser_les on public.regnskapsanalyser for select to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists regnskapsanalyser_ins on public.regnskapsanalyser;
 create policy regnskapsanalyser_ins on public.regnskapsanalyser for insert to authenticated
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists regnskapsanalyser_upd on public.regnskapsanalyser;
 create policy regnskapsanalyser_upd on public.regnskapsanalyser for update to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()))
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and retailer_id = (select public.gjeldende_retailer_id()));
+drop policy if exists regnskapsanalyser_del on public.regnskapsanalyser;
 create policy regnskapsanalyser_del on public.regnskapsanalyser for delete to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and retailer_id = (select public.gjeldende_retailer_id()));
@@ -252,12 +283,14 @@ create policy uke_rapport_les on public.uke_rapport for select to authenticated
   );
 
 drop policy if exists uke_rapport_skriv on public.uke_rapport;
+drop policy if exists uke_rapport_ins on public.uke_rapport;
 create policy uke_rapport_ins on public.uke_rapport for insert to authenticated
   with check (
     ((select public.gjeldende_rolle()) = 'retailer_admin'
      and retailer_id = (select public.gjeldende_retailer_id()))
     or stasjon_id in (select public.mine_stasjoner())
   );
+drop policy if exists uke_rapport_upd on public.uke_rapport;
 create policy uke_rapport_upd on public.uke_rapport for update to authenticated
   using (
     ((select public.gjeldende_rolle()) = 'retailer_admin'
@@ -269,6 +302,7 @@ create policy uke_rapport_upd on public.uke_rapport for update to authenticated
      and retailer_id = (select public.gjeldende_retailer_id()))
     or stasjon_id in (select public.mine_stasjoner())
   );
+drop policy if exists uke_rapport_del on public.uke_rapport;
 create policy uke_rapport_del on public.uke_rapport for delete to authenticated
   using (
     ((select public.gjeldende_rolle()) = 'retailer_admin'
@@ -282,14 +316,17 @@ create policy vaer_les on public.vaer for select to authenticated
   using (stasjon_id in (select public.mine_stasjoner()));
 
 drop policy if exists vaer_skriv on public.vaer;
+drop policy if exists vaer_ins on public.vaer;
 create policy vaer_ins on public.vaer for insert to authenticated
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and stasjon_id in (select public.mine_stasjoner()));
+drop policy if exists vaer_upd on public.vaer;
 create policy vaer_upd on public.vaer for update to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and stasjon_id in (select public.mine_stasjoner()))
   with check ((select public.gjeldende_rolle()) = 'retailer_admin'
               and stasjon_id in (select public.mine_stasjoner()));
+drop policy if exists vaer_del on public.vaer;
 create policy vaer_del on public.vaer for delete to authenticated
   using ((select public.gjeldende_rolle()) = 'retailer_admin'
          and stasjon_id in (select public.mine_stasjoner()));

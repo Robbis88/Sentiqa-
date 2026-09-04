@@ -94,9 +94,6 @@ export const FANEGRUPPER: Fanegruppe[] = [
   },
 ]
 
-/** Alle stier som ligger i en fanegruppe. */
-export const FANESTIER = new Set(FANEGRUPPER.flatMap((g) => g.faner.map((f) => f.sti)))
-
 /** Gruppen en sti hører til — også for dypere sider som `/rutiner/oppsett/[id]`. */
 export function gruppeFor(sti: string): Fanegruppe | null {
   let beste: Fanegruppe | null = null

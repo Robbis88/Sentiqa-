@@ -21,13 +21,17 @@
 
 drop policy if exists personlig_punkt_egne on public.personlig_punkt;
 
+drop policy if exists personlig_punkt_les on public.personlig_punkt;
 create policy personlig_punkt_les on public.personlig_punkt for select to authenticated
   using (user_id = (select auth.uid()));
+drop policy if exists personlig_punkt_ins on public.personlig_punkt;
 create policy personlig_punkt_ins on public.personlig_punkt for insert to authenticated
   with check (user_id = (select auth.uid()));
+drop policy if exists personlig_punkt_upd on public.personlig_punkt;
 create policy personlig_punkt_upd on public.personlig_punkt for update to authenticated
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
+drop policy if exists personlig_punkt_del on public.personlig_punkt;
 create policy personlig_punkt_del on public.personlig_punkt for delete to authenticated
   using (user_id = (select auth.uid()));
 

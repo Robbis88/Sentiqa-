@@ -14,7 +14,3 @@ export const BUTIKKSJEF_DRIFT_KODER = ['627', '628', '629', '632', '633', '634',
 
 // Alle koder en butikksjef har innsyn i.
 export const BUTIKKSJEF_KOSTNAD_KODER = new Set<string>([...BUTIKKSJEF_PERSONAL_KODER, ...BUTIKKSJEF_DRIFT_KODER])
-
-export function butikksjefSerKostnad(kode: string | null): boolean {
-  return !!kode && BUTIKKSJEF_KOSTNAD_KODER.has(kode)
-}
