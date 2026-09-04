@@ -107,10 +107,31 @@ er min kjedes når den ikke lenger kan flyttes.
 
 Slike steder er ikke avvik som kan strammes med et predikat; de er steder RLS ikke rekker. De føres som `capability_gjeld` på ressursen i `supabase/tenant-kontrakt.json`, med navn og utvei, i stedet for å bo i en commit-melding.
 
-**Åpen gjeld:**
+**Åpen gjeld: ingen.** Alle tre postene ble gjort opp 2026-09-02:
 
-- **`tablet UPDATE produksjonsplan_linjer er bredere enn produktbehovet`** (`0136`). Nettbrettet trenger `lagd_hittil`; raden slipper også `planlagt`. En klient med tablet-sesjon kan i prinsippet forsøke å endre mer enn UI-et tilbyr. Utvei: egen RPC for `loggLagd`, eller en kontrollert server-side skrivevei som bare tillater `lagd_hittil` og `oppdatert_tid`. Eget sikkerhetstrinn.
-- Samme form på `skills_score.kommentar` og `pengepremie_bruk.beskrivelse` — ikke klassifisert ennå.
+| | |
+|---|---|
+| `0165` | nettbrettet leser tallet gjennom en smal funksjon |
+| `0167` | `loggLagd` skriver `lagd_hittil`, ikke hele planlinja |
+| `0168` | bekreftelsen skrives for én selv, ikke for hvem som helst |
+
+Alle tre har samme form: en `security definer`-funksjon som bærer
+tenantpredikatet selv og rører nøyaktig de kolonnene som trengs, og
+deretter en strammet policy.
+
+**Listen her skal stemme med `capability_gjeld` i
+`supabase/tenant-kontrakt.json`.** 2026-09-04 gjorde den ikke det, i
+begge retninger: den nevnte `produksjonsplan_linjer` som åpen tre dager
+etter at `0167` lukket den, og den nevnte ikke `kontrolltiltak_bekreftelse`,
+som var den eneste posten kontrakten faktisk bar. Kontrakten er kilden;
+denne seksjonen er sammendraget.
+
+`skills_score.kommentar` og `pengepremie_bruk.beskrivelse` sto her som
+«samme form, ikke klassifisert ennå». **Det var feil, ikke bare
+uferdig:** begge har `tablet: "none"` i kontrakten — nettbrettet når dem
+ikke i det hele tatt, og capability-gjeld handler nettopp om at
+nettbrettet får mer av raden enn det trenger. De er lederflater med
+rollekrav i policyen, og hører ikke hjemme her.
 
 ## Generatorantakelser skal testes direkte
 
@@ -182,7 +203,12 @@ Skal noe faktisk endres: `OPPDATER_FASIT=1 npx vitest run src/lib/redesign`. Da 
 
 `toContainText` leser `textContent` og ser aldri forskjellen — derfor flaker den ikke, og derfor er det vanskelig å se hvor feilen ligger når bare én linje i en test er rammet.
 
-**Testgjeld, ikke rettet:** `bolge2-analyse.spec.ts:216` bruker `.not.toMatch` mot `main.innerText()`. **En negativ påstand på `innerText` over sammenleggbart innhold kan gi falsk trygghet** — den kan ikke skille «finnes ikke» fra «er skjult i en `<details>`». Den er ikke feil i dag, men den beviser mindre enn den ser ut til.
+**Regelen, kort:** en NEGATIV påstand hører til `textContent`, ikke
+`innerText`. `innerText` gir bare rendret tekst og kan ikke skille
+«finnes ikke» fra «er skjult i en `<details>`». `bolge2-analyse.spec.ts`
+og `innlogget.spec.ts` sto en periode med `.not.toMatch` mot
+`innerText()`; begge bruker `toContainText` nå, med begrunnelsen skrevet
+i testen.
 
 **Hver vakt har en kanarifugl, og det er ikke pynt.** To av dem har vært grønne mens de var i stykker — RLS-vakthunden i månedsvis fordi den forutsatte at det fantes policyer å vurdere, rollevakten fordi regexen ikke tålte parenteser og dermed var blind for `!erLeder(bruker.rolle)`. **En vakt som slutter å se, ser nøyaktig ut som en vakt som ikke finner noe.** Legger du til en ny kontroll, legg til noe som feiler når den slutter å måle.
 
