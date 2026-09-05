@@ -809,11 +809,13 @@
     },
     {
       "tabell": "kastbudsjett",
-      "$hvorfor": "St1s kastbudsjett per stasjon, aar og nivaa, lest ut av delingsfila. BUTIKKSJEFEN SKAL SE SITT EGET KRAV - et budsjett ingen kjenner styrer ingenting - saa stasjonsscope og ikke eier-bare, til forskjell fra bp_aar som baerer royalty og kjedens oekonomi. Ingen skrivepolicy: budsjettet kommer fra fila, og en rad noen kan endre i etterkant er ikke lenger St1s krav. Importen skriver som service_role.",
+      "$hvorfor": "St1s kastbudsjett per stasjon, aar og nivaa, lest ut av delingsfila. BUTIKKSJEFEN SKAL SE SITT EGET KRAV - et budsjett ingen kjenner styrer ingenting - saa stasjonsscope og ikke eier-bare, til forskjell fra bp_aar som baerer royalty og kjedens oekonomi. SKRIVING ER IMPORTENS ALENE: 0172 sto med select og ingen skrivepolicy, med begrunnelsen at importen skriver som service_role. Det var feil - behandleJobb kjoerer lagSupabaseServerKlient(), altsaa brukerens egen sesjon som authenticated, og delingsfila stoppet paa \"permission denied for table kastbudsjett\". 0174 ga insert og update til retailer_admin. Ingen delete: lagreKastbudsjett gjoer upsert, en revidert fil fra St1 er en rettelse som treffer samme rad. Butikksjefen har fortsatt ingen skriverett - en rad noen kan endre i etterkant er ikke lenger St1s krav.",
       "tenant_scope": "retailer_and_station",
       "data_class": "warm",
       "operasjoner": [
-        "select"
+        "select",
+        "insert",
+        "update"
       ],
       "tablet": "none",
       "manager": {
@@ -835,7 +837,8 @@
       },
       "business_unik_unntak": {
         "nivaa": "En check-skranke tillater bare avdeling og vareomrade. Aar og kode varierer per forsoek, saa den sammensatte noekkelen er unik uansett."
-      }
+      },
+      "oppdaterbart": "kast_budsjett_kr = 1500"
     },
     {
       "tabell": "kategori_vaerprofil",
