@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { finnAaret, type Matbudsjett } from './delingsfil-aar'
+import { aarsgrunnlagFra, finnAaret, type Matbudsjett } from './delingsfil-aar'
 import type { Delingsrad } from '@/lib/parsere/delingsfil'
 
 // =====================================================================
@@ -101,5 +101,67 @@ describe('finnAaret', () => {
     expect(svar.ar).toBe(2025)
     if (svar.ar === null) throw new Error('skulle funnet aaret')
     expect(svar.ukoblet).toEqual(['SHELL EN ANNEN'])
+  })
+})
+
+// =====================================================================
+// AARET NAAR «Timer»-ARKET IKKE FINNES
+//
+// 2026-fila har bare Mat og Vask. Hele importen leste aaret av
+// `r.stasjoner` - Timer-radene - og den lista er TOM for den fila.
+// Svaret ble «Ingen av stasjonene i delingsfila () kunne kobles», med
+// tom parentes, fordi det ikke var noen aa nevne.
+//
+// Tallet finnes: Mat-arkets «Budsjettert salg» ER Timer-arkets
+// «Budsjettert matomsetning».
+// =====================================================================
+describe('aarsgrunnlagFra', () => {
+  const kast = (butikknavn: string, nivaa: 'avdeling' | 'vareomrade', bud: number | null) => ({
+    butikknavn, nivaa, kode: nivaa === 'avdeling' ? '120' : '10', navn: 'MAT',
+    kastPst: 0.08, kastKr: 1000, historiskSalg: null, budsjettertSalg: bud, usynligKr: null,
+  })
+
+  it('bruker «Timer»-radene naar de finnes', () => {
+    const ut = aarsgrunnlagFra({ stasjoner: FILA, kastbudsjett: [kast('SHELL X', 'avdeling', 9)] })
+    expect(ut).toBe(FILA)
+  })
+
+  it('faller tilbake paa Mat-arkets budsjetterte salg', () => {
+    const ut = aarsgrunnlagFra({
+      stasjoner: [],
+      kastbudsjett: [kast('SHELL LAGUNEPARKEN', 'avdeling', 4651908)],
+    })
+    expect(ut).toEqual([{ butikknavn: 'SHELL LAGUNEPARKEN', matomsetning: 4651908 }])
+  })
+
+  // KANARIFUGL: undergruppene er ikke aarsgrunnlag. Bakeriets budsjett
+  // er en broekdel av matomsetningen, og seks slike i snittet ville
+  // gjort avviket mot BP-en meningsloest - og med det aarsvalget.
+  it('KANARIFUGL: undergruppene teller ikke', () => {
+    const ut = aarsgrunnlagFra({
+      stasjoner: [],
+      kastbudsjett: [
+        kast('SHELL LAGUNEPARKEN', 'avdeling', 4651908),
+        kast('SHELL LAGUNEPARKEN', 'vareomrade', 1010167),
+      ],
+    })
+    expect(ut).toHaveLength(1)
+    expect(ut[0].matomsetning).toBe(4651908)
+  })
+
+  // Uten tallet kan raden ikke plassere fila, og en rad uten
+  // matomsetning i grunnlaget ville trukket snittet mot ingenting.
+  it('hopper over rader uten budsjettert salg', () => {
+    expect(aarsgrunnlagFra({ stasjoner: [], kastbudsjett: [kast('SHELL X', 'avdeling', null)] }))
+      .toEqual([])
+  })
+
+  // HELE VEIEN: grunnlaget fra Mat-arket skal faktisk finne aaret.
+  it('finner aaret fra Mat-arket alene', () => {
+    const ut = aarsgrunnlagFra({
+      stasjoner: [],
+      kastbudsjett: FILA.map((f) => kast(f.butikknavn, 'avdeling', f.matomsetning)),
+    })
+    expect(finnAaret(ut, NAVN, BASEN).ar).toBe(2025)
   })
 })

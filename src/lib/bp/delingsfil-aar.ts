@@ -1,4 +1,4 @@
-import type { Delingsrad } from '@/lib/parsere/delingsfil'
+import type { Kastbudsjett } from '@/lib/parsere/delingsfil'
 
 // =====================================================================
 // HVILKET ÅR GJELDER DELINGSFILA?
@@ -50,8 +50,36 @@ const MAKS_AVVIK_PST = 15
 /** Vinneren må være så mye bedre enn nummer to. */
 const MARGIN = 2
 
+/**
+ * Det aarssoeket trenger: et stasjonsnavn og den budsjetterte
+ * matomsetningen.
+ *
+ * DET TALLET STAAR TO STEDER I FILA. «Timer»-arkets `Budsjettert
+ * matomsetning` og Mat-arkets `Budsjettert salg` er samme stoerrelse -
+ * Laguneparken 4 651 908 i begge, maalt paa Kelsars 2025-fil. 2026-fila
+ * har bare det siste, saa aaret maa kunne finnes av begge.
+ */
+export type Aarsgrunnlag = { butikknavn: string; matomsetning: number }
+
+/**
+ * Henter aarsgrunnlaget ut av en parset delingsfil - fra «Timer» naar
+ * arket er der, ellers fra Mat-arkets avdelingsrad.
+ *
+ * BARE AVDELINGSRADEN. Den ER Mat-totalen, og det er den som svarer til
+ * Timer-arkets tall. Undergruppene ville lagt seks smaa avvik inn i et
+ * snitt som skal treffe én aargang.
+ */
+export function aarsgrunnlagFra(
+  r: { stasjoner: Aarsgrunnlag[]; kastbudsjett: Kastbudsjett[] },
+): Aarsgrunnlag[] {
+  if (r.stasjoner.length > 0) return r.stasjoner
+  return r.kastbudsjett
+    .filter((k) => k.nivaa === 'avdeling' && k.budsjettertSalg !== null)
+    .map((k) => ({ butikknavn: k.butikknavn, matomsetning: k.budsjettertSalg! }))
+}
+
 export function finnAaret(
-  rader: Delingsrad[],
+  rader: Aarsgrunnlag[],
   navnekobling: Map<string, string>,
   matbudsjett: Matbudsjett,
 ): Aarssvar {
@@ -66,7 +94,7 @@ export function finnAaret(
 
   const kjente = rader
     .map((r) => ({ r, stasjonId: navnekobling.get(r.butikknavn.trim().toLowerCase()) }))
-    .filter((x): x is { r: Delingsrad; stasjonId: string } => Boolean(x.stasjonId))
+    .filter((x): x is { r: Aarsgrunnlag; stasjonId: string } => Boolean(x.stasjonId))
 
   if (kjente.length === 0) {
     return {

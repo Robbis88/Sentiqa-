@@ -152,3 +152,79 @@ describe('parseDelingsfil', () => {
     expect(() => parseDelingsfil(rart)).toThrow(/mangler Butikknavn, Timebudsjett/)
   })
 })
+
+// =====================================================================
+// 2026-FILA: BARE «Mat» OG «Vask»
+//
+// Gjenkjenningen ble aapnet for denne varianten 2026-09-05. Parseren
+// ble det ikke, og `lesArk` kaster naar arket ikke finnes - saa fila
+// ble meldt «Feilet: Fant ikke arket. Arkene i fila er: Mat, Vask.»
+// FOER kastbudsjettet under i det hele tatt ble forsoekt.
+//
+// Ingen test parset en fil UTEN «Timer». `bok()` legger arket inn som
+// standard, saa hver eneste parse-test hadde det - og gjenkjennings-
+// testen over, som gjorde det riktige, roerer aldri parseren.
+// =====================================================================
+describe('parseDelingsfil uten «Timer»-ark', () => {
+  // Kolonnene slik de FAKTISK staar paa Mat-arket i 2026-fila.
+  //
+  // `#REF!` er ikke pynt: St1s egen fil har en broetet formelreferanse
+  // der overskriften «Butikknavn» skulle staatt. Navnene ligger i
+  // kolonnen under den likevel. Skriver vi 'Butikknavn' her, tester vi
+  // en fil St1 ikke sender.
+  //
+  // «Budsjettert salg» finnes paa prefiks - St1 henger «(inkl. volum +
+  // prisvekst)» paa, og ordlyden har alt endret seg én gang.
+  const KAST_HODE = rad(1, [
+    '#REF!', 'Historisk salg', 'Budsjettert salg (inkl. volum + prisvekst)',
+    'Budsjettert kast%', 'Kast budsjett KR', 'Usynlig svinn',
+  ])
+  // Laguneparkens egne tall: 376 076 er Mat-totalen, og den er summen av
+  // de seks undergruppene paa krona.
+  const MAT = bok(
+    KAST_HODE + rad(2, ['SHELL LAGUNEPARKEN', 4300000, 4651908, 0.0808, 376076, 152148]),
+    ['Mat', 'Vask'],
+  )
+
+  it('REGRESJON: fila parses selv om «Timer» mangler', () => {
+    expect(() => parseDelingsfil(MAT)).not.toThrow()
+  })
+
+  it('leser Mat-arket som avdelingstotalen', () => {
+    const r = parseDelingsfil(MAT)
+    expect(r.kastbudsjett).toHaveLength(1)
+    expect(r.kastbudsjett[0]).toMatchObject({
+      butikknavn: 'SHELL LAGUNEPARKEN',
+      nivaa: 'avdeling',
+      kode: '120',
+      kastKr: 376076,
+      budsjettertSalg: 4651908,
+      usynligKr: 152148,
+    })
+  })
+
+  // KANARIFUGL: uten timebudsjett skal listen vaere TOM, ikke fylt med
+  // rader arket ikke bar. En parser som fant paa stasjoner her ville
+  // skrevet et timebudsjett ingen har oppgitt.
+  it('KANARIFUGL: ingen stasjonsrader naar «Timer» mangler', () => {
+    expect(parseDelingsfil(MAT).stasjoner).toEqual([])
+  })
+
+  // Og motsatt vei: vakten maa ikke ha slaatt av Timer-lesningen for
+  // filer som FAKTISK har arket. Faller denne, leser vi aldri timene.
+  it('KANARIFUGL: «Timer» leses fortsatt naar arket er der', () => {
+    expect(parseDelingsfil(FILA).stasjoner).toHaveLength(3)
+  })
+
+  // Venstrest-regelen er en RESERVE, ikke erstatningen. Staar
+  // «Butikknavn» der, er det den som gjelder - ellers ville en kolonne
+  // St1 en dag legger til venstre stille tatt over navnet.
+  it('bruker «Butikknavn» naar overskriften er hel', () => {
+    const helt = bok(
+      rad(1, ['Butikknavn', 'Budsjettert kast%', 'Kast budsjett KR'])
+      + rad(2, ['SHELL LONE', 0.07, 200000]),
+      ['Mat', 'Vask'],
+    )
+    expect(parseDelingsfil(helt).kastbudsjett[0].butikknavn).toBe('SHELL LONE')
+  })
+})

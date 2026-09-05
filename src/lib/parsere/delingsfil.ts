@@ -182,7 +182,19 @@ function lesKastark(
       // en tittelrad over, hoppes den over av seg selv.
       if (!k.has('kast budsjett kr')) return
       kol = k
-      iNavn = k.get('butikknavn') ?? 0
+      // NAVNEKOLONNEN ER DEN LENGST TIL VENSTRE. «Butikknavn» er
+      // bekreftelsen, ikke mekanismen.
+      //
+      // 2026-fila har `#REF!` i den cella - en broetet formelreferanse
+      // St1 aldri ryddet. Navnene STAAR der (C8 = SHELL DALE); det er
+      // bare overskriften som er borte. Med et rent navneoppslag ble
+      // `iNavn` 0, hver rad falt paa `if (!butikknavn) return`, og hele
+      // arket ble lest som tomt. Fila meldte da «fant verken timebudsjett
+      // eller kastbudsjett» - sant om det parseren saa, usant om fila.
+      //
+      // Venstrest stemmer i begge variantene: 2025 har Butikknavn i A,
+      // 2026 har navnene i C og bruksomraadet starter i C.
+      iNavn = k.get('butikknavn') ?? Math.min(...rad.celler.keys())
       iPst = k.get('budsjettert kast%') ?? 0
       iKr = k.get('kast budsjett kr') ?? 0
       iSalg = k.get('historisk salg') ?? 0
@@ -223,7 +235,20 @@ export function parseDelingsfil(data: Uint8Array | ArrayBuffer): Delingsfil {
   let iNavn = 0, iTimer = 0, iMat = 0, iKost = 0, iKrone = 0
   const stasjoner: Delingsrad[] = []
 
-  lesArk(data, (n) => n.toLowerCase() === ARK.toLowerCase(), (rad) => {
+  // ARKNAVNENE FOERST, OG BEGGE LESNINGENE SPOER DEM.
+  //
+  // `lesArk` KASTER naar arket ikke finnes - med vilje: et tomt resultat
+  // og et fravaerende ark maa ikke se like ut. Men da maa den som vet at
+  // arket er VALGFRITT, spoerre foerst.
+  //
+  // Kastarkene gjorde det. Timer-lesningen gjorde det ikke, og det var
+  // hele feilen: 2026-fila har bare Mat og Vask, saa lesningen kastet
+  // «Fant ikke arket. Arkene i fila er: Mat, Vask.» foer kastbudsjettet
+  // under i det hele tatt ble forsoekt. Gjenkjenningen slapp fila inn
+  // 2026-09-05; parseren fikk aldri den samme endringen.
+  const finnes = new Set(arknavn(data).map((n) => n.toLowerCase()))
+
+  if (finnes.has(ARK.toLowerCase())) lesArk(data, (n) => n.toLowerCase() === ARK.toLowerCase(), (rad) => {
     if (!kol) {
       const k = new Map<string, number>()
       for (const [nr, v] of rad.celler) {
@@ -269,7 +294,6 @@ export function parseDelingsfil(data: Uint8Array | ArrayBuffer): Delingsfil {
   // ene har undergruppearkene. Aa kaste her ville avvist et timebudsjett
   // som er helt i orden.
   const kastbudsjett: Kastbudsjett[] = []
-  const finnes = new Set(arknavn(data).map((n) => n.toLowerCase()))
   for (const [ark, omrade] of Object.entries(KASTARK)) {
     if (!finnes.has(ark)) continue
     lesKastark(data, ark, omrade, kastbudsjett)

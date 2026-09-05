@@ -16,7 +16,7 @@ import { hoppetNotat } from '@/lib/bp/hoppede'
 import { bruttoKurve, timelonnKurve, maanedsrammer } from '@/lib/bp/fordeling'
 import { parseDelingsfil, type Kastbudsjett } from '@/lib/parsere/delingsfil'
 import { arknavn } from '@/lib/parsere/xlsx-rader'
-import { finnAaret } from '@/lib/bp/delingsfil-aar'
+import { aarsgrunnlagFra, finnAaret } from '@/lib/bp/delingsfil-aar'
 import { koblePaaNavn } from '@/lib/bp/stasjonsnavn'
 import { matbudsjettPerAar } from '@/lib/bp/hent'
 import {
@@ -1180,9 +1180,23 @@ async function lagreDelingsfil(
   //
   // Navnekoblingen sendes med som KRYSSJEKK: peker de to hver sin vei, er
   // ett av dem feil, og da skrives ingenting.
-  const paaNavn = koblePaaNavn(stasjoner, r.stasjoner.map((s) => s.butikknavn))
+  // AARET FINNES I BEGGE ARKENE, OG 2026-FILA HAR BARE DET ENE.
+  //
+  // Timer-arkets `Budsjettert matomsetning` og Mat-arkets `Budsjettert
+  // salg` er samme stoerrelse - Laguneparken 4 651 908 i begge. Uten
+  // dette leste hele importen aaret av `r.stasjoner`, som er TOM naar
+  // fila ikke har «Timer», og svarte «Ingen av stasjonene i delingsfila
+  // () kunne kobles» - med tom parentes, fordi det ikke var noen aa
+  // nevne.
+  //
+  // Bare avdelingsraden: den ER Mat-totalen, og det er den som svarer til
+  // Timer-arkets tall. Undergruppene ville lagt seks smaa avvik inn i et
+  // snitt som skal treffe én aargang.
+  const aarsgrunnlag = aarsgrunnlagFra(r)
+
+  const paaNavn = koblePaaNavn(stasjoner, aarsgrunnlag.map((s) => s.butikknavn))
   const matbudsjett = await matbudsjettPerAar(supabase)
-  const svar = finnAaret(r.stasjoner, paaNavn.kobling, matbudsjett)
+  const svar = finnAaret(aarsgrunnlag, paaNavn.kobling, matbudsjett)
   if (svar.ar === null) throw new ParserFeil(`Delingsfil: ${svar.grunn}`)
   const { ar, kobling } = svar
 
@@ -1225,7 +1239,12 @@ async function lagreDelingsfil(
     skrevet++
   }
 
-  if (skrevet === 0) {
+  // BARE NAAR DET FAKTISK VAR TIMER AA SKRIVE.
+  //
+  // 2026-fila har ingen «Timer», og da er `skrevet` null uten at noe er
+  // galt - kastbudsjettet under er hele leveransen. Ubetinget kastet
+  // denne fila for aaret vi driver i, ETTER at aaret var funnet.
+  if (skrevet === 0 && r.stasjoner.length > 0) {
     throw new ParserFeil(
       `Delingsfil: fant BP ${ar}, men ingen av stasjonene hadde en aargang aa skrive timene paa.`,
     )
