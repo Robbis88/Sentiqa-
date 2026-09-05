@@ -318,28 +318,50 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
             <span className="sq-merkelapp">hittil i år</span>
           </div>
 
-          <div className="sq-nokkeltall">
-            <Nokkeltall
-              merkelapp="Kastet hittil"
-              verdi={kr.format(Math.round(budsjettbilde.total.kastHittilKr))}
-              sammenlignet={`budsjett ${kr.format(Math.round(budsjettbilde.total.budsjettHittilKr))}`}
-            />
-            <Nokkeltall
-              merkelapp={budsjettbilde.total.avvikKr > 0 ? 'Over budsjett' : 'Under budsjett'}
-              verdi={kr.format(Math.abs(Math.round(budsjettbilde.total.avvikKr)))}
-              retning={budsjettbilde.total.avvikKr > 0 ? 'opp' : 'ned'}
-              bra={budsjettbilde.total.avvikKr <= 0}
-            />
-            <Nokkeltall
-              merkelapp="Kast av omsetning"
-              verdi={budsjettbilde.total.faktiskPst == null
-                ? '—'
-                : `${(budsjettbilde.total.faktiskPst * 100).toFixed(1)} %`}
-              sammenlignet={`kravet er ${(budsjettbilde.total.linje.kastPstAvSalg * 100).toFixed(1)} %`}
-            />
-          </div>
+          {/* EN BROEK SOM IKKE KAN REGNES SKAL SI DET, IKKE SVARE LIKEVEL.
+              Kastede kroner kan ikke overstige omsetningen. Skjer det, er
+              det salgstallet som mangler - og da er BUDSJETTET ogsaa feil,
+              siden det er `kast% x salg hittil`. Begge holdes tilbake.
+              Sida sto med 778,6 % en hel kveld uten at noe sa fra. */}
+          {budsjettbilde.total.nevnerMistenkelig ? (
+            <>
+              <Status nivaa="kritisk">
+                Salgstallet mangler for dette året
+              </Status>
+              <p className="undertittel">
+                {`Det er ført ${kr.format(Math.round(budsjettbilde.total.kastHittilKr))} i kast, `}
+                {`men bare ${kr.format(Math.round(budsjettbilde.total.salgHittilKr))} i omsetning. `}
+                {'Kast føres til kostpris og salg til utsalgspris, så kastet kan aldri '
+                  + 'være størst — her mangler salgsdata. Budsjettet regnes av salget, '
+                  + 'så både prosenten og avviket holdes tilbake til tallet er hentet inn.'}
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="sq-nokkeltall">
+                <Nokkeltall
+                  merkelapp="Kastet hittil"
+                  verdi={kr.format(Math.round(budsjettbilde.total.kastHittilKr))}
+                  sammenlignet={`budsjett ${kr.format(Math.round(budsjettbilde.total.budsjettHittilKr))}`}
+                />
+                <Nokkeltall
+                  merkelapp={budsjettbilde.total.avvikKr > 0 ? 'Over budsjett' : 'Under budsjett'}
+                  verdi={kr.format(Math.abs(Math.round(budsjettbilde.total.avvikKr)))}
+                  retning={budsjettbilde.total.avvikKr > 0 ? 'opp' : 'ned'}
+                  bra={budsjettbilde.total.avvikKr <= 0}
+                />
+                <Nokkeltall
+                  merkelapp="Kast av omsetning"
+                  verdi={budsjettbilde.total.faktiskPst == null
+                    ? '—'
+                    : `${(budsjettbilde.total.faktiskPst * 100).toFixed(1)} %`}
+                  sammenlignet={`kravet er ${(budsjettbilde.total.linje.kastPstAvSalg * 100).toFixed(1)} %`}
+                />
+              </div>
 
-          <p className="undertittel">{budsjettbilde.notat}</p>
+              <p className="undertittel">{budsjettbilde.notat}</p>
+            </>
+          )}
 
           {budsjettbilde.linjer.length > 1 && (
             <Datatabell tittel="Per undergruppe" antall={budsjettbilde.linjer.length}>

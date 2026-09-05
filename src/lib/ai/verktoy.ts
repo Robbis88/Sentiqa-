@@ -1512,12 +1512,20 @@ export const VERKTOY: Record<string, Verktoy> = {
           stasjon: kart.get(r.stasjon_id) ?? r.stasjon_id,
           aar: r.aar,
           kastet_hittil_kr: Math.round(r.total!.kastHittilKr),
-          budsjett_hittil_kr: Math.round(r.total!.budsjettHittilKr),
-          avvik_kr: Math.round(r.total!.avvikKr),
-          kast_pst_av_omsetning: r.total!.faktiskPst == null
+          budsjett_hittil_kr: r.total!.nevnerMistenkelig
+            ? null : Math.round(r.total!.budsjettHittilKr),
+          avvik_kr: r.total!.nevnerMistenkelig
+            ? null : Math.round(r.total!.avvikKr),
+          // EN BROEK SOM IKKE KAN REGNES SKAL SI DET, IKKE SVARE LIKEVEL.
+          // Kastede kroner kan ikke overstige omsetningen; skjer det,
+          // mangler salgstallet - og da er budsjettet feil ogsaa, siden
+          // det er kast% x salg. Assistenten skal ikke faa et tall den
+          // kan referere. Se `nevnerHolderIkke` i mot-budsjett.ts.
+          kast_pst_av_omsetning: r.total!.nevnerMistenkelig || r.total!.faktiskPst == null
             ? null
             : Math.round(r.total!.faktiskPst * 1000) / 10,
           krav_pst_av_omsetning: Math.round(r.total!.linje.kastPstAvSalg * 1000) / 10,
+          salgstall_mangler: r.total!.nevnerMistenkelig || undefined,
           // Kilden staar i svaret, ikke bare i merknaden. Et tall uten
           // den leses som fasit, og halve aaret kan vaere et anslag.
           kilder: r.notat,

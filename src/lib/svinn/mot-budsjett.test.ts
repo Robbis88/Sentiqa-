@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { velgKilde, svinnstatus, kildenotat, svinnbilde, vareomradeAv, avdelingAv, type Budsjettlinje } from './mot-budsjett'
+import { velgKilde, svinnstatus, kildenotat, svinnbilde, vareomradeAv, avdelingAv, nevnerHolderIkke, type Budsjettlinje } from './mot-budsjett'
 
 // =====================================================================
 // Vakt over svinn mot budsjett.
@@ -210,5 +210,112 @@ describe('svinnbilde', () => {
     expect(ut.total!.avlagteMaaneder).toBe(1)
     expect(ut.total!.forelopigeMaaneder).toBe(1)
     expect(ut.notat).toMatch(/flytte seg/)
+  })
+})
+
+// =====================================================================
+// NEVNEREN — REGRESJONEN FRA 2026-09-05
+//
+// `/svinn` viste «Kast av omsetning 778,6 %» og «budsjett 2 983 kr» der
+// kravet er 13,59 % og årsbudsjettet 238 393. Ingenting feilet; tallet
+// var bare galt på en måte som ikke lignet en feil.
+//
+// Telleren var riktig hele tiden. `regnskap_usynlig_svinn` har én rad
+// per kode per måned og ligger under ethvert radtak. Nevneren kom fra
+// `v_butikksalg` RAD FOR RAD, og PostgREST kuttet uttrekket.
+//
+//     Bønes, MAT, 2026, faktisk:   1 220 436 kr
+//     det siden fikk se:              21 950 kr
+//
+// Tallene under er de virkelige, ikke runde. En fixture med runde tall
+// ville bestått uansett hvor grensen gikk.
+// =====================================================================
+
+const BONES: Budsjettlinje = {
+  kode: '120', navn: 'MAT',
+  kastPstAvSalg: 0.1359,
+  kastBudsjettKr: 238393,
+}
+
+describe('nevnerHolderIkke', () => {
+  // GRENSEN ER EN IDENTITET, IKKE ET SKJØNN. Kast føres til kostpris og
+  // salg til utsalgspris, så kastet kan aldri være størst. En
+  // «rimelighetsgrense» på for eksempel 50 % ville felt en ekte
+  // katastrofemåned og sluppet gjennom en nevner som var halvert.
+  it('sier fra når kastet overstiger salget', () => {
+    expect(nevnerHolderIkke(170880, 21950)).toBe(true)
+  })
+
+  it('sier ingenting om et normalt forhold', () => {
+    expect(nevnerHolderIkke(170880, 1220436)).toBe(false)
+  })
+
+  // Et helt normalt tilfelle tidlig i året, og det skal IKKE ropes om.
+  it('KANARIFUGL: ingen data er ikke en feil', () => {
+    expect(nevnerHolderIkke(0, 0)).toBe(false)
+  })
+
+  it('kast uten noe salg i det hele tatt er det derimot', () => {
+    expect(nevnerHolderIkke(1, 0)).toBe(true)
+  })
+
+  // Grensen går ved likhet: like store tall er teoretisk mulig, og en
+  // vakt som feller det ville ropt på et randtilfelle som er ekte.
+  it('felles ikke ved nøyaktig likhet', () => {
+    expect(nevnerHolderIkke(1000, 1000)).toBe(false)
+  })
+})
+
+describe('svinnstatus — den avkortede nevneren', () => {
+  const med = (kast: number, salg: number) => svinnstatus(BONES, [
+    { maaned: '2026-01', kastKr: kast, salgKr: salg, kilde: 'regnskap' },
+  ])
+
+  it('REGRESJON: flagger tallet siden faktisk viste', () => {
+    const s = med(170880, 21950)
+    expect(s.nevnerMistenkelig).toBe(true)
+    // Prosenten REGNES fortsatt — den er beviset på at noe er galt.
+    // Det er visningen som skal holde den tilbake, ikke regnestykket.
+    expect(Math.round(s.faktiskPst! * 100)).toBe(778)
+  })
+
+  it('er rolig når salget er hentet helt', () => {
+    const s = med(170880, 1220436)
+    expect(s.nevnerMistenkelig).toBe(false)
+    // Og da er bildet et helt annet: 14,0 % mot et krav på 13,59 %,
+    // altså så vidt over — ikke åtte ganger over.
+    expect((s.faktiskPst! * 100).toFixed(1)).toBe('14.0')
+    expect(Math.round(s.budsjettHittilKr)).toBe(165857)
+    expect(Math.round(s.avvikKr)).toBe(5023)
+  })
+})
+
+describe('svinnbilde — totalen arver mistanken', () => {
+  // En enkelt linje med manglende nevner drar hele prosenten med seg.
+  // En total som ser rolig ut over en oedelagt linje er verre enn ingen
+  // total: da er feilen bare gjemt ett nivaa ned.
+  it('flagger totalen naar én linje har en umulig nevner', () => {
+    const ut = svinnbilde({
+      budsjett: [
+        { kode: '10', navn: 'BAKERI', kastPstAvSalg: 0.12, kastBudsjettKr: 100000 },
+        { kode: '11', navn: 'PØLSE', kastPstAvSalg: 0.06, kastBudsjettKr: 80000 },
+      ],
+      kastRegnskap: new Map([
+        ['10', kart({ '2026-01': 50000 })],
+        ['11', kart({ '2026-01': 5000 })],
+      ]),
+      kastDaglig: new Map(),
+      // BAKERI mangler salg; PØLSE har rikelig, nok til at TOTALEN ser
+      // frisk ut om man bare summerer.
+      salg: new Map([
+        ['10', kart({ '2026-01': 900 })],
+        ['11', kart({ '2026-01': 900000 })],
+      ]),
+    })
+    expect(ut.linjer.find((l) => l.linje.kode === '10')!.nevnerMistenkelig).toBe(true)
+    expect(ut.linjer.find((l) => l.linje.kode === '11')!.nevnerMistenkelig).toBe(false)
+    // Summen alene ville sagt «alt i orden»: 55 000 mot 900 900.
+    expect(ut.total!.kastHittilKr).toBeLessThan(ut.total!.salgHittilKr)
+    expect(ut.total!.nevnerMistenkelig).toBe(true)
   })
 })

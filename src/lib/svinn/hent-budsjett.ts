@@ -9,23 +9,34 @@ import { svinnbilde, vareomradeAv, type Budsjettlinje, type Svinnbilde } from '.
 //
 //   kastbudsjett            hva St1 sier vi har lov til
 //   regnskap_usynlig_svinn  hva som FAKTISK ble kastet, i avlagte måneder
-//   synlig_svinn            hva vi har registrert selv, i åpne måneder
+//   v_salg_omraade_maaned   salget, og det vi har registrert selv
 //
 // Den siste er den vi laster opp hver dag. Den er verdt å styre etter,
 // men de ansatte fører på terminalen og de fører feil — så når måneden
 // er avlagt, er det regnskapet som gjelder. Valget gjøres i `velgKilde`.
 //
 // ---------------------------------------------------------------------
-// SALGET ER NEVNEREN, OG DEN MÅ VÆRE MATSALG
+// SUMMENE KOMMER FERDIGE FRA BASEN, OG DET ER IKKE EN OPTIMALISERING
 //
-// Kravet er en prosent av omsetning. Nevneren må derfor være salget i
-// SAMME vareområde — bakeriets kastbudsjett måles mot bakeriets salg,
-// ikke mot butikkens.
+// Første utgave leste `v_butikksalg` og `synlig_svinn` RAD FOR RAD — én
+// rad per dag per EAN — og summerte i TypeScript. PostgREST svarer med
+// sitt eget radtak, og over det taket kommer det ingen feil: bare færre
+// rader.
+//
+//     MAT-salget for Bønes 2026:   1 220 436 kr
+//     det siden fikk se:              21 950 kr
+//
+// Kortet viste 778,6 % kast av omsetning. Telleren var riktig hele
+// tiden — `regnskap_usynlig_svinn` har én rad per kode per måned og
+// ligger under ethvert tak — så bare den ene siden av brøken krympet.
+//
+// **En avkortet spørring ser ut som en liten stasjon.** Ingenting
+// feiler; tallet blir bare mindre. Se `0175`.
 // =====================================================================
 
 type Klient = SupabaseClient
 
-/** `2026-08-01` eller `2026-08-13` → `2026-08`. */
+/** `2026-08-01` → `2026-08`. */
 const tilMaaned = (d: string) => d.slice(0, 7)
 
 /** Legger `kr` inn i `kode → måned → sum`. */
@@ -43,7 +54,7 @@ export async function hentSvinnbudsjett(
   const fra = `${ar}-01-01`
   const til = `${ar}-12-31`
 
-  const [budsjett, regnskap, varer, salg] = await Promise.all([
+  const [budsjett, regnskap, omraade] = await Promise.all([
     supabase.from('kastbudsjett')
       .select('nivaa, kode, navn, kast_pst_av_salg, kast_budsjett_kr')
       .eq('stasjon_id', stasjonId).eq('ar', ar)
@@ -52,27 +63,23 @@ export async function hentSvinnbudsjett(
         kast_pst_av_salg: number; kast_budsjett_kr: number
       }[]>(),
     // FASITEN. `kast` kom i `0050` og er regnskapets egen svinnføring.
+    // Én rad per kode per måned — rundt 55 i året, aldri i nærheten av
+    // noe radtak.
     supabase.from('regnskap_usynlig_svinn')
       .select('periode, kode, kast')
       .eq('stasjon_id', stasjonId).gte('periode', fra).lte('periode', til)
       .is('slettet_tid', null)
       .overrideTypes<{ periode: string; kode: string | null; kast: number | null }[]>(),
-    // Hva vi har registrert selv, per vare. `synlig_svinn` har bare
-    // `ean`, så vareområdet må komme fra hierarkiet.
-    supabase.from('synlig_svinn')
-      .select('dato, ean, nettopris_total')
-      .eq('stasjon_id', stasjonId).gte('dato', fra).lte('dato', til)
-      .is('slettet_tid', null).limit(50000)
-      .overrideTypes<{ dato: string | null; ean: string | null; nettopris_total: number | null }[]>(),
-    // ÉN spoerring, to formaal: salget per omraade OG kartet fra ean til
-    // omraade. Samme rader svarer paa begge, og to kall mot samme tabell
-    // kan i tillegg gi to ulike svar hvis en import lander imellom.
-    supabase.from('v_butikksalg')
-      .select('dato, ean, vareomrade_kode, avdeling_kode, omsetning_eks_mva')
-      .eq('stasjon_id', stasjonId).gte('dato', fra).lte('dato', til).limit(50000)
+    // SALGET OG DET DAGLIGE SVINNET, FERDIG SUMMERT I BASEN (`0175`).
+    // Rundt tolv måneder × et titalls områder — små nok til at ingen
+    // grense kan røre dem, og de to sidene kan ikke lenger hentes med
+    // hvert sitt utvalg.
+    supabase.from('v_salg_omraade_maaned')
+      .select('maned, avdeling_kode, vareomrade_kode, omsetning_kr, svinn_kr')
+      .eq('stasjon_id', stasjonId).gte('maned', fra).lte('maned', til)
       .overrideTypes<{
-        dato: string; ean: string | null; vareomrade_kode: string | null
-        avdeling_kode: string | null; omsetning_eks_mva: number | null
+        maned: string; avdeling_kode: string | null; vareomrade_kode: string | null
+        omsetning_kr: number | null; svinn_kr: number | null
       }[]>(),
   ])
 
@@ -99,31 +106,19 @@ export async function hentSvinnbudsjett(
     leggTil(kastRegnskap, kode, tilMaaned(r.periode), r.kast)
   }
 
-  // EAN → område. Salget er den eneste kilden som kjenner hierarkiet;
-  // `synlig_svinn` bærer bare EAN-en.
-  const salgRader = salg.data ?? []
-  const omradeFor = new Map<string, string>()
-  for (const v of salgRader) {
-    if (!v.ean) continue
-    const kode = paaVareomrade ? v.vareomrade_kode : v.avdeling_kode
-    if (kode) omradeFor.set(v.ean, kode)
-  }
-
+  // ÉN LØKKE FOR BEGGE SIDENE AV BRØKEN. De kommer fra samme rad, så de
+  // kan ikke lenger komme fra hvert sitt utvalg — det var nettopp det
+  // som gjorde at telleren var hel mens nevneren var kuttet.
   const kastDaglig = new Map<string, Map<string, number>>()
-  for (const s of varer.data ?? []) {
-    if (!s.dato || !s.ean || s.nettopris_total == null) continue
-    const kode = omradeFor.get(s.ean)
-    // Varer uten hierarki er de «ikke koblede» — pant, emballasje, bulk.
+  const salgKart = new Map<string, Map<string, number>>()
+  for (const r of omraade.data ?? []) {
+    const kode = paaVareomrade ? r.vareomrade_kode : r.avdeling_kode
+    // Rader uten hierarki er de «ikke koblede» — pant, emballasje, bulk.
     // De hører ikke til noe kastbudsjett og skal ikke måles mot ett.
     if (!kode) continue
-    leggTil(kastDaglig, kode, tilMaaned(s.dato), s.nettopris_total)
-  }
-
-  const salgKart = new Map<string, Map<string, number>>()
-  for (const v of salgRader) {
-    const kode = paaVareomrade ? v.vareomrade_kode : v.avdeling_kode
-    if (!kode || v.omsetning_eks_mva == null) continue
-    leggTil(salgKart, kode, tilMaaned(v.dato), v.omsetning_eks_mva)
+    const maaned = tilMaaned(r.maned)
+    if (r.omsetning_kr != null) leggTil(salgKart, kode, maaned, r.omsetning_kr)
+    if (r.svinn_kr != null) leggTil(kastDaglig, kode, maaned, r.svinn_kr)
   }
 
   return svinnbilde({ budsjett: brukte, kastRegnskap, kastDaglig, salg: salgKart })
