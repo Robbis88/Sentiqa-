@@ -70,11 +70,38 @@ export type Svinnstatus = {
   avvikKr: number
   /** Faktisk kast% så langt, i St1s brøk. */
   faktiskPst: number | null
+  /**
+   * Nevneren kan ikke stemme, så tallene skal ikke leses.
+   *
+   * **KASTEDE KRONER KAN IKKE OVERSTIGE OMSETNINGEN.** Kastet føres til
+   * kostpris og salget til utsalgspris; en andel over 100 % beskriver
+   * ikke en dyr måned, den beskriver et salgstall som mangler.
+   *
+   * Vakten kom av at `/svinn` viste **778,6 %** en hel kveld uten at noe
+   * sa fra. Telleren var riktig; nevneren var kuttet av PostgREST-taket
+   * til under to prosent av seg selv (`0175`). Tallet var galt på en
+   * måte som ikke lignet en feil — bare et høyt tall.
+   *
+   * Er dette sant, skal flatene si at nevneren mangler. **En brøk som
+   * ikke kan regnes skal si det, ikke svare likevel.**
+   */
+  nevnerMistenkelig: boolean
   /** Måneder der tallet er fasit fra regnskapet. */
   avlagteMaaneder: number
   /** Måneder der tallet er den daglige opplastingen — foreløpig. */
   forelopigeMaaneder: number
 }
+
+/**
+ * Kastet mot salget: over 1 er umulig, ikke bare dårlig.
+ *
+ * Ingen terskel med skjønn i. Grensen er en identitet i domenet, og en
+ * «rimelighetsgrense» på for eksempel 50 % ville vært en mening — den
+ * ville felt en ekte katastrofemåned og sluppet gjennom en nevner som
+ * var halvert.
+ */
+export const nevnerHolderIkke = (kastKr: number, salgKr: number): boolean =>
+  salgKr <= 0 ? kastKr > 0 : kastKr > salgKr
 
 /**
  * Én kilde per måned: regnskapet der det finnes, ellers den daglige.
@@ -119,6 +146,7 @@ export function svinnstatus(linje: Budsjettlinje, maaneder: Maanedsvinn[]): Svin
     budsjettHittilKr,
     avvikKr: kastHittilKr - budsjettHittilKr,
     faktiskPst: salgHittilKr > 0 ? kastHittilKr / salgHittilKr : null,
+    nevnerMistenkelig: nevnerHolderIkke(kastHittilKr, salgHittilKr),
     avlagteMaaneder: maaneder.filter((m) => m.kilde === 'regnskap').length,
     forelopigeMaaneder: maaneder.filter((m) => m.kilde === 'daglig').length,
   }
@@ -226,6 +254,11 @@ export function svinnbilde(opts: {
     total.budsjettHittilKr = linjer.reduce((a, l) => a + l.budsjettHittilKr, 0)
     total.avvikKr = total.kastHittilKr - total.budsjettHittilKr
     total.faktiskPst = total.salgHittilKr > 0 ? total.kastHittilKr / total.salgHittilKr : null
+    // TOTALEN ER MISTENKELIG OM ÉN LINJE ER DET. En enkelt linje med en
+    // manglende nevner drar hele prosenten med seg, og en total som ser
+    // rolig ut over en ødelagt linje er verre enn ingen total.
+    total.nevnerMistenkelig = nevnerHolderIkke(total.kastHittilKr, total.salgHittilKr)
+      || linjer.some((l) => l.nevnerMistenkelig)
   }
 
   return {
