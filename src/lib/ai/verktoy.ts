@@ -11,6 +11,7 @@ import { les, lesAlle, erLesefeil, type Leseresultat } from './les'
 import { returerPerKasserer, type Dagsrad } from '@/lib/kasserer/returer'
 import { finnUtsolgt, type Kandidatrad, type UtsolgtHendelse } from '@/lib/utsolgt'
 import { lagVareprognose, utsolgtDatoer } from './vareprognose'
+import { hentSvinnbudsjett } from '@/lib/svinn/hent-budsjett'
 import { leggTilDager, type SalgsPunkt } from '@/lib/produksjonsplan'
 
 /**
@@ -39,6 +40,7 @@ export const VERKTOY_ETIKETT: Record<string, string> = {
   hent_avvik: 'avvik og varsler',
   hent_utsolgt: 'mulig utsolgt',
   hent_vareprognose: 'vareprognose',
+  hent_svinnbudsjett: 'kastbudsjett',
   hent_produksjonsplan: 'produksjonsplan',
   hent_malekort: 'målekort',
   hent_fokus_status: 'fokus',
@@ -1460,6 +1462,71 @@ export const VERKTOY: Record<string, Verktoy> = {
           // eneste som skiller et tall du kan bestille etter fra en gjetning.
           forbehold: r.forbehold,
           andre_varer_som_traff_soeket: r.andre_treff.slice(0, 5),
+        })),
+    },
+  ),
+
+  hent_svinnbudsjett: stasjonsverktoy(
+    'hent_svinnbudsjett',
+    'KASTBUDSJETT: hvor mye stasjonen har LOV til aa kaste, mot hva som '
+    + 'faktisk er kastet hittil i aar. Fra St1s delingsfil, per undergruppe '
+    + '(bakeri, poelse, paasmurt ...). Bruk denne paa «ligger vi innenfor paa '
+    + 'svinn», «hvor mye kan vi kaste», «hvilken undergruppe kaster mest for '
+    + 'mye». '
+    + 'PROSENTEN ER EN ANNEN enn i hent_svinn: her er det kastede kroner delt '
+    + 'paa OMSETNING, som er broeken St1 setter kravet i. hent_svinn regner '
+    + 'kost mot kost. Sammenlign dem aldri.',
+    {
+      aar: {
+        type: 'number',
+        description: 'Budsjettaaret. Standard: inneværende år.',
+      },
+    },
+    {
+      domene: 'svinnbudsjett',
+      kilder: ['kastbudsjett', 'regnskap_usynlig_svinn', 'synlig_svinn'],
+      periodisert: false,
+      neste: ['hent_svinn', 'hent_salg'],
+      merknad: [
+        'Avlagte maaneder bruker regnskapets tall; aapne maaneder bruker den '
+        + 'daglige opplastingen, som kan flytte seg. `kilder` sier hvor mange '
+        + 'av hver - les den opp.',
+      ],
+      hent: async ({ supabase, stasjoner, input, idag }) => {
+        const aar = Number(input.aar) || Number(idag.slice(0, 4))
+        const ut = []
+        for (const st of stasjoner.slice(0, 8)) {
+          const bilde = await hentSvinnbudsjett(supabase, st.id, aar)
+          // Ingen budsjett for stasjonen er IKKE null kastet. Raden
+          // droppes, og `erMaltNull` sier «ingen registrering» - som er
+          // sant: delingsfila har ikke naadd den stasjonen.
+          if (!bilde || !bilde.total) continue
+          ut.push({ stasjon_id: st.id, aar, ...bilde })
+        }
+        return { rader: ut }
+      },
+      stasjonAv: (r) => r.stasjon_id,
+      erMaltNull: (rader) => rader.length === 0,
+      form: (rader, kart) =>
+        rader.map((r) => ({
+          stasjon: kart.get(r.stasjon_id) ?? r.stasjon_id,
+          aar: r.aar,
+          kastet_hittil_kr: Math.round(r.total!.kastHittilKr),
+          budsjett_hittil_kr: Math.round(r.total!.budsjettHittilKr),
+          avvik_kr: Math.round(r.total!.avvikKr),
+          kast_pst_av_omsetning: r.total!.faktiskPst == null
+            ? null
+            : Math.round(r.total!.faktiskPst * 1000) / 10,
+          krav_pst_av_omsetning: Math.round(r.total!.linje.kastPstAvSalg * 1000) / 10,
+          // Kilden staar i svaret, ikke bare i merknaden. Et tall uten
+          // den leses som fasit, og halve aaret kan vaere et anslag.
+          kilder: r.notat,
+          per_undergruppe: r.linjer.map((l) => ({
+            undergruppe: l.linje.navn,
+            kastet_kr: Math.round(l.kastHittilKr),
+            budsjett_kr: Math.round(l.budsjettHittilKr),
+            avvik_kr: Math.round(l.avvikKr),
+          })),
         })),
     },
   ),

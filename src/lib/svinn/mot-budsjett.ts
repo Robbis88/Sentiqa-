@@ -142,3 +142,95 @@ export function kildenotat(s: Svinnstatus): string {
     + `${f} ${f === 1 ? 'er' : 'er'} fortsatt den daglige opplastingen. `
     + 'De siste kan flytte seg.'
 }
+
+// ---------------------------------------------------------------------
+// HELE BILDET: FLERE VAREOMRAADER, FLERE MAANEDER
+//
+// Regnskapets kode er AVDELING + VAREOMRAADE, satt sammen: `12010` er
+// 120 MAT >> 10 BAKERI, `13010` er 130 VARM DRIKKE >> 10 KAFFE. Det er
+// samme nummerering som salgsdataene, bare skrevet i ett - og det er
+// derfor de to kildene kan legges ved siden av hverandre.
+//
+// Budsjettet bruker det korte: `10` for BAKERI. Sammenstillingen skjer
+// her, én gang, saa ingen kallsteder gjoer den hver sin vei.
+// ---------------------------------------------------------------------
+
+/** `12010` -> `10`. Avdelingen er alltid tre siffer. */
+export function vareomradeAv(regnskapskode: string | null): string | null {
+  if (!regnskapskode) return null
+  const k = regnskapskode.trim()
+  return k.length === 5 && /^\d{5}$/.test(k) ? k.slice(3) : null
+}
+
+/** Avdelingen i regnskapskoden: `12010` -> `120`. */
+export function avdelingAv(regnskapskode: string | null): string | null {
+  if (!regnskapskode) return null
+  const k = regnskapskode.trim()
+  return k.length === 5 && /^\d{5}$/.test(k) ? k.slice(0, 3) : null
+}
+
+export type Svinnbilde = {
+  linjer: Svinnstatus[]
+  /** Summen av linjene. Aldri regnet av en egen totalrad - se `nivaa`. */
+  total: Svinnstatus | null
+  notat: string
+}
+
+/**
+ * Setter budsjettet mot det som faktisk ble kastet.
+ *
+ * `kast*` og `salg` er `kode -> maaned -> kroner`, der `kode` er den
+ * korte formen budsjettet bruker.
+ *
+ * TOTALEN ER SUMMEN AV LINJENE, aldri en egen rad. Finnes bare
+ * Mat-totalen i budsjettet (2026-fila), er den ene linja totalen; finnes
+ * undergruppene, summeres de. Aa lagre begge og vise begge ville telt
+ * hver krone to ganger.
+ */
+export function svinnbilde(opts: {
+  budsjett: Budsjettlinje[]
+  kastRegnskap: Map<string, Map<string, number>>
+  kastDaglig: Map<string, Map<string, number>>
+  salg: Map<string, Map<string, number>>
+}): Svinnbilde {
+  const tom = new Map<string, number>()
+  const linjer = opts.budsjett.map((b) => svinnstatus(
+    b,
+    velgKilde(
+      opts.kastRegnskap.get(b.kode) ?? tom,
+      opts.kastDaglig.get(b.kode) ?? tom,
+      opts.salg.get(b.kode) ?? tom,
+    ),
+  ))
+
+  const total = linjer.length === 0 ? null : svinnstatus(
+    {
+      kode: 'sum',
+      navn: linjer.length === 1 ? linjer[0].linje.navn : 'Til sammen',
+      // Den samlede prosenten er den VEIDE, ikke gjennomsnittet av
+      // linjenes prosenter. Bakeri kaster 12 % av en liten omsetning og
+      // poelse 6 % av en stor; et snitt av de to tallene beskriver ingen.
+      kastPstAvSalg: linjer.reduce((a, l) => a + l.budsjettHittilKr, 0)
+        / (linjer.reduce((a, l) => a + l.salgHittilKr, 0) || 1),
+      kastBudsjettKr: linjer.reduce((a, l) => a + l.linje.kastBudsjettKr, 0),
+    },
+    // Én syntetisk «maaned» per kilde, saa telleverket under stemmer.
+    linjer.flatMap((l) => [
+      ...Array.from({ length: l.avlagteMaaneder }, () => ({ maaned: '', kastKr: 0, salgKr: 0, kilde: 'regnskap' as const })),
+      ...Array.from({ length: l.forelopigeMaaneder }, () => ({ maaned: '', kastKr: 0, salgKr: 0, kilde: 'daglig' as const })),
+    ]),
+  )
+  if (total) {
+    total.kastHittilKr = linjer.reduce((a, l) => a + l.kastHittilKr, 0)
+    total.salgHittilKr = linjer.reduce((a, l) => a + l.salgHittilKr, 0)
+    total.budsjettHittilKr = linjer.reduce((a, l) => a + l.budsjettHittilKr, 0)
+    total.avvikKr = total.kastHittilKr - total.budsjettHittilKr
+    total.faktiskPst = total.salgHittilKr > 0 ? total.kastHittilKr / total.salgHittilKr : null
+  }
+
+  return {
+    linjer: [...linjer].sort((a, b) => b.avvikKr - a.avvikKr),
+    total,
+    notat: total ? kildenotat(total) : 'Ingen kastbudsjett for dette året.',
+  }
+}

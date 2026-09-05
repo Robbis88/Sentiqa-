@@ -15,6 +15,7 @@ import {
   type Svinnrad, type Dekningsrad, type Maanedsbilde,
 } from '@/lib/svinn/maaned'
 import { Sideramme } from '@/components/ui/sideramme'
+import { hentSvinnbudsjett } from '@/lib/svinn/hent-budsjett'
 
 // =====================================================================
 // Svinn: kost mot kost, per maaned.
@@ -180,6 +181,12 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
       <= (b.dager_registrert / Math.max(1, b.dager_hittil)) ? a : b)
   }
 
+  // KASTBUDSJETTET. Bare for én stasjon: kravet er per stasjon, og en
+  // sum over kjeden ville vaert et tall ingen har ansvar for.
+  const budsjettbilde = erStasjon
+    ? await hentSvinnbudsjett(supabase, valgtStasjon!, Number(valgtMaaned.slice(0, 4)))
+    : null
+
   const bilde = byggMaaned(valgtMaaned, rader, dekningFor(valgtMaaned))
   const forrige = maaneder[maaneder.indexOf(valgtMaaned) + 1]
   const forrigeBilde = forrige ? byggMaaned(forrige, rader, dekningFor(forrige)) : null
@@ -295,6 +302,88 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
             : undefined}
         />
       </div>
+
+      {/* KASTBUDSJETTET.
+          Staar OEVERST, foer tallene for maaneden: «hvor mye har vi lov
+          til» er rammen alt annet leses innenfor. Uten den er svinnet
+          bare et tall som gaar opp og ned.
+
+          St1s broek, ikke Sentiqas - se `mot-budsjett.ts`. Derfor staar
+          det i teksten hva prosenten er av; ellers ser sida ut til aa
+          motsi seg selv to skjermhoeyder ned. */}
+      {budsjettbilde && budsjettbilde.total && (
+        <section className="kort">
+          <div className="sq-seksjon-hode">
+            <h2>Kastbudsjett {valgtMaaned.slice(0, 4)}</h2>
+            <span className="sq-merkelapp">hittil i år</span>
+          </div>
+
+          <div className="sq-nokkeltall">
+            <Nokkeltall
+              merkelapp="Kastet hittil"
+              verdi={kr.format(Math.round(budsjettbilde.total.kastHittilKr))}
+              sammenlignet={`budsjett ${kr.format(Math.round(budsjettbilde.total.budsjettHittilKr))}`}
+            />
+            <Nokkeltall
+              merkelapp={budsjettbilde.total.avvikKr > 0 ? 'Over budsjett' : 'Under budsjett'}
+              verdi={kr.format(Math.abs(Math.round(budsjettbilde.total.avvikKr)))}
+              retning={budsjettbilde.total.avvikKr > 0 ? 'opp' : 'ned'}
+              bra={budsjettbilde.total.avvikKr <= 0}
+            />
+            <Nokkeltall
+              merkelapp="Kast av omsetning"
+              verdi={budsjettbilde.total.faktiskPst == null
+                ? '—'
+                : `${(budsjettbilde.total.faktiskPst * 100).toFixed(1)} %`}
+              sammenlignet={`kravet er ${(budsjettbilde.total.linje.kastPstAvSalg * 100).toFixed(1)} %`}
+            />
+          </div>
+
+          <p className="undertittel">{budsjettbilde.notat}</p>
+
+          {budsjettbilde.linjer.length > 1 && (
+            <Datatabell tittel="Per undergruppe" antall={budsjettbilde.linjer.length}>
+              <thead>
+                <tr>
+                  <th>Undergruppe</th><th>Kastet</th><th>Budsjett</th>
+                  <th>Avvik</th><th>Kast av oms.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {budsjettbilde.linjer.map((l) => (
+                  <tr key={l.linje.kode}>
+                    <td>{l.linje.navn}</td>
+                    <td><Kroner v={l.kastHittilKr} /></td>
+                    <td><Kroner v={l.budsjettHittilKr} /></td>
+                    <td>
+                      {/* Samme pille som regnskapet bruker. En egen
+                          fargeklasse for denne ene tabellen ville vaert
+                          et sjette sted aa vedlikeholde det samme. */}
+                      <span className={`status-pip ${l.avvikKr > 0 ? 'rod' : 'gronn'}`}>
+                        <Kroner v={l.avvikKr} />
+                      </span>
+                    </td>
+                    <td>{l.faktiskPst == null ? '—' : `${(l.faktiskPst * 100).toFixed(1)} %`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Datatabell>
+          )}
+
+          <Forklaring sporsmaal="Hvorfor er prosenten en annen enn over?">
+            <p>
+              St1 regner kastede kroner (kostpris) delt på <strong>omsetning</strong>.
+              Tallet lenger nede på siden er kost mot kost — <strong>varekost solgt</strong> i
+              nevneren.
+            </p>
+            <p>
+              De måler ulike ting og vil aldri stemme overens. Her brukes St1s brøk,
+              fordi det er den budsjettet er uttrykt i: en oppfyllelsesgrad må bruke
+              samme brøk som kravet.
+            </p>
+          </Forklaring>
+        </section>
+      )}
 
       {/* DEKNINGEN STAAR VED SIDEN AV TALLET, ikke i en fotnote.
           Manglende registrering er ikke null svinn, og uten dette ser
