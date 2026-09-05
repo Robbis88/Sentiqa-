@@ -808,6 +808,36 @@
       "oppdaterbart": "bonger = 11"
     },
     {
+      "tabell": "kastbudsjett",
+      "$hvorfor": "St1s kastbudsjett per stasjon, aar og nivaa, lest ut av delingsfila. BUTIKKSJEFEN SKAL SE SITT EGET KRAV - et budsjett ingen kjenner styrer ingenting - saa stasjonsscope og ikke eier-bare, til forskjell fra bp_aar som baerer royalty og kjedens oekonomi. Ingen skrivepolicy: budsjettet kommer fra fila, og en rad noen kan endre i etterkant er ikke lenger St1s krav. Importen skriver som service_role.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ar",
+        "nivaa",
+        "kode"
+      ],
+      "proberad": {
+        "ar": "{{unik_aar}}",
+        "nivaa": "'vareomrade'",
+        "kode": "'{{unik}}'",
+        "kast_pst_av_salg": "0.08",
+        "kast_budsjett_kr": "1000"
+      },
+      "business_unik_unntak": {
+        "nivaa": "En check-skranke tillater bare avdeling og vareomrade. Aar og kode varierer per forsoek, saa den sammensatte noekkelen er unik uansett."
+      }
+    },
+    {
       "tabell": "kategori_vaerprofil",
       "$hvorfor": "Hvor vaerfoelsom hver varegruppe er, per stasjon (0070). INGEN ID-KOLONNE: primaernokkelen er (stasjon_id, niva, kode). Bare lesing finnes som policy - profilen beregnes av beregn_kategori_vaerprofil(), som kjorer som eier - saa alle fire operasjonene staar her for at matrisen skal bevise at ingen rolle skriver.",
       "tenant_scope": "retailer_and_station",

@@ -60,6 +60,9 @@ declare
     'ukebrief_utsending',
     -- Notat per rutine per dag (0170). Vokser med hver vakt.
     'rutine_notat',
+    -- Kastbudsjettet fra delingsfila (0172). Faa rader, men leses av
+    -- svinnflaten for hver stasjon og hvert aar.
+    'kastbudsjett',
     -- Semantisk kodemapping (0152). FAA RADER, MEN VARME: `v_butikksalg`
     -- joiner dem i HVER eneste salgsspoerring. En upakket funksjon i en
     -- policy her trekker per-rad-kall inn i alt som summerer kroner.

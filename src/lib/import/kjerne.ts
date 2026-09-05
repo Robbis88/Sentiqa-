@@ -14,7 +14,7 @@ import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
 import { manglendeStasjoner, dekningsnotat, erDaglig } from './stasjonsdekning'
 import { hoppetNotat } from '@/lib/bp/hoppede'
 import { bruttoKurve, timelonnKurve, maanedsrammer } from '@/lib/bp/fordeling'
-import { parseDelingsfil } from '@/lib/parsere/delingsfil'
+import { parseDelingsfil, type Kastbudsjett } from '@/lib/parsere/delingsfil'
 import { arknavn } from '@/lib/parsere/xlsx-rader'
 import { finnAaret } from '@/lib/bp/delingsfil-aar'
 import { koblePaaNavn } from '@/lib/bp/stasjonsnavn'
@@ -1241,7 +1241,64 @@ async function lagreDelingsfil(
   // `utenAargang` er derimot handlingsdyktig: stasjonen ER vaar, men det
   // finnes ingen BP for det aaret aa skrive timene paa.
   const fordelt = await fordelFraDokument(supabase, retailerId, jobbId, ar, [...rortAargang])
-  return { antallRader: skrevet + fordelt, umatchet: utenAargang }
+  const kast = await lagreKastbudsjett(supabase, retailerId, jobbId, ar, r.kastbudsjett, kobling)
+  return { antallRader: skrevet + fordelt + kast, umatchet: utenAargang }
+}
+
+// ---------------------------------------------------------------------
+// KASTBUDSJETTET PER UNDERGRUPPE
+//
+// St1 setter et kastbudsjett per vareomraade under 120 MAT. Tallene laa i
+// delingsfila hele tiden; parseren leste bare «Timer»-arket.
+//
+// SAMME AARSKOBLING SOM TIMENE. Fila sier ikke hvilket aar den gjelder -
+// `finnAaret` har alt avgjort det ved aa matche budsjettert matomsetning
+// mot BP-en. Aa gjette her ville lagt budsjettet paa feil aar, og et
+// kastkrav paa feil aar er verre enn ingen.
+//
+// SKRIVES OGSAA UTEN BP-AARGANG. Timene maa henge paa `bp_aar`; det maa
+// ikke kastbudsjettet - det er sitt eget dokument. En stasjon uten BP26
+// skal likevel kunne se hva den har lov til aa kaste.
+// ---------------------------------------------------------------------
+async function lagreKastbudsjett(
+  supabase: Klient,
+  retailerId: string,
+  jobbId: string,
+  ar: number,
+  rader: Kastbudsjett[],
+  kobling: Map<string, string>,
+): Promise<number> {
+  if (rader.length === 0) return 0
+  const naa = new Date().toISOString()
+  const inn = []
+  for (const k of rader) {
+    const stasjonId = kobling.get(k.butikknavn.trim().toLowerCase())
+    // Stasjoner i fila som ikke er vaare hoppes over uten sty. St1 sender
+    // ofte hele klyngen - se kommentaren om `ukoblet` over.
+    if (!stasjonId) continue
+    inn.push({
+      retailer_id: retailerId,
+      stasjon_id: stasjonId,
+      ar,
+      nivaa: k.nivaa,
+      kode: k.kode,
+      navn: k.navn,
+      kast_pst_av_salg: k.kastPst,
+      kast_budsjett_kr: k.kastKr,
+      historisk_salg_kr: k.historiskSalg,
+      usynlig_budsjett_kr: k.usynligKr,
+      kilde_jobb_id: jobbId,
+      oppdatert_tid: naa,
+    })
+  }
+  if (inn.length === 0) return 0
+  // UPSERT, IKKE INSERT. St1 sender reviderte filer, og en ny fil for
+  // samme aar er en RETTELSE - ikke en rad ved siden av den gamle.
+  const { error } = await supabase
+    .from('kastbudsjett')
+    .upsert(inn, { onConflict: 'stasjon_id,ar,nivaa,kode' })
+  if (error) throw new ParserFeil(`Delingsfil: kunne ikke skrive kastbudsjett: ${error.message}`)
+  return inn.length
 }
 
 // ---------------------------------------------------------------------
