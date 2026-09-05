@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
   borte, borteI, lenker, naabarhet, rutenavn, rutetre, seksjoner, serverhandlinger,
+  uregistrert, uregistrertI,
   type Fasit,
 } from './fasit'
 import { MONSTRE, RUTEMONSTER, TABLETRUTER } from './monstre'
@@ -134,6 +135,72 @@ describe('funksjonsbevaring', () => {
     // bak den borte, er en evne borte.
     expect(borteI(fasit!.handlinger, naa.handlinger), `Handlinger borte. ${hjelp}`)
       .toEqual({})
+  })
+
+  // --- HARDT DEN ANDRE VEIEN: et tillegg skal skrives ned ---
+  //
+  // ET VERN SOM BARE GJELDER DET NOEN HUSKET Å FØRE OPP, GJELDER IKKE.
+  //
+  // De tre testene over feller det som FORSVINNER. Fram til 2026-09-05
+  // sa ingen fra om det motsatte, og da hadde det samlet seg opp: en hel
+  // rute (`/ukebrief`) med to serverhandlinger, pluss `endreStasjoner`,
+  // `settSkiftFraSats`, `settOpplaeringsmerke` og `lagreNotat` — alle
+  // uregistrerte, alle helt i orden.
+  //
+  // Ingen av dem var en feil. Feilen var at de kunne slettes igjen uten
+  // at noe ble rødt: en rute som ikke står i fasiten, er en rute ingen
+  // ville savnet. Vernet slo altså inn først når noen husket på det.
+  //
+  // Prisen for å lukke det er én kommando ved hver ny rute, rolle eller
+  // serverhandling. Det er billigere enn å finne ut at vakten aldri
+  // gjaldt den ene tingen man trengte den til.
+  //
+  // BARE DE TRE HARDE. Seksjoner og lenker måles fortsatt mykt: de
+  // endres i hver eneste UI-endring, og en rød CI på hver overskrift
+  // ville lært folk å regenerere i blinde — og da hadde `borte`-testene
+  // sluttet å bety noe også.
+
+  test('ingen rute er uregistrert', () => {
+    expect(uregistrert(fasit!.ruter, naa.ruter), `Nye ruter mangler i fasiten. ${hjelp}`)
+      .toEqual([])
+  })
+
+  test('ingen ny rolletilgang er uregistrert', () => {
+    // Å GI tilgang er like mye en endring som å ta den. En rolle som
+    // stille fikk en side, sto uten et eneste spor av at noen valgte det.
+    expect(uregistrertI(fasit!.naabart, naa.naabart), `Ny tilgang mangler i fasiten. ${hjelp}`)
+      .toEqual({})
+  })
+
+  test('ingen serverhandling er uregistrert', () => {
+    expect(
+      uregistrertI(fasit!.handlinger, naa.handlinger),
+      `Nye handlinger mangler i fasiten. ${hjelp}`,
+    ).toEqual({})
+  })
+
+  // KANARIFUGL FOR RETNINGEN SELV.
+  //
+  // De tre testene over er grønne både når de virker og når de har
+  // sluttet å se — det er hele problemet med en vakt. Denne beviser at
+  // sammenligningen faktisk peker den nye veien, ved å legge inn noe som
+  // ikke står i fasiten og kreve at det kommer ut.
+  //
+  // Blir `uregistrert` en dag skrevet om til `borte`, blir denne rød og
+  // ikke de andre.
+  //
+  // HELT SYNTETISKE INNDATA, med vilje. Leste den `naa` og `fasit`,
+  // ville den blitt rød hver gang noen la til noe uten å regenerere —
+  // altså av samme grunn som testene over — og da beviste den ingenting
+  // om retningen. Den skal si én ting: at sammenligningen peker riktig
+  // vei.
+  test('KANARIFUGL: retningen fanger et tillegg som ikke er ført opp', () => {
+    expect(uregistrert(['/a'], ['/a', '/b'])).toEqual(['/b'])
+    expect(uregistrertI({ '/x': ['en'] }, { '/x': ['en', 'to'] })).toEqual({ '/x': ['to'] })
+
+    // Og den skal IKKE forveksles med `borte`: et tap er ikke et tillegg.
+    expect(uregistrert(['/a', '/b'], ['/a'])).toEqual([])
+    expect(uregistrertI({ '/x': ['en', 'to'] }, { '/x': ['en'] })).toEqual({})
   })
 
   // --- MYKT: skal endres, men ikke umerket ---

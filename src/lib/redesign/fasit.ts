@@ -337,6 +337,37 @@ export function borte(gammel: string[], ny: string[]): string[] {
   return gammel.filter((x) => !finnes.has(x))
 }
 
+/**
+ * Hva som finnes i `ny` og IKKE er skrevet ned i `gammel`.
+ *
+ * SPEILBILDET AV `borte`, OG LIKE NØDVENDIG.
+ *
+ * Fasiten fanget lenge bare det som forsvant. Det gjorde den blind for
+ * den motsatte feilen: alt som ble LAGT TIL sto uregistrert til noen
+ * tilfeldigvis regenererte. Målt 2026-09-05 hadde det samlet seg opp en
+ * hel rute (`/ukebrief`) med to serverhandlinger, pluss `endreStasjoner`,
+ * `settSkiftFraSats`, `settOpplaeringsmerke` og `lagreNotat`.
+ *
+ * Ingen av dem var feil. Poenget er at vakten ikke visste om dem, og en
+ * rute som ikke står i fasiten er en rute ingen ville savnet: den kan
+ * fjernes igjen uten at noe blir rødt. Vernet slår altså inn først når
+ * noen husker på det - og da verner det ikke.
+ *
+ * Å kreve at et tillegg skrives ned koster én kommando. Å oppdage at et
+ * vern aldri gjaldt, koster det vernet skulle ha spart.
+ */
+export function uregistrert(gammel: string[], ny: string[]): string[] {
+  return borte(ny, gammel)
+}
+
+/** Samme, for et oppslag av lister. Returnerer bare nøkler som fikk noe nytt. */
+export function uregistrertI(
+  gammel: Record<string, string[]>,
+  ny: Record<string, string[]>,
+): Record<string, string[]> {
+  return borteI(ny, gammel)
+}
+
 /** Samme, for et oppslag av lister. Returnerer bare nøkler som mistet noe. */
 export function borteI(
   gammel: Record<string, string[]>,
