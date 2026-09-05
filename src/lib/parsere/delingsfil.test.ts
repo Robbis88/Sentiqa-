@@ -73,12 +73,19 @@ describe('erDelingsfil', () => {
   })
 
   it('KANARIFUGL: «Timer» alene er ikke nok', () => {
-    // Ordet kan staa i hvilken som helst arbeidsbok. Uten
-    // varegruppearkene ved siden av er det ikke en delingsfil, og en
-    // feilgjenkjenning her ville sendt en tilfeldig fil inn i
-    // timebudsjettet.
+    // Ordet kan staa i hvilken som helst arbeidsbok. Det er KOMBINASJONEN
+    // Mat + Vask som skiller delingsfila, og en feilgjenkjenning her ville
+    // sendt en tilfeldig fil inn i timebudsjettet.
     expect(erDelingsfil(bok(HODE, ['Timer', 'Noe annet']))).toBe(false)
-    expect(erDelingsfil(bok(HODE, ['Mat', 'Bilvask']))).toBe(false)
+    expect(erDelingsfil(bok(HODE, ['Mat']))).toBe(false)
+    expect(erDelingsfil(bok(HODE, ['Vask', 'Noe annet']))).toBe(false)
+  })
+
+  // 2026-FILA HAR INGEN «Timer». Kravet om det arket avviste fila for
+  // aaret vi driver i, helt til 2026-09-05. Faller denne, er vi tilbake
+  // til at kastbudsjettet aldri kommer inn.
+  it('godtar varianten uten «Timer»-ark', () => {
+    expect(erDelingsfil(bok(HODE, ['Mat', 'Vask']))).toBe(true)
   })
 
   it('sier nei til BP-ene', () => {
@@ -132,8 +139,12 @@ describe('parseDelingsfil', () => {
     expect(parseDelingsfil(med0).stasjoner.map((s) => s.butikknavn)).toEqual(['SHELL BØNES'])
   })
 
-  it('kaster når arket ikke har noen stasjoner', () => {
-    expect(() => parseDelingsfil(bok(HODE))).toThrow(/ingen stasjoner med timebudsjett/)
+  // Begge arkene kan mangle, men ikke samtidig - da er det ikke en
+  // delingsfil vi kjenner igjen, og den skal SI det i stedet for aa
+  // lagre ingenting og melde «parset».
+  it('kaster når verken timer eller kastbudsjett finnes', () => {
+    expect(() => parseDelingsfil(bok(HODE)))
+      .toThrow(/verken timebudsjett .* eller kastbudsjett/)
   })
 
   it('kaster når kolonnene mangler', () => {

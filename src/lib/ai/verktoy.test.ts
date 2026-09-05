@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { VERKTOY, verktoyForRolle } from './verktoy'
+import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
 import type { Verktoysvar } from './svar'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 
@@ -595,6 +596,7 @@ describe('katalogvakt', () => {
     'hent_kassererstatistikk', 'hent_bp_status', 'hent_regnskap',
     'hent_timeregnskap', 'hent_bemanning', 'hent_stempling', 'hent_svinn',
     'hent_kaffesvinn', 'hent_ikmat', 'hent_rutiner', 'hent_avvik',
+    'hent_utsolgt', 'hent_vareprognose',
     'hent_produksjonsplan', 'hent_malekort', 'hent_fokus_status',
     'sla_opp_kunnskap', 'list_oppgaver', 'list_konkurranser',
     'opprett_oppgave', 'opprett_konkurranse', 'kar_vinner',
@@ -604,12 +606,83 @@ describe('katalogvakt', () => {
     expect(Object.keys(VERKTOY).sort()).toEqual([...FASIT].sort())
   })
 
+  // ASSISTENTEN SKAL KUNNE SE FRAMOVER.
+  //
+  // Kartleggingen 2026-09-05 fant at alle 24 verktoeyene saa bakover -
+  // hvert eneste svarte paa «hva skjedde». Forsvinner disse to, er den
+  // tilbake til aa bare huske, og det ser ut som en katalog som er litt
+  // mindre framfor et produkt som mistet en evne.
+  // INGEN VERKTØY UTENOM PORTNEREN.
+  //
+  // T1–T6 beviser scopingen på ÉTT verktøy (`hent_svinn`). Resten er
+  // dekket strukturelt: de går gjennom `stasjonsverktoy`, som kaller
+  // `kjorStasjonsverktoy`, som kaller `hentScope` og `velgStasjoner`.
+  //
+  // Et verktøy med egen `kjor` som spør databasen direkte ville hatt
+  // ingen scoping i det hele tatt. RLS ville stoppet det meste — men
+  // «det meste» er ikke en tilgangsmodell, og et verktøy som når hele
+  // kjeden ser ut som et verktøy som virker.
+  //
+  // Denne krever at hvert eneste verktøy enten bruker hjelperen eller
+  // henter scopet selv.
+  it('hvert verktoey gaar gjennom scopingen', () => {
+    const kilde = readFileSync(join(process.cwd(), 'src', 'lib', 'ai', 'verktoy.ts'), 'utf8')
+    // Kommentarene bort først — en vakt som leser sin egen prosa står grønn.
+    const kode = kilde.split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n')
+    // ANKRET PAA HELE ERKLAERINGEN. `export const VERKTOY` alene treffer
+    // ogsaa `VERKTOY_ETIKETT`, som staar foerst i fila - og der er hvert
+    // verktoeynavn en enlinjes noekkel, saa hver kropp ble ett ord lang og
+    // vakten meldte at ALLE var ugatet. En vakt som roper paa alt er like
+    // ubrukelig som en som tier.
+    const start = kode.indexOf('export const VERKTOY: Record<string, Verktoy>')
+    expect(start, 'fant ikke verktoeykatalogen').toBeGreaterThan(0)
+    const navn = Object.keys(VERKTOY)
+
+    // LESER IKKE STASJONSDATA, OG SKAL DERFOR IKKE SCOPES PAA STASJON.
+    //
+    // Begge leser kjedens egne rader, ikke en stasjons. Tenantgrensa
+    // haandheves av RLS paa tabellen. Et unntak her krever en skrevet
+    // grunn - «den bruker ikke hjelperen» er ikke en.
+    const UTEN_STASJONSSCOPE: Record<string, string> = {
+      sla_opp_kunnskap: 'leser `kunnskap` - tariffavtale, HMS og rutiner. Ingen stasjonsdimensjon.',
+      list_konkurranser: 'konkurranser er kjedens, paa tvers av stasjoner. RLS binder retaileren.',
+    }
+
+    const uten: string[] = []
+    for (const n of navn) {
+      if (n in UTEN_STASJONSSCOPE) continue
+      const i = kode.indexOf('\n  ' + n + ': ', start)
+      if (i < 0) { uten.push(n + ' (fant ikke definisjonen)'); continue }
+      const rest = kode.slice(i + 1)
+      const andre = navn.filter((x) => x !== n).join('|')
+      const neste = rest.search(new RegExp('\\n  (?:' + andre + '): '))
+      const kropp = neste > 0 ? rest.slice(0, neste) : rest
+      if (!/stasjonsverktoy\(|kjorStasjonsverktoy|hentScope\(/.test(kropp)) uten.push(n)
+    }
+
+    expect(uten,
+      'verktoey som verken bruker stasjonsverktoy/kjorStasjonsverktoy eller henter '
+      + 'scopet selv — en butikksjef ville naadd hele kjeden: ' + uten.join(', '),
+    ).toEqual([])
+  })
+
+  it('hvert verktoey har en etikett brukeren kan lese', () => {
+    // Uten etikett faller kildelista tilbake paa det raa navnet.
+    const uten = Object.keys(VERKTOY).filter((n) => !VERKTOY_ETIKETT[n])
+    expect(uten, `verktoey uten lesbar etikett: ${uten.join(', ')}`).toEqual([])
+  })
+
+  it('katalogen har minst ett verktoey som ser framover', () => {
+    expect(VERKTOY['hent_vareprognose'], 'assistenten kan ikke lenger spaa').toBeDefined()
+    expect(VERKTOY['hent_utsolgt'], 'uten denne kan prognosen ikke stoles paa').toBeDefined()
+  })
+
   it('hvert domene i produktkontrakten har et verktøy', () => {
     for (const v of [
       'hent_datadekning', 'hent_bp_status', 'hent_timeregnskap',
       'hent_bemanning', 'hent_produksjonsplan', 'hent_ikmat',
       'hent_rutiner', 'hent_avvik', 'hent_kassererstatistikk',
-      'hent_malekort', 'hent_stempling',
+      'hent_malekort', 'hent_stempling', 'hent_utsolgt', 'hent_vareprognose',
     ]) {
       expect(VERKTOY[v], `mangler verktøy: ${v}`).toBeDefined()
     }

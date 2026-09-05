@@ -24,9 +24,21 @@ export const erBp25Arknavn = (navn: string[]): boolean =>
  * arbeidsbok. Det er kombinasjonen med varegruppearkene som skiller
  * den.
  */
+/**
+ * Delingsfila, i begge variantene St1 sender.
+ *
+ * `Mat` + `Vask` ER kombinasjonen som skiller fila - ingen annen
+ * St1-rapport har begge. `Timer` var med i kravet fram til 2026-09-05,
+ * og det avviste aarets egen fil: den har bare Mat og Vask.
+ *
+ *     2025-fila   Timer + Mat + ti undergruppeark + Bilvask
+ *     2026-fila   Mat + Vask
+ *
+ * Uten denne endringen ville fila for aaret vi driver i blitt meldt som
+ * «ukjent format» - og kastbudsjettet ville aldri kommet inn.
+ */
 export const erDelingsfilArknavn = (navn: string[]): boolean =>
-  navn.includes('timer') && navn.includes('mat')
-  && (navn.includes('bilvask') || navn.includes('vask'))
+  navn.includes('mat') && (navn.includes('bilvask') || navn.includes('vask'))
 
 // Kjenner igjen hvilken St1/Visma-rapport en opplastet xlsx er, basert på
 // arknavn + tittelcelle. Brukes av arbeideren til å rute til riktig parser

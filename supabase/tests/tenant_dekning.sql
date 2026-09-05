@@ -52,6 +52,7 @@ begin
     ('kalender_kilder', true, false),
     ('kampanjer', true, false),
     ('kassererstatistikk', true, false),
+    ('kastbudsjett', true, false),
     ('kategori_vaerprofil', true, false),
     ('konkurranser', true, false),
     ('kontraktmal', true, false),

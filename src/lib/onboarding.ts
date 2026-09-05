@@ -150,6 +150,21 @@ export const KILDER: Kildekrav[] = [
     anbefaltDager: 0,
     kritisk: true,
   },
+  {
+    noekkel: 'kastbudsjett',
+    navn: 'Kastbudsjett per varegruppe',
+    // SAMME FIL SOM TIMENE, ANNET ARK. Delingsfila kommer i to varianter:
+    // den ene har «Timer» og ti undergruppeark, den andre bare Mat og
+    // Vask — men med usynlig svinn. Begge godtas, og begge fyller dette.
+    hentesFra: 'Delingsfila fra St1 — samme fil som timebudsjettet',
+    laserOpp: 'Hvor mye stasjonen har lov til å kaste. Uten den kan svinnet '
+      + 'måles og vises, men ikke sies om det er for mye.',
+    anbefaltDager: 0,
+    // IKKE KRITISK. Mangler den, virker svinnsida som før — den viser
+    // hva som ble kastet, bare uten et krav å holde det opp mot. Å gjøre
+    // den kritisk ville stoppet en kjede som ikke har fått fila ennå.
+    kritisk: false,
+  },
   // ---------------------------------------------------------------
   // DE TRE SOM MANGLET.
   //
@@ -207,6 +222,10 @@ export const TYPE_TIL_KILDE: Record<string, string> = {
   // Delingsfila fyller `bp_aar.timer_aar` for kjeder på den gamle malen.
   // Den er ikke et eget krav — kravet er at timene FINNES, og på nytt
   // format kommer de med BP-fila.
+  // Delingsfila fyller TO kilder: timene (paa den gamle malen) og
+  // kastbudsjettet. `TYPE_TIL_KILDE` er én-til-én, saa den peker paa
+  // timene - de er det kritiske. Kastbudsjettet maales av sin egen arm i
+  // `v_datadekning` og trenger ingen oppfoering her.
   st1_delingsfil: 'bp_timer',
 }
 

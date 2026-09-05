@@ -45,6 +45,9 @@ with lister as (
     'ukebrief_utsending',
     -- Notat per rutine per dag (0170). Vokser med hver vakt.
     'rutine_notat',
+    -- Kastbudsjettet fra delingsfila (0172). Faa rader, men leses av
+    -- svinnflaten for hver stasjon og hvert aar.
+    'kastbudsjett',
     -- Semantisk kodemapping (0152). Faa rader, men varme: v_butikksalg
     -- joiner dem i HVER eneste salgsspoerring.
     'retailer_kodeerklaering', 'retailer_koderegel',
