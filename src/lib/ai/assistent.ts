@@ -4,7 +4,7 @@ import { env } from '@/lib/env'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 import { ROLLE_ETIKETT } from '@/lib/auth/typer'
-import { VERKTOY, verktoyForRolle } from './verktoy'
+import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
 import { idagOslo } from './periode'
 
 // Chatbot kjører på Sonnet (PROSJEKT.md §8/§18 — margin; hev til Opus ved behov).
@@ -18,32 +18,6 @@ const MAKS_ITERASJONER = 14
 export type Melding = { rolle: 'bruker' | 'assistent'; tekst: string }
 export type AssistentSvar = { svar: string; kilder: string[] }
 
-const VERKTOY_ETIKETT: Record<string, string> = {
-  list_stasjoner: 'stasjoner',
-  hent_datadekning: 'datadekning',
-  hent_salg: 'salg',
-  hent_timesalg: 'timesalg',
-  hent_kassererstatistikk: 'kassererstatistikk',
-  hent_bp_status: 'businessplan',
-  hent_regnskap: 'regnskap',
-  hent_timeregnskap: 'timeregnskap',
-  hent_bemanning: 'bemanning',
-  hent_stempling: 'stempling',
-  hent_svinn: 'svinn',
-  hent_kaffesvinn: 'kaffe',
-  hent_ikmat: 'IK-mat',
-  hent_rutiner: 'rutiner',
-  hent_avvik: 'avvik og varsler',
-  hent_produksjonsplan: 'produksjonsplan',
-  hent_malekort: 'målekort',
-  hent_fokus_status: 'fokus',
-  sla_opp_kunnskap: 'kunnskapsbasen',
-  list_konkurranser: 'konkurranser',
-  opprett_konkurranse: 'opprett konkurranse',
-  kar_vinner: 'kår vinner',
-  list_oppgaver: 'oppgaver',
-  opprett_oppgave: 'opprett oppgave',
-}
 
 function systemprompt(bruker: InnloggetBruker, idag: string): string {
   const erEier = bruker.rolle === 'retailer_admin'

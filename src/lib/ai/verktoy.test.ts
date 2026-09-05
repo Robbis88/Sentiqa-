@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
-import { VERKTOY, verktoyForRolle } from './verktoy'
+import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
 import type { Verktoysvar } from './svar'
 import type { InnloggetBruker } from '@/lib/auth/typer'
 
@@ -595,6 +595,7 @@ describe('katalogvakt', () => {
     'hent_kassererstatistikk', 'hent_bp_status', 'hent_regnskap',
     'hent_timeregnskap', 'hent_bemanning', 'hent_stempling', 'hent_svinn',
     'hent_kaffesvinn', 'hent_ikmat', 'hent_rutiner', 'hent_avvik',
+    'hent_utsolgt', 'hent_vareprognose',
     'hent_produksjonsplan', 'hent_malekort', 'hent_fokus_status',
     'sla_opp_kunnskap', 'list_oppgaver', 'list_konkurranser',
     'opprett_oppgave', 'opprett_konkurranse', 'kar_vinner',
@@ -604,12 +605,29 @@ describe('katalogvakt', () => {
     expect(Object.keys(VERKTOY).sort()).toEqual([...FASIT].sort())
   })
 
+  // ASSISTENTEN SKAL KUNNE SE FRAMOVER.
+  //
+  // Kartleggingen 2026-09-05 fant at alle 24 verktoeyene saa bakover -
+  // hvert eneste svarte paa «hva skjedde». Forsvinner disse to, er den
+  // tilbake til aa bare huske, og det ser ut som en katalog som er litt
+  // mindre framfor et produkt som mistet en evne.
+  it('hvert verktoey har en etikett brukeren kan lese', () => {
+    // Uten etikett faller kildelista tilbake paa det raa navnet.
+    const uten = Object.keys(VERKTOY).filter((n) => !VERKTOY_ETIKETT[n])
+    expect(uten, `verktoey uten lesbar etikett: ${uten.join(', ')}`).toEqual([])
+  })
+
+  it('katalogen har minst ett verktoey som ser framover', () => {
+    expect(VERKTOY['hent_vareprognose'], 'assistenten kan ikke lenger spaa').toBeDefined()
+    expect(VERKTOY['hent_utsolgt'], 'uten denne kan prognosen ikke stoles paa').toBeDefined()
+  })
+
   it('hvert domene i produktkontrakten har et verktøy', () => {
     for (const v of [
       'hent_datadekning', 'hent_bp_status', 'hent_timeregnskap',
       'hent_bemanning', 'hent_produksjonsplan', 'hent_ikmat',
       'hent_rutiner', 'hent_avvik', 'hent_kassererstatistikk',
-      'hent_malekort', 'hent_stempling',
+      'hent_malekort', 'hent_stempling', 'hent_utsolgt', 'hent_vareprognose',
     ]) {
       expect(VERKTOY[v], `mangler verktøy: ${v}`).toBeDefined()
     }
