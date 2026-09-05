@@ -248,6 +248,10 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       // kostnadsramme. Butikksjefen ser sin maanedsramme i /bemanning.
       { sti: '/businessplan/sammenlign', tekst: 'Sammenlign BP', roller: [A] },
       { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
+      // Loenn over tid, mot budsjett. Butikksjefen ser sin egen stasjon -
+      // loennsrammen er stasjonens ansvar, og /regnskap svarer bare paa
+      // én maaned om gangen.
+      { sti: '/lonnskost', tekst: 'Lønnskost', roller: [A, B] },
       { sti: '/analyse', tekst: 'Regnskapsanalyse', roller: [A] },
       { sti: '/timeregnskap', tekst: 'Timeregnskap', roller: [A] },
       { sti: '/maaling', tekst: 'Måling', roller: [A, B] },

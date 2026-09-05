@@ -186,7 +186,11 @@ gh pr create --fill
 
 Kjører i vitest, tar 200 ms til sammen. `npx vitest run src/lib/redesign` etter hver side.
 
-- **`vakthund.test.ts`** — ingen rute, rolletilgang eller serverhandling skal forsvinne i stillhet. Seksjoner og lenker måles mykt.
+- **`vakthund.test.ts`** — ingen rute, rolletilgang eller serverhandling skal forsvinne i stillhet, **og ingen skal legges til uten å bli skrevet ned**. Seksjoner og lenker måles mykt.
+
+  Den andre halvdelen kom 2026-09-05. Fram til da felte vakten bare det som *forsvant*, og da gjaldt vernet først når noen husket å regenerere: `/ukebrief` med to serverhandlinger, `endreStasjoner`, `settSkiftFraSats`, `settOpplaeringsmerke` og `lagreNotat` sto uregistrerte. Ingen av dem var feil — feilen var at de kunne slettes igjen uten at noe ble rødt. **En rute som ikke står i fasiten, er en rute ingen ville savnet.**
+
+  Legger du til en rute, en rolletilgang eller en serverhandling, kjør derfor `OPPDATER_FASIT=1 npx vitest run src/lib/redesign` i samme slengen. Seksjoner og lenker er fortsatt myke med vilje: de endres i hver UI-endring, og en rød CI på hver overskrift ville lært folk å regenerere i blinde — og da hadde `borte`-testene sluttet å bety noe også.
 - **`tilgang.test.ts`** — menyen skal ikke love tilgang siden avviser. Leser portneren ut av kilden.
 - **`design.test.ts`** — skralle på inline-stiler, emoji, rå `<table>`, rå `<h1>` og hex-farger. Tallene får aldri gå opp.
 - **`tokens.test.ts`** — de 33 designtokenene i `globals.css` endrer seg ikke i stillhet. En token treffer hele systemet samtidig.

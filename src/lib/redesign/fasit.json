@@ -30,6 +30,7 @@
     "/logg-inn",
     "/logg-inn/totp",
     "/lonn",
+    "/lonnskost",
     "/maaling",
     "/meldinger",
     "/merker",
@@ -68,6 +69,7 @@
     "/timeregnskap",
     "/timesalg",
     "/trafikk",
+    "/ukebrief",
     "/utsolgt",
     "/vaar-stasjon",
     "/varsler"
@@ -108,6 +110,7 @@
       "/kontrakt",
       "/lederstotte",
       "/lonn",
+      "/lonnskost",
       "/maaling",
       "/meldinger",
       "/merker",
@@ -148,6 +151,7 @@
       "/kontrakt",
       "/lederstotte",
       "/lonn",
+      "/lonnskost",
       "/maaling",
       "/meldinger",
       "/merker",
@@ -228,6 +232,7 @@
       "slettVindu"
     ],
     "/brukere": [
+      "endreStasjoner",
       "fjernBruker",
       "opprettBruker"
     ],
@@ -280,6 +285,7 @@
       "annullerHendelse",
       "lukkVakt",
       "settLonnsform",
+      "settSkiftFraSats",
       "settStemplingskilde",
       "settTimesats"
     ],
@@ -296,6 +302,7 @@
       "fjernTildeling",
       "leggTilMerke",
       "settOppStandard",
+      "settOpplaeringsmerke",
       "slettMerke",
       "tildelMerke"
     ],
@@ -368,7 +375,8 @@
     "/rutiner": [
       "fjernKryss",
       "kryssAv",
-      "kryssAvMedBilde"
+      "kryssAvMedBilde",
+      "lagreNotat"
     ],
     "/rutiner/min": [
       "leggTilPunkt",
@@ -423,6 +431,10 @@
     "/trafikk": [
       "finnTeller",
       "settTrafikkAktiv"
+    ],
+    "/ukebrief": [
+      "sendProveTilMegSelv",
+      "torrkjorUkebrief"
     ],
     "/varsler": [
       "fjernPushAbonnement",
@@ -499,7 +511,8 @@
     ],
     "/brukere": [
       "Ingen brukere ennå",
-      "Ny bruker"
+      "Ny bruker",
+      "p.fullt_navn ?? 'Bruker'"
     ],
     "/businessplan": [
       "Ingen businessplan for denne måneden",
@@ -516,6 +529,7 @@
       "dynamisk:f.tittel"
     ],
     "/dekning": [
+      "Hull per stasjon",
       "Måned for måned"
     ],
     "/fokus": [
@@ -597,6 +611,12 @@
       "Kontroll før sending",
       "Åpen vakt · ${v.ansattNavn}"
     ],
+    "/lonnskost": [
+      "Ingen lønnstall ennå",
+      "Kontoene · ${manedAar.format(new Date(`${siste.maaned}-01`))}",
+      "Per måned",
+      "Velg en stasjon"
+    ],
     "/maaling": [
       "Nytt målekort",
       "dynamisk:m.navn",
@@ -609,6 +629,7 @@
     "/merker": [
       "Ingen ansatte ennå",
       "Ingen merker satt opp",
+      "Merke for fullført opplæring",
       "Tildel et merke"
     ],
     "/mine-opplysninger": [
@@ -718,6 +739,7 @@
       "Nytt innlegg"
     ],
     "/regnskap": [
+      "Hva forklarer forskjellen",
       "Ingen regnskapsdata ennå",
       "Ingen regnskapsdata for din stasjon ennå",
       "Kostnader per konto · hele kjeden",
@@ -783,8 +805,10 @@
     ],
     "/svinn": [
       "Ingen svinndata ennå",
+      "Kastbudsjett {valgtMaaned.slice(0, 4)}",
       "Måned for måned",
       "Per stasjon · ${manedAar.format(new Date(valgtMaaned))}",
+      "Per undergruppe",
       "Svinn per varegruppe",
       "valgtGruppe ? `Mest svinn (varer) · ${gruppeNavn}` : 'Mest svinn (varer)'"
     ],
@@ -801,6 +825,17 @@
     "/trafikk": [
       "Ingen stasjoner å koble",
       "Mangler service-nøkkel"
+    ],
+    "/ukebrief": [
+      "Dette gikk bra",
+      "Dette vet vi ikke",
+      "Dette ville jeg tatt tak i",
+      "Ingen data for denne uken",
+      "Ingen salgsdata",
+      "Ingen stasjoner",
+      "Trenger oppmerksomhet",
+      "Utført per dag",
+      "dynamisk:brief.overskrift"
     ],
     "/utsolgt": [
       "Ingen tegn til tom hylle",
@@ -946,6 +981,9 @@
     ],
     "/timesalg": [
       "/import"
+    ],
+    "/ukebrief": [
+      "/api/ukebrief/pdf"
     ],
     "/vaar-stasjon": [
       "/merker"

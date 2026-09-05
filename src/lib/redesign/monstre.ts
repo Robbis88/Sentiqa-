@@ -287,6 +287,11 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // eneste salg er gjort.
   '/businessplan/sammenlign': 'analyse',
   '/regnskap': 'analyse',
+  // «Koster stasjonen mer i loenn enn den skal, og har den gjort det
+  // lenge?» Analyse og ikke dataliste: nivaa 1 er svaret - avviket mot
+  // budsjett - og tabellen under forklarer det. Seks kolonner, men de
+  // sammenlignes ikke paa tvers av rader; de leses nedover, som en serie.
+  '/lonnskost': 'analyse',
   '/analyse': 'analyse',
   '/maaling': 'analyse',
   '/kasserer': 'analyse',
