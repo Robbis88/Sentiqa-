@@ -2208,6 +2208,43 @@
       "$fra_tid_hvorfor": "business_unik er en flat liste over kolonnene i ALLE noeklene paa tabellen (se ansatte, som har to), saa valider() kan ikke se hvilke som hoerer sammen - og krever derfor at hver enkelt varierer. Klokkeslettet er det eneste feltet uten et naturlig varierende uttrykk; clock_timestamp() er baade sant og tilstrekkelig."
     },
     {
+      "tabell": "lonnsart_linje",
+      "$hvorfor": "Loennsarter med timer og kroner fra easy@work (0179). Samme scope som stempling: INGEN retailer_id - kjeden naas bare gjennom stasjonen. Strammere enn stempling paa lesing: raden baerer kroner per navngitt person, altsaa loennsopplysninger, saa policyen krever retailer_admin eller butikksjef. Nettbrettet naar den ikke i det hele tatt - den delte kontoen er ikke en person. Sletting er eierens alene, som i 0088: en linje som forsvinner er kroner noen ikke faar.",
+      "tenant_scope": "station",
+      "data_class": "warm",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "assigned_stations",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ansatt_nr",
+        "dato",
+        "lonnsart_tekst"
+      ],
+      "proberad": {
+        "ansatt_nr": "'{{unik}}'",
+        "ansatt_navn": "'Sonde Sondesen'",
+        "dato": "{{unik_dato}}",
+        "lonnsart": "'2'",
+        "lonnsart_tekst": "'{{unik}}'",
+        "timer": "8",
+        "belop_kr": "1600"
+      },
+      "$lonnsart_tekst_hvorfor": "Noekkelen er HELE etiketten, ikke koden. Loennsart 97 finnes i fire varianter, og to av dem traff samme person samme dag to ganger i august 2026. En noekkel paa koden alene ville gjort 400 rader til 398 og spist 5 273 kroner sondagsovertid i en 23505 som ser ut som en avvisning.",
+      "$oppdaterbart_hvorfor": "ansatt_nr og lonnsart_tekst inngaar i business_unik; belop_kr gjor det ikke.",
+      "oppdaterbart": "belop_kr = 1500"
+    },
+    {
       "tabell": "stempling_hendelse",
       "$hvorfor": "DELETE finnes ikke som policy i det hele tatt. Generatoren skal ikke kreve en operasjon tabellen ikke stotter - men fravaeret er en paastand, ikke en stillhet.",
       "tenant_scope": "retailer_and_station",

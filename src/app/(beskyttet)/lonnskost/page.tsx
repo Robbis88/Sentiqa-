@@ -9,6 +9,7 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
+import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -32,17 +33,26 @@ import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 // åpen måned har bare BP-en. Uten merkelappen ville en serie som bytter
 // kilde sett ut som et brudd i tallene.
 //
-// BP-EN HAR SIN EGEN KOLONNE, og den finnes for HVER måned — også de
-// avlagte. Her sto det en stund at de to aldri fantes samtidig; det var
-// sant om `bp_kostnad` i regnskapslinjer, som importen hopper over når
-// måneden er låst, men ikke om `bp_linje` (`0155`), som er BP-en som
-// sitt eget dokument.
+// ÉN BUDSJETTKOLONNE, IKKE TO.
 //
-// Målt på Bønes 2026 bærer de samme tall i alle sju avlagte måneder —
-// St1 laster BP-en rett inn i rapportens budsjettkolonne. To identiske
-// kolonner må forklares, ellers ser de ut som en feil; setningen under
-// tabellen sier hvor mange som er like. Kolonnen står likevel, for en
-// revidert rapport ville skilt lag med BP-en, og DET er det man vil se.
+// St1s månedsbudsjett og BP-en sto lenge side om side, fordi de svarer
+// på hvert sitt spørsmål: hva DENNE måneden ble målt mot, og hva St1
+// lovet for året. De er bare aldri ulike. Målt over hele serien bærer de
+// samme tall i hver eneste måned — St1 laster BP-en rett inn i
+// rapportens budsjettkolonne.
+//
+// To kolonner som alltid viser samme tall lærer leseren å se forbi dem
+// begge. Så det ble én — men sammenligningen står igjen som en STILLE
+// SJEKK: spriker de, sier siden fra, og da betyr avviket noe (en revidert
+// rapport etter at BP-en ble satt). Signalet er beholdt, støyen er borte.
+//
+// ---------------------------------------------------------------------
+// EASY@WORK STÅR VED SIDEN AV, ALDRI I STEDET FOR
+//
+// Regnskapet er fasiten og kommer midt i neste måned. easy@work-
+// eksporten finnes dagen etter at måneden er over. Den mangler fastlønn,
+// refundert sykelønn og bonus per konstruksjon, og det skal stå ved
+// siden av tallet — ikke i en fotnote.
 // =====================================================================
 
 type Sok = { stasjon?: string }
@@ -99,7 +109,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     )
   }
 
-  const { maaneder, ukjenteKoder } = await hentLonnskost(supabase, valgtStasjon!, FRA)
+  const { maaneder, ukjenteKoder, easyatwork } = await hentLonnskost(supabase, valgtStasjon!, FRA)
   const avlagte = maaneder.filter((m) => m.avlagt)
   const siste = avlagte[0]
 
@@ -119,6 +129,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   }
 
   const avvik = siste && siste.budsjettKr != null ? siste.lonnskostKr - siste.budsjettKr : null
+  const eaPerMaaned = new Map(easyatwork.map((e) => [e.maaned, e]))
+  const sisteEa = easyatwork[0]
+  const ukjenteArter = [...new Set(easyatwork.flatMap((e) => e.ukjenteArter))]
 
   // Hvor mange maaneder har BEGGE budsjettene, og i hvor mange spriker
   // de? En krone slaar ut - de to kildene skal baere samme tall med
@@ -191,8 +204,8 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           <tr>
             <th>Måned</th>
             <th>Lønnskost</th>
+            <th>easy@work</th>
             <th>Budsjett</th>
-            <th>BP</th>
             <th>Avvik</th>
             <th>Timer</th>
             <th>Snittsats</th>
@@ -201,6 +214,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         <tbody>
           {maaneder.map((m) => {
             const a = m.budsjettKr == null ? null : m.lonnskostKr - m.budsjettKr
+            const ea = eaPerMaaned.get(m.maaned)
+            const spriker = m.budsjettKr != null && m.bpBudsjettKr != null
+              && Math.abs(m.budsjettKr - m.bpBudsjettKr) >= 1
             return (
               <tr key={m.maaned}>
                 <td>
@@ -210,12 +226,17 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                   {!m.avlagt && <> <Status nivaa="endring">budsjett</Status></>}
                 </td>
                 <td>{m.avlagt ? kr.format(Math.round(m.lonnskostKr)) : '—'}</td>
-                <td>{m.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}</td>
-                {/* BP-EN STAAR I EGEN KOLONNE, IKKE I STEDET FOR.
-                    St1s maanedsbudsjett sier hva DENNE maaneden ble maalt
-                    mot; BP-en sier hva St1 lovet for aaret. De kan vaere
-                    ulike, og det er da man vil se begge. */}
-                <td>{m.bpBudsjettKr == null ? '—' : kr.format(Math.round(m.bpBudsjettKr))}</td>
+                {/* ANSLAGET, IKKE FASITEN. Står tomt til fila er lastet
+                    opp for måneden — en tom celle er ærligere enn en null. */}
+                <td>{ea == null ? '—' : kr.format(Math.round(ea.lonnskostKr))}</td>
+                {/* ÉN BUDSJETTKOLONNE. Spriker St1s månedsbudsjett fra
+                    BP-en, sier pipen fra — da er rapporten revidert etter
+                    at BP-en ble satt, og det er månedsbudsjettet som
+                    gjelder. Ellers er de samme tall og fortjener én celle. */}
+                <td>
+                  {m.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}
+                  {spriker && <> <Status nivaa="endring">≠ BP</Status></>}
+                </td>
                 <td>
                   {a == null ? '—' : (
                     <span className={`status-pip ${a > 0 ? 'rod' : 'gronn'}`}>
@@ -280,20 +301,80 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </p>
       )}
 
-      {/* TO IDENTISKE KOLONNER MAA FORKLARES, ellers ser de ut som en
-          feil. Maalt paa Boenes 2026: St1s maanedsbudsjett og BP-en er
-          samme tall i alle sju avlagte maanedene - St1 laster BP-en rett
-          inn i rapportens budsjettkolonne. Kolonnen staar likevel, for
-          en revidert BP ville skilt lag med rapporten, og DET er det man
-          vil se. */}
-      {samsvar.begge > 0 && (
+      {/* SIGNALET, IKKE STOEYEN.
+          Kolonnen for BP-en er borte fordi de to alltid baerer samme
+          tall. Sammenligningen er ikke borte: spriker de, er rapporten
+          revidert etter at BP-en ble satt, og DET er verdt en setning.
+          Er de like, sier siden ingenting - som den skal. */}
+      {samsvar.ulike > 0 && (
+        <Status nivaa="handling">
+          {`${samsvar.ulike} av ${samsvar.begge} måneder har ulikt tall i St1s `}
+          {'månedsbudsjett og BP-en. Rapporten er revidert etter at BP-en ble satt. '}
+          {'Budsjettkolonnen viser månedsbudsjettet — det er det måneden måles mot.'}
+        </Status>
+      )}
+
+      {/* EN UKJENT LOENNSART ER ET FUNN.
+          Fristelsen var «alt som ikke er 2 eller 12 er tillegg». Den ville
+          lagt en fastloennsart rett i 502 og gjort et hull til et tall. */}
+      {ukjenteArter.length > 0 && (
+        <Status nivaa="handling">
+          {`easy@work-fila har ${ukjenteArter.length} lønnsart(er) uten konto: `}
+          {ukjenteArter.join(', ')}
+          {'. De er holdt UTENFOR anslaget under, ikke lagt i en bøtte.'}
+        </Status>
+      )}
+
+      {sisteEa && (
+        <Datatabell
+          tittel={`easy@work · anslag for ${manedAar.format(new Date(`${sisteEa.maaned}-01`))}`}
+          antall={5}
+        >
+          <thead>
+            <tr><th>Post</th><th>Kroner</th><th>Grunnlag</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Kontantlønn</td>
+              <td>{kr.format(Math.round(sisteEa.kontantKr))}</td>
+              <td>{`${sisteEa.timer.toLocaleString('nb-NO')} arbeidede timer`}</td>
+            </tr>
+            <tr>
+              <td>{`Feriepenger ${SATSER.feriepengerPst} %`}</td>
+              <td>{kr.format(Math.round(sisteEa.feriepengerKr))}</td>
+              <td>av kontantlønn</td>
+            </tr>
+            <tr>
+              <td>{`Pensjon ${SATSER.pensjonPst} %`}</td>
+              <td>{kr.format(Math.round(sisteEa.pensjonKr))}</td>
+              <td>OTP fra første krone</td>
+            </tr>
+            <tr>
+              <td>{`Arbeidsgiveravgift ${SATSER.agaPst} %`}</td>
+              <td>{kr.format(Math.round(sisteEa.agaKr))}</td>
+              {/* AGA PAALOEPER OGSAA AV FERIEPENGER OG PENSJON. Konto 541
+                  finnes nettopp fordi feriepengedelen foeres for seg. */}
+              <td>av lønn, feriepenger og pensjon</td>
+            </tr>
+            <tr>
+              <td><strong>Anslått lønnskost</strong></td>
+              <td><strong>{kr.format(Math.round(sisteEa.lonnskostKr))}</strong></td>
+              <td>{sisteEa.maaned === siste?.maaned && siste?.avlagt
+                ? `regnskapet: ${kr.format(Math.round(siste.lonnskostKr))}`
+                : 'ingen avlagt måned å måle mot ennå'}</td>
+            </tr>
+          </tbody>
+        </Datatabell>
+      )}
+
+      {sisteEa && (
         <p className="undertittel">
-          {samsvar.ulike === 0
-            ? `St1s månedsbudsjett og BP-en er samme tall i alle ${samsvar.begge} `
-              + 'månedene som har begge. Rapporten bærer BP-en videre uendret.'
-            : `${samsvar.ulike} av ${samsvar.begge} måneder har ulikt tall i St1s `
-              + 'månedsbudsjett og BP-en. Da er rapporten revidert etter at BP-en '
-              + 'ble satt, og det er månedsbudsjettet som gjelder for den måneden.'}
+          {'Anslaget er regnet av lønnsartene i easy@work-eksporten, ikke lest av '}
+          {'regnskapet. Tre ting er ikke med, og de kan ikke oppdages i tallet: '}
+          {MANGLER.join(', ')}
+          {'. En fastlønnet dukker ikke opp med null i eksporten — hen dukker ikke '}
+          {'opp i det hele tatt. Er konto 501 null for stasjonen, er anslaget helt; '}
+          {'er den ikke det, mangler anslaget den personen.'}
         </p>
       )}
 
@@ -313,8 +394,24 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           Budsjettet skifter kilde underveis, og hver rad sier hvilken. En avlagt
           måned måles mot St1s månedsbudsjett, som ligger på samme rad som
           regnskapstallet. En måned som ikke er avlagt måles mot BP-ens årsplan.
-          De to finnes aldri for samme måned — BP-importen hopper over avlagte
-          måneder, fordi regnskapet da bærer budsjettet selv.
+          De to bærer samme tall — St1 laster BP-en rett inn i rapportens
+          budsjettkolonne — og står derfor i én kolonne. Skiller de lag, er
+          rapporten revidert etter at BP-en ble satt, og siden sier fra.
+        </p>
+        <p>
+          easy@work-kolonnen er et anslag, ikke en fasit. Den er regnet av
+          lønnsartene i eksporten: timelønn på konto 503, sykelønn på 505,
+          kveld-, helg- og overtidstillegg på 502, med {SATSER.feriepengerPst} %
+          feriepenger, {SATSER.pensjonPst} % pensjon og {SATSER.agaPst} %
+          arbeidsgiveravgift av alle tre. Verdien er at den finnes dagen etter at
+          måneden er over, mens regnskapet kommer midt i den neste.
+        </p>
+        <p>
+          Anslaget mangler fastlønn, refundert sykelønn og bonus. Det første er
+          det farligste: en fastlønnet dukker ikke opp med null i eksporten, hen
+          dukker ikke opp i det hele tatt. På en stasjon der alle er timelønnet
+          treffer anslaget nær regnskapet; på en med en fastlønnet butikksjef er
+          det for lavt med hele den lønnen.
         </p>
         <p>
           BP-budsjettet er strukturelt litt smalere: det har fastlønn, timelønn,

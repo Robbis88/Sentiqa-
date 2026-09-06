@@ -2,6 +2,7 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { byggLonnskost, type Kontolinje, type Maanedslonn } from './maaned'
 import { BP_LONNSKODER, ukjenteLonnskoder } from './bp'
+import { byggEasyatwork, type EasyatworkMaaned, type Lonnsartsum } from './easyatwork'
 
 // =====================================================================
 // Henter lønnskosten for én stasjon, måned for måned.
@@ -19,6 +20,14 @@ export type Lonnsbilde = {
   maaneder: Maanedslonn[]
   /** BP-personalkoder ingen har tatt stilling til. Skal være tom. */
   ukjenteKoder: string[]
+  /**
+   * Anslaget fra easy@work, per måned. Tomt til fila er lastet opp.
+   *
+   * ET ANSLAG, IKKE EN FASIT. Det mangler fastlønn, refundert sykelønn
+   * og bonus per konstruksjon — se `easyatwork.ts`. Verdien er at det
+   * finnes dagen etter måneden, ikke midt i den neste.
+   */
+  easyatwork: EasyatworkMaaned[]
 }
 
 export async function hentLonnskost(
@@ -26,7 +35,7 @@ export async function hentLonnskost(
   stasjonId: string,
   fraOgMed: string,
 ): Promise<Lonnsbilde> {
-  const [regnskap, bp] = await Promise.all([
+  const [regnskap, bp, lonnsart] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('periode, seksjon, kode, post, regnskap, budsjett')
@@ -60,6 +69,20 @@ export async function hentLonnskost(
         maned: number; seksjon: string; kode: string | null; post: string
         belop_kr: number | null; bp_aar: { ar: number; stasjon_id: string }
       }[]>(),
+    // FRA VIEWET, IKKE FRA RADENE. Tretten måneder rå lønnsartlinjer er
+    // over fem tusen rader, og PostgREST avkorter et for stort svar uten
+    // å feile — det ser ut som en liten stasjon (0090, 0166, 0175).
+    // `v_lonnsart_maaned` (0180) gjør det til en håndfull rader.
+    supabase
+      .from('v_lonnsart_maaned')
+      .select('maaned, lonnsart, lonnsart_tekst, timer, belop_kr')
+      .eq('stasjon_id', stasjonId)
+      .gte('maaned', fraOgMed.slice(0, 7))
+      .limit(2000)
+      .overrideTypes<{
+        maaned: string; lonnsart: string; lonnsart_tekst: string
+        timer: number; belop_kr: number
+      }[]>(),
   ])
 
   // BP-LINJENE STØPES I SAMME FORM som regnskapets, så `byggLonnskost`
@@ -78,10 +101,19 @@ export async function hentLonnskost(
     .filter((r) => r.periode >= fraOgMed)
 
   const linjer = [...(regnskap.data ?? []), ...bpSomKontolinjer]
+  const summer: Lonnsartsum[] = (lonnsart.data ?? []).map((r) => ({
+    maaned: r.maaned,
+    lonnsart: r.lonnsart,
+    lonnsartTekst: r.lonnsart_tekst,
+    timer: Number(r.timer),
+    belopKr: Number(r.belop_kr),
+  }))
+
   return {
     maaneder: byggLonnskost(linjer, BP_LONNSKODER),
     ukjenteKoder: ukjenteLonnskoder(
       linjer.filter((l) => l.seksjon === 'bp_kostnad' && l.kode).map((l) => l.kode!),
     ),
+    easyatwork: byggEasyatwork(summer),
   }
 }

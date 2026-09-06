@@ -187,6 +187,22 @@ export const KILDER: Kildekrav[] = [
     kritisk: false,
   },
   {
+    noekkel: 'lonnsart',
+    navn: 'Lønnsarter med kroner',
+    hentesFra: 'easy@work, lønnsarteksporten som CSV — ikke Basis Export',
+    laserOpp: 'Lønnskosten dagen etter måneden, i stedet for midt i den neste: '
+      + 'timelønn, tillegg, overtid og sykelønn per konto, med feriepenger, '
+      + 'pensjon og arbeidsgiveravgift lagt på.',
+    // EN MÅNED, IKKE ET ÅR. Anslaget måles mot én avlagt måned om gangen,
+    // og en fersk eksport er verdt mer enn en gammel serie.
+    anbefaltDager: 30,
+    // IKKE KRITISK, OG DET ER IKKE EN INNRØMMELSE. /lonnskost leser
+    // regnskapet, som er fasiten. Denne gir det samme tallet TIDLIGERE.
+    // Et kritisk steg ville stoppet en kjede som ikke har fila — for en
+    // gevinst som er dager, ikke data.
+    kritisk: false,
+  },
+  {
     noekkel: 'svinn',
     navn: 'Varetransaksjoner (svinn)',
     hentesFra: 'St1-rapport 0452, ved behov',
@@ -218,6 +234,7 @@ export const TYPE_TIL_KILDE: Record<string, string> = {
   salgsgrid_varetrans: 'svinn',
   regnskap_resultat: 'regnskapslinjer',
   easyatwork_stempling: 'stempling',
+  easyatwork_lonnsart: 'lonnsart',
   st1_bp: 'bemanning_maned',
   // Delingsfila fyller `bp_aar.timer_aar` for kjeder på den gamle malen.
   // Den er ikke et eget krav — kravet er at timene FINNES, og på nytt

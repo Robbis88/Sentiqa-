@@ -79,6 +79,9 @@ declare
     -- Raa inn/ut-hendelser (0110). Varm fra dag en: to rader per ansatt
     -- per dag, og de leses hver gang en vakt avledes.
     'stempling_hendelse',
+    -- Loennsarter fra easy@work (0179). Vokser som stemplingene: ~400
+    -- rader per stasjon per maaned, og leses per maaned paa /lonnskost.
+    'lonnsart_linje',
     -- Ansatte og fravaer (0089). Faa rader, men leses i hver planberegning.
     'ansatt_avtale', 'bemanning_fravaer',
     -- Leses paa hver forside for aa filtrere feeden (0083).
