@@ -219,10 +219,21 @@ export function avdelingAv(regnskapskode: string | null): string | null {
 //
 // Målt på Laguneparken: 2 680 962 − 2 102 133 = 578 828 = 426 681 + 152 148.
 //
-// «Kast» er det som ble slått inn som kastet. «Usynlig» er resten — svinn
-// ingen registrerte: manko, feilslag, tyveri, feil pris. **Fortegnet er
-// ikke pynt: + er manko, − er overskudd**, og en telling kan finne mer enn
-// forventet. Summen kan derfor bli negativ, og det er et gyldig svar.
+// «Kast» er det som ble slått inn som kastet — det Robert laster opp
+// daglig. «Usynlig» er resten, og **for mat er det som regel
+// OVERPRODUKSJON**: laget, ikke solgt, og aldri ført som kast. Ikke
+// manko og tyveri, som det sto her først; det er en annen avdelings
+// problem, og en annen ledelsesbeslutning.
+//
+// Det gjør usynlig svinn til produksjonsplanens tall, ikke kassens.
+//
+// **Fortegnet er ikke pynt: + er manko, − er overskudd**, og en telling
+// kan finne mer enn forventet. Summen kan derfor bli negativ, og det er
+// et gyldig svar — Bønes lå på −8 241 over sju måneder i 2026.
+//
+// **Mat telles hver måned, og de to tallene i regnskapet er alltid rett
+// med mindre noen har telt feil.** Den daglige opplastingen er en
+// løpende peker; regnskapet er fasit.
 //
 // ---------------------------------------------------------------------
 // DEN FINNES BARE I AVLAGTE MÅNEDER, OG DET MÅ STÅ

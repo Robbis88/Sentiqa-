@@ -365,8 +365,10 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
 
           {/* USYNLIG SVINN — DEN ANDRE HALVDELEN.
               teoretisk brutto - faktisk brutto = synlig + usynlig.
-              Kast er det som ble slaatt inn; usynlig er resten: manko,
-              feilslag, tyveri, feil pris.
+              Kast er det som ble slaatt inn og lastet opp daglig;
+              usynlig er resten - og FOR MAT er det som regel
+              overproduksjon: laget, ikke solgt, aldri foert som kast.
+              Det er produksjonsplanens tall, ikke kassens.
 
               AVLAGTE MAANEDER ALENE, for BEGGE tallene. Usynlig svinn
               oppstaar per definisjon uten at noen registrerer noe, saa
@@ -392,7 +394,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 <Nokkeltall
                   merkelapp={budsjettbilde.usynlig.usynligKr < 0 ? 'Usynlig overskudd' : 'Usynlig svinn'}
                   verdi={kr.format(Math.abs(Math.round(budsjettbilde.usynlig.usynligKr)))}
-                  sammenlignet="manko, feilslag, tyveri"
+                  sammenlignet="trolig overproduksjon"
                   retning={budsjettbilde.usynlig.usynligKr > 0 ? 'opp' : 'ned'}
                   bra={budsjettbilde.usynlig.usynligKr <= 0}
                 />
@@ -421,8 +423,10 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 {budsjettbilde.usynlig.usynligKr < 0
                   ? 'Negativt usynlig svinn er et overskudd: tellingen fant mer enn '
                     + 'forventet, og det trekker ned totalen. '
-                  : 'Usynlig svinn er differansen mellom teoretisk og faktisk brutto '
-                    + 'som ingen registrerte — manko, feilslag, tyveri, feil pris. '}
+                  : 'Usynlig svinn er maten som er borte uten å være ført som kast — '
+                    + 'for mat som regel overproduksjon: laget, ikke solgt, og aldri '
+                    + 'slått inn. Tallet kommer av månedstellingen, så det finnes '
+                    + 'først når måneden er avlagt. '}
                 {budsjettbilde.usynlig.tillattSvinnKr != null
                   ? 'Grensen er BP-en, ikke et eget svinnbudsjett: teoretisk brutto '
                     + `(${kr.format(Math.round(budsjettbilde.usynlig.teoretiskBruttoKr!))}) `
