@@ -28,13 +28,21 @@ import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 // ---------------------------------------------------------------------
 // BUDSJETTET SKIFTER KILDE MIDT I SERIEN, OG DET STÅR PÅ HVER RAD
 //
-// En avlagt måned bærer St1s månedsbudsjett på samme rad som tallet.
-// En åpen måned har BP-ens årsplan. De finnes aldri samtidig — BP-
-// importen hopper over avlagte måneder med vilje.
+// En avlagt måned bærer St1s månedsbudsjett på samme rad som tallet. En
+// åpen måned har bare BP-en. Uten merkelappen ville en serie som bytter
+// kilde sett ut som et brudd i tallene.
 //
-// Uten merkelappen ville en serie som bytter kilde sett ut som et brudd
-// i tallene. Med den er det to spørsmål, tydelig atskilt: «hva ble det»
-// og «hva var planen».
+// BP-EN HAR SIN EGEN KOLONNE, og den finnes for HVER måned — også de
+// avlagte. Her sto det en stund at de to aldri fantes samtidig; det var
+// sant om `bp_kostnad` i regnskapslinjer, som importen hopper over når
+// måneden er låst, men ikke om `bp_linje` (`0155`), som er BP-en som
+// sitt eget dokument.
+//
+// Målt på Bønes 2026 bærer de samme tall i alle sju avlagte måneder —
+// St1 laster BP-en rett inn i rapportens budsjettkolonne. To identiske
+// kolonner må forklares, ellers ser de ut som en feil; setningen under
+// tabellen sier hvor mange som er like. Kolonnen står likevel, for en
+// revidert rapport ville skilt lag med BP-en, og DET er det man vil se.
 // =====================================================================
 
 type Sok = { stasjon?: string }
@@ -111,6 +119,15 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   }
 
   const avvik = siste && siste.budsjettKr != null ? siste.lonnskostKr - siste.budsjettKr : null
+
+  // Hvor mange maaneder har BEGGE budsjettene, og i hvor mange spriker
+  // de? En krone slaar ut - de to kildene skal baere samme tall med
+  // mindre rapporten er revidert.
+  const medBegge = maaneder.filter((m) => m.budsjettKr != null && m.bpBudsjettKr != null)
+  const samsvar = {
+    begge: medBegge.length,
+    ulike: medBegge.filter((m) => Math.abs(m.budsjettKr! - m.bpBudsjettKr!) >= 1).length,
+  }
   const avvikPst = siste && siste.budsjettKr != null
     ? pst(siste.lonnskostKr, siste.budsjettKr) : null
 
@@ -153,12 +170,18 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             retning={avvik == null ? 'flat' : avvik > 0 ? 'opp' : 'ned'}
             bra={avvik == null ? undefined : avvik <= 0}
           />
+          {/* ST1s SATS, IKKE VAAR EGEN BROEK.
+              Her sto «Loennskost per time»: hele loennskosten delt paa
+              timeloennstimene. Telleren hadde fastloenn i seg, nevneren
+              ingen fastloenntimer. Maalt paa juli 2026 ga den 372 kr mot
+              St1s 216,21. En total kostnad per time ville krevd timene
+              til de fastloennede, og dem finnes det ingen kilde til. */}
           <Nokkeltall
-            merkelapp="Lønnskost per time"
-            verdi={siste.perTime == null ? '—' : `${Math.round(siste.perTime)} kr`}
+            merkelapp="Timelønn · snittsats"
+            verdi={siste.snittsats == null ? '—' : `${Math.round(siste.snittsats)} kr`}
             sammenlignet={siste.timer == null
               ? 'timetallet mangler i rapporten'
-              : `${siste.timer.toLocaleString('nb-NO')} timer`}
+              : `${siste.timer.toLocaleString('nb-NO')} timelønnstimer`}
           />
         </div>
       )}
@@ -172,7 +195,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             <th>BP</th>
             <th>Avvik</th>
             <th>Timer</th>
-            <th>Per time</th>
+            <th>Snittsats</th>
           </tr>
         </thead>
         <tbody>
@@ -201,7 +224,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                   )}
                 </td>
                 <td>{m.timer == null ? '—' : m.timer.toLocaleString('nb-NO')}</td>
-                <td>{m.perTime == null ? '—' : `${Math.round(m.perTime)} kr`}</td>
+                <td>{m.snittsats == null ? '—' : `${Math.round(m.snittsats)} kr`}</td>
               </tr>
             )
           })}
@@ -242,11 +265,35 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </Datatabell>
       )}
 
+      {/* TALLET SOM STAAR I ST1s RAPPORT, og hvorfor det er et annet.
+          St1s «Totale personalkostnader» tar konto 590 med: for Boenes
+          juli 2026 er deres tall 246 822 og vaart 242 963. Begge er
+          riktige, men uten denne setningen ser den som sammenligner ut
+          til aa ha funnet en feil. */}
       {siste && siste.andrePersonalKr !== 0 && (
         <p className="undertittel">
           {`I tillegg kommer ${kr.format(Math.round(siste.andrePersonalKr))} i andre `}
           {'personalkostnader (konto 590) — kurs, verneutstyr, bedriftshelsetjeneste. '}
-          {'Det er personalkost, men ikke lønn, og følger ingen tariff.'}
+          {'Det er personalkost, men ikke lønn, og følger ingen tariff. '}
+          {`St1s rapport oppgir de to samlet som «Totale personalkostnader»: `}
+          {`${kr.format(Math.round(siste.lonnskostKr + siste.andrePersonalKr))}.`}
+        </p>
+      )}
+
+      {/* TO IDENTISKE KOLONNER MAA FORKLARES, ellers ser de ut som en
+          feil. Maalt paa Boenes 2026: St1s maanedsbudsjett og BP-en er
+          samme tall i alle sju avlagte maanedene - St1 laster BP-en rett
+          inn i rapportens budsjettkolonne. Kolonnen staar likevel, for
+          en revidert BP ville skilt lag med rapporten, og DET er det man
+          vil se. */}
+      {samsvar.begge > 0 && (
+        <p className="undertittel">
+          {samsvar.ulike === 0
+            ? `St1s månedsbudsjett og BP-en er samme tall i alle ${samsvar.begge} `
+              + 'månedene som har begge. Rapporten bærer BP-en videre uendret.'
+            : `${samsvar.ulike} av ${samsvar.begge} måneder har ulikt tall i St1s `
+              + 'månedsbudsjett og BP-en. Da er rapporten revidert etter at BP-en '
+              + 'ble satt, og det er månedsbudsjettet som gjelder for den måneden.'}
         </p>
       )}
 

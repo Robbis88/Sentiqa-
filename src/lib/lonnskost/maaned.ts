@@ -64,6 +64,22 @@ const AGAKONTI = new Set(['540', '541'])
 /** Nøkkeltallet St1 selv oppgir. Eneste sted faktiske timer finnes. */
 export const TIMEPOST = 'Timelønn - antall timer'
 
+/**
+ * St1s egen snittsats for timeloennede. Vi regner den IKKE selv.
+ *
+ * Foerste utgave delte hele loennskosten paa `TIMEPOST` og kalte det
+ * «loennskost per time». Den broeken er ugyldig: telleren har fastloenn
+ * i seg, nevneren har ingen fastloenntimer. Maalt paa Boenes juli 2026
+ * ga den 372 kr - mot St1s 216,21 og konto 503 delt paa de samme timene,
+ * 215. Kroner fra ett sted, timer fra et annet; samme form som nevneren
+ * i svinnkortet.
+ *
+ * En total kostnad per time ville krevd timene til de fastloennede, og
+ * dem har vi ikke. Da er det riktige aa vise den satsen som FINNES, og
+ * si hva den er.
+ */
+export const SATSPOST = 'Timelønn - gj.sn. timesats'
+
 export type Kontolinje = {
   periode: string
   seksjon: string
@@ -112,8 +128,13 @@ export type Maanedslonn = {
   bpBudsjettKr: number | null
   /** Fra St1s eget nøkkeltall. Null når måneden ikke er avlagt. */
   timer: number | null
-  /** Lønnskost per time. Null uten timer — aldri en brøk på gjetning. */
-  perTime: number | null
+  /**
+   * St1s snittsats for timeloennede, lest - ikke regnet.
+   *
+   * Gjelder de TIMELOENNEDE alene. Stasjonens totale kostnad per time
+   * kan ikke regnes ut: timene til de fastloennede finnes ingen steder.
+   */
+  snittsats: number | null
   linjer: { kode: string; post: string; regnskap: number; budsjett: number | null }[]
 }
 
@@ -198,6 +219,9 @@ export function byggLonnskost(
       .reduce((a, l) => a + (avlagt ? tall(l.regnskap) : tall(l.budsjett)), 0)
 
     const timerLinje = ls.find((l) => l.seksjon === 'nokkeltall' && l.post === TIMEPOST)
+    const satsLinje = ls.find((l) => l.seksjon === 'nokkeltall' && l.post === SATSPOST)
+    const snittsats = satsLinje && tall(satsLinje.regnskap) > 0
+      ? tall(satsLinje.regnskap) : null
     const timer = timerLinje && tall(timerLinje.regnskap) > 0 ? tall(timerLinje.regnskap) : null
 
     ut.push({
@@ -212,7 +236,7 @@ export function byggLonnskost(
       budsjettKilde: harBudsjett ? (avlagt ? 'st1_maaned' : 'bp') : null,
       bpBudsjettKr,
       timer,
-      perTime: timer ? lonnskostKr / timer : null,
+      snittsats,
       linjer: rader.sort((a, b) => a.kode.localeCompare(b.kode)),
     })
   }

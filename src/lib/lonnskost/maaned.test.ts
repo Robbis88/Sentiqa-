@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { byggLonnskost, LONNSKONTI, TIMEPOST, type Kontolinje } from './maaned'
+import { byggLonnskost, LONNSKONTI, TIMEPOST, SATSPOST, type Kontolinje } from './maaned'
 
 // =====================================================================
 // FASITEN ER PRODUKSJON, IKKE OPPDIKTEDE TALL
@@ -30,10 +30,16 @@ const drift = (periode: string): Kontolinje[] =>
 const timer = (periode: string, t: number): Kontolinje =>
   ({ periode, seksjon: 'nokkeltall', kode: null, post: TIMEPOST, regnskap: t, budsjett: null })
 
+const sats = (periode: string, v: number): Kontolinje =>
+  ({ periode, seksjon: 'nokkeltall', kode: null, post: SATSPOST, regnskap: v, budsjett: null })
+
 const BP_LONN = new Set(['5010', '5012', '5090', '5400', '5401'])
 
 describe('byggLonnskost — avlagt måned', () => {
-  const [r] = byggLonnskost([...drift('2026-07-01'), timer('2026-07-01', 605.83)], BP_LONN)
+  const [r] = byggLonnskost(
+    [...drift('2026-07-01'), timer('2026-07-01', 653.2), sats('2026-07-01', 216.21)],
+    BP_LONN,
+  )
 
   it('summerer de ni kontiene til det regnskapet viser', () => {
     expect(Math.round(r.lonnskostKr)).toBe(242963)
@@ -61,17 +67,33 @@ describe('byggLonnskost — avlagt måned', () => {
     expect(Math.round(r.budsjettKr!)).toBe(261018)
   })
 
-  it('regner lønnskost per time av St1s eget timetall', () => {
-    expect(r.timer).toBe(605.83)
-    expect(r.perTime).toBeCloseTo(242963 / 605.83, 1)
+  it('leser St1s timetall og snittsats, og regner dem ikke', () => {
+    expect(r.timer).toBe(653.2)
+    expect(r.snittsats).toBe(216.21)
   })
 
-  // Uten timer er «per time» en brøk på gjetning. Da skal den være null,
-  // ikke et tall delt på noe vi ikke har.
-  it('KANARIFUGL: ingen timer gir ingen timepris', () => {
+  // KANARIFUGL FOR EN BROEK SOM IKKE ER GYLDIG.
+  //
+  // Foerste utgave viste «loennskost per time» = hele loennskosten delt
+  // paa timeloennstimene. Telleren har fastloenn i seg, nevneren ingen
+  // fastloenntimer. Paa Boenes juli 2026 ga det 372 kr - mot St1s
+  // 216,21 og konto 503 delt paa de samme timene, 215.
+  //
+  // Faller denne, er noen i ferd med aa regne den ut igjen.
+  it('KANARIFUGL: satsen er IKKE loennskost delt paa timene', () => {
+    expect(Math.round(242963 / 653.2)).toBe(372)
+    expect(r.snittsats).not.toBeCloseTo(242963 / 653.2, 0)
+    // Den ligger derimot under EN krone fra konto 503 delt paa de samme
+    // timene: 215,43 mot St1s 216,21. De 78 oerene er St1s eget
+    // regnestykke - noekkeltallet heter «ink overtid» - og er nettopp
+    // grunnen til at vi leser deres tall i stedet for aa lage vaart.
+    expect(Math.abs(r.snittsats! - 140723 / 653.2)).toBeLessThan(1)
+  })
+
+  it('staar tom naar noekkeltallene mangler', () => {
     const [u] = byggLonnskost(drift('2026-07-01'), BP_LONN)
     expect(u.timer).toBeNull()
-    expect(u.perTime).toBeNull()
+    expect(u.snittsats).toBeNull()
   })
 })
 
