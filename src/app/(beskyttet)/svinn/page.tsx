@@ -412,10 +412,15 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
               </div>
 
               <p className="undertittel">
+                {/* ET OVERSKUDD ER ET OVERSKUDD, IKKE ET VARSEL.
+                    Her sto det at et overskudd «som regel betyr at noe er
+                    ført feil et annet sted». Det er å behandle
+                    normaltilstanden som mistenkelig - Robert bekreftet
+                    2026-09-06 at et lite overskudd er det vanlige. En
+                    flate som roper om det vanlige, blir ikke lest. */}
                 {budsjettbilde.usynlig.usynligKr < 0
-                  ? 'Negativt usynlig svinn er et OVERSKUDD — tellingen fant mer enn '
-                    + 'forventet. Det er ikke gratis: det betyr som regel at noe er '
-                    + 'ført feil et annet sted. '
+                  ? 'Negativt usynlig svinn er et overskudd: tellingen fant mer enn '
+                    + 'forventet, og det trekker ned totalen. '
                   : 'Usynlig svinn er differansen mellom teoretisk og faktisk brutto '
                     + 'som ingen registrerte — manko, feilslag, tyveri, feil pris. '}
                 {budsjettbilde.usynlig.tillattSvinnKr != null
@@ -424,7 +429,15 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                     + 'minus bruttoen BP-en budsjetterer '
                     + `(${kr.format(Math.round(budsjettbilde.usynlig.bpBruttoKr!))}) `
                     + 'er alt svinnet stasjonen har råd til. Kast og usynlig spiser av '
-                    + 'samme brutto, så de deler den grensen.'
+                    + 'samme brutto, så de deler den grensen. '
+                    // ET GULV, IKKE EN EKSAKT SUM — og det skal stå.
+                    // Importen dropper regnskapsrader der både kast og
+                    // usynlig er under 1 000 kr. Målt på Bønes 2026 er
+                    // totalen 1 349 kr (0,9 %) under identiteten
+                    // teoretisk − faktisk. Uten setningen ser et lite
+                    // avvik mot regnskapet ut som en feil.
+                    + 'Summen er et gulv: rader under tusen kroner tas ikke inn, så '
+                    + 'den ligger typisk rundt én prosent under regnskapets egen.'
                   : 'BP-tall mangler for disse månedene, så det finnes ingen grense å '
                     + 'måle mot ennå.'}
               </p>
