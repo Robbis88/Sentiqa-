@@ -1,4 +1,26 @@
 -- =====================================================================
+-- DENNE VAR EN NO-OP. BEGGE VAR LUKKET FRA FOER.
+--
+-- Kjoert 2026-09-06: null rader, tom kvittering. `St sund` ble lukket
+-- 2026-06-16 og `Test Boenes` 2026-06-14 - tre maaneder foer jeg meldte
+-- dem som et opprydningsbehov.
+--
+-- **JEG LESTE LUKKEDE RADER SOM LEVENDE.** Diagnosespoerringen min sto
+-- `select ... from public.stasjoner` UTEN `slettet_tid is null` - det
+-- filteret hele kodebasen bruker. Da saa lista sju stasjoner der appen
+-- ser fem, og jeg konkluderte med at to ryddet seg ikke selv.
+--
+-- Samme form som feilene denne runden ellers handlet om: jeg saa paa
+-- dataene gjennom en annen linse enn koden gjoer. En spoerring som skal
+-- fortelle hva BRUKEREN ser, maa filtrere som brukerflaten filtrerer.
+--
+-- Fila blir staaende. Den er idempotent og vaktet, og paa en base der
+-- radene FAKTISK staar aapne gjoer den jobben. Men den beskriver et
+-- opprydningsbehov som ikke fantes, og det skal staa her.
+--
+-- ---------------------------------------------------------------------
+-- OPPRINNELIG BEGRUNNELSE, BEHOLDT FOR ETTERTIDEN
+--
 -- «St sund» FINNES IKKE, OG «Test Boenes» ER EN TESTRAD
 --
 -- Stasjonslista hadde sju rader; delingsfila fra St1 kjenner fem. Robert
