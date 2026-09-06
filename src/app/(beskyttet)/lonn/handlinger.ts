@@ -55,6 +55,45 @@ const Form = z.object({
   lonnsform: z.literal(['timelonn', 'fastlonn', 'tilkalling']),
 })
 
+const LangeUker = z.object({
+  stasjon_id: z.string().uuid(),
+  ansatt_nr: z.string().min(1),
+  navn: z.string().min(1),
+})
+
+/**
+ * Krysser av for individuell avtale om lange uker (aml. § 10-5).
+ *
+ * SETTES AV ET MENNESKE, ALDRI UTLEDET. Avtalen er skriftlig og finnes
+ * utenfor systemet; en lang uke i dataene er et symptom paa den, ikke et
+ * bevis. Utledet automatisk ville en travel maaned slaatt av varselet
+ * for den som trengte det mest.
+ */
+export async function settLangeUker(_t: Tilstand, fd: FormData): Promise<Tilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+
+  const felt = LangeUker.safeParse({
+    stasjon_id: fd.get('stasjon_id'),
+    ansatt_nr: fd.get('ansatt_nr'),
+    navn: fd.get('navn'),
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  // Avkryssingsbokser sender ingenting naar de er AV. Tilstanden leses
+  // derfor av tilstedevaerelsen, ikke av en verdi - og da kan haken tas
+  // bort igjen.
+  const paa = fd.get('lange_uker') != null
+
+  const supabase = await lagSupabaseServerKlient()
+  const { error } = await supabase.from('ansatt_avtale').upsert(
+    { ...felt.data, lange_uker_avtalt: paa, oppdatert_tid: new Date().toISOString() },
+    { onConflict: 'stasjon_id,ansatt_nr' },
+  )
+  if (error) return { feil: error.message }
+  return { ok: paa ? 'Lange uker er avtalt' : 'Haken er tatt bort' }
+}
+
 /**
  * Setter lønnsformen for én ansatt.
  *
