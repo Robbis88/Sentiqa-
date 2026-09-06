@@ -2,10 +2,17 @@ import type { Metadata } from 'next'
 import { Landing } from '@/components/lp/landing'
 import '@/components/lp/lp.css'
 
+// TITTELEN LOVER DET SIDA VISER. Den sto som «Fornemmer. Forstår.
+// Forutser.» — tre ord om vær og prognose, fra den gang det var det
+// produktet var. I dag er det et driftssystem med ni datakilder, fire
+// roller og over seksti flater, og tittelen er det første en søkende
+// leser.
 export const metadata: Metadata = {
-  title: 'Sentiqa — Fornemmer. Forstår. Forutser.',
+  title: 'Sentiqa — hele driften, ett system',
   description:
-    'AI-drevet driftsplattform for servicehandelen. Fornemmer vær, salgshistorikk og trender — forstår tallene — forutser hva som kommer. Mindre tid på kontoret, mer tid i butikken.',
+    'Driftssystem for servicehandelen. Salg, bemanning, svinn, produksjon, regnskap og '
+    + 'folk i ett bilde — bygget på rapportene du allerede får tilsendt. Selvbetjent '
+    + 'oppstart, ingen systemer må byttes ut.',
 }
 
 export default function Hjem() {
