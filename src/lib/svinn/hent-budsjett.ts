@@ -65,14 +65,18 @@ export async function hentSvinnbudsjett(
   const fra = `${ar}-01-01`
   const til = `${ar}-12-31`
 
-  const [budsjett, regnskap, omraade] = await Promise.all([
+  const [budsjett, regnskap, omraade, bpstatus] = await Promise.all([
     supabase.from('kastbudsjett')
-      .select('nivaa, kode, navn, kast_pst_av_salg, kast_budsjett_kr, usynlig_budsjett_kr')
+      // `usynlig_budsjett_kr` LESES IKKE. Kolonnen bærer delingsfilas
+      // «Usynlig svinn», og den er FJORÅRETS tall fra regnskapsrapporten
+      // — ikke et krav. St1 setter ingen grense for usynlig svinn; de
+      // setter en brutto i BP-en, og svinnbudsjettet følger av den.
+      // Se `usynligstatus` i mot-budsjett.ts.
+      .select('nivaa, kode, navn, kast_pst_av_salg, kast_budsjett_kr')
       .eq('stasjon_id', stasjonId).eq('ar', ar)
       .overrideTypes<{
         nivaa: string; kode: string; navn: string | null
         kast_pst_av_salg: number; kast_budsjett_kr: number
-        usynlig_budsjett_kr: number | null
       }[]>(),
     // FASITEN. `kast` kom i `0050` og er regnskapets egen svinnføring;
     // `usynlig_kr` er resten av differansen mot teoretisk brutto.
@@ -95,6 +99,18 @@ export async function hentSvinnbudsjett(
       .overrideTypes<{
         maned: string; avdeling_kode: string | null; vareomrade_kode: string | null
         omsetning_kr: number | null; svinn_kr: number | null
+      }[]>(),
+    // BP-EN ER MÅLESTOKKEN FOR SVINN, og `0116` har regnet ut begge
+    // tallene alt: `teoretisk_brutto_kr` er kassas margin uten svinn,
+    // `bp_brutto_kr` er bruttoen BP-en faktisk budsjetterer. Tillatt
+    // svinn er differansen, og den dekker kast og usynlig under ett —
+    // de spiser av samme brutto.
+    supabase.from('v_bp_status_avdeling')
+      .select('maned, gruppe_kode, teoretisk_brutto_kr, bp_brutto_kr')
+      .eq('stasjon_id', stasjonId).gte('maned', fra).lte('maned', til)
+      .overrideTypes<{
+        maned: string; gruppe_kode: string | null
+        teoretisk_brutto_kr: number | null; bp_brutto_kr: number | null
       }[]>(),
   ])
 
@@ -154,15 +170,28 @@ export async function hentSvinnbudsjett(
     if (r.svinn_kr != null) leggTil(kastDaglig, kode, maaned, r.svinn_kr)
   }
 
+  // BP-TALLENE, SAMME AVDELING. Uten avgrensningen ville hele butikkens
+  // brutto blitt sammenlignet med MAT-svinnet.
+  const teoretiskPerMaaned = new Map<string, number>()
+  const bpBruttoPerMaaned = new Map<string, number>()
+  for (const r of bpstatus.data ?? []) {
+    if (avdeling != null && r.gruppe_kode !== avdeling) continue
+    const maaned = tilMaaned(r.maned)
+    if (r.teoretisk_brutto_kr != null) {
+      teoretiskPerMaaned.set(maaned, (teoretiskPerMaaned.get(maaned) ?? 0) + r.teoretisk_brutto_kr)
+    }
+    if (r.bp_brutto_kr != null) {
+      bpBruttoPerMaaned.set(maaned, (bpBruttoPerMaaned.get(maaned) ?? 0) + r.bp_brutto_kr)
+    }
+  }
+
   return svinnbilde({
     budsjett: brukte,
     kastRegnskap,
     kastDaglig,
     salg: salgKart,
     usynligPerMaaned,
-    // ÅRSBUDSJETTET STÅR BARE PÅ AVDELINGSRADEN. Usynlig svinn kan per
-    // definisjon ikke fordeles på undergruppe — ingen vet hvor det ble
-    // av — så det finnes ikke noe å hente på vareområdenivå.
-    usynligArsbudsjettKr: avdelingsrad?.usynlig_budsjett_kr ?? null,
+    teoretiskPerMaaned,
+    bpBruttoPerMaaned,
   })
 }

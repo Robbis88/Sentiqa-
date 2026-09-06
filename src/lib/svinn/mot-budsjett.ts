@@ -238,14 +238,32 @@ export function avdelingAv(regnskapskode: string | null): string | null {
 // står i svaret.
 //
 // ---------------------------------------------------------------------
-// BUDSJETTET ER ET ÅRSTALL, IKKE EN SATS
+// DET FINNES INGEN BUDSJETT FOR USYNLIG SVINN. BP-EN ER MÅLESTOKKEN.
 //
-// Kastbudsjettet er en prosent, så «budsjett hittil» følger salget.
-// Usynligbudsjettet er et kronebeløp for hele året; St1 uttrykker det
-// ikke som en rate. Å dele det på tolv eller skalere det med salget ville
-// vært å finne på en fordeling de ikke har oppgitt.
+// Jeg trodde en stund at delingsfilas «Usynlig svinn»-kolonne var et
+// måltall, og lagret den som `usynlig_budsjett_kr`. **Det er feil.**
+// Tallet der er FJORÅRETS, hentet fra regnskapsrapporten. St1 setter
+// ikke noe krav til usynlig svinn i det hele tatt.
 //
-// Det sammenlignes derfor mot ÅRET, og feltet heter deretter.
+// Det de setter er en BRUTTOFORTJENESTE i BP-en. Og da følger svinnet av
+// identiteten, det trenger ikke sitt eget budsjett:
+//
+//     teoretisk brutto − faktisk brutto = synlig + usynlig svinn
+//
+// Snu den, og budsjettet står der:
+//
+//     TILLATT SVINN = teoretisk brutto − brutto budsjettert i BP
+//
+// Teoretisk brutto er hva kassa sier margen var, uten svinn. Trekk fra
+// den bruttoen BP-en krever, og differansen er alt svinnet stasjonen har
+// råd til — kastet og det usynlige under ett.
+//
+// **Det er derfor de to ikke skal ha hvert sitt krav.** De spiser av
+// samme brutto, og en krone tapt i manko koster det samme som en krone
+// kastet.
+//
+// Begge tallene ligger i `v_bp_status_avdeling` (`0116`) —
+// `teoretisk_brutto_kr` og `bp_brutto_kr` — så ingenting utledes her.
 // ---------------------------------------------------------------------
 
 export type Usynligstatus = {
@@ -255,8 +273,14 @@ export type Usynligstatus = {
   kastAvlagtKr: number
   /** `usynligKr + kastAvlagtKr`. Hele svinnet, avlagte måneder. */
   totaltKr: number
-  /** St1s årsbudsjett for usynlig. Null når fila ikke oppgir det. */
-  arsbudsjettKr: number | null
+  /** Kassas margin uten svinn, samme måneder. Null når den mangler. */
+  teoretiskBruttoKr: number | null
+  /** Brutto slik BP-en faktisk budsjetterer den, samme måneder. */
+  bpBruttoKr: number | null
+  /** `teoretisk − bp`. Alt svinnet stasjonen har råd til. */
+  tillattSvinnKr: number | null
+  /** Positivt = mer svinn enn BP-en tåler. */
+  avvikMotBpKr: number | null
   /** Hvor mange måneder tallene dekker. Står i teksten, ikke bare her. */
   maaneder: number
 }
@@ -281,7 +305,7 @@ export type Svinnbilde = {
 export function usynligstatus(
   usynligPerMaaned: Map<string, number>,
   kastPerMaaned: Map<string, number>,
-  arsbudsjettKr: number | null,
+  bp?: { teoretiskPerMaaned: Map<string, number>; bpBruttoPerMaaned: Map<string, number> },
 ): Usynligstatus | null {
   // SNITTET, ikke unionen. En måned med usynlig men uten kast — eller
   // omvendt — er en måned der den ene kilden mangler, og da er totalen
@@ -291,11 +315,28 @@ export function usynligstatus(
 
   const usynligKr = maaneder.reduce((a, m) => a + (usynligPerMaaned.get(m) ?? 0), 0)
   const kastAvlagtKr = maaneder.reduce((a, m) => a + (kastPerMaaned.get(m) ?? 0), 0)
+  const totaltKr = usynligKr + kastAvlagtKr
+
+  // BP-SIDEN MÅ DEKKE DE SAMME MÅNEDENE, ellers sammenlignes to
+  // perioder. Mangler BP-en én av dem, er sammenligningen ikke gyldig og
+  // tallene holdes tilbake — det er samme regel som for nevneren.
+  const heleBp = bp != null
+    && maaneder.every((m) => bp.teoretiskPerMaaned.has(m) && bp.bpBruttoPerMaaned.has(m))
+  const teoretiskBruttoKr = heleBp
+    ? maaneder.reduce((a, m) => a + (bp!.teoretiskPerMaaned.get(m) ?? 0), 0) : null
+  const bpBruttoKr = heleBp
+    ? maaneder.reduce((a, m) => a + (bp!.bpBruttoPerMaaned.get(m) ?? 0), 0) : null
+  const tillattSvinnKr = teoretiskBruttoKr != null && bpBruttoKr != null
+    ? teoretiskBruttoKr - bpBruttoKr : null
+
   return {
     usynligKr,
     kastAvlagtKr,
-    totaltKr: usynligKr + kastAvlagtKr,
-    arsbudsjettKr,
+    totaltKr,
+    teoretiskBruttoKr,
+    bpBruttoKr,
+    tillattSvinnKr,
+    avvikMotBpKr: tillattSvinnKr == null ? null : totaltKr - tillattSvinnKr,
     maaneder: maaneder.length,
   }
 }
@@ -318,8 +359,10 @@ export function svinnbilde(opts: {
   salg: Map<string, Map<string, number>>
   /** `maaned -> kroner`, fra regnskapet. + er manko, − er overskudd. */
   usynligPerMaaned?: Map<string, number>
-  /** St1s årsbudsjett for usynlig. Bare den nyeste filvarianten har det. */
-  usynligArsbudsjettKr?: number | null
+  /** Kassas margin uten svinn, per måned. Fra v_bp_status_avdeling. */
+  teoretiskPerMaaned?: Map<string, number>
+  /** Brutto slik BP-en budsjetterer den, per måned. Samme kilde. */
+  bpBruttoPerMaaned?: Map<string, number>
 }): Svinnbilde {
   const tom = new Map<string, number>()
   const linjer = opts.budsjett.map((b) => svinnstatus(
@@ -373,7 +416,14 @@ export function svinnbilde(opts: {
     total,
     usynlig: opts.usynligPerMaaned
       ? usynligstatus(
-        opts.usynligPerMaaned, kastAvlagtPerMaaned, opts.usynligArsbudsjettKr ?? null,
+        opts.usynligPerMaaned,
+        kastAvlagtPerMaaned,
+        opts.teoretiskPerMaaned && opts.bpBruttoPerMaaned
+          ? {
+            teoretiskPerMaaned: opts.teoretiskPerMaaned,
+            bpBruttoPerMaaned: opts.bpBruttoPerMaaned,
+          }
+          : undefined,
       )
       : null,
     notat: total ? kildenotat(total) : 'Ingen kastbudsjett for dette året.',
