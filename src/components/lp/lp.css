@@ -370,12 +370,20 @@
 @keyframes lp-blink { 50% { opacity: 0; } }
 .lp-spor-svar { padding: 18px; }
 .lp-verktoy { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; min-height: 24px; }
+/* BRIKKEN ER ENTEN SKJULT ELLER LESBAR - aldri halvveis. Sto med
+   `opacity: 0` -> `1`, og axe tok de to forste midt i overgangen: tekst
+   pa delvis opacity er tekst med for lav kontrast, uansett hvor bra
+   fargen er i hviletilstand. `visibility` har ingen mellomtilstand, og
+   skjulte elementer er utenfor kontrastmalingen. Hoyden er reservert av
+   `min-height` pa raden, sa ingenting hopper nar brikkene kommer.
+   Fargen er `--tekst`, ikke `--tekst-svak`: 11px monospace ligger for
+   tett pa 4.5:1 til a vaere verdt tvilen. */
 .lp-verktoy span {
-  font-family: var(--font-geist-mono), monospace; font-size: 11px; color: var(--tekst-svak);
+  font-family: var(--font-geist-mono), monospace; font-size: 11px; color: var(--tekst);
   border: 1px solid var(--kant); border-radius: 6px; padding: 3px 8px; background: var(--bg);
-  opacity: 0; transform: translateY(3px); transition: opacity .35s ease, transform .35s ease;
+  visibility: hidden; transform: translateY(3px); transition: transform .35s ease;
 }
-.lp-verktoy span.lp-inn { opacity: 1; transform: none; }
+.lp-verktoy span.lp-inn { visibility: visible; transform: none; }
 .lp-svar { font-size: 15px; line-height: 1.6; min-height: 4.8em; }
 .lp-svar strong { font-weight: 600; }
 .lp-forslag { display: flex; flex-wrap: wrap; gap: var(--luft-2); margin-top: var(--luft-6); }
@@ -445,21 +453,31 @@
   margin-top: var(--luft-7); border: 1px solid var(--natt-kant); border-radius: var(--lp-r);
   background: var(--natt); padding: var(--luft-5); overflow-x: auto;
 }
+/* HOVEDBOKA TENNER I FARGE, IKKE I OPACITY.
+   Linjene sto pa `opacity: 0.28` til seksjonen ble scrollet inn. Det er
+   to feil i en: axe malte kontrasten pa den utonede teksten og fant den
+   ulesbar, og hele boka var usynlig i forste frame - altsa i thumbnailen,
+   i en delt lenke og for den som leser raskt.
+   Bevegelsen var likevel poenget: linjene ER en rekkefolge, signal for
+   handling. Sa den beholdes, men mellom to LESBARE tilstander - dempet
+   (5.5:1) og full farge. Alt star lesbart fra forste frame; det som
+   skjer nar seksjonen kommer inn, er at linjene far sin egen farge. */
 .lp-bok-linje {
   display: grid; grid-template-columns: 132px 1fr auto; gap: var(--luft-4); align-items: baseline;
   font-family: var(--font-geist-mono), monospace; font-size: 13px; padding: 7px 0;
-  white-space: nowrap; opacity: 0.28; transition: opacity .5s ease;
+  white-space: nowrap;
 }
-.lp-bok-linje.lp-paa { opacity: 1; }
-.lp-bok-kilde { color: var(--natt-blaa); }
-.lp-bok-tekst { color: var(--natt-tekst-svak); white-space: normal; }
-.lp-bok-v { color: var(--natt-tekst-klar); }
+.lp-bok-linje span { color: var(--natt-tekst-dempet); transition: color .5s ease; }
+.lp-bok-linje.lp-paa .lp-bok-kilde { color: var(--natt-blaa); }
+.lp-bok-linje.lp-paa .lp-bok-tekst { color: var(--natt-tekst-svak); }
+.lp-bok-linje.lp-paa .lp-bok-v { color: var(--natt-tekst-klar); }
+.lp-bok-tekst { white-space: normal; }
 .lp-bok-sum {
   margin-top: var(--luft-4); padding-top: var(--luft-4); border-top: 1px solid var(--natt-kant);
-  font-family: var(--font-geist-mono), monospace; font-size: 13px; color: var(--natt-gronn);
-  opacity: 0.28; transition: opacity .6s ease;
+  font-family: var(--font-geist-mono), monospace; font-size: 13px;
+  color: var(--natt-tekst-dempet); transition: color .6s ease;
 }
-.lp-bok-sum.lp-paa { opacity: 1; }
+.lp-bok-sum.lp-paa { color: var(--natt-gronn); }
 
 /* ------------------------------------------------------------ avslutning */
 .lp-slutt { text-align: center; padding-block: clamp(90px, 12vw, 160px); border-top: 1px solid var(--natt-kant); }
@@ -473,9 +491,8 @@
 .lp-bunn a:hover { color: var(--natt-tekst-svak); }
 .lp-bunn-hoyre { margin-left: auto; }
 
-/* ------------------------------------------------------- inn-animasjon */
-.lp-reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.3,1); }
-.lp-reveal.lp-vis { opacity: 1; transform: none; }
+/* `.lp-reveal` sto her og var ubrukt. En ferdigskrevet `opacity: 0` som
+   ingen bruker, er en felle som venter pa neste seksjon - fjernet. */
 
 @media (max-width: 900px) {
   .lp-ob, .lp-panel-aktiv, .lp-brev { grid-template-columns: 1fr; }
@@ -490,5 +507,5 @@
     animation-duration: .001ms !important;
     transition-duration: .001ms !important;
   }
-  .lp-reveal { opacity: 1; transform: none; }
+
 }
