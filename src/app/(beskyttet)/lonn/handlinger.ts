@@ -55,6 +55,48 @@ const Form = z.object({
   lonnsform: z.literal(['timelonn', 'fastlonn', 'tilkalling']),
 })
 
+const Skift = z.object({
+  stasjon_id: z.string().uuid(),
+  ansatt_nr: z.string().min(1),
+  navn: z.string().min(1),
+  skiftordning: z.literal(['ordinaer', 'skift_36_5', 'to_skift', 'skift_33_5']),
+})
+
+/**
+ * Setter skiftordningen for én ansatt, for haand.
+ *
+ * KNAPPEN «SETT ARBEIDSTID ETTER SATSEN» REKKER IKKE ALLE. Den leser
+ * ordningen ut av timesatsen, og tier naar satsen er tvetydig - ligger
+ * den mellom to tarifftrinn, peker den ikke paa én kolonne. Paa Boenes
+ * gjaldt det tre av ti (234,05 / 202,00 / 239,33), og uten dette feltet
+ * kunne de ALDRI settes: overtidsgrensen deres sto som antatt 37,5 for
+ * alltid.
+ *
+ * Ordningen er avtalefestet (§ 2.7.1.1), saa den skal settes av et
+ * menneske uansett. Knappen er en snarvei for de entydige; dette er
+ * veien for resten.
+ */
+export async function settSkiftordning(_t: Tilstand, fd: FormData): Promise<Tilstand> {
+  const bruker = await hentInnloggetBruker()
+  if (!erLeder(bruker.rolle)) return { feil: 'Ikke tilgang.' }
+
+  const felt = Skift.safeParse({
+    stasjon_id: fd.get('stasjon_id'),
+    ansatt_nr: fd.get('ansatt_nr'),
+    navn: fd.get('navn'),
+    skiftordning: fd.get('skiftordning'),
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  const supabase = await lagSupabaseServerKlient()
+  const { error } = await supabase.from('ansatt_avtale').upsert(
+    { ...felt.data, oppdatert_tid: new Date().toISOString() },
+    { onConflict: 'stasjon_id,ansatt_nr' },
+  )
+  if (error) return { feil: error.message }
+  return { ok: 'Lagret' }
+}
+
 const LangeUker = z.object({
   stasjon_id: z.string().uuid(),
   ansatt_nr: z.string().min(1),

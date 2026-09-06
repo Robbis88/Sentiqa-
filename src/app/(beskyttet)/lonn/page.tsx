@@ -12,6 +12,7 @@ import { avstem, kanSnuStasjon, TERSKEL_TIMER } from '@/lib/stempling/avstem'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { LonnsformVelger } from './lonnsform-velger'
 import { LangeUker } from './lange-uker'
+import { Skiftvelger } from './skiftvelger'
 import { LukkVakt } from './lukk-vakt'
 import { ByttKilde } from './bytt-kilde'
 import { TimesatsFelt } from './timesats-felt'
@@ -734,6 +735,12 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                           )}
                         </td>
                         <td>
+                          <Skiftvelger
+                            stasjonId={valgt.id}
+                            ansattNr={nr}
+                            navn={navnFor.get(nr) ?? nr}
+                            verdi={a?.skiftordning ?? null}
+                          />
                           <LangeUker
                             stasjonId={valgt.id}
                             ansattNr={nr}
