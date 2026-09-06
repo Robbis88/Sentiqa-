@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { velgKilde, svinnstatus, kildenotat, svinnbilde, vareomradeAv, avdelingAv, nevnerHolderIkke, type Budsjettlinje } from './mot-budsjett'
+import { velgKilde, svinnstatus, kildenotat, svinnbilde, vareomradeAv, avdelingAv, nevnerHolderIkke, usynligstatus, type Budsjettlinje } from './mot-budsjett'
 
 // =====================================================================
 // Vakt over svinn mot budsjett.
@@ -317,5 +317,129 @@ describe('svinnbilde — totalen arver mistanken', () => {
     // Summen alene ville sagt «alt i orden»: 55 000 mot 900 900.
     expect(ut.total!.kastHittilKr).toBeLessThan(ut.total!.salgHittilKr)
     expect(ut.total!.nevnerMistenkelig).toBe(true)
+  })
+})
+
+// =====================================================================
+// USYNLIG SVINN — DEN ANDRE HALVDELEN
+//
+// Identiteten St1 regner med, målt på Laguneparken:
+//
+//     teoretisk brutto − faktisk brutto = synlig + usynlig
+//     2 680 962 − 2 102 133 = 578 828 = 426 681 + 152 148
+//
+// Tallene under er de virkelige.
+// =====================================================================
+describe('usynligstatus', () => {
+  const kast = kart({ '2026-01': 200000, '2026-02': 226681 })
+  const usynlig = kart({ '2026-01': 100000, '2026-02': 52148 })
+
+  it('legger sammen til hele svinnet', () => {
+    const u = usynligstatus(usynlig, kast, 22019)!
+    expect(Math.round(u.kastAvlagtKr)).toBe(426681)
+    expect(Math.round(u.usynligKr)).toBe(152148)
+    expect(Math.round(u.totaltKr)).toBe(578829)
+    expect(u.maaneder).toBe(2)
+  })
+
+  // PERIODENE MÅ VÆRE LIKE. Kast har to kilder, usynlig har én — så en
+  // åpen måned har kast og ikke usynlig. Summeres de likevel, dekker de
+  // to halvdelene ulike perioder og totalen blir for lav uten at noe
+  // synes.
+  it('KANARIFUGL: en måned uten usynlig teller ikke med', () => {
+    const medAapen = kart({ '2026-01': 200000, '2026-02': 226681, '2026-03': 40000 })
+    const u = usynligstatus(usynlig, medAapen, null)!
+    expect(u.maaneder).toBe(2)
+    expect(Math.round(u.kastAvlagtKr)).toBe(426681)
+    // 40 000 fra den åpne måneden skal IKKE være med i totalen.
+    expect(Math.round(u.totaltKr)).toBe(578829)
+  })
+
+  it('og en måned uten kast teller heller ikke', () => {
+    const u = usynligstatus(kart({ '2026-05': 9000 }), kart({ '2026-01': 100 }), null)
+    expect(u).toBeNull()
+  })
+
+  // FORTEGNET ER IKKE PYNT: + er manko, − er overskudd. En telling kan
+  // finne mer enn forventet, og da skal summen gå NED. Tas absoluttverdi
+  // et sted, blir et overskudd lest som et tap.
+  it('KANARIFUGL: overskudd trekker fra, det legges ikke til', () => {
+    const u = usynligstatus(kart({ '2026-01': -30000 }), kart({ '2026-01': 100000 }), null)!
+    expect(u.usynligKr).toBe(-30000)
+    expect(u.totaltKr).toBe(70000)
+  })
+
+  it('sier fra når ingen måned er avlagt', () => {
+    expect(usynligstatus(new Map(), new Map(), 22019)).toBeNull()
+  })
+
+  it('bærer årsbudsjettet uten å skalere det', () => {
+    // Budsjettet er et kronebeløp for HELE året, ikke en sats. Å dele på
+    // tolv eller følge salget ville vært å finne på en fordeling St1
+    // ikke har oppgitt.
+    expect(usynligstatus(usynlig, kast, 22019)!.arsbudsjettKr).toBe(22019)
+    expect(usynligstatus(usynlig, kast, null)!.arsbudsjettKr).toBeNull()
+  })
+})
+
+describe('svinnbilde — usynlig kobles på', () => {
+  const grunn = {
+    budsjett: [BONES],
+    kastRegnskap: new Map([['120', kart({ '2026-01': 164734 })]]),
+    kastDaglig: new Map([['120', kart({ '2026-02': 6146 })]]),
+    salg: new Map([['120', kart({ '2026-01': 900000, '2026-02': 320436 })]]),
+  }
+
+  it('er null når ingen usynligdata er sendt inn', () => {
+    expect(svinnbilde(grunn).usynlig).toBeNull()
+  })
+
+  it('regner hele svinnet av de avlagte månedene', () => {
+    const ut = svinnbilde({
+      ...grunn,
+      usynligPerMaaned: kart({ '2026-01': 40000 }),
+      usynligArsbudsjettKr: 22019,
+    })
+    expect(ut.usynlig!.maaneder).toBe(1)
+    expect(Math.round(ut.usynlig!.kastAvlagtKr)).toBe(164734)
+    expect(Math.round(ut.usynlig!.totaltKr)).toBe(204734)
+    // Kastet totalt er større enn kastet i avlagte måneder — den åpne
+    // måneden er med der og ikke her, og det er hele poenget.
+    expect(Math.round(ut.total!.kastHittilKr)).toBe(170880)
+  })
+})
+
+// =====================================================================
+// KANARIFUGL FOR AVDELINGSAVGRENSNINGEN
+//
+// `hent-budsjett.ts` avgrenser ALT til avdelingen budsjettet gjelder før
+// vareområdet brukes. Den avgrensningen ser overflødig ut — budsjettet
+// er jo MAT — og er det ikke.
+//
+// Testen under er grunnen. Faller den, er noen i ferd med å ta den bort.
+// =====================================================================
+describe('vareomradeAv er IKKE entydig alene', () => {
+  // Målt i produksjon 2026-09-05: elleve koder ender på `10`.
+  const ENDER_PAA_10 = [
+    '12010', '13010', '14010', '16010', '17010',
+    '18010', '19010', '20010', '21010', '24010', '25010',
+  ]
+
+  it('elleve ulike varegrupper gir samme vareområdekode', () => {
+    expect(new Set(ENDER_PAA_10.map(vareomradeAv))).toEqual(new Set(['10']))
+  })
+
+  // BAKERI er 12010. Uten avdelingsleddet ville kaffe, brus, sjokolade,
+  // tobakk, aviser og pant blitt lagt til bakeriets kast — og tallet sett
+  // ut som et bakeriproblem.
+  it('men avdelingen skiller dem', () => {
+    expect(new Set(ENDER_PAA_10.map(avdelingAv)).size).toBe(ENDER_PAA_10.length)
+    expect(avdelingAv('12010')).toBe('120')
+    expect(avdelingAv('13010')).toBe('130')
+  })
+
+  it('paret avdeling + vareområde er entydig', () => {
+    const par = ENDER_PAA_10.map((k) => `${avdelingAv(k)}/${vareomradeAv(k)}`)
+    expect(new Set(par).size).toBe(par.length)
   })
 })

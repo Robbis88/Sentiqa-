@@ -181,6 +181,19 @@ export function kildenotat(s: Svinnstatus): string {
 //
 // Budsjettet bruker det korte: `10` for BAKERI. Sammenstillingen skjer
 // her, én gang, saa ingen kallsteder gjoer den hver sin vei.
+//
+// **VAREOMRAADET ALENE ER IKKE ENTYDIG, OG DET ER IKKE EN DETALJ.**
+// Elleve av kodene i produksjon ender paa `10`:
+//
+//     12010 BAKERI    13010 KAFFE      14010 BRUS     16010 SJOKOLADE
+//     17010 DAGLIGVARE 18010 SIGARETTER 19010 AVISER  20010 BILPLEIE
+//     21010 MASKINVASK 24010 FORBRUK   25010 PANT
+//
+// Noekles kastet paa `10` alene, faar BAKERI med seg kaffe, brus,
+// tobakk, aviser og pant. Tallet blir stoerre og ser ut som et
+// bakeriproblem. Derfor maa ALT foerst avgrenses til avdelingen
+// budsjettet gjelder - `avdelingAv(kode) === avdeling` - og
+// vareomraadet brukes bare innenfor den.
 // ---------------------------------------------------------------------
 
 /** `12010` -> `10`. Avdelingen er alltid tre siffer. */
@@ -197,11 +210,94 @@ export function avdelingAv(regnskapskode: string | null): string | null {
   return k.length === 5 && /^\d{5}$/.test(k) ? k.slice(0, 3) : null
 }
 
+// ---------------------------------------------------------------------
+// USYNLIG SVINN — DEN ANDRE HALVDELEN
+//
+// Identiteten St1 regner med:
+//
+//     teoretisk brutto − faktisk brutto = synlig svinn + usynlig svinn
+//
+// Målt på Laguneparken: 2 680 962 − 2 102 133 = 578 828 = 426 681 + 152 148.
+//
+// «Kast» er det som ble slått inn som kastet. «Usynlig» er resten — svinn
+// ingen registrerte: manko, feilslag, tyveri, feil pris. **Fortegnet er
+// ikke pynt: + er manko, − er overskudd**, og en telling kan finne mer enn
+// forventet. Summen kan derfor bli negativ, og det er et gyldig svar.
+//
+// ---------------------------------------------------------------------
+// DEN FINNES BARE I AVLAGTE MÅNEDER, OG DET MÅ STÅ
+//
+// Kast har to kilder — den daglige opplastingen og regnskapet. Usynlig
+// svinn har ÉN: det oppstår per definisjon uten at noen registrerer noe,
+// så det kan først regnes ut når måneden er talt opp og avlagt.
+//
+// **Legges de sammen uten videre, dekker de to halvdelene ulike
+// perioder.** Kastet ville hatt med inneværende måned og det usynlige
+// ikke, og totalen ville vært for lav på en måte ingen ser. Derfor er
+// totalen her avgrenset til de AVLAGTE månedene, for begge — og antallet
+// står i svaret.
+//
+// ---------------------------------------------------------------------
+// BUDSJETTET ER ET ÅRSTALL, IKKE EN SATS
+//
+// Kastbudsjettet er en prosent, så «budsjett hittil» følger salget.
+// Usynligbudsjettet er et kronebeløp for hele året; St1 uttrykker det
+// ikke som en rate. Å dele det på tolv eller skalere det med salget ville
+// vært å finne på en fordeling de ikke har oppgitt.
+//
+// Det sammenlignes derfor mot ÅRET, og feltet heter deretter.
+// ---------------------------------------------------------------------
+
+export type Usynligstatus = {
+  /** Sum `usynlig_kr` over de avlagte månedene. Kan være negativ. */
+  usynligKr: number
+  /** Kastet i de SAMME månedene — så totalen dekker én periode. */
+  kastAvlagtKr: number
+  /** `usynligKr + kastAvlagtKr`. Hele svinnet, avlagte måneder. */
+  totaltKr: number
+  /** St1s årsbudsjett for usynlig. Null når fila ikke oppgir det. */
+  arsbudsjettKr: number | null
+  /** Hvor mange måneder tallene dekker. Står i teksten, ikke bare her. */
+  maaneder: number
+}
+
 export type Svinnbilde = {
   linjer: Svinnstatus[]
   /** Summen av linjene. Aldri regnet av en egen totalrad - se `nivaa`. */
   total: Svinnstatus | null
+  /** Usynlig svinn og hele svinnet. Null når ingen måned er avlagt. */
+  usynlig: Usynligstatus | null
   notat: string
+}
+
+/**
+ * Usynlig svinn og totalen, over de månedene som ER avlagt.
+ *
+ * `usynligPerMaaned` og `kastPerMaaned` skal begge komme fra regnskapet.
+ * Den daglige opplastingen hører ikke hjemme her: den finnes bare for
+ * kast, og en total der den ene halvdelen dekker én måned mer enn den
+ * andre er ikke en total.
+ */
+export function usynligstatus(
+  usynligPerMaaned: Map<string, number>,
+  kastPerMaaned: Map<string, number>,
+  arsbudsjettKr: number | null,
+): Usynligstatus | null {
+  // SNITTET, ikke unionen. En måned med usynlig men uten kast — eller
+  // omvendt — er en måned der den ene kilden mangler, og da er totalen
+  // for den måneden ikke hele svinnet.
+  const maaneder = [...usynligPerMaaned.keys()].filter((m) => kastPerMaaned.has(m))
+  if (maaneder.length === 0) return null
+
+  const usynligKr = maaneder.reduce((a, m) => a + (usynligPerMaaned.get(m) ?? 0), 0)
+  const kastAvlagtKr = maaneder.reduce((a, m) => a + (kastPerMaaned.get(m) ?? 0), 0)
+  return {
+    usynligKr,
+    kastAvlagtKr,
+    totaltKr: usynligKr + kastAvlagtKr,
+    arsbudsjettKr,
+    maaneder: maaneder.length,
+  }
 }
 
 /**
@@ -220,6 +316,10 @@ export function svinnbilde(opts: {
   kastRegnskap: Map<string, Map<string, number>>
   kastDaglig: Map<string, Map<string, number>>
   salg: Map<string, Map<string, number>>
+  /** `maaned -> kroner`, fra regnskapet. + er manko, − er overskudd. */
+  usynligPerMaaned?: Map<string, number>
+  /** St1s årsbudsjett for usynlig. Bare den nyeste filvarianten har det. */
+  usynligArsbudsjettKr?: number | null
 }): Svinnbilde {
   const tom = new Map<string, number>()
   const linjer = opts.budsjett.map((b) => svinnstatus(
@@ -261,9 +361,21 @@ export function svinnbilde(opts: {
       || linjer.some((l) => l.nevnerMistenkelig)
   }
 
+  // KASTET PER MÅNED, FRA REGNSKAPET ALENE. Summert på tvers av linjene,
+  // slik at usynlig og kast dekker nøyaktig de samme månedene.
+  const kastAvlagtPerMaaned = new Map<string, number>()
+  for (const per of opts.kastRegnskap.values()) {
+    for (const [m, kr] of per) kastAvlagtPerMaaned.set(m, (kastAvlagtPerMaaned.get(m) ?? 0) + kr)
+  }
+
   return {
     linjer: [...linjer].sort((a, b) => b.avvikKr - a.avvikKr),
     total,
+    usynlig: opts.usynligPerMaaned
+      ? usynligstatus(
+        opts.usynligPerMaaned, kastAvlagtPerMaaned, opts.usynligArsbudsjettKr ?? null,
+      )
+      : null,
     notat: total ? kildenotat(total) : 'Ingen kastbudsjett for dette året.',
   }
 }
