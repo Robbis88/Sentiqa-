@@ -365,8 +365,10 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
 
           {/* USYNLIG SVINN — DEN ANDRE HALVDELEN.
               teoretisk brutto - faktisk brutto = synlig + usynlig.
-              Kast er det som ble slaatt inn; usynlig er resten: manko,
-              feilslag, tyveri, feil pris.
+              Kast er det som ble slaatt inn og lastet opp daglig;
+              usynlig er resten - og FOR MAT er det som regel
+              overproduksjon: laget, ikke solgt, aldri foert som kast.
+              Det er produksjonsplanens tall, ikke kassens.
 
               AVLAGTE MAANEDER ALENE, for BEGGE tallene. Usynlig svinn
               oppstaar per definisjon uten at noen registrerer noe, saa
@@ -392,7 +394,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 <Nokkeltall
                   merkelapp={budsjettbilde.usynlig.usynligKr < 0 ? 'Usynlig overskudd' : 'Usynlig svinn'}
                   verdi={kr.format(Math.abs(Math.round(budsjettbilde.usynlig.usynligKr)))}
-                  sammenlignet="manko, feilslag, tyveri"
+                  sammenlignet="trolig overproduksjon"
                   retning={budsjettbilde.usynlig.usynligKr > 0 ? 'opp' : 'ned'}
                   bra={budsjettbilde.usynlig.usynligKr <= 0}
                 />
@@ -421,8 +423,10 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 {budsjettbilde.usynlig.usynligKr < 0
                   ? 'Negativt usynlig svinn er et overskudd: tellingen fant mer enn '
                     + 'forventet, og det trekker ned totalen. '
-                  : 'Usynlig svinn er differansen mellom teoretisk og faktisk brutto '
-                    + 'som ingen registrerte — manko, feilslag, tyveri, feil pris. '}
+                  : 'Usynlig svinn er maten som er borte uten å være ført som kast — '
+                    + 'for mat som regel overproduksjon: laget, ikke solgt, og aldri '
+                    + 'slått inn. Tallet kommer av månedstellingen, så det finnes '
+                    + 'først når måneden er avlagt. '}
                 {budsjettbilde.usynlig.tillattSvinnKr != null
                   ? 'Grensen er BP-en, ikke et eget svinnbudsjett: teoretisk brutto '
                     + `(${kr.format(Math.round(budsjettbilde.usynlig.teoretiskBruttoKr!))}) `
@@ -430,6 +434,21 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                     + `(${kr.format(Math.round(budsjettbilde.usynlig.bpBruttoKr!))}) `
                     + 'er alt svinnet stasjonen har råd til. Kast og usynlig spiser av '
                     + 'samme brutto, så de deler den grensen. '
+                    // ET STRAMT ROM ER IKKE DET SAMME SOM MER SVINN.
+                    //
+                    // BP-en forplikter stasjonen til en brutto i KRONER.
+                    // Selges det mindre enn budsjettert, faller teoretisk
+                    // brutto mens kravet staar - og rommet krymper. Uten
+                    // denne setningen leses et negativt avvik som at det
+                    // ble kastet mer, naar det som skjedde var at salget
+                    // sviktet.
+                    + (budsjettbilde.usynlig.salgMotBpPst != null
+                      && budsjettbilde.usynlig.salgMotBpPst < -1
+                      ? `Salget ligger ${Math.abs(budsjettbilde.usynlig.salgMotBpPst).toFixed(1)} `
+                        + '% under BP-en i disse månedene, og da krymper rommet med det — '
+                        + 'brutto­kravet står i kroner. Et stramt rom er ikke det samme '
+                        + 'som at det er kastet mer.'
+                      : '')
                     // ET GULV, IKKE EN EKSAKT SUM — og det skal stå.
                     // Importen dropper regnskapsrader der både kast og
                     // usynlig er under 1 000 kr. Målt på Bønes 2026 er
