@@ -169,6 +169,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             <th>Måned</th>
             <th>Lønnskost</th>
             <th>Budsjett</th>
+            <th>BP</th>
             <th>Avvik</th>
             <th>Timer</th>
             <th>Per time</th>
@@ -187,6 +188,11 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                 </td>
                 <td>{m.avlagt ? kr.format(Math.round(m.lonnskostKr)) : '—'}</td>
                 <td>{m.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}</td>
+                {/* BP-EN STAAR I EGEN KOLONNE, IKKE I STEDET FOR.
+                    St1s maanedsbudsjett sier hva DENNE maaneden ble maalt
+                    mot; BP-en sier hva St1 lovet for aaret. De kan vaere
+                    ulike, og det er da man vil se begge. */}
+                <td>{m.bpBudsjettKr == null ? '—' : kr.format(Math.round(m.bpBudsjettKr))}</td>
                 <td>
                   {a == null ? '—' : (
                     <span className={`status-pip ${a > 0 ? 'rod' : 'gronn'}`}>

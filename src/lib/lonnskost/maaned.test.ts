@@ -144,3 +144,67 @@ describe('kontolista', () => {
     expect(LONNSKONTI).toHaveLength(9)
   })
 })
+
+// =====================================================================
+// BP-EN STÅR VED SIDEN AV, IKKE I STEDET FOR
+//
+// Jeg skrev først at de to budsjettene aldri finnes for samme måned.
+// Det var sant om `regnskapslinjer` — der hopper BP-importen over hver
+// avlagt måned med vilje. Men `0155` la BP-en inn som sitt eget
+// dokument (`bp_linje`), urørt av månedslåsen.
+//
+// Derfor kan en avlagt måned ha BEGGE, og de svarer på hvert sitt
+// spørsmål: hva måneden ble målt mot, og hva St1 lovet for året.
+// =====================================================================
+describe('byggLonnskost — BP ved siden av St1s månedsbudsjett', () => {
+  const bp = (kode: string, budsjett: number): Kontolinje =>
+    ({ periode: '2026-07-01', seksjon: 'bp_kostnad', kode, post: `${kode} Kostnader`, regnskap: 0, budsjett })
+
+  const medBegge = [
+    ...drift('2026-07-01'),
+    bp('5010', 50000), bp('5012', 145000), bp('5090', 23400),
+    bp('5400', 27500), bp('5401', 3300),
+    // Ikke lønn — skal ikke telle med.
+    bp('6510', 4000),
+  ]
+
+  it('viser begge budsjettene for en avlagt måned', () => {
+    const [r] = byggLonnskost(medBegge, BP_LONN)
+    expect(r.avlagt).toBe(true)
+    // St1s månedsbudsjett, fra regnskapsraden.
+    expect(r.budsjettKilde).toBe('st1_maaned')
+    expect(Math.round(r.budsjettKr!)).toBe(261018)
+    // BP-en, fra sitt eget dokument.
+    expect(Math.round(r.bpBudsjettKr!)).toBe(249200)
+  })
+
+  // KANARIFUGL: BP-en har hele kontoplanen. Tas alt med, blir
+  // «lønnsbudsjettet» summen av verktøy og strøm også.
+  it('KANARIFUGL: bare lønnskontiene teller i BP-summen', () => {
+    const [r] = byggLonnskost(medBegge, BP_LONN)
+    expect(r.bpBudsjettKr).not.toBe(253200)
+  })
+
+  it('lar regnskapet være kilden for det faktiske, uansett', () => {
+    const [r] = byggLonnskost(medBegge, BP_LONN)
+    expect(Math.round(r.lonnskostKr)).toBe(242963)
+  })
+
+  it('står som null når BP-en ikke er importert for året', () => {
+    const [r] = byggLonnskost(drift('2026-07-01'), BP_LONN)
+    expect(r.bpBudsjettKr).toBeNull()
+  })
+
+  // En åpen måned har ingen regnskapslinjer. Da er BP-en både kilden til
+  // budsjettet OG tallet i BP-kolonnen — samme tall, to steder, fordi
+  // det er det eneste som finnes.
+  it('en åpen måned tar budsjettet fra BP-en selv', () => {
+    const [r] = byggLonnskost([
+      { periode: '2026-09-01', seksjon: 'bp_kostnad', kode: '5012', post: '5012 Kostnader', regnskap: 0, budsjett: 150000 },
+    ], BP_LONN)
+    expect(r.avlagt).toBe(false)
+    expect(r.budsjettKilde).toBe('bp')
+    expect(Math.round(r.budsjettKr!)).toBe(150000)
+    expect(Math.round(r.bpBudsjettKr!)).toBe(150000)
+  })
+})
