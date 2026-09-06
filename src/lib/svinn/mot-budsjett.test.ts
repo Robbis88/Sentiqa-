@@ -335,7 +335,7 @@ describe('usynligstatus', () => {
   const usynlig = kart({ '2026-01': 100000, '2026-02': 52148 })
 
   it('legger sammen til hele svinnet', () => {
-    const u = usynligstatus(usynlig, kast, 22019)!
+    const u = usynligstatus(usynlig, kast)!
     expect(Math.round(u.kastAvlagtKr)).toBe(426681)
     expect(Math.round(u.usynligKr)).toBe(152148)
     expect(Math.round(u.totaltKr)).toBe(578829)
@@ -348,7 +348,7 @@ describe('usynligstatus', () => {
   // synes.
   it('KANARIFUGL: en måned uten usynlig teller ikke med', () => {
     const medAapen = kart({ '2026-01': 200000, '2026-02': 226681, '2026-03': 40000 })
-    const u = usynligstatus(usynlig, medAapen, null)!
+    const u = usynligstatus(usynlig, medAapen)!
     expect(u.maaneder).toBe(2)
     expect(Math.round(u.kastAvlagtKr)).toBe(426681)
     // 40 000 fra den åpne måneden skal IKKE være med i totalen.
@@ -356,7 +356,7 @@ describe('usynligstatus', () => {
   })
 
   it('og en måned uten kast teller heller ikke', () => {
-    const u = usynligstatus(kart({ '2026-05': 9000 }), kart({ '2026-01': 100 }), null)
+    const u = usynligstatus(kart({ '2026-05': 9000 }), kart({ '2026-01': 100 }))
     expect(u).toBeNull()
   })
 
@@ -364,21 +364,63 @@ describe('usynligstatus', () => {
   // finne mer enn forventet, og da skal summen gå NED. Tas absoluttverdi
   // et sted, blir et overskudd lest som et tap.
   it('KANARIFUGL: overskudd trekker fra, det legges ikke til', () => {
-    const u = usynligstatus(kart({ '2026-01': -30000 }), kart({ '2026-01': 100000 }), null)!
+    const u = usynligstatus(kart({ '2026-01': -30000 }), kart({ '2026-01': 100000 }))!
     expect(u.usynligKr).toBe(-30000)
     expect(u.totaltKr).toBe(70000)
   })
 
   it('sier fra når ingen måned er avlagt', () => {
-    expect(usynligstatus(new Map(), new Map(), 22019)).toBeNull()
+    expect(usynligstatus(new Map(), new Map())).toBeNull()
   })
 
-  it('bærer årsbudsjettet uten å skalere det', () => {
-    // Budsjettet er et kronebeløp for HELE året, ikke en sats. Å dele på
-    // tolv eller følge salget ville vært å finne på en fordeling St1
-    // ikke har oppgitt.
-    expect(usynligstatus(usynlig, kast, 22019)!.arsbudsjettKr).toBe(22019)
-    expect(usynligstatus(usynlig, kast, null)!.arsbudsjettKr).toBeNull()
+  // GRENSEN KOMMER FRA BP-EN, IKKE FRA DELINGSFILA.
+  //
+  // St1 setter ingen grense for usynlig svinn. De setter en BRUTTO, og
+  // da foelger svinnbudsjettet av identiteten:
+  //
+  //     tillatt svinn = teoretisk brutto - brutto budsjettert i BP
+  //
+  // Kast og usynlig deler den grensen. De spiser av samme brutto, og en
+  // krone tapt i manko koster like mye som en krone kastet.
+  it('regner tillatt svinn av BP-bruttoen', () => {
+    const u = usynligstatus(usynlig, kast, {
+      teoretiskPerMaaned: kart({ '2026-01': 700000, '2026-02': 700000 }),
+      bpBruttoPerMaaned: kart({ '2026-01': 300000, '2026-02': 300000 }),
+    })!
+    expect(u.teoretiskBruttoKr).toBe(1400000)
+    expect(u.bpBruttoKr).toBe(600000)
+    expect(u.tillattSvinnKr).toBe(800000)
+    // 578 829 av 800 000 - innenfor, med god margin.
+    expect(Math.round(u.avvikMotBpKr!)).toBe(578829 - 800000)
+  })
+
+  it('sier fra naar svinnet spiser mer enn BP-en taaler', () => {
+    const u = usynligstatus(usynlig, kast, {
+      teoretiskPerMaaned: kart({ '2026-01': 300000, '2026-02': 300000 }),
+      bpBruttoPerMaaned: kart({ '2026-01': 100000, '2026-02': 100000 }),
+    })!
+    expect(u.tillattSvinnKr).toBe(400000)
+    expect(Math.round(u.avvikMotBpKr!)).toBe(178829)
+  })
+
+  // KANARIFUGL: BP-siden maa dekke de SAMME maanedene. Mangler én,
+  // sammenlignes to perioder - samme feil som en avkortet nevner, bare
+  // paa den andre siden av broeken.
+  it('KANARIFUGL: holder BP-tallene tilbake naar en maaned mangler', () => {
+    const u = usynligstatus(usynlig, kast, {
+      teoretiskPerMaaned: kart({ '2026-01': 700000 }),
+      bpBruttoPerMaaned: kart({ '2026-01': 300000 }),
+    })!
+    expect(u.tillattSvinnKr).toBeNull()
+    expect(u.avvikMotBpKr).toBeNull()
+    // Svinnet selv staar fortsatt - det er grensen som mangler.
+    expect(Math.round(u.totaltKr)).toBe(578829)
+  })
+
+  it('staar uten grense naar BP ikke er sendt inn', () => {
+    const u = usynligstatus(usynlig, kast)!
+    expect(u.tillattSvinnKr).toBeNull()
+    expect(u.bpBruttoKr).toBeNull()
   })
 })
 
@@ -398,7 +440,7 @@ describe('svinnbilde — usynlig kobles på', () => {
     const ut = svinnbilde({
       ...grunn,
       usynligPerMaaned: kart({ '2026-01': 40000 }),
-      usynligArsbudsjettKr: 22019,
+
     })
     expect(ut.usynlig!.maaneder).toBe(1)
     expect(Math.round(ut.usynlig!.kastAvlagtKr)).toBe(164734)

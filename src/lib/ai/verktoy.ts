@@ -1539,8 +1539,14 @@ export const VERKTOY: Record<string, Verktoy> = {
             registrert_kast_kr: Math.round(r.usynlig.kastAvlagtKr),
             usynlig_kr: Math.round(r.usynlig.usynligKr),
             totalt_kr: Math.round(r.usynlig.totaltKr),
-            usynlig_aarsbudsjett_kr: r.usynlig.arsbudsjettKr == null
-              ? null : Math.round(r.usynlig.arsbudsjettKr),
+            // GRENSEN ER BP-EN, ikke et eget svinnbudsjett. St1 setter
+            // ingen grense for usynlig svinn; de setter en brutto, og
+            // tillatt svinn er teoretisk brutto minus den. Kast og
+            // usynlig deler grensen - de spiser av samme brutto.
+            tillatt_svinn_kr: r.usynlig.tillattSvinnKr == null
+              ? null : Math.round(r.usynlig.tillattSvinnKr),
+            avvik_mot_bp_kr: r.usynlig.avvikMotBpKr == null
+              ? null : Math.round(r.usynlig.avvikMotBpKr),
           } : null,
           per_undergruppe: r.linjer.map((l) => ({
             undergruppe: l.linje.navn,

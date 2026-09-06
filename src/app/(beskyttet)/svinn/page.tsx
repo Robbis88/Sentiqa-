@@ -392,16 +392,22 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 <Nokkeltall
                   merkelapp={budsjettbilde.usynlig.usynligKr < 0 ? 'Usynlig overskudd' : 'Usynlig svinn'}
                   verdi={kr.format(Math.abs(Math.round(budsjettbilde.usynlig.usynligKr)))}
-                  sammenlignet={budsjettbilde.usynlig.arsbudsjettKr == null
-                    ? 'manko, feilslag, tyveri'
-                    : `årsbudsjett ${kr.format(Math.round(budsjettbilde.usynlig.arsbudsjettKr))}`}
+                  sammenlignet="manko, feilslag, tyveri"
                   retning={budsjettbilde.usynlig.usynligKr > 0 ? 'opp' : 'ned'}
                   bra={budsjettbilde.usynlig.usynligKr <= 0}
                 />
                 <Nokkeltall
                   merkelapp="Totalt svinn"
                   verdi={kr.format(Math.round(budsjettbilde.usynlig.totaltKr))}
-                  sammenlignet="kast + usynlig, samme måneder"
+                  sammenlignet={budsjettbilde.usynlig.tillattSvinnKr == null
+                    ? 'kast + usynlig, samme måneder'
+                    : `BP tåler ${kr.format(Math.round(budsjettbilde.usynlig.tillattSvinnKr))}`}
+                  retning={budsjettbilde.usynlig.avvikMotBpKr == null
+                    ? 'flat'
+                    : budsjettbilde.usynlig.avvikMotBpKr > 0 ? 'opp' : 'ned'}
+                  bra={budsjettbilde.usynlig.avvikMotBpKr == null
+                    ? undefined
+                    : budsjettbilde.usynlig.avvikMotBpKr <= 0}
                 />
               </div>
 
@@ -409,13 +415,18 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 {budsjettbilde.usynlig.usynligKr < 0
                   ? 'Negativt usynlig svinn er et OVERSKUDD — tellingen fant mer enn '
                     + 'forventet. Det er ikke gratis: det betyr som regel at noe er '
-                    + 'ført feil et annet sted.'
+                    + 'ført feil et annet sted. '
                   : 'Usynlig svinn er differansen mellom teoretisk og faktisk brutto '
-                    + 'som ingen registrerte — manko, feilslag, tyveri, feil pris.'}
-                {budsjettbilde.usynlig.arsbudsjettKr != null && (
-                  ' Årsbudsjettet er et kronebeløp, ikke en sats, så det gjelder hele '
-                  + 'året — ikke perioden over.'
-                )}
+                    + 'som ingen registrerte — manko, feilslag, tyveri, feil pris. '}
+                {budsjettbilde.usynlig.tillattSvinnKr != null
+                  ? 'Grensen er BP-en, ikke et eget svinnbudsjett: teoretisk brutto '
+                    + `(${kr.format(Math.round(budsjettbilde.usynlig.teoretiskBruttoKr!))}) `
+                    + 'minus bruttoen BP-en budsjetterer '
+                    + `(${kr.format(Math.round(budsjettbilde.usynlig.bpBruttoKr!))}) `
+                    + 'er alt svinnet stasjonen har råd til. Kast og usynlig spiser av '
+                    + 'samme brutto, så de deler den grensen.'
+                  : 'BP-tall mangler for disse månedene, så det finnes ingen grense å '
+                    + 'måle mot ennå.'}
               </p>
             </>
           )}
