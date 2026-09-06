@@ -60,6 +60,37 @@ import { TIMER_PER_UKE, type Skiftordning } from './tariff'
 /** Alminnelig arbeidstid per dag, aml. § 10-4 (1). */
 export const TIMER_PER_DAG = 9
 
+// ---------------------------------------------------------------------
+// LANGE UKER ETTER AVTALE (aml. § 10-5)
+//
+// Paa hver stasjon finnes ansatte med INDIVIDUELL skriftlig avtale om
+// gjennomsnittsberegnet arbeidstid - typisk uke paa / uke av. En slik
+// arbeidsuke er sju dager og rundt 53 timer HVER GANG.
+//
+// Uten dette fyrte varselet paa dem hver maaned. Boenes, august 2026:
+// Lars Neteland hadde 39,7 / 40,1 / 15,9 / 53,6 / 8,2 - fire funn, tre
+// av dem stoey. **En vakt som roper om det normale blir ikke lest**, og
+// da drukner det ene funnet som betyr noe.
+//
+// HAKEN FJERNER IKKE GRENSEN, DEN BYTTER DEN. § 10-5 setter egne tak,
+// og hvilket avhenger av hvem avtalen er inngaatt med:
+//
+//     individuell avtale        10 t/dag   48 t/uke
+//     avtale med fagforening    12,5 t/dag 54 t/uke
+//
+// **Kelsars avtaler er individuelle** (Robert, 2026-09-06), saa det er
+// 10 og 48 som gjelder. Skulle en kjede ha fagforeningsavtale, er det
+// konfigurasjon - ikke et tall som skal endres her.
+//
+// Lars' 53,6 er fortsatt et funn, og et ekte et: mer enn en individuell
+// avtale tillater. Fire funn blir til ett.
+// ---------------------------------------------------------------------
+
+/** Dagsgrense ved gjennomsnittsberegning, individuell avtale (§ 10-5). */
+export const TIMER_PER_DAG_AVTALT = 10
+/** Ukegrense ved gjennomsnittsberegning, individuell avtale (§ 10-5). */
+export const TIMER_PER_UKE_AVTALT = 48
+
 export type Vaktlinje = {
   ansattNr: string
   /** ISO-dato, `YYYY-MM-DD`. */
@@ -82,6 +113,15 @@ export type Overtidsfunn = {
    * kan skjule timer, aldri finne opp noen.
    */
   antattOrdinaer?: true
+  /**
+   * Målt mot § 10-5-taket, ikke mot uketimetallet.
+   *
+   * Står den, har den ansatte individuell avtale om lange uker — og
+   * funnet betyr da at uka er over det AVTALEN tillater, ikke at den er
+   * over en vanlig uke. Det er to helt ulike beskjeder, og flaten må
+   * kunne si hvilken.
+   */
+  langeUkerAvtalt?: true
 }
 
 const MANDAG_FRA_SONDAG = 6
@@ -117,6 +157,13 @@ const timer = (minutter: number) => Math.round((minutter / 60) * 100) / 100
 export function finnOvertid(
   linjer: Vaktlinje[],
   skiftordning: (ansattNr: string) => Skiftordning | null,
+  /**
+   * Har den ansatte individuell avtale om lange uker (§ 10-5)?
+   *
+   * Utelates den, er svaret nei for alle — den strengeste grensen, og
+   * det trygge svaret for en ansatt ingen har tatt stilling til.
+   */
+  langeUkerAvtalt: (ansattNr: string) => boolean = () => false,
 ): Overtidsfunn[] {
   const perDag = new Map<string, number>()
   const perUke = new Map<string, number>()
@@ -132,25 +179,35 @@ export function finnOvertid(
   const funn: Overtidsfunn[] = []
 
   for (const [noekkel, minutter] of perDag) {
-    const t = timer(minutter)
-    if (t <= TIMER_PER_DAG) continue
     const [ansattNr, dato] = noekkel.split('|')
+    // § 10-5 hever dagsgrensen til 10 for den som har avtalen. Loven
+    // gjelder fortsatt — det er bare et annet ledd av den.
+    const grense = langeUkerAvtalt(ansattNr) ? TIMER_PER_DAG_AVTALT : TIMER_PER_DAG
+    const t = timer(minutter)
+    if (t <= grense) continue
     funn.push({
       ansattNr, slag: 'dag', noekkel: dato,
-      timer: t, grense: TIMER_PER_DAG, over: timer(minutter - TIMER_PER_DAG * 60),
+      timer: t, grense, over: timer(minutter - grense * 60),
     })
   }
 
   for (const [noekkel, minutter] of perUke) {
     const [ansattNr, mandag] = noekkel.split('|')
+    const avtalt = langeUkerAvtalt(ansattNr)
     const ordning = skiftordning(ansattNr)
-    const grense = TIMER_PER_UKE[ordning ?? 'ordinaer']
+    // AVTALEN SLÅR SKIFTORDNINGEN. Uke på / uke av gir sju arbeidsdager,
+    // og da er 35,5 eller 37,5 ikke grensen som gjelder — men 48 er.
+    const grense = avtalt ? TIMER_PER_UKE_AVTALT : TIMER_PER_UKE[ordning ?? 'ordinaer']
     const t = timer(minutter)
     if (t <= grense) continue
     funn.push({
       ansattNr, slag: 'uke', noekkel: mandag,
       timer: t, grense, over: timer(minutter - grense * 60),
-      ...(ordning === null ? { antattOrdinaer: true as const } : {}),
+      // `antattOrdinaer` betyr «skiftordningen er ukjent, vi antok den
+      // strengeste». Med avtalen brukes ikke skiftordningen i det hele
+      // tatt, så forbeholdet ville vært misvisende.
+      ...(ordning === null && !avtalt ? { antattOrdinaer: true as const } : {}),
+      ...(avtalt ? { langeUkerAvtalt: true as const } : {}),
     })
   }
 

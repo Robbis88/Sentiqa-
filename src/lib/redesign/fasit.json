@@ -284,6 +284,7 @@
     "/lonn": [
       "annullerHendelse",
       "lukkVakt",
+      "settLangeUker",
       "settLonnsform",
       "settSkiftFraSats",
       "settStemplingskilde",
@@ -804,6 +805,7 @@
       "Stemple inn og ut"
     ],
     "/svinn": [
+      "Hele svinnet",
       "Ingen svinndata ennå",
       "Kastbudsjett {valgtMaaned.slice(0, 4)}",
       "Måned for måned",

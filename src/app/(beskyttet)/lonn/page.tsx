@@ -11,6 +11,7 @@ import { kanLageLonnsfil } from '@/lib/stempling/avled'
 import { avstem, kanSnuStasjon, TERSKEL_TIMER } from '@/lib/stempling/avstem'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { LonnsformVelger } from './lonnsform-velger'
+import { LangeUker } from './lange-uker'
 import { LukkVakt } from './lukk-vakt'
 import { ByttKilde } from './bytt-kilde'
 import { TimesatsFelt } from './timesats-felt'
@@ -151,13 +152,13 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
   // Bekreftede stillinger og satser — til tariffkontrollen.
   const { data: avtaler } = await supabase
     .from('ansatt_avtale')
-    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale, lonnsform, skiftordning')
+    .select('ansatt_nr, stillingsprosent, timesats, har_rammeavtale, lonnsform, skiftordning, lange_uker_avtalt')
     .eq('stasjon_id', valgt.id)
   const avtale = new Map(
     ((avtaler ?? []) as
       { ansatt_nr: string; stillingsprosent: number | null; timesats: number | null
         har_rammeavtale: boolean; lonnsform: Lonnsform | null
-        skiftordning: Skiftordning | null }[])
+        skiftordning: Skiftordning | null; lange_uker_avtalt: boolean }[])
       .map((a) => [a.ansatt_nr, a]))
 
   // -------------------------------------------------------------------
@@ -187,6 +188,9 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
       }).get(LONNSART.timelonn) ?? 0,
     })),
     (nr) => avtale.get(nr)?.skiftordning ?? null,
+    // Avtalen om lange uker byttter grensen, den fjerner den ikke.
+    // Uten den fyrte varselet hver maaned paa alle med uke paa / uke av.
+    (nr) => avtale.get(nr)?.lange_uker_avtalt ?? false,
   )
   // Ukesfunn beholdes selv om uka starter i forrige maaned — den uka
   // hoerer til begge visningene. Dagsfunn utenfor maaneden hoerer til
@@ -369,6 +373,10 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                             {dagMaaned.format(new Date(`${f.noekkel}T00:00:00Z`))}
                             {' '}· {tall.format(f.timer)} t av {tall.format(f.grense)}
                             {f.antattOrdinaer ? ' (skiftordning ikke satt)' : ''}
+                            {/* TO ULIKE BESKJEDER. Uten dette leses et funn
+                                paa 48 timer som «over vanlig uke», naar det
+                                betyr «over det avtalen tillater». */}
+                            {f.langeUkerAvtalt ? ' (lange uker avtalt, § 10-5)' : ''}
                           </span>
                         </div>
                         <strong>+{tall.format(f.over)} t</strong>
@@ -688,6 +696,7 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                   <tr>
                     <th>Ansatt</th><th className="tall">Timer</th>
                     <th>Lønnsform</th>
+                    <th>Arbeidstid</th>
                     <th className="tall">Stilling</th><th className="tall">Timesats</th>
                     <th>Mot Energiavtalen</th>
                   </tr>
@@ -723,6 +732,14 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                               {UTELATT_FORDI[a.lonnsform]}
                             </span>
                           )}
+                        </td>
+                        <td>
+                          <LangeUker
+                            stasjonId={valgt.id}
+                            ansattNr={nr}
+                            navn={navnFor.get(nr) ?? nr}
+                            verdi={a?.lange_uker_avtalt ?? false}
+                          />
                         </td>
                         <td className="tall">
                           {a?.stillingsprosent != null ? `${a.stillingsprosent} %` : '—'}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { finnOvertid, mandagen, heleUkerRundt, TIMER_PER_DAG } from './overtid'
+import { finnOvertid, mandagen, heleUkerRundt, TIMER_PER_DAG, type Vaktlinje } from './overtid'
 import { TIMER_PER_UKE, type Skiftordning } from './tariff'
 
 // =====================================================================
@@ -17,6 +17,14 @@ const v = (ansattNr: string, dato: string, timer: number) =>
   ({ ansattNr, dato, minutter: timer * 60 })
 
 const ordinaer = () => 'ordinaer' as Skiftordning
+
+/** Én ukes timer, fordelt paa sju dager fra mandagen. */
+const uke = (mandag: string, timer: number) =>
+  Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${mandag}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + i)
+    return v('1009', d.toISOString().slice(0, 10), timer / 7)
+  })
 const ukjent = () => null
 
 describe('finnOvertid', () => {
@@ -139,5 +147,80 @@ describe('heleUkerRundt', () => {
     const { fra, til } = heleUkerRundt(2026, 11)
     expect(fra).toBe('2026-10-26')
     expect(til >= '2026-11-30').toBe(true)
+  })
+})
+
+// =====================================================================
+// LANGE UKER ETTER AVTALE (aml. § 10-5)
+//
+// På hver stasjon finnes ansatte med individuell skriftlig avtale om
+// uke på / uke av. En slik arbeidsuke er sju dager og rundt 53 timer
+// HVER GANG — så uten dette fyrte varselet på dem hver måned.
+//
+// Tallene er Lars Netelands faktiske uker, Bønes august 2026.
+// =====================================================================
+describe('lange uker etter avtale', () => {
+  // 39,7 / 40,1 / 15,9 / 53,6 / 8,2 — snitt 35,5, altså 2-skift-normen.
+  const LARS: Vaktlinje[] = [
+    ...uke('2026-08-03', 39.7),
+    ...uke('2026-08-10', 40.1),
+    ...uke('2026-08-17', 15.9),
+    ...uke('2026-08-24', 53.6),
+    ...uke('2026-08-31', 8.2),
+  ]
+
+  test('uten avtalen: tre funn, og alle tre er støy', () => {
+    // 39,7 / 40,1 / 53,6 bikker alle 35,5. De to andre ukene er korte.
+    const funn = finnOvertid(LARS, () => 'to_skift')
+    expect(funn.filter((f) => f.slag === 'uke')).toHaveLength(3)
+  })
+
+  test('med avtalen: bare uka som faktisk bryter § 10-5-taket', () => {
+    const funn = finnOvertid(LARS, () => 'to_skift', () => true)
+    const uker = funn.filter((f) => f.slag === 'uke')
+    expect(uker).toHaveLength(1)
+    expect(uker[0].noekkel).toBe('2026-08-24')
+    expect(uker[0].grense).toBe(48)
+    expect(uker[0].timer).toBeCloseTo(53.6, 1)
+    expect(uker[0].langeUkerAvtalt).toBe(true)
+  })
+
+  // KANARIFUGL: haken er ikke et fritak. Blir den det, forsvinner ogsaa
+  // uka paa 53,6 - og da varsler vi aldri om noen med avtalen, uansett
+  // hvor mye de jobber.
+  test('KANARIFUGL: haken fjerner ikke grensen, den bytter den', () => {
+    const enorm = uke('2026-08-24', 60)
+    const funn = finnOvertid(enorm, () => 'to_skift', () => true)
+    expect(funn.filter((f) => f.slag === 'uke')).toHaveLength(1)
+  })
+
+  // Dagsgrensen foelger med: § 10-5 tillater 10 timer ved individuell
+  // avtale, mot 9 i § 10-4. Loven gjelder fortsatt, det er et annet ledd.
+  test('hever dagsgrensen fra 9 til 10', () => {
+    const langDag: Vaktlinje[] = [{ ansattNr: '1009', dato: '2026-08-24', minutter: 9.5 * 60 }]
+    expect(finnOvertid(langDag, () => null).filter((f) => f.slag === 'dag')).toHaveLength(1)
+    expect(finnOvertid(langDag, () => null, () => true).filter((f) => f.slag === 'dag')).toHaveLength(0)
+  })
+
+  test('KANARIFUGL: over 10 timer er fortsatt et funn', () => {
+    const forLang: Vaktlinje[] = [{ ansattNr: '1009', dato: '2026-08-24', minutter: 11 * 60 }]
+    const funn = finnOvertid(forLang, () => null, () => true).filter((f) => f.slag === 'dag')
+    expect(funn).toHaveLength(1)
+    expect(funn[0].grense).toBe(10)
+  })
+
+  // Standarden er NEI. En ansatt ingen har tatt stilling til faar den
+  // strengeste grensen - det trygge svaret.
+  test('uten flagget i det hele tatt gjelder den strenge grensen', () => {
+    expect(finnOvertid(LARS, () => 'to_skift').filter((f) => f.slag === 'uke')).toHaveLength(3)
+  })
+
+  // `antattOrdinaer` betyr «skiftordningen er ukjent». Med avtalen
+  // brukes skiftordningen ikke i det hele tatt, saa forbeholdet ville
+  // vaert misvisende.
+  test('antattOrdinaer settes ikke når avtalen gjelder', () => {
+    const funn = finnOvertid(LARS, () => null, () => true).filter((f) => f.slag === 'uke')
+    expect(funn[0].antattOrdinaer).toBeUndefined()
+    expect(funn[0].langeUkerAvtalt).toBe(true)
   })
 })
