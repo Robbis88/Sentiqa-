@@ -94,7 +94,14 @@ export function MeldingerFraSjef({
   function kvitter(id: string, fullfort: boolean) {
     setRader((r) => r.map((m) => (m.id === id ? { ...m, fullfort } : m)))
     start(async () => {
-      await kvitterTablet(id, fullfort)
+      try {
+        await kvitterTablet(id, fullfort)
+      } catch {
+        // OPTIMISMEN RULLES TILBAKE. Raden ble satt før handlingen
+        // kjørte; feiler skrivingen, skal haken av igjen — ellers står
+        // meldingen som kvittert på skjermen uten å være det i basen.
+        setRader((r) => r.map((m) => (m.id === id ? { ...m, fullfort: !fullfort } : m)))
+      }
     })
   }
 

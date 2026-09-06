@@ -97,7 +97,13 @@ function iFjor(type: PeriodeType, fra: string, til: string): { fra: string; til:
 }
 
 async function erKomplett(supabase: SupabaseClient, fra: string, til: string): Promise<boolean> {
-  const { data } = await supabase.rpc('malekort_salgsdatoer', { p_fra: fra, p_til: til })
+  const { data, error } = await supabase.rpc('malekort_salgsdatoer', { p_fra: fra, p_til: til })
+  // «VENTER PAA FULLSTENDIGE TALL» ER EN SANN SETNING OM FEIL TING.
+  // Svelges feilen, blir datosettet tomt, funksjonen svarer false, og
+  // kortet melder at det venter paa data - i det uendelige. Det er
+  // noeyaktig formen som holdt /maaling stille: en rolig setning som
+  // beskriver noe helt annet enn det som skjedde.
+  if (error) throw new Error(`malekort_salgsdatoer feilet: ${error.message}`)
   const dager = new Set(((data ?? []) as { dato: string }[]).map((r) => r.dato))
   return dager.size >= antallDager(fra, til)
 }
@@ -146,17 +152,31 @@ export async function beregnMalekort(
   const fjor = iFjor(kort.periode, valgt.fra, valgt.til)
   const trengerKunder = kort.metrikk === 'snittpris_kunde' || kort.metrikk === 'snittbong' || kort.metrikk === 'kunder' || kort.normalisering === 'per_kunde'
 
-  const [salgNaaR, salgFjorR, kunderNaaR, kunderFjorR] = await Promise.all([
+  // FEILENE DESTRUKTURERES HER, over kallene, og ikke plukkes ut
+  // etterpå. Det er ikke bare form: står `error` i destruktureringen,
+  // kan ingen legge til et femte kall uten å ta stilling til det.
+  //
+  // ALLE FIRE, IKKE BARE DEN FØRSTE. Faller ett av kallene, blir det ene
+  // kartet tomt og målekortet regner videre på null — et resultat som
+  // ser ut som «ingen salg» i stedet for «vi vet ikke».
+  const [
+    { data: salgNaaD, error: salgNaaFeil },
+    { data: salgFjorD, error: salgFjorFeil },
+    { data: kunderNaaD, error: kunderNaaFeil },
+    { data: kunderFjorD, error: kunderFjorFeil },
+  ] = await Promise.all([
     supabase.rpc('beregn_malekort_salg', { p_malekort: kort.id, p_fra: valgt.fra, p_til: valgt.til }),
     supabase.rpc('beregn_malekort_salg', { p_malekort: kort.id, p_fra: fjor.fra, p_til: fjor.til }),
-    trengerKunder ? supabase.rpc('beregn_stasjon_kunder', { p_fra: valgt.fra, p_til: valgt.til }) : Promise.resolve({ data: [] }),
-    trengerKunder ? supabase.rpc('beregn_stasjon_kunder', { p_fra: fjor.fra, p_til: fjor.til }) : Promise.resolve({ data: [] }),
+    trengerKunder ? supabase.rpc('beregn_stasjon_kunder', { p_fra: valgt.fra, p_til: valgt.til }) : Promise.resolve({ data: [], error: null }),
+    trengerKunder ? supabase.rpc('beregn_stasjon_kunder', { p_fra: fjor.fra, p_til: fjor.til }) : Promise.resolve({ data: [], error: null }),
   ])
+  const feil = salgNaaFeil ?? salgFjorFeil ?? kunderNaaFeil ?? kunderFjorFeil
+  if (feil) throw new Error(`Målekortets salgsoppslag feilet: ${feil.message}`)
 
-  const salgNaa = new Map<string, SalgRad>(((salgNaaR.data ?? []) as SalgRad[]).map((r) => [r.stasjon_id, r]))
-  const salgFjor = new Map<string, SalgRad>(((salgFjorR.data ?? []) as SalgRad[]).map((r) => [r.stasjon_id, r]))
-  const kunderNaa = new Map<string, KunderRad>(((kunderNaaR.data ?? []) as KunderRad[]).map((r) => [r.stasjon_id, r]))
-  const kunderFjor = new Map<string, KunderRad>(((kunderFjorR.data ?? []) as KunderRad[]).map((r) => [r.stasjon_id, r]))
+  const salgNaa = new Map<string, SalgRad>(((salgNaaD ?? []) as SalgRad[]).map((r) => [r.stasjon_id, r]))
+  const salgFjor = new Map<string, SalgRad>(((salgFjorD ?? []) as SalgRad[]).map((r) => [r.stasjon_id, r]))
+  const kunderNaa = new Map<string, KunderRad>(((kunderNaaD ?? []) as KunderRad[]).map((r) => [r.stasjon_id, r]))
+  const kunderFjor = new Map<string, KunderRad>(((kunderFjorD ?? []) as KunderRad[]).map((r) => [r.stasjon_id, r]))
 
   const volum = kort.metrikk === 'omsetning' || kort.metrikk === 'antall' || kort.metrikk === 'brutto'
 

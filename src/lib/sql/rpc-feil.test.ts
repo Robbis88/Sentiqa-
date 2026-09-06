@@ -17,16 +17,34 @@ import { join } from 'node:path'
 // stille i månedsvis uten et eneste spor.
 //
 // ---------------------------------------------------------------------
-// HVORFOR SKRALLE OG IKKE PORT
+// SKRALLEN ER NÅ EN PORT — GJELDEN ER BETALT
 //
-// Tjueén kallsteder svelget da denne ble skrevet; femten står igjen
-// etter at de fire flatene vi VET var ødelagte ble rettet. Å kreve null
-// med én gang ville betydd én stor PR gjennom hele kodebasen, og en vakt
-// som blokkerer arbeid som ikke gjør ting verre blir slått av.
+// Tjueén kallsteder svelget da denne ble skrevet. Femten sto igjen etter
+// at de fire vi VET var ødelagte ble rettet, og de femten ble tatt
+// 2026-09-06. **Da er null det riktige tallet, ikke et strengere.**
 //
-// Tallet får aldri gå opp. Nye kall må sjekke `error`; de gamle rettes
-// når noen er i fila likevel. Samme mekanikk som fargevakten, og den
-// virker av samme grunn.
+// Skrallen var riktig så lenge gjelden fantes: å kreve null med én gang
+// ville betydd én stor PR gjennom hele kodebasen, og en vakt som
+// blokkerer arbeid som ikke gjør ting verre blir slått av. Men en
+// skralle som står på et tall ingen lenger skylder, verner ingenting —
+// den bare later som.
+//
+// Fra nå av er hvert nytt svelgende kall en feil, ikke en tilvekst til
+// en pott. Skriv `const { data, error } = await supabase.rpc(...)` og
+// gjør noe med feilen.
+//
+// ---------------------------------------------------------------------
+// HVA «NOE» ER, MÅLT PÅ DE FEMTEN
+//
+//   lesing         kast. Et tomt svar leses som «ingen data», og det er
+//                  nettopp setningen som ikke skal stå når oppslaget
+//                  ikke gikk. Se `/maaling`.
+//   skriving       kast. En handling som feiler i stillhet ser ut som
+//                  en som lyktes — verre enn omvendt.
+//   PIN            eget svar. En nede database er ikke feil PIN, og hun
+//                  skal ikke taste videre på noe som aldri kan lykkes.
+//   nattjobb       samle og rapportér. Jobben skal ikke velte av ett
+//                  ledd, men `ok: true` over et feilet ledd er en løgn.
 //
 // ---------------------------------------------------------------------
 // HVA DEN IKKE SER
@@ -42,10 +60,13 @@ const SRC = join(process.cwd(), 'src')
 /**
  * Antall kallsteder som ikke har `error` tilgjengelig.
  *
- * SKAL BARE NED. Rettes et kall, senk tallet i samme PR — ellers
- * beskytter skrallen en gjeld som alt er betalt.
+ * **NULL, OG DET SKAL DET FORTSETTE AA VAERE.** Gikk 21 -> 15 -> 0.
+ * Skrallen var riktig mens gjelden fantes; naa er den en port.
+ *
+ * Skulle et nytt kall trenge unntak, er svaret nesten alltid at
+ * handlingen mangler et sted aa si fra - ikke at vakten er for streng.
  */
-const FASIT = 15
+const FASIT = 0
 
 function kildefiler(katalog: string): string[] {
   const ut: string[] = []
@@ -84,15 +105,15 @@ const treff = kildefiler(SRC).flatMap((f) =>
   svelgendeKall(readFileSync(f, 'utf8')).map((l) => `${f.slice(SRC.length + 1).replace(/\\/g, '/')}:${l}`))
 
 describe('rpc-kall som svelger feilen sin', () => {
-  it(`er ${FASIT} eller færre — tallet skal bare ned`, () => {
+  it('ingen — hvert svelgende kall er nå en feil', () => {
     expect(
       treff.length,
-      `Et nytt rpc-kall sjekker ikke \`error\`:\n${treff.join('\n')}\n\n`
-      + 'Skriv `const { data, error } = await supabase.rpc(...)` og gjor noe '
+      `Et rpc-kall sjekker ikke \`error\`:\n${treff.join('\n')}\n\n`
+      + 'Skriv `const { data, error } = await supabase.rpc(...)` og gjør noe '
       + 'med feilen. Uten den kan et kall mot en funksjon som ikke finnes '
-      + 'gi tom liste i stedet for en feilmelding - og da ser «ingen data» '
-      + 'ut som «alt er som det skal». Rettet du et gammelt kall: senk FASIT.',
-    ).toBeLessThanOrEqual(FASIT)
+      + 'gi tom liste i stedet for en feilmelding — og da ser «ingen data» '
+      + 'ut som «alt er som det skal».',
+    ).toBe(FASIT)
   })
 
   it('KANARIFUGL: den finner faktisk kall, og kjenner begge formene', () => {

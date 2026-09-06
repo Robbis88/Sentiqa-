@@ -69,7 +69,12 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   // Summer månedene jan→valgt (hittil) eller den ene måneden — RLS gir kun egne
   // stasjoner; vi filtrerer til valgt stasjon. (Per-stasjon-hittil i basen er 0.)
   const fra = hittil ? `${ytdAar}-01-01` : aktivPeriode
-  const { data: alle } = await supabase.rpc('regnskap_sum', { p_fra: fra, p_til: aktivPeriode })
+  // `regnskap_sum` er den samme funksjonen som `0065` skrev bare
+  // halvparten av. Svelges feilen, viser sida et tomt regnskap i stedet
+  // for å si at oppslaget ikke gikk — og et tomt regnskap ser ut som en
+  // måned uten tall.
+  const { data: alle, error } = await supabase.rpc('regnskap_sum', { p_fra: fra, p_til: aktivPeriode })
+  if (error) throw new Error(`regnskap_sum feilet: ${error.message}`)
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
   const linjer: Linje[] = ((alle ?? []) as SumRad[])
     .filter((r) => r.stasjon_id === stasjon.id)

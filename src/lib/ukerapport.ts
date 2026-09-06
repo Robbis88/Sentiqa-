@@ -33,7 +33,11 @@ function leggTil(iso: string, n: number): string {
 type AvdRad = { avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number; brutto: number }
 
 async function aggreger(supabase: Klient, stasjonId: string, fra: string, til: string): Promise<AvdRad[]> {
-  const { data } = await supabase.rpc('uke_avdeling_aggregat', { p_stasjon: stasjonId, p_fra: fra, p_til: til })
+  const { data, error } = await supabase.rpc('uke_avdeling_aggregat', { p_stasjon: stasjonId, p_fra: fra, p_til: til })
+  // EN UKERAPPORT UTEN AVDELINGER ER IKKE EN ROLIG UKE. Svelges feilen,
+  // blir lista tom, og rapporten går ut som om stasjonen ikke solgte
+  // noe — med en AI-oppsummering skrevet over ingenting.
+  if (error) throw new Error(`uke_avdeling_aggregat feilet: ${error.message}`)
   return (data ?? []) as AvdRad[]
 }
 

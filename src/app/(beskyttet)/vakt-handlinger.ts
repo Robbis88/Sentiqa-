@@ -82,11 +82,19 @@ export async function checkInn(_t: VaktTilstand, formData: FormData): Promise<Va
 
   const supabase = await lagSupabaseServerKlient()
 
-  const { data: svar } = await supabase.rpc('verifiser_ansatt_pin', {
+  const { data: svar, error } = await supabase.rpc('verifiser_ansatt_pin', {
     p_ansatt_nr: nummer,
     p_pin_hash: hashPin(bruker.retailerId, pin),
     p_kilde: 'vakt',
   })
+  // EN NEDE DATABASE ER IKKE FEIL PIN. Samme grunn som i
+  // `stempling/handlinger.ts`: uten denne ble en infrastrukturfeil vist
+  // som «feil PIN», og hun taster videre på noe som aldri kan lykkes.
+  // Fortsatt fail-closed — ingen slipper inn.
+  if (error) {
+    console.error('verifiser_ansatt_pin feilet (vakt):', error.message)
+    return { feil: 'Innlogging er nede akkurat nå. Si fra til butikksjef.' }
+  }
   const rad = (svar as Verifikasjon[] | null)?.[0]
 
   if (rad?.status === 'sperret') return { feil: sperret(rad.vent_sekunder) }

@@ -60,10 +60,19 @@ export async function GET(req: NextRequest) {
     // trafikkfeil skal ikke velte nattjobben
   }
 
+  // Ledd som feilet uten å velte jobben. Står i svaret, ikke bare i en
+  // null-verdi ingen kan skille fra «ingenting å regne på».
+  const feilet: string[] = []
+
   // Lært værprofil per stasjon (ukedagsjustert korrelasjon) → kalibrert følsomhet.
   let vaerprofil: number | null = null
   try {
-    const { data } = await supabase.rpc('beregn_vaerprofil')
+    // TRY/CATCH FANGER IKKE EN RPC-FEIL. `supabase.rpc` KASTER IKKE -
+    // den returnerer `{ data: null, error }`. Uten sjekken sto
+    // vaerprofilen som null og nattjobben meldte `ok: true`, mens
+    // funksjonen kanskje ikke fantes i det hele tatt.
+    const { data, error } = await supabase.rpc('beregn_vaerprofil')
+    if (error) feilet.push(`beregn_vaerprofil: ${error.message}`)
     vaerprofil = typeof data === 'number' ? data : null
   } catch {
     // profilfeil skal ikke velte nattjobben
@@ -72,7 +81,8 @@ export async function GET(req: NextRequest) {
   // Lært vær-effekt pr kategori (avdeling + varegruppe) → datadrevet vaerfaktor.
   let kategoriVaerprofil: number | null = null
   try {
-    const { data } = await supabase.rpc('beregn_kategori_vaerprofil')
+    const { data, error } = await supabase.rpc('beregn_kategori_vaerprofil')
+    if (error) feilet.push(`beregn_kategori_vaerprofil: ${error.message}`)
     kategoriVaerprofil = typeof data === 'number' ? data : null
   } catch {
     // profilfeil skal ikke velte nattjobben
@@ -117,5 +127,13 @@ export async function GET(req: NextRequest) {
     kjeder++
   }
 
-  return NextResponse.json({ ok: true, importko, kjeder, vaer, kalender, trafikk, vaerprofil, kategoriVaerprofil, treffsikkerhet })
+  // `ok` ER IKKE LENGER ALLTID SANN. En nattjobb som melder ok mens et
+  // ledd feilet, er en jobb ingen ser paa igjen. `feilet` staar i
+  // svaret saa den som leser loggen ser HVA som gikk galt, ikke bare at
+  // et tall er null.
+  return NextResponse.json({
+    ok: feilet.length === 0,
+    feilet,
+    importko, kjeder, vaer, kalender, trafikk, vaerprofil, kategoriVaerprofil, treffsikkerhet,
+  })
 }
