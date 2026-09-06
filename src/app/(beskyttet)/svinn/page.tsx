@@ -434,6 +434,21 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                     + `(${kr.format(Math.round(budsjettbilde.usynlig.bpBruttoKr!))}) `
                     + 'er alt svinnet stasjonen har råd til. Kast og usynlig spiser av '
                     + 'samme brutto, så de deler den grensen. '
+                    // ET STRAMT ROM ER IKKE DET SAMME SOM MER SVINN.
+                    //
+                    // BP-en forplikter stasjonen til en brutto i KRONER.
+                    // Selges det mindre enn budsjettert, faller teoretisk
+                    // brutto mens kravet staar - og rommet krymper. Uten
+                    // denne setningen leses et negativt avvik som at det
+                    // ble kastet mer, naar det som skjedde var at salget
+                    // sviktet.
+                    + (budsjettbilde.usynlig.salgMotBpPst != null
+                      && budsjettbilde.usynlig.salgMotBpPst < -1
+                      ? `Salget ligger ${Math.abs(budsjettbilde.usynlig.salgMotBpPst).toFixed(1)} `
+                        + '% under BP-en i disse månedene, og da krymper rommet med det — '
+                        + 'brutto­kravet står i kroner. Et stramt rom er ikke det samme '
+                        + 'som at det er kastet mer.'
+                      : '')
                     // ET GULV, IKKE EN EKSAKT SUM — og det skal stå.
                     // Importen dropper regnskapsrader der både kast og
                     // usynlig er under 1 000 kr. Målt på Bønes 2026 er

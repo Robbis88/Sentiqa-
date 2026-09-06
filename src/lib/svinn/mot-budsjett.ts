@@ -292,6 +292,24 @@ export type Usynligstatus = {
   tillattSvinnKr: number | null
   /** Positivt = mer svinn enn BP-en tåler. */
   avvikMotBpKr: number | null
+  /**
+   * Hvor langt salget ligger fra BP-ens, i prosent. Negativt = under.
+   *
+   * **FORKLARER ROMMET, SKALERER DET IKKE.** BP forplikter stasjonen til
+   * en brutto i KRONER. Selger den mindre enn budsjettert, faller
+   * teoretisk brutto mens kravet står — og rommet for svinn krymper. Det
+   * er ikke en målefeil, det er økonomien: bommer du på brutto, kan du
+   * ikke kaste like mye heller. Det samme gjelder lønn.
+   *
+   * Jeg foreslo å skalere BP-bruttoen til faktisk salg. Det ville gitt
+   * mars 22 372 i tillatt svinn i stedet for 13 904 — altså MER
+   * slingringsmonn fordi salget sviktet. Robert stoppet det 2026-09-06,
+   * og han har rett: en bom på brutto gjør rommet mindre, ikke likt.
+   *
+   * Tallene står derfor urørt. Prosenten her finnes for at ingen skal
+   * lese et stramt rom som at det ble kastet mer.
+   */
+  salgMotBpPst: number | null
   /** Hvor mange måneder tallene dekker. Står i teksten, ikke bare her. */
   maaneder: number
 }
@@ -316,7 +334,12 @@ export type Svinnbilde = {
 export function usynligstatus(
   usynligPerMaaned: Map<string, number>,
   kastPerMaaned: Map<string, number>,
-  bp?: { teoretiskPerMaaned: Map<string, number>; bpBruttoPerMaaned: Map<string, number> },
+  bp?: {
+    teoretiskPerMaaned: Map<string, number>
+    bpBruttoPerMaaned: Map<string, number>
+    bpSalgPerMaaned?: Map<string, number>
+    faktiskSalgPerMaaned?: Map<string, number>
+  },
 ): Usynligstatus | null {
   // SNITTET, ikke unionen. En måned med usynlig men uten kast — eller
   // omvendt — er en måned der den ene kilden mangler, og da er totalen
@@ -340,6 +363,17 @@ export function usynligstatus(
   const tillattSvinnKr = teoretiskBruttoKr != null && bpBruttoKr != null
     ? teoretiskBruttoKr - bpBruttoKr : null
 
+  // Salget mot BP-ens, over de samme maanedene. REN FORKLARING - den
+  // roerer ingen av tallene over.
+  const harSalg = bp?.bpSalgPerMaaned != null && bp.faktiskSalgPerMaaned != null
+    && maaneder.every((m) => bp.bpSalgPerMaaned!.has(m) && bp.faktiskSalgPerMaaned!.has(m))
+  const bpSalg = harSalg
+    ? maaneder.reduce((a, m) => a + (bp!.bpSalgPerMaaned!.get(m) ?? 0), 0) : 0
+  const faktiskSalg = harSalg
+    ? maaneder.reduce((a, m) => a + (bp!.faktiskSalgPerMaaned!.get(m) ?? 0), 0) : 0
+  const salgMotBpPst = harSalg && bpSalg > 0
+    ? (faktiskSalg - bpSalg) / bpSalg * 100 : null
+
   return {
     usynligKr,
     kastAvlagtKr,
@@ -348,6 +382,7 @@ export function usynligstatus(
     bpBruttoKr,
     tillattSvinnKr,
     avvikMotBpKr: tillattSvinnKr == null ? null : totaltKr - tillattSvinnKr,
+    salgMotBpPst,
     maaneder: maaneder.length,
   }
 }
@@ -374,6 +409,8 @@ export function svinnbilde(opts: {
   teoretiskPerMaaned?: Map<string, number>
   /** Brutto slik BP-en budsjetterer den, per måned. Samme kilde. */
   bpBruttoPerMaaned?: Map<string, number>
+  bpSalgPerMaaned?: Map<string, number>
+  faktiskSalgPerMaaned?: Map<string, number>
 }): Svinnbilde {
   const tom = new Map<string, number>()
   const linjer = opts.budsjett.map((b) => svinnstatus(
@@ -433,6 +470,8 @@ export function svinnbilde(opts: {
           ? {
             teoretiskPerMaaned: opts.teoretiskPerMaaned,
             bpBruttoPerMaaned: opts.bpBruttoPerMaaned,
+            bpSalgPerMaaned: opts.bpSalgPerMaaned,
+            faktiskSalgPerMaaned: opts.faktiskSalgPerMaaned,
           }
           : undefined,
       )

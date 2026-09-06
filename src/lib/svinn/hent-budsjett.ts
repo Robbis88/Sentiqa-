@@ -106,11 +106,12 @@ export async function hentSvinnbudsjett(
     // svinn er differansen, og den dekker kast og usynlig under ett —
     // de spiser av samme brutto.
     supabase.from('v_bp_status_avdeling')
-      .select('maned, gruppe_kode, teoretisk_brutto_kr, bp_brutto_kr')
+      .select('maned, gruppe_kode, teoretisk_brutto_kr, bp_brutto_kr, bp_omsetning_kr')
       .eq('stasjon_id', stasjonId).gte('maned', fra).lte('maned', til)
       .overrideTypes<{
         maned: string; gruppe_kode: string | null
         teoretisk_brutto_kr: number | null; bp_brutto_kr: number | null
+        bp_omsetning_kr: number | null
       }[]>(),
   ])
 
@@ -174,6 +175,7 @@ export async function hentSvinnbudsjett(
   // brutto blitt sammenlignet med MAT-svinnet.
   const teoretiskPerMaaned = new Map<string, number>()
   const bpBruttoPerMaaned = new Map<string, number>()
+  const bpSalgPerMaaned = new Map<string, number>()
   for (const r of bpstatus.data ?? []) {
     if (avdeling != null && r.gruppe_kode !== avdeling) continue
     const maaned = tilMaaned(r.maned)
@@ -182,6 +184,9 @@ export async function hentSvinnbudsjett(
     }
     if (r.bp_brutto_kr != null) {
       bpBruttoPerMaaned.set(maaned, (bpBruttoPerMaaned.get(maaned) ?? 0) + r.bp_brutto_kr)
+    }
+    if (r.bp_omsetning_kr != null) {
+      bpSalgPerMaaned.set(maaned, (bpSalgPerMaaned.get(maaned) ?? 0) + r.bp_omsetning_kr)
     }
   }
 
@@ -193,5 +198,12 @@ export async function hentSvinnbudsjett(
     usynligPerMaaned,
     teoretiskPerMaaned,
     bpBruttoPerMaaned,
+    bpSalgPerMaaned,
+    // Faktisk salg for avdelingen, samme måneder — allerede summert
+    // over i `salgKart`. Brukes KUN til å forklare hvorfor rommet er
+    // stramt, aldri til å endre det.
+    faktiskSalgPerMaaned: avdeling != null
+      ? (salgKart.get(avdeling) ?? new Map<string, number>())
+      : new Map<string, number>(),
   })
 }

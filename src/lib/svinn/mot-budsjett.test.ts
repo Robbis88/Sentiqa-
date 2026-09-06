@@ -485,3 +485,60 @@ describe('vareomradeAv er IKKE entydig alene', () => {
     expect(new Set(par).size).toBe(par.length)
   })
 })
+
+// =====================================================================
+// SALGSAVVIKET FORKLARER ROMMET, DET SKALERER DET IKKE
+//
+// Jeg foreslo å skalere BP-bruttoen til faktisk salg, fordi teoretisk
+// brutto følger salget mens BP-bruttoen står i kroner. Robert stoppet
+// det 2026-09-06:
+//
+//   «bommer du på brutto kroner i budsjettet kan [du] ikke kaste like
+//    mye eller bruke like mye i lønn som budsjettet sier»
+//
+// Han har rett. Skalering ville gitt mars 22 372 i tillatt svinn i
+// stedet for 13 904 — altså MER slingringsmonn fordi salget sviktet.
+// Rommet SKAL krympe når brutto svikter; det er økonomien, ikke en
+// målefeil.
+//
+// Testene under pinner at tallet er urørt, og at prosenten bare
+// forklarer.
+// =====================================================================
+describe('salgMotBpPst', () => {
+  const kast = kart({ '2026-03': 100000 })
+  const usynlig = kart({ '2026-03': 20000 })
+  const bpFor = (bpSalg: number, faktiskSalg: number) => usynligstatus(usynlig, kast, {
+    // Marstallene fra produksjon, avrundet.
+    teoretiskPerMaaned: kart({ '2026-03': 81200 }),
+    bpBruttoPerMaaned: kart({ '2026-03': 67296 }),
+    bpSalgPerMaaned: kart({ '2026-03': bpSalg }),
+    faktiskSalgPerMaaned: kart({ '2026-03': faktiskSalg }),
+  })!
+
+  // KANARIFUGL MOT SKALERING. Faller denne, har noen begynt å justere
+  // BP-bruttoen etter salget igjen — og da blir et salgssvikt til et
+  // større svinnbudsjett.
+  it('KANARIFUGL: tillatt svinn er UAVHENGIG av salgsavviket', () => {
+    const under = bpFor(160403, 140220)
+    const truffet = bpFor(160403, 160403)
+    expect(under.tillattSvinnKr).toBe(13904)
+    expect(truffet.tillattSvinnKr).toBe(13904)
+    // Skalert ville mars gitt 22 372. Gjør den det, er vakten brutt.
+    expect(under.tillattSvinnKr).not.toBe(22372)
+  })
+
+  it('måler hvor langt salget ligger fra BP-en', () => {
+    expect(bpFor(160403, 140220).salgMotBpPst).toBeCloseTo(-12.6, 1)
+    expect(bpFor(119309, 128724).salgMotBpPst).toBeCloseTo(7.9, 1)
+  })
+
+  it('står tom når BP-salget ikke er sendt inn', () => {
+    const u = usynligstatus(usynlig, kast, {
+      teoretiskPerMaaned: kart({ '2026-03': 81200 }),
+      bpBruttoPerMaaned: kart({ '2026-03': 67296 }),
+    })!
+    expect(u.salgMotBpPst).toBeNull()
+    // Grensen står likevel — den trenger ikke salgstallene.
+    expect(u.tillattSvinnKr).toBe(13904)
+  })
+})
