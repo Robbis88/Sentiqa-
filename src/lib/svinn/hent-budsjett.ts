@@ -1,6 +1,9 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { svinnbilde, vareomradeAv, type Budsjettlinje, type Svinnbilde } from './mot-budsjett'
+import {
+  svinnbilde, vareomradeAv, avdelingAv,
+  type Budsjettlinje, type Svinnbilde,
+} from './mot-budsjett'
 
 // =====================================================================
 // Henter alt svinnbildet trenger, og setter det sammen.
@@ -9,6 +12,7 @@ import { svinnbilde, vareomradeAv, type Budsjettlinje, type Svinnbilde } from '.
 //
 //   kastbudsjett            hva St1 sier vi har lov til
 //   regnskap_usynlig_svinn  hva som FAKTISK ble kastet, i avlagte måneder
+//                           — og hva som forsvant uten at noen så det
 //   v_salg_omraade_maaned   salget, og det vi har registrert selv
 //
 // Den siste er den vi laster opp hver dag. Den er verdt å styre etter,
@@ -26,12 +30,19 @@ import { svinnbilde, vareomradeAv, type Budsjettlinje, type Svinnbilde } from '.
 //     MAT-salget for Bønes 2026:   1 220 436 kr
 //     det siden fikk se:              21 950 kr
 //
-// Kortet viste 778,6 % kast av omsetning. Telleren var riktig hele
-// tiden — `regnskap_usynlig_svinn` har én rad per kode per måned og
-// ligger under ethvert tak — så bare den ene siden av brøken krympet.
+// Kortet viste 778,6 % kast av omsetning. Se `0175`.
 //
-// **En avkortet spørring ser ut som en liten stasjon.** Ingenting
-// feiler; tallet blir bare mindre. Se `0175`.
+// ---------------------------------------------------------------------
+// ALT AVGRENSES TIL AVDELINGEN BUDSJETTET GJELDER
+//
+// Vareområdet alene er IKKE entydig. Elleve regnskapskoder i produksjon
+// ender på `10`: 12010 BAKERI, men også 13010 KAFFE, 14010 BRUS, 16010
+// SJOKOLADE, 18010 SIGARETTER, 25010 PANT … Nøkles kastet på `10` alene,
+// får BAKERI med seg alle sammen, og tallet ser ut som et bakeriproblem.
+//
+// Avdelingen leses ut av budsjettet selv — `nivaa = 'avdeling'`-raden
+// bærer den (`120` MAT) — og aldri av en litteral i koden. Hvilken kode
+// en kjede bruker er retailer-data. Se AGENTS.md.
 // =====================================================================
 
 type Klient = SupabaseClient
@@ -56,24 +67,28 @@ export async function hentSvinnbudsjett(
 
   const [budsjett, regnskap, omraade] = await Promise.all([
     supabase.from('kastbudsjett')
-      .select('nivaa, kode, navn, kast_pst_av_salg, kast_budsjett_kr')
+      .select('nivaa, kode, navn, kast_pst_av_salg, kast_budsjett_kr, usynlig_budsjett_kr')
       .eq('stasjon_id', stasjonId).eq('ar', ar)
       .overrideTypes<{
         nivaa: string; kode: string; navn: string | null
         kast_pst_av_salg: number; kast_budsjett_kr: number
+        usynlig_budsjett_kr: number | null
       }[]>(),
-    // FASITEN. `kast` kom i `0050` og er regnskapets egen svinnføring.
+    // FASITEN. `kast` kom i `0050` og er regnskapets egen svinnføring;
+    // `usynlig_kr` er resten av differansen mot teoretisk brutto.
     // Én rad per kode per måned — rundt 55 i året, aldri i nærheten av
     // noe radtak.
     supabase.from('regnskap_usynlig_svinn')
-      .select('periode, kode, kast')
+      .select('periode, kode, kast, usynlig_kr')
       .eq('stasjon_id', stasjonId).gte('periode', fra).lte('periode', til)
       .is('slettet_tid', null)
-      .overrideTypes<{ periode: string; kode: string | null; kast: number | null }[]>(),
+      .overrideTypes<{
+        periode: string; kode: string | null
+        kast: number | null; usynlig_kr: number | null
+      }[]>(),
     // SALGET OG DET DAGLIGE SVINNET, FERDIG SUMMERT I BASEN (`0175`).
-    // Rundt tolv måneder × et titalls områder — små nok til at ingen
-    // grense kan røre dem, og de to sidene kan ikke lenger hentes med
-    // hvert sitt utvalg.
+    // De to sidene av brøken kommer fra samme rad og kan derfor ikke
+    // hentes med hvert sitt utvalg.
     supabase.from('v_salg_omraade_maaned')
       .select('maned, avdeling_kode, vareomrade_kode, omsetning_kr, svinn_kr')
       .eq('stasjon_id', stasjonId).gte('maned', fra).lte('maned', til)
@@ -83,7 +98,8 @@ export async function hentSvinnbudsjett(
       }[]>(),
   ])
 
-  const linjer: Budsjettlinje[] = (budsjett.data ?? []).map((b) => ({
+  const rader = budsjett.data ?? []
+  const linjer: Budsjettlinje[] = rader.map((b) => ({
     kode: b.kode, navn: b.navn ?? b.kode,
     kastPstAvSalg: b.kast_pst_av_salg, kastBudsjettKr: b.kast_budsjett_kr,
   }))
@@ -92,18 +108,34 @@ export async function hentSvinnbudsjett(
   // AVDELINGSNIVÅ ELLER VAREOMRÅDE — aldri begge. Finnes undergruppene,
   // er de de gjeldende; de summerer til totalen uansett, og å bruke
   // begge ville telt hver krone to ganger.
-  const paaVareomrade = (budsjett.data ?? []).some((b) => b.nivaa === 'vareomrade')
+  const paaVareomrade = rader.some((b) => b.nivaa === 'vareomrade')
   const brukte = paaVareomrade
-    ? linjer.filter((_, i) => (budsjett.data ?? [])[i].nivaa === 'vareomrade')
+    ? linjer.filter((_, i) => rader[i].nivaa === 'vareomrade')
     : linjer
 
+  // AVDELINGEN, LEST UT AV BUDSJETTET. Avdelingsraden finnes i begge
+  // filvariantene — 2025-fila har Mat-arket ved siden av undergruppene —
+  // så den trenger ingen litteral. Mangler den, gjøres ingen avgrensning,
+  // og oppførselen er som før.
+  const avdelingsrad = rader.find((b) => b.nivaa === 'avdeling')
+  const avdeling = avdelingsrad?.kode ?? null
+  const iAvdelingen = (kode: string | null) =>
+    avdeling == null || avdelingAv(kode) === avdeling
+
   const kastRegnskap = new Map<string, Map<string, number>>()
+  const usynligPerMaaned = new Map<string, number>()
   for (const r of regnskap.data ?? []) {
+    if (!iAvdelingen(r.kode)) continue
+    const maaned = tilMaaned(r.periode)
+    // FORTEGNET STÅR SOM DET STÅR: + er manko, − er overskudd. En
+    // telling kan finne mer enn forventet, og da skal summen gå ned.
+    if (r.usynlig_kr != null) {
+      usynligPerMaaned.set(maaned, (usynligPerMaaned.get(maaned) ?? 0) + r.usynlig_kr)
+    }
     if (r.kast == null) continue
-    const omr = vareomradeAv(r.kode)
-    const kode = paaVareomrade ? omr : (r.kode?.slice(0, 3) ?? null)
+    const kode = paaVareomrade ? vareomradeAv(r.kode) : avdelingAv(r.kode)
     if (!kode) continue
-    leggTil(kastRegnskap, kode, tilMaaned(r.periode), r.kast)
+    leggTil(kastRegnskap, kode, maaned, r.kast)
   }
 
   // ÉN LØKKE FOR BEGGE SIDENE AV BRØKEN. De kommer fra samme rad, så de
@@ -112,6 +144,7 @@ export async function hentSvinnbudsjett(
   const kastDaglig = new Map<string, Map<string, number>>()
   const salgKart = new Map<string, Map<string, number>>()
   for (const r of omraade.data ?? []) {
+    if (avdeling != null && r.avdeling_kode !== avdeling) continue
     const kode = paaVareomrade ? r.vareomrade_kode : r.avdeling_kode
     // Rader uten hierarki er de «ikke koblede» — pant, emballasje, bulk.
     // De hører ikke til noe kastbudsjett og skal ikke måles mot ett.
@@ -121,5 +154,15 @@ export async function hentSvinnbudsjett(
     if (r.svinn_kr != null) leggTil(kastDaglig, kode, maaned, r.svinn_kr)
   }
 
-  return svinnbilde({ budsjett: brukte, kastRegnskap, kastDaglig, salg: salgKart })
+  return svinnbilde({
+    budsjett: brukte,
+    kastRegnskap,
+    kastDaglig,
+    salg: salgKart,
+    usynligPerMaaned,
+    // ÅRSBUDSJETTET STÅR BARE PÅ AVDELINGSRADEN. Usynlig svinn kan per
+    // definisjon ikke fordeles på undergruppe — ingen vet hvor det ble
+    // av — så det finnes ikke noe å hente på vareområdenivå.
+    usynligArsbudsjettKr: avdelingsrad?.usynlig_budsjett_kr ?? null,
+  })
 }

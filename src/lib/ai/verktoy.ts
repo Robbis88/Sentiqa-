@@ -1484,7 +1484,7 @@ export const VERKTOY: Record<string, Verktoy> = {
     },
     {
       domene: 'svinnbudsjett',
-      kilder: ['kastbudsjett', 'regnskap_usynlig_svinn', 'synlig_svinn'],
+      kilder: ['kastbudsjett', 'regnskap_usynlig_svinn', 'v_salg_omraade_maaned'],
       periodisert: false,
       neste: ['hent_svinn', 'hent_salg'],
       merknad: [
@@ -1529,6 +1529,19 @@ export const VERKTOY: Record<string, Verktoy> = {
           // Kilden staar i svaret, ikke bare i merknaden. Et tall uten
           // den leses som fasit, og halve aaret kan vaere et anslag.
           kilder: r.notat,
+          // HELE SVINNET, ikke bare det registrerte. teoretisk brutto -
+          // faktisk brutto = synlig + usynlig. Usynlig finnes BARE i
+          // avlagte maaneder, saa begge tallene her dekker de samme
+          // maanedene - og antallet staar i svaret, ikke bare i en
+          // merknad. Uten det ville assistenten lagt sammen to perioder.
+          hele_svinnet: r.usynlig ? {
+            avlagte_maaneder: r.usynlig.maaneder,
+            registrert_kast_kr: Math.round(r.usynlig.kastAvlagtKr),
+            usynlig_kr: Math.round(r.usynlig.usynligKr),
+            totalt_kr: Math.round(r.usynlig.totaltKr),
+            usynlig_aarsbudsjett_kr: r.usynlig.arsbudsjettKr == null
+              ? null : Math.round(r.usynlig.arsbudsjettKr),
+          } : null,
           per_undergruppe: r.linjer.map((l) => ({
             undergruppe: l.linje.navn,
             kastet_kr: Math.round(l.kastHittilKr),

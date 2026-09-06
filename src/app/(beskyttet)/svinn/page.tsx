@@ -363,6 +363,63 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
             </>
           )}
 
+          {/* USYNLIG SVINN — DEN ANDRE HALVDELEN.
+              teoretisk brutto - faktisk brutto = synlig + usynlig.
+              Kast er det som ble slaatt inn; usynlig er resten: manko,
+              feilslag, tyveri, feil pris.
+
+              AVLAGTE MAANEDER ALENE, for BEGGE tallene. Usynlig svinn
+              oppstaar per definisjon uten at noen registrerer noe, saa
+              det finnes foerst naar maaneden er talt opp. Legges det
+              sammen med et kast som ogsaa har inneveaerende maaned,
+              dekker de to halvdelene ulike perioder - og totalen blir
+              for lav paa en maate ingen ser. */}
+          {budsjettbilde.usynlig && (
+            <>
+              <div className="sq-seksjon-hode">
+                <h3>Hele svinnet</h3>
+                <span className="sq-merkelapp">
+                  {`${budsjettbilde.usynlig.maaneder} avlagte måneder`}
+                </span>
+              </div>
+
+              <div className="sq-nokkeltall">
+                <Nokkeltall
+                  merkelapp="Registrert kast"
+                  verdi={kr.format(Math.round(budsjettbilde.usynlig.kastAvlagtKr))}
+                  sammenlignet="slått inn som kastet"
+                />
+                <Nokkeltall
+                  merkelapp={budsjettbilde.usynlig.usynligKr < 0 ? 'Usynlig overskudd' : 'Usynlig svinn'}
+                  verdi={kr.format(Math.abs(Math.round(budsjettbilde.usynlig.usynligKr)))}
+                  sammenlignet={budsjettbilde.usynlig.arsbudsjettKr == null
+                    ? 'manko, feilslag, tyveri'
+                    : `årsbudsjett ${kr.format(Math.round(budsjettbilde.usynlig.arsbudsjettKr))}`}
+                  retning={budsjettbilde.usynlig.usynligKr > 0 ? 'opp' : 'ned'}
+                  bra={budsjettbilde.usynlig.usynligKr <= 0}
+                />
+                <Nokkeltall
+                  merkelapp="Totalt svinn"
+                  verdi={kr.format(Math.round(budsjettbilde.usynlig.totaltKr))}
+                  sammenlignet="kast + usynlig, samme måneder"
+                />
+              </div>
+
+              <p className="undertittel">
+                {budsjettbilde.usynlig.usynligKr < 0
+                  ? 'Negativt usynlig svinn er et OVERSKUDD — tellingen fant mer enn '
+                    + 'forventet. Det er ikke gratis: det betyr som regel at noe er '
+                    + 'ført feil et annet sted.'
+                  : 'Usynlig svinn er differansen mellom teoretisk og faktisk brutto '
+                    + 'som ingen registrerte — manko, feilslag, tyveri, feil pris.'}
+                {budsjettbilde.usynlig.arsbudsjettKr != null && (
+                  ' Årsbudsjettet er et kronebeløp, ikke en sats, så det gjelder hele '
+                  + 'året — ikke perioden over.'
+                )}
+              </p>
+            </>
+          )}
+
           {budsjettbilde.linjer.length > 1 && (
             <Datatabell tittel="Per undergruppe" antall={budsjettbilde.linjer.length}>
               <thead>
