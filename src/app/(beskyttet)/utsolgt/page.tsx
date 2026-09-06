@@ -45,7 +45,7 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
     stasjoner.map(async (stasjon) => {
       const fra = new Date(`${idag}T12:00:00Z`)
       fra.setUTCDate(fra.getUTCDate() - VINDU)
-      const [{ data }, { data: svinnrader }] = await Promise.all([
+      const [{ data, error }, { data: svinnrader }] = await Promise.all([
         supabase.rpc('utsolgt_kandidater', { p_stasjon: stasjon.id, p_dager: VINDU }),
         // Samme vindu som utsolgt-deteksjonen. Uten det ville
         // sammenligningen vaert mellom to ulike perioder.
@@ -55,6 +55,11 @@ export default async function UtsolgtSide({ searchParams }: { searchParams: Prom
           .gte('dato', fra.toISOString().slice(0, 10))
           .is('slettet_tid', null),
       ])
+      // INGEN KANDIDATER OG ET FEILET KALL SER LIKE UT. Utsolgt er en
+      // liste over det som IKKE var der - en tom liste leses som «alt
+      // var paa plass», og det er nettopp den setningen som ikke skal
+      // staa naar oppslaget ikke gikk.
+      if (error) throw new Error(`utsolgt_kandidater feilet: ${error.message}`)
       const hendelser = finnUtsolgt((data ?? []) as Kandidatrad[], idag, VINDU)
       const tidsproblemer = finnTidsproblemer(
         ((svinnrader ?? []) as {

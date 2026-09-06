@@ -67,7 +67,19 @@ export async function kvitterTablet(oppgaveId: string, fullfort: boolean): Promi
   await hentInnloggetBruker() // sikrer innlogget sesjon
   if (!oppgaveId) return
   const supabase = await lagSupabaseServerKlient()
-  await supabase.rpc('kvitter_tablet_melding', { p_oppgave: oppgaveId, p_fullfort: fullfort })
+  const { error } = await supabase.rpc('kvitter_tablet_melding', {
+    p_oppgave: oppgaveId, p_fullfort: fullfort,
+  })
+  // EN HAKE SOM IKKE BLE SKREVET SKAL IKKE SE SATT UT.
+  //
+  // Kallstedet setter raden optimistisk FØR handlingen kjører. Svelges
+  // feilen, står meldingen som kvittert på skjermen mens ingenting er
+  // lagret — og hun tror den er gjort til neste gang sida lastes.
+  //
+  // Det er den motsatte og verre varianten av «en handling som lykkes
+  // uten å si fra»: en som feiler uten å si fra. Kastet ruller den
+  // optimistiske raden tilbake.
+  if (error) throw new Error(`Kunne ikke kvittere meldingen: ${error.message}`)
 }
 
 export async function veksleOppgave(formData: FormData) {

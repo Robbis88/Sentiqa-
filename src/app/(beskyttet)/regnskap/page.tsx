@@ -112,11 +112,15 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   // cluster vs. per-stasjon i JS. Summerer månedene selv — så måned/år henger
   // sammen og per-stasjon-hittil ikke blir null (Azets fyller hittil kun cluster).
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
-  const [{ data: alle }, { data: stasjoner }, varsler] = await Promise.all([
+  const [{ data: alle, error: sumfeil }, { data: stasjoner }, varsler] = await Promise.all([
     supabase.rpc('regnskap_sum', { p_fra: fra, p_til: til }),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     bruker.retailerId ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => []) : Promise.resolve([]),
   ])
+  // ET TOMT REGNSKAP SER UT SOM EN MÅNED UTEN TALL.
+  // `0065` ble kjørt halvveis en gang; da fantes `regnskap_sum` ikke,
+  // og flatene som kalte den var stille i månedsvis.
+  if (sumfeil) throw new Error(`regnskap_sum feilet: ${sumfeil.message}`)
 
   // ADMIN-GRENEN AGGREGERER. `?stasjon=<uuid>` borer ned i én stasjon;
   // uten den summeres kjeden. At sida TAALER det staar i rutetabellen,

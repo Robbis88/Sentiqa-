@@ -67,11 +67,24 @@ export async function stemple(
   //
   // Hashen regnes fortsatt ut her i Node. Da slipper PIN-en aldri inn i
   // en databasesporring, og dermed heller ikke inn i en sporringslogg.
-  const { data: svar } = await supabase.rpc('verifiser_ansatt_pin', {
+  const { data: svar, error: pinfeil } = await supabase.rpc('verifiser_ansatt_pin', {
     p_ansatt_nr: nummer,
     p_pin_hash: hashPin(bruker.retailerId, pin),
     p_kilde: 'stempling',
   })
+  // EN NEDE DATABASE ER IKKE FEIL PIN.
+  //
+  // Uten denne ble `svar` null, `rad` undefined, og hun fikk «Ukjent
+  // nummer eller feil PIN» — en setning som er sann om det systemet så,
+  // og usann om det som skjedde. Nøyaktig formen som holdt `/maaling`
+  // stille i månedsvis: «Ingen stasjoner.»
+  //
+  // Fortsatt fail-closed: ingen slipper inn. Men hun får vite at det er
+  // oss det står på, i stedet for å taste riktig kode om og om igjen.
+  if (pinfeil) {
+    console.error('verifiser_ansatt_pin feilet (stempling):', pinfeil.message)
+    return { feil: 'Innlogging er nede akkurat nå. Si fra til butikksjef.' }
+  }
   const rad = (svar as Verifikasjon[] | null)?.[0]
 
   // PAUSEN ER ET EGET SVAR, og den lekker ingenting: forsoek telles paa

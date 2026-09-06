@@ -27,7 +27,12 @@ export async function utsolgtSignaler(
   // mange flere, hører dette hjemme i en nattjobb i stedet.
   for (const s of stasjoner.slice(0, 8)) {
     try {
-      const { data } = await supabase.rpc('utsolgt_kandidater', { p_stasjon: s.id, p_dager: 35 })
+      const { data, error } = await supabase.rpc('utsolgt_kandidater', { p_stasjon: s.id, p_dager: 35 })
+      // INGEN SIGNALER OG EN FEILET MOTOR SER LIKE UT. Kastet fanges av
+      // try/catch under, og det er riktig — én stasjon skal ikke velte
+      // hele signalrunden. Men det skal skje SYNLIG, ikke som et signal
+      // ingen savner fordi ingen visste det skulle vært der.
+      if (error) throw new Error(`utsolgt_kandidater feilet for ${s.navn}: ${error.message}`)
       const hendelser = finnUtsolgt((data ?? []) as Kandidatrad[], idag, 35)
       if (hendelser.length === 0) continue
       const tapt = hendelser.reduce((a, h) => a + h.tapt_kr, 0)
