@@ -101,6 +101,15 @@ export type Maanedslonn = {
   andrePersonalKr: number
   budsjettKr: number | null
   budsjettKilde: Budsjettkilde | null
+  /**
+   * BP-ens egen lønnsramme for måneden, fra `bp_linje` (`0155`).
+   *
+   * Finnes for HVER måned, også de avlagte — i motsetning til
+   * `bp_kostnad` i regnskapslinjer, som importen hopper over når
+   * måneden er låst. Det er derfor de to budsjettene kan stå side om
+   * side.
+   */
+  bpBudsjettKr: number | null
   /** Fra St1s eget nøkkeltall. Null når måneden ikke er avlagt. */
   timer: number | null
   /** Lønnskost per time. Null uten timer — aldri en brøk på gjetning. */
@@ -144,7 +153,22 @@ export function byggLonnskost(
     const lonnsdrift = drift.filter((l) => LONNSKONTI.includes(l.kode as never))
     const avlagt = lonnsdrift.length > 0
 
-    const kilde = avlagt ? lonnsdrift : bp.filter((l) => bpLonnskonti.has(l.kode!))
+    // BP-EN GJELDER HVER MAANED, OGSAA DE AVLAGTE.
+    //
+    // Jeg skrev i går at de to budsjettene aldri finnes samtidig. Det
+    // var sant om `regnskapslinjer` — der hopper BP-importen over hver
+    // avlagt måned med vilje. Men `0155` la BP-en inn som SITT EGET
+    // DOKUMENT (`bp_linje`), og det er urørt av månedslåsen.
+    //
+    // Derfor kan begge staa side om side likevel, og de svarer paa hvert
+    // sitt spoersmaal: St1s maanedsbudsjett er hva DENNE maaneden ble
+    // maalt mot, BP-en er hva St1 lovet for aaret.
+    const bpLonn = bp.filter((l) => bpLonnskonti.has(l.kode!))
+    const bpBudsjettKr = bpLonn.length === 0
+      ? null
+      : bpLonn.reduce((a, l) => a + tall(l.budsjett), 0)
+
+    const kilde = avlagt ? lonnsdrift : bpLonn
     if (kilde.length === 0) continue
 
     let kontantKr = 0, feriepengerKr = 0, agaKr = 0, budsjett = 0, harBudsjett = false
@@ -186,6 +210,7 @@ export function byggLonnskost(
       andrePersonalKr,
       budsjettKr: harBudsjett ? budsjett : null,
       budsjettKilde: harBudsjett ? (avlagt ? 'st1_maaned' : 'bp') : null,
+      bpBudsjettKr,
       timer,
       perTime: timer ? lonnskostKr / timer : null,
       linjer: rader.sort((a, b) => a.kode.localeCompare(b.kode)),
