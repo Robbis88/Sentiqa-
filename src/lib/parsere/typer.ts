@@ -10,6 +10,7 @@ export type Rapporttype =
   | 'st1_bp'
   | 'st1_delingsfil'
   | 'easyatwork_stempling'
+  | 'easyatwork_lonnsart'
   | 'ukjent'
 
 // Én produktlinje fra Salgsstatistikk (St1 0714), med drilldown-kontekst.
