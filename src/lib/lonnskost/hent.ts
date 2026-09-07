@@ -6,6 +6,7 @@ import {
   byggEasyatwork, medOppdagetSykelonn,
   type EasyatworkMaaned, type Lonnsartsum, type Sykelonnskilde,
 } from './easyatwork'
+import { byggLonnsrom, erDrivstoff, type Lonnsrom } from './rom'
 
 // =====================================================================
 // Henter lønnskosten for én stasjon, måned for måned.
@@ -39,6 +40,14 @@ export type Lonnsbilde = {
    * skal si fra om den, ikke anta den.
    */
   sykelonn: { moenster: Sykelonnskilde; maalte: number; forsinkede: number }
+  /**
+   * Hvor mye lønn stasjonen faktisk har råd til, måned for måned.
+   *
+   * BP-lønn delt på BP-brutto, ganget med den brutto måneden faktisk
+   * fikk. For en avlagt måned står den i regnskapet; for den
+   * inneværende anslås den av omsetning, lært margin og svinn.
+   */
+  rom: Lonnsrom[]
 }
 
 export async function hentLonnskost(
@@ -46,7 +55,7 @@ export async function hentLonnskost(
   stasjonId: string,
   fraOgMed: string,
 ): Promise<Lonnsbilde> {
-  const [regnskap, bp, lonnsart] = await Promise.all([
+  const [regnskap, bp, lonnsart, brutto, grunnlag] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('periode, seksjon, kode, post, regnskap, budsjett')
@@ -69,7 +78,7 @@ export async function hentLonnskost(
       .from('bp_linje')
       .select('maned, seksjon, kode, post, belop_kr, bp_aar!inner(ar, stasjon_id)')
       .eq('bp_aar.stasjon_id', stasjonId)
-      .eq('seksjon', 'kostnad')
+      .in('seksjon', ['kostnad', 'omsetning', 'varekost'])
       // INGEN `slettet_tid` HER. `0155` utelot kolonnen med vilje — se
       // `0154`, der en SELECT-policy som krevde `slettet_tid is null`
       // blokkerte sin egen sletting på 31 tabeller. Et filter på en
@@ -94,6 +103,30 @@ export async function hentLonnskost(
         maaned: string; lonnsart: string; lonnsart_tekst: string
         timer: number; belop_kr: number
       }[]>(),
+    // OMSETNING OG BRUTTO I EGEN SPOERRING, ikke slaatt sammen med
+    // driftskostnadene over. Begge seksjonene har en rad per
+    // avdelingsrollup; lagt til den andre spoerringen ville summen
+    // naermet seg PostgREST sitt radtak, og et avkortet svar ser ut som
+    // en liten stasjon i stedet for en feil (0090, 0166, 0175).
+    supabase
+      .from('regnskapslinjer')
+      .select('periode, seksjon, post, regnskap')
+      .eq('stasjon_id', stasjonId)
+      .gte('periode', fraOgMed)
+      .in('seksjon', ['omsetning', 'bruttofortjeneste'])
+      .is('slettet_tid', null)
+      .limit(5000)
+      .overrideTypes<{
+        periode: string; seksjon: string; post: string; regnskap: number | null
+      }[]>(),
+    // De daglige stoerrelsene, summert i basen (0182).
+    supabase
+      .from('v_lonnsrom_grunnlag')
+      .select('maaned, omsetning_kr, svinn_kr')
+      .eq('stasjon_id', stasjonId)
+      .gte('maaned', fraOgMed.slice(0, 7))
+      .limit(500)
+      .overrideTypes<{ maaned: string; omsetning_kr: number; svinn_kr: number }[]>(),
   ])
 
   // BP-LINJENE STØPES I SAMME FORM som regnskapets, så `byggLonnskost`
@@ -135,7 +168,55 @@ export async function hentLonnskost(
   )
   const syk = medOppdagetSykelonn(byggEasyatwork(summer), regnskapSykelonn)
 
+  // DRIVSTOFF UT AV BEGGE SEKSJONENE.
+  //
+  // Regnskapets `omsetning` og `bruttofortjeneste` per stasjon har en rad
+  // per avdelingsrollup, og drivstoff er en av dem. Omsetningen paa den
+  // andre siden av marginbroeken kommer fra `v_butikksalg`, som holder
+  // drivstoff utenfor. Blandes de, deles brutto MED drivstoff paa
+  // omsetning UTEN - og drivstoff er ~68 % av omsetningen, saa marginen
+  // hadde blitt nesten tre ganger for hoey.
+  const perMaaned = new Map<string, { omsetningKr: number; bruttoKr: number }>()
+  for (const r of brutto.data ?? []) {
+    if (erDrivstoff(r.post)) continue
+    const m = r.periode.slice(0, 7)
+    const rad = perMaaned.get(m) ?? { omsetningKr: 0, bruttoKr: 0 }
+    if (r.seksjon === 'omsetning') rad.omsetningKr += r.regnskap ?? 0
+    else rad.bruttoKr += r.regnskap ?? 0
+    perMaaned.set(m, rad)
+  }
+  const regnskapsmaaneder = [...perMaaned].map(([maaned, v]) => ({ maaned, ...v }))
+
+  // BP-BRUTTO ER OMSETNING MINUS VAREKOST. Den staar ikke som egen
+  // seksjon i `bp_linje`, og `bp_bruttofortjeneste` i regnskapslinjer
+  // hopper over hver avlagt maaned (`erLaast`) - samme grunn som at
+  // loennsbudsjettet leses fra `bp_linje` og ikke derfra.
+  const bpPerMaaned = new Map<string, { bruttoKr: number; lonnKr: number }>()
+  for (const r of bp.data ?? []) {
+    const m = `${r.bp_aar.ar}-${String(r.maned).padStart(2, '0')}`
+    const rad = bpPerMaaned.get(m) ?? { bruttoKr: 0, lonnKr: 0 }
+    const kr = r.belop_kr ?? 0
+    if (r.seksjon === 'omsetning') rad.bruttoKr += kr
+    else if (r.seksjon === 'varekost') rad.bruttoKr -= kr
+    else if (r.kode && BP_LONNSKODER.has(r.kode)) rad.lonnKr += kr
+    bpPerMaaned.set(m, rad)
+  }
+  const bpMaaneder = [...bpPerMaaned]
+    .filter(([m]) => m >= fraOgMed.slice(0, 7))
+    .map(([maaned, v]) => ({ maaned, bruttoKr: v.bruttoKr, lonnKr: v.lonnKr }))
+
+  const rom = byggLonnsrom(
+    regnskapsmaaneder,
+    (grunnlag.data ?? []).map((g) => ({
+      maaned: g.maaned,
+      omsetningKr: Number(g.omsetning_kr),
+      svinnKr: Number(g.svinn_kr),
+    })),
+    bpMaaneder,
+  )
+
   return {
+    rom,
     maaneder,
     easyatwork: syk.maaneder,
     sykelonn: { moenster: syk.moenster, maalte: syk.maalte, forsinkede: syk.forsinkede },
