@@ -227,6 +227,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             <th>Måned</th>
             <th>Lønnskost</th>
             <th>easy@work</th>
+            <th>Sykelønn</th>
             <th>Budsjett</th>
             <th>Avvik</th>
             <th>Timer</th>
@@ -251,6 +252,21 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                 {/* ANSLAGET, IKKE FASITEN. Står tomt til fila er lastet
                     opp for måneden — en tom celle er ærligere enn en null. */}
                 <td>{ea == null ? '—' : kr.format(Math.round(ea.lonnskostKr))}</td>
+                {/* SYKELOENNA I EGEN KOLONNE, MED MAANEDEN DEN KOM FRA.
+                    Den flyttes en maaned fram fordi regnskapet foerer den
+                    slik - en sykmelding kommer inn etter at loennskjoeringen
+                    er stengt. Skjer flyttingen usynlig, kan ingen se at den
+                    skjer, og et avvik i en enkeltmaaned blir umulig aa lese. */}
+                <td>
+                  {ea == null || ea.sykelonnFraMaaned == null
+                    ? '—'
+                    : kr.format(Math.round(ea.perKonto['505'] ?? 0))}
+                  {ea?.sykelonnFraMaaned != null && ea.sykelonnFraMaaned !== ea.maaned && (
+                    <> <span className="undertittel">
+                      {`fra ${manedAar.format(new Date(`${ea.sykelonnFraMaaned}-01`))}`}
+                    </span></>
+                  )}
+                </td>
                 {/* ÉN BUDSJETTKOLONNE. Spriker St1s månedsbudsjett fra
                     BP-en, sier pipen fra — da er rapporten revidert etter
                     at BP-en ble satt, og det er månedsbudsjettet som
@@ -357,9 +373,24 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           </thead>
           <tbody>
             <tr>
+              <td>Timelønn og tillegg</td>
+              <td>{kr.format(Math.round(sisteEa.perKonto['503'] ?? 0))}</td>
+              <td>{`${sisteEa.timer.toLocaleString('nb-NO')} arbeidede timer`}</td>
+            </tr>
+            <tr>
+              <td>Sykelønn</td>
+              <td>{kr.format(Math.round(sisteEa.perKonto['505'] ?? 0))}</td>
+              {/* MAANEDEN SKAL STAA. Uten den ser tallet ut som maanedens
+                  eget, og forskyvningen blir en skjult regel. */}
+              <td>{sisteEa.sykelonnFraMaaned == null
+                ? 'måneden før mangler i eksporten'
+                : `ført i regnskapet måneden etter, fra ${
+                  manedAar.format(new Date(`${sisteEa.sykelonnFraMaaned}-01`))}`}</td>
+            </tr>
+            <tr>
               <td>Kontantlønn</td>
               <td>{kr.format(Math.round(sisteEa.kontantKr))}</td>
-              <td>{`${sisteEa.timer.toLocaleString('nb-NO')} arbeidede timer`}</td>
+              <td>grunnlag for feriepenger og avgift</td>
             </tr>
             <tr>
               <td>{`Feriepenger ${SATSER.feriepengerPst} %`}</td>
@@ -416,20 +447,24 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
       )}
 
       {sisteEa && (
+        <>
         <p className="undertittel">
           {'Anslaget er regnet av lønnsartene i easy@work-eksporten, ikke lest av '}
-          {'regnskapet. Eksporten er bygget rundt VAKTER, og det er formen på alt '}
-          {'som mangler: '}
-          {MANGLER.join('; ')}
-          {'. Målt på Dale juli 2026 sto timene 0,10 fra St1s eget nøkkeltall — '}
-          {'eksporten manglet ingen vakt — mens sykelønna sto 28 896 kroner lavere, '}
-          {'altså 99,6 % av hele differansen. Fraværsrapporten forklarer hvorfor, '}
-          {'og den går opp eksakt: av 116 fraværstimer var 35,50 egenmelding og '}
-          {'de første 16 dagene — nøyaktig det eksporten hadde — mens 80,50 var '}
-          {'sykmelding etter dag 16. Den betaler NAV, og easy@work fører ikke en '}
-          {'kostnad arbeidsgiver ikke har. Raden over sier hvor mye av differansen '}
-          {'som er sykelønn, så resten er det som er verdt å se på.'}
+          {'regnskapet. Sykelønna flyttes én måned fram, fordi regnskapet fører den '}
+          {'slik: en sykmelding kommer inn etter at lønnskjøringen for måneden er '}
+          {'stengt. Regnskapets juli hadde 34 830 kroner i sykelønn og easy@works '}
+          {'juni 34 829,52 — 48 øre fra hverandre. Kolonnen sier hvilken måned '}
+          {'tallet kom fra, så flyttingen er synlig og ikke en skjult regel.'}
         </p>
+        <p className="undertittel">
+          {'Med den på plass er hele avviket for juli 373 kroner av 441 172, altså '}
+          {'0,08 %. Det som gjenstår er '}
+          {MANGLER.join('; ')}
+          {' — og at de faktiske påslagssatsene er 12,16 % feriepenger og 14,00 % '}
+          {'avgift, ikke de 12 og 14,1 anslaget regner med. Sykelønn etter dag 16 '}
+          {'mangler i eksporten, men mangler i regnskapet også: den betaler NAV.'}
+        </p>
+        </>
       )}
 
       <Forklaring sporsmaal="Hva er tatt med, og hva er det målt mot?">

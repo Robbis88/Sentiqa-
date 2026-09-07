@@ -2,7 +2,10 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { byggLonnskost, type Kontolinje, type Maanedslonn } from './maaned'
 import { BP_LONNSKODER, ukjenteLonnskoder } from './bp'
-import { byggEasyatwork, type EasyatworkMaaned, type Lonnsartsum } from './easyatwork'
+import {
+  byggEasyatwork, medSykelonnsforskyvning,
+  type EasyatworkMaaned, type Lonnsartsum,
+} from './easyatwork'
 
 // =====================================================================
 // Henter lønnskosten for én stasjon, måned for måned.
@@ -114,6 +117,9 @@ export async function hentLonnskost(
     ukjenteKoder: ukjenteLonnskoder(
       linjer.filter((l) => l.seksjon === 'bp_kostnad' && l.kode).map((l) => l.kode!),
     ),
-    easyatwork: byggEasyatwork(summer),
+    // SYKELOENNA FLYTTES EN MAANED FRAM, slik regnskapet foerer den.
+    // Uten den staar hver maaned med feil sykeloenn og et avvik som ser
+    // ut som en feil i anslaget - malt paa juli 30 086 kroner mot 373.
+    easyatwork: medSykelonnsforskyvning(byggEasyatwork(summer)),
   }
 }

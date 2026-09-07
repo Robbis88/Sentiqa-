@@ -105,6 +105,9 @@ const TIL_KONTO: Record<string, string> = {
 /** Arten som bærer arbeidede timer. Tilleggene teller de SAMME timene. */
 const TIMEART = '2'
 
+/** Sykelønnskontoen. Den ene som ligger en måned etter i regnskapet. */
+const SYKEKONTO = '505'
+
 export type EasyatworkMaaned = {
   maaned: string // yyyy-mm
   /**
@@ -133,6 +136,16 @@ export type EasyatworkMaaned = {
   lonnskostKr: number
   /** Lønnsarter uten konto. Skal være tom. */
   ukjenteArter: string[]
+  /**
+   * Hvilken måned sykelønna er hentet fra.
+   *
+   * Lik `maaned` i den rå opprullingen. Etter
+   * `medSykelonnsforskyvning()` er den måneden før — og `null` når den
+   * måneden ikke finnes i dataene, som for den eldste. Da er raden ikke
+   * sammenlignbar med regnskapet, og flaten skal si det i stedet for å
+   * vise et tall som mangler en post.
+   */
+  sykelonnFraMaaned: string | null
 }
 
 const rund = (n: number) => Math.round(n * 100) / 100
@@ -185,10 +198,75 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
       agaKr: rund(agaKr),
       lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
       ukjenteArter: [...ukjente].sort(),
+      sykelonnFraMaaned: maaned,
     })
   }
 
   return ut.sort((a, b) => b.maaned.localeCompare(a.maaned))
+}
+
+/** Måneden før `maaned`, som «2026-07» → «2026-06». */
+function forrigeMaaned(maaned: string): string {
+  const [ar, mnd] = maaned.split('-').map(Number)
+  return mnd === 1 ? `${ar - 1}-12` : `${ar}-${String(mnd - 1).padStart(2, '0')}`
+}
+
+/**
+ * Flytter sykelønna én måned fram, slik regnskapet fører den.
+ *
+ * MÅLT, IKKE ANTATT — OG DET VAR IKKE MIN IDÉ.
+ *
+ * Timelønna periodiseres riktig: julis rapport har julis 1 527,66
+ * arbeidede timer, på 0,13 % av easy@works kroner. Sykelønna gjør det
+ * ikke, og forskjellen er dokumentasjonen — en sykmelding kommer inn
+ * etter at lønnskjøringen for måneden er stengt, og havner i den neste.
+ *
+ *     regnskapets juli, konto 505     34 830
+ *     easy@work juni, lønnsart 12     34 829,52
+ *                                     ---------
+ *                                          0,48 kr
+ *
+ * Med den ene flyttingen faller hele avviket for juli fra 30 086 kroner
+ * til 373 — fra 6,8 % til 0,08 %. Kontantlønna bommer med 102 kroner,
+ * som er mobildekningen (500) minus en vakt over månedsskiftet (398).
+ *
+ * ÉN OBSERVASJON, MEN PÅ 48 ØRE. Presisjonen utelukker tilfeldighet;
+ * antallet gjør at en måned uten forrige måned i dataene skal si fra i
+ * stedet for å gjette. Derfor `sykelonnFraMaaned: null` der.
+ *
+ * KALENDERMÅNEDEN MÅ FAKTISK FINNES. Hoppet noen over en måned i
+ * eksporten, ville «forrige rad i lista» vært feil måned — og det ville
+ * sett ut som et treff. Derfor slås den opp på nøkkel, ikke på posisjon.
+ */
+export function medSykelonnsforskyvning(maaneder: EasyatworkMaaned[]): EasyatworkMaaned[] {
+  const per = new Map(maaneder.map((m) => [m.maaned, m]))
+
+  return maaneder.map((m) => {
+    const kilde = per.get(forrigeMaaned(m.maaned))
+    const sykKr = kilde?.perKonto[SYKEKONTO] ?? 0
+    const perKonto = { ...m.perKonto }
+    if (sykKr === 0) delete perKonto[SYKEKONTO]
+    else perKonto[SYKEKONTO] = sykKr
+
+    // Kontantlønna bygges om uten den EGNE sykelønna og med forrige
+    // måneds. Påslagene følger med: feriepenger og avgift regnes av det
+    // regnskapet faktisk bokfører i måneden.
+    const kontantKr = m.kontantKr - (m.perKonto[SYKEKONTO] ?? 0) + sykKr
+    const feriepengerKr = kontantKr * (SATSER.feriepengerPst / 100)
+    const pensjonKr = kontantKr * (SATSER.pensjonPst / 100)
+    const agaKr = (kontantKr + feriepengerKr) * (SATSER.agaPst / 100)
+
+    return {
+      ...m,
+      perKonto,
+      kontantKr: rund(kontantKr),
+      feriepengerKr: rund(feriepengerKr),
+      pensjonKr: rund(pensjonKr),
+      agaKr: rund(agaKr),
+      lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
+      sykelonnFraMaaned: kilde ? kilde.maaned : null,
+    }
+  })
 }
 
 /**
@@ -197,35 +275,24 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
  * REKKEFØLGEN ER MÅLT, IKKE GJETTET. Fastlønn sto først her, fordi det
  * er den som kan skjule en hel person. Målt på Dale juli 2026 er det
  * sykelønna som faktisk mangler — 28 896 av et gap på 28 998, altså
- * 99,6 %. Stasjonen har ingen konto 501 i det hele tatt.
+ * 99,6 %. Stasjonen har ingen konto 501 i det hele tatt. * SYKELØNNA ER IKKE PÅ LISTA, OG DET ER EN RETTELSE.
  *
- * SYKELØNNA STOPPER VED DAG 16, OG DET ER RIKTIG.
+ * Den sto her i to runder — først som «en langtidssykmeldt uten
+ * vaktplan», så som «stopper ved dag 16». Begge beskrev noe sant om
+ * eksporten, men ingen av dem var forklaringen på avviket. Det var en
+ * PERIODISERING: regnskapet fører sykelønna måneden etter, og
+ * `medSykelonnsforskyvning()` flytter den nå. Julis avvik falt fra
+ * 30 086 kroner til 373.
  *
- * Målt mot fraværsrapporten for Dale juli 2026, som går opp eksakt:
+ * At sykelønn etter dag 16 mangler i eksporten er fortsatt sant — men
+ * den mangler i regnskapet også, fordi NAV betaler den. To kilder som
+ * begge utelater det samme har ikke et avvik.
  *
- *     egenmelding                14,50 t  ┐
- *     sykm. første 16 dager      21,00 t  ┘ 35,50 t — i eksporten
- *     sykmelding etter 16 dager  80,50 t     ikke i eksporten
- *                               --------
- *     totalt fravær             116,00 t
- *
- * Lønnsart 12 i eksporten var 35,50 timer. Til punkt og prikke. Etter
- * dag 16 betaler NAV, og easy@work fører ikke en kostnad arbeidsgiver
- * ikke har.
- *
- * Anslaget mangler altså ikke sykelønn ved et uhell — det utelater den
- * delen som ikke er arbeidsgivers. Her sto det først at forklaringen var
- * «en langtidssykmeldt uten vaktplan». Det var en historie som passet
- * tallet; Sara Omar har vakter, de står i rapporten.
- *
- * REGNSKAPET GÅR LIKEVEL IKKE OPP, og det er ikke denne modulens sak å
- * løse. 80,50 timer til eksportens egen sykelønnssats (167 kr/t) er
- * ~13 500. Konto 505 er 34 830. Rundt 15 000 kroner har ingen
- * fraværstimer bak seg, og 506 sto på null i juli — 74 745 ført mot
- * 2 703 refundert over sju måneder.
+ * Det som står igjen er ekte, og lite: fastlønn om stasjonen har noen,
+ * faste tillegg som ikke er en arbeidet time, og bonus. Målt på Dale
+ * juli 2026 er hele resten 373 kroner av 441 172 — 0,08 %.
  */
 export const MANGLER = [
-  'sykelønn etter dag 16 (konto 505) — den betaler NAV, ikke arbeidsgiver',
   'fastlønn (konto 501), om stasjonen har noen',
   'faste tillegg som ikke er en arbeidet time (konto 502), for eksempel mobildekning',
   'bonus (konto 509)',
