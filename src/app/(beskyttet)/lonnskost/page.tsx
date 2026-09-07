@@ -160,6 +160,53 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   // ===================================================================
   const maanedPer = new Map(maaneder.map((m) => [m.maaned, m]))
   const rader = maanedsrader(maaneder, easyatwork, rom)
+
+  // ===================================================================
+  // ÅRET, MEN LIKE FOR LIKE
+  //
+  // Aa summere sju avlagte maaneder mot tolv budsjetterte gir et avvik
+  // paa flere hundre tusen som ikke betyr noe. Det er samme form som har
+  // gaatt igjen hele veien: to tall som ser sammenlignbare ut og ikke er
+  // det.
+  //
+  // Derfor to boelker, og de blandes ikke:
+  //
+  //   HITTIL I AAR   bare maanedene som ER avlagt - og budsjettet og
+  //                  rommet for NOEYAKTIG de samme maanedene
+  //   HELE AARET     BP-ens tolv maaneder, som en egen linje
+  //
+  // Aaret er kalenderaaret til den nyeste maaneden i vinduet. Vinduet er
+  // tretten maaneder og krysser aarsskiftet, saa uten den avgrensningen
+  // ville «aaret» vaert tretten maaneder over to aar.
+  // ===================================================================
+  const aar = rader[0]?.slice(0, 4) ?? String(new Date().getUTCFullYear())
+  const iAar = <T extends { maaned: string }>(xs: T[]) => xs.filter((x) => x.maaned.startsWith(aar))
+
+  const avlagteIAar = iAar(maaneder).filter((m) => m.avlagt)
+  const avlagteSett = new Set(avlagteIAar.map((m) => m.maaned))
+  const romAvlagt = iAar(rom).filter((r) => avlagteSett.has(r.maaned))
+
+  const sum = (xs: (number | null | undefined)[]) =>
+    xs.reduce<number>((a, v) => a + (typeof v === 'number' && Number.isFinite(v) ? v : 0), 0)
+
+  const aarstall = {
+    maaneder: avlagteIAar.length,
+    lonnskostKr: sum(avlagteIAar.map((m) => m.lonnskostKr)),
+    budsjettKr: sum(avlagteIAar.map((m) => m.budsjettKr ?? romAvlagt.find((r) => r.maaned === m.maaned)?.bpLonnKr)),
+    romKr: sum(romAvlagt.map((r) => r.romKr)),
+    // Rommet finnes bare for maaneder som har baade BP og brutto. Uten
+    // dette ville avviket maalt loennskost for sju maaneder mot et rom
+    // for fem - samme felle, ett niva ned.
+    romMaaneder: romAvlagt.filter((r) => r.romKr != null).length,
+    timer: sum(avlagteIAar.map((m) => m.timer)),
+    svinnKr: sum(iAar(rom).filter((r) => avlagteSett.has(r.maaned)).map((r) => r.svinnKr)),
+    // HELE AARET er BP-ens tolv maaneder, uavhengig av hva som er avlagt.
+    bpHeleAaret: sum(iAar(rom).map((r) => r.bpLonnKr)),
+    bpMaaneder: iAar(rom).filter((r) => r.bpLonnKr != null).length,
+  }
+  const aarsavvik = aarstall.romMaaneder === aarstall.maaneder && aarstall.maaneder > 0
+    ? aarstall.lonnskostKr - aarstall.romKr
+    : null
   const grunnlagPer = new Map(rom.map((r) => [r.maaned, r]))
   // DEN INNEVAERENDE MAANEDEN ER DEN ENESTE SOM KAN PAAVIRKES.
   //
@@ -318,6 +365,66 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
               : `${siste.timer.toLocaleString('nb-NO')} timelønnstimer`}
           />
         </div>
+      )}
+
+      {/* AARET, MEN LIKE FOR LIKE.
+          Sju avlagte maaneder mot tolv budsjetterte gir et avvik paa
+          flere hundre tusen som ikke betyr noe. De to bolkene staar
+          derfor hver for seg, og hver av dem sier hvor mange maaneder
+          den dekker - et sammendrag som ikke sier hva det summerer, er
+          et tall man enten stoler blindt paa eller lar vaere aa lese. */}
+      {aarstall.maaneder > 0 && (
+        <Datatabell tittel={`Året ${aar}`} antall={aarstall.maaneder}>
+          <thead>
+            <tr>
+              <th>Periode</th>
+              <th>Lønnskost</th>
+              <th>Timer</th>
+              <th>Svinn</th>
+              <th>Budsjett</th>
+              <th>Lønnsrom</th>
+              <th>Avvik</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                {`Hittil i år · ${aarstall.maaneder} avlagt${
+                  aarstall.maaneder === 1 ? ' måned' : 'e måneder'}`}
+              </td>
+              <td><strong>{kr.format(Math.round(aarstall.lonnskostKr))}</strong></td>
+              <td>{aarstall.timer > 0 ? aarstall.timer.toLocaleString('nb-NO') : '—'}</td>
+              <td>{aarstall.svinnKr > 0 ? kr.format(Math.round(aarstall.svinnKr)) : '—'}</td>
+              <td>{kr.format(Math.round(aarstall.budsjettKr))}</td>
+              {/* ROMMET SUMMERES BARE OVER DE SAMME MAANEDENE. Mangler
+                  det for én av dem, staar avviket tomt heller enn aa
+                  maale sju maaneders loenn mot fem maaneders rom. */}
+              <td>
+                {aarstall.romMaaneder === aarstall.maaneder
+                  ? kr.format(Math.round(aarstall.romKr))
+                  : `${kr.format(Math.round(aarstall.romKr))} (${aarstall.romMaaneder} mnd)`}
+              </td>
+              <td>
+                {aarsavvik == null ? '—' : (
+                  <span className={`status-pip ${aarsavvik > 0 ? 'rod' : 'gronn'}`}>
+                    {`${aarsavvik > 0 ? '+' : '−'}${kr.format(Math.abs(Math.round(aarsavvik)))}`}
+                  </span>
+                )}
+              </td>
+            </tr>
+            {aarstall.bpMaaneder > 0 && (
+              <tr>
+                <td>{`Hele året etter BP · ${aarstall.bpMaaneder} måneder`}</td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>{kr.format(Math.round(aarstall.bpHeleAaret))}</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+            )}
+          </tbody>
+        </Datatabell>
       )}
 
       <Datatabell tittel="Per måned" antall={rader.length}>
