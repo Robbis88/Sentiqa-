@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byggLonnsrom, kalibrering, normalSvinnandel, erDrivstoff } from './rom'
+import { byggLonnsrom, kalibrering, normalSvinnandel, erDrivstoff, maanedsrader } from './rom'
 
 const R = (maaned: string, omsetningKr: number | null, bruttoKr: number | null) =>
   ({ maaned, omsetningKr, bruttoKr })
@@ -162,5 +162,43 @@ describe('erDrivstoff', () => {
     expect(erDrivstoff('MAT')).toBe(false)
     expect(erDrivstoff('KIOSK')).toBe(false)
     expect(erDrivstoff('1000')).toBe(false)
+  })
+})
+
+// =====================================================================
+// EN OPPLASTET MAANED SKAL ALDRI VAERE USYNLIG
+//
+// Boenes august: loennsartfila var lastet opp, men stasjonen manglet
+// BP-rader for maaneden - og `byggLonnskost` hopper over en maaned uten
+// verken regnskap eller BP. Raden fantes derfor ikke, og skjermen saa ut
+// som om ingenting var kommet inn.
+// =====================================================================
+describe('maanedsrader', () => {
+  it('tar med en måned som bare har easy@work-data', () => {
+    const r = maanedsrader(
+      [{ maaned: '2026-07' }],
+      [{ maaned: '2026-08' }],
+      [],
+    )
+    expect(r).toEqual(['2026-08', '2026-07'])
+  })
+
+  it('tar med en måned som bare har et lønnsrom', () => {
+    expect(maanedsrader([], [], [{ maaned: '2026-09', romKr: 1000 }]))
+      .toEqual(['2026-09'])
+  })
+
+  // Et rom som ikke lot seg regne er ingen rad - den ville staatt tom i
+  // hver eneste kolonne.
+  it('tar ikke med en måned uten noe å vise', () => {
+    expect(maanedsrader([], [], [{ maaned: '2026-09', romKr: null }])).toEqual([])
+  })
+
+  it('slår sammen uten duplikater, nyeste først', () => {
+    expect(maanedsrader(
+      [{ maaned: '2026-07' }, { maaned: '2026-06' }],
+      [{ maaned: '2026-07' }, { maaned: '2026-08' }],
+      [{ maaned: '2026-06', romKr: 1 }],
+    )).toEqual(['2026-08', '2026-07', '2026-06'])
   })
 })

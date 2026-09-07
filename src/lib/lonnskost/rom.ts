@@ -274,3 +274,33 @@ export function byggLonnsrom(
     }
   })
 }
+
+/**
+ * Hvilke måneder tabellen skal ha rader for.
+ *
+ * ===================================================================
+ * UNIONEN, IKKE BARE REGNSKAPETS MÅNEDER.
+ *
+ * `byggLonnskost` hopper over en måned som verken er avlagt eller har
+ * BP-linjer, og flaten itererte den lista. En måned med BARE
+ * easy@work-data ble dermed usynlig: fila var lastet opp, raden fantes
+ * ikke, og skjermen så ut som om ingenting var kommet inn.
+ *
+ * Det er den farligste formen for feil her — et fravær som ser ut som
+ * en tom måned. Bønes august traff den: eksporten var inne, men
+ * stasjonen manglet BP-rader for måneden.
+ *
+ * Nyeste først, som ellers på flaten.
+ * ===================================================================
+ */
+export function maanedsrader(
+  fraRegnskap: readonly { maaned: string }[],
+  fraEasyatwork: readonly { maaned: string }[],
+  fraRom: readonly { maaned: string; romKr: number | null }[],
+): string[] {
+  return [...new Set([
+    ...fraRegnskap.map((m) => m.maaned),
+    ...fraEasyatwork.map((m) => m.maaned),
+    ...fraRom.filter((r) => r.romKr !== null).map((r) => r.maaned),
+  ])].sort((a, b) => b.localeCompare(a))
+}

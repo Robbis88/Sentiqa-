@@ -10,6 +10,7 @@ import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
+import { maanedsrader } from '@/lib/lonnskost/rom'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -143,6 +144,22 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const avvik = siste && siste.budsjettKr != null ? siste.lonnskostKr - siste.budsjettKr : null
   const eaPerMaaned = new Map(easyatwork.map((e) => [e.maaned, e]))
   const romPer = new Map(rom.map((r) => [r.maaned, r]))
+
+  // ===================================================================
+  // RADENE ER UNIONEN, IKKE BARE REGNSKAPETS MAANEDER.
+  //
+  // `byggLonnskost` hopper over en maaned som verken er avlagt eller har
+  // BP-linjer (`if (kilde.length === 0) continue`), og tabellen itererte
+  // den lista. En maaned med BARE easy@work-data ble dermed usynlig:
+  // fila var lastet opp, raden fantes ikke, og skjermen saa ut som om
+  // ingenting var kommet inn.
+  //
+  // Det er den farligste formen for feil i dette systemet - et fravaer
+  // som ser ut som en tom maaned. Boenes august traff den: eksporten var
+  // inne, men stasjonen manglet BP-rader for maaneden.
+  // ===================================================================
+  const maanedPer = new Map(maaneder.map((m) => [m.maaned, m]))
+  const rader = maanedsrader(maaneder, easyatwork, rom)
   const grunnlagPer = new Map(rom.map((r) => [r.maaned, r]))
   // DEN INNEVAERENDE MAANEDEN ER DEN ENESTE SOM KAN PAAVIRKES.
   //
@@ -303,7 +320,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </div>
       )}
 
-      <Datatabell tittel="Per måned" antall={maaneder.length}>
+      <Datatabell tittel="Per måned" antall={rader.length}>
         <thead>
           <tr>
             <th>Måned</th>
@@ -322,26 +339,27 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           </tr>
         </thead>
         <tbody>
-          {maaneder.map((m) => {
-            const a = m.budsjettKr == null ? null : m.lonnskostKr - m.budsjettKr
-            const ea = eaPerMaaned.get(m.maaned)
-            const spriker = m.budsjettKr != null && m.bpBudsjettKr != null
+          {rader.map((maaned) => {
+            const m = maanedPer.get(maaned)
+            const a = m?.budsjettKr == null ? null : m.lonnskostKr - m.budsjettKr
+            const ea = eaPerMaaned.get(maaned)
+            const spriker = m?.budsjettKr != null && m.bpBudsjettKr != null
               && Math.abs(m.budsjettKr - m.bpBudsjettKr) >= 1
-            const r = romPer.get(m.maaned)
+            const r = romPer.get(maaned)
             // BRUKT ER REGNSKAPET NAAR DET FINNES, ellers anslaget. Uten
             // det ville den inneVAERENDE maaneden - den eneste som fortsatt
             // kan paavirkes - staatt uten avvik.
-            const brukt = m.avlagt ? m.lonnskostKr : ea?.lonnskostKr ?? null
+            const brukt = m?.avlagt ? m.lonnskostKr : ea?.lonnskostKr ?? null
             const avvikRom = r?.romKr != null && brukt != null ? brukt - r.romKr : null
             return (
-              <tr key={m.maaned}>
+              <tr key={maaned}>
                 <td>
-                  {manedAar.format(new Date(`${m.maaned}-01`))}
+                  {manedAar.format(new Date(`${maaned}-01`))}
                   {/* Kilden står på hver rad. Et budsjett fra BP-en og et
                       fra St1s månedsrapport svarer på ulike spørsmål. */}
-                  {!m.avlagt && <> <Status nivaa="endring">budsjett</Status></>}
+                  {!m?.avlagt && <> <Status nivaa="endring">budsjett</Status></>}
                 </td>
-                <td>{m.avlagt ? kr.format(Math.round(m.lonnskostKr)) : '—'}</td>
+                <td>{m?.avlagt ? kr.format(Math.round(m.lonnskostKr)) : '—'}</td>
                 {/* ANSLAGET, IKKE FASITEN. Står tomt til fila er lastet
                     opp for måneden — en tom celle er ærligere enn en null. */}
                 <td>{ea == null ? '—' : kr.format(Math.round(ea.lonnskostKr))}</td>
@@ -350,7 +368,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                     juli sto 0,10 fra hverandre - saa den aapne maaneden
                     faar et timetall i stedet for en strek. */}
                 <td>
-                  {m.timer != null
+                  {m?.timer != null
                     ? m.timer.toLocaleString('nb-NO')
                     : ea != null ? ea.timer.toLocaleString('nb-NO') : '—'}
                 </td>
@@ -364,7 +382,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                     at BP-en ble satt, og det er månedsbudsjettet som
                     gjelder. Ellers er de samme tall og fortjener én celle. */}
                 <td>
-                  {m.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}
+                  {m?.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}
                   {spriker && <> <Status nivaa="endring">≠ BP</Status></>}
                 </td>
                 {/* LOENNSROMMET. Budsjettet ganget med den brutto maaneden
