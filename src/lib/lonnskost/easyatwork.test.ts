@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byggEasyatwork as bygg, fraLinjer, SATSER } from './easyatwork'
+import { byggEasyatwork as bygg, fraLinjer, medSykelonnsforskyvning, SATSER } from './easyatwork'
 import type { Lonnsartlinje } from '@/lib/parsere/lonnsart'
 
 const byggEasyatwork = (l: Lonnsartlinje[]) => bygg(fraLinjer(l))
@@ -111,5 +111,63 @@ describe('byggEasyatwork', () => {
 
   it('satsene står ett sted', () => {
     expect(SATSER).toEqual({ feriepengerPst: 12, pensjonPst: 2, agaPst: 14.1 })
+  })
+})
+
+// =====================================================================
+// SYKELOENNA LIGGER EN MAANED ETTER
+//
+// Regnskapets juli, konto 505: 34 830. easy@work juni, loennsart 12:
+// 34 829,52. Med den ene flyttingen faller julis avvik fra 30 086
+// kroner til 373 - fra 6,8 % til 0,08 %.
+// =====================================================================
+describe('medSykelonnsforskyvning', () => {
+  const juni = L('12', 158, 34829.52, '2026-06-15')
+  const juliArbeid = [
+    L('2', 1527.56, 297990.47, '2026-07-15'),
+    L('1429', 552.39, 11977.40, '2026-07-15', '1429 samlet tillegg'),
+    L('96', 0.96, 137.28, '2026-07-15'),
+  ]
+
+  it('henter sykelønna fra måneden før', () => {
+    const [juli] = medSykelonnsforskyvning(byggEasyatwork([
+      ...juliArbeid, L('12', 35.5, 5933.88, '2026-07-15'), juni,
+    ]))
+    expect(juli.maaned).toBe('2026-07')
+    expect(juli.sykelonnFraMaaned).toBe('2026-06')
+    expect(juli.perKonto['505']).toBe(34829.52)
+    // Regnskapets juli: 345 037 kontant, 441 172 loennskost.
+    expect(juli.kontantKr).toBeCloseTo(344934.67, 1)
+    expect(juli.lonnskostKr).toBeCloseTo(440798.91, 1)
+  })
+
+  // KANARIFUGL. Slutter flyttingen aa virke, faller juli tilbake til sin
+  // egen sykeloenn og avviket mot regnskapet gaar fra 373 til 30 086.
+  it('bruker ikke månedens egen sykelønn', () => {
+    const [juli] = medSykelonnsforskyvning(byggEasyatwork([
+      ...juliArbeid, L('12', 35.5, 5933.88, '2026-07-15'), juni,
+    ]))
+    expect(juli.perKonto['505']).not.toBe(5933.88)
+  })
+
+  // MAANEDEN MAA FINNES, IKKE BARE VAERE NESTE RAD I LISTA. Hopper
+  // eksporten over en maaned, ville posisjon gitt feil maaned - og det
+  // ville sett ut som et treff.
+  it('sier fra når måneden før mangler', () => {
+    const [juli] = medSykelonnsforskyvning(byggEasyatwork([
+      ...juliArbeid, L('12', 35.5, 5933.88, '2026-07-15'),
+      L('12', 10, 2000, '2026-05-15'), // mai, ikke juni
+    ]))
+    expect(juli.sykelonnFraMaaned).toBeNull()
+    expect(juli.perKonto['505']).toBeUndefined()
+  })
+
+  it('krysser årsskiftet', () => {
+    const m = medSykelonnsforskyvning(byggEasyatwork([
+      L('2', 10, 2000, '2026-01-15'),
+      L('12', 5, 900, '2025-12-15'),
+    ]))
+    expect(m.find((x) => x.maaned === '2026-01')!.sykelonnFraMaaned).toBe('2025-12')
+    expect(m.find((x) => x.maaned === '2026-01')!.perKonto['505']).toBe(900)
   })
 })
