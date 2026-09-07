@@ -36,6 +36,17 @@ const TAK = 1000
 /** Under denne blir det flere rundturer enn det er verdt. */
 const MINSTE_BOLK = 2
 
+// HVORFOR TJUE DAGER OG IKKE TRETTI.
+//
+// Produksjonssalget er ~12 000 rader paa et aar, altsaa rundt 33 per dag.
+// Tretti dager gir ~990 - rett under taket paa 1000, saa naer at nesten
+// hver eneste bolk ville delt seg og gitt DOBBELT saa mange rundturer som
+// noedvendig. Riktig svar, men tregere enn det trengte aa vaere.
+//
+// Tjue dager gir ~660. Marginen er der for at delingen skal vaere
+// unntaket, ikke regelen - den finnes for stasjoner som selger mer enn
+// snittet, ikke for normaltilfellet.
+
 export type Svar<T> = { data: T[] | null; error: { message: string } | null }
 
 /**
@@ -51,7 +62,7 @@ export async function hentPerDato<T>(
   lagQuery: (fra: string, til: string) => PromiseLike<Svar<T>>,
   fra: string,
   til: string,
-  dagerPerBolk = 30,
+  dagerPerBolk = 20,
 ): Promise<T[]> {
   if (til < fra) return []
 
