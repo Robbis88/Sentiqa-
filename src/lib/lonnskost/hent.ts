@@ -183,6 +183,34 @@ export async function hentLonnskost(
     belopKr: Number(r.belop_kr),
   }))
 
+  // ===================================================================
+  // EN SPØRRING SOM FEILER SKAL ROPE, IKKE BLI TOM
+  //
+  // Her sto `(grunnlag.data ?? [])` og `(brutto.data ?? [])`. Da `0182`
+  // ikke var kjørt mot produksjon, svarte PostgREST «relation
+  // v_lonnsrom_grunnlag does not exist» — og koden leste det som «ingen
+  // omsetning».
+  //
+  // Resultatet var en side uten lønnsrom på hver eneste måned, uten et
+  // eneste tegn på hvorfor. «Ingen data» og «spørringen feilet» ser helt
+  // like ut når feilen svelges — og det er nettopp den formen resten av
+  // dette systemet er bygget for å nekte.
+  //
+  // Kastes den, navngir feilmeldingen den manglende migrasjonen. Det er
+  // forskjellen på et kvarter og en halv dag.
+  //
+  // `hent-feil.test.ts` krever at hver spørring står her.
+  // ===================================================================
+  for (const [hva, svar] of [
+    ['regnskapslinjene', regnskap],
+    ['BP-linjene', bp],
+    ['lønnsartene', lonnsart],
+    ['omsetning og brutto', brutto],
+    ['omsetning og svinn per måned', grunnlag],
+  ] as const) {
+    if (svar.error) throw new Error(`Kunne ikke lese ${hva}: ${svar.error.message}`)
+  }
+
   const maaneder = byggLonnskost(linjer, BP_LONNSKODER)
 
   // MAALT MOT REGNSKAPET, IKKE ANTATT.
