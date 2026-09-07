@@ -81,16 +81,25 @@ export const SATSER = {
 const TIL_KONTO: Record<string, string> = {
   '2': '503', // Timelønn
   '12': '505', // Sykelønn
-  '96': '502', // 50 % overtidstillegg
-  '97': '502', // 100 % overtidstillegg
-  '1410': '502', // Helligdagstillegg
-  '1429': '502', // Tillegg hverdag 18-21
-  '1430': '502', // Tillegg hverdag 21-24
-  '1431': '502', // Tillegg hverdag 00-06
-  '1432': '502', // Tillegg lørdag
-  '1433': '502', // Tillegg søndag 00-06
-  '1434': '502', // Tillegg søndag 06-18
-  '1435': '502', // Tillegg søndag 18-24
+  // TILLEGGENE FØRES I 503, IKKE I 502.
+  //
+  // Her sto de på 502 «Lønnstillegg», som er navnet man ville gjettet
+  // på. Målt mot Dale 2026 er 502 nøyaktig 500 kroner HVER måned — et
+  // fast mobiltillegg, ikke kveld og helg. De variable tilleggene ligger
+  // inne i 503 sammen med timelønna, og der hører de derfor hjemme her.
+  //
+  // Totalen er den samme uansett; det er per-konto-sammenligningen som
+  // ville løyet, og den er nettopp den man leser når noe spriker.
+  '96': '503', // 50 % overtidstillegg
+  '97': '503', // 100 % overtidstillegg
+  '1410': '503', // Helligdagstillegg
+  '1429': '503', // Tillegg hverdag 18-21
+  '1430': '503', // Tillegg hverdag 21-24
+  '1431': '503', // Tillegg hverdag 00-06
+  '1432': '503', // Tillegg lørdag
+  '1433': '503', // Tillegg søndag 00-06
+  '1434': '503', // Tillegg søndag 06-18
+  '1435': '503', // Tillegg søndag 18-24
 }
 
 /** Arten som bærer arbeidede timer. Tilleggene teller de SAMME timene. */
@@ -111,7 +120,16 @@ export type EasyatworkMaaned = {
   feriepengerKr: number
   pensjonKr: number
   agaKr: number
-  /** Kontantlønn + feriepenger + pensjon + aga. */
+  /**
+   * Kontantlønn + feriepenger + aga. PENSJONEN ER IKKE MED.
+   *
+   * Den lå her til 2026-09-07, og gjorde tallet usammenlignbart med
+   * regnskapet uten at noe sa fra. St1 fører OTP som `5945 Obligatorisk
+   * tjenestepensjon` under konto 590 «Andre personal» — altså UTENFOR de
+   * ni lønnskontiene, og /lonnskost holder 590 utenfor med vilje.
+   *
+   * `pensjonKr` står fortsatt for seg, som 590 gjør på regnskapssiden.
+   */
   lonnskostKr: number
   /** Lønnsarter uten konto. Skal være tom. */
   ukjenteArter: string[]
@@ -152,7 +170,10 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
     // AGA PÅLØPER OGSÅ AV FERIEPENGER OG PENSJON. Konto 541 finnes
     // nettopp fordi feriepengedelen føres for seg; premien til OTP er
     // avgiftspliktig på samme måte.
-    const agaKr = (kontantKr + feriepengerKr + pensjonKr) * (SATSER.agaPst / 100)
+    // AGA AV LØNN OG FERIEPENGER, IKKE AV PENSJONEN. Konti 540 og 541 er
+    // nettopp de to; premien til OTP ligger utenfor lønnskosten sammen
+    // med resten av 590.
+    const agaKr = (kontantKr + feriepengerKr) * (SATSER.agaPst / 100)
 
     ut.push({
       maaned,
@@ -162,7 +183,7 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
       feriepengerKr: rund(feriepengerKr),
       pensjonKr: rund(pensjonKr),
       agaKr: rund(agaKr),
-      lonnskostKr: rund(kontantKr + feriepengerKr + pensjonKr + agaKr),
+      lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
       ukjenteArter: [...ukjente].sort(),
     })
   }
@@ -170,9 +191,30 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
   return ut.sort((a, b) => b.maaned.localeCompare(a.maaned))
 }
 
-/** Hva anslaget ikke kan se. Vises ved siden av tallet, ikke i en fotnote. */
+/**
+ * Hva anslaget ikke kan se. Vises ved siden av tallet, ikke i en fotnote.
+ *
+ * REKKEFØLGEN ER MÅLT, IKKE GJETTET. Fastlønn sto først her, fordi det
+ * er den som kan skjule en hel person. Målt på Dale juli 2026 er det
+ * sykelønna som faktisk mangler — 28 896 av et gap på 28 998, altså
+ * 99,6 %. Stasjonen har ingen konto 501 i det hele tatt.
+ *
+ * DET MÅLTE ER HVOR GAPET LIGGER, IKKE HVORFOR 505 ER SÅ STOR.
+ *
+ * easy@work er et vaktsystem og kjenner bare sykedager som erstatter en
+ * planlagt vakt — 35,50 timer i juli. Regnskapet hadde 34 830 kroner.
+ * Her sto det en stund at forklaringen var en langtidssykmeldt. Det var
+ * en historie som passet tallet, ikke noe som var målt, og den holder
+ * ikke mot driften: Kelsar forskutterer ikke sykelønn.
+ *
+ * Regnskapet selv har et åpent spørsmål i den enden — 74 745 ført på 505
+ * over sju måneder mot 2 703 refundert på 506. Det er regnskapsførerens
+ * å svare på, ikke denne modulens. Modulen skal si hvor differansen
+ * ligger og la være å gjette på resten.
+ */
 export const MANGLER = [
-  'fastlønn (konto 501)',
-  'refundert sykelønn (konto 506)',
+  'sykelønn uten en vakt å henge på (konto 505)',
+  'fastlønn (konto 501), om stasjonen har noen',
+  'faste tillegg som ikke er en arbeidet time (konto 502), for eksempel mobildekning',
   'bonus (konto 509)',
 ] as const
