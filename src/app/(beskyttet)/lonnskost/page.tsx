@@ -423,11 +423,12 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           {MANGLER.join('; ')}
           {'. Målt på Dale juli 2026 sto timene 0,10 fra St1s eget nøkkeltall — '}
           {'eksporten manglet ingen vakt — mens sykelønna sto 28 896 kroner lavere, '}
-          {'altså 99,6 % av hele differansen. easy@work er et vaktsystem og kjenner '}
-          {'bare sykedager som erstatter en planlagt vakt; resten føres i '}
-          {'lønnssystemet og kommer aldri med i en eksport herfra. Raden over sier '}
-          {'derfor hvor mye av differansen som er sykelønn, så resten er det som er '}
-          {'verdt å se på.'}
+          {'altså 99,6 % av hele differansen. Fraværsrapporten forklarer hvorfor, '}
+          {'og den går opp eksakt: av 116 fraværstimer var 35,50 egenmelding og '}
+          {'de første 16 dagene — nøyaktig det eksporten hadde — mens 80,50 var '}
+          {'sykmelding etter dag 16. Den betaler NAV, og easy@work fører ikke en '}
+          {'kostnad arbeidsgiver ikke har. Raden over sier hvor mye av differansen '}
+          {'som er sykelønn, så resten er det som er verdt å se på.'}
         </p>
       )}
 
