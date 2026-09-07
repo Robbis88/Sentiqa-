@@ -199,13 +199,21 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
  * sykelønna som faktisk mangler — 28 896 av et gap på 28 998, altså
  * 99,6 %. Stasjonen har ingen konto 501 i det hele tatt.
  *
- * Grunnen er formen på eksporten: den er bygget rundt VAKTER. En
- * langtidssykmeldt stempler ikke, og da finnes det ingen linje å henge
- * lønna på. easy@work hadde 5 934 kroner sykelønn der regnskapet hadde
- * 34 830.
+ * DET MÅLTE ER HVOR GAPET LIGGER, IKKE HVORFOR 505 ER SÅ STOR.
+ *
+ * easy@work er et vaktsystem og kjenner bare sykedager som erstatter en
+ * planlagt vakt — 35,50 timer i juli. Regnskapet hadde 34 830 kroner.
+ * Her sto det en stund at forklaringen var en langtidssykmeldt. Det var
+ * en historie som passet tallet, ikke noe som var målt, og den holder
+ * ikke mot driften: Kelsar forskutterer ikke sykelønn.
+ *
+ * Regnskapet selv har et åpent spørsmål i den enden — 74 745 ført på 505
+ * over sju måneder mot 2 703 refundert på 506. Det er regnskapsførerens
+ * å svare på, ikke denne modulens. Modulen skal si hvor differansen
+ * ligger og la være å gjette på resten.
  */
 export const MANGLER = [
-  'sykelønn uten en vakt å henge på (konto 505) — en langtidssykmeldt stempler ikke',
+  'sykelønn uten en vakt å henge på (konto 505)',
   'fastlønn (konto 501), om stasjonen har noen',
   'faste tillegg som ikke er en arbeidet time (konto 502), for eksempel mobildekning',
   'bonus (konto 509)',
