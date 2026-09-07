@@ -132,6 +132,28 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const eaPerMaaned = new Map(easyatwork.map((e) => [e.maaned, e]))
   const sisteEa = easyatwork[0]
   const ukjenteArter = [...new Set(easyatwork.flatMap((e) => e.ukjenteArter))]
+  // Bare der de to faktisk maaler samme maaned. En differanse mot en
+  // maaned som ikke er avlagt ville vaert et tall mot ingenting.
+  const eaMotRegnskap = sisteEa && siste?.avlagt && sisteEa.maaned === siste.maaned
+    ? sisteEa.lonnskostKr - siste.lonnskostKr
+    : null
+
+  // DIFFERANSEN SKAL NAVNGIS, IKKE BARE VISES.
+  //
+  // Vi har begge sider i basen, saa gapet trenger ikke staa som et
+  // uforklart tall. Malt paa Dale juli 2026 var sykeloenn 99,6 % av det:
+  // regnskapet hadde 34 830, easy@work 5 934. Grunnen er strukturell -
+  // easy@work er et VAKTSYSTEM, og en langtidssykmeldt har ingen vakt aa
+  // henge loenna paa. Ingen eksport derfra vil noen gang ha den.
+  //
+  // Paaslagene foelger med: mangler kontantloenn, mangler ogsaa
+  // feriepengene og avgiften av den.
+  const paaslag = 1 + SATSER.feriepengerPst / 100
+  const medPaaslag = (kr0: number) => kr0 * paaslag * (1 + SATSER.agaPst / 100)
+  const sykeloennsgap = sisteEa && siste?.avlagt && sisteEa.maaned === siste.maaned
+    ? (siste.linjer.find((l) => l.kode === '505')?.regnskap ?? 0)
+      - (sisteEa.perKonto['505'] ?? 0)
+    : null
 
   // Hvor mange maaneder har BEGGE budsjettene, og i hvor mange spriker
   // de? En krone slaar ut - de to kildene skal baere samme tall med
@@ -345,23 +367,49 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
               <td>av kontantlønn</td>
             </tr>
             <tr>
-              <td>{`Pensjon ${SATSER.pensjonPst} %`}</td>
-              <td>{kr.format(Math.round(sisteEa.pensjonKr))}</td>
-              <td>OTP fra første krone</td>
-            </tr>
-            <tr>
               <td>{`Arbeidsgiveravgift ${SATSER.agaPst} %`}</td>
               <td>{kr.format(Math.round(sisteEa.agaKr))}</td>
-              {/* AGA PAALOEPER OGSAA AV FERIEPENGER OG PENSJON. Konto 541
-                  finnes nettopp fordi feriepengedelen foeres for seg. */}
-              <td>av lønn, feriepenger og pensjon</td>
+              {/* AV LOENN OG FERIEPENGER, IKKE AV PENSJONEN. Konti 540 og
+                  541 er nettopp de to. */}
+              <td>av lønn og feriepenger</td>
             </tr>
             <tr>
               <td><strong>Anslått lønnskost</strong></td>
               <td><strong>{kr.format(Math.round(sisteEa.lonnskostKr))}</strong></td>
-              <td>{sisteEa.maaned === siste?.maaned && siste?.avlagt
-                ? `regnskapet: ${kr.format(Math.round(siste.lonnskostKr))}`
-                : 'ingen avlagt måned å måle mot ennå'}</td>
+              <td>{eaMotRegnskap == null
+                ? 'ingen avlagt måned å måle mot ennå'
+                : `regnskapet: ${kr.format(Math.round(siste!.lonnskostKr))}`}</td>
+            </tr>
+            {/* DIFFERANSEN SKAL STAA PAA SKJERMEN.
+                Den sto ikke her foerst, og da maatte noen spoerre hvorfor
+                de to tallene ikke var like. Et anslag uten avstanden til
+                fasiten er et tall man enten stoler blindt paa eller lar
+                vaere aa lese. */}
+            {eaMotRegnskap != null && (
+              <tr>
+                <td>Differanse mot regnskapet</td>
+                <td>
+                  <span className={`status-pip ${Math.abs(eaMotRegnskap) < 2000 ? 'gronn' : 'gul'}`}>
+                    {`${eaMotRegnskap > 0 ? '+' : '−'}${kr.format(Math.abs(Math.round(eaMotRegnskap)))}`}
+                  </span>
+                </td>
+                <td>
+                  {sykeloennsgap != null && sykeloennsgap > 1000
+                    ? `${kr.format(Math.round(medPaaslag(sykeloennsgap)))} av det er sykelønn `
+                      + 'easy@work ikke kan se'
+                    : `anslaget er ${eaMotRegnskap > 0 ? 'høyere' : 'lavere'} enn fasiten`}
+                </td>
+              </tr>
+            )}
+            {/* PENSJONEN STAAR UNDER SUMMEN, IKKE I DEN.
+                St1 foerer OTP som 5945 under konto 590, som denne siden
+                holder utenfor loennskosten med vilje. Laa den inne, ville
+                anslaget vaert usammenlignbart med regnskapet - og det var
+                den fram til 2026-09-07. */}
+            <tr>
+              <td>{`Pensjon ${SATSER.pensjonPst} % — utenfor lønnskost`}</td>
+              <td>{kr.format(Math.round(sisteEa.pensjonKr))}</td>
+              <td>OTP fra første krone, føres på konto 590</td>
             </tr>
           </tbody>
         </Datatabell>
@@ -370,11 +418,16 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
       {sisteEa && (
         <p className="undertittel">
           {'Anslaget er regnet av lønnsartene i easy@work-eksporten, ikke lest av '}
-          {'regnskapet. Tre ting er ikke med, og de kan ikke oppdages i tallet: '}
-          {MANGLER.join(', ')}
-          {'. En fastlønnet dukker ikke opp med null i eksporten — hen dukker ikke '}
-          {'opp i det hele tatt. Er konto 501 null for stasjonen, er anslaget helt; '}
-          {'er den ikke det, mangler anslaget den personen.'}
+          {'regnskapet. Eksporten er bygget rundt VAKTER, og det er formen på alt '}
+          {'som mangler: '}
+          {MANGLER.join('; ')}
+          {'. Målt på Dale juli 2026 sto timene 0,10 fra St1s eget nøkkeltall — '}
+          {'eksporten manglet ingen vakt — mens sykelønna sto 28 896 kroner lavere, '}
+          {'altså 99,6 % av hele differansen. Det er ikke en feil i fila: easy@work '}
+          {'er et vaktsystem, og en langtidssykmeldt har ingen vakt å henge lønna '}
+          {'på. Den føres rett i lønnssystemet, og ingen eksport fra easy@work vil '}
+          {'ha den. Derfor navngir raden over hvor mye av differansen som er nettopp '}
+          {'sykelønn — resten er det som er verdt å se på.'}
         </p>
       )}
 
