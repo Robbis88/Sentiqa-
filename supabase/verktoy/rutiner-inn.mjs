@@ -69,8 +69,32 @@ const navnFor = new Map(par.map((p) => {
 
 const kilde = readFileSync(fil, 'utf8')
 
+/**
+ * TO FORMER GODTAS, og det er ikke slappheit.
+ *
+ * Den enkleste eksporten for et MENNESKE er ikke den samme som den et
+ * dumpeverktøy spytter ut:
+ *
+ *   1. Rått JSON: `{"rutineskjema": [...], "rutine": [...]}`
+ *      Én spørring i det gamle systemet, én celle, én fil. Dette er
+ *      veien vi ber om, fordi den har færrest ledd å gjøre feil i.
+ *
+ *   2. Insert-eksporten med `json_populate_recordset(...)`.
+ *      Formen et dumpeverktøy lager. Godtas fordi den allerede fantes,
+ *      og den som har den skal slippe å hente alt på nytt.
+ */
+const somJson = (() => {
+  try {
+    const o = JSON.parse(kilde)
+    return o && typeof o === 'object' && !Array.isArray(o) ? o : null
+  } catch {
+    return null
+  }
+})()
+
 /** Henter JSON-en ut av `json_populate_recordset(null::<tabell>, E'...'::json)`. */
 function hentRader(tabell) {
+  if (somJson) return somJson[tabell] ?? []
   const m = kilde.match(
     new RegExp(`json_populate_recordset\\(\\s*null::${tabell}\\s*,\\s*(E?)'([\\s\\S]*?)'::json\\s*\\)`),
   )
