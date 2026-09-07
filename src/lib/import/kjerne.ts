@@ -25,6 +25,7 @@ import {
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
+import { lesLonnsart, gjenkjennLonnsart } from '@/lib/parsere/lonnsart'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
@@ -226,9 +227,17 @@ export async function behandleJobbKjerne(
       // CSV/tekst. easy@work eksporterer stemplingene slik, og det formatet
       // er bedre enn PDF-en: kolonner med navn, lengde i desimaltimer.
       tekst = buffer.toString('utf8')
+      // TO EKSPORTER FRA SAMME SYSTEM, og de må prøves i denne
+      // rekkefølgen. Basis Export kjennes på en navngitt topprad, som er
+      // et eksakt kriterium; lønnsartfila har ingen topprad og kjennes på
+      // formen, som er et løsere ett. Den løseste sjekken sist.
+      //
+      // At de to ikke overlapper er ikke noe å stole på i det stille —
+      // `lonnsart.test.ts` påstår det begge veier.
       rapporttype = gjenkjennStempling(tekst)
+      if (rapporttype === 'ukjent') rapporttype = gjenkjennLonnsart(tekst)
       if (rapporttype === 'ukjent') {
-        await settFeil('Tekst-/CSV-fila kjennes ikke igjen. Stemplinger fra easy@work leses; andre CSV-er ikke ennå.')
+        await settFeil('Tekst-/CSV-fila kjennes ikke igjen. Fra easy@work leses Basis Export (stemplinger) og lønnsarteksporten; andre CSV-er ikke ennå.')
         return
       }
     } else {
@@ -312,6 +321,12 @@ export async function behandleJobbKjerne(
         const r = parseStempling(tekst as string)
         dato = r.fraDato
         res = await lagreStempling(supabase, jobbId, oppslag.stasjoner, r)
+        break
+      }
+      case 'easyatwork_lonnsart': {
+        const r = lesLonnsart(tekst as string)
+        dato = r.fraDato
+        res = await lagreLonnsart(supabase, jobbId, oppslag.stasjoner, r)
         break
       }
       case 'st1_bp': {
@@ -439,6 +454,67 @@ async function lagreStempling(
     antallRader: lagret,
     umatchet: umatchet.size > 0
       ? [`${[...umatchet].join(', ')} (stasjoner i Sentiqa: ${kjente || 'ingen'})`]
+      : [],
+  }
+}
+
+// Loennsartene lagres raa, en rad per loennsart per ansatt per dag.
+// Koblingen mot kontoplanen ligger i lib/lonnskost/easyatwork.ts - endrer
+// St1 hvilken konto en art hoerer til, skal det ikke kreve at hver fil
+// lastes opp paa nytt.
+async function lagreLonnsart(
+  supabase: Klient,
+  jobbId: string,
+  stasjonsnavn: { id: string; navn: string }[],
+  r: { linjer: import('@/lib/parsere/lonnsart').Lonnsartlinje[] },
+): Promise<Lagring> {
+  const finnStasjon = lagStasjonsmatcher(stasjonsnavn)
+
+  // NOEKKELEN ER HELE ETIKETTEN, IKKE KODEN. Loennsart 97 finnes i fire
+  // varianter, og to av dem traff samme person samme dag to ganger i
+  // august. Deduplisering paa koden ville spist den ene - og en upsert
+  // med to like noekler i samme setning gir dessuten «ON CONFLICT DO
+  // UPDATE command cannot affect row a second time».
+  const sisteVinner = new Map<string, (typeof r.linjer)[number]>()
+  for (const l of r.linjer) {
+    sisteVinner.set(`${l.lokasjon}|${l.ansattNr}|${l.dato}|${l.lonnsartTekst}`, l)
+  }
+
+  const perStasjon = new Map<string, (typeof r.linjer)[number][]>()
+  const umatchet = new Set<string>()
+  for (const l of sisteVinner.values()) {
+    const id = finnStasjon(l.lokasjon)
+    if (!id) { umatchet.add(l.lokasjon || 'ukjent lokasjon'); continue }
+    const liste = perStasjon.get(id) ?? []
+    liste.push(l)
+    perStasjon.set(id, liste)
+  }
+
+  let lagret = 0
+  for (const [stasjonId, liste] of perStasjon) {
+    await skrivBatch(
+      supabase,
+      'lonnsart_linje',
+      liste.map((l) => ({
+        stasjon_id: stasjonId,
+        ansatt_nr: l.ansattNr,
+        ansatt_navn: l.ansattNavn,
+        dato: l.dato,
+        lonnsart: l.lonnsart,
+        lonnsart_tekst: l.lonnsartTekst,
+        timer: l.timer,
+        belop_kr: l.belopKr,
+        kilde_jobb_id: jobbId,
+      })),
+      'stasjon_id,ansatt_nr,dato,lonnsart_tekst',
+    )
+    lagret += liste.length
+  }
+  const kjenteNavn = stasjonsnavn.map((x) => x.navn).sort().join(', ')
+  return {
+    antallRader: lagret,
+    umatchet: umatchet.size > 0
+      ? [`${[...umatchet].join(', ')} (stasjoner i Sentiqa: ${kjenteNavn || 'ingen'})`]
       : [],
   }
 }
