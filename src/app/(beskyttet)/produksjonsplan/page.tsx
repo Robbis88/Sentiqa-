@@ -13,6 +13,7 @@ import { TabletPlan, type TabletGruppe } from './tablet-plan'
 import { TabletHode } from '../tablet-hode'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
+import { hentPerDato } from '@/lib/supabase/datobolker'
 import { stasjonFraUrl } from '@/lib/stasjonsvalg'
 import { Signal } from '@/components/ui/status'
 import { Felt } from '@/components/ui/felt'
@@ -184,19 +185,37 @@ export default async function ProduksjonsplanSide({
       supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).neq('status', 'forslag').is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
     ])
 
-    // PostgREST kapper på 1000 rader. Et helt års produksjonssalg (~12k rader) må
-    // derfor hentes i SIDER — ellers får motoren ikke fjorårets dager, og
-    // år-mot-år-matchen blir feil. Ordnet på (dato, ean) for stabil paginering.
-    const salg: SalgRad[] = []
-    for (let side = 0; side < 100; side++) {
-      const { data, error } = await supabase
+    // ===================================================================
+    // ET HELT AAR MED SALG, I DATOBOLKER - IKKE I DYPE OFFSETS
+    //
+    // Her sto tolv sekvensielle sider med `.range(side * 1000, ...)`. Det
+    // virket, men det var baade sekvensielt og kvadratisk: hver side
+    // ventet paa den forrige, og `range(11000, 11999)` tvang Postgres til
+    // aa sortere HELE aarsmaterialet og saa kaste de elleve tusen foerste.
+    // Siste side var den dyreste. Maalt paa én stasjon: 30-60 sekunder.
+    //
+    // `hentPerDato` deler perioden i datobolker som kjoerer samtidig. Hver
+    // bolk har et smalt `between` som treffer indeksen paa (stasjon, dato)
+    // og aldri hopper over noe.
+    //
+    // DEN GAMLE LOEKKA SVELGET DESSUTEN FEIL: `if (error || ...) break` ga
+    // et HALVT aar uten at noe sa fra, og et halvt aar ser ut som en
+    // rolig periode - ikke som en feil. `hentPerDato` kaster.
+    //
+    // Motoren er rekkefoelgeuavhengig (`median` sorterer sin egen kopi,
+    // `snitt` er et gjennomsnitt, resten er summer og Map-oppslag), men
+    // rekkefoelgen beholdes likevel: bolkene er kronologiske og
+    // `Promise.all` beholder rekkefoelgen.
+    // ===================================================================
+    const salg = await hentPerDato<SalgRad>(
+      (fraBolk, tilBolk) => supabase
         .from('v_butikksalg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
-        .eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).gte('dato', fra).lte('dato', sisteSalgsdato).is('slettet_tid', null)
-        .order('dato').order('ean').range(side * 1000, side * 1000 + 999).overrideTypes<SalgRad[]>()
-      if (error || !data || data.length === 0) break
-      salg.push(...data)
-      if (data.length < 1000) break
-    }
+        .eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER)
+        .gte('dato', fraBolk).lte('dato', tilBolk).is('slettet_tid', null)
+        .order('dato').order('ean').limit(1000).overrideTypes<SalgRad[]>(),
+      fra,
+      sisteSalgsdato,
+    )
 
     vaer = vMaal ?? null
     hodeData = hode ?? null
