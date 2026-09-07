@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   byggEasyatwork as bygg, fraLinjer, medSykelonnsforskyvning,
-  medOppdagetSykelonn, sykelonnskilde, SATSER,
+  medOppdagetSykelonn, sykelonnskilde, medFastlonn, SATSER,
 } from './easyatwork'
 import type { Lonnsartlinje } from '@/lib/parsere/lonnsart'
 
@@ -269,5 +269,61 @@ describe('medOppdagetSykelonn', () => {
     expect(r.moenster).toBe('ukjent')
     expect(r.maalte).toBe(0)
     expect(r.maaneder.find((m) => m.maaned === '2026-07')!.perKonto['505']).toBe(5933.88)
+  })
+})
+
+// =====================================================================
+// FASTLOENNA - DEN ENE POSTEN EASY@WORK ALDRI KAN SE
+//
+// En fastloennet stempler ikke for aa faa betalt. Hen dukker ikke opp
+// med null i eksporten - hen dukker ikke opp i det hele tatt, og
+// fravaeret er usynlig: anslaget ser ut som en komplett stasjon, bare
+// billigere. Paa Boenes er lederens fastloenn 27 % av loennskosten.
+// =====================================================================
+describe('medFastlonn', () => {
+  const maaneder = () => bygg(fraLinjer([
+    L('2', 100, 20000, '2026-08-15'),
+    L('2', 100, 20000, '2026-07-15'),
+  ]))
+
+  it('bruker månedens egen 501 når den er avlagt', () => {
+    const [aug] = medFastlonn(maaneder(), new Map([['2026-08', 52500]]))
+    expect(aug.fastlonnKr).toBe(52500)
+    expect(aug.fastlonnFraMaaned).toBe('2026-08')
+    expect(aug.perKonto['501']).toBe(52500)
+    // Paaslagene foelger med: 72 500 x 1,12, saa 14,1 % av summen.
+    expect(aug.kontantKr).toBe(72500)
+    expect(aug.feriepengerKr).toBeCloseTo(8700, 2)
+    expect(aug.agaKr).toBeCloseTo((72500 + 8700) * 0.141, 2)
+  })
+
+  // FASTLOENN ER FAST - det er nettopp det som gjoer den til fastloenn.
+  // Da er sist kjente verdi et godt anslag for den aapne maaneden.
+  it('bærer sist kjente fastlønn inn i en måned uten regnskap', () => {
+    const [aug] = medFastlonn(maaneder(), new Map([['2026-07', 52500]]))
+    expect(aug.maaned).toBe('2026-08')
+    expect(aug.fastlonnKr).toBe(52500)
+    // MAANEDEN STAAR PAA RADEN. Er den en annen enn maaneden selv, er
+    // tallet en antakelse - og en antakelse som ikke sier fra er den
+    // farligste sorten.
+    expect(aug.fastlonnFraMaaned).toBe('2026-07')
+  })
+
+  // BAERES BARE BAKOVER I TID. Ellers ville en gammel maaned faatt dagens
+  // loenn, og serien sett ut som om ingen hadde faatt loennsoekning.
+  it('lar ikke en senere måned smitte bakover', () => {
+    const juli = medFastlonn(maaneder(), new Map([['2026-08', 52500]]))
+      .find((m) => m.maaned === '2026-07')!
+    expect(juli.fastlonnKr).toBe(0)
+    expect(juli.fastlonnFraMaaned).toBeNull()
+  })
+
+  // EN STASJON UTEN KONTO 501 HAR INGEN FASTLOENNEDE. Dale er en slik.
+  it('rører ingenting når stasjonen ikke har fastlønn', () => {
+    const foer = maaneder()
+    const etter = medFastlonn(foer, new Map())
+    expect(etter[0].fastlonnKr).toBe(0)
+    expect(etter[0].lonnskostKr).toBe(foer[0].lonnskostKr)
+    expect(etter[0].perKonto['501']).toBeUndefined()
   })
 })

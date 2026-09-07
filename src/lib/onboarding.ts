@@ -206,7 +206,9 @@ export const KILDER: Kildekrav[] = [
     noekkel: 'svinn',
     navn: 'Varetransaksjoner (svinn)',
     hentesFra: 'St1-rapport 0452, ved behov',
-    laserOpp: 'Hva som faktisk kastes, ført mot kost — og hvilke varer det gjelder.',
+    laserOpp: 'Hva som faktisk kastes, ført mot kost — og hvilke varer det gjelder. '
+      + 'Trekkes også fra bruttofortjenesten når lønnsrommet regnes: mangler svinnet, '
+      + 'blir rommet for stort, og det feiler i den optimistiske retningen.',
     // FØRES NÅR NOE KASTES, IKKE HVER DAG. En dag uten svinnføring er en
     // normal dag. Terskelen måler at det finnes føringer i det hele tatt,
     // ikke at hver dag har en (se migrasjon 0159).

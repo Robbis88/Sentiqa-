@@ -10,6 +10,7 @@ import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
+import { maanedsrader } from '@/lib/lonnskost/rom'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -109,7 +110,17 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     )
   }
 
-  const { maaneder, ukjenteKoder, easyatwork, sykelonn } = await hentLonnskost(
+  // BUTIKKSJEFEN SER TOTALER, IKKE KONTOER.
+  //
+  // `erLeder()` slipper inn baade eier og butikksjef, og kontotabellen
+  // var ikke filtrert - konto 501 Faste loenninger sto aapen for hvem som
+  // helst med butikksjefrolle. Paa en stasjon med én fastloennet er den
+  // kolonnen én persons loenn.
+  //
+  // Det butikksjefen trenger er om stasjonen ligger innenfor. Det svaret
+  // krever ingen kontoer.
+  const erAdmin = bruker.rolle === 'retailer_admin'
+  const { maaneder, ukjenteKoder, easyatwork, sykelonn, rom } = await hentLonnskost(
     supabase, valgtStasjon!, FRA,
   )
   const avlagte = maaneder.filter((m) => m.avlagt)
@@ -132,6 +143,36 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
 
   const avvik = siste && siste.budsjettKr != null ? siste.lonnskostKr - siste.budsjettKr : null
   const eaPerMaaned = new Map(easyatwork.map((e) => [e.maaned, e]))
+  const romPer = new Map(rom.map((r) => [r.maaned, r]))
+
+  // ===================================================================
+  // RADENE ER UNIONEN, IKKE BARE REGNSKAPETS MAANEDER.
+  //
+  // `byggLonnskost` hopper over en maaned som verken er avlagt eller har
+  // BP-linjer (`if (kilde.length === 0) continue`), og tabellen itererte
+  // den lista. En maaned med BARE easy@work-data ble dermed usynlig:
+  // fila var lastet opp, raden fantes ikke, og skjermen saa ut som om
+  // ingenting var kommet inn.
+  //
+  // Det er den farligste formen for feil i dette systemet - et fravaer
+  // som ser ut som en tom maaned. Boenes august traff den: eksporten var
+  // inne, men stasjonen manglet BP-rader for maaneden.
+  // ===================================================================
+  const maanedPer = new Map(maaneder.map((m) => [m.maaned, m]))
+  const rader = maanedsrader(maaneder, easyatwork, rom)
+  const grunnlagPer = new Map(rom.map((r) => [r.maaned, r]))
+  // DEN INNEVAERENDE MAANEDEN ER DEN ENESTE SOM KAN PAAVIRKES.
+  //
+  // Noekkeltallene sto paa siste AVLAGTE maaned - et tall om noe som er
+  // over. Den maaneden det finnes et loennsrom for og et forbruk aa maale
+  // mot, er den man fortsatt kan gjoere noe med.
+  const naa = rom.find((r) => r.romKr != null && eaPerMaaned.has(r.maaned))
+  const naaEa = naa ? eaPerMaaned.get(naa.maaned) : undefined
+  const naaAvlagt = naa ? maaneder.find((m) => m.maaned === naa.maaned)?.avlagt : false
+  const naaBrukt = naaAvlagt
+    ? maaneder.find((m) => m.maaned === naa!.maaned)?.lonnskostKr ?? null
+    : naaEa?.lonnskostKr ?? null
+  const igjen = naa?.romKr != null && naaBrukt != null ? naa.romKr - naaBrukt : null
   const sisteEa = easyatwork[0]
   const ukjenteArter = [...new Set(easyatwork.flatMap((e) => e.ukjenteArter))]
   // Bare der de to faktisk maaler samme maaned. En differanse mot en
@@ -183,12 +224,68 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           St1 gikk fra 18 til over femti konti mellom BP25 og BP26. En ny
           5xxx som ingen har klassifisert ville falt ut av budsjettet i
           stillhet, og avviket ville sett ut som god kostnadsstyring. */}
-      {ukjenteKoder.length > 0 && (
+      {erAdmin && ukjenteKoder.length > 0 && (
         <Status nivaa="handling">
           {`BP-en har ${ukjenteKoder.length} personalkonto(er) som ikke er klassifisert: `}
           {ukjenteKoder.join(', ')}
           {'. Budsjettet under er for lavt til de er tatt stilling til.'}
         </Status>
+      )}
+
+      {/* LOENNSROMMET FOERST. Budsjettet forutsetter en brutto som
+          kanskje ikke kom; rommet er den samme andelen av det som
+          faktisk kom. Er brutto svak, er rommet mindre enn budsjettet -
+          og DET er tallet en butikksjef kan handle paa. */}
+      {naa && (
+        <div className="sq-nokkelrad">
+          <Nokkeltall
+            merkelapp={`Lønnsrom · ${manedAar.format(new Date(`${naa.maaned}-01`))}`}
+            verdi={kr.format(Math.round(naa.romKr!))}
+            sammenlignet={naa.bpLonnKr == null
+              ? undefined
+              : `budsjettet sier ${kr.format(Math.round(naa.bpLonnKr))}`}
+          />
+          <Nokkeltall
+            merkelapp="Brukt så langt"
+            verdi={naaBrukt == null ? '—' : kr.format(Math.round(naaBrukt))}
+            sammenlignet={naaEa == null
+              ? undefined
+              : `${naaEa.timer.toLocaleString('nb-NO')} timer`}
+          />
+          <Nokkeltall
+            merkelapp={igjen == null ? 'Igjen' : igjen < 0 ? 'Over rommet' : 'Igjen å bruke'}
+            verdi={igjen == null ? '—' : kr.format(Math.abs(Math.round(igjen)))}
+            retning={igjen == null ? 'flat' : igjen < 0 ? 'opp' : 'ned'}
+            bra={igjen == null ? undefined : igjen >= 0}
+            sammenlignet={naa.anslaatt ? 'brutto er anslått' : 'brutto fra regnskapet'}
+          />
+        </div>
+      )}
+
+      {/* HVA ROMMET ER REGNET AV. Et tall uten grunnlag er et tall man
+          enten stoler blindt paa eller lar vaere aa lese. */}
+      {naa && naa.romKr != null && (
+        <p className="undertittel">
+          {`Lønnsrommet er ${(naa.lonnsandel! * 100).toLocaleString('nb-NO', {
+            minimumFractionDigits: 1, maximumFractionDigits: 1 })} % `}
+          {'av bruttofortjenesten — samme andel som budsjettet legger opp til — '}
+          {naa.anslaatt
+            ? `av en anslått brutto på ${kr.format(Math.round(naa.bruttoKr!))}. `
+              + 'Anslaget er BP-ens egen brutto for måneden, skalert med hvor mye av '
+              + `salget som har kommet inn (${kr.format(Math.round(naa.omsetningKr))} `
+              + 'i omsetning)'
+              + (naa.kalibrering != null
+                ? `, og justert med ${(naa.kalibrering * 100).toLocaleString('nb-NO', {
+                  minimumFractionDigits: 1, maximumFractionDigits: 1 })} % — `
+                  + 'hvor mye av planlagt margin stasjonen faktisk treffer. '
+                : '. Ingen avlagt måned å kalibrere mot ennå. ')
+              + (naa.ekstraSvinnKr > 0
+                ? `Svinnet ligger ${kr.format(Math.round(naa.ekstraSvinnKr))} over det `
+                  + 'normale, og er trukket fra. Normalt svinn er allerede med i '
+                  + 'kalibreringen — regnskapets brutto er fratrukket svinn.'
+                : 'Svinnet ligger på det normale, som allerede er med i kalibreringen.')
+            : `av regnskapets brutto på ${kr.format(Math.round(naa.bruttoKr!))}.`}
+        </p>
       )}
 
       {siste && (
@@ -223,76 +320,124 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </div>
       )}
 
-      <Datatabell tittel="Per måned" antall={maaneder.length}>
+      <Datatabell tittel="Per måned" antall={rader.length}>
         <thead>
           <tr>
             <th>Måned</th>
             <th>Lønnskost</th>
             <th>easy@work</th>
-            <th>Sykelønn</th>
-            <th>Budsjett</th>
-            <th>Avvik</th>
             <th>Timer</th>
-            <th>Snittsats</th>
+            <th>Svinn</th>
+            <th>Budsjett</th>
+            {/* LOENNSROMMET, IKKE BUDSJETTET, ER DET SOM GJELDER.
+                BP-tallet forutsetter en brutto som kanskje ikke kom.
+                Begge staar, saa forskjellen er synlig - det er nettopp
+                naar de spriker at rommet betyr noe. */}
+            <th>Lønnsrom</th>
+            <th>Avvik</th>
+            {erAdmin && <th>Sykelønn</th>}
           </tr>
         </thead>
         <tbody>
-          {maaneder.map((m) => {
-            const a = m.budsjettKr == null ? null : m.lonnskostKr - m.budsjettKr
-            const ea = eaPerMaaned.get(m.maaned)
-            const spriker = m.budsjettKr != null && m.bpBudsjettKr != null
+          {rader.map((maaned) => {
+            const m = maanedPer.get(maaned)
+            const ea = eaPerMaaned.get(maaned)
+            const spriker = m?.budsjettKr != null && m.bpBudsjettKr != null
               && Math.abs(m.budsjettKr - m.bpBudsjettKr) >= 1
+            const r = romPer.get(maaned)
+            // BRUKT ER REGNSKAPET NAAR DET FINNES, ellers anslaget. Uten
+            // det ville den inneVAERENDE maaneden - den eneste som fortsatt
+            // kan paavirkes - staatt uten avvik.
+            // BUDSJETTET MAA VIRKE FOR BEGGE ROLLER.
+            //
+            // `m.budsjettKr` kommer fra `bp_linje`, som butikksjefen ikke
+            // leser - BP-en er kjedens dokument. `r.bpLonnKr` kommer fra
+            // 0183, som gir hver rolle sine egne stasjoner. Uten
+            // reserven sto budsjettkolonnen tom for nettopp den rollen
+            // sida er bygget for.
+            const budsjettKr = m?.budsjettKr ?? r?.bpLonnKr ?? null
+            const brukt = m?.avlagt ? m.lonnskostKr : ea?.lonnskostKr ?? null
+            const avvikRom = r?.romKr != null && brukt != null ? brukt - r.romKr : null
             return (
-              <tr key={m.maaned}>
+              <tr key={maaned}>
                 <td>
-                  {manedAar.format(new Date(`${m.maaned}-01`))}
+                  {manedAar.format(new Date(`${maaned}-01`))}
                   {/* Kilden står på hver rad. Et budsjett fra BP-en og et
                       fra St1s månedsrapport svarer på ulike spørsmål. */}
-                  {!m.avlagt && <> <Status nivaa="endring">budsjett</Status></>}
+                  {!m?.avlagt && <> <Status nivaa="endring">budsjett</Status></>}
                 </td>
-                <td>{m.avlagt ? kr.format(Math.round(m.lonnskostKr)) : '—'}</td>
+                <td>{m?.avlagt ? kr.format(Math.round(m.lonnskostKr)) : '—'}</td>
                 {/* ANSLAGET, IKKE FASITEN. Står tomt til fila er lastet
                     opp for måneden — en tom celle er ærligere enn en null. */}
                 <td>{ea == null ? '—' : kr.format(Math.round(ea.lonnskostKr))}</td>
-                {/* SYKELOENNA I EGEN KOLONNE, MED MAANEDEN DEN KOM FRA.
-                    Den flyttes en maaned fram fordi regnskapet foerer den
-                    slik - en sykmelding kommer inn etter at loennskjoeringen
-                    er stengt. Skjer flyttingen usynlig, kan ingen se at den
-                    skjer, og et avvik i en enkeltmaaned blir umulig aa lese. */}
+                {/* TIMENE ER FRA REGNSKAPET NAAR MAANEDEN ER AVLAGT, ellers
+                    fra easy@work. De arbeidede timene er de samme tallene -
+                    juli sto 0,10 fra hverandre - saa den aapne maaneden
+                    faar et timetall i stedet for en strek. */}
                 <td>
-                  {ea == null || ea.sykelonnFraMaaned == null
-                    ? '—'
-                    : kr.format(Math.round(ea.perKonto['505'] ?? 0))}
-                  {ea?.sykelonnFraMaaned != null && ea.sykelonnFraMaaned !== ea.maaned && (
-                    <> <span className="undertittel">
-                      {`fra ${manedAar.format(new Date(`${ea.sykelonnFraMaaned}-01`))}`}
-                    </span></>
-                  )}
+                  {m?.timer != null
+                    ? m.timer.toLocaleString('nb-NO')
+                    : ea != null ? ea.timer.toLocaleString('nb-NO') : '—'}
                 </td>
+                {/* SVINN HOERER HJEMME HER, ikke bare paa svinnsida.
+                    Kastet vare er brutto som aldri ble til noe, og det er
+                    nettopp derfor loennsrommet krymper av det. Staar de to
+                    tallene fra hverandre, ser man aldri koblingen. */}
+                <td>{r == null ? '—' : kr.format(Math.round(r.svinnKr))}</td>
                 {/* ÉN BUDSJETTKOLONNE. Spriker St1s månedsbudsjett fra
                     BP-en, sier pipen fra — da er rapporten revidert etter
                     at BP-en ble satt, og det er månedsbudsjettet som
                     gjelder. Ellers er de samme tall og fortjener én celle. */}
                 <td>
-                  {m.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}
+                  {budsjettKr == null ? '—' : kr.format(Math.round(budsjettKr))}
                   {spriker && <> <Status nivaa="endring">≠ BP</Status></>}
                 </td>
+                {/* LOENNSROMMET. Budsjettet ganget med den brutto maaneden
+                    faktisk fikk. Er den anslaatt, staar det paa raden -
+                    et anslag som ser ut som en fasit er verre enn ingen. */}
                 <td>
-                  {a == null ? '—' : (
-                    <span className={`status-pip ${a > 0 ? 'rod' : 'gronn'}`}>
-                      {`${a > 0 ? '+' : '−'}${kr.format(Math.abs(Math.round(a)))}`}
+                  {r?.romKr == null ? '—' : kr.format(Math.round(r.romKr))}
+                  {r?.anslaatt && <> <Status nivaa="endring">anslag</Status></>}
+                </td>
+                {/* AVVIKET MAALES MOT ROMMET, IKKE MOT BP.
+                    BP-tallet forutsetter en brutto som kanskje ikke kom.
+                    Uten rommet ville en maaned med svak brutto sett ut som
+                    god kostnadsstyring helt til regnskapet kom. */}
+                <td>
+                  {avvikRom == null ? '—' : (
+                    <span className={`status-pip ${avvikRom > 0 ? 'rod' : 'gronn'}`}>
+                      {`${avvikRom > 0 ? '+' : '−'}${kr.format(Math.abs(Math.round(avvikRom)))}`}
                     </span>
                   )}
                 </td>
-                <td>{m.timer == null ? '—' : m.timer.toLocaleString('nb-NO')}</td>
-                <td>{m.snittsats == null ? '—' : `${Math.round(m.snittsats)} kr`}</td>
+                {/* SYKELOENNA MED MAANEDEN DEN KOM FRA. En diagnose, ikke
+                    et styringstall - derfor bare for eier. */}
+                {erAdmin && (
+                  <td>
+                    {ea == null || ea.sykelonnFraMaaned == null
+                      ? '—'
+                      : kr.format(Math.round(ea.perKonto['505'] ?? 0))}
+                    {ea?.sykelonnFraMaaned != null && ea.sykelonnFraMaaned !== ea.maaned && (
+                      <> <span className="undertittel">
+                        {`fra ${manedAar.format(new Date(`${ea.sykelonnFraMaaned}-01`))}`}
+                      </span></>
+                    )}
+                  </td>
+                )}
               </tr>
             )
           })}
         </tbody>
       </Datatabell>
 
-      {siste && (
+      {/* KONTOENE ER EIERENS, IKKE BUTIKKSJEFENS.
+          `erLeder()` slipper inn begge, og tabellen var ikke filtrert -
+          konto 501 Faste loenninger sto aapen for hvem som helst med
+          butikksjefrolle. Paa en stasjon med én fastloennet er den raden
+          én persons loenn.
+          Butikksjefen trenger aa vite om stasjonen ligger innenfor. Det
+          svaret krever ingen kontoer. */}
+      {erAdmin && siste && (
         <Datatabell
           tittel={`Kontoene · ${manedAar.format(new Date(`${siste.maaned}-01`))}`}
           antall={siste.linjer.length}
@@ -331,7 +476,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           juli 2026 er deres tall 246 822 og vaart 242 963. Begge er
           riktige, men uten denne setningen ser den som sammenligner ut
           til aa ha funnet en feil. */}
-      {siste && siste.andrePersonalKr !== 0 && (
+      {erAdmin && siste && siste.andrePersonalKr !== 0 && (
         <p className="undertittel">
           {`I tillegg kommer ${kr.format(Math.round(siste.andrePersonalKr))} i andre `}
           {'personalkostnader (konto 590) — kurs, verneutstyr, bedriftshelsetjeneste. '}
@@ -357,7 +502,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
       {/* EN UKJENT LOENNSART ER ET FUNN.
           Fristelsen var «alt som ikke er 2 eller 12 er tillegg». Den ville
           lagt en fastloennsart rett i 502 og gjort et hull til et tall. */}
-      {ukjenteArter.length > 0 && (
+      {erAdmin && ukjenteArter.length > 0 && (
         <Status nivaa="handling">
           {`easy@work-fila har ${ukjenteArter.length} lønnsart(er) uten konto: `}
           {ukjenteArter.join(', ')}
@@ -370,7 +515,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           ber om det. Gjoer de det, oppdager detektoren det selv og denne
           linja forsvinner. Fram til da staar den her hver gang et nytt
           regnskap er lastet opp, som er akkurat naar valget er aktuelt. */}
-      {sykelonn.moenster === 'forrige_maaned' && (
+      {erAdmin && sykelonn.moenster === 'forrige_maaned' && (
         <Status nivaa="endring">
           {`Sykelønna bokføres måneden etter fraværet — målt i ${sykelonn.forsinkede} `}
           {`av ${sykelonn.maalte} måneder som lot seg sammenligne. Kolonnen under `}
@@ -380,7 +525,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </Status>
       )}
 
-      {sisteEa && (
+      {erAdmin && sisteEa && (
         <Datatabell
           tittel={`easy@work · anslag for ${manedAar.format(new Date(`${sisteEa.maaned}-01`))}`}
           antall={5}
@@ -389,6 +534,21 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             <tr><th>Post</th><th>Kroner</th><th>Grunnlag</th></tr>
           </thead>
           <tbody>
+            {/* FASTLOENNA STAAR FOERST OG MED KILDEN SIN.
+                Den finnes aldri i easy@work - en fastloennet stempler
+                ikke for aa faa betalt - saa den hentes fra regnskapets
+                konto 501. Er den baaret fram fra en tidligere maaned, er
+                det en antakelse, og den skal staa paa skjermen. */}
+            {sisteEa.fastlonnKr > 0 && (
+              <tr>
+                <td>Fastlønn</td>
+                <td>{kr.format(Math.round(sisteEa.fastlonnKr))}</td>
+                <td>{sisteEa.fastlonnFraMaaned === sisteEa.maaned
+                  ? 'fra regnskapets konto 501'
+                  : `båret fram fra ${manedAar.format(
+                    new Date(`${sisteEa.fastlonnFraMaaned}-01`))} — fastlønn er fast`}</td>
+              </tr>
+            )}
             <tr>
               <td>Timelønn og tillegg</td>
               <td>{kr.format(Math.round(sisteEa.perKonto['503'] ?? 0))}</td>
@@ -479,6 +639,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           {'Med den på plass er hele avviket for juli 373 kroner av 441 172, altså '}
           {'0,08 %. Det som gjenstår er '}
           {MANGLER.join('; ')}
+          {'. Fastlønn står ikke der lenger: den finnes aldri i easy@work, men '}
+          {'regnskapets konto 501 har den, og fastlønn er fast — så sist kjente '}
+          {'verdi bæres inn i den åpne måneden, med måneden den kom fra.'}
           {' — og at de faktiske påslagssatsene er 12,16 % feriepenger og 14,00 % '}
           {'avgift, ikke de 12 og 14,1 anslaget regner med. Sykelønn etter dag 16 '}
           {'mangler i eksporten, men mangler i regnskapet også: den betaler NAV.'}

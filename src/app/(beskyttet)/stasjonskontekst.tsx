@@ -73,17 +73,30 @@ import { stasjonsnavn, type Stasjon } from '@/lib/stasjonsvalg'
 function Kvittering({ navn }: { navn: string }) {
   const { pending } = useFormStatus()
   return (
-    <span
-      // Synlig KUN mens byttet står på. Er velgeren og konteksten
-      // synkronisert, sier velgeren allerede alt — og en tekst som
-      // gjentar den er i beste fall støy, i verste fall en andre
-      // sannhet. Navnet blir liggende for skjermlesere, som ikke ser
-      // at nedtrekkslisten endret seg.
-      className={pending ? 'sq-stasjonssvar' : 'sq-skjult'}
-      aria-live="polite"
-    >
-      {pending ? 'Bytter …' : navn}
-    </span>
+    <>
+      {/* STRIPEN OeVERST, IKKE BARE TEKSTEN VED VELGEREN.
+          I normaltilfellet navigerer ikke byttet i det hele tatt - det
+          er en revalidering - saa `loading.tsx` slaar aldri inn. Uten
+          noe som dekker HELE vinduet blir de gamle tallene staaende og
+          se gyldige ut mens de nye regnes. Et tall som er utdatert uten
+          aa si fra, er verre enn et tomt felt.
+          Stripa ligger fast oeverst, saa den er synlig uansett hvor paa
+          sida man ser. `aria-hidden`: teksten under sier det samme, og
+          to samtidige meldinger til en skjermleser er stoey. */}
+      {pending && <span className="sq-bytter-stripe" aria-hidden="true" />}
+      <span
+        // Synlig KUN mens byttet står på. Er velgeren og konteksten
+        // synkronisert, sier velgeren allerede alt — og en tekst som
+        // gjentar den er i beste fall støy, i verste fall en andre
+        // sannhet. Navnet blir liggende for skjermlesere, som ikke ser
+        // at nedtrekkslisten endret seg.
+        className={pending ? 'sq-stasjonssvar sq-bytter' : 'sq-skjult'}
+        aria-live="polite"
+      >
+        {pending && <span className="sq-bytter-snurr" aria-hidden="true" />}
+        {pending ? `Bytter til ${navn} …` : navn}
+      </span>
+    </>
   )
 }
 

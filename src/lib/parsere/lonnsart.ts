@@ -116,6 +116,35 @@ export function erLonnsartFil(tekst: string): boolean {
     && Number.isFinite(tall(forste[KOL.timer] ?? ''))
 }
 
+/**
+ * Er dette LOENNSGRUNNLAGSRAPPORTEN, altså feil eksport?
+ *
+ * ===================================================================
+ * EN AVVISNING SOM IKKE SIER HVA MAN SKAL GJØRE, ER EN BLINDVEI.
+ *
+ * easy@work har minst fire eksporter, og tre av dem ser ut som «lønn»
+ * for den som velger:
+ *
+ *   Basis Export        stemplinger inn/ut          → `stempling.ts`
+ *   lønnsarter          én rad per art, med KRONER  → denne fila
+ *   lønnsgrunnlag       én rad per ansatt, ANTALL   → feil, men nær
+ *   overføringsfil      semikolon, bare timer       → feil
+ *
+ * Lønnsgrunnlaget har timesats og tillegg som antall timer, ikke
+ * kroner. Å regne kroner av den ville krevd hele satstabellen fra
+ * Energiavtalen — mulig, men lønnsarteksporten har tallene ferdig, og
+ * to veier til samme sum er to steder de kan skille lag.
+ *
+ * Den kjennes på `Betalingsfrekvens`, som ingen av de andre har.
+ * Basis Export deler `Stemplingsnummer`, men har `Forretningsdato` der
+ * denne har `Dato` — og den fanges uansett først.
+ * ===================================================================
+ */
+export function erLonnsgrunnlag(tekst: string): boolean {
+  const forste = tekst.slice(0, 4000)
+  return /Betalingsfrekvens/i.test(forste) && /Stemplingsnummer/i.test(forste)
+}
+
 export function gjenkjennLonnsart(tekst: string): Rapporttype {
   return erLonnsartFil(tekst) ? 'easyatwork_lonnsart' : 'ukjent'
 }

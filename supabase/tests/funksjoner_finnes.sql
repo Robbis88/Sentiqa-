@@ -27,6 +27,7 @@ declare
     'beregn_malekort_salg',
     'beregn_stasjon_kunder',
     'beregn_vaerprofil',
+    'bp_maaned_for_mine_stasjoner',
     'gjeldende_retailer_id',
     'gjeldende_rolle',
     'har_stasjonstilgang',
@@ -89,7 +90,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       27                          as forventet_av_migrasjonene
+       28                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

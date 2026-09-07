@@ -930,6 +930,54 @@
   white-space: nowrap;
 }
 
+/* MENS BYTTET STAAR PAA.
+   Handlingen navigerer ikke i normaltilfellet - den revaliderer - saa
+   `loading.tsx` slaar aldri inn, og de gamle tallene blir staaende og se
+   gyldige ut. Stripa dekker hele vinduet og er synlig uansett hvor paa
+   sida man ser; teksten ved velgeren sier hvilken stasjon det gjelder. */
+.sq-bytter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--luft-2);
+  color: var(--tekst);
+  font-weight: 500;
+}
+
+.sq-bytter-snurr {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--kant-sterk);
+  border-top-color: var(--primaer);
+  animation: sq-bytter-snurr 0.7s linear infinite;
+}
+
+@keyframes sq-bytter-snurr { to { transform: rotate(360deg); } }
+
+.sq-bytter-stripe {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 2px;
+  z-index: 100;
+  background: linear-gradient(90deg, transparent, var(--primaer), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: sq-bytter-stripe 1.1s ease-in-out infinite;
+}
+
+@keyframes sq-bytter-stripe {
+  from { background-position: -40% 0; }
+  to   { background-position: 140% 0; }
+}
+
+/* Ber noen om mindre bevegelse, skal tilstanden fortsatt VISES - bare
+   uten aa bevege seg. En stille stripe er fortsatt et svar. */
+@media (prefers-reduced-motion: reduce) {
+  .sq-bytter-snurr, .sq-bytter-stripe { animation: none; }
+  .sq-bytter-stripe { background: var(--primaer); }
+}
+
 /* Slett, med et svar. Kvitteringen står ved siden av knappen, ikke
    under: raden forsvinner ved neste tegning, og da må svaret ha vært
    der man så. */

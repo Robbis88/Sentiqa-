@@ -108,6 +108,9 @@ const TIMEART = '2'
 /** Sykelønnskontoen. Den ene som ligger en måned etter i regnskapet. */
 const SYKEKONTO = '505'
 
+/** Fastlønn. Finnes ALDRI i easy@work — den hentes fra regnskapet. */
+const FASTKONTO = '501'
+
 export type EasyatworkMaaned = {
   maaned: string // yyyy-mm
   /**
@@ -146,6 +149,21 @@ export type EasyatworkMaaned = {
    * vise et tall som mangler en post.
    */
   sykelonnFraMaaned: string | null
+  /**
+   * Fastlønn, hentet fra regnskapets konto 501.
+   *
+   * EN FASTLØNNET FINNES IKKE I EASY@WORK. Hen stempler ikke for å få
+   * betalt, så eksporten har ingen linje — og fraværet er usynlig, det
+   * ser ut som en stasjon uten den personen. På Bønes er lederens
+   * fastlønn 27 % av lønnskosten.
+   */
+  fastlonnKr: number
+  /**
+   * Hvilken måned fastlønna ble lest av. Er den en ANNEN enn `maaned`,
+   * er tallet båret fram fra sist kjente — det holder fordi fastlønn er
+   * fast, men det er en antakelse, og den skal stå på skjermen.
+   */
+  fastlonnFraMaaned: string | null
 }
 
 const rund = (n: number) => Math.round(n * 100) / 100
@@ -199,6 +217,8 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
       lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
       ukjenteArter: [...ukjente].sort(),
       sykelonnFraMaaned: maaned,
+      fastlonnKr: 0,
+      fastlonnFraMaaned: null,
     })
   }
 
@@ -417,6 +437,70 @@ export function medOppdagetSykelonn(
 }
 
 /**
+ * Legger fastlønna inn fra regnskapet.
+ *
+ * ===================================================================
+ * DEN ENE POSTEN EASY@WORK ALDRI KAN SE.
+ *
+ * En fastlønnet stempler ikke for å få betalt. Hen dukker ikke opp med
+ * null i eksporten — hen dukker ikke opp i det hele tatt, og fraværet
+ * er usynlig: anslaget ser ut som en komplett stasjon, bare billigere.
+ * På Bønes er lederens fastlønn 27 % av lønnskosten.
+ *
+ * Men regnskapet HAR tallet, på konto 501, for hver avlagt måned. Og
+ * fastlønn er fast — det er nettopp det som gjør den til fastlønn. Da
+ * er sist kjente verdi et godt anslag for den åpne måneden, ikke en
+ * gjetning.
+ *
+ * MÅNEDEN STÅR PÅ RADEN. Er tallet båret fram fra en tidligere måned,
+ * er det en antakelse — en som slutter eller ansettes bryter den — og
+ * en antakelse som ikke sier fra er den farligste sorten. Er måneden
+ * avlagt, brukes dens EGEN 501, og da er det ingen antakelse igjen.
+ *
+ * Ingen fastlønn i regnskapet betyr null her, ikke «ukjent»: en stasjon
+ * uten konto 501 har ingen fastlønnede. Dale er en slik.
+ * ===================================================================
+ */
+export function medFastlonn(
+  maaneder: EasyatworkMaaned[],
+  regnskapFastlonn: Map<string, number>,
+): EasyatworkMaaned[] {
+  // Nyeste først, saa «sist kjente» er den foerste som finnes.
+  const kjente = [...regnskapFastlonn.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+
+  return maaneder.map((m) => {
+    const egen = regnskapFastlonn.get(m.maaned)
+    // BAERES BARE BAKOVER I TID. En maaned som mangler 501 skal arve fra
+    // en TIDLIGERE maaned, aldri fra en senere - ellers ville en gammel
+    // maaned faatt dagens loenn, og serien sett ut som om ingen hadde
+    // faatt loennsoekning.
+    const baaret = egen === undefined
+      ? kjente.find(([maaned]) => maaned < m.maaned)
+      : undefined
+    const fastlonnKr = egen ?? baaret?.[1] ?? 0
+    const fraMaaned = egen !== undefined ? m.maaned : baaret?.[0] ?? null
+    if (fastlonnKr === 0) return { ...m, fastlonnKr: 0, fastlonnFraMaaned: fraMaaned }
+
+    const kontantKr = m.kontantKr + fastlonnKr
+    const feriepengerKr = kontantKr * (SATSER.feriepengerPst / 100)
+    const pensjonKr = kontantKr * (SATSER.pensjonPst / 100)
+    const agaKr = (kontantKr + feriepengerKr) * (SATSER.agaPst / 100)
+
+    return {
+      ...m,
+      perKonto: { ...m.perKonto, [FASTKONTO]: rund(fastlonnKr) },
+      kontantKr: rund(kontantKr),
+      feriepengerKr: rund(feriepengerKr),
+      pensjonKr: rund(pensjonKr),
+      agaKr: rund(agaKr),
+      lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
+      fastlonnKr: rund(fastlonnKr),
+      fastlonnFraMaaned: fraMaaned,
+    }
+  })
+}
+
+/**
  * Hva anslaget ikke kan se. Vises ved siden av tallet, ikke i en fotnote.
  *
  * REKKEFØLGEN ER MÅLT, IKKE GJETTET. Fastlønn sto først her, fordi det
@@ -440,7 +524,6 @@ export function medOppdagetSykelonn(
  * juli 2026 er hele resten 373 kroner av 441 172 — 0,08 %.
  */
 export const MANGLER = [
-  'fastlønn (konto 501), om stasjonen har noen',
   'faste tillegg som ikke er en arbeidet time (konto 502), for eksempel mobildekning',
   'bonus (konto 509)',
 ] as const
