@@ -125,6 +125,31 @@ const s = (v) =>
  */
 const erIkmat = (navn) => /ik-?\s*mat/i.test(navn)
 
+/**
+ * Hvilken frekvensgruppe IK-mat-rutinen hoerer til.
+ *
+ * FREKVENSEN UTLEDES AV UKEDAGENE, IKKE ANTATT.
+ *
+ * Foerste utgave satte `daglig` paa alt som het IK-mat. Fem av de seks
+ * rutinene gaar faktisk hver dag - men Dale har «IK-mat. Sjekk
+ * temperaturer paa varmholdig/oppvaskmaskin. Tirsdag og torsdag.» med
+ * ukedagene [2,4]. Den ville blitt en daglig kontroll, og folk ville
+ * blitt bedt om aa maale noe fem ekstra dager i uka.
+ *
+ * Rutinen sa det selv, i sitt eget navn OG i sine egne ukedager. Aa
+ * anta naar dataene svarer er den billigste feilen aa unngaa.
+ *
+ * `null` naar antallet ikke svarer til en gruppe - da rapporteres den,
+ * og noen tar stilling i stedet for at verktoeyet gjetter.
+ */
+function ikmatFrekvens(dager) {
+  const n = (dager ?? []).length
+  if (n === 0 || n === 7) return 'daglig'
+  if (n === 2) return 'to_ukentlig'
+  if (n === 1) return 'ukentlig'
+  return null
+}
+
 const klokke = (t) => (t ?? '').slice(0, 5) // "04:00:00" -> "04:00"
 
 const skjemaer = hentRader('rutineskjema')
@@ -145,8 +170,8 @@ ut.push('-- Rutiner flyttet inn fra det andre systemet.')
 ut.push('--')
 ut.push('-- Sondag er 7 hos dem og 0 hos oss; resten av ukedagene er like.')
 ut.push('-- Id-ene er beholdt, saa en ny kjoering er en no-op.')
-ut.push('-- IK-mat-rutiner er satt til `ikmat_frekvens = daglig`, saa de lenker')
-ut.push('-- til maale-arket i stedet for aa bli en avkryssingsboks.')
+ut.push('-- IK-mat-rutiner faar `ikmat_frekvens` utledet av sine egne ukedager,')
+ut.push('-- saa de lenker til maale-arket i stedet for aa bli en avkryssingsboks.')
 ut.push('')
 
 for (const [uuid, navn] of navnFor) {
@@ -165,9 +190,12 @@ for (const [uuid, navn] of navnFor) {
   const ikmat = mineRutiner.filter((r) => erIkmat(r.navn))
   rapport.push(
     `  ${navn}: ${mine.length} skjema, ${mineRutiner.length} rutiner`
-    + ` (${sondag.length} sondag, ${ikmat.length} IK-mat)`,
+    + ` (${sondag.length} med sondag 7->0, ${ikmat.length} IK-mat)`,
   )
-  for (const r of ikmat) rapport.push(`      IK-mat -> daglig: ${r.navn}`)
+  for (const r of ikmat) {
+    const f = ikmatFrekvens(r.aktive_ukedager)
+    rapport.push(`      IK-mat -> ${f ?? 'UKLAR - blir vanlig rutine, sjekk denne'}: ${r.navn}`)
+  }
 
   ut.push(`-- ---------------------------------------------------------------`)
   ut.push(`-- ${navn}: ${mine.length} skjema, ${mineRutiner.length} rutiner`)
@@ -210,7 +238,7 @@ for (const [uuid, navn] of navnFor) {
     ut.push(`  select ${s(r.id)}, v_retailer, v_stasjon, ${s(r.skjema_id)},`)
     ut.push(`         ${s(r.navn)}, ${s(r.notis)},`)
     ut.push(`         ${r.krever_bilde ? 'true' : 'false'}, ${r.rekkefolge ?? 0},`)
-    ut.push(`         '{${ukedager(r.aktive_ukedager).join(',')}}'::int[], ${erIkmat(r.navn) ? "'daglig'" : 'null'}`)
+    ut.push(`         '{${ukedager(r.aktive_ukedager).join(',')}}'::int[], ${s(erIkmat(r.navn) ? ikmatFrekvens(r.aktive_ukedager) : null)}`)
     ut.push(`  where not exists (select 1 from public.rutiner where id = ${s(r.id)});`)
     ut.push('')
   }
