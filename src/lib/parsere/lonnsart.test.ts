@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { erLonnsartFil, gjenkjennLonnsart, lesLonnsart } from './lonnsart'
+import { erLonnsartFil, erLonnsgrunnlag, gjenkjennLonnsart, lesLonnsart } from './lonnsart'
 import { erStemplingFil } from './stempling'
 
 // Formen er hentet fra en ekte eksport (Dale, august 2026, 400 linjer),
@@ -98,5 +98,42 @@ describe('gjenkjenning', () => {
   it('sier nei til tomt og til tull', () => {
     expect(erLonnsartFil('')).toBe(false)
     expect(erLonnsartFil('hei,hopp')).toBe(false)
+  })
+})
+
+// =====================================================================
+// FEIL EKSPORT SKAL FAA ET SVAR, IKKE EN BLINDVEI
+//
+// easy@work har fire eksporter som alle ser ut som «loenn» i
+// nedtrekkslisten. Loennsgrunnlaget er den som ligner mest paa riktig
+// fil - og den har timer og antall, ikke kroner.
+// =====================================================================
+describe('erLonnsgrunnlag', () => {
+  const grunnlag = [
+    '" 1 august 2026  - 31 august 2026 ",,,"Generert av Ola Nordmann"',
+    '',
+    'Stemplingsnummer,Ansatt,Lønn,Betalingsfrekvens,Lokasjon,Dato,Timer',
+    '308,"A B",234.05,Time,"St1 - Bønes","2026-08-01",49.33',
+  ].join('\n')
+
+  it('kjenner igjen lønnsgrunnlaget', () => {
+    expect(erLonnsgrunnlag(grunnlag)).toBe(true)
+    // Og den skal fortsatt IKKE leses som en loennsartfil.
+    expect(erLonnsartFil(grunnlag)).toBe(false)
+  })
+
+  // Basis Export deler `Stemplingsnummer`. Uten kravet om
+  // `Betalingsfrekvens` ville den blitt meldt som feil fil - og den
+  // fanges uansett foerst.
+  it('forveksler ikke med Basis Export', () => {
+    const basis = [
+      'Forretningsdato,Stemplingsnummer,Ansatt,Type,Fra,Til,Lengde,Lokasjon',
+      '"13 aug 2026",1104238,"A B","Betalt tid","07:30","15:00",7.50,"St1 - Dale"',
+    ].join('\n')
+    expect(erLonnsgrunnlag(basis)).toBe(false)
+  })
+
+  it('forveksler ikke med lønnsartfila', () => {
+    expect(erLonnsgrunnlag(FIL)).toBe(false)
   })
 })

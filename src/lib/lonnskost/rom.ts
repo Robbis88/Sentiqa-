@@ -75,11 +75,15 @@ export type Regnskapsmaaned = {
 /** Hva BP-en lovet for måneden. */
 export type Bpmaaned = {
   maaned: string
+  /**
+   * Omsetning. BP-en har den for HELE året, per måned — så formen på
+   * marginen trenger ikke læres, den står der. Det som må læres er
+   * NIVÅET: treffer stasjonen den marginen BP-en la opp til?
+   */
+  omsetningKr: number | null
   bruttoKr: number | null
   lonnKr: number | null
 }
-
-export type Marginkilde = 'regnskap' | 'bp' | null
 
 export type Lonnsrom = {
   maaned: string
@@ -93,9 +97,13 @@ export type Lonnsrom = {
   romKr: number | null
   /** BP-ens eget lønnstall, uendret. Det rommet måles MOT. */
   bpLonnKr: number | null
-  /** Marginen som ble brukt til anslaget, og hvor den kom fra. */
-  margin: number | null
-  marginkilde: Marginkilde
+  /**
+   * Hvor mye av BP-ens planlagte margin stasjonen treffer. 1,0 = planen.
+   * Null naar ingen maaned kan maales - da staar anslaget paa BP-en alene.
+   */
+  kalibrering: number | null
+  /** Svinn utover det normale, som faktisk bet paa rommet. */
+  ekstraSvinnKr: number
   /**
    * Inngangsverdiene, saa de kan vises ved siden av svaret.
    *
@@ -110,54 +118,89 @@ const tall = (v: number | null | undefined): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? v : null
 
 /**
- * Bruttomarginen lært av de avlagte månedene.
+ * Hvor mye av BP-ens planlagte margin stasjonen faktisk treffer.
  *
- * SUM OVER SUM, IKKE SNITT AV BRØKER. En måned med lav omsetning skal
- * ikke telle like mye som en med høy — snittet av tolv prosenttall gir
- * en januar samme vekt som en juli, og det er ikke slik marginen
- * oppfører seg. Summen av brutto delt på summen av omsetning er den
- * marginen kjeden faktisk hadde i perioden.
+ * ===================================================================
+ * BP-EN ER FORMEN, REGNSKAPET ER NIVÅET.
  *
- * Null når ingen avlagt måned har begge tallene. Å gjette en margin
- * ville gjort et hull til et tall.
+ * Første utgave lærte hele marginen av regnskapet: sum brutto delt på
+ * sum omsetning over seks måneder. Det er et FLATT tall, og det smører
+ * juli og januar sammen — mens marginen varierer med varemiksen, og
+ * varemiksen varierer med sesongen.
+ *
+ * BP-en har omsetning og brutto per måned for hele året. Sesongen står
+ * altså allerede der, målt av dem som la planen. Det eneste vi ikke vet
+ * er om stasjonen faktisk treffer den marginen — og DET er det ene
+ * tallet som skal læres, og som blir bedre for hver rapport.
+ *
+ *     forventet brutto = BP-brutto x (faktisk omsetning / BP-omsetning)
+ *     kalibrering      = sum(faktisk brutto) / sum(forventet brutto)
+ *
+ * 1,0 betyr «treffer planen». Under 1 betyr at marginen er svakere enn
+ * BP-en la opp til, og da skal lønnsrommet krympe tilsvarende.
+ *
+ * `null` når ingen måned kan måles. Å anta 1,0 der ville vært å påstå
+ * at planen treffer, uten et eneste tall bak.
+ * ===================================================================
  */
-export function laertMargin(
+export function kalibrering(
   regnskap: Regnskapsmaaned[],
+  bp: Bpmaaned[],
   antall = MAANEDER_FOR_MARGIN,
 ): number | null {
+  const bpPer = new Map(bp.map((b) => [b.maaned, b]))
   const brukbare = regnskap
-    .filter((m) => tall(m.omsetningKr) !== null && tall(m.bruttoKr) !== null)
-    .filter((m) => m.omsetningKr! > 0)
+    .filter((m) => tall(m.bruttoKr) !== null && tall(m.omsetningKr) !== null)
+    .sort((a, b) => b.maaned.localeCompare(a.maaned))
+    .slice(0, antall)
+
+  let faktisk = 0
+  let forventet = 0
+  for (const m of brukbare) {
+    const b = bpPer.get(m.maaned)
+    const bpOms = tall(b?.omsetningKr)
+    const bpBrutto = tall(b?.bruttoKr)
+    if (bpOms === null || bpBrutto === null || bpOms <= 0) continue
+    faktisk += m.bruttoKr!
+    forventet += bpBrutto * (m.omsetningKr! / bpOms)
+  }
+  return forventet > 0 ? faktisk / forventet : null
+}
+
+/**
+ * Hvor stor andel av omsetningen som normalt går i svinn.
+ *
+ * ===================================================================
+ * SVINNET KAN IKKE TREKKES FRA TO GANGER.
+ *
+ * Regnskapets bruttofortjeneste er ALLEREDE fratrukket svinn — kastet
+ * vare er varekost uten et salg bak seg. Målt på Lone: teoretisk minus
+ * faktisk brutto var 157 842, og kast pluss usynlig svinn 156 493.
+ *
+ * Første utgave regnet `omsetning x margin - svinn`, der marginen var
+ * lært av regnskapet. Den hadde altså normalt svinn bakt inn, og så ble
+ * svinnet trukket fra en gang til. På Dale august ga det et lønnsrom
+ * ~7 700 kroner for lite.
+ *
+ * Kalibreringen bærer det normale svinnet. Det som skal bite er
+ * AVVIKET: kaster de som vanlig, er alt med fra før; kaster de mer enn
+ * vanlig, er brutto dårligere enn planen tilsier, og rommet krymper.
+ * ===================================================================
+ */
+export function normalSvinnandel(
+  grunnlag: Maanedsgrunnlag[],
+  lukkede: Set<string>,
+  antall = MAANEDER_FOR_MARGIN,
+): number | null {
+  const brukbare = grunnlag
+    .filter((g) => lukkede.has(g.maaned) && g.omsetningKr > 0)
     .sort((a, b) => b.maaned.localeCompare(a.maaned))
     .slice(0, antall)
 
   if (brukbare.length === 0) return null
-  const brutto = brukbare.reduce((a, m) => a + m.bruttoKr!, 0)
-  const omsetning = brukbare.reduce((a, m) => a + m.omsetningKr!, 0)
-  return omsetning > 0 ? brutto / omsetning : null
-}
-
-/**
- * BP-ens egen margin, som reserve for en kjede uten avlagt regnskap.
- *
- * EN NY RETAILER SKAL IKKE STÅ UTEN SVAR. Uten denne ville lønnsrommet
- * krevd et halvår med regnskap før det virket i det hele tatt, og det
- * ville vært et nytt onboardingkrav i praksis om ikke i ord. BP-ens
- * margin er kjedens egen forventning — dårligere enn målt historikk,
- * men langt bedre enn ingenting, og den byttes ut av seg selv så snart
- * den første rapporten er inne.
- */
-export function bpMargin(bp: Bpmaaned[], grunnlag: Maanedsgrunnlag[]): number | null {
-  const perMaaned = new Map(grunnlag.map((g) => [g.maaned, g]))
-  let brutto = 0
-  let omsetning = 0
-  for (const b of bp) {
-    const g = perMaaned.get(b.maaned)
-    if (tall(b.bruttoKr) === null || !g || g.omsetningKr <= 0) continue
-    brutto += b.bruttoKr!
-    omsetning += g.omsetningKr
-  }
-  return omsetning > 0 ? brutto / omsetning : null
+  const svinn = brukbare.reduce((a, g) => a + g.svinnKr, 0)
+  const omsetning = brukbare.reduce((a, g) => a + g.omsetningKr, 0)
+  return omsetning > 0 ? svinn / omsetning : null
 }
 
 /**
@@ -172,10 +215,11 @@ export function byggLonnsrom(
   grunnlag: Maanedsgrunnlag[],
   bp: Bpmaaned[],
 ): Lonnsrom[] {
-  const margin = laertMargin(regnskap) ?? bpMargin(bp, grunnlag)
-  const marginkilde: Marginkilde = laertMargin(regnskap) !== null
-    ? 'regnskap'
-    : margin !== null ? 'bp' : null
+  const lukkede = new Set(
+    regnskap.filter((m) => tall(m.bruttoKr) !== null).map((m) => m.maaned),
+  )
+  const kal = kalibrering(regnskap, bp)
+  const svinnandel = normalSvinnandel(grunnlag, lukkede)
 
   const regnPer = new Map(regnskap.map((m) => [m.maaned, m]))
   const grunnPer = new Map(grunnlag.map((m) => [m.maaned, m]))
@@ -190,16 +234,25 @@ export function byggLonnsrom(
   return maaneder.map((maaned) => {
     const b = bpPer.get(maaned)
     const bpBrutto = tall(b?.bruttoKr)
+    const bpOms = tall(b?.omsetningKr)
     const bpLonn = tall(b?.lonnKr)
+    const g = grunnPer.get(maaned)
 
     // REGNSKAPET VINNER OVER ANSLAGET. Er måneden avlagt, finnes brutto,
     // og et anslag ved siden av fasiten ville bare vært støy.
     const faktisk = tall(regnPer.get(maaned)?.bruttoKr)
-    const g = grunnPer.get(maaned)
-    const anslag = faktisk === null && margin !== null && g && g.omsetningKr > 0
-      // SVINNET TREKKES FRA BRUTTO, ikke fra rommet. Kastet vare er
-      // brutto som aldri ble til noe.
-      ? g.omsetningKr * margin - g.svinnKr
+
+    // SVINN UTOVER DET NORMALE. Det normale ligger allerede i
+    // kalibreringen, fordi regnskapets brutto er fratrukket svinn.
+    // Uten `max(0, …)` ville en uvanlig ren måned GITT ekstra rom, og
+    // det er ikke det samme: et lavt svinn er allerede fanget når
+    // måneden lukkes, og å forskuttere det ville vært å låne av seg selv.
+    const ekstraSvinnKr = g && svinnandel !== null
+      ? Math.max(0, g.svinnKr - svinnandel * g.omsetningKr)
+      : 0
+
+    const anslag = faktisk === null && g && bpBrutto !== null && bpOms !== null && bpOms > 0
+      ? bpBrutto * (g.omsetningKr / bpOms) * (kal ?? 1) - ekstraSvinnKr
       : null
 
     const bruttoKr = faktisk ?? anslag
@@ -214,8 +267,8 @@ export function byggLonnsrom(
       lonnsandel,
       romKr: lonnsandel !== null && bruttoKr !== null ? lonnsandel * bruttoKr : null,
       bpLonnKr: bpLonn,
-      margin,
-      marginkilde,
+      kalibrering: kal,
+      ekstraSvinnKr: faktisk === null ? ekstraSvinnKr : 0,
       omsetningKr: g?.omsetningKr ?? 0,
       svinnKr: g?.svinnKr ?? 0,
     }

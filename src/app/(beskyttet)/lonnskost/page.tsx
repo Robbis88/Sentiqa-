@@ -254,18 +254,20 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           {'av bruttofortjenesten — samme andel som budsjettet legger opp til — '}
           {naa.anslaatt
             ? `av en anslått brutto på ${kr.format(Math.round(naa.bruttoKr!))}. `
-              + `Anslaget er omsetningen på ${kr.format(Math.round(naa.omsetningKr))} `
-              + `ganget med en margin på ${(naa.margin! * 100).toLocaleString('nb-NO', {
-                minimumFractionDigits: 1, maximumFractionDigits: 1 })} %, `
-              + `minus ${kr.format(Math.round(naa.svinnKr))} i svinn. `
-            : `av regnskapets brutto på ${kr.format(Math.round(naa.bruttoKr!))}. `}
-          {naa.marginkilde === 'regnskap'
-            ? 'Marginen er lært av de siste avlagte månedene, og blir bedre for hver '
-              + 'regnskapsrapport som lastes opp.'
-            : naa.marginkilde === 'bp'
-              ? 'Marginen er BP-ens egen forventning — ingen måned er avlagt ennå. '
-                + 'Den byttes ut med målt historikk så snart første regnskap er inne.'
-              : ''}
+              + 'Anslaget er BP-ens egen brutto for måneden, skalert med hvor mye av '
+              + `salget som har kommet inn (${kr.format(Math.round(naa.omsetningKr))} `
+              + 'i omsetning)'
+              + (naa.kalibrering != null
+                ? `, og justert med ${(naa.kalibrering * 100).toLocaleString('nb-NO', {
+                  minimumFractionDigits: 1, maximumFractionDigits: 1 })} % — `
+                  + 'hvor mye av planlagt margin stasjonen faktisk treffer. '
+                : '. Ingen avlagt måned å kalibrere mot ennå. ')
+              + (naa.ekstraSvinnKr > 0
+                ? `Svinnet ligger ${kr.format(Math.round(naa.ekstraSvinnKr))} over det `
+                  + 'normale, og er trukket fra. Normalt svinn er allerede med i '
+                  + 'kalibreringen — regnskapets brutto er fratrukket svinn.'
+                : 'Svinnet ligger på det normale, som allerede er med i kalibreringen.')
+            : `av regnskapets brutto på ${kr.format(Math.round(naa.bruttoKr!))}.`}
         </p>
       )}
 

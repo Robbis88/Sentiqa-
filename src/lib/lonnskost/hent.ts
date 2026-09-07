@@ -191,19 +191,24 @@ export async function hentLonnskost(
   // seksjon i `bp_linje`, og `bp_bruttofortjeneste` i regnskapslinjer
   // hopper over hver avlagt maaned (`erLaast`) - samme grunn som at
   // loennsbudsjettet leses fra `bp_linje` og ikke derfra.
-  const bpPerMaaned = new Map<string, { bruttoKr: number; lonnKr: number }>()
+  const bpPerMaaned = new Map<string, { omsetningKr: number; bruttoKr: number; lonnKr: number }>()
   for (const r of bp.data ?? []) {
     const m = `${r.bp_aar.ar}-${String(r.maned).padStart(2, '0')}`
-    const rad = bpPerMaaned.get(m) ?? { bruttoKr: 0, lonnKr: 0 }
+    const rad = bpPerMaaned.get(m) ?? { omsetningKr: 0, bruttoKr: 0, lonnKr: 0 }
     const kr = r.belop_kr ?? 0
-    if (r.seksjon === 'omsetning') rad.bruttoKr += kr
+    // OMSETNINGEN BAERES FOR SEG. BP-en har den per maaned for hele
+    // aaret, og det er den som gir marginen sin FORM - sesongen ligger
+    // alt der, lagt av dem som la planen.
+    if (r.seksjon === 'omsetning') { rad.omsetningKr += kr; rad.bruttoKr += kr }
     else if (r.seksjon === 'varekost') rad.bruttoKr -= kr
     else if (r.kode && BP_LONNSKODER.has(r.kode)) rad.lonnKr += kr
     bpPerMaaned.set(m, rad)
   }
   const bpMaaneder = [...bpPerMaaned]
     .filter(([m]) => m >= fraOgMed.slice(0, 7))
-    .map(([maaned, v]) => ({ maaned, bruttoKr: v.bruttoKr, lonnKr: v.lonnKr }))
+    .map(([maaned, v]) => ({
+      maaned, omsetningKr: v.omsetningKr, bruttoKr: v.bruttoKr, lonnKr: v.lonnKr,
+    }))
 
   const rom = byggLonnsrom(
     regnskapsmaaneder,

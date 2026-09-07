@@ -25,7 +25,7 @@ import {
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
-import { lesLonnsart, gjenkjennLonnsart } from '@/lib/parsere/lonnsart'
+import { lesLonnsart, gjenkjennLonnsart, erLonnsgrunnlag } from '@/lib/parsere/lonnsart'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
@@ -237,7 +237,15 @@ export async function behandleJobbKjerne(
       rapporttype = gjenkjennStempling(tekst)
       if (rapporttype === 'ukjent') rapporttype = gjenkjennLonnsart(tekst)
       if (rapporttype === 'ukjent') {
-        await settFeil('Tekst-/CSV-fila kjennes ikke igjen. Fra easy@work leses Basis Export (stemplinger) og lønnsarteksporten; andre CSV-er ikke ennå.')
+        // NAVNGI RIKTIG FIL NÅR VI KJENNER IGJEN DEN GALE. easy@work har
+        // fire eksporter som alle ser ut som «lønn» i nedtrekkslisten, og
+        // en avvisning uten en vei videre er en blindvei.
+        await settFeil(erLonnsgrunnlag(tekst)
+          ? 'Dette er lønnsgrunnlagsrapporten. Den har timer og antall, ikke kroner, '
+            + 'og kan ikke gi lønnskost. Velg lønnsarteksporten i stedet — den har én '
+            + 'rad per lønnsart per dag, med beløp.'
+          : 'Tekst-/CSV-fila kjennes ikke igjen. Fra easy@work leses Basis Export '
+            + '(stemplinger) og lønnsarteksporten; andre CSV-er ikke ennå.')
         return
       }
     } else {
