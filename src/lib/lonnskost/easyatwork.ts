@@ -199,21 +199,33 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
  * sykelønna som faktisk mangler — 28 896 av et gap på 28 998, altså
  * 99,6 %. Stasjonen har ingen konto 501 i det hele tatt.
  *
- * DET MÅLTE ER HVOR GAPET LIGGER, IKKE HVORFOR 505 ER SÅ STOR.
+ * SYKELØNNA STOPPER VED DAG 16, OG DET ER RIKTIG.
  *
- * easy@work er et vaktsystem og kjenner bare sykedager som erstatter en
- * planlagt vakt — 35,50 timer i juli. Regnskapet hadde 34 830 kroner.
- * Her sto det en stund at forklaringen var en langtidssykmeldt. Det var
- * en historie som passet tallet, ikke noe som var målt, og den holder
- * ikke mot driften: Kelsar forskutterer ikke sykelønn.
+ * Målt mot fraværsrapporten for Dale juli 2026, som går opp eksakt:
  *
- * Regnskapet selv har et åpent spørsmål i den enden — 74 745 ført på 505
- * over sju måneder mot 2 703 refundert på 506. Det er regnskapsførerens
- * å svare på, ikke denne modulens. Modulen skal si hvor differansen
- * ligger og la være å gjette på resten.
+ *     egenmelding                14,50 t  ┐
+ *     sykm. første 16 dager      21,00 t  ┘ 35,50 t — i eksporten
+ *     sykmelding etter 16 dager  80,50 t     ikke i eksporten
+ *                               --------
+ *     totalt fravær             116,00 t
+ *
+ * Lønnsart 12 i eksporten var 35,50 timer. Til punkt og prikke. Etter
+ * dag 16 betaler NAV, og easy@work fører ikke en kostnad arbeidsgiver
+ * ikke har.
+ *
+ * Anslaget mangler altså ikke sykelønn ved et uhell — det utelater den
+ * delen som ikke er arbeidsgivers. Her sto det først at forklaringen var
+ * «en langtidssykmeldt uten vaktplan». Det var en historie som passet
+ * tallet; Sara Omar har vakter, de står i rapporten.
+ *
+ * REGNSKAPET GÅR LIKEVEL IKKE OPP, og det er ikke denne modulens sak å
+ * løse. 80,50 timer til eksportens egen sykelønnssats (167 kr/t) er
+ * ~13 500. Konto 505 er 34 830. Rundt 15 000 kroner har ingen
+ * fraværstimer bak seg, og 506 sto på null i juli — 74 745 ført mot
+ * 2 703 refundert over sju måneder.
  */
 export const MANGLER = [
-  'sykelønn uten en vakt å henge på (konto 505)',
+  'sykelønn etter dag 16 (konto 505) — den betaler NAV, ikke arbeidsgiver',
   'fastlønn (konto 501), om stasjonen har noen',
   'faste tillegg som ikke er en arbeidet time (konto 502), for eksempel mobildekning',
   'bonus (konto 509)',
