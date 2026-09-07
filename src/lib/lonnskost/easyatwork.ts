@@ -269,6 +269,153 @@ export function medSykelonnsforskyvning(maaneder: EasyatworkMaaned[]): Easyatwor
   })
 }
 
+/** Hvor regnskapets sykelønn for en måned kom fra. */
+export type Sykelonnskilde = 'samme_maaned' | 'forrige_maaned' | 'ukjent'
+
+/**
+ * Hvor stort avvik som fortsatt regnes som treff.
+ *
+ * Kandidatene skiller seg med en faktor seks i juli (5 934 mot 34 830),
+ * så terskelen trenger ikke være stram for å skille dem. Den er der for
+ * øredifferanser og små korreksjoner, ikke for å tvinge fram et svar.
+ */
+const treffer = (a: number, b: number) => Math.abs(a - b) <= Math.max(50, b * 0.02)
+
+/**
+ * Leser ut av tallene HVILKEN måned regnskapet førte sykelønna i.
+ *
+ * ===================================================================
+ * OPPDAG, IKKE ANTA.
+ *
+ * Forrige runde slo forskyvningen fast som en regel: sykelønna ligger
+ * én måned etter. Det var målt, og det stemte — på juli 2026, til 48
+ * øre. Men det er en PRAKSIS, ikke en naturlov. Regnskapskontoret kan
+ * periodisere sykelønna hvis Kelsar ber om det, og gjør de det, blir
+ * regelen gal fra den måneden av.
+ *
+ * En hardkodet forskyvning ville da flyttet sykelønna en måned for
+ * langt, hver måned, uten at noe ble rødt. Tallet ville sett like
+ * rimelig ut som før — bare feil.
+ *
+ * Derfor spør denne funksjonen tallene i stedet: hvilken av de to
+ * månedene ligner regnskapets konto 505? Endrer praksisen seg, følger
+ * svaret etter av seg selv, og påminnelsen om at det ER en forsinkelse
+ * blir en observasjon i stedet for en påstand.
+ *
+ * `ukjent` når ingen av dem treffer, eller når måneden ikke er avlagt.
+ * Å gjette der ville gjort en usikkerhet til et tall.
+ * ===================================================================
+ */
+export function sykelonnskilde(
+  regnskapKr: number | null,
+  egenMaaned: number,
+  forrigeMaaned: number,
+): Sykelonnskilde {
+  if (regnskapKr == null) return 'ukjent'
+  // KANDIDATENE MÅ VÆRE TIL Å SKILLE. Er de to månedene like store —
+  // typisk begge null, i en måned uten sykefravær — bærer måneden ingen
+  // informasjon om praksisen, og valget endrer ingen krone. En slik
+  // måned skal ikke stemme over mønsteret. Uten dette ville hver rolige
+  // måned trukket svaret mot «ingen forsinkelse» av ren aritmetikk.
+  if (treffer(egenMaaned, forrigeMaaned)) return 'ukjent'
+  if (treffer(egenMaaned, regnskapKr)) return 'samme_maaned'
+  if (treffer(forrigeMaaned, regnskapKr)) return 'forrige_maaned'
+  return 'ukjent'
+}
+
+/**
+ * Bygger om én måned med sykelønn hentet et annet sted.
+ *
+ * Påslagene følger med: feriepenger og avgift regnes av det regnskapet
+ * faktisk bokfører i måneden, ikke av det som ble opptjent i den.
+ */
+function medSykelonn(
+  m: EasyatworkMaaned, sykKr: number, fraMaaned: string | null,
+): EasyatworkMaaned {
+  const perKonto = { ...m.perKonto }
+  if (sykKr === 0) delete perKonto[SYKEKONTO]
+  else perKonto[SYKEKONTO] = sykKr
+
+  const kontantKr = m.kontantKr - (m.perKonto[SYKEKONTO] ?? 0) + sykKr
+  const feriepengerKr = kontantKr * (SATSER.feriepengerPst / 100)
+  const pensjonKr = kontantKr * (SATSER.pensjonPst / 100)
+  const agaKr = (kontantKr + feriepengerKr) * (SATSER.agaPst / 100)
+
+  return {
+    ...m,
+    perKonto,
+    kontantKr: rund(kontantKr),
+    feriepengerKr: rund(feriepengerKr),
+    pensjonKr: rund(pensjonKr),
+    agaKr: rund(agaKr),
+    lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
+    sykelonnFraMaaned: fraMaaned,
+  }
+}
+
+export type Sykelonnsfunn = {
+  maaneder: EasyatworkMaaned[]
+  /** Mønsteret som gjelder for serien. Styrer også de åpne månedene. */
+  moenster: Sykelonnskilde
+  /** Hvor mange avlagte måneder som faktisk lot seg måle. */
+  maalte: number
+  /** Av dem: hvor mange som viste forsinkelse. */
+  forsinkede: number
+}
+
+/**
+ * Velger sykelønn per måned ved å MÅLE mot regnskapet, ikke ved å anta.
+ *
+ * ===================================================================
+ * DETTE ERSTATTER EN HARDKODET REGEL MED EN OBSERVASJON.
+ *
+ * Forrige runde flyttet sykelønna én måned, alltid, fordi det stemte på
+ * juli 2026 til 48 øre. Men forsinkelsen er en PRAKSIS: regnskapskontoret
+ * kan periodisere sykelønna hvis Kelsar ber om det. Skjer det, ville en
+ * fast forskyvning flyttet den en måned for langt — hver måned, uten at
+ * noe ble rødt, og med et tall som fortsatt så rimelig ut.
+ *
+ * Nå spør hver måned tallene sine. Endres praksisen, følger svaret etter
+ * av seg selv, og `moenster` sier hva som faktisk skjer i stedet for hva
+ * vi trodde i september.
+ *
+ * ÅPNE MÅNEDER ARVER MØNSTERET. De har intet regnskap å måles mot, så de
+ * følger det de avlagte viste. Er praksisen i endring, retter de seg
+ * etter hvert som månedene lukkes — som er den rette rekkefølgen: en åpen
+ * måned er en gjetning uansett.
+ * ===================================================================
+ */
+export function medOppdagetSykelonn(
+  raa: EasyatworkMaaned[],
+  regnskapSykelonn: Map<string, number>,
+): Sykelonnsfunn {
+  const per = new Map(raa.map((m) => [m.maaned, m]))
+  const forrigeKr = (maaned: string) =>
+    per.get(forrigeMaaned(maaned))?.perKonto[SYKEKONTO] ?? 0
+
+  const funn = raa.map((m) => sykelonnskilde(
+    regnskapSykelonn.get(m.maaned) ?? null,
+    m.perKonto[SYKEKONTO] ?? 0,
+    forrigeKr(m.maaned),
+  ))
+
+  const antall = (k: Sykelonnskilde) => funn.filter((x) => x === k).length
+  const forsinkede = antall('forrige_maaned')
+  const samme = antall('samme_maaned')
+  const moenster: Sykelonnskilde = forsinkede > samme
+    ? 'forrige_maaned'
+    : samme > 0 ? 'samme_maaned' : 'ukjent'
+
+  const maaneder = raa.map((m, i) => {
+    const kilde = funn[i] === 'ukjent' ? moenster : funn[i]
+    if (kilde !== 'forrige_maaned') return m
+    const kildeMaaned = per.get(forrigeMaaned(m.maaned))
+    return medSykelonn(m, kildeMaaned?.perKonto[SYKEKONTO] ?? 0, kildeMaaned?.maaned ?? null)
+  })
+
+  return { maaneder, moenster, maalte: forsinkede + samme, forsinkede }
+}
+
 /**
  * Hva anslaget ikke kan se. Vises ved siden av tallet, ikke i en fotnote.
  *

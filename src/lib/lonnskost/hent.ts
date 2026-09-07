@@ -3,8 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { byggLonnskost, type Kontolinje, type Maanedslonn } from './maaned'
 import { BP_LONNSKODER, ukjenteLonnskoder } from './bp'
 import {
-  byggEasyatwork, medSykelonnsforskyvning,
-  type EasyatworkMaaned, type Lonnsartsum,
+  byggEasyatwork, medOppdagetSykelonn,
+  type EasyatworkMaaned, type Lonnsartsum, type Sykelonnskilde,
 } from './easyatwork'
 
 // =====================================================================
@@ -31,6 +31,14 @@ export type Lonnsbilde = {
    * finnes dagen etter måneden, ikke midt i den neste.
    */
   easyatwork: EasyatworkMaaned[]
+  /**
+   * Hva regnskapet FAKTISK gjorde med sykelønna, målt mot easy@work.
+   *
+   * `forrige_maaned` betyr at den ikke er periodisert — den bokføres
+   * måneden etter fraværet. Det er en praksis som kan endres, og siden
+   * skal si fra om den, ikke anta den.
+   */
+  sykelonn: { moenster: Sykelonnskilde; maalte: number; forsinkede: number }
 }
 
 export async function hentLonnskost(
@@ -112,14 +120,28 @@ export async function hentLonnskost(
     belopKr: Number(r.belop_kr),
   }))
 
+  const maaneder = byggLonnskost(linjer, BP_LONNSKODER)
+
+  // MAALT MOT REGNSKAPET, IKKE ANTATT.
+  //
+  // Sykeloenna bokfoeres maaneden etter fravaeret - malt paa juli 2026 til
+  // 48 oere. Men det er en PRAKSIS: regnskapskontoret kan periodisere den
+  // hvis Kelsar ber om det. En fast forskyvning ville da flyttet den en
+  // maaned for langt, hver maaned, uten at noe ble roedt.
+  const regnskapSykelonn = new Map(
+    maaneder
+      .filter((m) => m.avlagt)
+      .map((m) => [m.maaned, m.linjer.find((l) => l.kode === '505')?.regnskap ?? 0]),
+  )
+  const syk = medOppdagetSykelonn(byggEasyatwork(summer), regnskapSykelonn)
+
   return {
-    maaneder: byggLonnskost(linjer, BP_LONNSKODER),
+    maaneder,
+    easyatwork: syk.maaneder,
+    sykelonn: { moenster: syk.moenster, maalte: syk.maalte, forsinkede: syk.forsinkede },
     ukjenteKoder: ukjenteLonnskoder(
       linjer.filter((l) => l.seksjon === 'bp_kostnad' && l.kode).map((l) => l.kode!),
     ),
-    // SYKELOENNA FLYTTES EN MAANED FRAM, slik regnskapet foerer den.
-    // Uten den staar hver maaned med feil sykeloenn og et avvik som ser
-    // ut som en feil i anslaget - malt paa juli 30 086 kroner mot 373.
-    easyatwork: medSykelonnsforskyvning(byggEasyatwork(summer)),
+
   }
 }
