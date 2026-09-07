@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { byggLonnskost, type Kontolinje, type Maanedslonn } from './maaned'
 import { BP_LONNSKODER, ukjenteLonnskoder } from './bp'
 import {
-  byggEasyatwork, medOppdagetSykelonn,
+  byggEasyatwork, medOppdagetSykelonn, medFastlonn,
   type EasyatworkMaaned, type Lonnsartsum, type Sykelonnskilde,
 } from './easyatwork'
 import { byggLonnsrom, erDrivstoff, type Lonnsrom } from './rom'
@@ -166,6 +166,16 @@ export async function hentLonnskost(
       .filter((m) => m.avlagt)
       .map((m) => [m.maaned, m.linjer.find((l) => l.kode === '505')?.regnskap ?? 0]),
   )
+  // FASTLOENNA FINNES ALDRI I EASY@WORK. En fastloennet stempler ikke
+  // for aa faa betalt, saa eksporten har ingen linje - og fravaeret er
+  // usynlig. Regnskapet har tallet paa konto 501, og fastloenn er fast,
+  // saa sist kjente verdi baeres inn i den aapne maaneden.
+  const regnskapFastlonn = new Map(
+    maaneder
+      .filter((m) => m.avlagt)
+      .map((m) => [m.maaned, m.linjer.find((l) => l.kode === '501')?.regnskap ?? 0])
+      .filter(([, kr]) => (kr as number) !== 0) as [string, number][],
+  )
   const syk = medOppdagetSykelonn(byggEasyatwork(summer), regnskapSykelonn)
 
   // DRIVSTOFF UT AV BEGGE SEKSJONENE.
@@ -223,7 +233,7 @@ export async function hentLonnskost(
   return {
     rom,
     maaneder,
-    easyatwork: syk.maaneder,
+    easyatwork: medFastlonn(syk.maaneder, regnskapFastlonn),
     sykelonn: { moenster: syk.moenster, maalte: syk.maalte, forsinkede: syk.forsinkede },
     ukjenteKoder: ukjenteLonnskoder(
       linjer.filter((l) => l.seksjon === 'bp_kostnad' && l.kode).map((l) => l.kode!),

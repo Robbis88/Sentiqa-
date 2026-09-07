@@ -509,6 +509,21 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             <tr><th>Post</th><th>Kroner</th><th>Grunnlag</th></tr>
           </thead>
           <tbody>
+            {/* FASTLOENNA STAAR FOERST OG MED KILDEN SIN.
+                Den finnes aldri i easy@work - en fastloennet stempler
+                ikke for aa faa betalt - saa den hentes fra regnskapets
+                konto 501. Er den baaret fram fra en tidligere maaned, er
+                det en antakelse, og den skal staa paa skjermen. */}
+            {sisteEa.fastlonnKr > 0 && (
+              <tr>
+                <td>Fastlønn</td>
+                <td>{kr.format(Math.round(sisteEa.fastlonnKr))}</td>
+                <td>{sisteEa.fastlonnFraMaaned === sisteEa.maaned
+                  ? 'fra regnskapets konto 501'
+                  : `båret fram fra ${manedAar.format(
+                    new Date(`${sisteEa.fastlonnFraMaaned}-01`))} — fastlønn er fast`}</td>
+              </tr>
+            )}
             <tr>
               <td>Timelønn og tillegg</td>
               <td>{kr.format(Math.round(sisteEa.perKonto['503'] ?? 0))}</td>
@@ -599,6 +614,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           {'Med den på plass er hele avviket for juli 373 kroner av 441 172, altså '}
           {'0,08 %. Det som gjenstår er '}
           {MANGLER.join('; ')}
+          {'. Fastlønn står ikke der lenger: den finnes aldri i easy@work, men '}
+          {'regnskapets konto 501 har den, og fastlønn er fast — så sist kjente '}
+          {'verdi bæres inn i den åpne måneden, med måneden den kom fra.'}
           {' — og at de faktiske påslagssatsene er 12,16 % feriepenger og 14,00 % '}
           {'avgift, ikke de 12 og 14,1 anslaget regner med. Sykelønn etter dag 16 '}
           {'mangler i eksporten, men mangler i regnskapet også: den betaler NAV.'}
