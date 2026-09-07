@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { byggEasyatwork as bygg, fraLinjer, medSykelonnsforskyvning, SATSER } from './easyatwork'
+import {
+  byggEasyatwork as bygg, fraLinjer, medSykelonnsforskyvning,
+  medOppdagetSykelonn, sykelonnskilde, SATSER,
+} from './easyatwork'
 import type { Lonnsartlinje } from '@/lib/parsere/lonnsart'
 
 const byggEasyatwork = (l: Lonnsartlinje[]) => bygg(fraLinjer(l))
@@ -169,5 +172,102 @@ describe('medSykelonnsforskyvning', () => {
     ]))
     expect(m.find((x) => x.maaned === '2026-01')!.sykelonnFraMaaned).toBe('2025-12')
     expect(m.find((x) => x.maaned === '2026-01')!.perKonto['505']).toBe(900)
+  })
+})
+
+// =====================================================================
+// OPPDAG PERIODISERINGEN, IKKE ANTA DEN
+//
+// Forsinkelsen er en PRAKSIS, ikke en naturlov. Regnskapskontoret kan
+// periodisere sykeloenna hvis Kelsar ber om det. Gjoer de det, ville en
+// fast forskyvning flyttet den en maaned for langt - hver maaned, uten
+// at noe ble roedt.
+// =====================================================================
+describe('sykelonnskilde', () => {
+  // Juli 2026: regnskapet 34 830, egen maaned 5 934, forrige 34 829,52.
+  it('kjenner igjen forsinkelsen på de ekte tallene', () => {
+    expect(sykelonnskilde(34830, 5933.88, 34829.52)).toBe('forrige_maaned')
+  })
+
+  it('kjenner igjen en periodisert måned', () => {
+    expect(sykelonnskilde(5933.88, 5933.88, 34829.52)).toBe('samme_maaned')
+  })
+
+  it('sier ukjent når ingen av dem treffer', () => {
+    expect(sykelonnskilde(99999, 5933.88, 34829.52)).toBe('ukjent')
+  })
+
+  it('sier ukjent for en måned uten regnskap', () => {
+    expect(sykelonnskilde(null, 5933.88, 34829.52)).toBe('ukjent')
+  })
+
+  it('taaler ørediffer, men ikke en faktor seks', () => {
+    expect(sykelonnskilde(34830, 34829.52, 5933.88)).toBe('samme_maaned')
+  })
+
+  // EN MAANED UTEN SYKEFRAVAER BAERER INGEN INFORMASJON. Uten denne
+  // regelen ville hver rolige maaned stemt for «ingen forsinkelse» av ren
+  // aritmetikk - null treffer null - og trukket moensteret feil vei.
+  it('gir ingen stemme når kandidatene er like', () => {
+    expect(sykelonnskilde(0, 0, 0)).toBe('ukjent')
+    expect(sykelonnskilde(5000, 5000, 5000)).toBe('ukjent')
+  })
+})
+
+describe('medOppdagetSykelonn', () => {
+  const raa = () => bygg(fraLinjer([
+    L('2', 1527.56, 297990.47, '2026-07-15'),
+    L('1429', 552.39, 11977.40, '2026-07-15', '1429 samlet tillegg'),
+    L('96', 0.96, 137.28, '2026-07-15'),
+    L('12', 35.5, 5933.88, '2026-07-15'),
+    L('2', 1263.40, 262463.65, '2026-06-15'),
+    L('12', 158, 34829.52, '2026-06-15'),
+  ]))
+
+  it('flytter juli når regnskapet viser forsinkelse', () => {
+    const r = medOppdagetSykelonn(raa(), new Map([['2026-07', 34830]]))
+    expect(r.moenster).toBe('forrige_maaned')
+    expect(r.forsinkede).toBe(1)
+    const juli = r.maaneder.find((m) => m.maaned === '2026-07')!
+    expect(juli.sykelonnFraMaaned).toBe('2026-06')
+    expect(juli.perKonto['505']).toBe(34829.52)
+    expect(juli.lonnskostKr).toBeCloseTo(440798.91, 1)
+  })
+
+  // KANARIFUGLEN FOR HELE OMBYGGINGEN. Begynner Kelsar aa periodisere,
+  // skal juli IKKE flyttes lenger. Med den gamle, faste forskyvningen
+  // ville den blitt flyttet uansett - og tallet ville sett rimelig ut.
+  it('lar juli stå når regnskapet er periodisert', () => {
+    const r = medOppdagetSykelonn(raa(), new Map([['2026-07', 5933.88]]))
+    expect(r.moenster).toBe('samme_maaned')
+    expect(r.forsinkede).toBe(0)
+    const juli = r.maaneder.find((m) => m.maaned === '2026-07')!
+    expect(juli.perKonto['505']).toBe(5933.88)
+    expect(juli.sykelonnFraMaaned).toBe('2026-07')
+  })
+
+  // En aapen maaned har ikke noe regnskap aa maales mot, saa den foelger
+  // det de avlagte viste. Et eget svar der ville vaert en gjetning uten
+  // grunnlag.
+  it('lar åpne måneder arve mønsteret', () => {
+    const m = bygg(fraLinjer([
+      L('2', 10, 2000, '2026-08-15'),
+      L('12', 5, 1000, '2026-08-15'),
+      L('2', 1527.56, 297990.47, '2026-07-15'),
+      L('12', 35.5, 5933.88, '2026-07-15'),
+      L('12', 158, 34829.52, '2026-06-15'),
+    ]))
+    const r = medOppdagetSykelonn(m, new Map([['2026-07', 34830]]))
+    expect(r.moenster).toBe('forrige_maaned')
+    const aug = r.maaneder.find((x) => x.maaned === '2026-08')!
+    expect(aug.sykelonnFraMaaned).toBe('2026-07')
+    expect(aug.perKonto['505']).toBe(5933.88)
+  })
+
+  it('rører ingenting når ingenting kan måles', () => {
+    const r = medOppdagetSykelonn(raa(), new Map())
+    expect(r.moenster).toBe('ukjent')
+    expect(r.maalte).toBe(0)
+    expect(r.maaneder.find((m) => m.maaned === '2026-07')!.perKonto['505']).toBe(5933.88)
   })
 })

@@ -109,7 +109,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     )
   }
 
-  const { maaneder, ukjenteKoder, easyatwork } = await hentLonnskost(supabase, valgtStasjon!, FRA)
+  const { maaneder, ukjenteKoder, easyatwork, sykelonn } = await hentLonnskost(
+    supabase, valgtStasjon!, FRA,
+  )
   const avlagte = maaneder.filter((m) => m.avlagt)
   const siste = avlagte[0]
 
@@ -363,6 +365,21 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </Status>
       )}
 
+      {/* PAAMINNELSEN, OG DEN ER MAALT - IKKE EN INNSTILLING.
+          Regnskapskontoret sa at sykeloenna KAN periodiseres om Kelsar
+          ber om det. Gjoer de det, oppdager detektoren det selv og denne
+          linja forsvinner. Fram til da staar den her hver gang et nytt
+          regnskap er lastet opp, som er akkurat naar valget er aktuelt. */}
+      {sykelonn.moenster === 'forrige_maaned' && (
+        <Status nivaa="endring">
+          {`Sykelønna bokføres måneden etter fraværet — målt i ${sykelonn.forsinkede} `}
+          {`av ${sykelonn.maalte} måneder som lot seg sammenligne. Kolonnen under `}
+          {'viser hvilken måned tallet kom fra. Regnskapskontoret kan periodisere '}
+          {'den om du vil ha fraværet i sin egen måned; velger du det, oppdager '}
+          {'siden det selv og slutter å flytte.'}
+        </Status>
+      )}
+
       {sisteEa && (
         <Datatabell
           tittel={`easy@work · anslag for ${manedAar.format(new Date(`${sisteEa.maaned}-01`))}`}
@@ -450,11 +467,13 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         <>
         <p className="undertittel">
           {'Anslaget er regnet av lønnsartene i easy@work-eksporten, ikke lest av '}
-          {'regnskapet. Sykelønna flyttes én måned fram, fordi regnskapet fører den '}
-          {'slik: en sykmelding kommer inn etter at lønnskjøringen for måneden er '}
-          {'stengt. Regnskapets juli hadde 34 830 kroner i sykelønn og easy@works '}
-          {'juni 34 829,52 — 48 øre fra hverandre. Kolonnen sier hvilken måned '}
-          {'tallet kom fra, så flyttingen er synlig og ikke en skjult regel.'}
+          {'regnskapet. Hvilken måned sykelønna hører til blir MÅLT, ikke antatt: '}
+          {'for hver avlagt måned sammenlignes regnskapets konto 505 med både '}
+          {'månedens egen sykelønn og forrige måneds, og den som treffer vinner. '}
+          {'På Dale juli 2026 hadde regnskapet 34 830 kroner og easy@works juni '}
+          {'34 829,52 — 48 øre fra hverandre. Endrer regnskapsføringen seg, følger '}
+          {'siden etter av seg selv; kolonnen sier alltid hvilken måned tallet kom '}
+          {'fra, så flyttingen aldri er en skjult regel.'}
         </p>
         <p className="undertittel">
           {'Med den på plass er hele avviket for juli 373 kroner av 441 172, altså '}
