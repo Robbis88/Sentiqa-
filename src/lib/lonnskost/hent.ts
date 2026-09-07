@@ -55,7 +55,7 @@ export async function hentLonnskost(
   stasjonId: string,
   fraOgMed: string,
 ): Promise<Lonnsbilde> {
-  const [regnskap, bp, lonnsart, brutto, grunnlag] = await Promise.all([
+  const [regnskap, bp, lonnsart, brutto, bpMnd, grunnlag] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('periode, seksjon, kode, post, regnskap, budsjett')
@@ -119,6 +119,36 @@ export async function hentLonnskost(
       .overrideTypes<{
         periode: string; seksjon: string; post: string; regnskap: number | null
       }[]>(),
+    // BP-EN GJENNOM EN SMAL FUNKSJON (0183).
+    //
+    // `bp_linje` staar med `manager: "none"` i tenantkontrakten - BP-en
+    // er kjedens dokument, og en butikksjef som fikk lese den ville sett
+    // hver eneste stasjons budsjett. Konsekvensen var utenkt: uten BP
+    // forsvant maanedene som bare finnes der, og LOENNSROMMET kunne
+    // aldri regnes - funksjonen bygget for butikksjefen virket ikke for
+    // butikksjefen.
+    //
+    // Funksjonen baerer tenantpredikatet selv og gir eieren hele kjeden,
+    // butikksjefen sine egne. Spoerringen over staar igjen: den gir
+    // eieren kontodetaljen, og svarer tomt for butikksjefen - som er
+    // riktig, for hun ser ikke kontoer.
+    // FEILEN HAANDTERES DER KALLET STAAR, ikke tretti linjer lenger ned.
+    // `supabase.rpc` kaster aldri - den returnerer `{ data: null, error }`
+    // - saa et kall mot en funksjon som ikke finnes ville gitt tom liste,
+    // og budsjettkolonnen ville staatt tom uten at noe sa fra. «Ingen BP»
+    // ser ut akkurat som «BP-en er ikke importert».
+    //
+    // Innpakket i en async-funksjon i stedet for aa trekkes ut av
+    // `Promise.all`: seks spoerringer skal fortsatt gaa parallelt.
+    (async () => {
+      const { data, error } = await supabase
+        .rpc('bp_maaned_for_mine_stasjoner', { fra_maaned: fraOgMed.slice(0, 7) })
+      if (error) throw new Error(`Kunne ikke lese BP-månedene: ${error.message}`)
+      return (data ?? []) as unknown as {
+        stasjon_id: string; maaned: string
+        omsetning_kr: number | null; brutto_kr: number | null; lonn_kr: number | null
+      }[]
+    })(),
     // De daglige stoerrelsene, summert i basen (0182).
     supabase
       .from('v_lonnsrom_grunnlag')
@@ -214,10 +244,22 @@ export async function hentLonnskost(
     else if (r.kode && BP_LONNSKODER.has(r.kode)) rad.lonnKr += kr
     bpPerMaaned.set(m, rad)
   }
-  const bpMaaneder = [...bpPerMaaned]
-    .filter(([m]) => m >= fraOgMed.slice(0, 7))
-    .map(([maaned, v]) => ({
-      maaned, omsetningKr: v.omsetningKr, bruttoKr: v.bruttoKr, lonnKr: v.lonnKr,
+  // FRA FUNKSJONEN, IKKE FRA `bp_linje`. Den over gir eieren
+  // kontodetaljen; denne gir BEGGE roller maanedstallet. Ville vi brukt
+  // `bpPerMaaned` her, ville loennsrommet vaert tomt for butikksjefen -
+  // altsaa for den det er bygget for.
+  // Formen staar her og ikke som `overrideTypes`: de genererte
+  // Supabase-typene kjenner ikke funksjonen fra 0183 enda, og et
+  // overstyrt returtypeargument paa `.rpc` kolliderer med den genererte
+  // unionen. En smal type ved bruksstedet er aerligere enn en cast som
+  // later som den vet mer enn generatoren.
+  const bpMaaneder = bpMnd
+    .filter((r) => r.stasjon_id === stasjonId)
+    .map((r) => ({
+      maaned: r.maaned,
+      omsetningKr: r.omsetning_kr === null ? null : Number(r.omsetning_kr),
+      bruttoKr: r.brutto_kr === null ? null : Number(r.brutto_kr),
+      lonnKr: r.lonn_kr === null ? null : Number(r.lonn_kr),
     }))
 
   const rom = byggLonnsrom(

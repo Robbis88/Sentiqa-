@@ -341,7 +341,6 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         <tbody>
           {rader.map((maaned) => {
             const m = maanedPer.get(maaned)
-            const a = m?.budsjettKr == null ? null : m.lonnskostKr - m.budsjettKr
             const ea = eaPerMaaned.get(maaned)
             const spriker = m?.budsjettKr != null && m.bpBudsjettKr != null
               && Math.abs(m.budsjettKr - m.bpBudsjettKr) >= 1
@@ -349,6 +348,14 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             // BRUKT ER REGNSKAPET NAAR DET FINNES, ellers anslaget. Uten
             // det ville den inneVAERENDE maaneden - den eneste som fortsatt
             // kan paavirkes - staatt uten avvik.
+            // BUDSJETTET MAA VIRKE FOR BEGGE ROLLER.
+            //
+            // `m.budsjettKr` kommer fra `bp_linje`, som butikksjefen ikke
+            // leser - BP-en er kjedens dokument. `r.bpLonnKr` kommer fra
+            // 0183, som gir hver rolle sine egne stasjoner. Uten
+            // reserven sto budsjettkolonnen tom for nettopp den rollen
+            // sida er bygget for.
+            const budsjettKr = m?.budsjettKr ?? r?.bpLonnKr ?? null
             const brukt = m?.avlagt ? m.lonnskostKr : ea?.lonnskostKr ?? null
             const avvikRom = r?.romKr != null && brukt != null ? brukt - r.romKr : null
             return (
@@ -382,7 +389,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                     at BP-en ble satt, og det er månedsbudsjettet som
                     gjelder. Ellers er de samme tall og fortjener én celle. */}
                 <td>
-                  {m?.budsjettKr == null ? '—' : kr.format(Math.round(m.budsjettKr))}
+                  {budsjettKr == null ? '—' : kr.format(Math.round(budsjettKr))}
                   {spriker && <> <Status nivaa="endring">≠ BP</Status></>}
                 </td>
                 {/* LOENNSROMMET. Budsjettet ganget med den brutto maaneden
