@@ -219,12 +219,26 @@ begin
       and tablename = any(varme)
       -- Vurder USING og WITH CHECK hver for seg: en policy kan ha wrappet
       -- den ene og rå den andre, og da er den fortsatt per-rad på skriv.
+      -- ETT PAKKET KALL SKJULTE ALLE RAA I SAMME UTTRYKK.
+      --
+      -- Testen var «uttrykket inneholder et hjelpekall OG inneholder
+      -- ikke ( SELECT». Med
+      --
+      --   (retailer_id = ( SELECT gjeldende_retailer_id()))
+      --     AND har_stasjonstilgang(stasjon_id)
+      --
+      -- er andre ledd sant for HELE uttrykket, og det raa per-rad-
+      -- kallet ved siden av ble aldri flagget. Det er noeyaktig
+      -- formen som slo ut daglig_salg 2026-06-16 og kom tilbake i
+      -- 0073 og 0076.
+      --
+      -- Naa fjernes de pakkede kallene foerst; det som staar igjen
+      -- er raatt. Postgres har ingen lookbehind, saa dette er
+      -- maaten.
       and (
-        (coalesce(qual, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
-         and coalesce(qual, '') !~ '\( SELECT')
+        regexp_replace(coalesce(qual, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
         or
-        (coalesce(with_check, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
-         and coalesce(with_check, '') !~ '\( SELECT')
+        regexp_replace(coalesce(with_check, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
       )
     order by tablename, policyname
   loop
@@ -233,6 +247,28 @@ begin
     raise warning '%', funnliste[array_length(funnliste, 1)];
     feil := feil + 1;
   end loop;
+
+  -- --- 1b) KANARIFUGL FOR PUNKT 1 ---
+  --
+  -- Punkt 1 hadde ingen, og var i stykker i maanedsvis uten at noe
+  -- sa fra. En vakt som slutter aa se, ser noeyaktig ut som en vakt
+  -- som ikke finner noe.
+  --
+  -- Her proeves selve predikatet paa to litterale uttrykk: ett som
+  -- SKAL felles og ett som ikke skal. Slutter det aa virke - fordi
+  -- noen strammer regexen, eller fordi Postgres endrer hvordan den
+  -- skriver ut policyer - roeper denne det, i stedet for at punkt 1
+  -- stille slutter aa finne noe.
+  if regexp_replace(
+       '(retailer_id = ( SELECT gjeldende_retailer_id())) AND har_stasjonstilgang(stasjon_id)',
+       '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') !~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
+    raise exception 'RLS-VAKTHUND punkt 1 ser ikke et raatt kall ved siden av et pakket - selve maalingen er i stykker';
+  end if;
+  if regexp_replace(
+       '(retailer_id = ( SELECT gjeldende_retailer_id()))',
+       '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
+    raise exception 'RLS-VAKTHUND punkt 1 feller et korrekt pakket kall - den ville gitt falske funn paa riktig kode';
+  end if;
 
   -- --- 2) "for all"-policyer paa varme tabeller ---
   for r in
@@ -480,12 +516,26 @@ begin
     select policyname, cmd
     from pg_policies
     where schemaname = 'storage' and tablename = 'objects'
+      -- ETT PAKKET KALL SKJULTE ALLE RAA I SAMME UTTRYKK.
+      --
+      -- Testen var «uttrykket inneholder et hjelpekall OG inneholder
+      -- ikke ( SELECT». Med
+      --
+      --   (retailer_id = ( SELECT gjeldende_retailer_id()))
+      --     AND har_stasjonstilgang(stasjon_id)
+      --
+      -- er andre ledd sant for HELE uttrykket, og det raa per-rad-
+      -- kallet ved siden av ble aldri flagget. Det er noeyaktig
+      -- formen som slo ut daglig_salg 2026-06-16 og kom tilbake i
+      -- 0073 og 0076.
+      --
+      -- Naa fjernes de pakkede kallene foerst; det som staar igjen
+      -- er raatt. Postgres har ingen lookbehind, saa dette er
+      -- maaten.
       and (
-        (coalesce(qual, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
-         and coalesce(qual, '') !~ '\( SELECT')
+        regexp_replace(coalesce(qual, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
         or
-        (coalesce(with_check, '') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth\.uid)'
-         and coalesce(with_check, '') !~ '\( SELECT')
+        regexp_replace(coalesce(with_check, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
       )
     order by policyname
   loop

@@ -230,4 +230,52 @@ select case
   (select count(*) from funn where status = 'ok')  as bestatt,
   (select count(*) from funn where status <> 'ok') as feilet;
 
+-- ---------------------------------------------------------------------
+-- OG SAA MAA DEN FAKTISK KUNNE BLI ROED
+-- ---------------------------------------------------------------------
+-- «STOPPER» over er en STRENGVERDI I EN KOLONNE. Den stopper ingenting:
+-- `psql -v ON_ERROR_STOP=1` gaar ut med 0 uansett hvor mange rader som
+-- sier STOPPER, og CI melder groent.
+--
+-- Fila hadde null `raise exception`. Det er samme form som
+-- `rls_kanarifugl.sql` beskriver som «elleve FEIL, groenn jobb» -
+-- rettelsen ble gjort i den genererte matrisen og aldri foert tilbake
+-- hit.
+--
+-- `pg_temp.steg` svelger dessuten hver exception og gjoer den om til en
+-- STOPPER-rad. Det er riktig - én feilende seksjon skal ikke skjule de
+-- andre - men det forutsetter at NOEN leser radene til slutt. Det er
+-- denne blokka.
+--
+-- TO KRAV. En tom `funn` gir ogsaa null feil, og «ingen steg ble kjoert»
+-- er ikke det samme som «alle steg gikk bra». Gulvet er halvparten av
+-- vakten: uten det ser en fil som slutter aa maale ut som en fil uten
+-- funn.
+do $$
+declare
+  n_feil int;
+  n_alle int;
+  linjer text;
+begin
+  select count(*) filter (where status <> 'ok'), count(*) into n_feil, n_alle from funn;
+
+  if n_alle < 15 then
+    raise exception
+      'Onboardinggjennomgangen kjorte bare % steg. Filen maaler ikke det den '
+      'skal - se etter en seksjon som stoppet for tidlig.', n_alle;
+  end if;
+
+  if n_feil > 0 then
+    -- `chr(10)` og ikke `E'\n'`: fila limes inn i SQL Editor, og
+    -- innlimingskjeden har spist bakstreker foer (se AGENTS.md om
+    -- «syntax error at or near»). En funksjon kan ikke miste et tegn.
+    select string_agg(format('  %s: %s', navn, coalesce(detalj, '')), chr(10) order by nr)
+      into linjer from funn where status <> 'ok';
+    -- `raise` bruker `%` som plassholder, ikke `%s`. Tre plassholdere,
+    -- tre argumenter.
+    raise exception 'Onboardingen henger paa % av % steg:%',
+      n_feil, n_alle, chr(10) || linjer;
+  end if;
+end $$;
+
 rollback;

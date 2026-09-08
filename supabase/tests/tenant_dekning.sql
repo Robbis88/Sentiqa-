@@ -133,7 +133,17 @@ begin
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
-      and c.relkind = 'r'
+      -- 'r' er en vanlig tabell, 'p' en PARTISJONERT en.
+      -- daglig_salg er partition by range (dato) - se 0003 - og har
+      -- derfor relkind 'p'. Den var utelatt fra hele dekningssjekken.
+      -- Hullet var latent i dag fordi tabellen staar i kontrakten
+      -- likevel, men en NY partisjonert tabell ville passert i stillhet.
+      -- Det er noeyaktig det denne fila finnes for.
+      --
+      -- relispartition er noe annet: det er de enkelte PARTISJONENE,
+      -- som arver klassifiseringen fra forelderen og ikke skal foeres
+      -- opp hver for seg.
+      and c.relkind in ('r', 'p')
       and not c.relispartition
       and not exists (select 1 from kontrakt_tabeller kt where kt.tabell = c.relname)
     order by c.relname
@@ -156,7 +166,17 @@ begin
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
-      and c.relkind = 'r'
+      -- 'r' er en vanlig tabell, 'p' en PARTISJONERT en.
+      -- daglig_salg er partition by range (dato) - se 0003 - og har
+      -- derfor relkind 'p'. Den var utelatt fra hele dekningssjekken.
+      -- Hullet var latent i dag fordi tabellen staar i kontrakten
+      -- likevel, men en NY partisjonert tabell ville passert i stillhet.
+      -- Det er noeyaktig det denne fila finnes for.
+      --
+      -- relispartition er noe annet: det er de enkelte PARTISJONENE,
+      -- som arver klassifiseringen fra forelderen og ikke skal foeres
+      -- opp hver for seg.
+      and c.relkind in ('r', 'p')
       and not c.relispartition
       and not exists (
         select 1 from pg_policies p
