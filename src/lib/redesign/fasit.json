@@ -624,6 +624,7 @@
       "Butikksjefens grunnlønn",
       "Ingen lønnstall ennå",
       "Kontoene · ${manedAar.format(new Date(`${siste.maaned}-01`))}",
+      "Lønnsform",
       "Per måned",
       "Velg en stasjon",
       "easy@work · anslag for ${manedAar.format(new Date(`${sisteEa.maaned}-01`))}",

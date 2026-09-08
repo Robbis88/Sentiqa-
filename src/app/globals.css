@@ -69,6 +69,7 @@
   --natt-flate-lys: #18264a;     /* samme flate, beroert */
   --natt-flate-ferdig: #14301f;  /* gjort - gronn i moerket */
   --natt-flate-viktig: #3a1518;  /* haster - rod i moerket */
+  --natt-flate-varsel: #38290f;  /* advarsel - gul i moerket */
   --natt-flate-hak: #1a2540;
   --natt-tekst: #e6ebf5;
   --natt-tekst-klar: #f3f6fc;    /* overskrifter */
@@ -332,7 +333,7 @@ h3 { letter-spacing: -0.01em; }
   font-size: 0.95rem;
   font-family: inherit;
   color: var(--tekst);
-  background: #fff;
+  background: var(--kort);
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 .felt textarea { resize: vertical; min-height: 2.6rem; }
@@ -605,7 +606,7 @@ button.logg-ut:hover { color: var(--tekst); }
 
 /* E-post-inntak */
 .inntak-adresse { background: var(--bg); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.95rem; }
-.skjema textarea { padding: 0.55rem 0.7rem; border: 1px solid var(--kant); border-radius: 6px; font: inherit; font-size: 0.9rem; resize: vertical; background: #fff; color: var(--tekst); }
+.skjema textarea { padding: 0.55rem 0.7rem; border: 1px solid var(--kant); border-radius: 6px; font: inherit; font-size: 0.9rem; resize: vertical; background: var(--kort); color: var(--tekst); }
 
 /* Drop-zone */
 .opplaster { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.5rem; }
@@ -653,7 +654,10 @@ button.logg-ut:hover { color: var(--tekst); }
 
 /* Puls sporadisk popup */
 .puls-popp { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 80; padding: 1rem; }
-.puls-popp-kort { background: #fff; color: var(--tekst); border-radius: 18px; padding: 1.5rem; max-width: 440px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+/* `background: #fff` med `color: var(--tekst)`: paa nettbrettet er
+   `--tekst` lys, saa kortet var `#e6ebf5` paa hvitt - 1,1:1. Spoersmaalet
+   sto der, usynlig, hver gang pulsen slo til paa en tablet. */
+.puls-popp-kort { background: var(--kort); color: var(--tekst); border-radius: 18px; padding: 1.5rem; max-width: 440px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
 .puls-popp-q { font-size: 1.25rem; font-weight: 700; margin: 0 0 1rem; }
 .puls-popp-takk { font-size: 1.3rem; font-weight: 700; text-align: center; margin: 1rem 0; }
 .puls-popp-kort textarea { width: 100%; margin-top: 0.75rem; padding: 0.6rem; border: 1px solid var(--kant); border-radius: 8px; font: inherit; resize: vertical; }
@@ -670,8 +674,10 @@ button.logg-ut:hover { color: var(--tekst); }
 .sjekk-popp .sjekk-ja, .sjekk-popp .sjekk-nei { border: 0; border-radius: 8px; padding: 0.45rem 1rem; font-weight: 700; font-size: 0.9rem; cursor: pointer; box-shadow: none; }
 .sjekk-popp .sjekk-ja { background: var(--gronn-svak); color: var(--gronn); }
 .sjekk-popp .sjekk-nei { background: var(--rod-svak); color: var(--rod); }
-.sjekk-popp .sjekk-ja:hover { background: #d3f0db; }
-.sjekk-popp .sjekk-nei:hover { background: #fbdcd8; }
+/* Hoveren var to litteraler og fulgte derfor ikke med til natten.
+   `brightness` virker begge veier: den moerkner en lys tint og lysner
+   ingenting den ikke skal. */
+.sjekk-popp .sjekk-ja:hover, .sjekk-popp .sjekk-nei:hover { filter: brightness(0.94); }
 .sjekk-popp .sjekk-ja:disabled, .sjekk-popp .sjekk-nei:disabled { opacity: 0.5; }
 .fordeling { display: inline-flex; gap: 0.3rem; }
 .fordeling span { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0.1rem 0.3rem; background: var(--bg); border-radius: 5px; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
@@ -681,7 +687,7 @@ button.logg-ut:hover { color: var(--tekst); }
 .puls-faces { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .puls-face {
   flex: 1; min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
-  padding: 0.7rem 0.4rem; border: 2px solid var(--kant); border-radius: 12px; background: #fff; cursor: pointer;
+  padding: 0.7rem 0.4rem; border: 2px solid var(--kant); border-radius: 12px; background: var(--kort); cursor: pointer;
   transition: transform 0.1s, border-color 0.1s;
 }
 .puls-face:hover { transform: translateY(-2px); }
@@ -706,7 +712,7 @@ button.liten.slett:hover { background: #fdecea; }
   border-radius: 8px;
   font: inherit;
   font-size: 0.9rem;
-  background: #fff;
+  background: var(--kort);
   color: var(--tekst);
   min-width: 0;
 }
@@ -802,6 +808,20 @@ button.liten.slett:hover { background: #fdecea; }
   --rod: var(--natt-rod);
   --gul: var(--natt-gul);
   --gronn: var(--natt-gronn);
+  /* HALVE BYTTET ER VERRE ENN INGEN.
+     Aksentene over ble byttet - `--rod` til `--natt-rod` - fordi
+     `#9b2c2c` gir 2,5:1 paa nattbakgrunnen. Men tintene sto igjen, og
+     de brukes SAMMEN med aksentene: tint som bakgrunn, aksent som
+     tekst. `.sjekk-nei` ble dermed `#ffb3b3` paa `#fbe7e7`, altsaa
+     1,5:1 - og `.sjekk-liste li.kritisk` en lys rad midt i det
+     moerke kortet. Aksenten alene gjorde det verre enn foer byttet:
+     `#9b2c2c` paa `#fbe7e7` var i det minste lesbart. */
+  --gronn-svak: var(--natt-flate-ferdig);
+  --rod-svak: var(--natt-flate-viktig);
+  --gul-svak: var(--natt-flate-varsel);
+  --primaer-svak: var(--natt-flate-lys);
+  --primaer-mork: var(--natt-tekst-klar);
+
   --skygge: none;
   --skygge-lov: none;
 
@@ -1077,7 +1097,7 @@ button.liten.slett:hover { background: #fdecea; }
 
 /* Avtalevokter forhandlings-utkast */
 .forhandling { margin-top: 0.75rem; }
-.utkast { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font-family: inherit; font-size: 0.9rem; line-height: 1.5; resize: vertical; background: #fff; color: var(--tekst); }
+.utkast { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: 1px solid var(--kant); border-radius: 8px; font-family: inherit; font-size: 0.9rem; line-height: 1.5; resize: vertical; background: var(--kort); color: var(--tekst); }
 
 /* Produksjonsplan v2 — steppers */
 .gruppe-sum { float: right; font-size: 0.9rem; font-weight: 700; color: var(--primaer); }
@@ -1257,7 +1277,7 @@ button.liten.slett:hover { background: #fdecea; }
 .stepper.liten button { width: 1.7rem; height: 1.7rem; font-size: 1rem; }
 .stepper { display: inline-flex; align-items: center; gap: 0.3rem; }
 .stepper button {
-  width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--kant); border-radius: 6px; background: #fff;
+  width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--kant); border-radius: 6px; background: var(--kort);
   font-size: 1.1rem; line-height: 1; cursor: pointer; color: var(--tekst);
 }
 .stepper button:hover { background: var(--bg); }
@@ -1268,7 +1288,7 @@ button.liten.slett:hover { background: #fdecea; }
 
 /* Produksjonsplan-velger */
 .plan-velg { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
-.plan-velg select, .plan-velg input { padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.9rem; background: #fff; color: var(--tekst); }
+.plan-velg select, .plan-velg input { padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 6px; font-size: 0.9rem; background: var(--kort); color: var(--tekst); }
 
 /* Nøkkeltall-kort (§12: nøkkeltall øverst) */
 .nokkeltall { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
@@ -1503,7 +1523,7 @@ button.liten.slett:hover { background: #fdecea; }
 .sjekk-sporsmaal { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; }
 .klokke { font-variant-numeric: tabular-nums; color: var(--tekst-svak); font-size: 0.85rem; }
 .sjekk-svar { display: flex; gap: 0.5rem; }
-.janei { min-width: 56px; height: 44px; border-radius: 8px; border: 2px solid var(--kant); background: #fff; font-weight: 700; color: var(--tekst); }
+.janei { min-width: 56px; height: 44px; border-radius: 8px; border: 2px solid var(--kant); background: var(--kort); font-weight: 700; color: var(--tekst); }
 .janei.ja.valgt { background: #def7df; border-color: #0b6a0b; color: #0b6a0b; }
 .janei.nei.valgt { background: #fde7e9; border-color: #b10e1c; color: #b10e1c; }
 
@@ -1542,7 +1562,7 @@ button.liten.slett:hover { background: #fdecea; }
 .chat-skriv { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
 .chat-skriv input {
   flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--kant);
-  border-radius: 8px; font-size: 0.95rem; background: #fff; color: var(--tekst);
+  border-radius: 8px; font-size: 0.95rem; background: var(--kort); color: var(--tekst);
 }
 .chat-skriv input:focus { outline: 2px solid var(--primaer); outline-offset: -1px; }
 
@@ -1584,7 +1604,7 @@ button.liten.slett:hover { background: #fdecea; }
 .ai-tom p { margin: 0 0 0.6rem; line-height: 1.5; }
 
 .ai-skriv { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--kant); }
-.ai-skriv input { flex: 1; min-width: 0; padding: 0.6rem 0.85rem; border: 1px solid var(--kant-sterk); border-radius: 999px; font: inherit; font-size: 0.92rem; background: #fff; color: var(--tekst); }
+.ai-skriv input { flex: 1; min-width: 0; padding: 0.6rem 0.85rem; border: 1px solid var(--kant-sterk); border-radius: 999px; font: inherit; font-size: 0.92rem; background: var(--kort); color: var(--tekst); }
 .ai-skriv input:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
 .ai-skriv button { border-radius: 999px; width: 40px; height: 40px; padding: 0; flex-shrink: 0; font-size: 0.85rem; }
 .ai-und { display: flex; align-items: center; gap: 0.35rem; }
@@ -1671,7 +1691,7 @@ button.liten { padding: 0.3rem 0.6rem; font-size: 0.8rem; min-height: 36px; }
 .stasjon-skjema .felt select,
 .stasjon-skjema .felt input {
   padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: 6px;
-  font-size: 0.9rem; background: #fff; color: var(--tekst);
+  font-size: 0.9rem; background: var(--kort); color: var(--tekst);
 }
 .stasjon-skjema button { height: fit-content; }
 .stasjon-skjema .ok { color: #0b6a0b; font-size: 0.85rem; margin: 0; grid-column: 1 / -1; }
