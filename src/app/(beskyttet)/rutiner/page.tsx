@@ -8,8 +8,10 @@ import { Sidehode } from '@/components/ui/side'
 import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu } from '@/lib/rutineskjema'
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { oversettMange } from '@/lib/oversett'
+import { maaVaereHele } from '@/lib/supabase/datobolker'
 import { Konfetti } from '../konfetti'
 import { Vaktvelger, type Vakt } from './vaktvelger'
+import { BildeRad } from './bilderad'
 import { kryssAv, kryssAvMedBilde, fjernKryss, lagreNotat } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
@@ -24,18 +26,38 @@ export default async function RutinerSide() {
   const supabase = await lagSupabaseServerKlient()
   const naa = osloNaa(new Date())
 
-  const [{ data: stasjoner }, { data: skjemaer }, { data: rutiner }, { data: ikPunkter }, { data: ikIdag }] = await Promise.all([
-    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'),
-    supabase.from('rutineskjemaer').select('id, stasjon_id, vakttype, navn, tid_start, tid_slutt, ukedager').eq('aktiv', true).is('slettet_tid', null).overrideTypes<Skjema[]>(),
-    supabase.from('rutiner').select('id, skjema_id, stasjon_id, tittel, beskrivelse, ukedager, opprettet_dato, paakrevd_bilde, ikmat_frekvens').not('skjema_id', 'is', null).is('slettet_tid', null).order('sortering').overrideTypes<Rutine[]>(),
-    supabase.from('ik_kontrollpunkter').select('id, stasjon_id, frekvens').is('slettet_tid', null).overrideTypes<IkPunkt[]>(),
-    supabase.from('ik_avlesninger').select('kontrollpunkt_id').eq('dato', naa.dato).overrideTypes<{ kontrollpunkt_id: string }[]>(),
+  // =================================================================
+  // INGEN AV DISSE HADDE EN GRENSE, OG DET KOSTET
+  // =================================================================
+  // PostgREST kutter paa tusen rader UTEN aa feile. Boenes meldte 68
+  // rutiner igjen som folk nettopp hadde gjort ferdig: utfoeringene for
+  // dagens vaktdatoer, over alle stasjoner, ligger rundt tusen rader, og
+  // da falt Boenes sine utenfor. Det ser ikke ut som en feil - det ser
+  // ut som at ingen har gjort jobben sin.
+  //
+  // Grensene under er ikke oensker om faerre rader. De er steder aa
+  // OPPDAGE at det ble for mange: `maaVaereHele` kaster naar en
+  // spoerring naar sin egen grense, framfor aa svare halvt.
+  const [stasjonSvar, skjemaSvar, rutineSvar, ikPunktSvar, ikIdagSvar] = await Promise.all([
+    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer').limit(500),
+    supabase.from('rutineskjemaer').select('id, stasjon_id, vakttype, navn, tid_start, tid_slutt, ukedager').eq('aktiv', true).is('slettet_tid', null).limit(2000).overrideTypes<Skjema[]>(),
+    // 336 rutiner hos Kelsar i dag. Grensen er satt der den ikke kan naas
+    // av en kjede paa fem stasjoner, men vil naas av en paa femti - og
+    // da skal den si fra, ikke lyve.
+    supabase.from('rutiner').select('id, skjema_id, stasjon_id, tittel, beskrivelse, ukedager, opprettet_dato, paakrevd_bilde, ikmat_frekvens').not('skjema_id', 'is', null).is('slettet_tid', null).order('sortering').limit(10000).overrideTypes<Rutine[]>(),
+    supabase.from('ik_kontrollpunkter').select('id, stasjon_id, frekvens').is('slettet_tid', null).limit(2000).overrideTypes<IkPunkt[]>(),
+    supabase.from('ik_avlesninger').select('kontrollpunkt_id').eq('dato', naa.dato).limit(5000).overrideTypes<{ kontrollpunkt_id: string }[]>(),
   ])
+  const stasjoner = maaVaereHele(stasjonSvar, 'stasjonene', 500)
+  const skjemaer = maaVaereHele(skjemaSvar, 'rutineskjemaene', 2000)
+  const rutiner = maaVaereHele(rutineSvar, 'rutinene', 10000)
+  const ikPunkter = maaVaereHele(ikPunktSvar, 'IK-kontrollpunktene', 2000)
+  const ikIdag = maaVaereHele(ikIdagSvar, 'dagens IK-avlesninger', 5000)
 
   // IK-mat: enheter pr stasjon + hva som er målt i dag (for auto-haking).
   const ikPerStasjon = new Map<string, IkPunkt[]>()
-  for (const p of ikPunkter ?? []) { const l = ikPerStasjon.get(p.stasjon_id) ?? []; l.push(p); ikPerStasjon.set(p.stasjon_id, l) }
-  const maaltIdag = new Set((ikIdag ?? []).map((a) => a.kontrollpunkt_id))
+  for (const p of ikPunkter) { const l = ikPerStasjon.get(p.stasjon_id) ?? []; l.push(p); ikPerStasjon.set(p.stasjon_id, l) }
+  const maaltIdag = new Set(ikIdag.map((a) => a.kontrollpunkt_id))
   // Due-enheter for en IK-mat-rutine, og hvor mange som er målt.
   const ikmatStatus = (r: Rutine) => {
     const due = (ikPerStasjon.get(r.stasjon_id) ?? []).filter((p) => p.frekvens === r.ikmat_frekvens)
@@ -45,14 +67,14 @@ export default async function RutinerSide() {
 
   // Aktive skjemaer nå (med vaktvindu)
   const aktive: { skjema: Skjema; vindu: Vaktvindu }[] = []
-  for (const s of (skjemaer ?? []) as unknown as Skjema[]) {
+  for (const s of skjemaer as unknown as Skjema[]) {
     const vindu = skjemaAktiv(s, naa)
     if (vindu.aktiv) aktive.push({ skjema: s, vindu })
   }
 
   // Rutiner pr skjema, filtrert på vakten
   const rutinerForSkjema = new Map<string, Rutine[]>()
-  for (const r of (rutiner ?? []) as unknown as Rutine[]) {
+  for (const r of rutiner as unknown as Rutine[]) {
     if (!r.skjema_id) continue
     const l = rutinerForSkjema.get(r.skjema_id) ?? []
     l.push(r)
@@ -61,10 +83,21 @@ export default async function RutinerSide() {
 
   // Hent utføringer for de aktuelle vaktdatoene
   const datoer = [...new Set(aktive.map((a) => a.vindu.vaktdato))]
+  // Stasjonene som faktisk har vakt naa. Uten dette filteret hentes
+  // utfoeringer for hver stasjon i kjeden, ogsaa dem ingen ser paa.
+  const aktiveStasjoner = [...new Set(aktive.map((a) => a.skjema.stasjon_id))]
   const utfortMap = new Map<string, string | null>() // key -> bilde_sti
   if (datoer.length > 0) {
-    const { data } = await supabase.from('rutine_utforinger').select('rutine_id, dato, bilde_sti').in('dato', datoer)
-    for (const u of (data ?? []) as { rutine_id: string; dato: string; bilde_sti: string | null }[]) {
+    // DEN SOM MELDTE 68 IGJEN. Uten grense kuttet PostgREST paa tusen,
+    // og Boenes sine avhukinger falt utenfor. Begrenset til stasjonene
+    // som faktisk har vakt naa, og med et tak som ikke kan naas av dem.
+    const svar = await supabase
+      .from('rutine_utforinger')
+      .select('rutine_id, dato, bilde_sti')
+      .in('dato', datoer)
+      .in('stasjon_id', aktiveStasjoner)
+      .limit(20000)
+    for (const u of maaVaereHele(svar, 'utførte rutiner', 20000) as { rutine_id: string; dato: string; bilde_sti: string | null }[]) {
       utfortMap.set(`${u.rutine_id}|${u.dato}`, u.bilde_sti)
     }
   }
@@ -74,8 +107,13 @@ export default async function RutinerSide() {
   // `rutine_utforinger` - et notat betyr ikke at rutinen er gjort.
   const notatFor = new Map<string, string>()
   if (datoer.length > 0) {
-    const { data } = await supabase.from('rutine_notat').select('rutine_id, dato, tekst').in('dato', datoer)
-    for (const n of (data ?? []) as { rutine_id: string; dato: string; tekst: string }[]) {
+    const svar = await supabase
+      .from('rutine_notat')
+      .select('rutine_id, dato, tekst')
+      .in('dato', datoer)
+      .in('stasjon_id', aktiveStasjoner)
+      .limit(20000)
+    for (const n of maaVaereHele(svar, 'rutinenotatene', 20000) as { rutine_id: string; dato: string; tekst: string }[]) {
       notatFor.set(`${n.rutine_id}|${n.dato}`, n.tekst)
     }
   }
@@ -88,7 +126,7 @@ export default async function RutinerSide() {
     for (const s of data ?? []) if (s.signedUrl && s.path) signertFor.set(s.path, s.signedUrl)
   }
 
-  const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
+  const navnFor = new Map(stasjoner.map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   // Grupper aktive skjemaer pr stasjon
   const perStasjon = new Map<string, { skjema: Skjema; vindu: Vaktvindu }[]>()
   for (const a of aktive) {
@@ -320,23 +358,20 @@ export default async function RutinerSide() {
                 return (
                   <li key={r.id} className={`tr-rad ${gjort ? 'gjort' : ''}`}>
                     {r.paakrevd_bilde && !gjort ? (
-                      <form action={kryssAvMedBilde} className="tr-form">
-                        {felt}
-                        {/* HELE RADEN AAPNER KAMERAET. Filfeltet ligger
-                            inne i etiketten og er skjult - den bare
-                            browservidgeten sto der foer, midt i lista. */}
-                        <label className="tr-trykk">
-                          {kropp}
-                          <input
-                            type="file" name="bilde" accept="image/*" capture="environment"
-                            required className="tr-fil"
-                            aria-label={o('Ta bilde') ?? 'Ta bilde'}
-                          />
-                        </label>
-                        <button type="submit" className="sq-knapp primar tr-lagre">
-                          {o('Lagre bilde')}
-                        </button>
-                      </form>
+                      /* HELE RADEN AAPNER KAMERAET, og skjemaet sender
+                         seg selv naar bildet er valgt. `required` sto her
+                         paa et USYNLIG felt: nettleseren nekter aa sende
+                         et ugyldig felt den ikke kan vise, og skriver
+                         det i en konsoll ingen har aapen. Da skjer
+                         ingenting, og eneste utvei er aa laste paa nytt.
+                         Kravet ligger paa serveren, som kan svare. */
+                      <BildeRad
+                        handling={kryssAvMedBilde}
+                        felt={felt}
+                        kropp={kropp}
+                        etikett={o('Ta bilde') ?? 'Ta bilde'}
+                        lagreOrd={o('Lagre bilde') ?? 'Lagre bilde'}
+                      />
                     ) : (
                       <form action={gjort ? fjernKryss : kryssAv} className="tr-form">
                         {felt}

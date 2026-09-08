@@ -33,7 +33,17 @@ export async function kryssAvMedBilde(formData: FormData) {
   const dato = String(formData.get('dato') ?? '')
   const fil = formData.get('bilde')
   if (!rutineId || !stasjonId || !/^\d{4}-\d{2}-\d{2}$/.test(dato)) return
-  if (!(fil instanceof File) || fil.size === 0 || !fil.type.startsWith('image/')) return
+  // INGEN FIL ER IKKE EN FEIL, DET ER EN AVBRUTT HANDLING.
+  //
+  // Skjemaet sender seg selv naar et bilde er valgt; trykker noen
+  // «Lagre» uten aa ha valgt, er det ingenting aa lagre. Aa kaste her
+  // ville gitt en feilside for at man ombestemte seg.
+  if (!(fil instanceof File) || fil.size === 0) return
+  // MEN EN FIL SOM IKKE ER ET BILDE ER EN FEIL. Den ville blitt liggende
+  // som «bevis» ingen kan aapne.
+  if (!fil.type.startsWith('image/')) {
+    throw new Error(`Fila er ikke et bilde (${fil.type || 'ukjent type'}).`)
+  }
 
   const buffer = Buffer.from(await fil.arrayBuffer())
   const ext = fil.type === 'image/png' ? 'png' : 'jpg'
@@ -41,8 +51,17 @@ export async function kryssAvMedBilde(formData: FormData) {
   const supabase = await lagSupabaseServerKlient()
   const ansatt = await lesAktivAnsatt(supabase)
 
+  // ET OPPLASTET BILDE SOM IKKE KOM FRAM SKAL SI FRA.
+  //
+  // Her sto `if (opp.error) return`. Da fikk den som nettopp tok bildet
+  // NOEYAKTIG samme bilde som om det gikk bra: ingenting. Neste trekk er
+  // aa ta det en gang til, og saa en gang til.
+  //
+  // `maaLykkes` finnes for skriv mot basen; storage har sitt eget svar,
+  // men samme regel gjelder - en handling som svelger feilen sin er
+  // verre enn en som kaster.
   const opp = await supabase.storage.from(BILDE_BUCKET).upload(sti, buffer, { contentType: fil.type })
-  if (opp.error) return
+  if (opp.error) throw new Error(`Klarte ikke lagre bildet: ${opp.error.message}`)
 
   maaLykkes(await supabase.from('rutine_utforinger').upsert(
     { rutine_id: rutineId, stasjon_id: stasjonId, dato, utfort_av: bruker.id, ansatt_id: ansatt?.id ?? null, bilde_sti: sti },
