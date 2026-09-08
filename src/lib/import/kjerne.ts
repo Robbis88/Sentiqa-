@@ -25,7 +25,8 @@ import {
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
-import { lesLonnsart, gjenkjennLonnsart, erLonnsgrunnlag } from '@/lib/parsere/lonnsart'
+import { lesLonnsart, gjenkjennLonnsart } from '@/lib/parsere/lonnsart'
+import { lesLonnsgrunnlag, gjenkjennLonnsgrunnlag } from '@/lib/parsere/lonnsgrunnlag'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
@@ -236,16 +237,23 @@ export async function behandleJobbKjerne(
       // `lonnsart.test.ts` påstår det begge veier.
       rapporttype = gjenkjennStempling(tekst)
       if (rapporttype === 'ukjent') rapporttype = gjenkjennLonnsart(tekst)
+      // LOENNSGRUNNLAGET SIST, og det er ikke en detalj. Den her er den
+      // loeseste sjekken av de tre - to kolonnenavn - og den ville
+      // slukt Basis Export om den kom foerst. Rekkefoelgen er hele
+      // vernet, og `lonnsgrunnlag.test.ts` paastaar den begge veier.
+      //
+      // Den sto tidligere som en HJELPSOM AVVISNING: «velg
+      // loennsarteksporten i stedet». Den beskjeden var riktig helt til
+      // det viste seg at loennsarteksporten bare finnes for tre av fem
+      // stasjoner - og da ba den to stasjoner om en fil som ikke
+      // finnes.
+      if (rapporttype === 'ukjent') rapporttype = gjenkjennLonnsgrunnlag(tekst)
       if (rapporttype === 'ukjent') {
-        // NAVNGI RIKTIG FIL NÅR VI KJENNER IGJEN DEN GALE. easy@work har
-        // fire eksporter som alle ser ut som «lønn» i nedtrekkslisten, og
-        // en avvisning uten en vei videre er en blindvei.
-        await settFeil(erLonnsgrunnlag(tekst)
-          ? 'Dette er lønnsgrunnlagsrapporten. Den har timer og antall, ikke kroner, '
-            + 'og kan ikke gi lønnskost. Velg lønnsarteksporten i stedet — den har én '
-            + 'rad per lønnsart per dag, med beløp.'
-          : 'Tekst-/CSV-fila kjennes ikke igjen. Fra easy@work leses Basis Export '
-            + '(stemplinger) og lønnsarteksporten; andre CSV-er ikke ennå.')
+        await settFeil(
+          'Tekst-/CSV-fila kjennes ikke igjen. Fra easy@work leses Basis Export '
+          + '(stemplinger), lønnsarteksporten og lønnsgrunnlaget; andre CSV-er '
+          + 'ikke ennå.',
+        )
         return
       }
     } else {
@@ -334,7 +342,13 @@ export async function behandleJobbKjerne(
       case 'easyatwork_lonnsart': {
         const r = lesLonnsart(tekst as string)
         dato = r.fraDato
-        res = await lagreLonnsart(supabase, jobbId, oppslag.stasjoner, r)
+        res = await lagreLonnsart(supabase, jobbId, oppslag.stasjoner, r, false)
+        break
+      }
+      case 'easyatwork_lonnsgrunnlag': {
+        const r = lesLonnsgrunnlag(tekst as string)
+        dato = r.fraDato
+        res = await lagreLonnsart(supabase, jobbId, oppslag.stasjoner, r, true)
         break
       }
       case 'st1_bp': {
@@ -370,7 +384,13 @@ export async function behandleJobbKjerne(
     await supabase
       .from('import_jobber')
       .update({
-        status: res.antallRader === 0 ? 'feilet' : 'parset',
+        // NULL RADER ER IKKE ALLTID EN FEIL. Lastes loennsgrunnlaget for
+        // en stasjon som alt har kronefila, skrives ingenting - med
+        // vilje, fordi det som ligger der er bedre. «Feilet» ville sendt
+        // Robert paa leting etter en feil som ikke finnes. Et notat er
+        // det eneste stedet importen kan forklare seg, saa naar det
+        // finnes ett, har den forklart seg.
+        status: res.antallRader === 0 && !res.notat ? 'feilet' : 'parset',
         gjelder_dato: dato,
         antall_rader: res.antallRader,
         parset_tid: new Date().toISOString(),
@@ -475,6 +495,9 @@ async function lagreLonnsart(
   jobbId: string,
   stasjonsnavn: { id: string; navn: string }[],
   r: { linjer: import('@/lib/parsere/lonnsart').Lonnsartlinje[] },
+  // Er beloepene REGNET av satstabellen (loennsgrunnlaget) i stedet for
+  // LEST (loennsarteksporten)? Se `0188`.
+  beregnet: boolean,
 ): Promise<Lagring> {
   const finnStasjon = lagStasjonsmatcher(stasjonsnavn)
 
@@ -498,8 +521,53 @@ async function lagreLonnsart(
     perStasjon.set(id, liste)
   }
 
+  // =================================================================
+  // KRONEFILA VINNER ALLTID
+  // =================================================================
+  // De to filene deler noekkel for ni av elleve loennsarter, saa der er
+  // en ny opplasting en retting. Overtiden kan de ikke dele: kronefila
+  // skiller seks varianter av 96/97, loennsgrunnlaget har to kolonner
+  // som baerer summen av sine. Uten regelen her ville de ligget dobbelt.
+  //
+  // Regelen gaar begge veier, og maa gjoere det. Bare den ene retningen
+  // ville latt rekkefoelgen paa opplastingene avgjoere tallet - og det
+  // er ingen som ser.
+  const hopper: string[] = []
   let lagret = 0
   for (const [stasjonId, liste] of perStasjon) {
+    const datoer = liste.map((l) => l.dato).sort()
+    const fra = datoer[0]
+    const til = datoer[datoer.length - 1]
+
+    if (beregnet) {
+      // Finnes det LESTE rader i spennet, er de bedre enn disse.
+      const { data, error } = await supabase
+        .from('lonnsart_linje')
+        .select('id')
+        .eq('stasjon_id', stasjonId)
+        .eq('belop_beregnet', false)
+        .gte('dato', fra)
+        .lte('dato', til)
+        .limit(1)
+      if (error) throw new Error(`Kunne ikke sjekke leste lønnsartlinjer: ${error.message}`)
+      if ((data ?? []).length > 0) {
+        const navn = stasjonsnavn.find((x) => x.id === stasjonId)?.navn ?? stasjonId
+        hopper.push(navn)
+        continue
+      }
+    } else {
+      // Kronefila kom. Rydd bort det som ble regnet for samme periode -
+      // ellers blir overtiden liggende i to former.
+      const { error } = await supabase
+        .from('lonnsart_linje')
+        .delete()
+        .eq('stasjon_id', stasjonId)
+        .eq('belop_beregnet', true)
+        .gte('dato', fra)
+        .lte('dato', til)
+      if (error) throw new Error(`Kunne ikke rydde beregnede lønnsartlinjer: ${error.message}`)
+    }
+
     await skrivBatch(
       supabase,
       'lonnsart_linje',
@@ -512,6 +580,7 @@ async function lagreLonnsart(
         lonnsart_tekst: l.lonnsartTekst,
         timer: l.timer,
         belop_kr: l.belopKr,
+        belop_beregnet: beregnet,
         kilde_jobb_id: jobbId,
       })),
       'stasjon_id,ansatt_nr,dato,lonnsart_tekst',
@@ -524,6 +593,13 @@ async function lagreLonnsart(
     umatchet: umatchet.size > 0
       ? [`${[...umatchet].join(', ')} (stasjoner i Sentiqa: ${kjenteNavn || 'ingen'})`]
       : [],
+    // EN STASJON SOM BLE HOPPET OVER SKAL SI FRA. Uten dette hadde
+    // «parset, 0 rader» sett likt ut enten fila var tom eller vi bevisst
+    // beholdt bedre tall.
+    notat: hopper.length > 0
+      ? `${hopper.join(', ')} har allerede lønnsarteksporten med kroner for denne `
+        + 'perioden. Den er lest og ikke regnet, så den beholdes.'
+      : null,
   }
 }
 

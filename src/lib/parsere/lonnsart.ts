@@ -116,34 +116,24 @@ export function erLonnsartFil(tekst: string): boolean {
     && Number.isFinite(tall(forste[KOL.timer] ?? ''))
 }
 
-/**
- * Er dette LOENNSGRUNNLAGSRAPPORTEN, altså feil eksport?
- *
- * ===================================================================
- * EN AVVISNING SOM IKKE SIER HVA MAN SKAL GJØRE, ER EN BLINDVEI.
- *
- * easy@work har minst fire eksporter, og tre av dem ser ut som «lønn»
- * for den som velger:
- *
- *   Basis Export        stemplinger inn/ut          → `stempling.ts`
- *   lønnsarter          én rad per art, med KRONER  → denne fila
- *   lønnsgrunnlag       én rad per ansatt, ANTALL   → feil, men nær
- *   overføringsfil      semikolon, bare timer       → feil
- *
- * Lønnsgrunnlaget har timesats og tillegg som antall timer, ikke
- * kroner. Å regne kroner av den ville krevd hele satstabellen fra
- * Energiavtalen — mulig, men lønnsarteksporten har tallene ferdig, og
- * to veier til samme sum er to steder de kan skille lag.
- *
- * Den kjennes på `Betalingsfrekvens`, som ingen av de andre har.
- * Basis Export deler `Stemplingsnummer`, men har `Forretningsdato` der
- * denne har `Dato` — og den fanges uansett først.
- * ===================================================================
- */
-export function erLonnsgrunnlag(tekst: string): boolean {
-  const forste = tekst.slice(0, 4000)
-  return /Betalingsfrekvens/i.test(forste) && /Stemplingsnummer/i.test(forste)
-}
+// ---------------------------------------------------------------------
+// FIRE EKSPORTER FRA SAMME SYSTEM
+//
+//     Basis Export        stemplinger inn/ut          → `stempling.ts`
+//     lønnsarter          én rad per art, med KRONER  → denne fila
+//     lønnsgrunnlag       én rad per ansatt, ANTALL   → `lonnsgrunnlag.ts`
+//     overføringsfil      semikolon, bare timer       → leses ikke
+//
+// Her sto det tidligere en `erLonnsgrunnlag` som ga en hjelpsom
+// avvisning: «velg lønnsarteksporten i stedet — den har beløp». Den var
+// riktig helt til det viste seg at lønnsarteksporten bare finnes for
+// tre av fem stasjoner. Da ba den to stasjoner om en fil som ikke
+// finnes, og de sto uten lønnskost i det hele tatt.
+//
+// Lønnsgrunnlaget leses nå, med satser målt mot NETTOPP denne fila.
+// Gjenkjenningen ligger i `lonnsgrunnlag.ts` og prøves etter denne,
+// fordi kravene der er løsere.
+// ---------------------------------------------------------------------
 
 export function gjenkjennLonnsart(tekst: string): Rapporttype {
   return erLonnsartFil(tekst) ? 'easyatwork_lonnsart' : 'ukjent'

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { erLonnsartFil, erLonnsgrunnlag, gjenkjennLonnsart, lesLonnsart } from './lonnsart'
+import { erLonnsartFil, gjenkjennLonnsart, lesLonnsart } from './lonnsart'
+import { erLonnsgrunnlagFil } from './lonnsgrunnlag'
 import { erStemplingFil } from './stempling'
 
 // Formen er hentet fra en ekte eksport (Dale, august 2026, 400 linjer),
@@ -108,7 +109,7 @@ describe('gjenkjenning', () => {
 // nedtrekkslisten. Loennsgrunnlaget er den som ligner mest paa riktig
 // fil - og den har timer og antall, ikke kroner.
 // =====================================================================
-describe('erLonnsgrunnlag', () => {
+describe('erLonnsgrunnlagFil', () => {
   const grunnlag = [
     '" 1 august 2026  - 31 august 2026 ",,,"Generert av Ola Nordmann"',
     '',
@@ -117,7 +118,7 @@ describe('erLonnsgrunnlag', () => {
   ].join('\n')
 
   it('kjenner igjen lønnsgrunnlaget', () => {
-    expect(erLonnsgrunnlag(grunnlag)).toBe(true)
+    expect(erLonnsgrunnlagFil(grunnlag)).toBe(true)
     // Og den skal fortsatt IKKE leses som en loennsartfil.
     expect(erLonnsartFil(grunnlag)).toBe(false)
   })
@@ -130,10 +131,10 @@ describe('erLonnsgrunnlag', () => {
       'Forretningsdato,Stemplingsnummer,Ansatt,Type,Fra,Til,Lengde,Lokasjon',
       '"13 aug 2026",1104238,"A B","Betalt tid","07:30","15:00",7.50,"St1 - Dale"',
     ].join('\n')
-    expect(erLonnsgrunnlag(basis)).toBe(false)
+    expect(erLonnsgrunnlagFil(basis)).toBe(false)
   })
 
   it('forveksler ikke med lønnsartfila', () => {
-    expect(erLonnsgrunnlag(FIL)).toBe(false)
+    expect(erLonnsgrunnlagFil(FIL)).toBe(false)
   })
 })

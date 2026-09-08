@@ -189,7 +189,17 @@ export const KILDER: Kildekrav[] = [
   {
     noekkel: 'lonnsart',
     navn: 'Lønnsarter med kroner',
-    hentesFra: 'easy@work, lønnsarteksporten som CSV — ikke Basis Export',
+    // TO FILER DEKKER DETTE STEGET, og forskjellen er verdt å nevne her
+    // og ikke bare i koden. Lønnsarteksporten har kronene ferdig, men
+    // finnes ikke på alle stasjoner — hos Kelsar tre av fem. Lønns-
+    // grunnlaget finnes overalt og har antall; Sentiqa priser det med
+    // satser målt mot kronefila. Har en stasjon begge, vinner kronefila.
+    //
+    // En ny kjede skal derfor ikke stoppe opp om nedtrekkslisten deres
+    // mangler lønnsarteksporten — det var nettopp det den forrige
+    // teksten her fikk dem til å gjøre.
+    hentesFra: 'easy@work: lønnsarteksporten som CSV, eller lønnsgrunnlaget '
+      + 'om den ikke finnes for stasjonen — ikke Basis Export',
     laserOpp: 'Lønnskosten dagen etter måneden, i stedet for midt i den neste: '
       + 'timelønn, tillegg, overtid og sykelønn per konto, med feriepenger, '
       + 'pensjon og arbeidsgiveravgift lagt på.',
@@ -255,6 +265,10 @@ export const TYPE_TIL_KILDE: Record<string, string> = {
   regnskap_resultat: 'regnskapslinjer',
   easyatwork_stempling: 'stempling',
   easyatwork_lonnsart: 'lonnsart',
+  // Samme steg, den andre fila. Kilden er den samme fordi BEHOVET er det
+  // samme - lønnskost før regnskapet - og en ny retailer skal ikke måtte
+  // ta stilling til hvilken av easy@works eksporter de har.
+  easyatwork_lonnsgrunnlag: 'lonnsart',
   st1_bp: 'bemanning_maned',
   // Delingsfila fyller `bp_aar.timer_aar` for kjeder på den gamle malen.
   // Den er ikke et eget krav — kravet er at timene FINNES, og på nytt
