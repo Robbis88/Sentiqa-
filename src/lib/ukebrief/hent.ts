@@ -2,6 +2,7 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { finnUtsolgt, type Kandidatrad } from '@/lib/utsolgt'
 import { fordelBp, motpartsvindu, type Dagsrad } from '@/lib/salg/bp-per-dag'
+import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
 import { delVakt, LONNSART } from '@/lib/lonn/tidsband'
 import { skjemabilde, kravFraPoster, type Skjemabilde, type Skjemapost } from './skjema'
 import { rutinerForDato, type Rutinerad } from '@/lib/rutineskjema'
@@ -73,16 +74,50 @@ async function bpForUken(supabase: Klient, stasjonId: string, mandag: string): P
   let sum = 0
 
   for (const maaned of maanedeneI(mandag)) {
+    // =================================================================
+    // TO BUDSJETTER LAGT SAMMEN, PLUSS ROLLUPEN, PLUSS DRIVSTOFF
+    // =================================================================
+    // Her sto `.in('seksjon', ['omsetning','bp_omsetning'])` og en
+    // `reduce` over alt som kom tilbake. Tre feil i ett tall:
+    //
+    //   AVLAGT OG AAPEN BLE SUMMERT. `0125` la dem i hver sin kolonne
+    //   nettopp fordi de ikke skal blandes, og `salg/page.tsx` sier det
+    //   rett ut: «Blandes de i samme sum, dobbelttelles en avlagt
+    //   maaned.» Avlagt vinner naar den finnes; aapen er reserven.
+    //
+    //   `40 CR` ER ST1-TOTALEN, og laa der ved siden av sine egne
+    //   avdelinger. Samme dobling som ga Dale juli 1 886 352 der det
+    //   riktige var 943 176.
+    //
+    //   DRIVSTOFF OG PANT VAR MED. Briefen maaler mot `v_butikksalg`,
+    //   som ikke har dem - saa telleren var butikk og nevneren butikk
+    //   pluss pumpe.
+    //
+    // Foelgen: kravet var grovt for hoeyt, og hver butikksjef fikk
+    // «under budsjett» hver eneste uke. Et krav ingen kan naa slutter
+    // aa vaere et krav.
     const { data: linjer } = await supabase
       .from('regnskapslinjer')
-      .select('budsjett')
+      .select('kode, seksjon, budsjett')
       .eq('periode', maaned)
       .eq('stasjon_id', stasjonId)
       .is('slettet_tid', null)
       .in('seksjon', ['omsetning', 'bp_omsetning'])
-      .overrideTypes<{ budsjett: number | null }[]>()
+      .limit(1000)
+      .overrideTypes<{ kode: string | null; seksjon: string; budsjett: number | null }[]>()
 
-    const bpMnd = (linjer ?? []).reduce((a, r) => a + (r.budsjett ?? 0), 0)
+    const avlagt = new Map<string, number>()
+    const aapen = new Map<string, number>()
+    for (const r of linjer ?? []) {
+      const kode = r.kode ?? ''
+      if (!kode || SKJUL_OMS_KODER.has(kode)) continue
+      const m = r.seksjon === 'omsetning' ? avlagt : aapen
+      m.set(kode, (m.get(kode) ?? 0) + (r.budsjett ?? 0))
+    }
+    let bpMnd = 0
+    for (const kode of new Set([...avlagt.keys(), ...aapen.keys()])) {
+      bpMnd += avlagt.get(kode) ?? aapen.get(kode) ?? 0
+    }
     if (bpMnd <= 0) return null
 
     const vindu = motpartsvindu(maaned)
