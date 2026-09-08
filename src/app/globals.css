@@ -1479,12 +1479,20 @@ button.liten.slett:hover { background: #fdecea; }
 .rutine-liste { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .rutine-liste li { display: flex; align-items: center; gap: 0.75rem; }
 .rutine-liste li.gjort .rutine-tekst { color: var(--tekst-svak); text-decoration: line-through; }
-.kryss {
-  width: 44px; height: 44px; min-width: 44px; border-radius: 8px; padding: 0;
-  background: #fff; border: 2px solid var(--kant); color: #0b6a0b;
-  font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+/* HVITT PAA MORKT ER MED VILJE. Ruta er den ene flaten som skal vaere
+   like tydelig paa lederens lyse side og paa nettbrettets morke - derfor
+   er den ikke tokenisert per tema. `.tr-hak` deler regelen i stedet for
+   aa kopiere de tre fargene; to steder med samme hex er to steder som
+   kan skille lag. */
+.kryss, .tr-hak {
+  padding: 0; background: #fff; border: 2px solid var(--kant); color: #0b6a0b;
+  font-weight: 700; display: flex; align-items: center; justify-content: center;
 }
-.kryss.av { background: #def7df; border-color: #0b6a0b; }
+.kryss.av, .tr-hak.av { background: #def7df; border-color: #0b6a0b; }
+/* MAALENE HVER FOR SEG, FARGEN DELT. Delt selektor paa alt gjorde
+   breddeunntaket for `.kryss` doedt: vakten leser REGLER, og en regel
+   som heter «.kryss, .tr-hak» er ikke den samme som «.kryss». */
+.kryss { width: 44px; height: 44px; min-width: 44px; border-radius: 8px; font-size: 1.3rem; }
 .rutine-tekst { font-size: 1rem; }
 .bilde-merke { margin-left: 0.4rem; }
 .felt.avkryss { flex-direction: row; align-items: center; gap: 0.5rem; }
@@ -2710,3 +2718,70 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .vaktvelger-navn { font-size: 1.05rem; }
 .vaktvelger-under { font-size: 0.8rem; font-weight: 400; color: var(--natt-tekst-dempet); }
 .vaktvelger-fane[aria-pressed="true"] .vaktvelger-under { color: var(--natt-tekst-svak); }
+
+/* --- Rutineraden paa nettbrettet ------------------------------------
+   «rutiner der er veldig lite oversiktelig». Tre ting sto i veien, og
+   alle tre var plassering: beskrivelsen laa bak et «?» paa 26 piksler,
+   bare avkryssingsruta var trykkflate, og bilderutinene byttet form
+   helt. Her staar teksten paa raden og hele raden er knappen.
+   Lederens `.rutine-liste` er urort - hun skanner en tett liste. */
+.tr-liste { list-style: none; margin: var(--luft-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--luft-2); }
+.tr-rad {
+  display: flex; align-items: stretch; gap: var(--luft-2);
+  background: var(--natt-flate); border: 1px solid var(--natt-kant);
+  border-radius: var(--radius);
+}
+.tr-rad.gjort {
+  background: var(--natt-flate-ferdig);
+  /* Tonet token, ikke en ny hex. En kant som er «litt gronn» skal
+     folge gronnfargen hvis den endres. */
+  border-color: color-mix(in srgb, var(--natt-gronn) 22%, transparent);
+}
+.tr-form { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* HELE RADEN ER KNAPPEN. `.kryss` alene var 56 av flere hundre piksler,
+   og med hansker bommer man - da hakes ingenting av, eller feil rad. */
+.tr-trykk {
+  flex: 1; display: flex; align-items: flex-start; gap: var(--luft-4);
+  width: 100%; padding: var(--luft-4); border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  border-radius: var(--radius); text-decoration: none;
+}
+.tr-trykk:active { background: var(--natt-flate-lys); }
+/* Bare maalene her - fargene kommer fra den delte regelen lenger oppe.
+   56 px er nettbrettets minstemaal for en finger. */
+.tr-hak {
+  width: 56px; height: 56px; min-width: 56px; border-radius: 12px;
+  border-color: var(--natt-kant-sterk); font-size: 1.6rem;
+}
+.tr-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.tr-tittel { font-size: 1.15rem; font-weight: 650; color: var(--natt-tekst-klar); line-height: var(--linje-tett); }
+.tr-rad.gjort .tr-tittel { color: var(--natt-tekst-svak); }
+/* To linjer. Er fremgangsmaaten lengre, klippes den - hele teksten staar
+   fortsatt i basen, og en rad som vokser til ti linjer gjor lista like
+   uleselig som da alt var skjult. */
+.tr-hjelp {
+  font-size: 0.95rem; color: var(--natt-tekst-svak); line-height: var(--linje-luftig);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tr-merker { display: flex; flex-wrap: wrap; gap: var(--luft-2); }
+.tr-merke {
+  font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--natt-kant-sterk); color: var(--natt-tekst-svak);
+}
+.tr-merke.bilde {
+  color: var(--natt-blaa);
+  border-color: color-mix(in srgb, var(--natt-blaa) 35%, transparent);
+}
+.tr-merke.maaling {
+  color: var(--natt-gul);
+  border-color: color-mix(in srgb, var(--natt-gul) 35%, transparent);
+}
+.tr-pil { color: var(--natt-tekst-dempet); font-size: 1.5rem; align-self: center; }
+/* Filfeltet ligger inne i etiketten. Sto foer som en bar browservidget
+   midt i lista, og saa ut som noe annet enn en rutine. */
+.tr-fil { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.tr-lagre { margin: 0 var(--luft-4) var(--luft-4); align-self: flex-start; }
+/* Kommentaren blir igjen bak et ikon - aa lese og aa skrive er to
+   aerender. Det som flyttet ut paa raden er lesingen. */
+.tr-mer { margin: var(--luft-4) var(--luft-4) var(--luft-4) 0; align-self: flex-start; }
+.tr-mer > summary { width: 3rem; height: 3rem; font-size: 1.2rem; }
