@@ -10,6 +10,7 @@ import { lagPeriode, idagOslo, manederIPeriode, type Periode, type Periodeinput 
 import { les, lesAlle, erLesefeil, type Leseresultat } from './les'
 import { returerPerKasserer, type Dagsrad } from '@/lib/kasserer/returer'
 import { finnUtsolgt, type Kandidatrad, type UtsolgtHendelse } from '@/lib/utsolgt'
+import { maalKonkurranse } from '@/lib/konkurranse'
 import { lagVareprognose, utsolgtDatoer } from './vareprognose'
 import { hentSvinnbudsjett } from '@/lib/svinn/hent-budsjett'
 import { leggTilDager, type SalgsPunkt } from '@/lib/produksjonsplan'
@@ -2020,30 +2021,34 @@ export const VERKTOY: Record<string, Verktoy> = {
       const konk = k.rader[0]
       if (!konk) return { feil: 'Fant ikke konkurransen.' }
 
-      let q = supabase
-        .from('v_butikksalg')
-        .select('stasjon_id, omsetning_eks_mva, antall')
-        .gte('dato', konk.periode_start)
-        .lte('dato', konk.periode_slutt)
-        .is('slettet_tid', null)
-      if (konk.varegruppe_kode) q = q.eq('varegruppe_kode', konk.varegruppe_kode)
-      if (konk.stasjon_ids?.length > 0) q = q.in('stasjon_id', konk.stasjon_ids)
-
-      const salg = await les<{ stasjon_id: string; omsetning_eks_mva: number | null; antall: number | null }>(
-        q.limit(50000),
-        'v_butikksalg',
-      )
-      if (erLesefeil(salg)) return { feil: salg.feil }
-
-      const kart = etikettKart(scope.stasjoner)
-      const per = new Map<string, number>()
-      for (const r of salg.rader) {
-        const v = konk.maaltype === 'antall' ? (r.antall ?? 0) : (r.omsetning_eks_mva ?? 0)
-        per.set(r.stasjon_id, (per.get(r.stasjon_id) ?? 0) + Number(v))
+      // =================================================================
+      // ÉN MÅLING, IKKE TO
+      // =================================================================
+      // Her sto hele regnestykket en gang til, med `.limit(50000)` der
+      // UI-et hadde ingen grense i det hele tatt. To veier til samme sum
+      // er to steder de kan skille lag — og de HADDE skilt lag: begge
+      // ble avkortet, men på hvert sitt sted, så assistenten og skjermen
+      // kunne kåre hver sin vinner på samme konkurranse.
+      //
+      // `maalKonkurranse` er nå den ene målingen, og den henter perioden
+      // i datobolker så svaret ikke kan være stille avkortet.
+      // Stasjonsutvalget er RLS sitt: kaller er den samme klienten.
+      const maalt = await maalKonkurranse(supabase, id)
+      if (!maalt) {
+        return {
+          status: 'ingen_registrering',
+          feil: 'Ingen salgsdata i konkurranseperioden. Det betyr at ingenting er '
+            + 'registrert — ikke at alle står på null. Sjekk hent_datadekning.',
+        }
       }
-      const stilling = [...per.entries()]
-        .map(([sid, verdi]) => ({ stasjon_id: sid, stasjon: kart.get(sid) ?? sid, verdi: rund(verdi) }))
-        .sort((a, b) => b.verdi - a.verdi)
+      // Etikettene er assistentens egne — den snakker om stasjoner med
+      // navnene den fikk i scopet, ikke med butikknummer.
+      const kart = etikettKart(scope.stasjoner)
+      const stilling = maalt.stilling.map((s) => ({
+        stasjon_id: s.stasjon_id,
+        stasjon: kart.get(s.stasjon_id) ?? s.stasjon,
+        verdi: rund(s.verdi),
+      }))
 
       if (stilling.length === 0) {
         return {

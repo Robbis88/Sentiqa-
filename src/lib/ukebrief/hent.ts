@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { finnUtsolgt, type Kandidatrad } from '@/lib/utsolgt'
 import { fordelBp, motpartsvindu, type Dagsrad } from '@/lib/salg/bp-per-dag'
 import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
+import { hentPerDato } from '@/lib/supabase/datobolker'
 import { delVakt, LONNSART } from '@/lib/lonn/tidsband'
 import { skjemabilde, kravFraPoster, type Skjemabilde, type Skjemapost } from './skjema'
 import { rutinerForDato, type Rutinerad } from '@/lib/rutineskjema'
@@ -120,17 +121,32 @@ async function bpForUken(supabase: Klient, stasjonId: string, mandag: string): P
     }
     if (bpMnd <= 0) return null
 
+    // FJORÅRSGRUNNLAGET ER ÉN RAD PER EAN PER DAG.
+    //
+    // En måned for én stasjon er ~10 000 rader, og uten grense ga
+    // PostgREST tusen — altså rundt tre av sju ukedager. `fordelBp`
+    // regner UKEDAGSMEDIAN: fire ukedager fikk median 0, og hele
+    // månedsbudsjettet ble lagt på de dekkede. Kravet ble enten `null`
+    // eller mangedoblet, avhengig av hvilke dager som overlevde.
+    //
+    // Salgssida tar det samme vinduet med paginering og skriver hvorfor.
     const vindu = motpartsvindu(maaned)
-    const { data: fjor } = await supabase
-      .from('v_butikksalg')
-      .select('dato, omsetning')
-      .eq('stasjon_id', stasjonId)
-      .gte('dato', vindu.fra)
-      .lte('dato', vindu.til)
-      .overrideTypes<{ dato: string; omsetning: number | null }[]>()
+    const fjor = await hentPerDato<{ dato: string; omsetning: number | null }>(
+      (fra, til) => supabase
+        .from('v_butikksalg')
+        .select('dato, omsetning')
+        .eq('stasjon_id', stasjonId)
+        .gte('dato', fra)
+        .lte('dato', til),
+      vindu.fra,
+      vindu.til,
+      // ~340 rader per stasjonsdøgn: to dager er godt under taket, og
+      // en måned blir femten samtidige spørringer.
+      2,
+    )
 
     const perDag = new Map<string, number>()
-    for (const r of fjor ?? []) perDag.set(r.dato, (perDag.get(r.dato) ?? 0) + (r.omsetning ?? 0))
+    for (const r of fjor) perDag.set(r.dato, (perDag.get(r.dato) ?? 0) + (r.omsetning ?? 0))
     const ifjor: Dagsrad[] = [...perDag].map(([dato, omsetning]) => ({ dato, omsetning }))
 
     for (const d of fordelBp(maaned, bpMnd, ifjor)) {
@@ -328,8 +344,13 @@ export async function hentUkedata(
       .eq('stasjon_id', stasjon.id)
       .gte('hendelse_tid', `${mandag}T00:00:00Z`).lte('hendelse_tid', `${sondag}T23:59:59Z`)
       .overrideTypes<{ alvorlighet: string; lest_tid: string | null }[]>(),
-    supabase.from('v_butikksalg').select('dato')
+    // «Hvilke dager har vi salg for?» — én rad per EAN per dag gjør at
+    // én uke for én stasjon er 2 000–5 000 rader. Avkortet telte den for
+    // få dager, og briefen meldte manglende data som faktisk fantes.
+    // Her trengs bare de distinkte datoene, så tellingen gjøres i basen.
+    supabase.from('v_butikksalg_dag').select('dato')
       .eq('stasjon_id', stasjon.id).gte('dato', mandag).lte('dato', sondag)
+      .limit(1000)
       .overrideTypes<{ dato: string }[]>(),
     hentSkjema(supabase, stasjon.id, mandag, sondag),
   ])

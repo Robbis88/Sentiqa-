@@ -22,9 +22,27 @@ const relativ = (sti: string) => sti.slice(SRC.length + 1).replace(/\\/g, '/')
 const filer = kildefiler(SRC).filter((f) => !(relativ(f) in UNNTAK))
 const naa = filer.reduce((sum, f) => sum + tellFarger(readFileSync(f, 'utf8')), 0)
 
-const fasit: number = existsSync(FASIT)
-  ? JSON.parse(readFileSync(FASIT, 'utf8')).hardkodetFarge
-  : naa
+// =====================================================================
+// EN MANGLENDE FASIT SKAL ROPE, IKKE FORSVINNE
+// =====================================================================
+// Her sto `existsSync(FASIT) ? … : naa`. Uten fila ble fasiten satt til
+// dagens tall, og BEGGE skrallene — «har ikke vokst» og «har ikke gått
+// ned» — ble trivielt sanne. Og ingenting ble skrevet, så det fantes
+// ingen git-diff å oppdage det på.
+//
+// Tre vakter i samme mappe hadde tre ulike svar på samme situasjon:
+// `design.test.ts` og `tokens.test.ts` skriver fila, `vakthund.test.ts`
+// feiler høyt med «Fasit mangler». Den siste er den riktige — en fasit
+// som lager seg selv i stillhet er ingen fasit.
+const fasit: number = (() => {
+  if (!existsSync(FASIT)) {
+    throw new Error(
+      `Fargefasiten mangler (${FASIT}). Uten den måler vakten ingenting. `
+      + 'Kjør OPPDATER_FASIT=1 npx vitest run src/lib/redesign og se på diffen.',
+    )
+  }
+  return JSON.parse(readFileSync(FASIT, 'utf8')).hardkodetFarge as number
+})()
 
 /**
  * Den GAMLE merkevarefargen, som en hard port.
