@@ -5,6 +5,7 @@ import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sideramme } from '@/components/ui/sideramme'
+import { oversettTabletOrd } from '@/lib/oversett'
 
 type Merke = { id: string; navn: string; emoji: string; beskrivelse: string | null; tildeles_ved?: string | null }
 type Ansatt = { id: string; navn: string; stasjon_id: string }
@@ -14,6 +15,17 @@ export default async function MerkerSide() {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle === 'plattform_redaktor') return <Sideramme><p>Ingen tilgang.</p></Sideramme>
   const erLeder = bruker.rolle === 'retailer_admin' || bruker.rolle === 'butikksjef'
+
+  // NETTBRETTET SER MERKEVEGGEN, LEDEREN SER TILDELINGEN.
+  //
+  // Bare det foerste oversettes. Tildelingspanelet og oppsettet er
+  // lederflater, og en oversettelse der ville vaert en kostnad uten en
+  // bruker - butikksjef og eier er norske.
+  const { cookies } = await import('next/headers')
+  const sprak = bruker.rolle === 'butikkbruker_tablet'
+    ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
+  const ord = await oversettTabletOrd(sprak)
+  const t = (x: string) => ord[x] ?? x
 
   const supabase = await lagSupabaseServerKlient()
   const [{ data: merker }, { data: ansatte }, { data: tildelte }, { data: stasjoner }] = await Promise.all([
@@ -60,9 +72,9 @@ export default async function MerkerSide() {
   return (
     <Sideramme>
       <Sidehode
-        tittel="Merker"
+        tittel={t('Merker')}
         undertittel={tildelt === 0
-          ? 'Anerkjennelse til de ansatte — vis fram det teamet får til.'
+          ? t('Anerkjennelse til de ansatte — vis fram det teamet får til.')
           : `${tildelt} tildelt til ${folk.length} ansatte.`}
         handlinger={tildelPanel}
       />
@@ -115,7 +127,7 @@ export default async function MerkerSide() {
                   <span className="undertittel"> · {navnFor.get(a.stasjon_id) ?? '—'}</span>
                 </div>
                 <div className="merkevegg-merker">
-                  {sine.length === 0 ? <span className="undertittel">Ingen merker ennå</span> : sine.map((t) => (
+                  {sine.length === 0 ? <span className="undertittel">{t('Ingen merker ennå')}</span> : sine.map((t) => (
                     <span className="merke-pill" key={t.id} title={t.merker?.navn}>
                       <span className="merke-emoji">{t.merker?.emoji}</span> {t.merker?.navn}
                       {erLeder && (

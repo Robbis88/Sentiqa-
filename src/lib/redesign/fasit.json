@@ -652,7 +652,7 @@
       "dynamisk:t.hva"
     ],
     "/nyheter": [
-      "Ingen nyheter ennå"
+      "t('Ingen nyheter ennå')"
     ],
     "/oppgaver": [
       "Ingen åpne oppgaver",
