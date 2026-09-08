@@ -1,0 +1,24 @@
+-- ---------------------------------------------------------------------
+-- 0189: enum-verdien for loennsgrunnlaget
+-- ---------------------------------------------------------------------
+-- `0188` la til parseren, importarmen og kolonnen - og glemte at
+-- `import_jobber.rapporttype` er en ENUM. Behandlingen stoppet paa
+--
+--   invalid input value for enum rapporttype: "easyatwork_lonnsgrunnlag"
+--
+-- Dette er nøyaktig feilen `0093` ble skrevet for, og den fila sier det
+-- rett ut: «rapporttyper som koden bruker, men enum-en ikke har».
+-- Advarselen var skrevet ned, og jeg gjentok den likevel. Derfor er det
+-- ikke nok aa legge til verdien her - `rapporttype.test.ts` felte den
+-- naa i vitest, paa millisekunder, i stedet for i produksjon.
+--
+-- ---------------------------------------------------------------------
+-- DENNE FILA MAA KJORES ALENE.
+-- ---------------------------------------------------------------------
+-- Postgres nekter aa BRUKE en ny enum-verdi i samme transaksjon som den
+-- ble lagt til:
+--   55P04: unsafe use of new value ... New enum values must be committed
+--   before they can be used.
+-- SQL-editoren kjorer hele skriptet som en transaksjon. Slaa den aldri
+-- sammen med en migrasjon som bruker verdien.
+alter type public.rapporttype add value if not exists 'easyatwork_lonnsgrunnlag';
