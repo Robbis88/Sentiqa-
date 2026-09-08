@@ -7,6 +7,7 @@ import { lagSalgsstatistikk } from './fixtures/salgsstatistikk'
 import { lagSalesPerHourInneUte } from './fixtures/salesperhourinneute'
 import { lagKassererstatistikk } from './fixtures/kassererstatistikk'
 import { lagVaretransaksjon } from './fixtures/varetransaksjon'
+import { lagRegnskap } from './fixtures/regnskap'
 
 // =====================================================================
 // GJENKJENNINGEN ER RUTEREN, OG DEN HOPPET OVER SEG SELV
@@ -19,8 +20,7 @@ import { lagVaretransaksjon } from './fixtures/varetransaksjon'
 // HVILKEN parser en opplastet fil går til. Tar den feil, får man ikke en
 // feilmelding, man får feil tall i riktig tabell.
 //
-// Fire av de fem har fixture nå. Den femte (Azets-regnskapet) har det
-// ikke ennå, og står med `skipIf` — synlig, ikke skjult.
+// Alle fem har fixture nå, og suiten hopper ikke over noe.
 // =====================================================================
 
 const DIR = join(process.cwd(), 'eksempelfiler')
@@ -31,10 +31,7 @@ const MED_FIXTURE: [string, Rapporttype, () => Promise<Buffer>][] = [
     'st1_salesperhour_inneute', lagSalesPerHourInneUte],
   ['0018_CashierStatistics_std 2026-05-13.xlsx', 'st1_cashierstats', lagKassererstatistikk],
   ['Varetransaksjonsliste 2026-05-13.xlsx', 'salgsgrid_varetrans', lagVaretransaksjon],
-]
-
-const UTEN_FIXTURE: [string, Rapporttype][] = [
-  ['190 Kelsar Bil AS 202512-202512_3 (1).xlsx', 'regnskap_resultat'],
+  ['190 Kelsar Bil AS 202512-202512_3 (1).xlsx', 'regnskap_resultat', lagRegnskap],
 ]
 
 describe('gjenkjennRapporttype', () => {
@@ -44,13 +41,6 @@ describe('gjenkjennRapporttype', () => {
     it(`gjenkjenner ${forventet} (${ekte ? 'ekte fil' : 'fixture'})`, async () => {
       const data = ekte ? readFileSync(sti) : await lagFixture()
       expect(await gjenkjennRapporttype(data)).toBe(forventet)
-    })
-  }
-
-  for (const [filnavn, forventet] of UTEN_FIXTURE) {
-    const sti = join(DIR, filnavn)
-    it.skipIf(!existsSync(sti))(`gjenkjenner ${forventet}`, async () => {
-      expect(await gjenkjennRapporttype(readFileSync(sti))).toBe(forventet)
     })
   }
 

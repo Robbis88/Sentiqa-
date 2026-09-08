@@ -1,13 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
+import { kildeFor } from './fixtures/kilde'
+import { lagRegnskap } from './fixtures/regnskap'
 import { parseUsynligSvinn } from './usynligsvinn'
 
-const FIL = join(process.cwd(), 'eksempelfiler', 'regnskap-kelsar-202604.xlsx')
+const kilde = kildeFor('regnskap-kelsar-202604.xlsx', lagRegnskap)
 
-describe.skipIf(!existsSync(FIL))('parseUsynligSvinn (ekte regnskapsfil)', () => {
+describe(`parseUsynligSvinn (${kilde.merke})`, () => {
   it('finner usynlig svinn pr stasjon med riktig fortegn', async () => {
-    const r = await parseUsynligSvinn(readFileSync(FIL))
+    const r = await parseUsynligSvinn(await kilde.les())
     expect(r.rapporttype).toBe('usynlig_svinn')
     // 5 driftsstasjoner (9900 Admin har ingen produktsalg)
     expect(r.stasjoner.length).toBeGreaterThanOrEqual(5)
