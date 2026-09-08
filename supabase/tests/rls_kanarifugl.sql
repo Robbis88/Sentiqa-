@@ -145,11 +145,44 @@ begin
   perform pg_temp.logg(case when p_ok is true then 'ok' else 'FEIL' end, p_navn);
 end $$;
 
+-- SECURITY DEFINER med vilje, og det er hele poenget med den: den skal
+-- se FORBI RLS. Uten et blikk utenfra kan vi ikke skille "policyen
+-- stoppet raden" fra "raden fantes aldri" - og de to ser helt like ut
+-- fra innsiden.
+create or replace function pg_temp.finnes_avvik(p_id uuid) returns boolean
+language sql security definer as $$
+  select exists (select 1 from public.avvik where id = p_id)
+$$;
+
 -- SECURITY INVOKER, og det er like noedvendig: den dynamiske setningen
 -- MAA kjore som testbrukeren. Ble denne definer, ville skrivingen gaatt
 -- som eier, forbi RLS - og fila ville vaert groenn uansett hva policyen
--- sa. De to funksjonene under er de eneste som ikke kan vaere definer.
-create or replace function pg_temp.skriv_avvist(p_navn text, p_sql text) returns void
+-- sa.
+--
+-- ---------------------------------------------------------------------
+-- HVA SOM TELLER SOM EN TENANT-AVVISNING
+--
+-- Foerste utgave godtok TRE ting som avvisning, og bare den foerste av
+-- dem er en:
+--
+--   42501                        godkjent sikkerhetsavvisning
+--   0 rader + maalrad bevist     godkjent - `using` utelukket raden
+--   hvilken som helst exception  FEIL. 23505 er en unikhetskollisjon,
+--                                23503 en fremmednoekkel, 23514 en
+--                                check. Ingen av dem sier noe om hvem
+--                                som har lov til hva - de sier at
+--                                testdataen kolliderte. En suite der
+--                                alt er oedelagt ville sett ut som en
+--                                suite der alt er trygt.
+--   0 rader uten bevis           FEIL. En blokkert UPDATE gir 0 rader
+--                                og ingen exception. Det gjoer ogsaa en
+--                                feil id, en fixture som aldri ble
+--                                seedet, og en tom tabell.
+--
+-- Regelen staar i AGENTS.md og er implementert i den GENERERTE matrisen.
+-- Denne haandskrevne fila laa igjen med den gamle, loesere formen.
+create or replace function pg_temp.skriv_avvist(
+  p_navn text, p_sql text, p_maalrad uuid default null) returns void
 language plpgsql as $$
 declare n bigint;
 begin
@@ -157,13 +190,26 @@ begin
     execute p_sql;
     get diagnostics n = row_count;
   exception when others then
-    perform pg_temp.logg('ok', p_navn, 'avvist med ' || sqlstate);
+    if sqlstate = '42501' then
+      perform pg_temp.logg('ok', p_navn, 'avvist med 42501');
+    else
+      perform pg_temp.logg('FEIL', p_navn,
+        'domenefeil ' || sqlstate || ' (' || sqlerrm || ') - '
+        || 'ikke en sikkerhetsavvisning');
+    end if;
     return;
   end;
   if n > 0 then
     perform pg_temp.logg('FEIL', p_navn, 'skrivingen gikk gjennom, ' || n || ' rad(er)');
+  elsif p_maalrad is null then
+    perform pg_temp.logg('FEIL', p_navn,
+      '0 rader, men ingen maalrad oppgitt - da kan ikke "policyen stoppet '
+      'den" skilles fra "raden fantes aldri"');
+  elsif pg_temp.finnes_avvik(p_maalrad) then
+    perform pg_temp.logg('ok', p_navn, '0 rader, og maalraden er bevist');
   else
-    perform pg_temp.logg('ok', p_navn, '0 rader');
+    perform pg_temp.logg('FEIL', p_navn,
+      'maalraden ' || p_maalrad || ' finnes ikke - avvisningen beviser ingenting');
   end if;
 end $$;
 
@@ -261,27 +307,27 @@ $s$);
 select pg_temp.skriv_avvist('A1 UPDATE paa A2', $s$
   update public.avvik set beskrivelse = 'endret'
   where id = 'a3330000-0000-4000-8000-000000000002'
-$s$);
+$s$, 'a3330000-0000-4000-8000-000000000002');
 
 select pg_temp.skriv_avvist('A1 UPDATE paa B1', $s$
   update public.avvik set beskrivelse = 'endret'
   where id = 'b3330000-0000-4000-8000-000000000001'
-$s$);
+$s$, 'b3330000-0000-4000-8000-000000000001');
 
 -- FLYTT EGEN RAD TIL FORBUDT STASJON. Her er det `with check` som maa ta
 -- den; `using` slipper raden inn fordi den ER hennes i utgangspunktet.
 select pg_temp.skriv_avvist('A1 UPDATE flytter egen rad til A2', $s$
   update public.avvik set stasjon_id = 'a1110000-0000-4000-8000-000000000002'
   where id = 'a3330000-0000-4000-8000-000000000001'
-$s$);
+$s$, 'a3330000-0000-4000-8000-000000000001');
 
 select pg_temp.skriv_avvist('A1 DELETE paa A2', $s$
   delete from public.avvik where id = 'a3330000-0000-4000-8000-000000000002'
-$s$);
+$s$, 'a3330000-0000-4000-8000-000000000002');
 
 select pg_temp.skriv_avvist('A1 DELETE paa B1', $s$
   delete from public.avvik where id = 'b3330000-0000-4000-8000-000000000001'
-$s$);
+$s$, 'b3330000-0000-4000-8000-000000000001');
 
 -- --- manager_A12: to tillatt, to avvist ------------------------------
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -313,7 +359,7 @@ $s$);
 select pg_temp.skriv_avvist('A12 UPDATE paa A3', $s$
   update public.avvik set beskrivelse = 'endret'
   where id = 'a3330000-0000-4000-8000-000000000003'
-$s$);
+$s$, 'a3330000-0000-4000-8000-000000000003');
 
 -- --- Eier A: hele sitt cluster, aldri B ------------------------------
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -336,7 +382,7 @@ $s$);
 
 select pg_temp.skriv_avvist('Eier A DELETE paa B1', $s$
   delete from public.avvik where id = 'b3330000-0000-4000-8000-000000000001'
-$s$);
+$s$, 'b3330000-0000-4000-8000-000000000001');
 
 -- --- Eier B skal ikke se A sine nye rader -----------------------------
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -394,7 +440,7 @@ select pg_temp.paastand('Nettbrett A1 ser INGEN malekort fra B',
 -- Skriving: nettbrettet skal ikke kunne fjerne en hake (0133).
 select pg_temp.skriv_avvist('Nettbrett A1 DELETE paa avvik', $s$
   delete from public.avvik where id = 'a3330000-0000-4000-8000-000000000001'
-$s$);
+$s$, 'a3330000-0000-4000-8000-000000000001');
 
 -- --- Nettbrett B1 naar aldri A ---------------------------------------
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
@@ -428,14 +474,28 @@ order by (status = 'FEIL') desc, nr;
 --
 -- Selecten over kjorer foerst, saa tabellen staar i loggen.
 do $$
-declare n int;
+declare
+  n int;
+  n_alle int;
 begin
-  select count(*) into n from pg_temp.funn where status = 'FEIL';
-  if n > 0 then
-    raise exception 'KANARIFUGLEN: % funn. Se tabellen over.', n;
+  select count(*) filter (where status = 'FEIL'), count(*)
+    into n, n_alle from pg_temp.funn;
+
+  -- GULVET FOERST. "Ingen funn" og "ingenting kjoerte" gir det samme
+  -- tallet, og uten dette ser en fil som stoppet paa setning tre ut som
+  -- en fil der alt holdt. Kommentaren over sa at en tom tabell er sitt
+  -- eget funn - men ingenting maalte det.
+  if n_alle < 40 then
+    raise exception 'KANARIFUGLEN kjorte bare % paastander (ventet minst 40). '
+      'Filen maaler ikke det den skal - se etter en seksjon som stoppet '
+      'for tidlig.', n_alle;
   end if;
-  raise notice '--- Kanarifuglen: ingen funn. % paastander ---',
-    (select count(*) from pg_temp.funn);
+
+  if n > 0 then
+    raise exception 'KANARIFUGLEN: % av % paastander feilet. Se tabellen over.',
+      n, n_alle;
+  end if;
+  raise notice '--- Kanarifuglen: ingen funn. % paastander ---', n_alle;
 end $$;
 
 rollback;
