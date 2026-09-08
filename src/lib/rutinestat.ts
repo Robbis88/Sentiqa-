@@ -44,8 +44,8 @@ export async function beregnRutinestat(
   // `hentPerDato` deler perioden i bolker og deler en bolk i to hvis den
   // treffer taket. Da kan svaret ikke vaere stille avkortet.
   const [skjemaSvar, rutineSvar, ansattSvar, utf] = await Promise.all([
-    supabase.from('rutineskjemaer').select('id, ukedager').eq('stasjon_id', stasjonId).eq('aktiv', true).is('slettet_tid', null).limit(2000),
-    supabase.from('rutiner').select('id, skjema_id, ukedager, opprettet_dato').eq('stasjon_id', stasjonId).not('skjema_id', 'is', null).is('slettet_tid', null).limit(5000),
+    supabase.from('rutineskjemaer').select('id, ukedager').eq('stasjon_id', stasjonId).eq('aktiv', true).is('slettet_tid', null).limit(1000),
+    supabase.from('rutiner').select('id, skjema_id, ukedager, opprettet_dato').eq('stasjon_id', stasjonId).not('skjema_id', 'is', null).is('slettet_tid', null).limit(1000),
     supabase.from('ansatte').select('id, navn').is('slettet_tid', null).eq('stasjon_id', stasjonId).limit(1000),
     hentPerDato<{ rutine_id: string; dato: string; ansatt_id: string | null }>(
       (fra, til) => supabase
@@ -57,9 +57,9 @@ export async function beregnRutinestat(
       fra90, idag,
     ),
   ])
-  const skjemaer = maaVaereHele(skjemaSvar, 'rutineskjemaene', 2000)
-  const rutiner = maaVaereHele(rutineSvar, 'rutinene', 5000)
-  const ansatte = maaVaereHele(ansattSvar, 'de ansatte', 1000)
+  const skjemaer = maaVaereHele(skjemaSvar, 'rutineskjemaene')
+  const rutiner = maaVaereHele(rutineSvar, 'rutinene')
+  const ansatte = maaVaereHele(ansattSvar, 'de ansatte')
 
   const skjemaUke = new Map<string, number[]>()
   for (const s of skjemaer as { id: string; ukedager: number[] }[]) skjemaUke.set(s.id, s.ukedager)

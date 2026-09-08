@@ -123,6 +123,37 @@ describe('maaVaereHele', () => {
       .toThrow(/avkortet/)
   })
 
+  // =================================================================
+  // ET TAK OVER TUSEN ER IKKE ET TAK
+  // =================================================================
+  // `supabase/config.toml` setter `max_rows = 1000`. En `.limit(20000)`
+  // gir aldri mer enn tusen rader, saa en sjekk paa «naadde du tjue
+  // tusen» kan ALDRI utloeses.
+  //
+  // Foerste utgave av `maaVaereHele` gjorde noeyaktig det. Den ble
+  // skrevet samme dag for aa fange «68 rutiner igjen», og var inert paa
+  // hvert kallsted som brukte et generoest tall. En vakt som ikke kan
+  // feile ser noeyaktig ut som en vakt som ikke finner noe.
+  it('kaster på tusen selv når kalleren ba om tjue tusen', () => {
+    const tusen = Array.from({ length: TAK }, (_, i) => i)
+    expect(() => maaVaereHele({ data: tusen, error: null }, 'utførte rutiner', 20000))
+      .toThrow(/traff taket paa 1000/)
+  })
+
+  it('sier fra at kalleren ba om noe PostgREST aldri gir', () => {
+    const tusen = Array.from({ length: TAK }, (_, i) => i)
+    expect(() => maaVaereHele({ data: tusen, error: null }, 'noe', 20000))
+      .toThrow(/kalleren bad om 20000/)
+  })
+
+  it('lar kalleren SENKE taket, aldri heve det', () => {
+    const femti = Array.from({ length: 50 }, (_, i) => i)
+    // 50 rader mot et tak paa 50: skal kaste.
+    expect(() => maaVaereHele({ data: femti, error: null }, 'noe', 50)).toThrow()
+    // 50 rader mot standardtaket: skal gaa fint.
+    expect(maaVaereHele({ data: femti, error: null }, 'noe')).toHaveLength(50)
+  })
+
   it('kaster på feil, i stedet for å gi tom liste', () => {
     // En lesefeil som blir til `[]` er den samme løgnen som avkorting:
     // null rader ser ut som «ingenting er gjort».
