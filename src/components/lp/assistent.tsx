@@ -12,8 +12,17 @@ import { useRolig } from './bevegelse'
 // lib/ai/verktoy.ts, og de sier noe et pent svar ikke kan si — at den
 // slår opp i tabeller i stedet for å finne på.
 //
-// Assistenten har 25 slike verktøy. Å vise fire av dem per spørsmål er
-// nok til å vise formen; å liste alle ville vært en funksjonsliste.
+// Assistenten har 27 slike verktøy — 25 for en butikksjef, to til for
+// eieren. Å vise fire av dem per spørsmål er nok til å vise formen; å
+// liste alle ville vært en funksjonsliste.
+//
+// TALLET VAR 25 OG BLE FEIL AV SEG SELV. Det stemte da det ble skrevet.
+// Et tall som telles for hånd i markedsføringstekst er et tall som
+// råtner - `Kilder`-seksjonen ved siden av rendrer `KILDER` fra
+// produktets egen kode nettopp for aa slippe det. Her er 27 fortsatt
+// haandholdt, fordi `VERKTOY` er serverkode med databasekall i seg og
+// ikke kan importeres inn i en offentlig side uten aa dra hele
+// AI-laget med seg.
 //
 // **Fet skrift kommer fra `**`-merking i demodataene**, ikke fra HTML i
 // en streng. Å sette `dangerouslySetInnerHTML` på markedsføringstekst
@@ -62,7 +71,7 @@ export function Assistent() {
         <p className="lp-eyebrow">Assistenten</p>
         <h2 className="lp-h2">Spør virksomheten din.</h2>
         <p className="lp-ingress">
-          Assistenten har 25 verktøy inn i de samme tabellene som resten av systemet. Den
+          Assistenten har 27 verktøy inn i de samme tabellene som resten av systemet. Den
           finner ikke på tall — den slår opp, og sier hvor svaret kommer fra.
         </p>
 

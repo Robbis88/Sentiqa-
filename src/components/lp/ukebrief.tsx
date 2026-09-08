@@ -17,6 +17,17 @@
 // ingenting, det havner der i stedet. Å vise brevet uten den bolken
 // ville solgt et produkt som er lettere å stole på enn det er.
 //
+// ---------------------------------------------------------------------
+// SEKSJONEN LOVET EN E-POST SOM IKKE FINNES
+//
+// Her sto «Uten å logge inn» og «Mandag 07:00». Det er ingen
+// e-postsender i systemet — verken Resend, SMTP eller noe annet — og
+// briefen er en side du åpner pluss en PDF du laster ned. Overskriften
+// lovet altså det motsatte av det som er bygget.
+//
+// Formuleringen nå sier hva den ER, og hva den ikke er ennå. En kjøper
+// som oppdager forskjellen selv, lurer på hva mer som er pyntet på.
+//
 // Serverkomponent: ingenting her er interaktivt.
 // =====================================================================
 
@@ -24,12 +35,13 @@ export function Ukebrief() {
   return (
     <section className="lp-seksjon lp-seksjon-tont" id="brev">
       <div className="lp-ramme">
-        <p className="lp-eyebrow">Uten å logge inn</p>
-        <h2 className="lp-h2">Mandag 07:00.</h2>
+        <p className="lp-eyebrow">Uka oppsummert</p>
+        <h2 className="lp-h2">Ett brev, ikke tolv rapporter.</h2>
         <p className="lp-ingress">
           Ukebriefen skrives av tallene, ikke av en modell. Samme uke gir samme brev hver
           gang — et brev som endrer seg mellom to kjøringer kan ikke etterprøves av den
-          som fikk det forrige mandag.
+          som fikk det forrige mandag. Den ligger i systemet og kan lastes ned som PDF;
+          utsending på e-post er ikke bygget ennå.
         </p>
 
         <div className="lp-brev">
