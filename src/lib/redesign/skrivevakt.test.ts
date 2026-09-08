@@ -117,12 +117,35 @@ describe('skrivevakten', () => {
       .toBeGreaterThanOrEqual(fasit.kastedeSkriv)
   })
 
-  test('timeregnskapets egne handlinger er rene', () => {
-    // FLATEN KONTRAKTEN BLE SATT FOR. Uansett hva totalen er, skal disse
-    // vaere null - det var her feilen ble oppdaget.
-    const mine = serverfiler.filter(({ f }) => f.includes('timeregnskap'))
-    for (const { f, kilde } of mine) {
-      expect(kastedeSkriv(kilde), `${f} kaster et skriv`).toEqual([])
-    }
+  // =====================================================================
+  // DENNE TESTEN HAR ALDRI MÅLT ÉN ENESTE FIL
+  // =====================================================================
+  // Den het «timeregnskapets egne handlinger er rene» og filtrerte
+  // `serverfiler` på filer som inneholder `timeregnskap`. Mappa har bare
+  // en `page.tsx`, uten `'use server'` — løkka gikk null runder, og
+  // testen besto med null påstander.
+  //
+  // Historikken sier hvorfor: `timeregnskap/oppsett/handlinger.ts` ble
+  // slettet i `5f1dfa6`, og vakten ble skrevet 38 minutter senere. Den
+  // ble født blind, på en flate som ikke lenger fantes.
+  //
+  // Det er nøyaktig formen AGENTS.md navngir: «en vakt som slutter å se,
+  // ser nøyaktig ut som en vakt som ikke finner noe.» Her sluttet den
+  // ikke å se — den begynte aldri.
+  //
+  // RETTELSEN ER IKKE Å FINNE EN NY MAPPE Å PEKE PÅ. Regelen gjelder
+  // hele kodebasen, og skrallen over håndhever den allerede med et
+  // gulv på null. En egen test for én mappe var uansett symptomet, ikke
+  // regelen. Det som står igjen er kravet om at lista ikke er tom.
+  test('den ser faktisk serverfiler — ellers måler skrallen ingenting', () => {
+    // Uten dette ville en sti som pekte feil gitt `naa = 0`, og både
+    // «har ikke vokst» og «har ikke gaatt ned» ville vært trivielt
+    // sanne mot en fasit på 0.
+    expect(serverfiler.length, 'fant ingen filer med «use server»')
+      .toBeGreaterThan(20)
+    const medSkriv = serverfiler.filter(({ kilde }) =>
+      /\.(insert|update|upsert|delete)\(/.test(kilde))
+    expect(medSkriv.length, 'ingen serverfil skriver — detektoren ser ikke skriv i det hele tatt')
+      .toBeGreaterThan(10)
   })
 })
