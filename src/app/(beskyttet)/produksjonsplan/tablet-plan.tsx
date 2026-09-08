@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { loggLagd } from './handlinger'
 import { useT } from '../oversett-kontekst'
 
@@ -11,15 +11,46 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
   const [lagd, setLagd] = useState<Record<string, number>>(() =>
     Object.fromEntries(grupper.flatMap((g) => g.produkter).map((p) => [p.varenavn, p.lagd_hittil])),
   )
+  const [feil, setFeil] = useState<string | null>(null)
+  const [, start] = useTransition()
 
+  // =================================================================
+  // `void` KASTET HELE SVARET
+  // =================================================================
+  // Her sto `void loggLagd(...)`. `loggLagd` er nøye bygget for å kaste
+  // både på feil OG på null skrevne rader — hele poenget med `0167`:
+  // «en handling som svarer ok på noe som ikke ble skrevet, ser ut som
+  // en som virket». `void` gjorde nettopp det umulige mulig.
+  //
+  // Følgen: hun trykker seg opp til «Alt er lagd», baren går til 100 %,
+  // og ved neste lasting står tallet på 0. Butikksjefen ser at
+  // ingenting ble produsert.
+  //
+  // TALLET RULLES TILBAKE PÅ SKJERMEN. Å bare vise en feilmelding ved
+  // siden av et tall som fortsatt står, ville latt to sannheter stå
+  // samtidig — og den hun ser er den hun tror på.
   function endre(p: TabletProdukt, ny: number) {
     const v = Math.max(0, Math.round(ny))
+    const forrige = lagd[p.varenavn] ?? p.lagd_hittil
     setLagd((s) => ({ ...s, [p.varenavn]: v }))
-    void loggLagd(stasjonId, dato, p.varenavn, v)
+    setFeil(null)
+    start(async () => {
+      try {
+        await loggLagd(stasjonId, dato, p.varenavn, v)
+      } catch {
+        setLagd((s) => ({ ...s, [p.varenavn]: forrige }))
+        setFeil(t('Tallet ble ikke lagret. Prøv en gang til.'))
+      }
+    })
   }
 
   return (
     <>
+      {feil && (
+        <div className="tablet-melding viktig" role="alert">
+          <span>{feil}</span>
+        </div>
+      )}
       {notat && (
         <div className="tablet-melding viktig">
           <span className="tablet-melding-merke">{t('Beskjed')}</span>

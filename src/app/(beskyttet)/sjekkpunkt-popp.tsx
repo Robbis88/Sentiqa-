@@ -12,6 +12,7 @@ export function SjekkpunktPopp({ punkter }: { punkter: Sjekk[] }) {
   const [igjen, setIgjen] = useState<Sjekk[]>(punkter)
   const [vis, setVis] = useState(false)
   const [venter, setVenter] = useState<string | null>(null)
+  const [feil, setFeil] = useState<string | null>(null)
 
   useEffect(() => {
     if (punkter.length === 0) return
@@ -27,14 +28,27 @@ export function SjekkpunktPopp({ punkter }: { punkter: Sjekk[] }) {
 
   if (!vis || igjen.length === 0) return null
 
+  // =================================================================
+  // RADEN FORSVANT OGSAA NAAR SKRIVET FEILET
+  // =================================================================
+  // Her sto `.catch(() => {}).finally(...)`. `finally` kjoerer ogsaa
+  // naar `maaLykkes` kastet, saa spoersmaalet forsvant fra lista uansett
+  // - og popupen er flata folk faktisk svarer i.
+  //
+  // `tablet-sjekk.tsx` sier ordrett hvorfor det er galt: «et sjekkpunkt
+  // som ser besvart ut uten aa vaere det, oppdages aldri». Den samme
+  // regelen sto skrevet ned tjue linjer unna, i ruta ved siden av.
+  //
+  // Naa fjernes raden bare naar skrivet gikk gjennom. Feiler det, blir
+  // spoersmaalet staaende med en beskjed - da kan hun proeve igjen, og
+  // avviket forsvinner ikke i stillhet.
   function svarPunkt(s: Sjekk, ja: boolean) {
     setVenter(s.id)
+    setFeil(null)
     svarSjekkpunktTablet(s.id, s.stasjon_id, ja)
-      .catch(() => {})
-      .finally(() => {
-        setIgjen((l) => l.filter((x) => x.id !== s.id))
-        setVenter(null)
-      })
+      .then(() => setIgjen((l) => l.filter((x) => x.id !== s.id)))
+      .catch(() => setFeil(t('Svaret ble ikke lagret. Prøv en gang til.')))
+      .finally(() => setVenter(null))
   }
   function snooze() {
     try {
@@ -55,6 +69,7 @@ export function SjekkpunktPopp({ punkter }: { punkter: Sjekk[] }) {
             beviset som leser `body.textContent` saa den aldri heller.
             Utropstegnet bar ALVOR — alene, som symbol. Det staar i ord na. */}
         <p className="puls-popp-q">{t('Sjekkpunkter')} ({igjen.length})</p>
+        {feil && <p className="sq-slett-feil" role="alert">{feil}</p>}
         <ul className="sjekk-liste">
           {igjen.map((s) => (
             <li key={s.id} className={s.kritisk ? 'kritisk' : ''}>
