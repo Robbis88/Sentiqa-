@@ -123,6 +123,19 @@ declare
   -- Lista finnes for at punkt 4 skal kunne kreve at HVER tabell med
   -- policy staar et sted. Da kan ingen ny tabell falle mellom stolene -
   -- den tvinger fram en beslutning, slik monstre.ts gjor for ruter.
+  -- ---------------------------------------------------------------------
+  -- HER STAAR IKKE `registrering_forsok`, OG DET ER MED VILJE
+  -- ---------------------------------------------------------------------
+  -- `varme` og `kalde` er en inndeling av tabeller SOM HAR POLICY - punkt
+  -- 4 leser `pg_policies`. En tabell uten policy foert inn her felles av
+  -- «STAAR I LISTA, FINNES IKKE», som den skal: lista skal beskrive det
+  -- som er der.
+  --
+  -- `registrering_forsok` (0190) er laast helt - RLS paa, ingen policy,
+  -- ingen grants - og hoerer derfor til samme kategori som
+  -- `oversettelse_cache`. Begge er kvittert ut med `ingen_policy` i
+  -- `supabase/tenant-kontrakt.json`, og `tenant_dekning.sql` ser dem
+  -- fordi den starter fra `pg_class` og ikke fra policyene.
   kalde text[] := array[
     -- Tenant og tilgang. profiler har sin egen sjekk i punkt 3.
     'retailers', 'stasjoner', 'profiler', 'butikksjef_stasjoner',
@@ -140,12 +153,7 @@ declare
     -- Tall ingen fil leverer (0184/0185). Bilvask er én rad per stasjon
     -- per UKE, grunnloenn én per MAANED - de vokser med kalenderen, ikke
     -- med drift. Ingen av dem naar tusen rader paa et aar for en kjede.
-    'bilvask_abonnement', 'butikksjef_fastlonn',
-    -- Telleren bak grensen paa /registrer (0190). Skrives FOER en tenant
-    -- finnes, saa den har ingen retailer_id og tenantmodellen passer
-    -- ikke. Laast helt: RLS paa, ingen policy, ingen grants. Den staar
-    -- her fordi «trygg» og «sett» er to forskjellige ting.
-    'registrering_forsok'
+    'bilvask_abonnement', 'butikksjef_fastlonn'
     -- Her stod opplaring_personer, opplaring_punkter og opplaring_fullfort
     -- (varme). Ingen av dem finnes i basen - de er erstattet av
     -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:
