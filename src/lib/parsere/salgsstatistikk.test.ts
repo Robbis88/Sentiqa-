@@ -1,20 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { kildeFor } from './fixtures/kilde'
+import { lagSalgsstatistikk } from './fixtures/salgsstatistikk'
 import { parseSalgsstatistikk } from './salgsstatistikk'
 
-const FIL = join(process.cwd(), 'eksempelfiler', 'Salgsstatistikk 2026-05-01.xlsx')
-const harFil = existsSync(FIL)
+const kilde = kildeFor('Salgsstatistikk 2026-05-01.xlsx', lagSalgsstatistikk)
 
-// Eksempelfilen er git-ignorert (ekte data). Kjør testen lokalt der filen
-// finnes; hopp over ellers (f.eks. i CI uten fixturen).
-describe.skipIf(!harFil)('parseSalgsstatistikk (ekte St1 0714-fil)', () => {
-  // Lat lesing. describe.skipIf hopper over testene, men evaluerer
-  // likevel kroppen for aa samle testnavn - saa en lesing her kaster
-  // FOER skippingen slaar inn. Eksempelfilene ligger ikke i repoet
-  // (ekte kundedata), og uten dette er CI rod paa noe som skal hoppes.
+describe(`parseSalgsstatistikk (St1 0714 - ${kilde.merke})`, () => {
+  // SUITEN HOPPET OVER SEG SELV. `describe.skipIf` mot en fil i
+  // `eksempelfiler/`, som er gitignored - saa den kjorte aldri i CI, og
+  // heller ikke lokalt, siden mappa er tom. Naa kjorer den mot den ekte
+  // fila naar den ligger der, mot en arbeidsbok med samme form ellers.
+  // Se `fixtures/LESMEG.md`.
   let husket: ReturnType<typeof parseSalgsstatistikk> | null = null
-  const resultat = () => (husket ??= parseSalgsstatistikk(readFileSync(FIL)))
+  const resultat = () => (husket ??= kilde.les().then(parseSalgsstatistikk))
 
   it('leser metadata: dato og moms-flagg', async () => {
     const r = await resultat()

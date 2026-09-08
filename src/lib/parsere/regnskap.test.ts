@@ -1,17 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { kildeFor } from './fixtures/kilde'
+import { lagRegnskap } from './fixtures/regnskap'
 import { parseRegnskap, parseRegnskapStasjoner } from './regnskap'
 
-const FIL = join(process.cwd(), 'eksempelfiler', '190 Kelsar Bil AS 202512-202512_3 (1).xlsx')
+const kilde = kildeFor('190 Kelsar Bil AS 202512-202512_3 (1).xlsx', lagRegnskap)
 
-describe.skipIf(!existsSync(FIL))('parseRegnskap (ekte Azets-fil, Cluster-ark)', () => {
-  // Lat lesing. describe.skipIf hopper over testene, men evaluerer
-  // likevel kroppen for aa samle testnavn - saa en lesing her kaster
-  // FOER skippingen slaar inn. Eksempelfilene ligger ikke i repoet
-  // (ekte kundedata), og uten dette er CI rod paa noe som skal hoppes.
+describe(`parseRegnskap (Azets Cluster-ark - ${kilde.merke})`, () => {
+  // SUITEN HOPPET OVER SEG SELV mot en fil i `eksempelfiler/`, som er
+  // gitignored - saa den kjorte aldri i CI, og heller ikke lokalt.
+  // Se `fixtures/LESMEG.md`.
   let husket: ReturnType<typeof parseRegnskap> | null = null
-  const resultat = () => (husket ??= parseRegnskap(readFileSync(FIL)))
+  const resultat = () => (husket ??= kilde.les().then(parseRegnskap))
 
   it('leser retailernavn og periode fra «Denne periode» (ikke «Hittil i år»)', async () => {
     const r = await resultat()
@@ -45,10 +44,10 @@ describe.skipIf(!existsSync(FIL))('parseRegnskap (ekte Azets-fil, Cluster-ark)',
   })
 })
 
-describe.skipIf(!existsSync(FIL))('parseRegnskapStasjoner (per-stasjon-ark)', () => {
+describe(`parseRegnskapStasjoner (per-stasjon-ark - ${kilde.merke})`, () => {
   // Lat, av samme grunn som over.
   let husketSt: ReturnType<typeof parseRegnskapStasjoner> | null = null
-  const stasjoner = () => (husketSt ??= parseRegnskapStasjoner(readFileSync(FIL)))
+  const stasjoner = () => (husketSt ??= kilde.les().then(parseRegnskapStasjoner))
 
   it('finner per-stasjon-arkene inkl. de fem ekte stasjonene', async () => {
     const nr = (await stasjoner()).map((s) => s.butikknummer)
