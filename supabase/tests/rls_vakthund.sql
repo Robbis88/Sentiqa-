@@ -236,9 +236,9 @@ begin
       -- er raatt. Postgres har ingen lookbehind, saa dette er
       -- maaten.
       and (
-        regexp_replace(coalesce(qual, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
+        regexp_replace(coalesce(qual, ''), '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
         or
-        regexp_replace(coalesce(with_check, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
+        regexp_replace(coalesce(with_check, ''), '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
       )
     order by tablename, policyname
   loop
@@ -254,20 +254,37 @@ begin
   -- sa fra. En vakt som slutter aa se, ser noeyaktig ut som en vakt
   -- som ikke finner noe.
   --
-  -- Her proeves selve predikatet paa to litterale uttrykk: ett som
-  -- SKAL felles og ett som ikke skal. Slutter det aa virke - fordi
+  -- Her proeves selve predikatet paa fire litterale uttrykk: to som
+  -- SKAL felles og to som ikke skal. Slutter det aa virke - fordi
   -- noen strammer regexen, eller fordi Postgres endrer hvordan den
   -- skriver ut policyer - roeper denne det, i stedet for at punkt 1
   -- stille slutter aa finne noe.
+  --
+  -- BEGGE UTSKRIFTSFORMENE, og det er ikke pedanteri. Foerste utgave
+  -- av kanarifuglen proevde bare `( SELECT f())`. Postgres skriver
+  -- `( SELECT f() AS f)` - med alias - saa strippingen traff
+  -- ingenting mot en ekte base og vakthunden meldte 60 policyer som
+  -- alle var riktige. Kanarifuglen var groenn hele veien, fordi den
+  -- proevde mitt format i staden for Postgres sitt.
+  if regexp_replace(
+       '(retailer_id = ( SELECT gjeldende_retailer_id() AS gjeldende_retailer_id)) AND har_stasjonstilgang(stasjon_id)',
+       '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') !~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
+    raise exception 'RLS-VAKTHUND punkt 1 ser ikke et raatt kall ved siden av et pakket (med alias) - selve maalingen er i stykker';
+  end if;
   if regexp_replace(
        '(retailer_id = ( SELECT gjeldende_retailer_id())) AND har_stasjonstilgang(stasjon_id)',
-       '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') !~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
-    raise exception 'RLS-VAKTHUND punkt 1 ser ikke et raatt kall ved siden av et pakket - selve maalingen er i stykker';
+       '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') !~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
+    raise exception 'RLS-VAKTHUND punkt 1 ser ikke et raatt kall ved siden av et pakket (uten alias) - selve maalingen er i stykker';
+  end if;
+  if regexp_replace(
+       '(retailer_id = ( SELECT gjeldende_retailer_id() AS gjeldende_retailer_id))',
+       '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
+    raise exception 'RLS-VAKTHUND punkt 1 feller et korrekt pakket kall med alias - den ville meldt hver eneste riktige policy';
   end if;
   if regexp_replace(
        '(retailer_id = ( SELECT gjeldende_retailer_id()))',
-       '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
-    raise exception 'RLS-VAKTHUND punkt 1 feller et korrekt pakket kall - den ville gitt falske funn paa riktig kode';
+       '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)' then
+    raise exception 'RLS-VAKTHUND punkt 1 feller et korrekt pakket kall uten alias - den ville gitt falske funn paa riktig kode';
   end if;
 
   -- --- 2) "for all"-policyer paa varme tabeller ---
@@ -533,9 +550,9 @@ begin
       -- er raatt. Postgres har ingen lookbehind, saa dette er
       -- maaten.
       and (
-        regexp_replace(coalesce(qual, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
+        regexp_replace(coalesce(qual, ''), '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
         or
-        regexp_replace(coalesce(with_check, ''), '\( SELECT [a-z_]+[.]?[a-z_]*\([^()]*\)[[:space:]]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
+        regexp_replace(coalesce(with_check, ''), '\([[:space:]]*SELECT[[:space:]]+[^()]*\([^()]*\)[^()]*\)', '', 'g') ~ '(gjeldende_rolle|gjeldende_retailer_id|har_stasjonstilgang|auth[.]uid)'
       )
     order by policyname
   loop
