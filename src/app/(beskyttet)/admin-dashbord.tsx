@@ -23,7 +23,7 @@ import { Sammenleggbar } from './sammenleggbar'
 import { AiKort } from './ai-kort'
 import { Stasjonsrangering, type RangRad } from './stasjonsrangering'
 import { Budsjettstatus, type BudsjettRad } from './budsjettstatus'
-import { AVDELINGER } from '@/lib/avdelinger'
+import { AVDELINGER, SKJUL_OMS_KODER } from '@/lib/avdelinger'
 import { forsidetall, type Forsidetall, type Regnskapslinje } from '@/lib/regnskap/forsidetall'
 import { hentRegnskapVarsler } from '@/lib/regnskap-varsler'
 
@@ -116,7 +116,25 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     for (const l of rangLinjeRes.data ?? []) {
       if (!navnFor.has(l.stasjon_id)) continue
       const kode = (l.kode ?? '').trim()
-      if (!kode || kode === '40') continue
+      // =============================================================
+      // DRIVSTOFF OG PANT VAR MED I NEVNEREN
+      // =============================================================
+      // Her sto `kode === '40'` alene — bare St1-totalen ble luket.
+      // Alle ANDRE konsumenter av de samme radene bruker
+      // `SKJUL_OMS_KODER` (10 drivstoff, 250 pant, 40 rollup):
+      // `regnskap-varsler`, `ai/fokus`, `ai/lederstotte`,
+      // `ai/regnskapsanalyse` og `salg/page`. Her sto drivstoff igjen.
+      //
+      // `r.oms.total` er nevneren i lønnsprosenten, og drivstoff er
+      // ~68 % av omsetningen. Prosenten ble dermed omtrent TRE GANGER
+      // for lav, og terskelen på 32 % i `stasjonsrangering` kunne
+      // aldri slå ut. Standardfanen «Omsetning · Total» rangerte
+      // stasjonene etter pumpevolum — og summen av avdelingene i
+      // nedtrekket var aldri lik den totalen.
+      //
+      // `utelatte-koder.test.ts` binder lista i TypeScript til den i
+      // SQL, men ser ikke kallstedene. Derfor var den grønn.
+      if (!kode || SKJUL_OMS_KODER.has(kode)) continue
       const r = sikre(l.stasjon_id)
       const mapp = l.seksjon === 'omsetning' ? r.oms : l.seksjon === 'bruttofortjeneste' ? r.brf : r.kost
       const eks = mapp[kode] ?? { regnskap: 0, budsjett: 0 }
