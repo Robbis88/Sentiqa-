@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import Link from 'next/link'
 import { TabletHode } from '../tablet-hode'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
@@ -8,6 +9,7 @@ import { osloNaa, skjemaAktiv, rutineGjelder, VAKTTYPE_ETIKETT, type Vaktvindu }
 import { beregnRutinestat } from '@/lib/rutinestat'
 import { oversettMange } from '@/lib/oversett'
 import { Konfetti } from '../konfetti'
+import { Vaktvelger, type Vakt } from './vaktvelger'
 import { kryssAv, kryssAvMedBilde, fjernKryss, lagreNotat } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
@@ -146,8 +148,32 @@ export default async function RutinerSide() {
       ferdige: rs0.filter((r) => erGjort(r, vindu.vaktdato)),
     })
   }
-  const igjenTotalt = [...perSkjema.values()].reduce((n, v) => n + v.aapne.length, 0)
-  const totaltPaaVakt = [...perSkjema.values()].reduce((n, v) => n + v.rs0.length, 0)
+  // =================================================================
+  // TALLET GJELDER ÉN STASJON, IKKE SUMMEN OVER ALLE
+  // =================================================================
+  // «104 igjen» sto i tittelen paa Boenes. Femtifem av dem var Boenes;
+  // resten var de andre stasjonene. `igjenTotalt` summerte over hver
+  // stasjon med aktiv vakt, og for en eier med fem butikker er det et
+  // svar paa et spoersmaal ingen stilte.
+  //
+  // Paa nettbrettet finnes bare én stasjon, saa der er det samme tall.
+  // For lederen sier tittelen naa hvor mange stasjoner det gjelder,
+  // framfor aa la ett tall se ut som ett sted.
+  const igjenPerStasjon = new Map<string, number>()
+  const totaltPerStasjon = new Map<string, number>()
+  for (const [sid, liste] of perStasjon) {
+    let igjen = 0
+    let totalt = 0
+    for (const { skjema } of liste) {
+      const v = perSkjema.get(skjema.id)
+      igjen += v?.aapne.length ?? 0
+      totalt += v?.rs0.length ?? 0
+    }
+    igjenPerStasjon.set(sid, igjen)
+    totaltPerStasjon.set(sid, totalt)
+  }
+  const igjenTotalt = [...igjenPerStasjon.values()].reduce((a, b) => a + b, 0)
+  const totaltPaaVakt = [...totaltPerStasjon.values()].reduce((a, b) => a + b, 0)
   // Nettbrettet står i én butikk, og hun som holder det vet hvilken.
   // Styrt av ROLLE, ikke av antall stasjoner: en leder som ser på klokka
   // 07 når bare Bønes har aktiv vakt, skal fortsatt se hvilken butikk
@@ -155,11 +181,17 @@ export default async function RutinerSide() {
   const paaNettbrett = bruker.rolle === 'butikkbruker_tablet'
 
   // Svaret er det samme for begge rollene; bare rammen rundt er ulik.
+  //
+  // ETT TALL SKAL GJELDE ETT STED. Ser lederen flere stasjoner samtidig,
+  // sier tittelen det - ellers leses summen som én butikks arbeidsmengde.
+  const antallStasjoner = perStasjon.size
   const svaret = totaltPaaVakt === 0
     ? o('Ingen rutiner på vakta nå') ?? 'Ingen rutiner på vakta nå'
     : igjenTotalt === 0
       ? o('Alt er gjort') ?? 'Alt er gjort'
-      : `${igjenTotalt} ${o('igjen')}`
+      : !paaNettbrett && antallStasjoner > 1
+        ? `${igjenTotalt} igjen på ${antallStasjoner} stasjoner`
+        : `${igjenTotalt} ${o('igjen')}`
 
   return (
     <>
@@ -196,7 +228,13 @@ export default async function RutinerSide() {
             {(streaks.get(sid) ?? 0) > 0 && (
               <p className="streak">{streaks.get(sid)} {o('dager på rad')}</p>
             )}
-            {liste.map(({ skjema, vindu }) => {
+            {/* ÉN VAKT OM GANGEN PAA NETTBRETTET, STABLET FOR LEDEREN.
+                Overlappen paa +/- 60 min gjoer at to vakter er aktive
+                rundt skiftet. Den som staar i butikken skal se sitt eget
+                skift; lederen ser paa flere vakter samtidig med vilje, og
+                for henne er stabelen fortsatt riktig form. */}
+            {(() => {
+            const vakter: Vakt[] = liste.map(({ skjema, vindu }) => {
               const { rs0, aapne, ferdige } = perSkjema.get(skjema.id)!
               const ferdigN = ferdige.length
               const totalt = rs0.length
@@ -277,7 +315,7 @@ export default async function RutinerSide() {
                   </li>
                 )
               }
-              return (
+              const innhold = (
                 <div className="ik-gruppe" key={skjema.id}>
                   <Konfetti aktiv={alleFerdig} nokkel={`${skjema.id}-${vindu.vaktdato}`} />
                   <h3>{o(VAKTTYPE_ETIKETT[skjema.vakttype])}{skjema.navn ? ` · ${skjema.navn}` : ''} <span className="undertittel">{skjema.tid_start}–{skjema.tid_slutt}</span></h3>
@@ -302,7 +340,32 @@ export default async function RutinerSide() {
                   )}
                 </div>
               )
-            })}
+              return {
+                id: skjema.id,
+                etikett: `${o(VAKTTYPE_ETIKETT[skjema.vakttype])}${skjema.navn ? ` · ${skjema.navn}` : ''}`,
+                tid: `${skjema.tid_start}–${skjema.tid_slutt}`,
+                igjen, totalt, kjerne: vindu.kjerne, innhold,
+              }
+            })
+            // ET TOMT SKJEMA ER IKKE EN VAKT AA JOBBE PAA.
+            //
+            // Boenes hadde et «morgen»-skjema 06:00-14:00 med NULL
+            // rutiner ved siden av det ekte paa 04:00-15:00. Det gjorde
+            // ingenting annet enn aa telle som en aktiv vakt og gi en
+            // tredje fane som aapnet seg til ingenting.
+            //
+            // Skjult BARE paa nettbrettet. For lederen er et tomt skjema
+            // et funn - det er hun som kan rydde det bort i
+            // Rutineoppsett - og der staar «Ingen rutiner for denne
+            // vakten i dag» fortsatt.
+            const synlige = paaNettbrett ? vakter.filter((v) => v.totalt > 0) : vakter
+            if (!paaNettbrett) {
+              return <>{vakter.map((v) => <Fragment key={v.id}>{v.innhold}</Fragment>)}</>
+            }
+            return synlige.length > 0
+              ? <Vaktvelger vakter={synlige} igjenOrd={o('igjen') ?? 'igjen'} />
+              : <p className="undertittel">{o('Ingen rutiner på vakta nå')}</p>
+            })()}
           </section>
         ))
       )}
