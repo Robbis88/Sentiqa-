@@ -162,4 +162,39 @@ select
 from paastander
 order by ok, nr;
 
+-- ---------------------------------------------------------------------
+-- OG SAA MAA DEN FAKTISK KUNNE BLI ROED
+-- ---------------------------------------------------------------------
+-- Fila hadde NULL `raise exception`. «FEIL» var en strengverdi i en
+-- kolonne, og en kolonne stopper ingenting: `psql -v ON_ERROR_STOP=1`
+-- gaar ut med 0 uansett hvor mange rader som sier FEIL.
+--
+-- Det er noeyaktig det `rls_kanarifugl.sql` beskriver som «elleve FEIL,
+-- groenn jobb». Rettelsen ble gjort i den genererte matrisen og aldri
+-- foert tilbake hit.
+--
+-- TO KRAV, IKKE ETT. En tom `paastander` ville ogsaa gitt null feil - og
+-- «ingen paastander» er ikke det samme som «ingen funn». Gulvet er den
+-- halvparten som gjoer at en fil som slutter aa maale ikke ser ut som en
+-- fil uten funn.
+do $$
+declare
+  n_feil int;
+  n_alle int;
+begin
+  select count(*) filter (where not ok), count(*) into n_feil, n_alle from paastander;
+
+  if n_alle < 10 then
+    raise exception
+      'RLS-isolasjon: bare % paastander ble kjoert. Filen maaler ikke det den skal - '
+      'se etter en seksjon som ikke kjorte, eller en rolle som ikke lot seg sette.',
+      n_alle;
+  end if;
+
+  if n_feil > 0 then
+    raise exception 'RLS-isolasjon: % av % paastander feilet. Se radene over.',
+      n_feil, n_alle;
+  end if;
+end $$;
+
 rollback;
