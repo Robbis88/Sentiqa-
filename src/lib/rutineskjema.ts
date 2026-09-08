@@ -30,7 +30,28 @@ function forrigeDato(dato: string): string {
   return d.toISOString().slice(0, 10)
 }
 
-export type Vaktvindu = { aktiv: boolean; vaktdag: number; vaktdato: string }
+export type Vaktvindu = {
+  aktiv: boolean
+  vaktdag: number
+  vaktdato: string
+  /**
+   * Er vi INNE i vinduet, eller bare i naaden rundt det?
+   *
+   * ===================================================================
+   * TO VAKTER ER AKTIVE SAMTIDIG, OG DET ER MENINGEN
+   * ===================================================================
+   * Overlappen paa +/- 60 minutter finnes for at den som avslutter
+   * dagvakta skal rekke aa hake av. Men den gjoer ogsaa at morgen
+   * (04-15) og kveld (15-24) begge er «aktive» klokka 15:20 - og
+   * flata summerte dem til ett tall. Paa Boenes ble det 36 + 19 = 55
+   * rutiner i én haug, uten at noe sa hvilken vakt de hoerte til.
+   *
+   * `kjerne` skiller den vakta man faktisk staar i fra den man holder
+   * paa aa forlate. Den avgjoer hvilken som er valgt naar sida aapner;
+   * begge er fortsatt tilgjengelige.
+   */
+  kjerne: boolean
+}
 
 // Er skjemaet aktivt nå? Returnerer også vakt-dag/-dato som rutinene filtreres
 // og registreres på (viktig for vakter over midnatt — da «hører» morgenen til
@@ -48,26 +69,33 @@ export function skjemaAktiv(
 
   if (start <= slutt) {
     const aktiv = naa.minutter >= s && naa.minutter <= e && passerDag(naa.ukedag)
-    return { aktiv, vaktdag: naa.ukedag, vaktdato: naa.dato }
+    const kjerne = aktiv && naa.minutter >= start && naa.minutter <= slutt
+    return { aktiv, kjerne, vaktdag: naa.ukedag, vaktdato: naa.dato }
   }
   // Krysser midnatt
   if (naa.minutter >= s) {
     // Kveldsdel — vakten startet i dag
-    return { aktiv: passerDag(naa.ukedag), vaktdag: naa.ukedag, vaktdato: naa.dato }
+    const aktiv = passerDag(naa.ukedag)
+    return { aktiv, kjerne: aktiv && naa.minutter >= start, vaktdag: naa.ukedag, vaktdato: naa.dato }
   }
   if (naa.minutter <= e) {
     // Morgendel — vakten startet i går
     const vaktdag = (naa.ukedag + 6) % 7
-    return { aktiv: passerDag(vaktdag), vaktdag, vaktdato: forrigeDato(naa.dato) }
+    const aktiv = passerDag(vaktdag)
+    return { aktiv, kjerne: aktiv && naa.minutter <= slutt, vaktdag, vaktdato: forrigeDato(naa.dato) }
   }
-  return { aktiv: false, vaktdag: naa.ukedag, vaktdato: naa.dato }
+  return { aktiv: false, kjerne: false, vaktdag: naa.ukedag, vaktdato: naa.dato }
 }
 
 // To-nivå ukedag: rutinens egne dager ∧ vaktens dag (tom rutine = arv fra
 // skjemaet, som allerede er sjekket). Hopp over rutiner opprettet etter vakten.
 export function rutineGjelder(
   rutine: { ukedager: number[]; opprettet_dato: string },
-  vindu: Vaktvindu,
+  // BARE DET DEN BRUKER. Sto som `Vaktvindu`, og da maatte hver
+  // testoppsetning finne paa verdier for `aktiv` og `kjerne` som
+  // funksjonen aldri leser. En signatur som ber om mer enn den trenger
+  // gjoer det dyrere aa teste den enn aa la vaere.
+  vindu: { vaktdag: number; vaktdato: string },
 ): boolean {
   const dagOk = rutine.ukedager.length === 0 || rutine.ukedager.includes(vindu.vaktdag)
   const ikkeForTidlig = rutine.opprettet_dato <= vindu.vaktdato

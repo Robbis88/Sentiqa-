@@ -2685,3 +2685,28 @@ a.sq-rad-lenke:hover { background: var(--bg); }
    leses nedover uten aa lete etter kommaet. */
 .sq-lagt-inn .num { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
 .sq-lagt-inn .undertittel { flex-basis: 100%; margin: 0; }
+
+/* --- Vaktvelger paa nettbrettet ------------------------------------
+   Overlappen paa +/- 60 minutter gjoer at to vakter er aktive rundt
+   skiftet. Maalt paa Boenes 15:20: morgen med 19 rutiner og kveld med
+   36, stablet under hverandre som én haug paa 55.
+   Fanene baerer tid OG antall igjen, saa valget ikke blir et ekstra
+   steg for aa finne ut om det er noe aa gjoere der. */
+.vaktvelger {
+  display: flex; gap: var(--luft-1);
+  background: var(--natt-flate); padding: var(--luft-1);
+  border-radius: var(--radius); margin-bottom: var(--luft-4);
+}
+.vaktvelger-fane {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  /* 56 px er nettbrettets minstemaal for en finger, som `.tablet .kryss`. */
+  min-height: 56px; padding: var(--luft-3) var(--luft-4);
+  border: 0; border-radius: var(--radius); background: transparent;
+  color: var(--natt-tekst-svak); font: inherit; font-weight: 600;
+  line-height: var(--linje-tett); text-align: left; cursor: pointer;
+}
+.vaktvelger-fane[aria-pressed="true"] { background: var(--natt-flate-lys); color: var(--natt-tekst-klar); }
+.vaktvelger-navn { font-size: 1.05rem; }
+.vaktvelger-under { font-size: 0.8rem; font-weight: 400; color: var(--natt-tekst-dempet); }
+.vaktvelger-fane[aria-pressed="true"] .vaktvelger-under { color: var(--natt-tekst-svak); }

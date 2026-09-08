@@ -143,3 +143,63 @@ describe('regelen finnes bare ett sted', () => {
   })
 })
 
+
+// =====================================================================
+// KJERNE MOT NAADE
+//
+// Overlappen paa +/- 60 minutter finnes for at den som avslutter
+// dagvakta skal rekke aa hake av. Men den gjoer ogsaa at to vakter er
+// aktive samtidig rundt skiftet - paa Boenes var morgen (04-15) og
+// kveld (15-24) begge aktive klokka 15:20, og flata summerte dem til
+// ett tall: 36 + 19 rutiner i én haug.
+//
+// `kjerne` skiller den vakta man faktisk staar i fra den man holder paa
+// aa forlate. Uten den kan ikke flata velge riktig vakt som forvalgt.
+// =====================================================================
+describe('skjemaAktiv — kjerne mot naade', () => {
+  const morgen = { tid_start: '04:00', tid_slutt: '15:00', ukedager: [] as number[] }
+  const kveld = { tid_start: '15:00', tid_slutt: '00:00', ukedager: [] as number[] }
+
+  it('klokka 15:20 er kveld kjernen og morgen bare naade', () => {
+    const n = naa('2026-06-09', 2, 15 * 60 + 20)
+    const m = skjemaAktiv(morgen, n)
+    const k = skjemaAktiv(kveld, n)
+    // Begge er aktive - det er nettopp derfor tallet ble 55.
+    expect(m.aktiv).toBe(true)
+    expect(k.aktiv).toBe(true)
+    // Men bare én av dem er vakta man staar i.
+    expect(m.kjerne).toBe(false)
+    expect(k.kjerne).toBe(true)
+  })
+
+  it('klokka 08:00 er morgen kjernen, og kveld er ikke aktiv i det hele tatt', () => {
+    const n = naa('2026-06-09', 2, 8 * 60)
+    expect(skjemaAktiv(morgen, n)).toMatchObject({ aktiv: true, kjerne: true })
+    expect(skjemaAktiv(kveld, n).aktiv).toBe(false)
+  })
+
+  it('en time foer start er aktiv, men ikke kjerne', () => {
+    const n = naa('2026-06-09', 2, 14 * 60 + 30) // 30 min foer kveld
+    expect(skjemaAktiv(kveld, n)).toMatchObject({ aktiv: true, kjerne: false })
+  })
+
+  // MIDNATTSVAKTA HAR SAMME SKILLE. Morgendelen av en 22-06-vakt er
+  // kjerne fram til 06:00 og naade i timen etter - ellers ville en
+  // nattevakt som gaar av 06:30 sett vakta si som «den man staar i»
+  // samtidig som morgenvakta.
+  it('skiller kjerne fra naade ogsaa over midnatt', () => {
+    const natt = { tid_start: '22:00', tid_slutt: '06:00', ukedager: [] as number[] }
+    expect(skjemaAktiv(natt, naa('2026-06-09', 2, 5 * 60))).toMatchObject({ aktiv: true, kjerne: true })
+    expect(skjemaAktiv(natt, naa('2026-06-09', 2, 6 * 60 + 30))).toMatchObject({ aktiv: true, kjerne: false })
+    expect(skjemaAktiv(natt, naa('2026-06-09', 2, 23 * 60))).toMatchObject({ aktiv: true, kjerne: true })
+    expect(skjemaAktiv(natt, naa('2026-06-09', 2, 21 * 60 + 30))).toMatchObject({ aktiv: true, kjerne: false })
+  })
+
+  // KANARIFUGL: en `kjerne` som alltid er lik `aktiv` maaler ingenting,
+  // og da ville forvalget vaert tilfeldig igjen.
+  it('kjerne er ikke bare en kopi av aktiv', () => {
+    const n = naa('2026-06-09', 2, 15 * 60 + 20)
+    const m = skjemaAktiv(morgen, n)
+    expect(m.aktiv).not.toBe(m.kjerne)
+  })
+})
