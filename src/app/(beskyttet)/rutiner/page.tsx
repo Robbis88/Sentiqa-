@@ -38,21 +38,30 @@ export default async function RutinerSide() {
   // Grensene under er ikke oensker om faerre rader. De er steder aa
   // OPPDAGE at det ble for mange: `maaVaereHele` kaster naar en
   // spoerring naar sin egen grense, framfor aa svare halvt.
-  const [stasjonSvar, skjemaSvar, rutineSvar, ikPunktSvar, ikIdagSvar] = await Promise.all([
+  // =================================================================
+  // AVGRENSET AV FORM, IKKE AV EN GRENSE
+  // =================================================================
+  // Foerste rettelse satte `.limit(10000)` og `.limit(20000)` og sendte
+  // svaret gjennom `maaVaereHele`. Det var halvt gjort: `max_rows = 1000`
+  // i `supabase/config.toml` gjoer at PostgREST ALDRI gir mer enn tusen,
+  // saa en sjekk paa «naadde du tjue tusen» kan ikke utloeses. Grensen
+  // var en kommentar, ikke en grense.
+  //
+  // Svaret er ikke en hoeyere grense. Det er aa hente det sida faktisk
+  // bruker: rutinene for de AKTIVE skjemaene, og utfoeringene for de
+  // stasjonene som har vakt - stasjon for stasjon. Da kan ingen av dem
+  // naa tusen, uansett hvor stor kjeden blir. `maaVaereHele` staar igjen
+  // som en alarm for det jeg ikke har tenkt paa.
+  const [stasjonSvar, skjemaSvar, ikPunktSvar, ikIdagSvar] = await Promise.all([
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer').limit(500),
-    supabase.from('rutineskjemaer').select('id, stasjon_id, vakttype, navn, tid_start, tid_slutt, ukedager').eq('aktiv', true).is('slettet_tid', null).limit(2000).overrideTypes<Skjema[]>(),
-    // 336 rutiner hos Kelsar i dag. Grensen er satt der den ikke kan naas
-    // av en kjede paa fem stasjoner, men vil naas av en paa femti - og
-    // da skal den si fra, ikke lyve.
-    supabase.from('rutiner').select('id, skjema_id, stasjon_id, tittel, beskrivelse, ukedager, opprettet_dato, paakrevd_bilde, ikmat_frekvens').not('skjema_id', 'is', null).is('slettet_tid', null).order('sortering').limit(10000).overrideTypes<Rutine[]>(),
-    supabase.from('ik_kontrollpunkter').select('id, stasjon_id, frekvens').is('slettet_tid', null).limit(2000).overrideTypes<IkPunkt[]>(),
-    supabase.from('ik_avlesninger').select('kontrollpunkt_id').eq('dato', naa.dato).limit(5000).overrideTypes<{ kontrollpunkt_id: string }[]>(),
+    supabase.from('rutineskjemaer').select('id, stasjon_id, vakttype, navn, tid_start, tid_slutt, ukedager').eq('aktiv', true).is('slettet_tid', null).limit(1000).overrideTypes<Skjema[]>(),
+    supabase.from('ik_kontrollpunkter').select('id, stasjon_id, frekvens').is('slettet_tid', null).limit(1000).overrideTypes<IkPunkt[]>(),
+    supabase.from('ik_avlesninger').select('kontrollpunkt_id').eq('dato', naa.dato).limit(1000).overrideTypes<{ kontrollpunkt_id: string }[]>(),
   ])
   const stasjoner = maaVaereHele(stasjonSvar, 'stasjonene', 500)
-  const skjemaer = maaVaereHele(skjemaSvar, 'rutineskjemaene', 2000)
-  const rutiner = maaVaereHele(rutineSvar, 'rutinene', 10000)
-  const ikPunkter = maaVaereHele(ikPunktSvar, 'IK-kontrollpunktene', 2000)
-  const ikIdag = maaVaereHele(ikIdagSvar, 'dagens IK-avlesninger', 5000)
+  const skjemaer = maaVaereHele(skjemaSvar, 'rutineskjemaene')
+  const ikPunkter = maaVaereHele(ikPunktSvar, 'IK-kontrollpunktene')
+  const ikIdag = maaVaereHele(ikIdagSvar, 'dagens IK-avlesninger')
 
   // IK-mat: enheter pr stasjon + hva som er målt i dag (for auto-haking).
   const ikPerStasjon = new Map<string, IkPunkt[]>()
@@ -72,33 +81,56 @@ export default async function RutinerSide() {
     if (vindu.aktiv) aktive.push({ skjema: s, vindu })
   }
 
-  // Rutiner pr skjema, filtrert på vakten
+  const datoer = [...new Set(aktive.map((a) => a.vindu.vaktdato))]
+  const aktiveSkjemaIder = aktive.map((a) => a.skjema.id)
+  // Stasjonene som faktisk har vakt naa.
+  const aktiveStasjoner = [...new Set(aktive.map((a) => a.skjema.stasjon_id))]
+
+  // RUTINENE FOR DE AKTIVE SKJEMAENE, IKKE ALLE KJEDENS.
+  //
+  // Sto som «hent alt, filtrer i minnet». Kelsar har 336 rutiner i dag,
+  // saa det gikk - men en kjede med femti stasjoner ville faatt de
+  // foerste tusen og ingen beskjed. Naa er utvalget bundet av hvor mange
+  // vakter som er aktive samtidig, og det tallet vokser ikke med kjeden.
   const rutinerForSkjema = new Map<string, Rutine[]>()
-  for (const r of rutiner as unknown as Rutine[]) {
-    if (!r.skjema_id) continue
-    const l = rutinerForSkjema.get(r.skjema_id) ?? []
-    l.push(r)
-    rutinerForSkjema.set(r.skjema_id, l)
+  if (aktiveSkjemaIder.length > 0) {
+    const svar = await supabase
+      .from('rutiner')
+      .select('id, skjema_id, stasjon_id, tittel, beskrivelse, ukedager, opprettet_dato, paakrevd_bilde, ikmat_frekvens')
+      .in('skjema_id', aktiveSkjemaIder)
+      .is('slettet_tid', null)
+      .order('sortering')
+      .limit(1000)
+    for (const r of maaVaereHele(svar, 'rutinene') as unknown as Rutine[]) {
+      if (!r.skjema_id) continue
+      const l = rutinerForSkjema.get(r.skjema_id) ?? []
+      l.push(r)
+      rutinerForSkjema.set(r.skjema_id, l)
+    }
   }
 
-  // Hent utføringer for de aktuelle vaktdatoene
-  const datoer = [...new Set(aktive.map((a) => a.vindu.vaktdato))]
-  // Stasjonene som faktisk har vakt naa. Uten dette filteret hentes
-  // utfoeringer for hver stasjon i kjeden, ogsaa dem ingen ser paa.
-  const aktiveStasjoner = [...new Set(aktive.map((a) => a.skjema.stasjon_id))]
+  // UTFOERINGENE, ÉN STASJON OM GANGEN.
+  //
+  // Dette var den som meldte «68 igjen»: uten grense kuttet PostgREST
+  // paa tusen, og Boenes sine avhukinger falt utenfor. Foerste rettelse
+  // satte `.limit(20000)`, som ikke er en grense i det hele tatt -
+  // `max_rows = 1000` gjelder uansett.
+  //
+  // Én spoerring per stasjon er bundet av FORM: én stasjons rutiner
+  // ganger antall vaktdatoer, og det er under to hundre. Det tallet
+  // vokser ikke med hvor mange butikker kjeden har.
   const utfortMap = new Map<string, string | null>() // key -> bilde_sti
   if (datoer.length > 0) {
-    // DEN SOM MELDTE 68 IGJEN. Uten grense kuttet PostgREST paa tusen,
-    // og Boenes sine avhukinger falt utenfor. Begrenset til stasjonene
-    // som faktisk har vakt naa, og med et tak som ikke kan naas av dem.
-    const svar = await supabase
+    const svar = await Promise.all(aktiveStasjoner.map((sid) => supabase
       .from('rutine_utforinger')
       .select('rutine_id, dato, bilde_sti')
       .in('dato', datoer)
-      .in('stasjon_id', aktiveStasjoner)
-      .limit(20000)
-    for (const u of maaVaereHele(svar, 'utførte rutiner', 20000) as { rutine_id: string; dato: string; bilde_sti: string | null }[]) {
-      utfortMap.set(`${u.rutine_id}|${u.dato}`, u.bilde_sti)
+      .eq('stasjon_id', sid)
+      .limit(1000)))
+    for (const s0 of svar) {
+      for (const u of maaVaereHele(s0, 'utførte rutiner') as { rutine_id: string; dato: string; bilde_sti: string | null }[]) {
+        utfortMap.set(`${u.rutine_id}|${u.dato}`, u.bilde_sti)
+      }
     }
   }
   // Gjort = vanlig rutine avhuket, ELLER IK-mat-gruppe ferdig målt i dag.
@@ -107,14 +139,16 @@ export default async function RutinerSide() {
   // `rutine_utforinger` - et notat betyr ikke at rutinen er gjort.
   const notatFor = new Map<string, string>()
   if (datoer.length > 0) {
-    const svar = await supabase
+    const svar = await Promise.all(aktiveStasjoner.map((sid) => supabase
       .from('rutine_notat')
       .select('rutine_id, dato, tekst')
       .in('dato', datoer)
-      .in('stasjon_id', aktiveStasjoner)
-      .limit(20000)
-    for (const n of maaVaereHele(svar, 'rutinenotatene', 20000) as { rutine_id: string; dato: string; tekst: string }[]) {
-      notatFor.set(`${n.rutine_id}|${n.dato}`, n.tekst)
+      .eq('stasjon_id', sid)
+      .limit(1000)))
+    for (const s0 of svar) {
+      for (const n of maaVaereHele(s0, 'rutinenotatene') as { rutine_id: string; dato: string; tekst: string }[]) {
+        notatFor.set(`${n.rutine_id}|${n.dato}`, n.tekst)
+      }
     }
   }
 

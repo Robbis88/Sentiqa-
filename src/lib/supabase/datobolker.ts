@@ -141,11 +141,29 @@ async function hentBolk<T>(
 export function maaVaereHele<T>(svar: Svar<T>, hva: string, tak = TAK): T[] {
   if (svar.error) throw new Error(`Kunne ikke lese ${hva}: ${svar.error.message}`)
   const rader = svar.data ?? []
-  if (rader.length >= tak) {
+
+  // =================================================================
+  // TAKET ER TUSEN, UANSETT HVA KALLEREN BAD OM
+  // =================================================================
+  // `supabase/config.toml` setter `max_rows = 1000`. En `.limit(20000)`
+  // gir derfor ALDRI mer enn tusen rader - og en sjekk paa
+  // `rader.length >= 20000` kan aldri utloeses.
+  //
+  // Foerste utgave av denne funksjonen gjorde noeyaktig det. Den ble
+  // skrevet for aa fange «68 rutiner igjen», og var inert paa hvert
+  // eneste kallsted som brukte et generoest tall: 10000 paa rutinene,
+  // 20000 paa utfoeringene. En vakt som ikke kan feile ser noeyaktig ut
+  // som en vakt som ikke finner noe - og den var min egen, samme dag.
+  //
+  // `Math.min` gjoer at kalleren kan senke taket, aldri heve det. En
+  // `.limit()` over tusen er ikke en grense; den er en kommentar.
+  const effektivt = Math.min(tak, TAK)
+  if (rader.length >= effektivt) {
     throw new Error(
-      `${hva} ga ${rader.length} rader og traff grensen paa ${tak}. `
-      + 'Svaret kan vaere avkortet, og et avkortet svar ser ut som ekte tall. '
-      + 'Avgrens spoerringen eller summer i basen.',
+      `${hva} ga ${rader.length} rader og traff taket paa ${effektivt}`
+      + (tak > TAK ? ` (kalleren bad om ${tak}, men PostgREST gir aldri mer enn ${TAK})` : '')
+      + '. Svaret kan vaere avkortet, og et avkortet svar ser ut som ekte tall. '
+      + 'Avgrens spoerringen, del den i datobolker, eller summer i basen.',
     )
   }
   return rader
