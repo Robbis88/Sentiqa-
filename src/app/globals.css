@@ -2710,3 +2710,22 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .vaktvelger-navn { font-size: 1.05rem; }
 .vaktvelger-under { font-size: 0.8rem; font-weight: 400; color: var(--natt-tekst-dempet); }
 .vaktvelger-fane[aria-pressed="true"] .vaktvelger-under { color: var(--natt-tekst-svak); }
+
+/* --- Loennsform per ansatt paa /lonnskost ---------------------------
+   Sandra paa Lone sto med 193 timer og 57 957 kroner ingen hadde faatt
+   utbetalt. Regelen som holder henne utenfor fantes; stedet aa sette
+   den gjorde ikke - `/lonn` regnes fra stemplingene, og Lone hadde
+   ingen for august. */
+.sq-lonnsformer { list-style: none; margin: var(--luft-4) 0 var(--luft-4); padding: 0; display: flex; flex-direction: column; gap: var(--luft-2); }
+.sq-lonnsformer > li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--luft-3);
+  padding: var(--luft-3); border: 1px solid var(--kant); border-radius: var(--radius);
+  background: var(--kort);
+}
+/* Den som holdes utenfor skal se annerledes ut enn den som teller.
+   Kanten alene, ikke farge: det er ikke en advarsel, det er en
+   klassifisering noen har tatt stilling til. */
+.sq-lonnsformer > li.utenfor { border-style: dashed; border-color: var(--kant-sterk); }
+.sq-lf-navn { font-weight: 600; }
+.sq-lf-tall { margin-left: auto; font-variant-numeric: tabular-nums; font-size: var(--tekst-liten); }
+.sq-lf-hvorfor { flex-basis: 100%; margin: 0; }

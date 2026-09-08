@@ -77,6 +77,33 @@ export type Lonnsbilde = {
     iRegnskapet: 'ja' | 'nei' | 'delvis'
   }[]
   fastlonnMaaneder: { ar: number; maned: number; grunnlonnKr: number }[]
+  /**
+   * Hvem loennsdataene kjenner, for den siste maaneden med tall.
+   *
+   * ===================================================================
+   * ET ANSETTELSESFORHOLD SKAL IKKE HENGE PAA EN ANNEN FIL
+   * ===================================================================
+   * Sandra paa Lone sto med 193,50 timer og 57 957 kroner ingen hadde
+   * faatt utbetalt - hun har fastloenn. Regelen som holder henne
+   * utenfor er `ansatt_avtale.lonnsform`, og den fantes fra `0099`.
+   * Problemet var at den bare kunne settes paa `/lonn`, som regnes fra
+   * STEMPLINGENE. Lone hadde ingen stemplinger for august, saa sida var
+   * tom og Sandra kunne ikke markeres i det hele tatt.
+   *
+   * Her staar hun, fordi loennsfila kjenner henne. `lonnsform: null`
+   * betyr «ikke avklart» og teller som timeloenn - uavklart er ikke det
+   * samme som fastloennet.
+   */
+  ansatte: {
+    ansattNr: string
+    navn: string
+    timer: number
+    belopKr: number
+    beregnet: boolean
+    lonnsform: 'timelonn' | 'fastlonn' | 'tilkalling' | null
+  }[]
+  /** Maaneden `ansatte` gjelder, `yyyy-mm`. */
+  ansatteMaaned: string | null
 }
 
 export async function hentLonnskost(
@@ -84,7 +111,7 @@ export async function hentLonnskost(
   stasjonId: string,
   fraOgMed: string,
 ): Promise<Lonnsbilde> {
-  const [regnskap, bp, lonnsart, brutto, bpMnd, vask, fastlonn, grunnlag] = await Promise.all([
+  const [regnskap, bp, lonnsart, brutto, bpMnd, vask, fastlonn, grunnlag, folk, avtaler] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('periode, seksjon, kode, post, regnskap, budsjett')
@@ -215,6 +242,27 @@ export async function hentLonnskost(
       .gte('maaned', fraOgMed.slice(0, 7))
       .limit(500)
       .overrideTypes<{ maaned: string; omsetning_kr: number; svinn_kr: number }[]>(),
+    // HVEM LOENNSDATAENE KJENNER (0191). Eget view, ikke et raatt
+    // uttrekk: PostgREST avkorter paa tusen rader uten aa feile, og
+    // Laguneparken alene har 365 linjer i august.
+    supabase
+      .from('v_lonnsart_ansatt_maaned')
+      .select('maaned, ansatt_nr, ansatt_navn, timer, belop_kr, beregnet')
+      .eq('stasjon_id', stasjonId)
+      .gte('maaned', fraOgMed.slice(0, 7))
+      .limit(2000)
+      .overrideTypes<{
+        maaned: string; ansatt_nr: string; ansatt_navn: string
+        timer: number; belop_kr: number; beregnet: boolean
+      }[]>(),
+    // Loennsformen deres. `null` er «ikke avklart», og det er ikke det
+    // samme som timeloenn - se `lib/lonn/lonnsform.ts`.
+    supabase
+      .from('ansatt_avtale')
+      .select('ansatt_nr, navn, lonnsform')
+      .eq('stasjon_id', stasjonId)
+      .limit(500)
+      .overrideTypes<{ ansatt_nr: string; navn: string; lonnsform: string | null }[]>(),
   ])
 
   // BP-LINJENE STØPES I SAMME FORM som regnskapets, så `byggLonnskost`
@@ -267,6 +315,8 @@ export async function hentLonnskost(
     ['bilvaskabonnementene', vask],
     ['oppgitt grunnlønn', fastlonn],
     ['omsetning og svinn per måned', grunnlag],
+    ['de ansatte i lønnsdataene', folk],
+    ['lønnsformene', avtaler],
   ] as const) {
     if (svar.error) throw new Error(`Kunne ikke lese ${hva}: ${svar.error.message}`)
   }
@@ -405,6 +455,35 @@ export async function hentLonnskost(
     fastlonnMaaneder: (fastlonn.data ?? [])
       .map((r) => ({ ar: r.ar, maned: r.maned, grunnlonnKr: Number(r.grunnlonn_kr) }))
       .sort((a, b) => (b.ar - a.ar) || (b.maned - a.maned)),
+    ...(() => {
+      // SISTE MAANED MED LOENNSDATA, ikke alle. Lista er til for aa
+      // avklare loennsform, og det spoersmaalet stilles paa den
+      // maaneden man nettopp lastet opp.
+      const rader = folk.data ?? []
+      const sisteMaaned = rader.length > 0
+        ? rader.map((r) => r.maaned).sort().at(-1)!
+        : null
+      const form = new Map(
+        (avtaler.data ?? []).map((a) => [a.ansatt_nr, a.lonnsform]),
+      )
+      return {
+        ansatteMaaned: sisteMaaned,
+        ansatte: rader
+          .filter((r) => r.maaned === sisteMaaned)
+          .map((r) => ({
+            ansattNr: r.ansatt_nr,
+            navn: r.ansatt_navn,
+            timer: Number(r.timer ?? 0),
+            belopKr: Number(r.belop_kr),
+            beregnet: r.beregnet,
+            lonnsform: (form.get(r.ansatt_nr) ?? null) as
+              'timelonn' | 'fastlonn' | 'tilkalling' | null,
+          }))
+          // Dyrest foerst: den som koster mest er den det er verdt aa
+          // ta stilling til, og en fastloennet ligger gjerne oeverst.
+          .sort((a, b) => b.belopKr - a.belopKr),
+      }
+    })(),
     maaneder,
     easyatwork: medFastlonn(syk.maaneder, regnskapFastlonn, oppgittGrunnlonn),
     sykelonn: { moenster: syk.moenster, maalte: syk.maalte, forsinkede: syk.forsinkede },
