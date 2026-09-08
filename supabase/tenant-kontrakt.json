@@ -1059,6 +1059,7 @@
     {
       "tabell": "malekort",
       "$hvorfor": "INGEN stasjonskolonne - rent retailer-scope. Beviser at generatoren ikke lager kryss-stasjon-tester der begrepet ikke finnes. Lesing er rollestyrt via vis_tablet siden 0134.",
+      "capability_gjeld": "anonymiser er kosmetisk. Flagget bytter butikknavnet til \"Butikk #4\" i visningen, men rangeringen bygges av to security definer-funksjoner som hver authenticated kan kalle direkte over PostgREST: malekort_stasjoner() (0075) gir navnet paa HVER stasjon i kjeden, og beregn_malekort_salg() (0074/0085) gir tallet per stasjon_id. En butikksjef eller et nettbrett kan joine dem selv og gjenskape den navngitte rangeringen, uansett hva admin har huket av. UTVEI: en smal funksjon malekort_rangering(p_malekort, p_fra, p_til) som gjor anonymiseringen SELV - returnerer verdi og et er_egen-flagg i staden for stasjon_id naar kortet er anonymt og kalleren ikke er retailer_admin - og deretter strammede grants paa de to brede. Samme form som 0165. IKKE GJORT: /maaling er en lederflate i drift, og endringen maa proeves mot ekte data foer den kjores. Merk at tallene i seg selv ikke er hemmelige - butikksjefen SKAL se rangeringen; det er koblingen navn-til-tall flagget lover aa skjule.",
       "tenant_scope": "retailer",
       "data_class": "warm",
       "operasjoner": [
