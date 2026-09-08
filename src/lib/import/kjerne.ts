@@ -13,6 +13,7 @@ import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
 import { manglendeStasjoner, dekningsnotat, erDaglig } from './stasjonsdekning'
 import { hoppetNotat } from '@/lib/bp/hoppede'
+import { ukjenteKontoer, ukjentKontoNotat } from '@/lib/regnskap/ukjentkonto'
 import { bruttoKurve, timelonnKurve, maanedsrammer } from '@/lib/bp/fordeling'
 import { parseDelingsfil, type Kastbudsjett } from '@/lib/parsere/delingsfil'
 import { arknavn } from '@/lib/parsere/xlsx-rader'
@@ -2011,5 +2012,13 @@ async function lagreRegnskap(
   }
 
   if (rader.length > 0) await skrivBatch(supabase, 'regnskapslinjer', rader)
-  return { antallRader: rader.length, umatchet }
+  // EN KONTO VI IKKE VET NAVNET PAA SKAL SES. Parseren skriver «Konto
+  // 739» og gaar videre; fra 0192 havner en ukjent konto dessuten
+  // automatisk paa eierens side av RLS. Begge deler er riktig som
+  // standard - men bare hvis noen faar vite det.
+  return {
+    antallRader: rader.length,
+    umatchet,
+    notat: ukjentKontoNotat(ukjenteKontoer(rader as { seksjon?: unknown; kode?: unknown; post?: unknown }[])),
+  }
 }
