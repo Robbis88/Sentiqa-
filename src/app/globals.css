@@ -2663,3 +2663,25 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 .rutine-notis { margin: 0.6rem 0 0; color: var(--tekst-svak); line-height: var(--linje-luftig); white-space: pre-wrap; }
 .rutine-notat { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem; align-items: flex-start; }
 .rutine-notat textarea { width: 100%; min-height: 3.2rem; padding: 0.5rem 0.6rem; border: 1px solid var(--kant); border-radius: var(--radius); font: inherit; }
+
+/* --- Tallene ingen fil leverer -------------------------------------
+   Bilvask og butikksjefens grunnlonn legges inn for hand, og begge har
+   en unik noekkel som hindrer dobbelfoering. En noekkel uten en liste
+   loeser bare halve problemet: den hindrer at uka foeres to ganger, men
+   ingen kan se at den KOM INN. Robert la inn uke 35 og 36 og spurte
+   «hvor ser vi oversikten over hva som er lagt inn da?» - riktig
+   innlegging saa ut som ingenting. */
+.sq-manuelle-tall { display: flex; flex-wrap: wrap; gap: var(--luft-6); align-items: flex-start; }
+/* Ingen egen max-width her: `.sq-skjema` har alt sin lesbare bredde, og
+   en bredde til ville vaert en spaltebredde satt lokalt - nettopp det
+   `sideramme.test.ts` vokter. */
+.sq-manuelle-tall > .sq-skjema { flex: 1 1 20rem; }
+/* Kvitteringa her er en hel setning, ikke et stikkord. `nowrap` fra
+   radkvitteringene ville skjovet den ut av kortet. */
+.sq-manuelle-tall .sq-slett-ok { white-space: normal; }
+.sq-lagt-inn { list-style: none; margin: var(--luft-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--luft-1); }
+.sq-lagt-inn > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--luft-2); padding: var(--luft-2) var(--luft-3); border: 1px solid var(--kant); border-radius: var(--radius); background: var(--kort); font-size: var(--tekst-liten); }
+/* Beloepet hoeyrestilt og med tabulaere siffer: kolonnen skal kunne
+   leses nedover uten aa lete etter kommaet. */
+.sq-lagt-inn .num { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sq-lagt-inn .undertittel { flex-basis: 100%; margin: 0; }

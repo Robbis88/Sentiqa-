@@ -49,6 +49,16 @@ export type Lonnsbilde = {
    * inneværende anslås den av omsetning, lært margin og svinn.
    */
   rom: Lonnsrom[]
+  /**
+   * Det som er lagt inn for haand, saa det kan SES.
+   *
+   * Noekkelen er unik for aa hindre dobbeltfoering, men uten en liste
+   * kan ingen bekrefte at uka kom inn - eller oppdage at noen alt hadde
+   * lagt den inn. En unik noekkel uten en oversikt loeser halve
+   * problemet og skjuler den andre halvparten.
+   */
+  bilvaskUker: { ar: number; uke: number; belopKr: number }[]
+  fastlonnMaaneder: { ar: number; maned: number; grunnlonnKr: number }[]
 }
 
 export async function hentLonnskost(
@@ -355,6 +365,12 @@ export async function hentLonnskost(
 
   return {
     rom,
+    bilvaskUker: (vask.data ?? [])
+      .map((r) => ({ ar: r.ar, uke: r.uke, belopKr: Number(r.belop_kr) }))
+      .sort((a, b) => (b.ar - a.ar) || (b.uke - a.uke)),
+    fastlonnMaaneder: (fastlonn.data ?? [])
+      .map((r) => ({ ar: r.ar, maned: r.maned, grunnlonnKr: Number(r.grunnlonn_kr) }))
+      .sort((a, b) => (b.ar - a.ar) || (b.maned - a.maned)),
     maaneder,
     easyatwork: medFastlonn(syk.maaneder, regnskapFastlonn, oppgittGrunnlonn),
     sykelonn: { moenster: syk.moenster, maalte: syk.maalte, forsinkede: syk.forsinkede },
