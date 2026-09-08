@@ -57,7 +57,38 @@ export const MAANEDER_FOR_MARGIN = 6
  * `AGENTS.md`: det er avdelingsNAVNET som identifiserer drivstoff, ikke
  * koden. Kodeverdien varierer mellom kjeder og er ikke mappet.
  */
-export const erDrivstoff = (post: string): boolean => /energi/i.test(post)
+export const erDrivstoff = (post: string): boolean => /energi|drivstoff/i.test(post)
+
+/**
+ * Er dette en AVDELING, eller en varegruppe under den?
+ *
+ * ===================================================================
+ * ROLLUPEN OG DELENE ER SAMME KRONER.
+ *
+ * Regnskapet gir begge nivåene som egne rader:
+ *
+ *     40 CR              10 444 947    <- avdeling
+ *     120 Mat             4 926 038    <- varegruppe under CR
+ *     140 Kald drikke     1 641 156
+ *     ...                 ----------
+ *     sum av delene      10 444 946    <- samme krone, en gang til
+ *
+ * Summeres begge, telles hver krone to ganger. Bruttoen for Dale juli
+ * sto med 1 886 352 der den virkelige er 943 176, og lønnsprosenten ble
+ * halvparten av den reelle — 23,4 % i stedet for 46,8 %.
+ *
+ * Verre: feilen traff BARE de avlagte månedene. Den inneværende regnes
+ * av de daglige salgstallene, som ikke har rollups. Siden så derfor
+ * riktig ut for august og gal for alt før — og det er den vanskeligste
+ * formen å oppdage, fordi den ferske måneden bekrefter at alt virker.
+ *
+ * Tosifret ledetall er avdeling, tresifret er varegruppe under den.
+ * ===================================================================
+ */
+export function erAvdelingsniva(post: string): boolean {
+  const m = /^(\d+)\s/.exec(post.trim())
+  return m !== null && m[1].length <= 2
+}
 
 export type Maanedsgrunnlag = {
   maaned: string // yyyy-mm
