@@ -30,8 +30,7 @@ alter table public.lonnsart_linje
   add column if not exists belop_beregnet boolean not null default false;
 
 comment on column public.lonnsart_linje.belop_beregnet is
-  'Er beloepet regnet av satstabellen (loennsgrunnlaget) i stedet for lest '
-  || '(loennsarteksporten)? Kronefila vinner alltid.';
+  'Er beloepet regnet av satstabellen (loennsgrunnlaget) i stedet for lest (loennsarteksporten)? Kronefila vinner alltid.';
 
 -- Importen sporr «har denne stasjonen leste rader i dette spennet?» for
 -- hver fil. Uten indeksen er det en full skanning per import.
