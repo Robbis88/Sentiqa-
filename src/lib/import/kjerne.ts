@@ -37,6 +37,7 @@ import { opprettVarsel } from '@/lib/varsler'
 import { vurderDag, UKER_TILBAKE } from './rimelighet'
 import { berorteUker } from './ukecache'
 import { vurderDublett } from './dublett'
+import { utenFastlonn } from '@/lib/lonn/utenfastlonn'
 import { lagKaffevarsel } from '@/lib/kaffesvinn'
 
 // Behandlings-kjernen (§6). Tar imot en supabase-klient — UI-knappen bruker
@@ -532,12 +533,71 @@ async function lagreLonnsart(
   // Regelen gaar begge veier, og maa gjoere det. Bare den ene retningen
   // ville latt rekkefoelgen paa opplastingene avgjoere tallet - og det
   // er ingen som ser.
+  // =================================================================
+  // EN FASTLOENNET STEMPLER OGSAA - MEN TIMENE ER IKKE LOENN
+  // =================================================================
+  // Sandra paa Lone staar i eksporten med 193,50 timer og en timesats
+  // paa 285. Ganget ut blir det 57 957 kroner som ingen har faatt
+  // utbetalt: hun har fastloenn, og stemplingene hennes er
+  // arbeidstid, ikke loennsgrunnlag. Tas de med, er Lones
+  // loennsandel feil med en fjerdedel av en butikksjefsloenn - og det
+  // ser ut som en stasjon som bruker for mye folk.
+  //
+  // Regelen finnes fra foer. `ansatt_avtale.lonnsform` ble innfoert i
+  // `0099` for NOEYAKTIG dette, for loennsfila til Visma: «Begge
+  // stempler. Begge jobber. Ingen av dem skal staa i fila.» Den var
+  // bare aldri anvendt paa loennskosten.
+  //
+  // BARE `fastlonn`, ikke `tilkalling`. En tilkallingsvikar faar betalt
+  // for timene sine - de foeres bare utenom Visma-fila. Kostnaden er
+  // ekte, og aa fjerne den ville gjort loennskosten for lav.
+  //
+  // `null` tas med. Uavklart er ikke det samme som fastloennet, og en
+  // import som stopper paa en manglende avklaring ville tatt loennskost
+  // fra alle for én persons skyld. Loennsfila stopper - den skriver ut
+  // penger. Denne leser bare.
+  const fastlonnede = new Map<string, Map<string, string>>()
+  if (perStasjon.size > 0) {
+    const { data, error } = await supabase
+      .from('ansatt_avtale')
+      .select('stasjon_id, ansatt_nr, navn, lonnsform')
+      .in('stasjon_id', [...perStasjon.keys()])
+      .eq('lonnsform', 'fastlonn')
+    if (error) throw new Error(`Kunne ikke lese lønnsform: ${error.message}`)
+    for (const a of data ?? []) {
+      const per = fastlonnede.get(a.stasjon_id as string) ?? new Map<string, string>()
+      per.set(a.ansatt_nr as string, a.navn as string)
+      fastlonnede.set(a.stasjon_id as string, per)
+    }
+  }
+  // Bare de som FAKTISK sto i fila navngis. En fastloennet som ikke var
+  // der i det hele tatt, er ikke noe som ble holdt utenfor.
+  const utelatteNavn = new Set<string>()
+
   const hopper: string[] = []
   let lagret = 0
   for (const [stasjonId, liste] of perStasjon) {
     const datoer = liste.map((l) => l.dato).sort()
     const fra = datoer[0]
     const til = datoer[datoer.length - 1]
+
+    // RYDD FOERST, SKRIV ETTERPAA. En `upsert` fjerner ikke rader som
+    // ikke lenger produseres, saa uten dette ville Sandras 57 957 blitt
+    // liggende for alltid - satt inn foer regelen fantes, og usynlig
+    // for hver senere opplasting. Slettingen gjor en ny behandling av
+    // samme fil til rettingen.
+    const utvalg = utenFastlonn(liste, fastlonnede.get(stasjonId) ?? new Map())
+    for (const n of utvalg.utelatteNavn) utelatteNavn.add(n)
+    if (utvalg.utelatteNr.length > 0) {
+      const { error } = await supabase
+        .from('lonnsart_linje')
+        .delete()
+        .eq('stasjon_id', stasjonId)
+        .in('ansatt_nr', utvalg.utelatteNr)
+        .gte('dato', fra)
+        .lte('dato', til)
+      if (error) throw new Error(`Kunne ikke fjerne fastlønnede linjer: ${error.message}`)
+    }
 
     if (beregnet) {
       // Finnes det LESTE rader i spennet, er de bedre enn disse.
@@ -568,10 +628,11 @@ async function lagreLonnsart(
       if (error) throw new Error(`Kunne ikke rydde beregnede lønnsartlinjer: ${error.message}`)
     }
 
+    const medTimelonn = utvalg.beholdt
     await skrivBatch(
       supabase,
       'lonnsart_linje',
-      liste.map((l) => ({
+      medTimelonn.map((l) => ({
         stasjon_id: stasjonId,
         ansatt_nr: l.ansattNr,
         ansatt_navn: l.ansattNavn,
@@ -585,7 +646,7 @@ async function lagreLonnsart(
       })),
       'stasjon_id,ansatt_nr,dato,lonnsart_tekst',
     )
-    lagret += liste.length
+    lagret += medTimelonn.length
   }
   const kjenteNavn = stasjonsnavn.map((x) => x.navn).sort().join(', ')
   return {
@@ -596,10 +657,19 @@ async function lagreLonnsart(
     // EN STASJON SOM BLE HOPPET OVER SKAL SI FRA. Uten dette hadde
     // «parset, 0 rader» sett likt ut enten fila var tom eller vi bevisst
     // beholdt bedre tall.
-    notat: hopper.length > 0
-      ? `${hopper.join(', ')} har allerede lønnsarteksporten med kroner for denne `
-        + 'perioden. Den er lest og ikke regnet, så den beholdes.'
-      : null,
+    notat: [
+      hopper.length > 0
+        ? `${hopper.join(', ')} har allerede lønnsarteksporten med kroner for `
+          + 'denne perioden. Den er lest og ikke regnet, så den beholdes.'
+        : null,
+      // UTELATELSEN SKAL SIES HOEYT. En person som forsvinner ut av
+      // loennskosten uten et ord ser ut som en person som ikke jobbet.
+      utelatteNavn.size > 0
+        ? `Holdt utenfor lønnskosten (fastlønn): ${[...utelatteNavn].sort().join(', ')}. `
+          + 'Timene er arbeidstid, men lønna kommer fra konto 501 eller '
+          + 'grunnlønna som er lagt inn — ikke fra stemplingene.'
+        : null,
+    ].filter(Boolean).join(' · ') || null,
   }
 }
 
