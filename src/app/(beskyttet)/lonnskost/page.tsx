@@ -12,6 +12,7 @@ import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
 import { maanedsrader } from '@/lib/lonnskost/rom'
 import { ManuelleTall } from './manuelle-tall'
+import { Lonnsformer } from './lonnsformer'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -139,6 +140,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const erAdmin = bruker.rolle === 'retailer_admin'
   const {
     maaneder, ukjenteKoder, easyatwork, sykelonn, rom, bilvaskUker, fastlonnMaaneder,
+    ansatte, ansatteMaaned,
   } = await hentLonnskost(
     supabase, valgtStasjon!, FRA,
   )
@@ -909,6 +911,15 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </p>
         </>
       )}
+
+      {/* HVEM SOM SKAL TELLE, foer skjemaene. En fastloennet i lista
+          gjoer hvert eneste tall over feil, saa spoersmaalet hoerer
+          hjemme naermere tallene enn en ukentlig innlegging gjoer. */}
+      <Lonnsformer
+        stasjonId={valgtStasjon!}
+        ansatte={ansatte}
+        maaned={ansatteMaaned}
+      />
 
       {/* TALLENE INGEN FIL LEVERER, nederst - de brukes én gang i uka,
           mens tallene over leses hver dag. */}
