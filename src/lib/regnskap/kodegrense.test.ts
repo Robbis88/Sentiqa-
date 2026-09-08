@@ -124,3 +124,51 @@ describe('kodelista er én regel, ikke to', () => {
     }
   })
 })
+
+// =====================================================================
+// REGELEN SOM VILLE FUNNET 506 FØR MIGRASJONEN BLE SKREVET
+//
+// `LONNSKONTI` (lonnskost/maaned.ts) og `BUTIKKSJEF_PERSONAL_KODER`
+// (regnskap-tilgang.ts) er to lister over de samme kontoene, skrevet
+// til hvert sitt formål: den ene summerer lønn, den andre bestemmer
+// hvem som får se den.
+//
+// De hadde skilt lag på ett konto: **506 Refundert sykelønn**.
+// /lonnskost regnet den inn — den er refusjonen av 505, ført negativt.
+// /regnskap gjorde det ikke. Butikksjefen så altså sykelønnen som
+// kostnad, men ikke pengene tilbake, og «Personalkostnad» var for høy
+// på hver stasjon med sykefravær.
+//
+// Det var usynlig så lenge begge var visningsfiltre — to sider som
+// viser litt ulike tall er ubehagelig, men ikke farlig. Det ble farlig
+// i det øyeblikket den ene lista skulle bli en RLS-grense: da ville
+// policyen kuttet 506 for butikksjefen, og lønnskosten hadde blitt for
+// høy også der. En sikkerhetsstramming som gjør et tall galt.
+//
+// Regelen er enkel: **alt lønnskosten summerer, må butikksjefen kunne
+// lese.** Ellers er den ikke lønnskost lenger, den er et utvalg.
+// =====================================================================
+describe('lønnskosten og innsynet er enige om kontoplanen', () => {
+  test('hver konto lønnskosten summerer, kan butikksjefen lese', async () => {
+    const { LONNSKONTI, ANDRE_PERSONALKONTI } = await import('../lonnskost/maaned')
+    const mangler = [...LONNSKONTI, ...ANDRE_PERSONALKONTI]
+      .filter((k) => !BUTIKKSJEF_KOSTNAD_KODER.has(k)).sort()
+
+    expect(
+      mangler,
+      `\nKontoene ${mangler.join(', ')} inngaar i loennskosten, men staar ikke `
+      + 'i BUTIKKSJEF_KOSTNAD_KODER.\n\n'
+      + 'Fra 0192 er den lista en RLS-grense. En konto som mangler her blir '
+      + 'usynlig for butikksjefen - og siden 506 er NEGATIV, blir tallet da '
+      + 'for HOEYT, ikke for lavt. En stramming som gjoer et tall galt er '
+      + 'verre enn hullet den lukket.\n',
+    ).toEqual([])
+  })
+
+  test('KANARIFUGL: regelen ville tatt 506 slik den sto', () => {
+    const somDenVar = new Set(['501', '502', '503', '505', '508', '509', '540', '541', '590',
+      '627', '628', '629', '632', '633', '634', '636', '638', '746'])
+    const lonn = ['501', '502', '503', '505', '506', '508', '509', '540', '541']
+    expect(lonn.filter((k) => !somDenVar.has(k))).toEqual(['506'])
+  })
+})

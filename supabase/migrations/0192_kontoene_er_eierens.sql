@@ -46,7 +46,7 @@
 --
 -- `hentLonnskost` leser HELE `driftskostnader` for stasjonen og
 -- filtrerer i TypeScript. De ni kontoene den bygger paa - 501, 502,
--- 503, 505, 508, 509, 540, 541, 590 - staar alle i hvitlista under, og
+-- 503, 505, 506, 508, 509, 540, 541 - staar alle i hvitlista under, og
 -- overlever derfor. `supabase/tests/regnskap_butikksjef_probe.sql`
 -- beviser det mot ekte data foer denne kjores, og
 -- `src/lib/regnskap/kodegrense.test.ts` binder lista her til
@@ -80,7 +80,10 @@ create policy regnskapslinjer_les on public.regnskapslinjer for select to authen
           seksjon <> 'driftskostnader'
           or kode in (
             -- Personalkostnad (BUTIKKSJEF_PERSONAL_KODER)
-            '501', '502', '503', '505', '508', '509', '540', '541', '590',
+            -- 506 er refusjonen av 505, foert negativt. Uten den ser
+            -- butikksjefen sykeloennen som kostnad, men ikke pengene
+            -- tilbake.
+            '501', '502', '503', '505', '506', '508', '509', '540', '541', '590',
             -- Paavirkbare driftskostnader (BUTIKKSJEF_DRIFT_KODER)
             '627', '628', '629', '632', '633', '634', '636', '638', '746'
           )
@@ -101,7 +104,7 @@ comment on policy regnskapslinjer_les on public.regnskapslinjer is
 -- KVITTERING
 -- ---------------------------------------------------------------------
 -- SQL Editor viser ikke `raise notice`, saa svaret maa komme som en rad.
--- `kodene` skal vaere 18. Er den noe annet, har innlimingen mistet noe.
+-- `kodene` skal vaere 19. Er den noe annet, har innlimingen mistet noe.
 select
   (select count(*) from pg_policies
     where schemaname = 'public' and tablename = 'regnskapslinjer'

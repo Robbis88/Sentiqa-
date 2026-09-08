@@ -35,13 +35,20 @@
 -- finnes ingen skriving.
 -- =====================================================================
 
+-- FOERSTE KJOERING (2026-09-08) GA 3743 -> 3334, og 265 loennsrader
+-- beholdt. Tallene stemte - men lista var feil: `506 Refundert
+-- sykeloenn` stod i `LONNSKONTI` og IKKE i `BUTIKKSJEF_PERSONAL_KODER`,
+-- saa forslaget ville kuttet refusjonen av sykeloennen for
+-- butikksjefen. 506 er negativ, saa loennskosten hadde blitt for HOEY.
+-- Det er rettet i begge listene; denne fila speiler dem.
+--
 -- Kodene butikksjefen SKAL se, ordrett fra `src/lib/regnskap-tilgang.ts`.
 -- Star de to listene fra hverandre, er svaret under feil - derfor har
 -- migrasjonen en vitest som binder dem sammen.
 create temp table if not exists lov_kode(kode text primary key) on commit drop;
 truncate lov_kode;
 insert into lov_kode(kode) values
-  ('501'), ('502'), ('503'), ('505'), ('508'), ('509'), ('540'), ('541'), ('590'),
+  ('501'), ('502'), ('503'), ('505'), ('506'), ('508'), ('509'), ('540'), ('541'), ('590'),
   ('627'), ('628'), ('629'), ('632'), ('633'), ('634'), ('636'), ('638'), ('746');
 
 -- ---------------------------------------------------------------------
@@ -81,7 +88,7 @@ select
   count(r.id) filter (where r.seksjon = 'driftskostnader') as i_driftskostnader,
   count(r.id) filter (where r.seksjon <> 'driftskostnader') as i_annen_seksjon,
   coalesce(string_agg(distinct r.seksjon, ', '), '(ingen rader)') as seksjoner
-from (values ('501'),('502'),('503'),('505'),('508'),('509'),('540'),('541'),('590')) as k(kode)
+from (values ('501'),('502'),('503'),('505'),('506'),('508'),('509'),('540'),('541')) as k(kode)
 left join public.regnskapslinjer r
   on r.kode = k.kode and r.slettet_tid is null and r.stasjon_id is not null
 group by k.kode
@@ -127,5 +134,5 @@ select
   (select count(*) from public.regnskapslinjer r
     where r.slettet_tid is null and r.stasjon_id is not null
       and r.seksjon = 'driftskostnader'
-      and r.kode in ('501','502','503','505','508','509','540','541','590'))
+      and r.kode in ('501','502','503','505','506','508','509','540','541'))
                                                                      as lonnskostrader_beholdt;
