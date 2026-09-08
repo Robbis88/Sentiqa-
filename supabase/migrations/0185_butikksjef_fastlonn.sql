@@ -34,7 +34,9 @@ create table if not exists public.butikksjef_fastlonn (
   id            uuid primary key default gen_random_uuid(),
   retailer_id   uuid not null references public.retailers(id) on delete restrict,
   stasjon_id    uuid not null references public.stasjoner(id) on delete cascade,
-  ar            int  not null check (ar between 2000 and 2100),
+  -- Vinduet er vidt med vilje - se 0155 og 0186. `ar` staar i
+  -- business_unik, og tenantmatrisen varierer den over 2100-2899.
+  ar            int  not null check (ar between 2000 and 2999),
   maned         int  not null check (maned between 1 and 12),
   -- Grunnloenn for maaneden, foer paaslag. Ikke arbeidsgiverkost.
   grunnlonn_kr  numeric(12,2) not null check (grunnlonn_kr >= 0),

@@ -38,7 +38,9 @@ create table if not exists public.bilvask_abonnement (
   id            uuid primary key default gen_random_uuid(),
   retailer_id   uuid not null references public.retailers(id) on delete restrict,
   stasjon_id    uuid not null references public.stasjoner(id) on delete cascade,
-  ar            int  not null check (ar between 2000 and 2100),
+  -- Vinduet er vidt med vilje - se 0155 og 0186. `ar` staar i
+  -- business_unik, og tenantmatrisen varierer den over 2100-2899.
+  ar            int  not null check (ar between 2000 and 2999),
   uke           int  not null check (uke between 1 and 53),
   belop_kr      numeric(12,2) not null check (belop_kr >= 0),
   registrert_av uuid references auth.users(id) on delete set null,
