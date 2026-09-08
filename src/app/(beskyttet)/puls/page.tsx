@@ -10,6 +10,7 @@ import { Status } from '@/components/ui/status'
 import { NyRundeSkjema, type PulsSporsmal } from './ny-skjema'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sideramme } from '@/components/ui/sideramme'
+import { medOmfang } from '@/lib/stasjonsomfang'
 
 type Runde = { id: string; sporsmal_id: string; start_dato: string; slutt_dato: string; status: string; puls_sporsmal: { tekst: string; kategori: string } | null }
 
@@ -41,6 +42,17 @@ export default async function PulsSide() {
   const liste = runder ?? []
   const aktive = liste.filter((r) => r.status === 'aktiv').length
 
+  // «12 svar · snitt 4,2» ER en sum over stasjoner for en butikksjef med
+  // flere av dem - `puls_svar` leses uten stasjonsfilter, og RLS gir alle
+  // hen naar. Aggregatet er riktig; det som manglet var at det sto noe
+  // sted. Uten setningen leses tallet som «min stasjon».
+  //
+  // RLS avgrenser lista til stasjonene brukeren naar, saa lengden ER
+  // omfanget.
+  const { data: mineStasjoner } = await supabase
+    .from('stasjoner').select('id').is('slettet_tid', null).limit(500)
+  const antallStasjoner = mineStasjoner?.length ?? 0
+
   // Spørsmålsbiblioteket til gjenbruksvelgeren i skjemaet.
   const { data: sporsmal } = await supabase
     .from('puls_sporsmal').select('id, tekst, kategori')
@@ -70,8 +82,11 @@ export default async function PulsSide() {
       <Sidehode
         tittel="Puls"
         undertittel={liste.length === 0
-          ? 'Korte målinger — ett spørsmål om gangen.'
-          : `${aktive} ${aktive === 1 ? 'aktiv måling' : 'aktive målinger'} av ${liste.length}.`}
+          ? medOmfang('Korte målinger — ett spørsmål om gangen.', antallStasjoner)
+          : medOmfang(
+            `${aktive} ${aktive === 1 ? 'aktiv måling' : 'aktive målinger'} av ${liste.length}.`,
+            antallStasjoner,
+          )}
         handlinger={startPanel}
       />
 
