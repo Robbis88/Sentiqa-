@@ -35,6 +35,7 @@ const kl = (t: number) => `${String(t).padStart(2, '0')}:00`
 import { Maanedsvelger } from '@/components/ui/periode'
 import { lesMaaned, maanedNokkel, delMaaned, maanederRundt } from '@/lib/periode'
 import { Sideramme } from '@/components/ui/sideramme'
+import { hentPerDato } from '@/lib/supabase/datobolker'
 
 type Sok = Promise<{ stasjon?: string; ar?: string; maned?: string; uke?: string }>
 
@@ -144,16 +145,23 @@ async function hentDognkurve(
   fra: string,
   til: string,
 ): Promise<Map<string, number>> {
-  const { data } = await supabase
-    .from('timesalg')
-    .select('dato, time, inne_kunder')
-    .eq('stasjon_id', stasjonId)
-    .is('slettet_tid', null)
-    .not('inne_kunder', 'is', null)
-    .gte('dato', fra)
-    .lte('dato', til)
+  // TIMESALG ER 24 RADER PER DØGN. Åtte måneder er ~5 800, og PostgREST
+  // gir tusen uten å si fra — altså seks uker av åtte måneder. Denne
+  // sammenligner «formendring år mot år», så to vilkårlige utsnitt ga
+  // enten et varsel som uteble eller ett som var oppdiktet.
+  const data = await hentPerDato<{ dato: string; time: string; inne_kunder: number }>(
+    (f, t) => supabase
+      .from('timesalg')
+      .select('dato, time, inne_kunder')
+      .eq('stasjon_id', stasjonId)
+      .is('slettet_tid', null)
+      .not('inne_kunder', 'is', null)
+      .gte('dato', f)
+      .lte('dato', t),
+    fra, til,
+  )
   const sum = new Map<string, { n: number; sum: number }>()
-  for (const r of (data ?? []) as { dato: string; time: string; inne_kunder: number }[]) {
+  for (const r of data) {
     const d = new Date(`${r.dato}T00:00:00Z`).getUTCDay()
     const noekkel = `${d === 0 ? 7 : d}:${Number.parseInt(r.time.split('-')[0], 10)}`
     const s = sum.get(noekkel) ?? { n: 0, sum: 0 }
@@ -170,15 +178,26 @@ async function hentDagskunder(
   stasjonId: string,
   fra: string,
 ): Promise<{ dato: string; kunder: number }[]> {
-  const { data } = await supabase
-    .from('timesalg')
-    .select('dato, inne_kunder')
-    .eq('stasjon_id', stasjonId)
-    .is('slettet_tid', null)
-    .not('inne_kunder', 'is', null)
-    .gte('dato', fra)
+  // TO KALENDERÅR ER ~17 000 RADER, og uten grense fikk vi de tusen
+  // første — omtrent seks uker. Helligdagsfaktorene regnes av dette:
+  // skjærtorsdag og 17. mai fantes ikke i utsnittet, fikk faktor 1,0, og
+  // ble bemannet som vanlige dager.
+  const data = await hentPerDato<{ dato: string; inne_kunder: number }>(
+    (f, t) => supabase
+      .from('timesalg')
+      .select('dato, inne_kunder')
+      .eq('stasjon_id', stasjonId)
+      .is('slettet_tid', null)
+      .not('inne_kunder', 'is', null)
+      .gte('dato', f)
+      .lte('dato', t),
+    fra,
+    // Ingen øvre grense sto her. `hentPerDato` trenger en, og i morgen
+    // er en trygg slutt: det finnes ikke timesalg fra framtiden.
+    new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+  )
   const sum = new Map<string, number>()
-  for (const r of (data ?? []) as { dato: string; inne_kunder: number }[]) {
+  for (const r of data) {
     sum.set(r.dato, (sum.get(r.dato) ?? 0) + r.inne_kunder)
   }
   return [...sum].map(([dato, kunder]) => ({ dato, kunder }))
@@ -194,15 +213,22 @@ async function hentMaanedskunder(
   stasjonId: string,
   ar: number,
 ): Promise<(number | null)[]> {
-  const { data } = await supabase
-    .from('timesalg')
-    .select('dato, inne_kunder')
-    .eq('stasjon_id', stasjonId)
-    .is('slettet_tid', null)
-    .not('inne_kunder', 'is', null)
-    .gte('dato', `${ar - 1}-01-01`)
-    .lte('dato', `${ar - 1}-12-31`)
-  const rader = (data ?? []) as { dato: string; inne_kunder: number }[]
+  // HELE FJORÅRET ER ~8 800 RADER. Avkortet til tusen fikk vi ~41 dager,
+  // og vakten `dager[m].size >= 20` nullet da ut ti av tolv måneder.
+  // Årsrammen ble fordelt etter BP i stedet for etter kunder — stille,
+  // uten et ord i grensesnittet.
+  const rader = await hentPerDato<{ dato: string; inne_kunder: number }>(
+    (f, t) => supabase
+      .from('timesalg')
+      .select('dato, inne_kunder')
+      .eq('stasjon_id', stasjonId)
+      .is('slettet_tid', null)
+      .not('inne_kunder', 'is', null)
+      .gte('dato', f)
+      .lte('dato', t),
+    `${ar - 1}-01-01`,
+    `${ar - 1}-12-31`,
+  )
 
   const sum = new Array(12).fill(0)
   const dager: Set<string>[] = Array.from({ length: 12 }, () => new Set<string>())
@@ -226,17 +252,21 @@ async function hentProfil(
   ar: number,
   maned: number,
 ): Promise<{ profil: Map<string, number>; kilde: string; dager: number }> {
-  const les = async (fra: string, til: string) => {
-    const { data } = await supabase
-      .from('timesalg')
-      .select('dato, time, inne_kunder')
-      .eq('stasjon_id', stasjonId)
-      .is('slettet_tid', null)
-      .not('inne_kunder', 'is', null)
-      .gte('dato', fra)
-      .lte('dato', til)
-    return (data ?? []) as { dato: string; time: string; inne_kunder: number }[]
-  }
+  // Primærveien (samme måned i fjor, ~720 rader) var trygg. Fallbacken
+  // «siste 90 dager» er ~2 160 og ble avkortet til ~42 — mens
+  // grensesnittet fortsatte å si «siste 90 dager».
+  const les = (fra: string, til: string) =>
+    hentPerDato<{ dato: string; time: string; inne_kunder: number }>(
+      (f, t) => supabase
+        .from('timesalg')
+        .select('dato, time, inne_kunder')
+        .eq('stasjon_id', stasjonId)
+        .is('slettet_tid', null)
+        .not('inne_kunder', 'is', null)
+        .gte('dato', f)
+        .lte('dato', t),
+      fra, til,
+    )
 
   const sisteDag = new Date(Date.UTC(ar - 1, maned, 0)).getUTCDate()
   let rader = await les(`${ar - 1}-${String(maned).padStart(2, '0')}-01`,
