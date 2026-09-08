@@ -137,7 +137,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   // Det butikksjefen trenger er om stasjonen ligger innenfor. Det svaret
   // krever ingen kontoer.
   const erAdmin = bruker.rolle === 'retailer_admin'
-  const { maaneder, ukjenteKoder, easyatwork, sykelonn, rom } = await hentLonnskost(
+  const {
+    maaneder, ukjenteKoder, easyatwork, sykelonn, rom, bilvaskUker, fastlonnMaaneder,
+  } = await hentLonnskost(
     supabase, valgtStasjon!, FRA,
   )
   const avlagte = maaneder.filter((m) => m.avlagt)
@@ -401,6 +403,13 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                   + 'kalibreringen — regnskapets brutto er fratrukket svinn.'
                 : 'Svinnet ligger på det normale, som allerede er med i kalibreringen.')
             : `av regnskapets brutto på ${kr.format(Math.round(naa.bruttoKr!))}.`}
+          {/* BIDRAGET NAVNGIS OGSAA HER. Det ligger inne i bruttoen over,
+              og et tall som er med uten aa staa noe sted er et tall ingen
+              kan etterproeve. */}
+          {naa.bilvaskBruttoKr > 0 && (
+            ` Av det er ${kr.format(Math.round(naa.bilvaskBruttoKr))} bidrag fra `
+            + 'bilvaskabonnementene, som betales rett til konto og aldri går over kassa.'
+          )}
         </p>
       )}
 
@@ -513,6 +522,7 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             <th>easy@work</th>
             <th>Timer</th>
             <th>Svinn</th>
+            <th>Bilvask</th>
             <th>Budsjett</th>
             {/* LOENNSROMMET, IKKE BUDSJETTET, ER DET SOM GJELDER.
                 BP-tallet forutsetter en brutto som kanskje ikke kom.
@@ -595,6 +605,16 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                     nettopp derfor loennsrommet krymper av det. Staar de to
                     tallene fra hverandre, ser man aldri koblingen. */}
                 <td>{r == null ? '—' : kr.format(Math.round(r.svinnKr))}</td>
+                {/* BIDRAGET MAA NAVNGIS DER DET VIRKER.
+                    Uke 35 paa Boenes er 4 860 -> 3 645 i brutto, paa en
+                    maanedsbrutto rundt en million. Det flytter rommet en
+                    halv prosent - og uten en kolonne som sier hva det er,
+                    ser en riktig innlegging ut som ingenting. */}
+                <td>
+                  {r == null || r.bilvaskBruttoKr === 0
+                    ? '—'
+                    : kr.format(Math.round(r.bilvaskBruttoKr))}
+                </td>
                 {/* ÉN BUDSJETTKOLONNE. Spriker St1s månedsbudsjett fra
                     BP-en, sier pipen fra — da er rapporten revidert etter
                     at BP-en ble satt, og det er månedsbudsjettet som
@@ -898,6 +918,8 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         aar={Number(naaMaaned.slice(0, 4))}
         uke={isoUke(new Date())}
         maaned={Number(naaMaaned.slice(5, 7))}
+        uker={bilvaskUker}
+        maaneder={fastlonnMaaneder}
       />
 
       <Forklaring sporsmaal="Hva er tatt med, og hva er det målt mot?">
