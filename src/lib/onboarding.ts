@@ -203,6 +203,24 @@ export const KILDER: Kildekrav[] = [
     kritisk: false,
   },
   {
+    noekkel: 'bilvask',
+    navn: 'Bilvask · abonnement',
+    hentesFra: 'Ukesrapporten på e-post, legges inn på Lønnskost',
+    laserOpp: 'Bruttofortjenesten kassa ikke ser. Abonnementene betales rett til '
+      + 'konto, så uten dem er bruttoen for lav hver måned — og lønnsrommet '
+      + 'tilsvarende for stramt. 75 % av beløpet er bruttofortjeneste.',
+    // ÉN UKE OM GANGEN. Rapporten kommer ukentlig, og en fersk uke er
+    // verdt mer enn en gammel serie: tallet brukes bare for maaneden som
+    // ikke er avlagt.
+    anbefaltDager: 30,
+    // IKKE KRITISK, OG IKKE FOR ALLE. En stasjon uten vask skal ikke ha
+    // steget i det hele tatt - Dale har ikke bilvask, og en liste som ba
+    // dem om et tall de ikke har, ville laert dem aa se bort fra lista.
+    //
+    // GJELDER-REGELEN UTLEDES, ikke settes. Se `gjelderBilvask`.
+    kritisk: false,
+  },
+  {
     noekkel: 'svinn',
     navn: 'Varetransaksjoner (svinn)',
     hentesFra: 'St1-rapport 0452, ved behov',
@@ -246,6 +264,34 @@ export const TYPE_TIL_KILDE: Record<string, string> = {
   // timene - de er det kritiske. Kastbudsjettet maales av sin egen arm i
   // `v_datadekning` og trenger ingen oppfoering her.
   st1_delingsfil: 'bp_timer',
+}
+
+/**
+ * Gjelder bilvask for denne stasjonen?
+ *
+ * ===================================================================
+ * UTLEDET, IKKE ET FELT NOEN MÅ HUSKE Å SETTE
+ *
+ * Dale har ikke vask. Et onboardingsteg som ba dem om et tall de ikke
+ * har, ville lært dem å se bort fra lista — og en liste folk ser bort
+ * fra er verre enn ingen.
+ *
+ * `AGENTS.md`: onboardingstatus skal UTLEDES av de samme kravene og
+ * konfigurasjonene modulene selv leser, ikke gjentas som en håndholdt
+ * sjekkliste. Et `har_bilvask`-felt ville vært en andre sannhet ved
+ * siden av tallene, og de to ville skilt lag den dagen en stasjon fikk
+ * eller mistet vask.
+ *
+ * BP-en svarer allerede: en stasjon med vask har budsjettert omsetning
+ * på `210 Bilvask` eller `211 Selvvask`. Dale har begge på null.
+ * ===================================================================
+ */
+export function gjelderBilvask(
+  bpOmsetningPerKategori: { post: string; belopKr: number }[],
+): boolean {
+  return bpOmsetningPerKategori.some(
+    (k) => /vask/i.test(k.post) && k.belopKr > 0,
+  )
 }
 
 /**

@@ -1133,3 +1133,48 @@ describe('prompten passer til flaten svaret vises paa', () => {
     expect(kilde).toContain('utheving')
   })
 })
+
+// =====================================================================
+// HIERARKIET MAA VAERE HELT, ELLERS SETTER MODELLEN DET SAMMEN SELV
+//
+// «Bakeri» er et VAREOMRAADE i St1s eget hierarki - `0175` skriver det
+// rett ut: «vareomrade_kode 10 BAKERI, 11 POELSE, 15 PAASMURT».
+//
+// Fram til naa manglet nivaaet i `hent_salg`, saa modellen maatte hoppe
+// fra avdeling rett til varegruppe og plukke bakeriet selv. Den plukket
+// forskjellig hver gang: foerst tolv varegrupper, saa tre, saa alt -
+// inkludert Grandiosa, potetsalat og rekesalat. Den sa ogsaa «ingenting
+// registrert paa hvetebakst», som ikke var sant; den lette ikke der.
+//
+// Et manglende nivaa i verktoeyet blir til oppdiktede grupperinger i
+// svaret. Faller `vareomrade` ut igjen, feiler denne.
+// =====================================================================
+describe('hent_salg kjenner hele varehierarkiet', () => {
+  // Mot det modellen FAKTISK ser, ikke mot den interne definisjonen.
+  const salg = verktoyForRolle(true).find((v) => v.name === 'hent_salg')
+
+  it('finnes', () => {
+    expect(salg, 'hent_salg mangler').toBeDefined()
+  })
+
+  it('har alle fire nivåene, i rekkefølge', () => {
+    const props = salg!.input_schema.properties as Record<string, { enum?: string[] }>
+    const enums = props.grupper?.enum
+    expect(enums, 'grupper mangler enum').toBeDefined()
+    for (const n of ['avdeling', 'vareomrade', 'varegruppe', 'vare']) {
+      expect(enums, `nivaaet ${n} mangler`).toContain(n)
+    }
+    // Rekkefoelgen speiler hierarkiet, saa den som leser lista ser det.
+    const i = (n: string) => enums!.indexOf(n)
+    expect(i('avdeling')).toBeLessThan(i('vareomrade'))
+    expect(i('vareomrade')).toBeLessThan(i('varegruppe'))
+    expect(i('varegruppe')).toBeLessThan(i('vare'))
+  })
+
+  // Uten dette ville modellen fortsatt gjettet: nivaaet finnes, men den
+  // vet ikke naar det skal brukes.
+  it('sier hva vareområdet er til for', () => {
+    const props = salg!.input_schema.properties as Record<string, { description?: string }>
+    expect(props.grupper?.description).toMatch(/BAKERI/)
+  })
+})

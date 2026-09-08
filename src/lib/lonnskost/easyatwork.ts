@@ -164,6 +164,17 @@ export type EasyatworkMaaned = {
    * fast, men det er en antakelse, og den skal stå på skjermen.
    */
   fastlonnFraMaaned: string | null
+  /**
+   * Hvor sikkert fastlønnstallet er. Tre ulike grader:
+   *
+   *   `regnskap`  månedens egen konto 501. Fasit.
+   *   `oppgitt`   grunnlønna eieren har lagt inn, med påslag regnet av
+   *               den. Sann for måneden, men ikke avstemt.
+   *   `baaret`    sist kjente 501, ført fram. Holder fordi fastlønn er
+   *               fast — men en lønnsøkning eller en ny butikksjef
+   *               bryter den, og da er den stille feil.
+   */
+  fastlonnKilde: 'regnskap' | 'oppgitt' | 'baaret' | null
 }
 
 const rund = (n: number) => Math.round(n * 100) / 100
@@ -219,6 +230,7 @@ export function byggEasyatwork(rader: Lonnsartsum[]): EasyatworkMaaned[] {
       sykelonnFraMaaned: maaned,
       fastlonnKr: 0,
       fastlonnFraMaaned: null,
+      fastlonnKilde: null,
     })
   }
 
@@ -464,6 +476,18 @@ export function medOppdagetSykelonn(
 export function medFastlonn(
   maaneder: EasyatworkMaaned[],
   regnskapFastlonn: Map<string, number>,
+  /**
+   * Grunnloenn eieren har lagt inn, per maaned (0185).
+   *
+   * BRUKES BARE DER REGNSKAPET IKKE HAR SVART. Konto 501 er faktisk
+   * foert loenn og vinner alltid; det oppgitte tallet fyller maaneden som
+   * ikke er avlagt, der alternativet er aa baere sist kjente framover.
+   *
+   * Paaslagene legges paa her, ikke ved innlegging: eieren taster
+   * grunnloenn, systemet regner feriepenger og avgift. Endres satsene,
+   * skal ingen taste inn paa nytt.
+   */
+  oppgittGrunnlonn: Map<string, number> = new Map(),
 ): EasyatworkMaaned[] {
   // Nyeste først, saa «sist kjente» er den foerste som finnes.
   const kjente = [...regnskapFastlonn.entries()].sort((a, b) => b[0].localeCompare(a[0]))
@@ -477,9 +501,22 @@ export function medFastlonn(
     const baaret = egen === undefined
       ? kjente.find(([maaned]) => maaned < m.maaned)
       : undefined
-    const fastlonnKr = egen ?? baaret?.[1] ?? 0
-    const fraMaaned = egen !== undefined ? m.maaned : baaret?.[0] ?? null
-    if (fastlonnKr === 0) return { ...m, fastlonnKr: 0, fastlonnFraMaaned: fraMaaned }
+    // OPPGITT SLAAR BAARET, MEN ALDRI REGNSKAPET.
+    //
+    // Rekkefoelgen er graden av sikkerhet: maanedens egen 501 er fasit,
+    // en oppgitt grunnloenn er sann for maaneden men ikke avstemt, og
+    // sist kjente 501 er en antakelse som brytes av en loennsoekning.
+    const oppgitt = egen === undefined ? oppgittGrunnlonn.get(m.maaned) : undefined
+    const fastlonnKr = egen ?? oppgitt ?? baaret?.[1] ?? 0
+    const kilde: EasyatworkMaaned['fastlonnKilde'] = egen !== undefined
+      ? 'regnskap'
+      : oppgitt !== undefined ? 'oppgitt' : baaret ? 'baaret' : null
+    const fraMaaned = egen !== undefined || oppgitt !== undefined
+      ? m.maaned
+      : baaret?.[0] ?? null
+    if (fastlonnKr === 0) {
+      return { ...m, fastlonnKr: 0, fastlonnFraMaaned: fraMaaned, fastlonnKilde: kilde }
+    }
 
     const kontantKr = m.kontantKr + fastlonnKr
     const feriepengerKr = kontantKr * (SATSER.feriepengerPst / 100)
@@ -496,6 +533,7 @@ export function medFastlonn(
       lonnskostKr: rund(kontantKr + feriepengerKr + agaKr),
       fastlonnKr: rund(fastlonnKr),
       fastlonnFraMaaned: fraMaaned,
+      fastlonnKilde: kilde,
     }
   })
 }

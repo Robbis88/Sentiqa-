@@ -74,7 +74,9 @@ with lister as (
       'kalender_kilder', 'arrangementer', 'kategori_vaerprofil',
       'push_abonnementer',
       -- Driftsregler for produksjonsplanen (0149).
-      'stasjon_produksjon_innstilling'
+      'stasjon_produksjon_innstilling',
+      -- Tall ingen fil leverer (0184/0185).
+      'bilvask_abonnement', 'butikksjef_fastlonn'
     ]::text[] as kalde
 )
 

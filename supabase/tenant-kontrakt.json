@@ -2245,6 +2245,68 @@
       "oppdaterbart": "belop_kr = 1500"
     },
     {
+      "tabell": "bilvask_abonnement",
+      "$hvorfor": "Ukentlige abonnementsinntekter paa bilvask (0184). Kassa ser dem ikke - de betales rett til konto, og uten dem er bruttofortjenesten for lav hver maaned. Baade eier og butikksjef legger inn: rapporten kommer ukentlig, og den som er paa jobb skal kunne foere den. LESING er aapen for alle som naar stasjonen, ogsaa nettbrettet - et beloep for en uke er ikke personopplysninger, og butikksjefen MAA se hva eieren alt har lagt inn, ellers foeres uka to ganger. Sletting er eierens alene.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "cold",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": {
+        "select": "own_station"
+      },
+      "manager": {
+        "select": "assigned_stations",
+        "insert": "assigned_stations",
+        "update": "assigned_stations"
+      },
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ar",
+        "uke"
+      ],
+      "proberad": {
+        "ar": "{{unik_aar}}",
+        "uke": "{{unik_tall_1_53}}",
+        "belop_kr": "1234.00"
+      },
+      "$uke_hvorfor": "Baade ar og uke/maned staar i business_unik, og valider() krever at HVER av dem varierer per forsoek. `{{unik_aar}}` gir 2100-2899 - derfor maatte aarsvinduet i 0184/0185 utvides til 2999 (se 0186), samme vindu som bp_aar bruker av noeyaktig samme grunn.",
+      "$oppdaterbart_hvorfor": "uke inngaar i business_unik, ar er fast. belop_kr gjoer ikke.",
+      "oppdaterbart": "belop_kr = 999.00"
+    },
+    {
+      "tabell": "butikksjef_fastlonn",
+      "$hvorfor": "Butikksjefens faktiske grunnloenn per maaned (0185). Fyller den aapne maaneden der regnskapets konto 501 enda ikke finnes. EIERENS ALENE, OGSAA AA LESE: stasjonen har én butikksjef, saa raden peker paa en navngitt person selv uten en navnekolonne. Butikksjefen ble stengt ute fra konto 501 i #201 fordi den raden var én persons loenn; denne er strengere, ikke loesere. Nettbrettet naar den ikke i det hele tatt.",
+      "tenant_scope": "retailer_and_station",
+      "data_class": "cold",
+      "operasjoner": [
+        "select",
+        "insert",
+        "update",
+        "delete"
+      ],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "retailer",
+      "business_unik": [
+        "stasjon_id",
+        "ar",
+        "maned"
+      ],
+      "proberad": {
+        "ar": "{{unik_aar}}",
+        "maned": "{{unik_tall_1_12}}",
+        "grunnlonn_kr": "52500.00"
+      },
+      "$maned_hvorfor": "Baade ar og uke/maned staar i business_unik, og valider() krever at HVER av dem varierer per forsoek. `{{unik_aar}}` gir 2100-2899 - derfor maatte aarsvinduet i 0184/0185 utvides til 2999 (se 0186), samme vindu som bp_aar bruker av noeyaktig samme grunn.",
+      "$oppdaterbart_hvorfor": "maned inngaar i business_unik, ar er fast. grunnlonn_kr gjoer ikke.",
+      "oppdaterbart": "grunnlonn_kr = 48000.00"
+    },
+    {
       "tabell": "stempling_hendelse",
       "$hvorfor": "DELETE finnes ikke som policy i det hele tatt. Generatoren skal ikke kreve en operasjon tabellen ikke stotter - men fravaeret er en paastand, ikke en stillhet.",
       "tenant_scope": "retailer_and_station",

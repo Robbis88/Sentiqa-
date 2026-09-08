@@ -360,7 +360,7 @@ export const VERKTOY: Record<string, Verktoy> = {
     'hent_salg',
     'Butikksalg PER STASJON: omsetning eks. mva, antall og bruttofortjeneste '
     + '(kroner og prosent) over en periode, valgfritt brutt ned paa avdeling '
-    + 'eller varegruppe. BRUK DENNE til «sammenlign stasjonene», «hvem selger '
+    + ', vareomraade eller varegruppe. BRUK DENNE til «sammenlign stasjonene», «hvem selger '
     + 'mest», «salg og brutto hittil i aar» — den gir én rad per stasjon og '
     + 'trenger ingen avlagt maaned. Med grupper="vare" gaar den helt ned paa '
     + 'ENKELTVARE (f.eks. «hvor mye hvit Monster selger vi») - bruk `sok` for aa '
@@ -375,11 +375,14 @@ export const VERKTOY: Record<string, Verktoy> = {
       },
       grupper: {
         type: 'string',
-        enum: ['stasjon', 'avdeling', 'varegruppe', 'vare', 'dag'],
+        enum: ['stasjon', 'avdeling', 'vareomrade', 'varegruppe', 'vare', 'dag'],
         description:
-          'Oppløsning. Standard: stasjon. Bruk «vare» for ETT produkt eller '
-          + 'for topplista over enkeltvarer — f.eks. «hvor mye Monster selger vi». '
-          + 'Kombiner med `sok` for å finne varen på navn.',
+          'Oppløsning. Standard: stasjon. Hierarkiet er avdeling → vareområde → '
+          + 'varegruppe → vare. BRUK «vareomrade» for spørsmål om BAKERI, PØLSE, '
+          + 'PÅSMURT og liknende — det er St1s egne grupperinger, og de skal '
+          + 'aldri settes sammen av varegrupper på egen hånd. Bruk «vare» for ETT '
+          + 'produkt eller for topplista over enkeltvarer — f.eks. «hvor mye '
+          + 'Monster selger vi». Kombiner med `sok` for å finne varen på navn.',
       },
     },
     {
@@ -396,6 +399,8 @@ export const VERKTOY: Record<string, Verktoy> = {
         const felt =
           grupper === 'avdeling'
             ? 'stasjon_id, dato, avdeling_kode, avdeling_navn, omsetning_eks_mva, antall, bto_fortjeneste_kr'
+            : grupper === 'vareomrade'
+              ? 'stasjon_id, dato, vareomrade_kode, vareomrade_navn, omsetning_eks_mva, antall, bto_fortjeneste_kr'
             : grupper === 'varegruppe'
               ? 'stasjon_id, dato, varegruppe_kode, varegruppe_navn, omsetning_eks_mva, antall, bto_fortjeneste_kr'
               : grupper === 'vare'
@@ -426,12 +431,12 @@ export const VERKTOY: Record<string, Verktoy> = {
         for (const r of rader) {
           const nokkel = [
             r.stasjon_id,
-            r.ean ?? r.avdeling_kode ?? r.varegruppe_kode ?? '',
+            r.ean ?? r.avdeling_kode ?? r.vareomrade_kode ?? r.varegruppe_kode ?? '',
           ].join('|')
           const e = grupperPer.get(nokkel) ?? {
             stasjon_id: r.stasjon_id,
-            gruppe_kode: r.ean ?? r.avdeling_kode ?? r.varegruppe_kode ?? null,
-            gruppe_navn: r.varenavn ?? r.avdeling_navn ?? r.varegruppe_navn ?? null,
+            gruppe_kode: r.ean ?? r.avdeling_kode ?? r.vareomrade_kode ?? r.varegruppe_kode ?? null,
+            gruppe_navn: r.varenavn ?? r.avdeling_navn ?? r.vareomrade_navn ?? r.varegruppe_navn ?? null,
             omsetning: 0,
             antall: 0,
             brutto: 0,
@@ -2038,6 +2043,8 @@ type Salgsrad = {
   varenavn?: string | null
   avdeling_kode?: string | null
   avdeling_navn?: string | null
+  vareomrade_kode?: string | null
+  vareomrade_navn?: string | null
   varegruppe_kode?: string | null
   varegruppe_navn?: string | null
   omsetning_eks_mva: number | null

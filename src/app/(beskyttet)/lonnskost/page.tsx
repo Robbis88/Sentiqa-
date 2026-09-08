@@ -11,6 +11,7 @@ import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
 import { maanedsrader } from '@/lib/lonnskost/rom'
+import { ManuelleTall } from './manuelle-tall'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -63,6 +64,22 @@ const FRA = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMont
   .toISOString().slice(0, 10)
 
 const pst = (a: number, b: number) => (b === 0 ? null : (a - b) / b * 100)
+
+/**
+ * ISO-ukenummer. Bare en standardverdi i skjemaet - feltet kan endres.
+ *
+ * ISO, IKKE «uke siden nyttaar»: uke 1 er uka som inneholder aarets
+ * foerste torsdag, og rapporten fra vaskeleverandoeren teller slik. En
+ * standardverdi som er tre dager feil ville blitt staaende, fordi ingen
+ * sjekker et felt som allerede er fylt ut.
+ */
+function isoUke(d: Date): number {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const dag = t.getUTCDay() === 0 ? 7 : t.getUTCDay()
+  t.setUTCDate(t.getUTCDate() + 4 - dag)
+  const nyttaar = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
+  return Math.ceil(((t.getTime() - nyttaar.getTime()) / 86400000 + 1) / 7)
+}
 
 const enPst = (v: number) =>
   `${v.toLocaleString('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
@@ -872,6 +889,16 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
         </p>
         </>
       )}
+
+      {/* TALLENE INGEN FIL LEVERER, nederst - de brukes én gang i uka,
+          mens tallene over leses hver dag. */}
+      <ManuelleTall
+        stasjonId={valgtStasjon!}
+        erAdmin={erAdmin}
+        aar={Number(naaMaaned.slice(0, 4))}
+        uke={isoUke(new Date())}
+        maaned={Number(naaMaaned.slice(5, 7))}
+      />
 
       <Forklaring sporsmaal="Hva er tatt med, og hva er det målt mot?">
         <p>

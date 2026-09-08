@@ -143,6 +143,15 @@ export type Lonnsrom = {
    */
   omsetningKr: number
   svinnKr: number
+  /**
+   * Bruttobidraget fra bilvaskabonnementene, som kassa ikke ser.
+   *
+   * EGET LEDD, IKKE INNE I SKALERINGEN. BP-en foerer bilvask som egen
+   * kategori, saa `salgsoppnaaelse` daekker den alt paa budsjettsida.
+   * Skulle abonnementet gaatt inn i omsetningen, ville det blitt skalert
+   * med stasjonens blandede margin i stedet for sine egne 75 prosent.
+   */
+  bilvaskBruttoKr: number
 }
 
 const tall = (v: number | null | undefined): number | null =>
@@ -245,6 +254,14 @@ export function byggLonnsrom(
   regnskap: Regnskapsmaaned[],
   grunnlag: Maanedsgrunnlag[],
   bp: Bpmaaned[],
+  /**
+   * Bilvaskens bruttobidrag per maaned, `yyyy-mm` -> kroner.
+   *
+   * Legges bare paa ANSLAGET. En avlagt maaned har kronene fra
+   * regnskapet allerede, og den som kaller filtrerer dem bort - men
+   * `faktisk` vinner uansett her, saa dobbelttelling er umulig.
+   */
+  bilvask: Map<string, number> = new Map(),
 ): Lonnsrom[] {
   const lukkede = new Set(
     regnskap.filter((m) => tall(m.bruttoKr) !== null).map((m) => m.maaned),
@@ -282,8 +299,9 @@ export function byggLonnsrom(
       ? Math.max(0, g.svinnKr - svinnandel * g.omsetningKr)
       : 0
 
+    const bilvaskBruttoKr = bilvask.get(maaned) ?? 0
     const anslag = faktisk === null && g && bpBrutto !== null && bpOms !== null && bpOms > 0
-      ? bpBrutto * (g.omsetningKr / bpOms) * (kal ?? 1) - ekstraSvinnKr
+      ? bpBrutto * (g.omsetningKr / bpOms) * (kal ?? 1) - ekstraSvinnKr + bilvaskBruttoKr
       : null
 
     const bruttoKr = faktisk ?? anslag
@@ -302,6 +320,7 @@ export function byggLonnsrom(
       ekstraSvinnKr: faktisk === null ? ekstraSvinnKr : 0,
       omsetningKr: g?.omsetningKr ?? 0,
       svinnKr: g?.svinnKr ?? 0,
+      bilvaskBruttoKr: faktisk === null ? bilvaskBruttoKr : 0,
     }
   })
 }
