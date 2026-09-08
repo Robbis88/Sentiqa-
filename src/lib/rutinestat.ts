@@ -1,6 +1,7 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { rutinerForDato } from './rutineskjema'
+import { hentPerDato, maaVaereHele } from './supabase/datobolker'
 
 // Statistikk for rutineskjema: streak + periode-prosent + topputførere.
 // «Forventet» pr dato = rutiner hvis skjema- OG rutine-ukedager dekker dagens
@@ -31,22 +32,44 @@ export async function beregnRutinestat(
   periodeDager = 30,
 ): Promise<Rutinestat> {
   const fra90 = minusDager(idag, 89)
-  const [{ data: skjemaer }, { data: rutiner }, { data: ansatte }, { data: utf }] = await Promise.all([
-    supabase.from('rutineskjemaer').select('id, ukedager').eq('stasjon_id', stasjonId).eq('aktiv', true).is('slettet_tid', null),
-    supabase.from('rutiner').select('id, skjema_id, ukedager, opprettet_dato').eq('stasjon_id', stasjonId).not('skjema_id', 'is', null).is('slettet_tid', null),
-    supabase.from('ansatte').select('id, navn').is('slettet_tid', null).eq('stasjon_id', stasjonId),
-    supabase.from('rutine_utforinger').select('rutine_id, dato, ansatt_id').eq('stasjon_id', stasjonId).gte('dato', fra90).lte('dato', idag),
+  // =================================================================
+  // NITTI DAGER GANGER SYTTI RUTINER ER IKKE TUSEN RADER
+  // =================================================================
+  // Boenes har 67 rutiner i doegnet. Nitti dager gir over fem tusen
+  // utfoeringer, og PostgREST kutter paa tusen UTEN aa feile. Streaken
+  // ble regnet paa de foerste tusen radene den fikk - altsaa paa et
+  // vilkaarlig utsnitt - og et for lavt tall ser ut som at noen har
+  // sluttet aa foelge opp.
+  //
+  // `hentPerDato` deler perioden i bolker og deler en bolk i to hvis den
+  // treffer taket. Da kan svaret ikke vaere stille avkortet.
+  const [skjemaSvar, rutineSvar, ansattSvar, utf] = await Promise.all([
+    supabase.from('rutineskjemaer').select('id, ukedager').eq('stasjon_id', stasjonId).eq('aktiv', true).is('slettet_tid', null).limit(2000),
+    supabase.from('rutiner').select('id, skjema_id, ukedager, opprettet_dato').eq('stasjon_id', stasjonId).not('skjema_id', 'is', null).is('slettet_tid', null).limit(5000),
+    supabase.from('ansatte').select('id, navn').is('slettet_tid', null).eq('stasjon_id', stasjonId).limit(1000),
+    hentPerDato<{ rutine_id: string; dato: string; ansatt_id: string | null }>(
+      (fra, til) => supabase
+        .from('rutine_utforinger')
+        .select('rutine_id, dato, ansatt_id')
+        .eq('stasjon_id', stasjonId)
+        .gte('dato', fra)
+        .lte('dato', til),
+      fra90, idag,
+    ),
   ])
+  const skjemaer = maaVaereHele(skjemaSvar, 'rutineskjemaene', 2000)
+  const rutiner = maaVaereHele(rutineSvar, 'rutinene', 5000)
+  const ansatte = maaVaereHele(ansattSvar, 'de ansatte', 1000)
 
   const skjemaUke = new Map<string, number[]>()
-  for (const s of (skjemaer ?? []) as { id: string; ukedager: number[] }[]) skjemaUke.set(s.id, s.ukedager)
-  const rs = ((rutiner ?? []) as { id: string; skjema_id: string; ukedager: number[]; opprettet_dato: string }[])
+  for (const s of skjemaer as { id: string; ukedager: number[] }[]) skjemaUke.set(s.id, s.ukedager)
+  const rs = (rutiner as { id: string; skjema_id: string; ukedager: number[]; opprettet_dato: string }[])
     .filter((r) => skjemaUke.has(r.skjema_id))
 
   const doneFor = new Map<string, Set<string>>()
   const ansattTeller = new Map<string, number>()
   const periodeFra = minusDager(idag, periodeDager - 1)
-  for (const u of (utf ?? []) as { rutine_id: string; dato: string; ansatt_id: string | null }[]) {
+  for (const u of utf) {
     const set = doneFor.get(u.dato) ?? new Set<string>()
     set.add(u.rutine_id)
     doneFor.set(u.dato, set)

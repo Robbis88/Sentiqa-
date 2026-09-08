@@ -31,7 +31,7 @@ import { leggTilDager } from '@/lib/produksjonsplan'
 // =====================================================================
 
 /** PostgREST-taket. En bolk som naar det, er mistenkt avkortet. */
-const TAK = 1000
+export const TAK = 1000
 
 /** Under denne blir det flere rundturer enn det er verdt. */
 const MINSTE_BOLK = 2
@@ -112,4 +112,41 @@ async function hentBolk<T>(
 
   const halv = Math.max(MINSTE_BOLK, Math.ceil(dager / 2))
   return hentPerDato(lagQuery, fra, til, halv)
+}
+
+/**
+ * Tar imot en spoerring som IKKE er delt i datobolker, og krever at den
+ * er hel.
+ *
+ * =====================================================================
+ * ET TAK MAN IKKE VET OM ER DET FARLIGSTE TAKET
+ * =====================================================================
+ * PostgREST returnerer tusen rader og sier ingenting. Rutinesida hadde
+ * ikke én `.limit()` - og `rutine_utforinger` for dagens vaktdatoer,
+ * over alle stasjoner, ligger rundt tusen rader. Naar taket traff, falt
+ * Boenes sine avhukinger utenfor, og sida meldte 68 rutiner igjen som
+ * folk nettopp hadde gjort ferdig.
+ *
+ * Det ser ikke ut som en feil. Det ser ut som at ingen har gjort jobben
+ * sin.
+ *
+ * BRUK EN GENEROES `.limit()` OG SEND DEN HIT. Grensen er ikke et
+ * oenske om faerre rader - den er et sted aa oppdage at det ble for
+ * mange. Kan spoerringen i det hele tatt naa den, mangler den en
+ * avgrensning, og da skal den kastes framfor aa svare halvt.
+ *
+ * Samme fella som `.limit(50000)` (0090, 0166, 0175) og som
+ * `hentPerDato` loeser for datoserier - bare med et annet ansikt.
+ */
+export function maaVaereHele<T>(svar: Svar<T>, hva: string, tak = TAK): T[] {
+  if (svar.error) throw new Error(`Kunne ikke lese ${hva}: ${svar.error.message}`)
+  const rader = svar.data ?? []
+  if (rader.length >= tak) {
+    throw new Error(
+      `${hva} ga ${rader.length} rader og traff grensen paa ${tak}. `
+      + 'Svaret kan vaere avkortet, og et avkortet svar ser ut som ekte tall. '
+      + 'Avgrens spoerringen eller summer i basen.',
+    )
+  }
+  return rader
 }
