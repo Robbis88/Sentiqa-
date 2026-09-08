@@ -172,6 +172,113 @@ describe('lesLonnsgrunnlag', () => {
 })
 
 // =====================================================================
+// HVER STASJON HAR SIN EGEN KOLONNEOPPSETNING
+//
+// Rapporten settes sammen av avhukede kolonner i easy@work, per
+// stasjon. Laguneparken og Lone leverte den samme rapporten for den
+// samme måneden med ulike navn OG ulik rekkefølge — og Lones fil ble
+// avvist av parseren som allerede virket på Laguneparkens.
+//
+// Det var vakten som gjorde jobben sin: den nektet framfor å lese fila
+// halvveis. Men en fil per stasjon som må kartlegges for hånd er ikke
+// en løsning, så navnene normaliseres nå, og hver lønnsart har en liste
+// over navnene som har betydd den.
+// =====================================================================
+describe('Lones kolonnenavn', () => {
+  // Faktiske navn fra Lone, august 2026. Rekkefølgen er også deres.
+  const LONE_TOPP = [
+    'Stemplingsnummer', 'Ansatt', 'Lønn', 'Betalingsfrekvens', 'Lokasjon',
+    'Hovedlokasjon', 'Dato', 'Timer',
+    'Etterbetaling Tillegg hverdag 18-21 (antall)',
+    'Etterbetaling Tillegg søndag 06-18 (antall)',
+    '100% Overtidstillegg Timelønnede (Timer)',
+    '50% Overtidstillegg Timelønnede (Timer)',
+    'Timelønn',
+  ].map((x) => `"${x}"`).join(',')
+
+  const loneFil = (...rader: string[]) => [
+    '" 1 august 2026  - 31 august 2026 ",,,"Generert av N N"', '', LONE_TOPP, ...rader,
+  ].join('\n')
+
+  // 118,"A B",285.00,285.00,"St1 - Lone","St1 - Lone",2026-08-02,8.5,3,0,2,1,8.5
+  const loneRad = (timer: string, k1429: string, o100: string, o50: string, kopi: string) =>
+    `118,"A B",285.00,285.00,"St1 - Lone","St1 - Lone",2026-08-02,`
+    + `${timer},${k1429},0,${o100},${o50},${kopi}`
+
+  it('leser en rapport med andre navn og annen rekkefølge', () => {
+    const r = lesLonnsgrunnlag(loneFil(loneRad('8.5', '3', '2', '1', '8.5')))
+    const per = Object.fromEntries(r.linjer.map((l) => [l.lonnsart, l.timer]))
+    expect(r.lokasjoner).toEqual(['St1 - Lone'])
+    expect(per['2']).toBe(8.5)
+    expect(per['1429']).toBe(3)
+    expect(per['97']).toBe(2)
+    expect(per['96']).toBe(1)
+  })
+
+  it('gir samme lønnsartetikett som Laguneparkens navn gjør', () => {
+    const r = lesLonnsgrunnlag(loneFil(loneRad('8.5', '3', '2', '1', '8.5')))
+    const tekst = r.linjer.map((l) => l.lonnsartTekst).sort()
+    expect(tekst).toEqual([
+      '1429 Tillegg hverdag 18-21', '2 Timelønn',
+      '96 Overtidstillegg 50 %', '97 Overtidstillegg 100 %',
+    ])
+  })
+
+  // =================================================================
+  // PÅSTANDEN OM KOPIEN KONTROLLERES, DEN ANTAS IKKE
+  // =================================================================
+  // «Timelønn» hos Lone og «Etterbetaling Ordinære timer» hos
+  // Laguneparken bærer begge de samme timene som `Timer` — lik på øret
+  // i alle 124 og 158 dagslinjene. Leses de med, dobles timelønna.
+  //
+  // Men det er en antakelse om filer vi ennå ikke har sett. Skiller de
+  // lag, er det ikke én rad som er i tvil, det er hva kolonnen betyr.
+  // =================================================================
+  it('leser ikke kopikolonnen som egne timer', () => {
+    const r = lesLonnsgrunnlag(loneFil(loneRad('8.5', '0', '0', '0', '8.5')))
+    expect(r.linjer.filter((l) => l.lonnsart === '2')).toHaveLength(1)
+    expect(r.linjer.reduce((s, l) => s + l.timer, 0)).toBe(8.5)
+  })
+
+  it('kaster når kopikolonnen ikke er en kopi likevel', () => {
+    expect(() => lesLonnsgrunnlag(loneFil(loneRad('8.5', '0', '0', '0', '2422.5'))))
+      .toThrow(/ikke en kopi/)
+  })
+})
+
+// =====================================================================
+// KANARIFUGL FOR NORMALISERINGEN
+//
+// Normaliseringen strimler bort «Etterbetaling » og «(antall)». Strimler
+// den for mye, kan to ulike lønnsarter få samme nøkkel — og da leses den
+// ene som den andre, i stillhet, med feil sats.
+// =====================================================================
+describe('normaliseringen skiller fortsatt lønnsartene', () => {
+  it('gir hver av de elleve lønnsartene sin egen linje', () => {
+    const felt: Record<string, string> = { Timer: '1', Sykelønn: '1' }
+    for (const b of [
+      'hverdag 18-21', 'hverdag 21-24', 'hverdag 00-06', 'lørdag',
+      'søndag 00-06', 'søndag 06-18', 'søndag 18-24',
+    ]) felt[`Etterbetaling Tillegg ${b} (antall)`] = '1'
+    felt['50% O.tidstillegg dag'] = '1'
+    felt['O.tidstillegg dag 100% søn'] = '1'
+    // Kopikolonnen skal følge `Timer`, ellers slår kopisjekken inn.
+    felt['Etterbetaling Ordinære timer (antall)'] = '1'
+    const r = lesLonnsgrunnlag(fil(dag('1', 'A B', '200', '2026-08-24', felt)))
+    const koder = [...new Set(r.linjer.map((l) => l.lonnsart))].sort()
+    expect(koder).toHaveLength(11)
+    expect(koder).toContain('2')
+    expect(koder).toContain('12')
+    expect(koder).toContain('1429')
+    expect(koder).toContain('1435')
+    expect(koder).toContain('96')
+    expect(koder).toContain('97')
+    // Ingen lønnsart skal ha fått to linjer fra to kolonner.
+    expect(r.linjer.length).toBe(koder.length)
+  })
+})
+
+// =====================================================================
 // TRE EKSPORTER SOM IKKE MÅ TA HVERANDRES FILER
 //
 // Gjenkjenningen her er den løseste av de tre — to kolonnenavn — og

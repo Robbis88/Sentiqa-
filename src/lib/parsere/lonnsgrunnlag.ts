@@ -45,7 +45,34 @@ import type { Lonnsartlinje } from './lonnsart'
 import { belopFor } from '@/lib/lonn/tilleggssats'
 
 /**
- * Kolonnenavn → lønnsart, med etiketten lønnsarteksporten bruker.
+ * Kolonnenavnet, redusert til det som faktisk skiller lønnsartene.
+ *
+ * ===================================================================
+ * HVER STASJON HAR SIN EGEN KOLONNEOPPSETNING
+ * ===================================================================
+ * Rapporten settes sammen av avhukede kolonner i easy@work, og det er
+ * gjort per stasjon. Laguneparken og Lone leverte samme rapport for
+ * samme måned med ulike navn OG ulik rekkefølge:
+ *
+ *     Laguneparken   «Etterbetaling Tillegg lørdag (antall)»
+ *     Lone           «Etterbetaling Tillegg lørdag (antall)»   likt
+ *
+ *     Laguneparken   «50% O.tidstillegg dag»
+ *     Lone           «50% Overtidstillegg Timelønnede (Timer)»  ulikt
+ *
+ * Prefikset «Etterbetaling » og halen «(antall)» / «(Timer)» bærer
+ * ingen informasjon om hvilken lønnsart det er. De strippes, og resten
+ * slås opp i `LONNSART`. Det som ikke treffes der, er fortsatt et funn.
+ */
+const noekkel = (navn: string): string => navn
+  .trim()
+  .toLowerCase()
+  .replace(/^etterbetaling\s+/, '')
+  .replace(/\s*\((?:antall|timer|antall km|beløp[^)]*)\)\s*$/, '')
+  .replace(/\s+/g, ' ')
+
+/**
+ * Lønnsart → alle kolonnenavnene som har betydd den, normalisert.
  *
  * ETIKETTEN ER NØKKELEN i `lonnsart_linje`, så den må være den samme i
  * begge filene der de beskriver det samme. Da er en ny opplasting en
@@ -57,34 +84,61 @@ import { belopFor } from '@/lib/lonn/tilleggssats'
  * av variantetikettene ville påstått en presisjon fila ikke har, så de
  * får sitt eget navn — og importen passer på at de to filene ikke
  * legges oppå hverandre.
+ *
+ * Lones navn på dem — «50 % Overtidstillegg Timelønnede» — er dessuten
+ * det mest presise av de to: Laguneparkens «O.tidstillegg dag 100 %
+ * søn» bærer ALL 100 %-overtid, ikke bare søndagens.
  */
-const KOLONNE: Record<string, { kode: string; tekst: string }> = {
-  'Timer': { kode: '2', tekst: '2 Timelønn' },
-  'Sykelønn': { kode: '12', tekst: '12 Sykelønn' },
-  'Etterbetaling Tillegg hverdag 18-21 (antall)': { kode: '1429', tekst: '1429 Tillegg hverdag 18-21' },
-  'Etterbetaling Tillegg hverdag 21-24 (antall)': { kode: '1430', tekst: '1430 Tillegg hverdag 21-24' },
-  'Etterbetaling Tillegg hverdag 00-06 (antall)': { kode: '1431', tekst: '1431 Tillegg hverdag 00-06' },
-  'Etterbetaling Tillegg lørdag (antall)': { kode: '1432', tekst: '1432 Tillegg lørdag' },
-  'Etterbetaling Tillegg søndag 00-06 (antall)': { kode: '1433', tekst: '1433 Tillegg søndag 00-06' },
-  'Etterbetaling Tillegg søndag 06-18 (antall)': { kode: '1434', tekst: '1434 Tillegg søndag 06-18' },
-  'Etterbetaling Tillegg søndag 18-24 (antall)': { kode: '1435', tekst: '1435 Tillegg søndag 18-24' },
-  '50% O.tidstillegg dag': { kode: '96', tekst: '96 Overtidstillegg 50 %' },
-  'O.tidstillegg dag 100% søn': { kode: '97', tekst: '97 Overtidstillegg 100 %' },
-}
+const LONNSART: { kode: string; tekst: string; navn: string[] }[] = [
+  { kode: '2', tekst: '2 Timelønn', navn: ['timer'] },
+  { kode: '12', tekst: '12 Sykelønn', navn: ['sykelønn'] },
+  { kode: '1429', tekst: '1429 Tillegg hverdag 18-21', navn: ['tillegg hverdag 18-21'] },
+  { kode: '1430', tekst: '1430 Tillegg hverdag 21-24', navn: ['tillegg hverdag 21-24'] },
+  { kode: '1431', tekst: '1431 Tillegg hverdag 00-06', navn: ['tillegg hverdag 00-06'] },
+  { kode: '1432', tekst: '1432 Tillegg lørdag', navn: ['tillegg lørdag'] },
+  { kode: '1433', tekst: '1433 Tillegg søndag 00-06', navn: ['tillegg søndag 00-06'] },
+  { kode: '1434', tekst: '1434 Tillegg søndag 06-18', navn: ['tillegg søndag 06-18'] },
+  { kode: '1435', tekst: '1435 Tillegg søndag 18-24', navn: ['tillegg søndag 18-24'] },
+  {
+    kode: '96',
+    tekst: '96 Overtidstillegg 50 %',
+    navn: ['50% o.tidstillegg dag', '50% overtidstillegg timelønnede'],
+  },
+  {
+    kode: '97',
+    tekst: '97 Overtidstillegg 100 %',
+    navn: ['o.tidstillegg dag 100% søn', '100% overtidstillegg timelønnede'],
+  },
+]
+
+const KOLONNE = new Map(
+  LONNSART.flatMap((a) => a.navn.map((n) => [n, a] as const)),
+)
+
+/** Feltene som beskriver raden, ikke en lønnsart. */
+const RADFELT = new Set([
+  'stemplingsnummer', 'ansatt', 'lønn', 'betalingsfrekvens',
+  'lokasjon', 'hovedlokasjon', 'dato',
+])
 
 /**
- * Kolonner som er lest og bevisst forbigått.
+ * Kolonner som bærer de ordinære timene en gang til.
  *
- * `Etterbetaling Ordinære timer (antall)` er en KOPI av `Timer` — lik
- * på øret i alle 158 dagslinjene i august 2026. Leses begge, dobles
- * timelønna. Den står her og ikke i en `if`, så neste leser ser at den
- * er sett.
+ * ===================================================================
+ * PÅSTANDEN KONTROLLERES, DEN ANTAS IKKE
+ * ===================================================================
+ * Begge rapportene hadde en slik kolonne, med hvert sitt navn:
+ * Laguneparken «Etterbetaling Ordinære timer (antall)», Lone
+ * «Timelønn». Begge er identiske med `Timer` på øret i hver eneste
+ * dagslinje — 158 og 124 av dem. Leses de med, dobles timelønna, og
+ * lønnsandelen ser ut som en stasjon som har mistet kontrollen.
+ *
+ * Men «denne kolonnen er en kopi» er en antakelse om en fil vi ikke
+ * har sett ennå. Derfor sjekkes den mot `Timer` rad for rad ved hver
+ * lesing: skiller de lag, betyr kolonnen noe annet enn vi tror, og
+ * fila avvises i stedet for å bli lest halvveis.
  */
-const FORBIGATT = new Set([
-  'Stemplingsnummer', 'Ansatt', 'Lønn', 'Betalingsfrekvens',
-  'Lokasjon', 'Hovedlokasjon', 'Dato',
-  'Etterbetaling Ordinære timer (antall)',
-])
+const KOPI_AV_TIMER = new Set(['ordinære timer', 'timelønn'])
 
 export type LonnsgrunnlagResultat = {
   rapporttype: 'easyatwork_lonnsgrunnlag'
@@ -149,8 +203,8 @@ export function erLonnsgrunnlagFil(tekst: string): boolean {
   const rader = csvRader(tekst.replace(/^﻿/, ''))
   const i = finnTopprad(rader)
   if (i < 0) return false
-  const navn = rader[i].map((x) => x.trim())
-  return navn.includes('Betalingsfrekvens') && navn.includes('Timer')
+  const nk = rader[i].map(noekkel)
+  return nk.includes('betalingsfrekvens') && nk.includes('timer')
 }
 
 export function gjenkjennLonnsgrunnlag(tekst: string): Rapporttype {
@@ -171,6 +225,8 @@ export function lesLonnsgrunnlag(tekst: string): LonnsgrunnlagResultat {
   if (iTopp < 0) throw new Error('Fant ingen topprad med «Stemplingsnummer».')
   const navn = rader[iTopp].map((x) => x.trim())
 
+  const noekler = navn.map(noekkel)
+
   // EN KOLONNE VI IKKE KJENNER ER ET FUNN, IKKE EN DETALJ. Rapporten
   // settes sammen av avhukede kolonner i easy@work, og en ny av dem er
   // en lønnsart vi ikke priser. Den skal si fra — men først når den
@@ -179,20 +235,28 @@ export function lesLonnsgrunnlag(tekst: string): LonnsgrunnlagResultat {
   // ansvarstillegg, kjøregodtgjørelse, helligdagsgodtgjørelse,
   // overtid for fastlønnede, fastlønn og vasketillegg.
   const ukjente = navn
-    .map((n, i) => ({ n, i }))
-    .filter(({ n }) => n !== '' && !FORBIGATT.has(n) && !(n in KOLONNE))
+    .map((n, i) => ({ n, i, nk: noekler[i] }))
+    .filter(({ n, nk }) => n !== ''
+      && !RADFELT.has(nk) && !KOPI_AV_TIMER.has(nk) && !KOLONNE.has(nk))
 
-  const k = (n: string): number => {
-    const i = navn.indexOf(n)
-    if (i < 0) throw new Error(`Lønnsgrunnlaget mangler kolonnen «${n}».`)
+  // Kolonnene som skal bære de samme timene som `Timer`. Påstanden
+  // kontrolleres per rad under.
+  const kopier = navn
+    .map((n, i) => ({ n, i, nk: noekler[i] }))
+    .filter(({ nk }) => KOPI_AV_TIMER.has(nk))
+
+  const k = (nk: string): number => {
+    const i = noekler.indexOf(nk)
+    if (i < 0) throw new Error(`Lønnsgrunnlaget mangler kolonnen «${nk}».`)
     return i
   }
-  const iNr = k('Stemplingsnummer')
-  const iNavn = k('Ansatt')
-  const iSats = k('Lønn')
-  const iLok = k('Lokasjon')
-  const iHoved = k('Hovedlokasjon')
-  const iDato = k('Dato')
+  const iNr = k('stemplingsnummer')
+  const iNavn = k('ansatt')
+  const iSats = k('lønn')
+  const iLok = k('lokasjon')
+  const iHoved = k('hovedlokasjon')
+  const iDato = k('dato')
+  const iTimer = k('timer')
 
   const linjer: Lonnsartlinje[] = []
   const lokasjoner = new Set<string>()
@@ -214,6 +278,21 @@ export function lesLonnsgrunnlag(tekst: string): LonnsgrunnlagResultat {
       }
     }
 
+    // KOPIEN MÅ VÆRE EN KOPI. Skiller den lag med `Timer`, betyr
+    // kolonnen noe annet enn vi tror, og da er hver time på fila i
+    // tvil — ikke bare den ene raden.
+    const timerHer = tall(r[iTimer] ?? '')
+    for (const { n, i } of kopier) {
+      const v = tall(r[i] ?? '')
+      if (Math.abs(v - timerHer) > 0.005) {
+        throw new Error(
+          `Kolonnen «${n}» skulle bære de samme timene som «Timer», men står `
+          + `med ${v} mot ${timerHer} på ${dato}. Den er ikke en kopi, og må `
+          + 'kartlegges mot lønnsarteksporten før fila kan leses.',
+        )
+      }
+    }
+
     const timesats = tall(r[iSats] ?? '')
     if (!Number.isFinite(timesats)) {
       throw new Error(`Ugyldig timesats «${r[iSats]}» på ${dato}.`)
@@ -222,11 +301,13 @@ export function lesLonnsgrunnlag(tekst: string): LonnsgrunnlagResultat {
     lokasjoner.add(lokasjon)
     datoer.push(dato)
 
-    for (const [kolonne, art] of Object.entries(KOLONNE)) {
-      const i = navn.indexOf(kolonne)
+    for (const art of LONNSART) {
+      const i = noekler.findIndex((nk) => art.navn.includes(nk))
       if (i < 0) continue // valgfri kolonne, ikke med i denne rapporten
       const timer = tall(r[i] ?? '')
-      if (!Number.isFinite(timer)) throw new Error(`Ugyldig antall i «${kolonne}» på ${dato}.`)
+      if (!Number.isFinite(timer)) {
+        throw new Error(`Ugyldig antall i «${navn[i]}» på ${dato}.`)
+      }
       if (timer === 0) continue
       linjer.push({
         ansattNr: (r[iNr] ?? '').trim(),
