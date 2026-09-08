@@ -110,10 +110,35 @@ export async function lagreVindu(_t: Tilstand, fd: FormData): Promise<Tilstand> 
  */
 const FOR_ALLTID = '2020-01-01'
 
-/** ISO-dato eller ingenting. Et halvt datofelt er ikke en dato. */
+/**
+ * ISO-dato eller ingenting. Et halvt datofelt er ikke en dato.
+ *
+ * =====================================================================
+ * BAKSTREKENE MANGLET, OG DA MATCHET DEN ALDRI NOE
+ * =====================================================================
+ * Her sto `/^d{4}-d{2}-d{2}$/`. Uten bakstrek betyr `d` bokstaven d, saa
+ * moensteret krevde den litterale strengen `dddd-dd-dd`. Ingen dato kan
+ * matche det.
+ *
+ * Foelgen var to tap, ikke ett:
+ *
+ *   `gjelder_fra` ble ALLTID `FOR_ALLTID` og `gjelder_til` alltid null,
+ *   uansett hva som sto i datofeltene. Roberts krav - «har Lone hatt
+ *   fastloenn fra 01.05.26 til 31.12.26 maa eg kunne skrive det» - gikk
+ *   rett i gulvet, med kvitteringen «Lagt til paa 5 dager».
+ *
+ *   Og lukkingen under (`.lt('gjelder_fra', fra)` med `fra` alltid
+ *   2020-01-01) kunne aldri treffe noe. Da staar to gyldige faste
+ *   vakter samtidig - noeyaktig dobbelttellingen kommentaren der nede
+ *   sier den forhindrer.
+ *
+ * Samme tapte escape som `bash-heredoc-escapes` i notatene. Den er
+ * usynlig i lesing, fordi et regexliteral med `d` ser ut som et med
+ * `\d`.
+ */
 function gyldigDato(v: FormDataEntryValue | null): string | null {
   const s = String(v ?? '').trim()
-  return /^d{4}-d{2}-d{2}$/.test(s) ? s : null
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null
 }
 
 export async function leggTilFastVakt(_t: Tilstand, fd: FormData): Promise<Tilstand> {

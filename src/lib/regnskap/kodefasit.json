@@ -1,0 +1,7 @@
+{
+  "utenFilter": {
+    "/src/app/(beskyttet)/regnskap/page.tsx": "Velger «40 CR» I STEDET FOR avdelingene, ikke ved siden av dem. I regnskapslinjer ER 40 CR totalen, saa der er den riktig kilde — det er summering av begge som dobler.",
+    "/src/lib/import/kjerne.ts": "Hopper over rollupen ved innlesing, med egen kommentar («ville dublert kategoriene»). Filteret hoerer hjemme her og ikke i en delt liste: importen kjenner radene foer de er koder.",
+    "/src/lib/lonnskost/hent.ts": "Bruker `erAvdelingsniva(post)` — tosifret prefiks i POSTNAVNET — fordi loennsrommet skiller avdelingsniva fra varegruppeniva, ikke drivstoff fra butikk. Et annet spoersmaal, og derfor et annet filter."
+  }
+}
