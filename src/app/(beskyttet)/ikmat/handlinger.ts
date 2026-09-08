@@ -17,7 +17,12 @@ export async function registrerAvlesning(formData: FormData) {
   const raw = String(formData.get('temperatur') ?? '').replace(',', '.').trim()
   const tiltak = String(formData.get('tiltak') ?? '').trim() || null
   const temp = Number(raw)
-  if (!punktId || raw === '' || !Number.isFinite(temp)) return
+  // TOM INNSENDING ER EN AVBRUTT HANDLING, ikke en feil. Et ULESELIG
+  // tall er derimot en feil - «12,5,3» eller «kaldt» skal ikke tie.
+  if (!punktId || raw === '') return
+  if (!Number.isFinite(temp)) {
+    throw new Error(`«${raw}» er ikke en temperatur. Skriv et tall, for eksempel 3,5.`)
+  }
 
   const supabase = await lagSupabaseServerKlient()
   const { data: punkt } = await supabase
@@ -25,7 +30,7 @@ export async function registrerAvlesning(formData: FormData) {
     .select('navn, stasjon_id, min_temp, max_temp').is('slettet_tid', null)
     .eq('id', punktId)
     .maybeSingle<{ navn: string; stasjon_id: string; min_temp: number | null; max_temp: number | null }>()
-  if (!punkt) return
+  if (!punkt) throw new Error('Fant ikke kontrollpunktet. Er det slettet?')
 
   const underMin = punkt.min_temp != null && temp < punkt.min_temp
   const overMax = punkt.max_temp != null && temp > punkt.max_temp
@@ -42,7 +47,22 @@ export async function registrerAvlesning(formData: FormData) {
     avlest_av: bruker.id,
     ansatt_id: ansatt?.id ?? null,
   })
-  if (avlesningFeil) return
+  // =================================================================
+  // EN TEMPERATUR SOM IKKE BLE LAGRET SKAL SI FRA
+  // =================================================================
+  // Her sto `if (avlesningFeil) return`. Blir innsettingen avvist,
+  // laster sida paa nytt og ser NOEYAKTIG lik ut - og avviksvarselet
+  // under droppes i samme slengen. Hun tror temperaturen er logget.
+  //
+  // Dette er mattilsynsdokumentasjon. En maaling som ikke finnes er
+  // verre enn en som mangler, fordi ingen leter etter den.
+  //
+  // Soesteren `loggMaaling` fyrti linjer lenger ned svarer allerede
+  // «Kunne ikke lagre maalingen. Proev igjen» - samme skriv, to ulike
+  // svar i samme fil.
+  if (avlesningFeil) {
+    throw new Error(`Klarte ikke lagre temperaturen: ${avlesningFeil.message}`)
+  }
 
   if (!innenfor && bruker.retailerId) {
     const krav = punkt.max_temp != null ? `maks ${punkt.max_temp}°C` : `min +${punkt.min_temp}°C`

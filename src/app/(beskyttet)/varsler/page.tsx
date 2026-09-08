@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { markerLest, markerAlle } from './handlinger'
+import { erLeder } from '@/lib/auth/roller'
 import { PushTilmelding } from './push-tilmelding'
 import { Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
@@ -22,7 +23,7 @@ type Varsel = {
 const tid = new Intl.DateTimeFormat('nb-NO', { timeZone: 'Europe/Oslo', dateStyle: 'short', timeStyle: 'short' })
 
 export default async function VarslerSide() {
-  await hentInnloggetBruker()
+  const bruker = await hentInnloggetBruker()
   const supabase = await lagSupabaseServerKlient()
   const { data } = await supabase
     .from('varsler')
@@ -42,7 +43,12 @@ export default async function VarslerSide() {
         undertittel={uleste === 0
           ? 'Alt er lest.'
           : `${uleste} ${uleste === 1 ? 'ulest' : 'uleste'}.`}
-        handlinger={uleste > 0 ? (
+        // KNAPPEN VISES BARE FOR DEN SOM FAAR BRUKE DEN. Varsler ligger
+        // per stasjon, og nettbrettet er en delt enhet - «marker alle»
+        // der ville tatt butikksjefens uleste med. Sto knappen igjen for
+        // nettbrettet, ville den bare kastet ved trykk, og en knapp som
+        // alltid feiler er verre enn ingen.
+        handlinger={uleste > 0 && erLeder(bruker.rolle) ? (
           <form action={markerAlle}>
             <Knapp type="submit">Marker alle som lest</Knapp>
           </form>
