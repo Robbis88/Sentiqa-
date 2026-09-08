@@ -1005,18 +1005,43 @@ async function lagreSvinn(
   medNummer: Map<string, string>,
   r: Awaited<ReturnType<typeof parseVaretransaksjon>>,
 ): Promise<Lagring> {
+  // =====================================================================
+  // SVINN HAR INGEN UNIK NØKKEL — SLETTINGEN ER HELE IDEMPOTENSEN
+  // =====================================================================
+  // `synlig_svinn` er én rad per transaksjon uten unik nøkkel (`0005`).
+  // En reimport kan derfor ikke rette; den kan bare legge til. At samme
+  // fil to ganger ikke dobler alt, hviler i sin helhet på at radene
+  // slettes først.
+  //
+  // Den slettingen hadde tre hull, og alle tre var stille:
+  //
+  //   DATOER SOM IKKE LOT SEG LESE ga en TOM datoliste, og da hoppet
+  //   slettingen over helt. `forsteDatoIso` godtar bare «DD.MM.YYYY» —
+  //   skriver St1 datokolonnen som en ekte Excel-datocelle, blir hver
+  //   dato null, og hver eneste reimport dobler alt synlig svinn.
+  //
+  //   SLETTINGEN VAR ET KRYSSPRODUKT stasjon × dato. En fil med Dale 1.
+  //   mai og Bønes 2. mai slettet også Dale 2. mai og Bønes 1. mai —
+  //   rader fra en tidligere, korrekt import — og skrev dem ikke
+  //   tilbake.
+  //
+  //   FEILEN PÅ SLETTINGEN BLE ALDRI SJEKKET. Feilet den av en helt
+  //   annen grunn, doblet den etterfølgende innsettingen alt.
+  //
+  // Nå: én sletting per stasjon, med bare den stasjonens datoer, og
+  // begge feilformene roper.
   const umatchet: string[] = []
-  const rader: Record<string, unknown>[] = []
-  const matchedeIder = new Set<string>()
-  const datoer = new Set<string>()
+  const perStasjon = new Map<string, { rader: Record<string, unknown>[]; datoer: Set<string> }>()
+  const utenDato: string[] = []
 
   for (const st of r.stasjoner) {
     const stasjonId = medNummer.get(st.butikknummer)
     if (!stasjonId) { umatchet.push(`${st.butikknummer} (${st.navn})`); continue }
-    matchedeIder.add(stasjonId)
+    const bunke = perStasjon.get(stasjonId) ?? { rader: [], datoer: new Set<string>() }
     for (const t of st.transaksjoner) {
-      if (t.dato) datoer.add(t.dato)
-      rader.push({
+      if (t.dato) bunke.datoer.add(t.dato)
+      else utenDato.push(`${st.butikknummer} ${t.ean ?? t.varenavn ?? '?'}`)
+      bunke.rader.push({
         retailer_id: retailerId, stasjon_id: stasjonId, dato: t.dato,
         ean: t.ean, varenavn: t.varenavn, varenummer: t.varenummer,
         operatornr: t.operatornr, transaksjonstype: t.transaksjonstype,
@@ -1024,17 +1049,41 @@ async function lagreSvinn(
         nettopris_total: t.nettoprisTotal, kilde_jobb_id: jobbId,
       })
     }
+    perStasjon.set(stasjonId, bunke)
   }
 
-  if (matchedeIder.size > 0 && datoer.size > 0) {
-    await supabase
-      .from('synlig_svinn')
-      .delete()
-      .in('stasjon_id', [...matchedeIder])
-      .in('dato', [...datoer])
+  // EN RAD UTEN DATO KAN ALDRI SLETTES IGJEN, og blir dermed liggende
+  // for alltid og doble seg ved hver reimport. Det er ikke en detalj i
+  // en fil — det er en fil vi ikke kan lese, og den skal avvises.
+  if (utenDato.length > 0) {
+    throw new Error(
+      `${utenDato.length} svinnlinjer mangler dato og kan ikke lagres trygt — `
+      + 'de ville blitt liggende og doblet seg ved neste opplasting. '
+      + `Første: ${utenDato.slice(0, 3).join(', ')}. `
+      + 'Sjekk at datokolonnen i fila står som DD.MM.ÅÅÅÅ.',
+    )
   }
-  if (rader.length > 0) await skrivBatch(supabase, 'synlig_svinn', rader)
-  return { antallRader: rader.length, umatchet }
+
+  let antall = 0
+  for (const [stasjonId, bunke] of perStasjon) {
+    if (bunke.datoer.size > 0) {
+      const { error } = await supabase
+        .from('synlig_svinn')
+        .delete()
+        .eq('stasjon_id', stasjonId)
+        .in('dato', [...bunke.datoer])
+      if (error) {
+        throw new Error(
+          `Klarte ikke rydde tidligere svinn for stasjonen: ${error.message}. `
+          + 'Stoppet før innsetting — ellers ville radene blitt lagt til på nytt '
+          + 'ved siden av de gamle.',
+        )
+      }
+    }
+    if (bunke.rader.length > 0) await skrivBatch(supabase, 'synlig_svinn', bunke.rader)
+    antall += bunke.rader.length
+  }
+  return { antallRader: antall, umatchet, truffet: [...perStasjon.keys()] }
 }
 
 // ---------------------------------------------------------------------
@@ -1337,13 +1386,36 @@ async function lagreBp(
   // egne rader, aldri regnskapets. Merk at regnskapsimporten sletter ALT for
   // sin periode; det er riktig, for da bærer den avlagte måneden sitt eget
   // budsjett og BP-raden er overflødig.
-  await supabase
+  // =====================================================================
+  // SLETT BARE FOR STASJONENE FILA FAKTISK BÆRER
+  // =====================================================================
+  // Slettingen gikk på hele kjeden og hele året, uten stasjonsfilter —
+  // men bare stasjonene i fila skrives tilbake. En revidert BP med én
+  // stasjon, eller en fil der de andre faller ut av `mine`, tok dermed
+  // med seg de øvrige stasjonenes budsjettlinjer for HELE året, og de
+  // kom aldri tilbake.
+  //
+  // Det ser ikke ut som sletting. Det ser ut som en stasjon som mangler
+  // budsjett — altså som et onboardinghull, ikke som et tap.
+  //
+  // Og feilen ble aldri sjekket: `regnskapslinjer` har ingen unik
+  // nøkkel, så feilet slettingen, doblet den etterfølgende innsettingen
+  // budsjettlinjene i stedet.
+  const { error: bpSlettFeil } = await supabase
     .from('regnskapslinjer')
     .delete()
     .eq('retailer_id', retailerId)
+    .in('stasjon_id', mine.map((m) => m.stasjonId))
     .in('seksjon', ['bp_omsetning', 'bp_bruttofortjeneste', 'bp_kostnad'])
     .gte('periode', `${ar}-01-01`)
     .lte('periode', `${ar}-12-01`)
+  if (bpSlettFeil) {
+    throw new ParserFeil(
+      `Klarte ikke rydde forrige BP for ${ar}: ${bpSlettFeil.message}. `
+      + 'Stoppet før innsetting — `regnskapslinjer` har ingen unik nøkkel, så '
+      + 'linjene ville blitt lagt til på nytt ved siden av de gamle.',
+    )
+  }
   await skrivBatch(supabase, 'regnskapslinjer', bpLinjer)
 
   return {
@@ -1541,6 +1613,45 @@ async function lagreKastbudsjett(
     })
   }
   if (inn.length === 0) return 0
+
+  // =====================================================================
+  // EN RETTELSE MÅ OGSÅ KUNNE FJERNE
+  // =====================================================================
+  // `upsert` retter radene som er i den nye fila, og lar dem som ikke er
+  // det stå. Sender St1 en revidert delingsfil med færre vareområder —
+  // eller uten et ark — blir de gamle radene liggende og summeres inn i
+  // budsjettet ved siden av de nye.
+  //
+  // Samme sak som `bp_linje`, der problemet er identifisert og løst med
+  // en sletting og en skrevet begrunnelse. Her sto bare halve regelen.
+  //
+  // Slettingen går PER STASJON og bare for stasjoner fila faktisk bærer:
+  // St1 sender ofte hele klyngen, og en fil med tre av fem stasjoner
+  // skal ikke røre de to andres budsjett.
+  const stasjoner = [...new Set(inn.map((r) => r.stasjon_id))]
+  const beholdes = new Set(inn.map((r) => `${r.stasjon_id}|${r.nivaa}|${r.kode}`))
+  const { data: gamle, error: lesFeil } = await supabase
+    .from('kastbudsjett')
+    .select('id, stasjon_id, nivaa, kode')
+    .eq('ar', ar)
+    .in('stasjon_id', stasjoner)
+    .limit(1000)
+    .overrideTypes<{ id: string; stasjon_id: string; nivaa: string; kode: string }[]>()
+  if (lesFeil) {
+    throw new ParserFeil(`Delingsfil: kunne ikke lese forrige kastbudsjett: ${lesFeil.message}`)
+  }
+  const foreldet = (gamle ?? [])
+    .filter((g) => !beholdes.has(`${g.stasjon_id}|${g.nivaa}|${g.kode}`))
+    .map((g) => g.id)
+  if (foreldet.length > 0) {
+    const { error } = await supabase.from('kastbudsjett').delete().in('id', foreldet)
+    if (error) {
+      throw new ParserFeil(
+        `Delingsfil: kunne ikke fjerne utgåtte kastbudsjettlinjer: ${error.message}`,
+      )
+    }
+  }
+
   // UPSERT, IKKE INSERT. St1 sender reviderte filer, og en ny fil for
   // samme aar er en RETTELSE - ikke en rad ved siden av den gamle.
   const { error } = await supabase
@@ -1880,11 +1991,24 @@ async function lagreRegnskap(
     for (const l of st.linjer) rader.push(mapLinje(l, stasjonId))
   }
 
-  await supabase
+  // HELE PERIODEN, OG DET ER RIKTIG HER: regnskapsfila dekker hele
+  // clusteret for sin måned, så alt som lå der skal erstattes.
+  //
+  // Men feilen må sjekkes. `regnskapslinjer` har ingen unik nøkkel, så
+  // en sletting som feiler gjør den etterfølgende innsettingen til en
+  // dobling — av regnskapet, stille.
+  const { error: slettFeil } = await supabase
     .from('regnskapslinjer')
     .delete()
     .eq('retailer_id', retailerId)
     .eq('periode', periode)
+  if (slettFeil) {
+    throw new ParserFeil(
+      `Klarte ikke rydde forrige regnskap for ${periode}: ${slettFeil.message}. `
+      + 'Stoppet før innsetting — ellers ville linjene blitt lagt til på nytt '
+      + 'ved siden av de gamle.',
+    )
+  }
 
   if (rader.length > 0) await skrivBatch(supabase, 'regnskapslinjer', rader)
   return { antallRader: rader.length, umatchet }
