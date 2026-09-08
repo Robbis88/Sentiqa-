@@ -242,6 +242,16 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     ? maaneder.find((m) => m.maaned === naa!.maaned)?.lonnskostKr ?? null
     : naaEa?.lonnskostKr ?? null
   const igjen = naa?.romKr != null && naaBrukt != null ? naa.romKr - naaBrukt : null
+
+  // FAKTISK ANDEL, ikke rommet i kroner. `naaBrukt` delt paa den samme
+  // bruttoen rommet er regnet av - saa de to prosentene er sammenlignbare
+  // per konstruksjon.
+  const naaAndel = naa?.bruttoKr != null && naa.bruttoKr > 0 && naaBrukt != null
+    ? naaBrukt / naa.bruttoKr
+    : null
+  const andelsavvik = naaAndel != null && naa?.lonnsandel != null
+    ? naaAndel - naa.lonnsandel
+    : null
   const sisteEa = easyatwork[0]
   const ukjenteArter = [...new Set(easyatwork.flatMap((e) => e.ukjenteArter))]
   // Bare der de to faktisk maaler samme maaned. En differanse mot en
@@ -307,12 +317,28 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           og DET er tallet en butikksjef kan handle paa. */}
       {naa && (
         <div className="sq-nokkelrad">
+          {/* ===============================================================
+              PROSENTEN FOERST, KRONENE UNDER
+              ===============================================================
+              Her sto kronerommet oeverst, med «Igjen aa bruke» ved siden
+              av. Dale juli sto med -298 346 i groent, og det leses som
+              «du har 298 000 igjen aa bruke». Det er stikk i strid med
+              hvordan tallet skal virke: at brutto ble hoeyere enn planlagt
+              gir ikke mer loenn aa bruke - det er ingen opptjent
+              rettighet.
+              Kontrollen er ANDELEN. Sier BP 52 % i januar, er 52 % det de
+              kan bruke; ligger de paa 63, er de over. Det tallet kan ikke
+              leses som en invitasjon.
+              Kronene staar fortsatt, som underordnet informasjon - de
+              trengs for aa vite hvor mye en endring er verdt. */}
           <Nokkeltall
-            merkelapp={`Lønnsrom · ${manedAar.format(new Date(`${naa.maaned}-01`))}`}
-            verdi={kr.format(Math.round(naa.romKr!))}
-            sammenlignet={naa.bpLonnKr == null
+            merkelapp={`Lønn av brutto · ${manedAar.format(new Date(`${naa.maaned}-01`))}`}
+            verdi={naaAndel == null ? '—' : enPst(naaAndel * 100)}
+            sammenlignet={naa.lonnsandel == null
               ? undefined
-              : `budsjettet sier ${kr.format(Math.round(naa.bpLonnKr))}`}
+              : `budsjettet sier ${enPst(naa.lonnsandel * 100)}`}
+            retning={andelsavvik == null ? 'flat' : andelsavvik > 0 ? 'opp' : 'ned'}
+            bra={andelsavvik == null ? undefined : andelsavvik <= 0}
           />
           <Nokkeltall
             merkelapp="Brukt så langt"
@@ -321,12 +347,16 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
               ? undefined
               : `${naaEa.timer.toLocaleString('nb-NO')} timer`}
           />
+          {/* ROMMET ER EN MAALESTOKK, IKKE ET BUDSJETT AA FYLLE OPP.
+              Derfor «rommet er» og ikke «igjen aa bruke» - forskjellen
+              staar der, men uten et ord som ber noen om aa bruke den. */}
           <Nokkeltall
-            merkelapp={igjen == null ? 'Igjen' : igjen < 0 ? 'Over rommet' : 'Igjen å bruke'}
-            verdi={igjen == null ? '—' : kr.format(Math.abs(Math.round(igjen)))}
-            retning={igjen == null ? 'flat' : igjen < 0 ? 'opp' : 'ned'}
-            bra={igjen == null ? undefined : igjen >= 0}
-            sammenlignet={naa.anslaatt ? 'brutto er anslått' : 'brutto fra regnskapet'}
+            merkelapp="Rommet er"
+            verdi={naa.romKr == null ? '—' : kr.format(Math.round(naa.romKr))}
+            sammenlignet={igjen == null
+              ? (naa.anslaatt ? 'brutto er anslått' : 'brutto fra regnskapet')
+              : `${igjen < 0 ? 'over med ' : 'under med '}${
+                kr.format(Math.abs(Math.round(igjen)))}`}
           />
         </div>
       )}
@@ -472,6 +502,10 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                 Begge staar, saa forskjellen er synlig - det er nettopp
                 naar de spriker at rommet betyr noe. */}
             <th>Lønnsrom</th>
+            {/* ANDELEN VED SIDEN AV KRONENE. Et avvik i kroner sier hvor
+                mye; andelen sier om maaneden var innenfor. Den siste er
+                den som kan sammenlignes mellom maaneder og stasjoner. */}
+            <th>Lønn av brutto</th>
             <th>Avvik</th>
             {erAdmin && <th>Sykelønn</th>}
           </tr>
@@ -510,6 +544,14 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             const budsjettKr = m?.budsjettKr ?? r?.bpLonnKr ?? null
             const brukt = m?.avlagt ? m.lonnskostKr : ea?.lonnskostKr ?? null
             const avvikRom = r?.romKr != null && brukt != null ? brukt - r.romKr : null
+            // ANDELEN PER RAD, regnet av samme brutto som rommet - saa den
+            // og budsjettandelen er sammenlignbare per konstruksjon.
+            const radAndel = r?.bruttoKr != null && r.bruttoKr > 0 && brukt != null
+              ? brukt / r.bruttoKr
+              : null
+            const radAndelsavvik = radAndel != null && r?.lonnsandel != null
+              ? radAndel - r.lonnsandel
+              : null
             return (
               <tr key={maaned}>
                 <td>
@@ -572,6 +614,19 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                     BP-tallet forutsetter en brutto som kanskje ikke kom.
                     Uten rommet ville en maaned med svak brutto sett ut som
                     god kostnadsstyring helt til regnskapet kom. */}
+                <td>
+                  {radAndel == null ? '—' : (
+                    <span className={`status-pip ${
+                      radAndelsavvik != null && radAndelsavvik > 0 ? 'rod' : 'gronn'}`}>
+                      {enPst(radAndel * 100)}
+                    </span>
+                  )}
+                  {r?.lonnsandel != null && (
+                    <> <span className="undertittel">
+                      {`av ${enPst(r.lonnsandel * 100)}`}
+                    </span></>
+                  )}
+                </td>
                 <td>
                   {avvikRom == null ? '—' : (
                     <span className={`status-pip ${avvikRom > 0 ? 'rod' : 'gronn'}`}>
