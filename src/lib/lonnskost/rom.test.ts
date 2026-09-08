@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { byggLonnsrom, kalibrering, normalSvinnandel, erDrivstoff, maanedsrader } from './rom'
+import {
+  byggLonnsrom, kalibrering, normalSvinnandel, erDrivstoff, erAvdelingsniva, maanedsrader,
+} from './rom'
 
 const R = (maaned: string, omsetningKr: number | null, bruttoKr: number | null) =>
   ({ maaned, omsetningKr, bruttoKr })
@@ -157,11 +159,66 @@ describe('erDrivstoff', () => {
     expect(erDrivstoff('energi')).toBe(true)
   })
 
+  // TO KILDER, TO NAVN PAA DET SAMME. Salgsdataene kaller avdelingen
+  // ENERGI; regnskapsrapporten kaller den `10 Drivstoff`. Bare det
+  // foerste var dekket, saa drivstoff slapp gjennom paa regnskapssida.
+  it('kjenner begge navnene', () => {
+    expect(erDrivstoff('10 Drivstoff')).toBe(true)
+    expect(erDrivstoff('ENERGI')).toBe(true)
+  })
+
   // NAVNET, IKKE KODEN. AGENTS.md: kodeverdien varierer mellom kjeder.
   it('slipper butikkens egne avdelinger gjennom', () => {
     expect(erDrivstoff('MAT')).toBe(false)
     expect(erDrivstoff('KIOSK')).toBe(false)
     expect(erDrivstoff('1000')).toBe(false)
+  })
+})
+
+// =====================================================================
+// ROLLUPEN OG DELENE ER SAMME KRONER
+//
+// Regnskapet gir begge nivaaene som egne rader. Summeres begge, telles
+// hver krone to ganger - og feilen traff BARE de avlagte maanedene,
+// siden den inneVAERENDE regnes av daglige salgstall uten rollups.
+// Sida saa derfor riktig ut for august og gal for alt foer.
+// =====================================================================
+describe('erAvdelingsniva', () => {
+  it('tar avdelingene, ikke varegruppene under', () => {
+    expect(erAvdelingsniva('40 CR')).toBe(true)
+    expect(erAvdelingsniva('10 Drivstoff')).toBe(true)
+    expect(erAvdelingsniva('120 Mat')).toBe(false)
+    expect(erAvdelingsniva('140 Kald drikke')).toBe(false)
+    expect(erAvdelingsniva('250 Pant')).toBe(false)
+  })
+
+  // FASIT FRA DALE. `40 CR` er noeyaktig summen av varegruppene under -
+  // 10 444 947 mot 10 444 946, én krone fra avrunding. Summeres begge,
+  // blir bruttoen dobbel.
+  it('holder Dale-rollupen fra aa telles to ganger', () => {
+    const rader = [
+      { post: '40 CR', kr: 10444947 },
+      { post: '120 Mat', kr: 4926038 },
+      { post: '140 Kald drikke', kr: 1641156 },
+      { post: '160 Kioskvarer', kr: 1268443 },
+      { post: '180 Tobakk', kr: 892358 },
+      { post: '130 Varm drikke', kr: 785535 },
+      { post: '200 Bil', kr: 489387 },
+      { post: '190 Fritidsartikler', kr: 249156 },
+      { post: '250 Pant', kr: 98415 },
+      { post: '170 Butikk', kr: 94352 },
+      { post: '240 Drift', kr: 106 },
+    ]
+    const alt = rader.reduce((a, r) => a + r.kr, 0)
+    const bare = rader.filter((r) => erAvdelingsniva(r.post)).reduce((a, r) => a + r.kr, 0)
+    expect(bare).toBe(10444947)
+    // Kanarifugl: uten filteret blir summen naer det dobbelte.
+    expect(alt).toBeCloseTo(bare * 2, -3)
+  })
+
+  it('sier nei til en post uten ledetall', () => {
+    expect(erAvdelingsniva('CR')).toBe(false)
+    expect(erAvdelingsniva('')).toBe(false)
   })
 })
 

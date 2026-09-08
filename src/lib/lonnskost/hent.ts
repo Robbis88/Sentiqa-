@@ -6,7 +6,7 @@ import {
   byggEasyatwork, medOppdagetSykelonn, medFastlonn,
   type EasyatworkMaaned, type Lonnsartsum, type Sykelonnskilde,
 } from './easyatwork'
-import { byggLonnsrom, erDrivstoff, type Lonnsrom } from './rom'
+import { byggLonnsrom, erAvdelingsniva, erDrivstoff, type Lonnsrom } from './rom'
 
 // =====================================================================
 // Henter lønnskosten for én stasjon, måned for måned.
@@ -246,6 +246,18 @@ export async function hentLonnskost(
   // hadde blitt nesten tre ganger for hoey.
   const perMaaned = new Map<string, { omsetningKr: number; bruttoKr: number }>()
   for (const r of brutto.data ?? []) {
+    // ROLLUPEN OG DELENE ER SAMME KRONER.
+    //
+    // `40 CR` er summen av `120 Mat`, `140 Kald drikke` og resten, og
+    // regnskapet gir begge nivaaene som egne rader. Uten dette filteret
+    // telles hver krone to ganger: Dale juli sto med 1 886 352 i brutto
+    // der den virkelige er 943 176, og loennsprosenten ble halvparten.
+    //
+    // Feilen traff BARE de avlagte maanedene - den inneVAERENDE regnes av
+    // de daglige salgstallene, som ikke har rollups. Sida saa derfor
+    // riktig ut for august og gal for alt foer, som er den vanskeligste
+    // formen aa oppdage: den ferske maaneden bekrefter at alt virker.
+    if (!erAvdelingsniva(r.post)) continue
     if (erDrivstoff(r.post)) continue
     const m = r.periode.slice(0, 7)
     const rad = perMaaned.get(m) ?? { omsetningKr: 0, bruttoKr: 0 }
