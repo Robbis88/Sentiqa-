@@ -73,6 +73,37 @@ export function aggregerendeDaglige(
   return ut.sort((a, b) => a.navn.localeCompare(b.navn))
 }
 
+/**
+ * Navnesjekken fra `0084`/`0085` - den armen som faktisk traff.
+ *
+ * Aliaset er valgfritt: `0084` skriver `ds.avdeling_navn`, andre skriver
+ * `d.` eller ingenting. Bandt vi den til ett alias, ville vakten meldt
+ * et korrekt filter som manglende.
+ */
+export const NAVNESJEKK =
+  /upper\s*\(\s*coalesce\s*\(\s*(?:[a-z0-9_]+\.)?avdeling_navn[\s\S]{0,40}?<>\s*'ENERGI'/i
+
+/**
+ * Filtrerer denne kroppen bort drivstoff paa en maate som KAN treffe?
+ *
+ * To lovlige former, og bare to:
+ *
+ *  - `retailer_koderegel` - mappingen fra `0152`, den riktige.
+ *  - navnesjekken paa `ENERGI` - litteralen fra `0084`. Gjeld, men
+ *    korrekt for Kelsar i dag.
+ *
+ * **`avdeling_kode <> '10'` er ingen av delene.** Baselinen 2026-08-28
+ * viste at drivstoff har kode `1000` hos Kelsar; `10` finnes ikke i
+ * data. Et filter paa den koden ser bredt ut og treffer null rader - og
+ * det var noeyaktig den lesningen som skjulte at vaerprofilen laerte paa
+ * drivstoff i to aar. Kroppen maa vaere uten kommentarer: en kommentar
+ * som NEVNER ENERGI filtrerer ingenting.
+ */
+export function filtrererDrivstoff(kropp: string): boolean {
+  const ren = utenKommentarer(kropp)
+  return /retailer_koderegel/i.test(ren) || NAVNESJEKK.test(ren)
+}
+
 /** Kroppen til siste definisjon av ett navngitt objekt. */
 export function sisteDefinisjon(
   filer: { fil: string; sql: string }[], navn: string,

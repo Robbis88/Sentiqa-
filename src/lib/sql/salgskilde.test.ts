@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { aggregerendeDaglige, sisteDefinisjon } from './salgskilde'
+import {
+  aggregerendeDaglige, NAVNESJEKK as LITTERAL, sisteDefinisjon,
+} from './salgskilde'
 
 // =====================================================================
 // LESER NOE I SQL FORTSATT `daglig_salg` NAAR DET SUMMERER?
@@ -14,6 +16,11 @@ import { aggregerendeDaglige, sisteDefinisjon } from './salgskilde'
 // derfor riktige ut ved gjennomlesing. Baselinen mot produksjon
 // 2026-08-28 viste at drivstoff har kode **1000**: filteret traff
 // ingenting, og vaerprofilen laerte paa drivstoff.
+//
+// `LITTERAL` under er navnesjekken fra `0084`/`0085`. Den bodde i denne
+// fila som en egen regex til 2026-09-08 - og `drivstoffvakt.test.ts`
+// hadde sin tredje variant av samme regel. Tre lesninger, uenige. Én
+// definisjon nå, i `salgskilde.ts`.
 //
 // **Det er ikke nok aa filtrere. Filteret maa treffe.** Derfor krever
 // punkt 3 under at hvert objekt som fortsatt leser `daglig_salg` ogsaa
@@ -98,9 +105,6 @@ describe('hva som fortsatt summerer fra daglig_salg', () => {
     expect(new Set(gjeld.map((f) => f.fil))).toEqual(new Set(['0084_uten_drivstoff.sql']))
   })
 })
-
-/** Navnesjekken fra 0084/0085 — den armen som faktisk traff. */
-const LITTERAL = /upper\s*\(\s*coalesce\s*\(\s*(?:ds\.)?avdeling_navn[\s\S]{0,40}?<>\s*'ENERGI'/i
 
 describe('mappingen er kilden, ikke litteralen', () => {
   it('v_butikksalg leser retailer_koderegel og erklæringen', () => {
