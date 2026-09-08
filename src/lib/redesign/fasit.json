@@ -814,8 +814,8 @@
       "Ny stasjon"
     ],
     "/stempling": [
-      "Inne nå <span className=\"undertittel\">· {inne.length}</span>",
-      "Stemple inn og ut"
+      "t('Stemple inn og ut')",
+      "{t('Inne nå')} <span className=\"undertittel\">· {inne.length}</span>"
     ],
     "/svinn": [
       "Hele svinnet",
@@ -865,7 +865,7 @@
       "t('Vår stasjon')"
     ],
     "/varsler": [
-      "Ingen varsler"
+      "t('Ingen varsler')"
     ],
     "/databehandleravtale": [
       "1. Parter og bakgrunn",

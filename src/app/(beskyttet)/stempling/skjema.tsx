@@ -2,6 +2,7 @@
 import { useActionState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { stemple, type StemplingSvar } from './handlinger'
+import { useT } from '../oversett-kontekst'
 
 // =====================================================================
 // Stemple-skjermen.
@@ -17,6 +18,9 @@ import { stemple, type StemplingSvar } from './handlinger'
 // =====================================================================
 
 export function StemplingSkjema() {
+  // Konteksten settes i (beskyttet)/layout.tsx, saa en klientkomponent
+  // trenger ingen egen henting - bare oppslaget.
+  const t = useT()
   const [svar, handling, venter] = useActionState<StemplingSvar | undefined, FormData>(
     stemple, undefined,
   )
@@ -48,7 +52,7 @@ export function StemplingSkjema() {
     <>
       <form ref={skjema} action={handling} className="stempling-skjema">
         <label className="felt">
-          <span>Ansattnummer</span>
+          <span>{t('Ansattnummer')}</span>
           <input
             ref={nummerfelt}
             name="ansatt_nr"
@@ -73,7 +77,7 @@ export function StemplingSkjema() {
         </label>
 
         <button type="submit" className="stempling-knapp primar" disabled={venter}>
-          {venter ? 'Registrerer …' : 'Stemple'}
+          {venter ? t('Registrerer …') : t('Stemple')}
         </button>
 
         {/* PAUSEN ER EN EGEN KNAPP, ikke et valg i et felt. Ett trykk er

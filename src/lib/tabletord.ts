@@ -22,6 +22,18 @@ export const TABLET_ORD: string[] = [
   'Stemple inn', 'Stemple ut', 'Stemple inn eller ut',
   'På jobb siden', 'Du er ikke stemplet inn',
   'Timene dine — ikke det samme som vakt-PIN-en',
+  // /stempling som EGEN side. Ordene over sto i lista fra boelge 5, men
+  // bare raden paa «I dag» brukte dem - selve sida var norsk uansett
+  // spraakvalg.
+  'Stemple inn og ut',
+  'Timene dine. Vakt-PIN-en i toppen sier bare hvem som bruker nettbrettet.',
+  'Inne nå', 'Ingen er stemplet inn på stasjonen akkurat nå.', 'siden',
+  'Ansattnummer', 'Stemple', 'Registrerer …',
+  // /varsler — bjella i toppstripa. Selve varselteksten er dynamisk og
+  // oversettes ikke her; det er et eget valg med en egen kostnad.
+  'Alt er lest.', 'ulest', 'uleste', 'Ingen varsler',
+  'Systemet sier fra her når noe krever at du ser på det.',
+  'Ulest', 'Åpne', 'Lest', 'Marker alle som lest',
   // Vår stasjon (sekundærflata)
   'Vår stasjon', 'Premie, vekst, skills og måling',
   'Hvordan vi ligger an. Ikke noe du må gjøre i dag.',
