@@ -43,11 +43,17 @@ export function Kilder() {
         </div>
 
         <div className="lp-inntak">
+          {/* ADRESSEN SETTES OPP, DEN KOMMER IKKE AV SEG SELV.
+              Mottaket er ekte - `/api/epost-inntak` slaar opp
+              `retailers.inntak_epost` og sjekker en avsender-allowlist -
+              men adressen provisjoneres for haand per kjede. «Hver kjede
+              faar sin egen» leste som om den bare var der, og en ny kunde
+              som videresendte rapporter dit ville faatt ingenting. */}
           <div className="lp-inntak-tekst">
             <strong>Eller la det gå av seg selv.</strong>
             <p>
-              Hver kjede får sin egen inntaksadresse. Videresend rapportene dit, så havner
-              vedleggene rett i importkøen.
+              Vi setter opp en inntaksadresse for kjeden din. Videresend rapportene dit,
+              så havner vedleggene rett i importkøen — bare fra avsendere du har godkjent.
             </p>
           </div>
           <span className="lp-inntak-adr">kjedenavn@inntak.sentiqa.ai</span>

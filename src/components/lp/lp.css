@@ -509,3 +509,58 @@
   }
 
 }
+
+/* --------------------------------------------------- lønnsrommet ----
+   Samme oppbygning som `.lp-ob`: et lyst kort med produktets egen form
+   til venstre, og forklaringen til høyre. Kortet er lyst på mørk grunn
+   av samme grunn som heroens flate — appen ER lys, og å vise den mørk
+   for at den skal passe til sida ville vært å vise fram noe som ikke
+   finnes. */
+.lp-rom { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 4vw, 56px); align-items: start; margin-top: var(--luft-7); }
+.lp-rom-liste {
+  border: 1px solid var(--kant); border-radius: var(--lp-r);
+  background: var(--kort); color: var(--tekst); overflow: hidden;
+}
+.lp-rom-hode { padding: 14px 16px; border-bottom: 1px solid var(--kant); display: flex; align-items: center; gap: var(--luft-3); }
+.lp-rom-hode h3 { font-size: 15px; font-weight: 600; color: var(--tekst); }
+.lp-rom-rad {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px var(--luft-3);
+  padding: 13px 16px; border-bottom: 1px solid var(--kant);
+}
+.lp-rom-rad:last-child { border-bottom: 0; }
+.lp-rom-mnd { font-weight: 600; display: flex; align-items: center; gap: var(--luft-2); }
+/* «Anslått» er ikke pynt: den skiller en avlagt måned fra en som ennå
+   regnes. Uten den ser de fire radene like sikre ut. */
+.lp-rom-anslag {
+  font-family: var(--font-geist-mono), monospace; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tekst-svak);
+  border: 1px dashed var(--kant); border-radius: 999px; padding: 1px 7px;
+}
+.lp-rom-v { font-size: 19px; font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; }
+.lp-rom-krav { font-size: 13px; color: var(--tekst-svak); }
+.lp-rom-brutto { font-size: 13px; color: var(--tekst-svak); text-align: right; font-variant-numeric: tabular-nums; }
+.lp-rom-tekst { color: var(--natt-tekst-svak); margin-top: var(--luft-5); font-size: 15.5px; line-height: 1.6; }
+/* Leddene er en REKKEFØLGE, ikke en liste — derfor `<ol>` og derfor
+   tellerne. Her betyr nummeret noe: hvert ledd virker på resultatet av
+   det forrige. */
+.lp-rom-ledd { list-style: none; margin: var(--luft-5) 0 0; padding: 0; counter-reset: ledd; }
+.lp-rom-ledd > li {
+  counter-increment: ledd;
+  display: grid; grid-template-columns: 1.6rem 1fr auto; gap: 2px var(--luft-3);
+  padding: 10px 0; border-bottom: 1px solid var(--natt-kant);
+}
+.lp-rom-ledd > li::before {
+  content: counter(ledd); grid-row: span 2;
+  font-family: var(--font-geist-mono), monospace; font-size: 11px;
+  color: var(--natt-tekst-dempet); padding-top: 3px;
+}
+.lp-rom-ledd-navn { color: var(--natt-tekst); font-size: 14.5px; }
+.lp-rom-ledd-v {
+  color: var(--natt-tekst); font-size: 14.5px; text-align: right;
+  font-variant-numeric: tabular-nums; font-family: var(--font-geist-mono), monospace;
+}
+.lp-rom-ledd-hvorfor { grid-column: 2 / -1; color: var(--natt-tekst-dempet); font-size: 12.5px; line-height: 1.5; }
+
+@media (max-width: 860px) {
+  .lp-rom { grid-template-columns: 1fr; }
+}

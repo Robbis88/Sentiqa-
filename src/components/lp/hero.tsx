@@ -56,8 +56,12 @@ export function Hero() {
             Se hvordan det virker
           </a>
         </div>
+        {/* «SELVBETJENT OPPSTART» STO HER, og var sant helt til
+            registreringen fikk en port (0190). Naa bekreftes e-posten og
+            kjeden aapnes av et menneske - saa ordet ville lovet en
+            umiddelbar innlogging som ikke finnes. */}
         <p className="lp-fot">
-          Selvbetjent oppstart · ingen systemer må byttes ut · faktura på EHF
+          Registrer deg selv · ingen systemer må byttes ut · faktura på EHF
         </p>
 
         <div className="lp-flate-ramme" ref={ref}>
@@ -130,9 +134,13 @@ export function Hero() {
                   merke="Mot forretningsplan" til={2.1} des={1} pre="+" suff=" %"
                   start={synlig} under="hittil i september"
                 />
+                {/* LOENNSANDELEN ER TALLET EN EIER STYRER ETTER, og det
+                    sto ikke paa sida i det hele tatt. «Timer denne uken»
+                    er en maaling; dette er en GRENSE, og forskjellen er
+                    hele poenget med loennsrommet. */}
                 <Nokkeltall
-                  merke="Timer denne uken" til={612} suff=" av 640" start={synlig}
-                  under="28 timer igjen av rammen"
+                  merke="Lønn av brutto" til={52.4} des={1} suff=" %" start={synlig}
+                  under="budsjettet sier 51,0 %"
                 />
               </div>
             </div>

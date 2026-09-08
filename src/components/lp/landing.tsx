@@ -3,6 +3,7 @@ import { Hero } from './hero'
 import { Kilder } from './kilder'
 import { Onboarding } from './onboarding'
 import { Utforsker } from './utforsker'
+import { Lonnsrom } from './lonnsrom'
 import { Assistent } from './assistent'
 import { Driftssentral } from './sentral'
 import { Ukebrief } from './ukebrief'
@@ -16,6 +17,7 @@ import { Signaler } from './signaler'
 //   hva er dette          hero
 //   hvor får den dataene  kilder
 //   må jeg bygge om alt   onboarding
+//   hva tjener jeg på det lønnsrommet
 //   hva forstår den       utforsker
 //   kan jeg spørre den    assistent
 //   hva ser jeg som eier  driftssentral
@@ -40,6 +42,7 @@ export function Landing() {
           <nav className="lp-nav-lenker" aria-label="Hovedmeny">
             <a href="#produkt">Produkt</a>
             <a href="#onboarding">Onboarding</a>
+            <a href="#lonn">Lønn</a>
             <a href="#ledelse">For ledere</a>
             <a href="#brev">Ukebriefen</a>
           </nav>
@@ -54,6 +57,12 @@ export function Landing() {
         <Hero />
         <Kilder />
         <Onboarding />
+        {/* LOENNSROMMET FOER UTFORSKEREN. Det er det sterkeste
+            argumentet i systemet - en ramme som foelger bruttoen i
+            stedet for aa staa i kroner - og det sto ikke ett ord om det
+            paa sida. Utforskeren viser at systemet FORSTAAR dataene;
+            denne viser hva forstaaelsen er verdt. */}
+        <Lonnsrom />
         <Utforsker />
         <Assistent />
         <Driftssentral />
