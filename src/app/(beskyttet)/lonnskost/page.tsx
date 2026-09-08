@@ -179,6 +179,28 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   // tretten maaneder og krysser aarsskiftet, saa uten den avgrensningen
   // ville «aaret» vaert tretten maaneder over to aar.
   // ===================================================================
+  // TO BUDSJETTER SOM IKKE ER DET SAMME TALLET.
+  //
+  // St1s maanedsrapport baerer sitt eget budsjett; BP-en er kjedens
+  // aarsdokument. De var like paa hver maaned tidligere - saa like at
+  // sida forklarte hvorfor to kolonner viste samme sum. Fra april 2026
+  // spriker de paa Dale: 317 869 mot 625 623.
+  //
+  // LOENNSROMMET REGNES AV BP-EN. Naar de to spriker, maales altsaa
+  // loennskosten mot noe annet enn tallet i budsjettkolonnen - og et
+  // avvik paa et kvart million uten en setning som sier hvorfor, er et
+  // tall folk enten stoler blindt paa eller slutter aa lese.
+  const sprikende = rader.filter((mnd) => {
+    const m = maanedPer.get(mnd)
+    const r = romPer.get(mnd)
+    return m?.budsjettKr != null && r?.bpLonnKr != null
+      && Math.abs(m.budsjettKr - r.bpLonnKr) >= 1000
+  })
+
+  // Maaneden vi staar i. Rommet for den er tjent SAA LANGT, ikke for
+  // hele maaneden - omsetningen dekker bare dagene som har vaert.
+  const naaMaaned = new Date().toISOString().slice(0, 7)
+
   const aar = rader[0]?.slice(0, 4) ?? String(new Date().getUTCFullYear())
   const iAar = <T extends { maaned: string }>(xs: T[]) => xs.filter((x) => x.maaned.startsWith(aar))
 
@@ -373,6 +395,15 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           derfor hver for seg, og hver av dem sier hvor mange maaneder
           den dekker - et sammendrag som ikke sier hva det summerer, er
           et tall man enten stoler blindt paa eller lar vaere aa lese. */}
+      {sprikende.length > 0 && (
+        <Status nivaa="handling">
+          {`St1s månedsbudsjett og BP-en spriker i ${sprikende.length} `}
+          {sprikende.length === 1 ? 'måned' : 'måneder'}
+          {'. Lønnsrommet regnes av BP-en, så avviket måles mot den — ikke mot '}
+          {'tallet i budsjettkolonnen. BP-tallet står på hver rad der de er ulike.'}
+        </Status>
+      )}
+
       {aarstall.maaneder > 0 && (
         <Datatabell tittel={`Året ${aar}`} antall={aarstall.maaneder}>
           <thead>
@@ -449,9 +480,23 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           {rader.map((maaned) => {
             const m = maanedPer.get(maaned)
             const ea = eaPerMaaned.get(maaned)
-            const spriker = m?.budsjettKr != null && m.bpBudsjettKr != null
-              && Math.abs(m.budsjettKr - m.bpBudsjettKr) >= 1
             const r = romPer.get(maaned)
+            // ===============================================================
+            // SPRIKET MAALES MOT BP-EN SOM FAKTISK BRUKES
+            //
+            // Her sto `m.bpBudsjettKr`, som kommer fra `bp_kostnad` i
+            // regnskapslinjer - og den hopper BP-importen over for hver
+            // AVLAGT maaned. Sjekken fyrte derfor aldri naar den trengtes.
+            //
+            // Malt paa Dale: St1s maanedsbudsjett sto paa 317 869 fra april,
+            // mens BP-en sa 625 623. Loennsrommet regnes av BP-en, saa
+            // avviket ble et kvart million hver maaned - uten at noe pekte
+            // paa hvorfor de to tallene ikke kunne sammenlignes.
+            //
+            // `r.bpLonnKr` kommer fra 0183 og finnes for HVER maaned.
+            // ===============================================================
+            const spriker = m?.budsjettKr != null && r?.bpLonnKr != null
+              && Math.abs(m.budsjettKr - r.bpLonnKr) >= 1000
             // BRUKT ER REGNSKAPET NAAR DET FINNES, ellers anslaget. Uten
             // det ville den inneVAERENDE maaneden - den eneste som fortsatt
             // kan paavirkes - staatt uten avvik.
@@ -497,14 +542,31 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
                     gjelder. Ellers er de samme tall og fortjener én celle. */}
                 <td>
                   {budsjettKr == null ? '—' : kr.format(Math.round(budsjettKr))}
-                  {spriker && <> <Status nivaa="endring">≠ BP</Status></>}
+                  {/* TALLET, IKKE BARE ET MERKE. «≠ BP» sier at de er
+                      ulike; det sier ikke hvor mye eller hvilken vei -
+                      og det er nettopp forskjellen som er poenget. */}
+                  {spriker && (
+                    <> <Status nivaa="endring">
+                      {`BP: ${kr.format(Math.round(r!.bpLonnKr!))}`}
+                    </Status></>
+                  )}
                 </td>
                 {/* LOENNSROMMET. Budsjettet ganget med den brutto maaneden
                     faktisk fikk. Er den anslaatt, staar det paa raden -
                     et anslag som ser ut som en fasit er verre enn ingen. */}
                 <td>
                   {r?.romKr == null ? '—' : kr.format(Math.round(r.romKr))}
-                  {r?.anslaatt && <> <Status nivaa="endring">anslag</Status></>}
+                  {/* «HITTIL», IKKE «ANSLAG», FOR MAANEDEN VI STAAR I.
+                      Rommet foelger omsetningen, og i en maaned som ikke
+                      er over dekker den bare dagene som har vaert. Merket
+                      «anslag» ved siden av et helmaanedsbudsjett leses som
+                      «dette er hva du har til raadighet i september» - og
+                      det er ikke det tallet betyr. */}
+                  {r?.anslaatt && (
+                    <> <Status nivaa="endring">
+                      {maaned === naaMaaned ? 'hittil i måneden' : 'anslag'}
+                    </Status></>
+                  )}
                 </td>
                 {/* AVVIKET MAALES MOT ROMMET, IKKE MOT BP.
                     BP-tallet forutsetter en brutto som kanskje ikke kom.
