@@ -242,6 +242,136 @@ export default async function RutinerSide() {
               const pst = totalt > 0 ? Math.round((ferdigN / totalt) * 100) : 0
               const igjen = totalt - ferdigN
               const mikro = alleFerdig ? o('Alt klart!') : igjen === 1 ? o('1 igjen — nesten i mål!') : `${igjen} ${o('igjen')}`
+              // =========================================================
+              // NETTBRETTETS RAD
+              // =========================================================
+              // Robert: «rutiner der er veldig lite oversiktelig».
+              //
+              // Tre ting sto i veien, og alle tre var plassering:
+              //
+              //   BESKRIVELSEN LAA BAK ET «?» paa 26 piksler. Det er
+              //   instruksjonen en ny ansatt trenger - «hva betyr rydd
+              //   bakrom» - og det var det vanskeligste aa treffe paa
+              //   hele skjermen. Naa staar den paa raden.
+              //
+              //   BARE RUTA VAR TRYKKFLATE. 56 piksler av en rad paa
+              //   flere hundre. Med hansker paa bommer man, og da hakes
+              //   ingenting av - eller feil rad. Naa er hele raden
+              //   knappen.
+              //
+              //   BILDERUTINENE SAA UT SOM NOE ANNET. De byttet form
+              //   helt: filvelger og egen knapp, ingen avkryssingsrute.
+              //   Naa er raden lik, og hele flaten aapner kameraet.
+              //
+              // KOMMENTAREN BLIR IGJEN BAK ET IKON, og det er riktig -
+              // aa LESE og aa SKRIVE er to forskjellige aerend. Det som
+              // flyttet ut er lesingen.
+              //
+              // BARE NETTBRETTET. Lederen har en tett liste hun skanner;
+              // to linjer per rad ville gjort femtifem rutiner til en
+              // rulletur. `rad` under er hennes, uendret.
+              const radNettbrett = (r: Rutine) => {
+                const key = `${r.id}|${vindu.vaktdato}`
+                const felt = (
+                  <>
+                    <input type="hidden" name="rutine_id" value={r.id} />
+                    <input type="hidden" name="stasjon_id" value={r.stasjon_id} />
+                    <input type="hidden" name="dato" value={vindu.vaktdato} />
+                  </>
+                )
+                if (r.ikmat_frekvens) {
+                  const st = ikmatStatus(r)
+                  return (
+                    <li key={r.id} className={`tr-rad ${st.ferdig ? 'gjort' : ''}`}>
+                      <Link
+                        href={`/ikmat/maaling?stasjon=${r.stasjon_id}&frekvens=${r.ikmat_frekvens}`}
+                        className="tr-trykk"
+                      >
+                        <span className={`tr-hak ${st.ferdig ? 'av' : ''}`} aria-hidden>{st.ferdig ? '✓' : ''}</span>
+                        <span className="tr-tekst">
+                          <span className="tr-tittel">{o(r.tittel)}</span>
+                          {r.beskrivelse ? <span className="tr-hjelp">{o(r.beskrivelse)}</span> : null}
+                          <span className="tr-merker">
+                            <span className="tr-merke maaling">{st.malt}/{st.antall} {o('målt')}</span>
+                          </span>
+                        </span>
+                        <span className="tr-pil" aria-hidden>›</span>
+                      </Link>
+                    </li>
+                  )
+                }
+                const gjort = utfortMap.has(key)
+                const lagretSti = utfortMap.get(key)
+                const bildeUrl = lagretSti ? signertFor.get(lagretSti) : undefined
+                const kropp = (
+                  <>
+                    <span className={`tr-hak ${gjort ? 'av' : ''}`} aria-hidden>{gjort ? '✓' : ''}</span>
+                    <span className="tr-tekst">
+                      <span className="tr-tittel">{o(r.tittel)}</span>
+                      {r.beskrivelse ? <span className="tr-hjelp">{o(r.beskrivelse)}</span> : null}
+                      {r.paakrevd_bilde ? (
+                        <span className="tr-merker">
+                          <span className="tr-merke bilde">{o('Ta bilde')}</span>
+                        </span>
+                      ) : null}
+                    </span>
+                  </>
+                )
+                return (
+                  <li key={r.id} className={`tr-rad ${gjort ? 'gjort' : ''}`}>
+                    {r.paakrevd_bilde && !gjort ? (
+                      <form action={kryssAvMedBilde} className="tr-form">
+                        {felt}
+                        {/* HELE RADEN AAPNER KAMERAET. Filfeltet ligger
+                            inne i etiketten og er skjult - den bare
+                            browservidgeten sto der foer, midt i lista. */}
+                        <label className="tr-trykk">
+                          {kropp}
+                          <input
+                            type="file" name="bilde" accept="image/*" capture="environment"
+                            required className="tr-fil"
+                            aria-label={o('Ta bilde') ?? 'Ta bilde'}
+                          />
+                        </label>
+                        <button type="submit" className="sq-knapp primar tr-lagre">
+                          {o('Lagre bilde')}
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={gjort ? fjernKryss : kryssAv} className="tr-form">
+                        {felt}
+                        <button
+                          type="submit" className="tr-trykk"
+                          aria-label={gjort ? 'Fjern kryss' : 'Kryss av'}
+                        >
+                          {kropp}
+                        </button>
+                      </form>
+                    )}
+                    {/* AA LESE OG AA SKRIVE ER TO AERENDER. Beskrivelsen
+                        staar paa raden; kommentaren blir igjen her. */}
+                    <details className="rutine-mer tr-mer">
+                      <summary aria-label={o('Kommentar til rutinen') ?? 'Kommentar til rutinen'}>⋯</summary>
+                      <form action={lagreNotat} className="rutine-notat">
+                        {felt}
+                        <textarea
+                          name="tekst"
+                          rows={2}
+                          defaultValue={notatFor.get(key) ?? ''}
+                          placeholder={o('Kommentar — f.eks. hva som ikke lot seg gjøre') ?? ''}
+                          aria-label={o('Kommentar til rutinen') ?? 'Kommentar til rutinen'}
+                        />
+                        <button type="submit" className="sq-knapp">{o('Lagre kommentar')}</button>
+                      </form>
+                    </details>
+                    {bildeUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <a href={bildeUrl} target="_blank" rel="noopener" className="bevis-lenke"><img src={bildeUrl} alt="Bevis" className="bevis-bilde" /></a>
+                    )}
+                  </li>
+                )
+              }
+
               // Én rutine-rad (gjenbrukes for åpne + ferdige).
               const rad = (r: Rutine) => {
                 const key = `${r.id}|${vindu.vaktdato}`
@@ -329,11 +459,17 @@ export default async function RutinerSide() {
                     <p className="undertittel">Ingen rutiner for denne vakten i dag.</p>
                   ) : (
                     <>
-                      {aapne.length > 0 && <ul className="rutine-liste">{aapne.map(rad)}</ul>}
+                      {aapne.length > 0 && (
+                        <ul className={paaNettbrett ? 'tr-liste' : 'rutine-liste'}>
+                          {aapne.map(paaNettbrett ? radNettbrett : rad)}
+                        </ul>
+                      )}
                       {ferdige.length > 0 && (
                         <details className="ferdige-rutiner">
                           <summary>✓ {o('Ferdige')} ({ferdige.length})</summary>
-                          <ul className="rutine-liste">{ferdige.map(rad)}</ul>
+                          <ul className={paaNettbrett ? 'tr-liste' : 'rutine-liste'}>
+                            {ferdige.map(paaNettbrett ? radNettbrett : rad)}
+                          </ul>
                         </details>
                       )}
                     </>
