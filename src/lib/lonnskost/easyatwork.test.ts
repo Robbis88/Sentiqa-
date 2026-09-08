@@ -327,3 +327,59 @@ describe('medFastlonn', () => {
     expect(etter[0].perKonto['501']).toBeUndefined()
   })
 })
+
+// =====================================================================
+// OPPGITT GRUNNLOENN SLAAR BAARET, MEN ALDRI REGNSKAPET
+//
+// BP-en foerer kjedesnittet for fastloenn, saa den kan ikke brukes. Konto
+// 501 er faktisk - men den finnes foerst naar maaneden er avlagt. I
+// mellomtiden baaret `medFastlonn` sist kjente framover, og en
+// loennsoekning eller en ny butikksjef gjoer at anslaget ligger etter i
+// inntil halvannen maaned.
+// =====================================================================
+describe('medFastlonn med oppgitt grunnloenn', () => {
+  const maaneder = () => bygg(fraLinjer([
+    L('2', 100, 20000, '2026-09-15'),
+    L('2', 100, 20000, '2026-08-15'),
+  ]))
+
+  it('bruker oppgitt grunnlønn når regnskapet mangler', () => {
+    const [sep] = medFastlonn(
+      maaneder(),
+      new Map([['2026-08', 52500]]),
+      new Map([['2026-09', 58000]]),
+    )
+    expect(sep.maaned).toBe('2026-09')
+    expect(sep.fastlonnKr).toBe(58000)
+    expect(sep.fastlonnKilde).toBe('oppgitt')
+    expect(sep.fastlonnFraMaaned).toBe('2026-09')
+    // Paaslagene regnes av den oppgitte grunnloenna.
+    expect(sep.kontantKr).toBe(78000)
+  })
+
+  // KANARIFUGL. Slaar oppgitt regnskapet, blir en avlagt maaned
+  // overstyrt av et tall ingen har avstemt - og fasiten taper for et
+  // anslag.
+  it('lar regnskapet vinne over det oppgitte', () => {
+    const aug = medFastlonn(
+      maaneder(),
+      new Map([['2026-08', 52500]]),
+      new Map([['2026-08', 99999]]),
+    ).find((m) => m.maaned === '2026-08')!
+    expect(aug.fastlonnKr).toBe(52500)
+    expect(aug.fastlonnKilde).toBe('regnskap')
+  })
+
+  it('faller tilbake på båret når ingenting er oppgitt', () => {
+    const [sep] = medFastlonn(maaneder(), new Map([['2026-08', 52500]]))
+    expect(sep.fastlonnKr).toBe(52500)
+    expect(sep.fastlonnKilde).toBe('baaret')
+    expect(sep.fastlonnFraMaaned).toBe('2026-08')
+  })
+
+  it('sier ingen kilde når stasjonen ikke har fastlønn', () => {
+    const [sep] = medFastlonn(maaneder(), new Map())
+    expect(sep.fastlonnKr).toBe(0)
+    expect(sep.fastlonnKilde).toBeNull()
+  })
+})

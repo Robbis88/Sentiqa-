@@ -291,6 +291,10 @@
       "settStemplingskilde",
       "settTimesats"
     ],
+    "/lonnskost": [
+      "lagreBilvask",
+      "lagreFastlonn"
+    ],
     "/maaling": [
       "opprettMalekort",
       "slettMalekort",
@@ -614,10 +618,14 @@
       "Åpen vakt · ${v.ansattNavn}"
     ],
     "/lonnskost": [
+      "Bilvask · abonnement",
+      "Butikksjefens grunnlønn",
       "Ingen lønnstall ennå",
       "Kontoene · ${manedAar.format(new Date(`${siste.maaned}-01`))}",
       "Per måned",
-      "Velg en stasjon"
+      "Velg en stasjon",
+      "easy@work · anslag for ${manedAar.format(new Date(`${sisteEa.maaned}-01`))}",
+      "Året ${aar}"
     ],
     "/maaling": [
       "Nytt målekort",

@@ -259,3 +259,42 @@ describe('maanedsrader', () => {
     )).toEqual(['2026-08', '2026-07', '2026-06'])
   })
 })
+
+// =====================================================================
+// BILVASKEN SOM KASSA IKKE SER
+//
+// Abonnementene betales rett til konto. Regnskapet har dem naar det
+// kommer - derfor er bilvask der alltid hoeyere enn kassaomsetningen -
+// men den aapne maaneden mangler dem.
+// =====================================================================
+describe('byggLonnsrom med bilvask', () => {
+  const juli = [R('2026-07', 4200000, 1201000)]
+  const grunn = [G('2026-07', 4200000, 25200), G('2026-08', 4060000, 24360)]
+
+  it('legger bruttobidraget på anslaget', () => {
+    const uten = byggLonnsrom(juli, grunn, BP)[0]
+    const med = byggLonnsrom(juli, grunn, BP, new Map([['2026-08', 30000]]))[0]
+    expect(med.maaned).toBe('2026-08')
+    expect(med.bilvaskBruttoKr).toBe(30000)
+    expect(med.bruttoKr!).toBeCloseTo(uten.bruttoKr! + 30000, 2)
+    // Rommet vokser med loennsandelen av bidraget, ikke med hele.
+    expect(med.romKr! - uten.romKr!).toBeCloseTo(30000 * ANDEL, 2)
+  })
+
+  // KANARIFUGL FOR DOBBELTTELLING. En avlagt maaned har kronene fra
+  // regnskapet alt. Slipper de inn her ogsaa, telles de to ganger - og
+  // et for hoeyt brutto gir et for stort rom, altsaa feil i den snille
+  // retningen.
+  it('rører ikke en avlagt måned', () => {
+    const rom = byggLonnsrom(juli, grunn, BP, new Map([['2026-07', 30000]]))
+    const j = rom.find((m) => m.maaned === '2026-07')!
+    expect(j.anslaatt).toBe(false)
+    expect(j.bruttoKr).toBe(1201000)
+    expect(j.bilvaskBruttoKr).toBe(0)
+  })
+
+  it('uten bilvask er alt som før', () => {
+    const uten = byggLonnsrom(juli, grunn, BP)[0]
+    expect(uten.bilvaskBruttoKr).toBe(0)
+  })
+})

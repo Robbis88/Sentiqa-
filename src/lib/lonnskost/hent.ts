@@ -7,6 +7,7 @@ import {
   type EasyatworkMaaned, type Lonnsartsum, type Sykelonnskilde,
 } from './easyatwork'
 import { byggLonnsrom, erAvdelingsniva, erDrivstoff, type Lonnsrom } from './rom'
+import { bruttoPerMaaned, type Ukebelop } from './bilvask'
 
 // =====================================================================
 // Henter lønnskosten for én stasjon, måned for måned.
@@ -55,7 +56,7 @@ export async function hentLonnskost(
   stasjonId: string,
   fraOgMed: string,
 ): Promise<Lonnsbilde> {
-  const [regnskap, bp, lonnsart, brutto, bpMnd, grunnlag] = await Promise.all([
+  const [regnskap, bp, lonnsart, brutto, bpMnd, vask, fastlonn, grunnlag] = await Promise.all([
     supabase
       .from('regnskapslinjer')
       .select('periode, seksjon, kode, post, regnskap, budsjett')
@@ -149,6 +150,24 @@ export async function hentLonnskost(
         omsetning_kr: number | null; brutto_kr: number | null; lonn_kr: number | null
       }[]
     })(),
+    // Bilvaskabonnementene kassa ikke ser (0184). Faa rader - én per uke.
+    supabase
+      .from('bilvask_abonnement')
+      .select('ar, uke, belop_kr')
+      .eq('stasjon_id', stasjonId)
+      .is('slettet_tid', null)
+      .limit(500)
+      .overrideTypes<{ ar: number; uke: number; belop_kr: number }[]>(),
+    // Butikksjefens oppgitte grunnloenn (0185). Eierens alene - for en
+    // butikksjef svarer den tomt, og da faller vi tilbake paa aa baere
+    // sist kjente konto 501 framover, som foer.
+    supabase
+      .from('butikksjef_fastlonn')
+      .select('ar, maned, grunnlonn_kr')
+      .eq('stasjon_id', stasjonId)
+      .is('slettet_tid', null)
+      .limit(500)
+      .overrideTypes<{ ar: number; maned: number; grunnlonn_kr: number }[]>(),
     // De daglige stoerrelsene, summert i basen (0182).
     supabase
       .from('v_lonnsrom_grunnlag')
@@ -206,6 +225,8 @@ export async function hentLonnskost(
     ['BP-linjene', bp],
     ['lønnsartene', lonnsart],
     ['omsetning og brutto', brutto],
+    ['bilvaskabonnementene', vask],
+    ['oppgitt grunnlønn', fastlonn],
     ['omsetning og svinn per måned', grunnlag],
   ] as const) {
     if (svar.error) throw new Error(`Kunne ikke lese ${hva}: ${svar.error.message}`)
@@ -233,6 +254,14 @@ export async function hentLonnskost(
       .filter((m) => m.avlagt)
       .map((m) => [m.maaned, m.linjer.find((l) => l.kode === '501')?.regnskap ?? 0])
       .filter(([, kr]) => (kr as number) !== 0) as [string, number][],
+  )
+  // OPPGITT GRUNNLOENN, per maaned. Brukes bare der regnskapet ikke har
+  // svart - se `medFastlonn`.
+  const oppgittGrunnlonn = new Map(
+    (fastlonn.data ?? []).map((r) => [
+      `${r.ar}-${String(r.maned).padStart(2, '0')}`,
+      Number(r.grunnlonn_kr),
+    ]),
   )
   const syk = medOppdagetSykelonn(byggEasyatwork(summer), regnskapSykelonn)
 
@@ -302,6 +331,23 @@ export async function hentLonnskost(
       lonnKr: r.lonn_kr === null ? null : Number(r.lonn_kr),
     }))
 
+  // BILVASKENS BRUTTOBIDRAG, per maaned.
+  //
+  // BARE MAANEDER SOM IKKE ER AVLAGT. Regnskapet har allerede disse
+  // kronene naar det kommer - det er derfor bilvask der alltid er
+  // hoeyere enn kassaomsetningen. Legges de inn i en avlagt maaned,
+  // telles de to ganger.
+  const avlagteMaaneder = new Set(
+    maaneder.filter((m) => m.avlagt).map((m) => m.maaned),
+  )
+  const vaskBrutto = new Map(
+    [...bruttoPerMaaned(
+      (vask.data ?? []).map((r): Ukebelop => ({
+        ar: r.ar, uke: r.uke, belopKr: Number(r.belop_kr),
+      })),
+    )].filter(([m]) => !avlagteMaaneder.has(m)),
+  )
+
   const rom = byggLonnsrom(
     regnskapsmaaneder,
     (grunnlag.data ?? []).map((g) => ({
@@ -310,12 +356,13 @@ export async function hentLonnskost(
       svinnKr: Number(g.svinn_kr),
     })),
     bpMaaneder,
+    vaskBrutto,
   )
 
   return {
     rom,
     maaneder,
-    easyatwork: medFastlonn(syk.maaneder, regnskapFastlonn),
+    easyatwork: medFastlonn(syk.maaneder, regnskapFastlonn, oppgittGrunnlonn),
     sykelonn: { moenster: syk.moenster, maalte: syk.maalte, forsinkede: syk.forsinkede },
     ukjenteKoder: ukjenteLonnskoder(
       linjer.filter((l) => l.seksjon === 'bp_kostnad' && l.kode).map((l) => l.kode!),
