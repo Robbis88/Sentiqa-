@@ -46,25 +46,21 @@ import {
 // ---------------------------------------------------------------------
 // HVA SOM STÅR IGJEN, OG HVORFOR
 //
-// `/stempling` og `/varsler` er gjort: det er de to hun møter hver dag —
-// klokka inn og bjella. Ordene sto allerede i `TABLET_ORD`; det var bare
-// sidene som ikke slo dem opp.
+// Fem av seks er gjort. Én står igjen, og den er et valg, ikke en
+// forglemmelse:
 //
-// Igjen står fire, og de er ikke glemt:
+//   /mine-opplysninger  Personopplysningssida etter aml. § 9-2. Ordene
+//                       er juridiske, og en maskinoversettelse av dem
+//                       er en annen slags beslutning enn «Stemple inn»:
+//                       arbeidsgiver dokumenterer at den ansatte ER
+//                       informert, og da må teksten være til å stå for.
+//                       Det er Roberts valg, ikke vaktens.
 //
-//   /ikmat              Selve målingen (`/ikmat/maaling`) ER oversatt.
-//                       Oversikten er ikke, og den har en lederflate i
-//                       samme fil.
-//   /merker             Mest lederflate (tildel, sett opp). Nettbrettets
-//                       del er merkeveggen.
-//   /mine-opplysninger  Personopplysninger. Ordene er juridiske, og en
-//                       maskinoversettelse av dem er en annen slags
-//                       beslutning enn «Stemple inn».
-//   /nyheter            Innholdet er dynamisk uansett; rammen alene
-//                       hjelper lite.
-//
-// Ingen av dem er vanskelige. De er bare ikke daglige, og de koster hver
-// sin runde med fraser i `tabletord.ts`.
+// `/ikmat` var det stygge tilfellet. `TabletIkMat` HADDE et `ord`-prop
+// og en `t()` fra dagen den ble skrevet — sida sendte den bare aldri
+// noe, så `t()` var identiteten. Maskineriet sto der og virket på
+// ingenting, og koden så ferdig ut. En gjennomlesing ville bekreftet
+// den.
 // =====================================================================
 
 const ROT = process.cwd()

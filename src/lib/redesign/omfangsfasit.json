@@ -1,0 +1,22 @@
+{
+  "par": {
+    "/butikksjef-dashbord.tsx::fokuspunkter": "Bevisst unntak, skrevet i fila ved siden av paaStasjon(): fokuspunktene avgrenses av RLS. De er TEKST, ikke tall - et punkt fra nabostasjonen er ikke et misvisende tall, og hvert punkt bærer stasjonen sin videre til /fokus.",
+    "/butikksjef-dashbord.tsx::pengepremie": "Samme bevisste unntak som fokuspunkter, samme kommentar i fila. Premien er kjedens, ikke stasjonens.",
+    "/butikksjef-dashbord.tsx::pengepremie_bruk": "Følger pengepremie. Bruken hører til premien, og premien er kjedens.",
+    "/butikksjef-dashbord.tsx::varsler": "KAN IKKE filtreres. `varsler.stasjon_id` er nullbar, og null betyr «hele kjeden» - et .eq() ville ikke avgrenset dem, det ville SKJULT dem. Står skrevet i fila.",
+    "/ikmat::ik_avlesninger": "Avlesningene kobles til kontrollpunktet, og punktet bærer stasjonen. Sida grupperer per stasjon (punkterPerStasjon), så ingen tall blandes.",
+    "/import::import_jobber": "Importkøen er kjedens, og /import er låst til retailer_admin i appen. En kø per stasjon ville vært feil bilde av en fil som dekker alle fem.",
+    "/layout.tsx::varsler": "Bjella i toppstripa, samme som dashbordet: null stasjon betyr hele kjeden, og et filter ville skjult dem.",
+    "/mine-opplysninger::kontrolltiltak_bekreftelse": "Brukerens EGNE bekreftelser. Ingen stasjonsdimensjon å blande.",
+    "/oversikt::tablet_meldinger": "Beskjeder til nettbrettet. Null stasjon betyr hele kjeden, som for varsler - og nettbrettet står uansett på én stasjon.",
+    "/persondata::persondata_logg": "Tilgangsloggen. RLS avgrenser butikksjefen til egne stasjoner (0148), og loggen er RADER med navn, ikke et tall som kan misleses.",
+    "/plattform::import_jobber": "Plattformredaktørens flate. Den ser på tvers av kjeder ved design, ikke bare på tvers av stasjoner.",
+    "/puls::puls_svar": "MERKET. Svarene spenner over alle lederens stasjoner, og «12 svar · snitt 4,2» leses ellers som «min stasjon». Sidehodet sier det nå med medOmfang().",
+    "/regnskap::regnskapslinjer": "Sida har stasjonsvelger og støtter aggregat gjennom TAALER_AGGREGAT. Omfanget står i velgeren, ikke i tallet.",
+    "/rutiner/oppsett/[id]::rutiner": "Avgrenset av skjema_id. Et skjema hører til én stasjon, så stasjonen er implisitt i nøkkelen.",
+    "/rutiner/oppsett::rutiner": "Oversikten grupperer per skjema, og hvert skjema navngir stasjonen sin. En liste, ikke et tall.",
+    "/rutiner::ik_avlesninger": "Nettbrettets vaktside. Nettbrettet står på ÉN stasjon, så RLS gir én stasjon - aggregatet kan ikke oppstå.",
+    "/rutiner::rutine_utforinger": "Serverhandling (handlinger.ts) som leser en enkelt utføring for å kunne fjerne den. Ingen visning, ingen sum.",
+    "/varsler::varsler": "Personlig innboks. Null stasjon betyr hele kjeden, og et filter ville skjult dem - samme som i toppstripa."
+  }
+}

@@ -107,7 +107,25 @@ er min kjedes når den ikke lenger kan flyttes.
 
 Slike steder er ikke avvik som kan strammes med et predikat; de er steder RLS ikke rekker. De føres som `capability_gjeld` på ressursen i `supabase/tenant-kontrakt.json`, med navn og utvei, i stedet for å bo i en commit-melding.
 
-**Åpen gjeld: ingen.** Alle tre postene ble gjort opp 2026-09-02:
+**Åpen gjeld: én.** `malekort.anonymiser` (ført 2026-09-09).
+
+Flagget bytter butikknavnet til «Butikk #4» i visningen, men rangeringen
+bygges av to `security definer`-funksjoner som enhver `authenticated`
+kan kalle rett over PostgREST: `malekort_stasjoner()` (`0075`) gir
+navnet på hver stasjon i kjeden, og `beregn_malekort_salg()`
+(`0074`/`0085`) gir tallet per `stasjon_id`. En butikksjef eller et
+nettbrett kan joine dem selv og gjenskape den navngitte rangeringen —
+uansett hva admin har huket av.
+
+**Merk hva som IKKE er hemmelig:** butikksjefen SKAL se rangeringen.
+Det flagget lover å skjule er koblingen navn-til-tall, ikke tallene.
+
+Utveien er skrevet i kontrakten: en smal `malekort_rangering()` som gjør
+anonymiseringen selv, og deretter strammede grants på de to brede —
+samme form som `0165`. Ikke gjort ennå fordi `/maaling` er en lederflate
+i drift, og endringen skal prøves mot ekte data først.
+
+De tre tidligere postene ble gjort opp 2026-09-02:
 
 | | |
 |---|---|

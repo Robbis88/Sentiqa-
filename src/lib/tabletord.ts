@@ -34,6 +34,19 @@ export const TABLET_ORD: string[] = [
   'Alt er lest.', 'ulest', 'uleste', 'Ingen varsler',
   'Systemet sier fra her når noe krever at du ser på det.',
   'Ulest', 'Åpne', 'Lest', 'Marker alle som lest',
+  // /ikmat paa nettbrettet. `TabletIkMat` HADDE et `ord`-prop og en
+  // `t()` fra dagen den ble skrevet - sida sendte den bare aldri noe.
+  // Maskineriet sto der og virket paa ingenting.
+  'Ingen kontrollpunkter satt opp på denne stasjonen.',
+  'målt', 'trykk for å måle', 'utenfor kravet',
+  'Er noe utenfor kravet, opprettes et avvik automatisk når du fyller inn strakstiltak.',
+  // /nyheter
+  'Nyheter fra Sentiqa', 'Oppdateringer, kampanjer og tips.',
+  'Ingen nyheter ennå',
+  // /merker - merkeveggen. Tildelingen er lederens og staar paa norsk.
+  'Anerkjennelse til de ansatte — vis fram det teamet får til.',
+  'Ingen merker ennå',
+  'Her kommer oppdateringer om systemet og tips fra andre stasjoner.',
   // Vår stasjon (sekundærflata)
   'Vår stasjon', 'Premie, vekst, skills og måling',
   'Hvordan vi ligger an. Ikke noe du må gjøre i dag.',

@@ -7,6 +7,7 @@ import { FREKVENS_ETIKETT, kravTekst } from '@/lib/ikmat/standard'
 import { registrerAvlesning, settOppStandard } from './handlinger'
 import { AvvikDel } from '../avvik/avvik-del'
 import { TabletIkMat } from './tablet-ikmat'
+import { oversettTabletOrd } from '@/lib/oversett'
 import { TabletHode } from '../tablet-hode'
 import { Sideramme } from '@/components/ui/sideramme'
 
@@ -97,13 +98,25 @@ export default async function IkMatSide() {
   })
 
   if (paaNettbrett) {
+    // MASKINERIET STO DER OG VIRKET PAA INGENTING.
+    //
+    // `TabletIkMat` har hatt et `ord`-prop og en `t()` fra dagen den ble
+    // skrevet. Sida sendte den aldri noe, saa `t()` var identiteten, og
+    // hver streng sto paa norsk uansett hva hun valgte i flagg-velgeren.
+    //
+    // Det er verre enn aa mangle oversetting: koden SER ferdig ut, og en
+    // gjennomlesing bekrefter den.
+    const { cookies } = await import('next/headers')
+    const sprak = (await cookies()).get('sprak')?.value ?? 'no'
+    const ord = await oversettTabletOrd(sprak)
+    const t = (x: string) => ord[x] ?? x
     return (
       <Sideramme>
         <TabletHode
           tittel={svar}
-          undertittel="Er noe utenfor kravet, opprettes et avvik automatisk når du fyller inn strakstiltak."
+          undertittel={t('Er noe utenfor kravet, opprettes et avvik automatisk når du fyller inn strakstiltak.')}
         />
-        <TabletIkMat stasjoner={tabletGrupper} />
+        <TabletIkMat stasjoner={tabletGrupper} ord={ord} />
         <AvvikDel />
       </Sideramme>
     )
