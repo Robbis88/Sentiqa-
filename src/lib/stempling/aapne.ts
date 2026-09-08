@@ -71,6 +71,25 @@ export async function hentAapneVakter(
 ): Promise<AapenVakt[] | null> {
   const { fra, til } = vindu(ar, maned)
 
+  // =====================================================================
+  // «INGEN ÅPNE VAKTER» KUNNE BETY «JEG SÅ BARE DEN FØRSTE UKA»
+  // =====================================================================
+  // Spørringen hadde ingen grense. Én stasjon, én måned, alle
+  // hendelsestyper — inn, ut og pause — er 750 til 1 500 rader på en
+  // travel stasjon, og PostgREST gir tusen uten å si fra.
+  //
+  // Og `.order('tidspunkt')` stigende gjør at det er SLUTTEN av måneden
+  // som faller bort. En vakt som ble stående åpen den 28. var usynlig,
+  // sperren sa ja, og lønnsfila ble laget med en vakt uten utstempling.
+  //
+  // Det er nøyaktig det denne funksjonens egen kommentar sier aldri skal
+  // skje: «jeg vet ikke» må ikke se ut som «alt er i orden». En stille
+  // avkorting gjorde det motsatte — den gjorde «jeg vet ikke» om til
+  // «ingen åpne».
+  //
+  // Grensen er satt der den ikke kan nås av én stasjons måned, og
+  // svaret blir `null` — altså «vet ikke» — hvis den likevel treffes.
+  const GRENSE = 1000
   const { data, error } = await supabase
     .from('stempling_hendelse')
     .select('id, ansatt_nr, ansatt_navn, stasjon_id, tidspunkt, type')
@@ -79,6 +98,7 @@ export async function hentAapneVakter(
     .gte('tidspunkt', fra)
     .lt('tidspunkt', til)
     .order('tidspunkt')
+    .limit(GRENSE)
 
   // 42P01 = tabellen finnes ikke. Da er stemplingen ikke tatt i bruk paa
   // denne basen ennaa, og alle timer kommer fra easy@work-importen inn i
@@ -93,6 +113,11 @@ export async function hentAapneVakter(
     const kode = (error as { code?: string }).code
     return kode === '42P01' ? [] : null
   }
+
+  // TRAFF VI GRENSEN, VET VI IKKE. Da kan det ligge en åpen vakt i det
+  // vi ikke fikk se, og `null` er det ærlige svaret — sperren står, og
+  // lønnsfila lages ikke før noen har sett på det.
+  if ((data ?? []).length >= GRENSE) return null
 
   const hendelser: Hendelse[] = ((data ?? []) as Rad[]).map((r) => ({
     id: r.id,

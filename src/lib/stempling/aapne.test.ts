@@ -16,7 +16,7 @@ type Rad = {
 function fakeKlient(svar: { data?: Rad[]; error?: unknown }) {
   const sett: Record<string, string> = {}
   const kjede: Record<string, unknown> = {}
-  for (const m of ['select', 'eq', 'is', 'order']) {
+  for (const m of ['select', 'eq', 'is', 'order', 'limit']) {
     kjede[m] = () => kjede
   }
   kjede.gte = (_k: string, v: string) => { sett.fra = v; return kjede }
@@ -135,5 +135,35 @@ describe('hentAapneVakter', () => {
     ] })
     const aapne = await hentAapneVakter(klient, 's1', 2026, 8)
     expect(aapne?.map((v) => v.ansattNr)).toEqual(['1010', '1009'])
+  })
+})
+
+// =====================================================================
+// «INGEN ÅPNE VAKTER» MÅ IKKE KUNNE BETY «JEG SÅ BARE DEN FØRSTE UKA»
+//
+// Spørringen hadde ingen grense. Én stasjon, én måned, alle
+// hendelsestyper er 750–1 500 rader på en travel stasjon, og PostgREST
+// gir tusen uten å si fra. Med `.order('tidspunkt')` stigende er det
+// SLUTTEN av måneden som faller bort — så en vakt som ble stående åpen
+// den 28. var usynlig, sperren sa ja, og lønnsfila ble laget med en
+// vakt uten utstempling.
+//
+// Funksjonens egen kommentar sier at «jeg vet ikke» ikke må se ut som
+// «alt er i orden». En stille avkorting gjorde det motsatte.
+// =====================================================================
+describe('avkorting', () => {
+  const mange = (n: number) => Array.from({ length: n }, (_, i) =>
+    h(`h-${i}`, '1009', `2026-08-10T${String(i % 24).padStart(2, '0')}:00:00Z`, i % 2 === 0 ? 'inn' : 'ut'))
+
+  it('svarer null — ikke «ingen åpne» — når svaret fyller taket', async () => {
+    const { klient } = fakeKlient({ data: mange(1000) })
+    expect(await hentAapneVakter(klient, 's1', 2026, 8)).toBeNull()
+  })
+
+  it('svarer normalt like under taket', async () => {
+    // KANARIFUGL: uten denne ville en sjekk som ALLTID returnerer null
+    // bestått testen over, og sperren ville staatt permanent.
+    const { klient } = fakeKlient({ data: mange(998) })
+    expect(await hentAapneVakter(klient, 's1', 2026, 8)).not.toBeNull()
   })
 })
