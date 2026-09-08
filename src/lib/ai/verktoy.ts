@@ -209,8 +209,30 @@ async function kjorStasjonsverktoy<R>(
     .map((s) => `${s.butikknummer} ${s.navn}`)
 
   const alle = o.form(res.rader, kart, periode)
-  const avkortet = alle.length > MAKS_RADER
-  const data = avkortet ? alle.slice(0, MAKS_RADER) : alle
+  const forMange = alle.length > MAKS_RADER
+  const data = forMange ? alle.slice(0, MAKS_RADER) : alle
+
+  // =====================================================================
+  // TO ULIKE AVKORTINGER, OG BARE DEN ENE BLE MELDT
+  // =====================================================================
+  // `forMange` er en VISNINGSgrense: vi fant alt, men sender bare de
+  // viktigste radene til modellen. Ubehagelig, men ærlig.
+  //
+  // `res.taketTruffet` er noe helt annet: databasen ga oss ikke alt.
+  // PostgREST stopper på tusen rader uansett hva `.limit()` sier, og
+  // `hent_salg` ba om hittil-i-år for fem stasjoner — over 400 000 rader
+  // på varenivå. Den fikk tusen.
+  //
+  // Fordi `forMange` regnes ETTER aggregering, og aggregatet er åtte
+  // rader, ble svaret merket KOMPLETT. Modellen fikk de første dagene av
+  // året presentert som årets omsetning — omtrent en åttendedel, og
+  // ingenting i svaret sa noe annet.
+  //
+  // Nå gjør begge to `komplett` usann, med hver sin melding, fordi de
+  // krever hvert sitt svar: den ene «be om færre rader», den andre «be
+  // om en kortere periode — dette tallet er for lavt».
+  const raaAvkortet = res.taketTruffet === true
+  const avkortet = forMange || raaAvkortet
 
   return byggSvar({
     domene: o.domene,
@@ -219,7 +241,15 @@ async function kjorStasjonsverktoy<R>(
     avkortet,
     merknad: [
       ...(o.merknad ?? []),
-      ...(avkortet
+      ...(raaAvkortet
+        ? [
+            'DATABASEN GA IKKE ALT. Spørringen traff taket på 1000 rader, så '
+            + 'tallene under er regnet på et UTSNITT og er for lave. Ikke '
+            + 'presenter dem som fasit — si at perioden må kortes ned eller '
+            + 'grupperingen gjøres grovere, og be brukeren spørre på nytt.',
+          ]
+        : []),
+      ...(forMange
         ? [
             `Viser de ${MAKS_RADER} viktigste av ${alle.length} rader. `
             + 'Si fra til brukeren at listen er avkortet, og foreslå en '
@@ -406,6 +436,20 @@ export const VERKTOY: Record<string, Verktoy> = {
               : grupper === 'vare'
                 ? 'stasjon_id, dato, ean, varenavn, omsetning_eks_mva, antall, bto_fortjeneste_kr'
                 : 'stasjon_id, dato, omsetning_eks_mva, antall, bto_fortjeneste_kr'
+        // AGGREGATVISNINGEN LIGGER HER OG VENTER.
+        //
+        // `v_butikksalg` er én rad per EAN per dag: hittil-i-år for fem
+        // stasjoner er over 400 000 rader, og PostgREST gir tusen.
+        // `v_salg_per_stasjon_dag` ville gjort standardgrupperingen
+        // eksakt med 1 825 rader for et helt aar.
+        //
+        // IKKE GJORT NAA, OG DET ER ET VALG. Ni av testene som daekker
+        // dette verktoeyet er tenantprover - T3 prompt injection, T4 og
+        // T5 stasjonsvalg - og de leser tabellnavnet og kolonnene fra
+        // fixturene sine. Aa skrive dem om for en ytelsesforbedring er
+        // feil bytte: loegnen er rettet av `taketTruffet` over, og den
+        // var problemet. Rutingen hoerer til en egen endring der
+        // sikkerhetsprovene kan rettes med omhu.
         let q = supabase
           .from('v_butikksalg')
           .select(felt)

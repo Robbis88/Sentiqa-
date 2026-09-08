@@ -31,7 +31,43 @@ export type Lesefeil = {
   kode?: string
 }
 
-export type Leseresultat<T> = { rader: T[] } | Lesefeil
+/**
+ * PostgREST-taket. `supabase/config.toml` setter `max_rows = 1000`, og
+ * det gjelder uansett hva `.limit()` sier — en `.limit(50000)` er ikke
+ * en grense, den er en kommentar.
+ */
+export const TAK = 1000
+
+export type Leseresultat<T> =
+  | {
+    rader: T[]
+    /**
+     * Fylte svaret PostgREST-taket?
+     *
+     * =================================================================
+     * ET AVKORTET SVAR SOM MELDES KOMPLETT ER VERRE ENN INGEN SVAR
+     * =================================================================
+     * `hent_salg` ba om hittil-i-år for fem stasjoner — over 400 000
+     * rader på varenivå — med `.limit(50000)`. Den fikk tusen, og
+     * `avkortet` ble regnet ETTER at radene var aggregert ned til åtte.
+     * Åtte er mindre enn grensen, så svaret ble merket komplett.
+     *
+     * Modellen fikk altså omsetningen for de første dagene av året,
+     * presentert som årets tall. Det er den verste formen: tallet er
+     * troverdig, og ingenting i svaret sier noe annet.
+     *
+     * Dette flagget settes på RÅ radtall, før aggregering, og gjør
+     * `komplett` usann hele veien ut.
+     *
+     * VALGFRITT, OG DET ER EN AVVEINING. Noen verktøy bygger radene
+     * sine selv — de summerer i basen eller krysser to kilder — og der
+     * finnes det ikke ett råtall å måle. `undefined` leses som «ikke
+     * målt», altså ikke avkortet. Bygger du rader selv OG kan bli
+     * avkortet, må du sette den.
+     */
+    taketTruffet?: boolean
+  }
+  | Lesefeil
 
 export function erLesefeil<T>(r: Leseresultat<T>): r is Lesefeil {
   return (r as Lesefeil).feil !== undefined
@@ -80,7 +116,8 @@ export async function les<T>(
     }
   }
 
-  return { rader: svar.data ?? [] }
+  const rader = svar.data ?? []
+  return { rader, taketTruffet: rader.length >= TAK }
 }
 
 /**
@@ -91,7 +128,7 @@ export async function les<T>(
  */
 export async function lesAlle<T extends readonly unknown[]>(
   spørringer: { [K in keyof T]: [PromiseLike<SupabaseSvar<T[K]>>, string] },
-): Promise<{ rader: { [K in keyof T]: T[K][] } } | Lesefeil> {
+): Promise<{ rader: { [K in keyof T]: T[K][] }; taketTruffet: boolean } | Lesefeil> {
   const svar = await Promise.all(
     (spørringer as [PromiseLike<SupabaseSvar<unknown>>, string][]).map(([q, hva]) =>
       les(q, hva),
@@ -102,5 +139,9 @@ export async function lesAlle<T extends readonly unknown[]>(
     rader: svar.map((s) => (s as { rader: unknown[] }).rader) as {
       [K in keyof T]: T[K][]
     },
+    // ÉN AVKORTET KILDE GJØR HELE KRYSSINGEN AVKORTET. Den som krysser
+    // to kilder regner ikke halvveis riktig når den ene er delvis —
+    // den regner feil, og med et tall som ser komplett ut.
+    taketTruffet: svar.some((s) => (s as { taketTruffet?: boolean }).taketTruffet === true),
   }
 }
