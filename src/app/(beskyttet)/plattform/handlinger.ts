@@ -137,6 +137,52 @@ async function settSperre(
   return null
 }
 
+/**
+ * Slipper en selvregistrert kjede inn.
+ *
+ * =====================================================================
+ * PORTEN ER ET MENNESKE, IKKE ET SKJEMA
+ * =====================================================================
+ * `/registrer` er selvbetjent, og skal være det — men en kjede som er
+ * live i det sekundet et skjema går, er en kjede ingen har sett på.
+ * `0190` gir dem `godkjent_tid = null`, og DAL-en sender dem til
+ * `/venter-paa-godkjenning` til den er satt.
+ *
+ * Når du klikker her, er e-postadressen allerede bevist: søkeren kom
+ * inn gjennom invitasjonslenken. Du godkjenner en verifisert adresse,
+ * ikke en påstand.
+ *
+ * VAKTET, SÅ EN ANDRE GANG IKKE FLYTTER TIDSPUNKTET. `godkjent_tid` er
+ * når kjeden ble sluppet inn, og det skjedde bare én gang.
+ */
+export async function godkjennKunde(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  const k = await eierOgAdmin()
+  if ('feil' in k) return k
+  const id = String(fd.get('id') ?? '').trim()
+  if (!id) return { feil: 'Mangler kjede-id.' }
+
+  const bruker = await hentInnloggetBruker()
+  const { data, error } = await k.admin
+    .from('retailers')
+    .update({ godkjent_tid: new Date().toISOString(), godkjent_av: bruker.id })
+    .eq('id', id)
+    .is('godkjent_tid', null)
+    .select('navn')
+    .maybeSingle<{ navn: string }>()
+  if (error) return { feil: `Kunne ikke godkjenne: ${error.message}` }
+  // INGEN RAD ER IKKE INGEN FEIL. Enten er kjeden alt godkjent, eller
+  // id-en finnes ikke - og «godkjent!» på begge ville vært en løgn.
+  if (!data) return { feil: 'Kjeden er allerede godkjent, eller finnes ikke.' }
+
+  // INGEN `revalidatePath` HER. En serverhandling som frisker opp sin
+  // egen rute gjoer kvitteringen til gissel for ruteroppdateringen -
+  // `useKvittering` i `HandlingKnapp` tar visningen. Se
+  // `skrivevakt`-vakten og `sentiqa-flaky-stempling-e2e`.
+  return { ok: `${data.navn} er godkjent og har tilgang.` }
+}
+
 // Deaktiver (mykt, reversibelt): sperr innlogging for kjedens brukere + skjul kjeden.
 export async function deaktiverKunde(
   _t: Kvittering, fd: FormData,

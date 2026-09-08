@@ -1280,6 +1280,20 @@
       }
     },
     {
+      "tabell": "registrering_forsok",
+      "$hvorfor": "Telleren bak grensen paa /registrer (0190). Skrives FOER en tenant finnes - en soeker har ingen retailer_id naar hun fyller ut skjemaet - saa tenantmodellen passer ikke paa den. Da er svaret aa stenge helt i stedet for aa finne paa en tenantkolonne. Raden er en hashet kilde og et tidspunkt; en liste over hvilke adresser folk har proevd aa registrere er personopplysninger vi ikke trenger.",
+      "tenant_scope": "global",
+      "data_class": "cold",
+      "operasjoner": [],
+      "tablet": "none",
+      "manager": "none",
+      "owner": "none",
+      "ingen_policy": "Med vilje fra 0190: RLS er paa, det finnes ingen policy, og grants til anon og authenticated er trukket tilbake. Bare service_role naar den, og det er registreringshandlingen som trenger. Kvitteringen staar her fordi en tabell uten policy aldri skal vaere usynlig - den skal vaere sett, som oversettelse_cache.",
+      "proberad": {
+        "$ikke_relevant": "ingen rolle naar tabellen"
+      }
+    },
+    {
       "tabell": "pengepremie",
       "$hvorfor": "Pengepremier stasjonen deler ut (0043). Hele stasjonen leser - ogsaa nettbrettet, som viser dem - og lederen skriver. Matrisen fant 0135-formen her: pengepremie_skriv (for all, 0043) hadde with check som saa stasjonen og ikke kjeden. Rettet i 0143 - trettende forekomst.",
       "tenant_scope": "retailer_and_station",

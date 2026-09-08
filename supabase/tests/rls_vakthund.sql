@@ -123,6 +123,19 @@ declare
   -- Lista finnes for at punkt 4 skal kunne kreve at HVER tabell med
   -- policy staar et sted. Da kan ingen ny tabell falle mellom stolene -
   -- den tvinger fram en beslutning, slik monstre.ts gjor for ruter.
+  -- ---------------------------------------------------------------------
+  -- HER STAAR IKKE `registrering_forsok`, OG DET ER MED VILJE
+  -- ---------------------------------------------------------------------
+  -- `varme` og `kalde` er en inndeling av tabeller SOM HAR POLICY - punkt
+  -- 4 leser `pg_policies`. En tabell uten policy foert inn her felles av
+  -- «STAAR I LISTA, FINNES IKKE», som den skal: lista skal beskrive det
+  -- som er der.
+  --
+  -- `registrering_forsok` (0190) er laast helt - RLS paa, ingen policy,
+  -- ingen grants - og hoerer derfor til samme kategori som
+  -- `oversettelse_cache`. Begge er kvittert ut med `ingen_policy` i
+  -- `supabase/tenant-kontrakt.json`, og `tenant_dekning.sql` ser dem
+  -- fordi den starter fra `pg_class` og ikke fra policyene.
   kalde text[] := array[
     -- Tenant og tilgang. profiler har sin egen sjekk i punkt 3.
     'retailers', 'stasjoner', 'profiler', 'butikksjef_stasjoner',

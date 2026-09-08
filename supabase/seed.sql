@@ -33,9 +33,19 @@
 -- Supabase-CLI-en sender fila som en BATCH til Postgres, ikke gjennom
 -- psql, saa meta-kommandoene finnes ikke der.
 
-insert into public.retailers (id, navn, slug, org_nr)
-values ('11111111-1111-4111-8111-111111111111', 'Testkjeden', 'test', '999999999')
+-- GODKJENT FRA FOERSTE STUND (0190). En seedet testkjede ER en godkjent
+-- kjede - porten gjelder den som registrerer seg selv paa sentiqa.ai.
+-- Uten `godkjent_tid` sendes hver eneste testbruker til
+-- /venter-paa-godkjenning, og da maaler nettlesertestene ventesida i
+-- stedet for produktet.
+insert into public.retailers (id, navn, slug, org_nr, godkjent_tid)
+values ('11111111-1111-4111-8111-111111111111', 'Testkjeden', 'test', '999999999', now())
 on conflict (id) do nothing;
+
+-- Vaktet oppdatering: en base som alt hadde raden fra foer 0190 skal
+-- ogsaa bli godkjent, og en ny kjoering skal ikke flytte tidspunktet.
+update public.retailers set godkjent_tid = now()
+ where id = '11111111-1111-4111-8111-111111111111' and godkjent_tid is null;
 
 insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype, svinnterskel_prosent)
 values
@@ -141,9 +151,12 @@ on conflict do nothing;
 --   analysesjef 33333333-3333-4333-8333-333333333333
 -- =====================================================================
 
-insert into public.retailers (id, navn, slug, org_nr)
-values ('11111111-1111-4111-8111-222222222222', 'Analysekjeden', 'analyse', '999999998')
+insert into public.retailers (id, navn, slug, org_nr, godkjent_tid)
+values ('11111111-1111-4111-8111-222222222222', 'Analysekjeden', 'analyse', '999999998', now())
 on conflict (id) do nothing;
+
+update public.retailers set godkjent_tid = now()
+ where id = '11111111-1111-4111-8111-222222222222' and godkjent_tid is null;
 
 -- TERSKELEN ER DEN SAMME 2.5 SOM I TESTKJEDEN. Tre stasjoner fordi
 -- terskelstatusen er per stasjon: skal alle tre tilstandene vises

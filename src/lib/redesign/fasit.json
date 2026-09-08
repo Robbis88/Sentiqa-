@@ -72,7 +72,8 @@
     "/ukebrief",
     "/utsolgt",
     "/vaar-stasjon",
-    "/varsler"
+    "/varsler",
+    "/venter-paa-godkjenning"
   ],
   "naabart": {
     "butikkbruker_tablet": [
@@ -340,6 +341,7 @@
     ],
     "/plattform": [
       "deaktiverKunde",
+      "godkjennKunde",
       "opprettKunde",
       "reaktiverKunde",
       "sendInvitasjonPaaNytt",
@@ -706,7 +708,8 @@
       "Deaktiverte kjeder",
       "Ingen aktive kjeder ennå",
       "Mangler service-nøkkel",
-      "Ny kunde"
+      "Ny kunde",
+      "Venter på godkjenning"
     ],
     "/premier": [
       "Premiepotten per stasjon",
@@ -894,6 +897,9 @@
       "7. Sikkerhet",
       "8. Dine rettigheter",
       "9. Eksport og sletting"
+    ],
+    "/registrer": [
+      "Sjekk e-posten din"
     ]
   },
   "lenker": {
