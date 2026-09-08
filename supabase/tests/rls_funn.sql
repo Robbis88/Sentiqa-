@@ -76,7 +76,10 @@ with lister as (
       -- Driftsregler for produksjonsplanen (0149).
       'stasjon_produksjon_innstilling',
       -- Tall ingen fil leverer (0184/0185).
-      'bilvask_abonnement', 'butikksjef_fastlonn'
+      'bilvask_abonnement', 'butikksjef_fastlonn',
+      -- Telleren bak grensen paa /registrer (0190). Ingen retailer_id -
+      -- den skrives foer en tenant finnes - saa den er laast helt.
+      'registrering_forsok'
     ]::text[] as kalde
 )
 

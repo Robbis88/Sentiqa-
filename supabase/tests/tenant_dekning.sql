@@ -89,6 +89,7 @@ begin
     ('puls_svar', true, false),
     ('push_abonnementer', true, false),
     ('raa_filer', true, false),
+    ('registrering_forsok', true, true),
     ('regnskap_usynlig_svinn', true, false),
     ('regnskapsanalyser', true, false),
     ('regnskapslinjer', true, false),

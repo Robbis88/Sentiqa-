@@ -4,7 +4,7 @@ import { beregnAbonnement } from '@/lib/pris'
 import { kr, datoLang } from '@/lib/format'
 import { NyKunde } from './ny-kunde'
 import { HandlingKnapp } from '@/components/ui/handling-knapp'
-import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePermanent } from './handlinger'
+import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePermanent, godkjennKunde } from './handlinger'
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
@@ -33,7 +33,7 @@ export default async function PlattformSide() {
   }
 
   const [{ data: retailers }, { data: stasjoner }, { data: profiler }, { data: jobber }, brukere] = await Promise.all([
-    admin.from('retailers').select('id, navn, org_nr, opprettet_tid, slettet_tid').order('navn').overrideTypes<{ id: string; navn: string; org_nr: string | null; opprettet_tid: string; slettet_tid: string | null }[]>(),
+    admin.from('retailers').select('id, navn, org_nr, opprettet_tid, slettet_tid, godkjent_tid').order('navn').overrideTypes<{ id: string; navn: string; org_nr: string | null; opprettet_tid: string; slettet_tid: string | null; godkjent_tid: string | null }[]>(),
     admin.from('stasjoner').select('retailer_id').is('slettet_tid', null).overrideTypes<{ retailer_id: string }[]>(),
     admin.from('profiler').select('id, retailer_id, rolle').overrideTypes<{ id: string; retailer_id: string | null; rolle: string }[]>(),
     admin.from('import_jobber').select('retailer_id, opprettet_tid').overrideTypes<{ retailer_id: string; opprettet_tid: string }[]>(),
@@ -65,7 +65,14 @@ export default async function PlattformSide() {
     const pris = beregnAbonnement(ant, false)
     return { ...r, stasjoner: ant, tableter: tabletPer.get(r.id) ?? 0, brukere: brukerePer.get(r.id) ?? 0, siste: sisteJobbPer.get(r.id) ?? null, adminInfo: adminPer.get(r.id), maaned: pris.maaned, aarlig: pris.aarlig }
   })
-  const aktive = beriket.filter((r) => !r.slettet_tid)
+  // VENTENDE FOERST, OG FOR SEG SELV.
+  //
+  // En selvregistrert kjede finnes fra sekundet skjemaet gaar, men naar
+  // ingenting foer den er godkjent (0190). Laa den i «aktive kjeder»
+  // ville den sett ut som en kunde i drift - og den eneste forskjellen
+  // ville vaert en kolonne ingen leser.
+  const ventende = beriket.filter((r) => !r.slettet_tid && !r.godkjent_tid)
+  const aktive = beriket.filter((r) => !r.slettet_tid && r.godkjent_tid)
   const deaktiverte = beriket.filter((r) => r.slettet_tid)
   const sum = aktive.reduce((a, r) => ({ stasjoner: a.stasjoner + r.stasjoner, maaned: a.maaned + r.maaned, aarlig: a.aarlig + r.aarlig }), { stasjoner: 0, maaned: 0, aarlig: 0 })
   const kortDato = (iso: string) => datoLang.format(new Date(iso))
@@ -118,6 +125,50 @@ export default async function PlattformSide() {
           sammenlignet={`${kr.format(sum.aarlig)} i året · listepris`}
         />
       </div>
+
+      {/* VENTER PAA GODKJENNING. E-postadressen er alt bevist naar de
+          staar her - de kom inn gjennom invitasjonslenken - saa det som
+          gjenstaar er at et menneske ser paa hvem det er. */}
+      {ventende.length > 0 && (
+        <section className="kort oppmerksomhet">
+          <h2>Venter på godkjenning</h2>
+          <p className="undertittel">
+            {'Registrert selv på sentiqa.ai. E-postadressen er bekreftet — de har '}
+            {'åpnet lenken vi sendte. De ser bare en venteside til du slipper dem inn.'}
+          </p>
+          <table className="tabell">
+            <thead><tr><th>Kjede</th><th>Org.nr</th><th>Kontakt</th><th>Registrert</th><th></th></tr></thead>
+            <tbody>
+              {ventende.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.navn}</td>
+                  <td className="undertittel">{r.org_nr ?? '—'}</td>
+                  <td className="undertittel">
+                    {r.adminInfo?.epost ?? '—'}
+                    {r.adminInfo && !r.adminInfo.aktivert
+                      ? <><br /><Status nivaa="endring">har ikke åpnet lenken ennå</Status></>
+                      : null}
+                  </td>
+                  <td className="undertittel">{kortDato(r.opprettet_tid)}</td>
+                  <td>
+                    <div className="plattform-handlinger">
+                      <HandlingKnapp
+                        handling={godkjennKunde} felt={{ id: r.id }} merke="Godkjenn"
+                        sporsmaal={`Slippe ${r.navn} inn? De får full tilgang til sin egen kjede.`}
+                      />
+                      <HandlingKnapp
+                        handling={slettKundePermanent} felt={{ id: r.id }} merke="Avvis"
+                        arbeider="Sletter …" variant="destruktiv"
+                        sporsmaal={`Avvise og slette ${r.navn} permanent? Kontoen og kjeden fjernes for godt.`}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="kort">
         <h2>Aktive kjeder</h2>

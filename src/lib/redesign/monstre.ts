@@ -243,6 +243,9 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/registrer': 'utenfor',
   '/sett-passord': 'utenfor',
   '/ingen-tilgang': 'utenfor',
+  // Innlogget, men kjeden er ikke godkjent ennaa (0190). Samme form som
+  // /ingen-tilgang: ett kort, én beskjed, én vei ut.
+  '/venter-paa-godkjenning': 'utenfor',
   '/personvern': 'utenfor',
   '/databehandleravtale': 'utenfor',
 
