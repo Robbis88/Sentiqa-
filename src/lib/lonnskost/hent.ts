@@ -57,7 +57,25 @@ export type Lonnsbilde = {
    * lagt den inn. En unik noekkel uten en oversikt loeser halve
    * problemet og skjuler den andre halvparten.
    */
-  bilvaskUker: { ar: number; uke: number; belopKr: number }[]
+  bilvaskUker: {
+    ar: number
+    uke: number
+    belopKr: number
+    /**
+     * Om ukas kroner allerede staar i regnskapet.
+     *
+     * EN UKE SOM IKKE FLYTTER NOE ER IKKE EN UKE SOM IKKE KOM INN.
+     * Er maaneden avlagt, har regnskapet alt bilvasken - det er derfor
+     * bilvask der alltid er hoeyere enn kassaomsetningen - og bidraget
+     * holdes utenfor for aa unngaa dobbelfoering. Uten dette ordet ser
+     * en korrekt lagret uke ut som en uke som ble borte, og neste steg
+     * er at noen legger den inn en gang til.
+     *
+     * `delvis` finnes fordi en uke kan krysse maanedsskiftet: uke 36 i
+     * 2026 er 31. august pluss seks dager i september.
+     */
+    iRegnskapet: 'ja' | 'nei' | 'delvis'
+  }[]
   fastlonnMaaneder: { ar: number; maned: number; grunnlonnKr: number }[]
 }
 
@@ -366,7 +384,23 @@ export async function hentLonnskost(
   return {
     rom,
     bilvaskUker: (vask.data ?? [])
-      .map((r) => ({ ar: r.ar, uke: r.uke, belopKr: Number(r.belop_kr) }))
+      .map((r) => {
+        // Ukas egne maaneder, av samme deling som gir bidraget. Aa telle
+        // dagene paa nytt her ville vaert en andre sannhet om hvor uka
+        // ligger, og de to ville skilt lag ved neste aarsskifte.
+        const iMaaneder = [...bruttoPerMaaned([{
+          ar: r.ar, uke: r.uke, belopKr: Number(r.belop_kr),
+        }]).keys()]
+        const avlagte = iMaaneder.filter((m) => avlagteMaaneder.has(m)).length
+        return {
+          ar: r.ar,
+          uke: r.uke,
+          belopKr: Number(r.belop_kr),
+          iRegnskapet: (avlagte === 0
+            ? 'nei'
+            : avlagte === iMaaneder.length ? 'ja' : 'delvis') as 'ja' | 'nei' | 'delvis',
+        }
+      })
       .sort((a, b) => (b.ar - a.ar) || (b.uke - a.uke)),
     fastlonnMaaneder: (fastlonn.data ?? [])
       .map((r) => ({ ar: r.ar, maned: r.maned, grunnlonnKr: Number(r.grunnlonn_kr) }))

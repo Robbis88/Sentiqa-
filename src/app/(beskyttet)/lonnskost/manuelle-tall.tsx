@@ -41,7 +41,7 @@ export function ManuelleTall({
   aar: number
   uke: number
   maaned: number
-  uker: { ar: number; uke: number; belopKr: number }[]
+  uker: { ar: number; uke: number; belopKr: number; iRegnskapet: 'ja' | 'nei' | 'delvis' }[]
   maaneder: { ar: number; maned: number; grunnlonnKr: number }[]
 }) {
   const [vaskSvar, vaskKjor, vaskVenter] =
@@ -85,8 +85,20 @@ export function ManuelleTall({
               <li key={`${u.ar}-${u.uke}`}>
                 <span>{`Uke ${u.uke} · ${u.ar}`}</span>
                 <span className="num">{`${kr.format(Math.round(u.belopKr))}`}</span>
+                {/* HVA UKA GJOER, IKKE BARE AT DEN FINNES.
+                    Er maaneden avlagt, har regnskapet alt disse kronene,
+                    og bidraget holdes utenfor for aa unngaa
+                    dobbelfoering. Da flytter uka ingenting - og uten
+                    denne linja ser det ut som at den ikke kom inn. Neste
+                    steg er at noen legger den inn en gang til. */}
                 <span className="undertittel">
-                  {`brutto ${kr.format(Math.round(u.belopKr * BILVASK_BRUTTOANDEL))}`}
+                  {u.iRegnskapet === 'ja'
+                    ? 'ligger allerede i regnskapet for måneden'
+                    : `brutto ${kr.format(Math.round(u.belopKr * BILVASK_BRUTTOANDEL))}`
+                      + (u.iRegnskapet === 'delvis'
+                        ? ' — bare den delen som faller i en måned regnskapet '
+                          + 'ikke har svart på ennå'
+                        : '')}
                 </span>
               </li>
             ))}
