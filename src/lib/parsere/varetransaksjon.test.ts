@@ -1,17 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseVaretransaksjon } from './varetransaksjon'
+import { kildeFor } from './fixtures/kilde'
+import { lagVaretransaksjon } from './fixtures/varetransaksjon'
 
-const FIL = join(process.cwd(), 'eksempelfiler', 'Varetransaksjonsliste 2026-05-13.xlsx')
+// =====================================================================
+// DENNE SUITEN HOPPET OVER SEG SELV
+//
+// Den sto med `describe.skipIf(!existsSync(FIL))` mot en fil i
+// `eksempelfiler/` — som er gitignored. I CI kjørte den aldri, og
+// lokalt heller ikke, siden mappa er tom. Tre påstander som så grønne ut
+// uten å måle noe.
+//
+// Nå kjører den alltid: mot den ekte fila når den ligger der, mot en
+// arbeidsbok med samme form ellers. Suitenavnet sier hvilken.
+// Se `fixtures/LESMEG.md` for hva de to kildene kan og ikke kan bevise.
+// =====================================================================
 
-describe.skipIf(!existsSync(FIL))('parseVaretransaksjon (ekte St1 0452-fil)', () => {
-  // Lat lesing. describe.skipIf hopper over testene, men evaluerer
-  // likevel kroppen for aa samle testnavn - saa en lesing her kaster
-  // FOER skippingen slaar inn. Eksempelfilene ligger ikke i repoet
-  // (ekte kundedata), og uten dette er CI rod paa noe som skal hoppes.
+const kilde = kildeFor('Varetransaksjonsliste 2026-05-13.xlsx', lagVaretransaksjon)
+
+describe(`parseVaretransaksjon (St1 0452 — ${kilde.merke})`, () => {
+  // Lat lesing: arbeidsboka bygges én gang, og bare hvis suiten kjører.
   let husket: ReturnType<typeof parseVaretransaksjon> | null = null
-  const resultat = () => (husket ??= parseVaretransaksjon(readFileSync(FIL)))
+  const resultat = () => (husket ??= kilde.les().then(parseVaretransaksjon))
 
   it('finner de tre stasjonene', async () => {
     const r = await resultat()
@@ -34,5 +44,20 @@ describe.skipIf(!existsSync(FIL))('parseVaretransaksjon (ekte St1 0452-fil)', ()
     for (const s of r.stasjoner) {
       expect(s.transaksjoner.some((t) => /^sum/i.test(t.varenavn))).toBe(false)
     }
+  })
+
+  it('leser "unknown" varenummer som ingenting', async () => {
+    // St1 skriver bokstavelig «unknown» når varen ikke er i registeret.
+    // Lagres den som tekst, får vi et varenummer som ser ekte ut.
+    const r = await resultat()
+    const lone = r.stasjoner.find((s) => s.butikknummer === '4177')!
+    expect(lone.transaksjoner.some((t) => t.varenummer === 'unknown')).toBe(false)
+  })
+
+  it('tåler begge butikkformatene St1 bruker', async () => {
+    // «St1 Lone (4177)» og «9145 - St1 Dale» står om hverandre i samme
+    // fil. Begge må gi butikknummeret.
+    const r = await resultat()
+    expect(r.stasjoner.map((s) => s.butikknummer)).toContain('9145')
   })
 })
