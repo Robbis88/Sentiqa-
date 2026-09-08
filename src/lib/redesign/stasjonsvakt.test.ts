@@ -62,7 +62,19 @@ describe('aggregat-kapabilitet har én fasit', () => {
       // Tredje argument til husketStasjon er `tillatAlle`. Star det en
       // bokstavelig true/false der, har sida en egen mening - og da kan
       // den avvike fra tabellen appskallet leser.
-      for (const m of kilde.matchAll(/husketStasjon\(([\s\S]{0,400}?)\n\s*\)/g)) {
+      // MØNSTERET KREVDE LINJESKIFT FORAN `)`, og så derfor bare
+      // flerlinjekall. Målt: 19 filer kaller funksjonen, regexen traff i
+      // 13. `/bemanning`, `/kontrakt`, `/lonn`, `/persondata`,
+      // `/produksjonsplan` og `/utsolgt` skriver den på én linje —
+      // `await husketStasjon(alle, sok.stasjon)` — og var usynlige.
+      //
+      // Ingen av dem har et tredje argument i dag. Men la noen til
+      // `, true` på én linje, ville vakten tiet mens kanarifuglen sto på
+      // 19 og meldte at alt var sett. Det er den verste kombinasjonen:
+      // en blindsone under en kanarifugl som beviser noe annet.
+      //
+      // `\)` uten linjeskiftkrav treffer begge formene.
+      for (const m of kilde.matchAll(/husketStasjon\(([\s\S]{0,400}?)\s*\)/g)) {
         const argumenter = m[1]
         if (/,\s*(true|false)\s*,?\s*$/m.test(argumenter)) {
           syndere.push(`${sti.replace(process.cwd(), '.')}: bokstavelig true/false`)

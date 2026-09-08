@@ -89,9 +89,37 @@ describe('registreringen har en port', () => {
     expect(kode).toMatch(/retailer_admin/)
   })
 
-  it('ville sett et forbudt mønster om det kom tilbake', () => {
-    const injisert = `${kode}\nconst x = { email_confirm: true }`
-    expect(injisert).toMatch(/email_confirm/)
+  // =================================================================
+  // DEN FØRSTE UTGAVEN AV DENNE KUNNE IKKE FEILE
+  // =================================================================
+  // Den sto slik:
+  //
+  //     const injisert = `${kode}\nconst x = { email_confirm: true }`
+  //     expect(injisert).toMatch(/email_confirm/)
+  //
+  // Den er sann også når `kode` er tom streng. Den testet at
+  // regex-motoren virker — ikke at vakten leser riktig fil. Og fordi den
+  // sto rett under den ekte kanarifuglen, så det ut som dobbel dekning.
+  //
+  // En kanarifugl må gå gjennom SAMME kodesti som påstanden den vokter.
+  // Her er det `kode` — kildeteksten uten kommentarer — og injeksjonen
+  // må derfor gå inn i den, ikke ved siden av.
+  it('ville sett et forbudt mønster om det kom tilbake i selve kilden', () => {
+    const rent = kode
+    // Slik den ser ut i dag: ingen av de tre forbudte mønstrene.
+    expect(rent).not.toMatch(/email_confirm/)
+    expect(rent).not.toMatch(/signInWithPassword/)
+
+    // Og slik den ville sett ut om noen la dem tilbake — gjennom den
+    // samme kommentarstrippingen, så en «rettelse» i en kommentar ikke
+    // kan skjule seg som kode eller omvendt.
+    const somKode = (t: string) => t
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(/\r?\n/)
+      .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))
+      .join('\n')
+    expect(somKode('const x = { email_confirm: true }')).toMatch(/email_confirm/)
+    expect(somKode('// email_confirm: true')).not.toMatch(/email_confirm/)
   })
 })
 

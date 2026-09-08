@@ -44,16 +44,33 @@ function tsFiler(mappe: string): string[] {
   return ut
 }
 
+/**
+ * Kjeden som følger et `.from('x')`.
+ *
+ * Stopper ved det første som ligner en avslutning. `//` er MED i den
+ * lista, og det er en kjent blindsone: et `.from()` som står under en
+ * kommentar inne i samme `Promise.all([…])` blir spist av kjeden over og
+ * vurderes aldri. Se påstanden «vurderer det meste av spørringene den
+ * finner» — den holder avstanden under oppsyn i stedet for å late som
+ * den ikke finnes.
+ */
+const KJEDE = /\.from\((['"`])([^'"`]+)\1\)([\s\S]{0,900}?)(?=\n\s*(?:\]|\)|const |return |\/\/|$))/g
+
+/** Hvor mange `.from()`-kall kjederegexen faktisk rekker over. */
+export function vurderte(kilde: string): number {
+  return [...kilde.matchAll(KJEDE)].length
+}
+
 /** `.from('x').select(...)`-kjeder uten en grense i samme kjede. */
 export function utenGrense(kilde: string): string[] {
   const ut: string[] = []
-  // En kjede slutter ved `,` eller `)` på toppnivå — her holder det å
-  // lese fram til linjeslutt-mønsteret PostgREST-kall faktisk har:
-  // `.overrideTypes<…>()`, `,` på slutten, eller `\n\n`.
-  for (const m of kilde.matchAll(/\.from\((['"`])([^'"`]+)\1\)([\s\S]{0,900}?)(?=\n\s*(?:\]|\)|const |return |\/\/|$))/g)) {
+  for (const m of kilde.matchAll(KJEDE)) {
     const kjede = m[3]
     if (!/\.select\(/.test(kjede)) continue
-    if (/\.limit\(|\.range\(|\.maybeSingle\(|\.single\(|head:\s*true/.test(kjede)) continue
+    // `.single<T>()` og `.maybeSingle<T>()` har en typeparameter mellom
+    // navnet og parentesen. Uten `<[^>]*>?` telte 52 enkeltradsoppslag
+    // som funn, og fasittallet ble mest støy over signalet.
+    if (/\.limit\(|\.range\(|\.maybeSingle(<[^>]*>)?\(|\.single(<[^>]*>)?\(|head:\s*true/.test(kjede)) continue
     ut.push(m[2])
   }
   return ut
@@ -77,6 +94,17 @@ describe('målingen forstår det den teller', () => {
     expect(utenGrense("await sb.from('rutiner').select('id').eq('id', x).single()\n")).toEqual([])
   })
 
+  // TYPEPARAMETEREN GJORDE 52 ENKELTRADER TIL FUNN.
+  //
+  // Kodebasen skriver `.maybeSingle<Rad>()`, ikke `.maybeSingle()`. Uten
+  // `<[^>]*>?` i mønsteret talte hver eneste av dem som en spørring uten
+  // grense — og et fasittall på 244 der 52 var støy, gjør det umulig å
+  // se når et EKTE funn kommer til. Etter rettelsen: 193.
+  it('teller ikke en enkeltrad med typeparameter', () => {
+    expect(utenGrense("await sb.from('x').select('id').eq('id', y).maybeSingle<Rad>()\n")).toEqual([])
+    expect(utenGrense("await sb.from('x').select('id').eq('id', y).single<{ a: number }>()\n")).toEqual([])
+  })
+
   it('teller ikke en ren telling', () => {
     expect(utenGrense("await sb.from('x').select('*', { count: 'exact', head: true })\n")).toEqual([])
   })
@@ -91,6 +119,52 @@ describe('grensevakten', () => {
     // Peker stien feil, blir lista tom og skrallen grønn uten å ha sett
     // en eneste spørring.
     expect(filer.length, 'fant ingen .ts-filer under src/').toBeGreaterThan(300)
+  })
+
+  // =================================================================
+  // ET GULV, IKKE BARE ET TAK
+  // =================================================================
+  // Skrallen under feiler bare når tallet VOKSER. Slutter kjederegexen
+  // å treffe — fordi en formatering endrer seg, eller fordi noen skriver
+  // spørringene sine annerledes — blir `naa` null, og null er mindre enn
+  // fasiten. Grønn, uten å ha sett noe.
+  //
+  // Det er nøyaktig samme form som `design.test.ts` og `skrivevakt.test.ts`
+  // begge har et gulv for. Denne ble skrevet uten, samme dag som jeg
+  // skrev ned regelen.
+  it('antallet har ikke falt uten at fasiten fulgte med', () => {
+    const fasit = JSON.parse(readFileSync(FASIT, 'utf8')) as { utenGrense: number }
+    expect(
+      naa,
+      `Tallet har gått ned fra ${fasit.utenGrense} til ${naa}. Enten er noe ryddet `
+      + '— da skal fasiten følge med: OPPDATER_FASIT=1 npx vitest run src/lib/supabase '
+      + '— eller så har detektoren sluttet å se. Sjekk det siste først.',
+    ).toBeGreaterThanOrEqual(fasit.utenGrense)
+  })
+
+  // =================================================================
+  // BLINDSONEN: 125 SPØRRINGER BLE ALDRI VURDERT
+  // =================================================================
+  // Kjederegexen sluker opptil 900 tegn framover og stopper på det
+  // første som ligner en avslutning — blant annet en `//`-kommentar. Et
+  // `.from()` som står lenger nede i samme `Promise.all([…])` ble
+  // dermed spist av kjeden over. Målt: 749 `.from(`-kall i `src/`, bare
+  // 569 vurdert.
+  //
+  // Et `.from()` som aldri telles ser nøyaktig ut som et som er trygt.
+  // Denne påstanden holder avstanden mellom «finnes» og «vurdert» under
+  // oppsyn: vokser den, har detektoren mistet syne av flere.
+  it('vurderer det meste av spørringene den finner', () => {
+    const funnet = filer.reduce(
+      (s, { kilde }) => s + [...kilde.matchAll(/\.from\((['"`])/g)].length, 0,
+    )
+    const vurdert = filer.reduce((s, { kilde }) => s + vurderte(kilde), 0)
+    expect(funnet, 'fant ingen .from(-kall i det hele tatt').toBeGreaterThan(400)
+    expect(
+      vurdert / funnet,
+      `Detektoren vurderer ${vurdert} av ${funnet} spørringer. Blindsonen har `
+      + 'vokst — et `.from()` som aldri telles ser nøyaktig ut som et som er trygt.',
+    ).toBeGreaterThan(0.7)
   })
 
   it('antallet har ikke vokst', () => {
