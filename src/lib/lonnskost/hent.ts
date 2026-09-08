@@ -79,7 +79,18 @@ export async function hentLonnskost(
       .from('bp_linje')
       .select('maned, seksjon, kode, post, belop_kr, bp_aar!inner(ar, stasjon_id)')
       .eq('bp_aar.stasjon_id', stasjonId)
-      .in('seksjon', ['kostnad', 'omsetning', 'varekost'])
+      // BARE KOSTNADSSEKSJONEN.
+      //
+      // Denne sto en periode paa alle tre seksjonene, fordi loennsrommet
+      // trengte BP-brutto. Saa tok `0183` over den jobben - og
+      // spoerringen ble staaende vid.
+      //
+      // Prisen var ikke bare treghet: omsetning og varekost er én rad per
+      // varekategori per maaned, saa tre seksjoner ganger radtallet med
+      // rundt tre. PostgREST kutter paa tusen UTEN aa feile, og et
+      // avkortet BP gir et for lavt budsjett - stille, og bare for eieren,
+      // siden butikksjefen ikke leser tabellen i det hele tatt.
+      .eq('seksjon', 'kostnad')
       // INGEN `slettet_tid` HER. `0155` utelot kolonnen med vilje — se
       // `0154`, der en SELECT-policy som krevde `slettet_tid is null`
       // blokkerte sin egen sletting på 31 tabeller. Et filter på en
@@ -296,23 +307,6 @@ export async function hentLonnskost(
   }
   const regnskapsmaaneder = [...perMaaned].map(([maaned, v]) => ({ maaned, ...v }))
 
-  // BP-BRUTTO ER OMSETNING MINUS VAREKOST. Den staar ikke som egen
-  // seksjon i `bp_linje`, og `bp_bruttofortjeneste` i regnskapslinjer
-  // hopper over hver avlagt maaned (`erLaast`) - samme grunn som at
-  // loennsbudsjettet leses fra `bp_linje` og ikke derfra.
-  const bpPerMaaned = new Map<string, { omsetningKr: number; bruttoKr: number; lonnKr: number }>()
-  for (const r of bp.data ?? []) {
-    const m = `${r.bp_aar.ar}-${String(r.maned).padStart(2, '0')}`
-    const rad = bpPerMaaned.get(m) ?? { omsetningKr: 0, bruttoKr: 0, lonnKr: 0 }
-    const kr = r.belop_kr ?? 0
-    // OMSETNINGEN BAERES FOR SEG. BP-en har den per maaned for hele
-    // aaret, og det er den som gir marginen sin FORM - sesongen ligger
-    // alt der, lagt av dem som la planen.
-    if (r.seksjon === 'omsetning') { rad.omsetningKr += kr; rad.bruttoKr += kr }
-    else if (r.seksjon === 'varekost') rad.bruttoKr -= kr
-    else if (r.kode && BP_LONNSKODER.has(r.kode)) rad.lonnKr += kr
-    bpPerMaaned.set(m, rad)
-  }
   // FRA FUNKSJONEN, IKKE FRA `bp_linje`. Den over gir eieren
   // kontodetaljen; denne gir BEGGE roller maanedstallet. Ville vi brukt
   // `bpPerMaaned` her, ville loennsrommet vaert tomt for butikksjefen -
