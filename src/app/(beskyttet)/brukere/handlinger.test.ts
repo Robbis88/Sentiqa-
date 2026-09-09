@@ -83,3 +83,67 @@ describe('endreStasjoner', () => {
     expect(kropp).toMatch(/valgte\.length === 0/)
   })
 })
+
+// =====================================================================
+// EN SKRIVEFEIL LAGET EN BRUKER INGEN KUNNE LOGGE INN SOM
+//
+// `opprettBruker` tok ÉTT passordfelt, `type="password"`. Traff du feil
+// tast, ble kontoen opprettet med et passord ingen kjenner — verken den
+// som skrev det eller den som skulle bruke det.
+//
+// Det ser ut som en vellykket handling. Kvitteringen sier «Bruker
+// opprettet», og den er sann. Feilen dukker først opp når noen prøver å
+// logge inn, og da peker ingenting tilbake hit.
+//
+// Verst på en TABLET-konto: passordet skal tastes inn på nettbrettet
+// etterpå, så det må kunne leses tilbake. Uten det gjettes det inn på
+// enheten, og man er tilbake til en konto ingen kommer inn på.
+//
+// ---------------------------------------------------------------------
+// SJEKKEN MÅ LIGGE PÅ SERVEREN
+//
+// Et `required`-attributt og en `useState` er visninger. Grensen er der
+// avgjørelsen tas — samme regel som `malekort.anonymiser` og
+// `malekort.vis_tablet` lærte oss, bare i et skjema.
+// =====================================================================
+describe('opprettBruker: passordet kan ikke skrives feil i stillhet', () => {
+  const kropp = kroppen('opprettBruker')
+  const skjema = readFileSync(
+    join(process.cwd(), 'src', 'app', '(beskyttet)', 'brukere', 'ny-bruker.tsx'), 'utf8')
+
+  it('KANARIFUGL: vakten leser faktisk handlingen og skjemaet', () => {
+    expect(kropp.length, 'fant ikke opprettBruker').toBeGreaterThan(200)
+    expect(skjema.length, 'fant ikke ny-bruker.tsx').toBeGreaterThan(500)
+  })
+
+  it('gjentakelsen sammenlignes PÅ SERVEREN', () => {
+    const kode = utenKommentarer(KILDE)
+    expect(kode, 'skjemaet validerer ikke gjentakelsen')
+      .toMatch(/passord_gjenta/)
+    expect(
+      kode,
+      'de to feltene sammenlignes ikke — da er gjentakelsen bare pynt, og '
+      + 'en skrivefeil lager fortsatt en bruker ingen kan logge inn som',
+    ).toMatch(/d\.passord === d\.passord_gjenta/)
+  })
+
+  it('handlingen leser feltet fra skjemaet', () => {
+    // Uten dette ville `passord_gjenta` vaert `undefined` paa serveren,
+    // og sammenligningen over ville sammenlignet passordet med ingenting.
+    expect(kropp).toMatch(/formData\.get\('passord_gjenta'\)/)
+  })
+
+  it('skjemaet har begge feltene og en vis-bryter', () => {
+    expect(skjema, 'mangler gjentakelsesfeltet').toMatch(/name="passord_gjenta"/)
+    // Bryteren er ikke pynt: en tablet-konto skal tastes inn paa et
+    // nettbrett etterpaa, og da maa passordet kunne leses tilbake.
+    expect(skjema, 'ingen maate aa se passordet paa')
+      .toMatch(/type=\{vis \? 'text' : 'password'\}/)
+  })
+
+  it('passordet er SKJULT som standard', () => {
+    // Skjermen staar ofte i et rom med andre folk. Bryteren skal vaere et
+    // valg, ikke en tilstand man arver.
+    expect(skjema).toMatch(/useState\(false\)/)
+  })
+})

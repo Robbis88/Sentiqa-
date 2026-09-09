@@ -9,7 +9,25 @@ const Ny = z.object({
   navn: z.string().min(1, { error: 'Skriv inn navn.' }),
   epost: z.email({ error: 'Ugyldig e-post.' }),
   passord: z.string().min(8, { error: 'Passord må være minst 8 tegn.' }),
+  passord_gjenta: z.string(),
   rolle: z.enum(['butikksjef', 'butikkbruker_tablet']),
+}).refine((d) => d.passord === d.passord_gjenta, {
+  // =================================================================
+  // EN SKRIVEFEIL HER LAGER EN BRUKER INGEN KAN LOGGE INN SOM
+  //
+  // Feltet sto alene, som `type="password"`. Traff du feil tast, ble
+  // kontoen opprettet med et passord ingen kjenner — verken den som
+  // skrev det eller den som skulle bruke det. Det ser ut som en
+  // vellykket handling helt til noen prøver å logge inn, og da er det
+  // ingenting som peker tilbake hit.
+  //
+  // SJEKKEN LIGGER PÅ SERVEREN, ikke bare i skjemaet. Et
+  // `required`-attributt er en visning; det er dette som er grensen.
+  // Samme regel som resten av systemet: et flagg i en kolonne er ikke
+  // en grense før noe under visningen leser det.
+  // =================================================================
+  error: 'Passordene er ikke like.',
+  path: ['passord_gjenta'],
 })
 
 export type BrukerTilstand = { ok?: true; feil?: string } | undefined
@@ -21,6 +39,7 @@ export async function opprettBruker(_t: BrukerTilstand, formData: FormData): Pro
     navn: formData.get('navn'),
     epost: formData.get('epost'),
     passord: formData.get('passord'),
+    passord_gjenta: formData.get('passord_gjenta') ?? '',
     rolle: formData.get('rolle'),
   })
   if (!felt.success) return { feil: z.prettifyError(felt.error) }
