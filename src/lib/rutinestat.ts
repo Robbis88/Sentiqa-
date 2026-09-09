@@ -19,9 +19,33 @@ function minusDager(dato: string, n: number): string {
 
 export type Rutinestat = {
   streak: number
+  /** Over hele perioden (30 dager som standard). Lederens tall. */
   forventet: number
   utfort: number
   prosent: number
+  // =================================================================
+  // I DAG ER ET ANNET TALL ENN PERIODEN, OG DE BLE BLANDET
+  //
+  // Nettbrettets kø sto med
+  //
+  //     const rutinerIgjen = forventet - utfort   // 30 DAGER
+  //     // Det som faktisk gjenstaar i dag
+  //
+  // Kommentaren sa «i dag», koden summerte en måned. Bønes har 67
+  // rutiner i døgnet, så det ble **123 rutiner igjen** på skjermen — et
+  // etterslep på under 6 % over tretti dager, lest som dagens jobb.
+  //
+  // Det er den dyreste formen for feil tall her: det er ikke galt, det
+  // er RIKTIG SVAR PÅ FEIL SPØRSMÅL. Og på et nettbrett i butikken
+  // klokka sju om morgenen svarer det «du kommer aldri i mål» til noen
+  // som er 94 % i mål.
+  //
+  // Derfor står dagens tall som sine egne felt. Periodetallene er
+  // lederens, dagens er hennes.
+  // =================================================================
+  /** Bare i dag. Nettbrettets kø. */
+  idagForventet: number
+  idagUtfort: number
   toppUtforere: { navn: string; antall: number }[]
 }
 
@@ -106,11 +130,20 @@ export async function beregnRutinestat(
   }
   const prosent = forventet > 0 ? Math.round((utfort / forventet) * 100) : 0
 
+  // I DAG, for seg. Samme regel som periodetallene, ett doegn.
+  const idagForv = forventetFor(idag)
+  const idagDone = doneFor.get(idag) ?? new Set<string>()
+  const idagUtfort = idagForv.filter((id) => idagDone.has(id)).length
+
   const navnFor = new Map(((ansatte ?? []) as { id: string; navn: string }[]).map((a) => [a.id, a.navn]))
   const toppUtforere = [...ansattTeller.entries()]
     .map(([id, antall]) => ({ navn: navnFor.get(id) ?? '—', antall }))
     .sort((a, b) => b.antall - a.antall)
     .slice(0, 3)
 
-  return { streak, forventet, utfort, prosent, toppUtforere }
+  return {
+    streak, forventet, utfort, prosent,
+    idagForventet: idagForv.length, idagUtfort,
+    toppUtforere,
+  }
 }

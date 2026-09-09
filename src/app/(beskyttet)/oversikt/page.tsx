@@ -103,8 +103,18 @@ export default async function OversiktSide(
     }
 
     const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag) : null
-    // Det som faktisk gjenstaar i dag - grunnlaget for skiftlista.
-    const rutinerIgjen = Math.max(0, (rutinestat?.forventet ?? 0) - (rutinestat?.utfort ?? 0))
+    // DAGEN, IKKE MAANEDEN.
+    //
+    // Her sto `forventet - utfort`, som er PERIODENS tall - tretti dager.
+    // Kommentaren sa «i dag». Boenes har 67 rutiner i doegnet, saa koen
+    // meldte «123 rutiner igjen» klokka sju om morgenen: et etterslep paa
+    // under 6 % over en maaned, lest som dagens jobb.
+    //
+    // Riktig svar paa feil spoersmaal er dyrere enn et galt tall, for det
+    // ser troverdig ut. Og den som moeter det paa nettbrettet leser «du
+    // kommer aldri i maal» naar hun er 94 % i maal.
+    const rutinerIgjen = Math.max(
+      0, (rutinestat?.idagForventet ?? 0) - (rutinestat?.idagUtfort ?? 0))
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
 
     // ER HUN STEMPLET INN? Raden paa «I dag» skal si hva et trykk
