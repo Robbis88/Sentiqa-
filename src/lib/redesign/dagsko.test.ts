@@ -56,10 +56,21 @@ const STAT = join(ROT, 'src', 'lib', 'rutinestat.ts')
 const oversikt = readFileSync(OVERSIKT, 'utf8')
 const stat = readFileSync(STAT, 'utf8')
 
-/** Uttrykket som setter `rutinerIgjen`, uten kommentarer. */
+/**
+ * Uttrykket som setter `rutinerIgjen`, uten kommentarer.
+ *
+ * `\r?\n` OG IKKE `\n`. Første utgave sluttet på `\)\n`, og på Windows
+ * står det `)\r\n` — så mønsteret kunne aldri matche der. Den var grønn
+ * i CI (Linux) og rød på maskinen til den som skrev den, som er den
+ * verste kombinasjonen: feilen dukker opp hos én person, etter at
+ * porten har sagt ja.
+ *
+ * Det er andre gang samme felle i dette repoet. Kanarifuglen under
+ * fanget den — det er hele grunnen til at den står der.
+ */
 function koen(kilde: string): string {
   const ren = kilde.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*/g, '')
-  const m = /const rutinerIgjen = [\s\S]{0,200}?\)\n/.exec(ren)
+  const m = /const rutinerIgjen = [\s\S]{0,200}?\)\r?\n/.exec(ren)
   return m ? m[0] : ''
 }
 
