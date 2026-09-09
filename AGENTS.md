@@ -107,25 +107,30 @@ er min kjedes når den ikke lenger kan flyttes.
 
 Slike steder er ikke avvik som kan strammes med et predikat; de er steder RLS ikke rekker. De føres som `capability_gjeld` på ressursen i `supabase/tenant-kontrakt.json`, med navn og utvei, i stedet for å bo i en commit-melding.
 
-**Åpen gjeld: én, til `0195` er kjørt.** `malekort.anonymiser`.
+**Åpen gjeld: ingen.** `malekort.anonymiser` ble gjort opp 2026-09-09
+med `0194` + `0195`.
 
 Flagget byttet butikknavnet til «Butikk #4» i visningen, mens
 `malekort_stasjoner()` (`0075`) ga navnet på hver stasjon i kjeden til
 enhver `authenticated` — joinet med `beregn_malekort_salg` var den
-navngitte rangeringen tilbake.
+navngitte rangeringen tilbake. `0194` flyttet anonymiseringen til
+`malekort_navn(p_malekort)`, som kjenner kortet; `0195` tok granten på
+den gamle.
 
-`0194` flytter anonymiseringen til `malekort_navn(p_malekort)`, som
-kjenner kortet og gir `navn = null` der kalleren ikke skal se det.
-`0195` tar granten på den gamle.
+**Det ble aldri utnyttet:** kvitteringen fra `0194` viste `anonyme_kort
+0` — ingen målekort hadde flagget satt. Døren sto åpen og ville stått
+åpen første gang noen huket av boksen.
 
-**Rekkefølgen er motsatt av husregelen:** `0195` fjerner noe den gamle
-koden bruker, så den må kjøres **etter** deployen — `0194`, så merge, så
-`0195`. Til `0195` er kjørt, står hullet åpent.
+Rekkefølgen var motsatt av husregelen, og det var med vilje: `0195`
+fjerner noe den gamle koden bruker, så den måtte kjøres **etter**
+deployen. Står du i samme situasjon igjen — en migrasjon som TAR noe
+bort — er det den rekkefølgen som gjelder, og den skal stå skrevet i
+selve fila.
 
 `src/lib/redesign/anonymisering.test.ts` hindrer at avgjørelsen flytter
 tilbake til visningen.
 
-De tre tidligere postene ble gjort opp 2026-09-02:
+De tre tidligere postene ble gjort opp 2026-09-02:De tre tidligere postene ble gjort opp 2026-09-02:
 
 | | |
 |---|---|
