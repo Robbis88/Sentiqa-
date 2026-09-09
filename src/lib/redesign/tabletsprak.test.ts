@@ -44,23 +44,30 @@ import {
 // gang, og en rute som får språk må strammes ut av fasiten.
 //
 // ---------------------------------------------------------------------
-// HVA SOM STÅR IGJEN, OG HVORFOR
+// ALLE SEKS ER GJORT, OG FASITEN ER TOM
 //
-// Fem av seks er gjort. Én står igjen, og den er et valg, ikke en
-// forglemmelse:
-//
-//   /mine-opplysninger  Personopplysningssida etter aml. § 9-2. Ordene
-//                       er juridiske, og en maskinoversettelse av dem
-//                       er en annen slags beslutning enn «Stemple inn»:
-//                       arbeidsgiver dokumenterer at den ansatte ER
-//                       informert, og da må teksten være til å stå for.
-//                       Det er Roberts valg, ikke vaktens.
+// `/stempling` og `/varsler` først — de to hun møter hver dag. Så
+// `/nyheter` og `/merker` (rammen; innleggene og tildelingen er dynamisk
+// innhold og lederflate), og til slutt `/mine-opplysninger`.
 //
 // `/ikmat` var det stygge tilfellet. `TabletIkMat` HADDE et `ord`-prop
 // og en `t()` fra dagen den ble skrevet — sida sendte den bare aldri
 // noe, så `t()` var identiteten. Maskineriet sto der og virket på
 // ingenting, og koden så ferdig ut. En gjennomlesing ville bekreftet
 // den.
+//
+// `/mine-opplysninger` sto igjen lengst, og med en grunn: aml. § 9-2
+// handler om at arbeidsgiver DOKUMENTERER at den ansatte er informert,
+// og en maskinoversettelse av juridisk tekst er ikke uten videre noe man
+// kan stå for. Avveiningen snudde på hvem sida er for: den som ikke
+// leser norsk fikk ellers et personvernvarsel hun ikke kunne lese — og
+// kvitterte på det. En bekreftelse på en tekst hun ikke forsto
+// dokumenterer mindre enn en oversettelse med et forbehold. Sida sier nå
+// at den norske versjonen er den som gjelder, øverst, før hun leser.
+//
+// EN TOM FASIT ER IKKE EN SOVENDE VAKT. Kanarifuglene under prøver
+// målingen på ekte ruter i begge retninger, så en detektor som slutter å
+// se blir rød selv om ingen rute mangler språk.
 // =====================================================================
 
 const ROT = process.cwd()

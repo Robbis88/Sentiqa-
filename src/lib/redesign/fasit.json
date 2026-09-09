@@ -646,10 +646,10 @@
       "Tildel et merke"
     ],
     "/mine-opplysninger": [
-      "Det vi ikke gjør",
-      "Dine rettigheter",
-      "Les gjennom",
-      "dynamisk:t.hva"
+      "dynamisk:o(T.ikkeGjor)",
+      "dynamisk:o(T.lesGjennom)",
+      "dynamisk:o(T.rettigheter)",
+      "dynamisk:o(tiltak.hva)"
     ],
     "/nyheter": [
       "t('Ingen nyheter ennå')"

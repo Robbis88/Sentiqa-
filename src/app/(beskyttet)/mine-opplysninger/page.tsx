@@ -9,11 +9,51 @@ import { BekreftSkjema } from './bekreft'
 import { Status } from '@/components/ui/status'
 import { Sidehode } from '@/components/ui/side'
 import { Sideramme } from '@/components/ui/sideramme'
+import { oversettMange } from '@/lib/oversett'
 
 // Informasjonsplikten etter aml. § 9-2 andre ledd, gjort til en side.
 //
 // Den er skrevet TIL den ansatte, ikke om henne. Det er hele forskjellen
 // mellom å informere og å dekke seg.
+
+// Sidas egne tekster, samlet ett sted. To grunner: `oversettMange` skal
+// få dem i ett kall, og den som legger til en setning skal se at den må
+// med. Skrives de rett i JSX-en og gjentas i lista, skiller de lag.
+const T = {
+  tittel: 'Slik måler vi',
+  nyTekst: 'Ny tekst — les gjennom og kvitter under. Dette er hva Sentiqa '
+    + 'registrerer om deg som jobber her, hvorfor, hvem som ser det, og hvor '
+    + 'lenge det lagres.',
+  alleredeLest: 'Du har lest denne. Dette er hva Sentiqa registrerer om deg '
+    + 'som jobber her, hvorfor, hvem som ser det, og hvor lenge det lagres. '
+    + 'Du skal ikke måtte gjette.',
+  lesGjennom: 'Les gjennom',
+  paragraf: 'Arbeidsmiljøloven § 9-2 krever at du får vite hva som registreres '
+    + 'før det gjøres. Trykk under når du har lest — det er ikke et samtykke, '
+    + 'og du gir ikke fra deg noe ved å trykke. Det er en kvittering på at du '
+    + 'har fått informasjonen.',
+  lest: 'Lest',
+  bekreftet: 'Du har bekreftet denne teksten. Endrer den seg, får du beskjed '
+    + 'på nytt.',
+  hvorfor: 'Hvorfor:',
+  hvemSer: 'Hvem ser det:',
+  hvorLenge: 'Hvor lenge:',
+  ikkeGjor: 'Det vi ikke gjør',
+  likeViktig: 'Like viktig som hva som registreres.',
+  ingenKamera: 'Vi har ikke kameraovervåking eller GPS knyttet til Sentiqa.',
+  ingenEpost: 'Vi leser ikke e-posten eller meldingene dine.',
+  ingenSted: 'Vi registrerer ikke hvor du er når du ikke er på jobb.',
+  ingenKolleger: 'Kolleger ser ikke lønna di, fødselsdatoen din eller '
+    + 'fraværet ditt.',
+  rettigheter: 'Dine rettigheter',
+  logges: 'Alle oppslag på personopplysninger logges — hvem som så hva, og '
+    + 'når. Spør du butikksjefen hvem som har sett opplysningene dine, finnes '
+    + 'det et svar.',
+  // FORBEHOLDET. Ikke en ansvarsfraskrivelse — den ene opplysningen en
+  // oversatt juridisk tekst faktisk trenger.
+  maskinoversatt: 'Denne teksten er maskinoversatt. Den norske versjonen er '
+    + 'den som gjelder — du finner den ved å velge norsk flagg øverst.',
+} as const
 
 export default async function MineOpplysninger() {
   const bruker = await hentInnloggetBruker()
@@ -46,6 +86,37 @@ export default async function MineOpplysninger() {
   }
   const trengerBekreftelse = maaBekrefte(bekreftet)
 
+  // =================================================================
+  // TEKSTEN PÅ HENNES SPRÅK, MEN NORSK ER DEN SOM GJELDER
+  //
+  // Denne sida var den siste uten oversetting, og den sto igjen med
+  // vilje: aml. § 9-2 handler om at arbeidsgiver DOKUMENTERER at den
+  // ansatte er informert, og en maskinoversettelse av juridisk tekst er
+  // ikke uten videre noe man kan stå for.
+  //
+  // Avveiningen snur når man ser på hvem sida er for. Den som ikke leser
+  // norsk får ellers et personvernvarsel hun ikke kan lese — og kvitterer
+  // på det. En bekreftelse på en tekst hun ikke forsto dokumenterer
+  // MINDRE enn en oversettelse med et forbehold.
+  //
+  // Derfor: oversatt, OG en linje som sier at den norske teksten er den
+  // som gjelder og hvordan hun finner den.
+  //
+  // `oversettMange` og ikke `TABLET_ORD`: dette er få, lange avsnitt som
+  // hører til én side, ikke faste UI-fraser. Cachen tar dem etter første
+  // visning per språk.
+  // =================================================================
+  const { cookies } = await import('next/headers')
+  const sprak = bruker.rolle === 'butikkbruker_tablet'
+    ? ((await cookies()).get('sprak')?.value ?? 'no') : 'no'
+  const oversatt = sprak !== 'no'
+  const ord = await oversettMange([
+    ...Object.values(T),
+    ...TILTAK.flatMap((x) => [x.hva, x.hvorfor, x.hvemSer, x.hvorLenge, x.merk ?? '']),
+    ...RETTIGHETER.flatMap((r) => [r.tittel, r.tekst]),
+  ].filter(Boolean), sprak)
+  const o = (x: string) => ord.get(x) ?? x
+
   return (
     <Sideramme>
       {/* Sidehodet sier tilstanden — lest eller ikke — i stedet for at den
@@ -53,68 +124,59 @@ export default async function MineOpplysninger() {
           tilstand er dette i» nivå 1, og her er tilstanden hele poenget:
           har du fått informasjonen, eller venter den på deg. */}
       <Sidehode
-        tittel="Slik måler vi"
-        undertittel={trengerBekreftelse
-          ? 'Ny tekst — les gjennom og kvitter under. Dette er hva Sentiqa registrerer om deg som jobber her, hvorfor, hvem som ser det, og hvor lenge det lagres.'
-          : 'Du har lest denne. Dette er hva Sentiqa registrerer om deg som jobber her, hvorfor, hvem som ser det, og hvor lenge det lagres. Du skal ikke måtte gjette.'}
+        tittel={o(T.tittel)}
+        undertittel={o(trengerBekreftelse ? T.nyTekst : T.alleredeLest)}
       />
+
+      {/* FORBEHOLDET STÅR ØVERST, ikke nederst. Den som leser en oversatt
+          juridisk tekst skal vite det FØR hun leser den, ikke etter at
+          hun har kvittert. */}
+      {oversatt && <p className="notis sq-tett">{o(T.maskinoversatt)}</p>}
 
       {trengerBekreftelse ? (
         <section className="kort">
-          <h2>Les gjennom</h2>
-          <p className="undertittel">
-            Arbeidsmiljøloven § 9-2 krever at du får vite hva som registreres før
-            det gjøres. Trykk under når du har lest — det er ikke et samtykke, og
-            du gir ikke fra deg noe ved å trykke. Det er en kvittering på at du
-            har fått informasjonen.
-          </p>
+          <h2>{o(T.lesGjennom)}</h2>
+          <p className="undertittel">{o(T.paragraf)}</p>
           <BekreftSkjema versjon={KONTROLLTILTAK_VERSJON} />
         </section>
       ) : (
         <section className="kort">
           <p className="sq-tett">
-            <Status nivaa="normal">Lest</Status>{' '}
-            <span className="undertittel">
-              Du har bekreftet denne teksten. Endrer den seg, får du beskjed på nytt.
-            </span>
+            <Status nivaa="normal">{o(T.lest)}</Status>{' '}
+            <span className="undertittel">{o(T.bekreftet)}</span>
           </p>
         </section>
       )}
 
-      {TILTAK.map((t) => (
-        <section className="kort" key={t.hva}>
-          <h2>{t.hva}</h2>
-          <p><strong>Hvorfor:</strong> {t.hvorfor}</p>
-          <p><strong>Hvem ser det:</strong> {t.hvemSer}</p>
-          <p><strong>Hvor lenge:</strong> {t.hvorLenge}</p>
-          {t.merk && <p className="notis sq-tett">{t.merk}</p>}
+      {TILTAK.map((tiltak) => (
+        <section className="kort" key={tiltak.hva}>
+          <h2>{o(tiltak.hva)}</h2>
+          <p><strong>{o(T.hvorfor)}</strong> {o(tiltak.hvorfor)}</p>
+          <p><strong>{o(T.hvemSer)}</strong> {o(tiltak.hvemSer)}</p>
+          <p><strong>{o(T.hvorLenge)}</strong> {o(tiltak.hvorLenge)}</p>
+          {tiltak.merk && <p className="notis sq-tett">{o(tiltak.merk)}</p>}
         </section>
       ))}
 
       <section className="kort">
-        <h2>Det vi ikke gjør</h2>
-        <p className="undertittel">
-          Like viktig som hva som registreres.
-        </p>
+        <h2>{o(T.ikkeGjor)}</h2>
+        <p className="undertittel">{o(T.likeViktig)}</p>
         <ul>
-          <li>Vi har ikke kameraovervåking eller GPS knyttet til Sentiqa.</li>
-          <li>Vi leser ikke e-posten eller meldingene dine.</li>
-          <li>Vi registrerer ikke hvor du er når du ikke er på jobb.</li>
-          <li>Kolleger ser ikke lønna di, fødselsdatoen din eller fraværet ditt.</li>
+          <li>{o(T.ingenKamera)}</li>
+          <li>{o(T.ingenEpost)}</li>
+          <li>{o(T.ingenSted)}</li>
+          <li>{o(T.ingenKolleger)}</li>
         </ul>
       </section>
 
       <section className="kort">
-        <h2>Dine rettigheter</h2>
+        <h2>{o(T.rettigheter)}</h2>
         {RETTIGHETER.map((r) => (
           <p key={r.tittel}>
-            <strong>{r.tittel}.</strong> {r.tekst}
+            <strong>{o(r.tittel)}.</strong> {o(r.tekst)}
           </p>
         ))}
-        <p className="notis sq-tett">
-          Alle oppslag på personopplysninger logges — hvem som så hva, og når. Spør
-          du butikksjefen hvem som har sett opplysningene dine, finnes det et svar.
-        </p>
+        <p className="notis sq-tett">{o(T.logges)}</p>
       </section>
 
       <p className="undertittel">
