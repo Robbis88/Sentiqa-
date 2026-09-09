@@ -37,13 +37,32 @@ function utenKommentarer(sql: string): string {
  * eller filslutt. Grovt, men presist nok — en definisjon som strekker
  * seg forbi neste `create` finnes ikke i dette repoet.
  */
+/**
+ * En funksjonskropp slutter ved `$$;` — ikke ved neste `create`.
+ *
+ * SISTE OBJEKT I EN FIL SVELGET KVITTERINGEN. `0193` avslutter, som hver
+ * migrasjon her, med en `select` som teller rader. Den spørringen leser
+ * `daglig_salg` med vilje — den er hele poenget med en før/etter-
+ * kvittering — og siden det ikke kommer noen ny `create` etter den, ble
+ * den lest som en del av `utsolgt_kandidater`.
+ *
+ * Følgen: funksjonen ble meldt som «leser fortsatt daglig_salg» i det
+ * øyeblikket den sluttet å gjøre det. Vakten hadde meldt sin egen
+ * rettelse som en feil.
+ */
+function tilSlutten(kropp: string): string {
+  const slutt = /\n\s*\$[a-z_]*\$\s*;/.exec(kropp)
+  return slutt ? kropp.slice(0, slutt.index + slutt[0].length) : kropp
+}
+
 function kropper(sql: string): { slag: string; navn: string; kropp: string }[] {
   const ren = utenKommentarer(sql)
   const treff = [...ren.matchAll(DEF)]
   return treff.map((m, i) => ({
     slag: m[1].toLowerCase(),
     navn: m[2].toLowerCase(),
-    kropp: ren.slice(m.index!, i + 1 < treff.length ? treff[i + 1].index! : undefined),
+    kropp: tilSlutten(
+      ren.slice(m.index!, i + 1 < treff.length ? treff[i + 1].index! : undefined)),
   }))
 }
 
