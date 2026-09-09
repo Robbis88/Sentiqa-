@@ -1,5 +1,6 @@
 import { kr, tall } from '@/lib/format'
 import type { TabletKort } from '@/lib/malekort'
+import { endring } from '@/lib/endring'
 
 // RANGERINGEN STO SOM MEDALJER FOR TOPP TRE, og som «nr 4» for resten.
 // Plasseringen fantes altsaa bare som et bilde for dem som hadde noe aa
@@ -24,18 +25,20 @@ export function MalekortTablet({ kort }: { kort: TabletKort[] }) {
       <div className="maaling-tablet-kort">
         {klare.map((k) => {
           const plass = `nr ${k.rang ?? 1}`
-          const opp = (k.vekstPst ?? 0) >= 0
           const unna = k.rang && k.rang > 1 && k.topp != null && k.verdi != null ? k.topp - k.verdi : null
           return (
             <div className="maaling-tablet-rad" key={k.navn}>
               <span className="mt-navn">{k.navn}</span>
               <span className="mt-rang">{plass} <small>av {k.antall}</small></span>
               <span className="mt-verdi">{formater(k.verdi ?? 0, k.enhet)}</span>
-              {k.vekstPst != null && (
-                <span className={`mt-vekst ${opp ? 'gronn' : 'rod'}`}>
-                  {opp ? '▲ +' : '▼ −'}{Math.abs(k.vekstPst).toFixed(1)} % mot i fjor
-                </span>
-              )}
+              {k.vekstPst != null && (() => {
+                const e = endring(k.vekstPst)
+                return (
+                  <span className={`mt-vekst ${e.farge}`}>
+                    {e.pil ? `${e.pil} ` : ''}{e.fortegn}{e.tall} % mot i fjor
+                  </span>
+                )
+              })()}
               {unna != null && unna > 0 && (
                 <span className="mt-unna">{formater(unna, k.enhet)} til 1. plass</span>
               )}

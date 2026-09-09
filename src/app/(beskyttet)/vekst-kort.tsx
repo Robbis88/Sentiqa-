@@ -4,6 +4,7 @@ import { kr } from '@/lib/format'
 import type { VekstMetrikk } from '@/lib/tablethjem'
 import { dagsnavn, kortDato, ukedag, type Sammenlikning } from '@/lib/vekst-ifjor'
 import { useT } from './oversett-kontekst'
+import { endring } from '@/lib/endring'
 
 // =====================================================================
 // Vekst mot fjoråret, med ukedagene på plass.
@@ -46,10 +47,13 @@ const VALG: { key: Valg; navn: string }[] = [
 function Diff({ s }: { s: Sammenlikning }) {
   const t = useT()
   if (s.pct === null) return null
-  const opp = s.diff >= 0
+  // `pct` er alt avrundet til én desimal i `vekst-ifjor.ts`, saa samme
+  // oppløsning her - ellers oppstår uenigheten mellom retning og tekst
+  // et hakk lenger ned.
+  const e = endring(s.pct)
   return (
-    <span className={`vekst-diff ${opp ? 'opp' : 'ned'}`}>
-      {opp ? '▲' : '▼'} {opp ? '+' : '−'}{Math.abs(s.pct)} % {t('mot i fjor')}
+    <span className={`vekst-diff ${e.retning}`}>
+      {e.pil ? `${e.pil} ` : ''}{e.fortegn}{e.tall} % {t('mot i fjor')}
     </span>
   )
 }
