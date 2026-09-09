@@ -95,10 +95,39 @@ export async function POST(req: NextRequest) {
     .maybeSingle<{ id: string; avsender_allowlist: string[] }>()
   if (!retailer) return NextResponse.json({ feil: 'ukjent mottakeradresse' }, { status: 404 })
 
-  // Avsender-allowlist (§6): kun forhåndsgodkjente avsendere slipper gjennom.
+  // =================================================================
+  // TOM LISTE BETYDDE «ALLE», OG DET ER EN DØR SOM STÅR ÅPEN
+  //
+  // Adressen er `slug@sentiqa.ai` der slug utledes av firmanavnet, altså
+  // gjettbar. Cloudflare bruker catch-all, så den finnes uansett. Og
+  // vedlegg AUTO-BEHANDLES rett etter mottak.
+  //
+  // Med tom liste kunne derfor hvem som helst som gjettet adressen sende
+  // inn en fil som ble parset rett inn i tallene. Ikke et hull i koden —
+  // det sto i UI-en som «tom = alle slipper gjennom» — men en dør ingen
+  // hadde tatt stilling til. Begge kjedene i basen hadde tom liste
+  // 2026-09-09.
+  //
+  // Nå fail-closed, som resten av systemet: ingen liste, ingen inngang.
+  //
+  // OG AVSENDEREN STÅR I SVARET. En avvist e-post er ellers stum —
+  // Cloudflare får 403, og den som venter på rapporten ser ingenting.
+  // Med adressen i svaret kan den som feilsøker lime den rett inn i
+  // allowlisten.
   const liste = (retailer.avsender_allowlist ?? []).map((x) => x.toLowerCase())
-  if (liste.length > 0 && !liste.includes(avsender)) {
-    return NextResponse.json({ feil: 'avsender ikke godkjent' }, { status: 403 })
+  if (liste.length === 0) {
+    return NextResponse.json({
+      feil: 'ingen godkjente avsendere er satt for denne kjeden',
+      avsender,
+      hint: 'Legg inn avsenderen under E-post-inntak paa /import',
+    }, { status: 403 })
+  }
+  if (!liste.includes(avsender)) {
+    return NextResponse.json({
+      feil: 'avsender ikke godkjent',
+      avsender,
+      hint: 'Legg inn denne adressen under E-post-inntak paa /import',
+    }, { status: 403 })
   }
 
   // ET VEDLEGG SOM FALLER UT SKAL SES.

@@ -261,9 +261,23 @@ export default async function ImportSide(
           Videresend rapportene til denne adressen, så havner vedleggene rett i køen (§6):
         </p>
         <p><code className="inntak-adresse">{retailer?.inntak_epost ?? '— ikke satt —'}</code></p>
+
+        {/* TOM LISTE ER IKKE EN KONFIGURASJON, DET ER ET UBESVART
+            SPØRSMÅL. Feltet sto med «tom = alle slipper gjennom», og
+            begge kjedene i basen hadde det tomt. Adressen er gjettbar og
+            vedlegg auto-behandles, så det var en åpen inngang til
+            tallene. Inntaket er fail-closed nå — og da må siden si det,
+            ellers ser «ingen filer kom» ut som at St1 ikke sendte. */}
+        {(retailer?.avsender_allowlist ?? []).length === 0 && (
+          <Status nivaa="handling">
+            Ingen godkjente avsendere — e-post-inntaket avviser alt til du
+            legger inn minst én adresse under.
+          </Status>
+        )}
+
         <form action={settAllowlist} className="skjema sq-smal-flate">
           <label className="felt">
-            <span>Godkjente avsendere (én per linje – tom = alle slipper gjennom)</span>
+            <span>Godkjente avsendere (én per linje – tom betyr at ingenting slipper gjennom)</span>
             <textarea
               name="allowlist"
               rows={3}

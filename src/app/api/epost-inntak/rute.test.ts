@@ -85,3 +85,74 @@ describe('et vedlegg som faller ut blir rapportert', () => {
     ).toBe(0)
   })
 })
+
+// =====================================================================
+// TOM LISTE BETYDDE «ALLE»
+//
+// Adressen er `slug@sentiqa.ai` der slug utledes av firmanavnet — altså
+// gjettbar. Cloudflare bruker catch-all, så den finnes uansett. Og
+// vedlegg auto-behandles rett etter mottak.
+//
+// Med tom allowlist kunne derfor hvem som helst som gjettet adressen
+// sende inn en fil som ble parset rett inn i tallene. Det sto i UI-en
+// som «tom = alle slipper gjennom», så det var ikke et hull i koden —
+// det var en dør ingen hadde tatt stilling til. **Begge kjedene i basen
+// hadde tom liste 2026-09-09.**
+//
+// Fail-closed er halve svaret. Den andre halvparten er at sida sier det:
+// et inntak som avviser alt i stillhet ser ut som at St1 ikke sendte.
+// =====================================================================
+describe('tom allowlist slipper ingen inn', () => {
+  test('en tom liste er sin egen avvisning, ikke en åpen dør', () => {
+    expect(KILDE, 'ingen egen gren for tom liste')
+      .toMatch(/liste\.length === 0[\s\S]{0,300}?status: 403/)
+    expect(
+      KILDE,
+      'den gamle formen er tilbake: `liste.length > 0 &&` betyr at en tom '
+      + 'liste slipper ALLE gjennom, og adressen er gjettbar.',
+    ).not.toMatch(/liste\.length > 0 &&/)
+  })
+
+  test('avsenderen står i avvisningen', () => {
+    // En avvist e-post er ellers stum: Cloudflare faar 403, og den som
+    // venter paa rapporten ser ingenting. Med adressen i svaret kan den
+    // limes rett inn i allowlisten.
+    const avvisninger = [...KILDE.matchAll(/status: 403/g)]
+    expect(avvisninger.length, 'fant ingen 403-gren').toBeGreaterThanOrEqual(2)
+    for (const m of KILDE.matchAll(/NextResponse\.json\(\{[\s\S]{0,300}?status: 403/g)) {
+      expect(m[0], 'en 403 uten avsender er en stum avvisning').toMatch(/avsender/)
+    }
+  })
+})
+
+describe('sida sier fra naar inntaket er lukket', () => {
+  const IMPORT = readFileSync(
+    join(process.cwd(), 'src', 'app', '(beskyttet)', 'import', 'page.tsx'), 'utf8')
+
+  test('KANARIFUGL: fila er lest', () => {
+    expect(IMPORT.length).toBeGreaterThan(2000)
+    expect(IMPORT).toContain('E-post-inntak')
+  })
+
+  test('tom allowlist gir en synlig advarsel', () => {
+    expect(
+      IMPORT,
+      'Uten denne ser «ingen filer kom» ut som at St1 ikke sendte, mens '
+      + 'sannheten er at inntaket avviser alt.',
+    ).toMatch(/avsender_allowlist \?\? \[\]\)\.length === 0 &&/)
+  })
+
+  test('etiketten lyver ikke lenger', () => {
+    // EN KOMMENTAR ER IKKE EN ETIKETT. Første utgave felte sin egen
+    // rettelse: kommentaren over feltet SITERER den gamle teksten for å
+    // forklare hva som ble endret. Uten strippingen melder vakten en
+    // endring som er gjort — og en vakt med falske funn lærer folk å se
+    // bort fra rødt. Nøyaktig samme feil drivstoffvakten hadde.
+    const ren = IMPORT.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*/g, '')
+    expect(
+      ren,
+      'Feltet sier fortsatt at en tom liste slipper alle gjennom. Det er '
+      + 'ikke sant lenger, og en etikett som lyver er verre enn ingen.',
+    ).not.toMatch(/tom = alle slipper gjennom/)
+  })
+})
