@@ -56,17 +56,19 @@ describe('vaerprofilene leser butikksalg', () => {
 describe('hva som fortsatt summerer fra daglig_salg', () => {
   const funn = aggregerendeDaglige(FILER)
 
-  it('er de fem fra 0084 pluss treffkontrollen', () => {
-    // SKAL BARE NED. Et nytt objekt som summerer fra `daglig_salg` maa
-    // enten lese `v_butikksalg` eller foeres inn her med en begrunnelse.
-    expect(funn.map((f) => f.navn)).toEqual([
-      'uke_avdeling_aggregat',
-      'utsolgt_kandidater',
-      'v_retailer_drivstofftreff',
-      'v_salg_per_avdeling_dag',
-      'v_salg_per_varegruppe_dag',
-      'v_salg_per_varegruppe_stasjon_dag',
-    ])
+  it('er BARE treffkontrollen igjen', () => {
+    // ===================================================================
+    // FRA SEKS TIL ÉN (`0193`).
+    //
+    // De fem fra `0084` leser `v_butikksalg` nå. Igjen står
+    // `v_retailer_drivstofftreff`, og den MÅ lese råtabellen: den svarer
+    // på om drivstoffmappingen i det hele tatt treffer data, og et view
+    // som allerede har filtrert bort drivstoff kan ikke telle det.
+    //
+    // SKAL BARE NED. Et nytt objekt som summerer fra `daglig_salg` må
+    // enten lese `v_butikksalg` eller føres inn her med en begrunnelse.
+    // ===================================================================
+    expect(funn.map((f) => f.navn)).toEqual(['v_retailer_drivstofftreff'])
   })
 
   it('og hver av dem har et drivstoffilter som faktisk kan treffe', () => {
@@ -96,13 +98,35 @@ describe('hva som fortsatt summerer fra daglig_salg', () => {
     }
   })
 
-  it('litteralgjelden står stille på fem', () => {
-    // Tallet skal bare NED. Når det når null, er drivstoff definert ett
-    // sted i hele basen.
+  it('litteralgjelden er null, og skal bli der', () => {
+    // Teksten her sto på «tallet skal bare NED. Når det når null, er
+    // drivstoff definert ett sted i hele basen». `0193` er kjøringen som
+    // nådde null.
+    //
+    // Halvparten av litteralen traff aldri noe: avdelingskoden hos
+    // Kelsar er `1000`, ikke `10`, så filteret hvilte i praksis på
+    // navnesjekken alene. Et filter som ser bredere ut enn det er, er
+    // nettopp det som skjulte at værprofilen lærte på drivstoff i to år.
     const gjeld = funn.filter((f) => LITTERAL.test(sisteDefinisjon(FILER, f.navn)!.kropp))
-    expect(gjeld.length,
-      `Litteralgjeld: ${gjeld.map((f) => f.navn).join(', ')}`).toBeLessThanOrEqual(5)
-    expect(new Set(gjeld.map((f) => f.fil))).toEqual(new Set(['0084_uten_drivstoff.sql']))
+    expect(gjeld.map((f) => f.navn),
+      'Litteralen er tilbake. Drivstoff defineres av retailer_koderegel.')
+      .toEqual([])
+  })
+
+  it('de fem fra 0084 leser v_butikksalg', () => {
+    // Navngitt, ikke bare talt. Forsvinner én av dem ut av lista over,
+    // ville «ingen litteralgjeld» blitt sant fordi objektet var borte.
+    for (const navn of [
+      'uke_avdeling_aggregat', 'utsolgt_kandidater', 'v_salg_per_avdeling_dag',
+      'v_salg_per_varegruppe_dag', 'v_salg_per_varegruppe_stasjon_dag',
+    ]) {
+      const d = sisteDefinisjon(FILER, navn)
+      expect(d, `${navn} finnes ikke`).not.toBeNull()
+      expect(d!.kropp, `${navn} leser ikke v_butikksalg (${d!.fil})`)
+        .toMatch(/from\s+public\.v_butikksalg\b/i)
+      expect(d!.kropp, `${navn} har litteralen igjen (${d!.fil})`)
+        .not.toMatch(/'ENERGI'/)
+    }
   })
 })
 
@@ -239,6 +263,25 @@ describe('kanarifugler', () => {
     ]
     expect(aggregerendeDaglige(to)).toEqual([])
     expect(aggregerendeDaglige([to[0]]).map((x) => x.navn)).toEqual(['f'])
+  })
+
+  it('en funksjonskropp slutter ved $$;, ikke ved neste create', () => {
+    // `0193` avslutter med en kvittering som teller rader i
+    // `daglig_salg` - med vilje, det er en foer/etter-maaling. Uten
+    // denne grensa ble den lest som en del av funksjonen over, og
+    // `utsolgt_kandidater` ble meldt som «leser fortsatt daglig_salg» i
+    // det oeyeblikket den sluttet aa gjoere det.
+    //
+    // En vakt som melder sin egen rettelse som en feil er verre enn
+    // ingen vakt.
+    const fil = [{
+      fil: '0001.sql',
+      sql: 'create or replace function public.f() returns int language sql as $$\n'
+        + '  select count(*) from public.v_butikksalg\n'
+        + '$$;\n'
+        + 'select count(*) from public.daglig_salg;\n',
+    }]
+    expect(aggregerendeDaglige(fil)).toEqual([])
   })
 
   it('en KOMMENTAR om daglig_salg er ikke et treff', () => {
