@@ -36,6 +36,7 @@ declare
     'kvitter_tablet_melding',
     'lagre_puls_svar',
     'logg_lagd',
+    'malekort_navn',
     'malekort_salgsdatoer',
     'malekort_stasjoner',
     'matsalg_vindu_sum',
@@ -90,7 +91,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       28                          as forventet_av_migrasjonene
+       29                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

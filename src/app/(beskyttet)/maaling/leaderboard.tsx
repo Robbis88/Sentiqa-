@@ -12,16 +12,26 @@ function formater(verdi: number, enhet: string): string {
 }
 
 // Rangering for ett målekort. Gjenbruker .rang-*-stilene fra stasjonsrangering.
-// egenIds uthever brukerens egen(e) butikk(er) («DU»). anonymiser skjuler andre
-// butikkers navn (for butikksjef/tablet der admin har valgt det).
+// egenIds uthever brukerens egen(e) butikk(er) («DU»).
+//
+// ANONYMISERINGEN SKJER IKKE LENGER HER (0194). Den lå som et
+// `anonymiser`-prop og byttet navnet til «Butikk #N» i denne
+// komponenten — altså i visningen. Men navnene kom fra en definer-RPC
+// enhver innlogget kunne kalle, så en butikksjef kunne joine den med
+// tallfunksjonen og få den navngitte rangeringen tilbake. Et flagg i en
+// kolonne er ikke en grense før noe under visningen leser det.
+//
+// Nå kommer `r.navn` allerede anonymisert fra `malekort_navn(kort.id)`,
+// og denne komponenten gjør ingen vurdering. Nummeret der følger
+// butikknummer, ikke rangeringen — ellers ville «Butikk #4» byttet
+// butikk fra uke til uke, og et anonymt navn som flytter seg er verre
+// enn ingen.
 export function Leaderboard({
   resultat,
   egenIds,
-  anonymiser,
 }: {
   resultat: MalekortResultat
   egenIds?: Set<string>
-  anonymiser?: boolean
 }) {
   if (!resultat.klar) return <p className="undertittel">{resultat.grunn}</p>
   if (resultat.rader.length === 0) return <p className="undertittel">Ingen tall i perioden.</p>
@@ -32,13 +42,13 @@ export function Leaderboard({
       <ol className="rang-rader">
         {resultat.rader.map((r, i) => {
           const egen = egenIds?.has(r.stasjonId) ?? false
-          const navn = anonymiser ? (egen ? 'Din butikk' : `Butikk #${i + 1}`) : r.navn
+          const navn = r.navn
           return (
             <li key={r.stasjonId} className={egen ? 'rang-egen' : ''}>
               <span className="rang-badge">{i + 1}</span>
               <span className="rang-navn">
                 {navn}
-                {egen && !anonymiser ? <span className="rang-du"> ◀ DU</span> : null}
+                {egen ? <span className="rang-du"> ◀ DU</span> : null}
               </span>
               <span className="rang-tall">
                 <span className="rang-verdi">{formater(r.verdi, resultat.enhet)}</span>

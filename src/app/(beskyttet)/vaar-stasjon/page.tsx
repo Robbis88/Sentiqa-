@@ -57,10 +57,6 @@ export default async function VaarStasjonSide() {
     // hvorfor. Her er det ingen flate aa melde feilen paa - de som staar
     // paa gulvet kan uansett ikke gjore noe med den - saa den logges, og
     // kortene utelates framfor aa vises som nuller.
-    const { data: stData, error: stFeil } = await supabase.rpc('malekort_stasjoner')
-    if (stFeil) console.error('malekort_stasjoner feilet paa /vaar-stasjon', stFeil)
-    const malStasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[])
-      .map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))
     const { data: kortData } = await supabase
       .from('malekort')
       .select('id, navn, metrikk, normalisering, periode, retning, krev_fullstendig_periode, anonymiser')
@@ -69,7 +65,22 @@ export default async function VaarStasjonSide() {
       .order('sortering')
       .overrideTypes<Malekort[]>()
     const malkort = kortData ?? []
-    const malRes = await Promise.all(malkort.map((k) => beregnMalekort(supabase, k, malStasjoner)))
+
+    // NAVNENE PER KORT (0194). Nettbrettet viser aldri andre butikkers
+    // navn - `tabletKort` plukker ut egen stilling og en anonym
+    // toppverdi - men `beregnMalekort` trenger hele lista for aa rangere.
+    // Den gamle `malekort_stasjoner()` ga navnet paa hver stasjon til den
+    // delte nettbrettkontoen; nye `malekort_navn` gir null der kortet er
+    // anonymt.
+    const malRes = await Promise.all(malkort.map(async (k) => {
+      const { data: stData, error: stFeil } = await supabase
+        .rpc('malekort_navn', { p_malekort: k.id })
+      if (stFeil) console.error('malekort_navn feilet paa /vaar-stasjon', stFeil)
+      const malStasjoner = ((stData ?? []) as {
+        id: string; navn: string | null; butikknummer: string | null
+      }[]).map((s) => ({ id: s.id, navn: s.navn ? `${s.butikknummer} ${s.navn}` : '' }))
+      return beregnMalekort(supabase, k, malStasjoner)
+    }))
     maling = malkort.map((k, i) => tabletKort(k.navn, malRes[i], st.id))
   }
 
