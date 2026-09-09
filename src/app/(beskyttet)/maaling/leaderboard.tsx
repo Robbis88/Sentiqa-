@@ -1,5 +1,6 @@
 import { kr, tall } from '@/lib/format'
 import type { MalekortResultat } from '@/lib/malekort'
+import { endring } from '@/lib/endring'
 
 // Sto med medaljeemoji på de tre første. Plasseringen er allerede et tall,
 // og emoji som ikonografi er ute (bestemt 2026-08-13) — .rang-badge bærer
@@ -52,11 +53,17 @@ export function Leaderboard({
               </span>
               <span className="rang-tall">
                 <span className="rang-verdi">{formater(r.verdi, resultat.enhet)}</span>
-                {r.vekstPst != null && (
-                  <span className={`rang-avvik ${r.vekstPst >= 0 ? 'gronn' : 'rod'}`}>
-                    {r.vekstPst >= 0 ? '▲ +' : '▼ −'}{Math.abs(r.vekstPst).toFixed(1)} % mot i fjor
-                  </span>
-                )}
+                {r.vekstPst != null && (() => {
+                  // RETNINGEN FOELGER TALLET SOM VISES. Varden sto med
+                  // «▼ −0.0 %» i roedt: en vekst saa naer null at
+                  // fortegnet var tilfeldig, tegnet som en nedgang.
+                  const e = endring(r.vekstPst)
+                  return (
+                    <span className={`rang-avvik ${e.farge}`}>
+                      {e.pil ? `${e.pil} ` : ''}{e.fortegn}{e.tall} % mot i fjor
+                    </span>
+                  )
+                })()}
               </span>
             </li>
           )

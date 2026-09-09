@@ -956,6 +956,10 @@ button.liten.slett:hover { background: #fdecea; }
 .vekst-diff { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vekst-diff.opp { color: #51cf66; }
 .vekst-diff.ned { color: #ff6b6b; }
+/* FLAT: endringen er mindre enn oeyeblikket vi viser den med.
+   Ingen farge - groent og roedt er beskjeder, og «uendret» er ikke en
+   beskjed. Se src/lib/endring.ts. */
+.vekst-diff.flat { color: var(--natt-tekst-svak); }
 .premie { border-color: rgba(255,200,80,0.35); }
 .premie-saldo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center; }
 .premie-saldo > div { display: flex; flex-direction: column; gap: 0.2rem; }

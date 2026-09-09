@@ -1,5 +1,6 @@
 import { kr } from '@/lib/format'
 import type { UkeRapport, UkeAvdeling } from '@/lib/ukerapport'
+import { endring } from '@/lib/endring'
 
 function pst(naa: number, ifjor: number): number {
   return ifjor > 0 ? ((naa - ifjor) / ifjor) * 100 : 0
@@ -7,14 +8,16 @@ function pst(naa: number, ifjor: number): number {
 
 function Metrikk({ merke, naa, ifjor }: { merke: string; naa: number; ifjor: number }) {
   const p = pst(naa, ifjor)
-  const opp = p >= 0
   const diff = naa - ifjor
+  // Kronene foelger prosenten: er prosenten flat, skal ikke kronetallet
+  // staa med et fortegn prosenten ikke har.
+  const e = endring(p)
   return (
     <div className="uke-metrikk">
       <span className="uke-merke">{merke}</span>
       <span className="uke-stor">{kr.format(naa)}</span>
-      <span className={`uke-vekst ${opp ? 'gronn' : 'rod'}`}>
-        {opp ? '▲' : '▼'} {opp ? '+' : '−'}{Math.abs(p).toFixed(1)} % ({opp ? '+' : '−'}{kr.format(Math.abs(diff))})
+      <span className={`uke-vekst ${e.farge}`}>
+        {e.pil ? `${e.pil} ` : ''}{e.fortegn}{e.tall} % ({e.fortegn}{kr.format(Math.abs(diff))})
       </span>
       <span className="uke-ifjor">I fjor: {kr.format(ifjor)}</span>
     </div>
