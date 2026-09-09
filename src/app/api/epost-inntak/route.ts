@@ -51,9 +51,30 @@ async function hentInnkommende(req: NextRequest): Promise<Normalisert> {
 }
 
 export async function POST(req: NextRequest) {
+  // =================================================================
+  // «IKKE SATT OPP» OG «FEIL NØKKEL» SÅ HELT LIKE UT
+  //
+  // Her sto ett svar for begge: 401 «uautorisert». Er
+  // `EPOST_INNTAK_SECRET` ikke satt i Vercel, får Cloudflare-workeren
+  // nøyaktig samme svar som om nøkkelen var feil — og den som kobler
+  // opp inntaket for første gang har ingen måte å vite hvilken av dem
+  // det er.
+  //
+  // Det er samme form som resten av dette systemet nekter: to
+  // tilstander som betyr helt ulike ting, tegnet likt. Her kostet den
+  // ikke penger, men den kostet en feilsøking ingen kunne fullføre.
+  //
+  // 503 lekker ingenting. At funksjonen er avslått er ikke en
+  // hemmelighet — hemmeligheten er nøkkelen, og den sies ikke.
+  if (!env.EPOST_INNTAK_SECRET) {
+    return NextResponse.json({
+      feil: 'e-post-inntaket er ikke satt opp',
+      hint: 'EPOST_INNTAK_SECRET mangler i miljøet',
+    }, { status: 503 })
+  }
   // Hemmelighet i header ELLER ?secret= (tjenester som ikke kan sette egne headere).
   const oppgitt = req.headers.get('x-inntak-secret') ?? req.nextUrl.searchParams.get('secret')
-  if (!env.EPOST_INNTAK_SECRET || oppgitt !== env.EPOST_INNTAK_SECRET) {
+  if (oppgitt !== env.EPOST_INNTAK_SECRET) {
     return NextResponse.json({ feil: 'uautorisert' }, { status: 401 })
   }
 
@@ -74,15 +95,54 @@ export async function POST(req: NextRequest) {
     .maybeSingle<{ id: string; avsender_allowlist: string[] }>()
   if (!retailer) return NextResponse.json({ feil: 'ukjent mottakeradresse' }, { status: 404 })
 
-  // Avsender-allowlist (§6): kun forhåndsgodkjente avsendere slipper gjennom.
+  // =================================================================
+  // TOM LISTE BETYDDE «ALLE», OG DET ER EN DØR SOM STÅR ÅPEN
+  //
+  // Adressen er `slug@sentiqa.ai` der slug utledes av firmanavnet, altså
+  // gjettbar. Cloudflare bruker catch-all, så den finnes uansett. Og
+  // vedlegg AUTO-BEHANDLES rett etter mottak.
+  //
+  // Med tom liste kunne derfor hvem som helst som gjettet adressen sende
+  // inn en fil som ble parset rett inn i tallene. Ikke et hull i koden —
+  // det sto i UI-en som «tom = alle slipper gjennom» — men en dør ingen
+  // hadde tatt stilling til. Begge kjedene i basen hadde tom liste
+  // 2026-09-09.
+  //
+  // Nå fail-closed, som resten av systemet: ingen liste, ingen inngang.
+  //
+  // OG AVSENDEREN STÅR I SVARET. En avvist e-post er ellers stum —
+  // Cloudflare får 403, og den som venter på rapporten ser ingenting.
+  // Med adressen i svaret kan den som feilsøker lime den rett inn i
+  // allowlisten.
   const liste = (retailer.avsender_allowlist ?? []).map((x) => x.toLowerCase())
-  if (liste.length > 0 && !liste.includes(avsender)) {
-    return NextResponse.json({ feil: 'avsender ikke godkjent' }, { status: 403 })
+  if (liste.length === 0) {
+    return NextResponse.json({
+      feil: 'ingen godkjente avsendere er satt for denne kjeden',
+      avsender,
+      hint: 'Legg inn avsenderen under E-post-inntak paa /import',
+    }, { status: 403 })
+  }
+  if (!liste.includes(avsender)) {
+    return NextResponse.json({
+      feil: 'avsender ikke godkjent',
+      avsender,
+      hint: 'Legg inn denne adressen under E-post-inntak paa /import',
+    }, { status: 403 })
   }
 
+  // ET VEDLEGG SOM FALLER UT SKAL SES.
+  //
+  // De tre `continue`-ene under svelget hver sin feil: en opplasting som
+  // feilet, en innsetting som feilet, et vedlegg uten innhold. Svaret ble
+  // `{ ok: true, mottatt: 2 }` av tre vedlegg, og workeren kaster bare på
+  // ikke-2xx — så en halvveis mottatt e-post så ut som en vellykket.
+  //
+  // Fila kommer aldri igjen: St1 sender én gang. «Rapporten kom ikke»
+  // ville blitt lett etter i importkøen, der den aldri var.
+  const hoppet: string[] = []
   let antall = 0
   for (const v of vedlegg) {
-    if (!v.Content || !v.Name) continue
+    if (!v.Content || !v.Name) { hoppet.push(v.Name || '(uten navn)'); continue }
     const buffer = Buffer.from(v.Content, 'base64')
     const sha256 = createHash('sha256').update(buffer).digest('hex')
     const sti = `${retailer.id}/${randomUUID()}-${trygtFilnavn(v.Name)}`
@@ -90,7 +150,7 @@ export async function POST(req: NextRequest) {
     const opp = await supabase.storage
       .from('raa-filer')
       .upload(sti, buffer, { contentType: v.ContentType || 'application/octet-stream' })
-    if (opp.error) continue
+    if (opp.error) { hoppet.push(`${v.Name}: ${opp.error.message}`); continue }
 
     const { data: raaFil, error } = await supabase
       .from('raa_filer')
@@ -108,6 +168,10 @@ export async function POST(req: NextRequest) {
       .single()
     if (error) {
       await supabase.storage.from('raa-filer').remove([sti]) // dedup el. feil → rydd opp
+      // Dedup er en LEGITIM grunn til aa hoppe over - samme fil sendt to
+      // ganger skal ikke bli to jobber. Den staar likevel i svaret, for
+      // «vi har den fra foer» og «vi mistet den» skal ikke se like ut.
+      hoppet.push(`${v.Name}: ${error.message}`)
       continue
     }
     const { data: jobb } = await supabase
@@ -126,5 +190,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, mottatt: antall })
+  // `hoppet` er med i svaret, ikke bare i loggen: workeren ser det, og
+  // det gjoer den som feilsoeker med curl.
+  return NextResponse.json(
+    hoppet.length > 0 ? { ok: true, mottatt: antall, hoppet } : { ok: true, mottatt: antall },
+  )
 }
