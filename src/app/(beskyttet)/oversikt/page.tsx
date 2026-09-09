@@ -67,9 +67,13 @@ export default async function OversiktSide(
     // HVEM STAAR DER, OG HVA ER KLOKKA. Nettbrettet har én delt
     // paalogging, saa identiteten kommer fra PIN-en. Uten dette ser hele
     // vaktlaget sjekklista til den nyansatte.
+    // ÉN klokke for hele sida. Sto som `osloNaa(new Date())` inne i
+    // kallet under; skiftkoeen trenger den ogsaa, og to avlesninger et
+    // sekund fra hverandre kan lande paa hver sin side av et vaktskifte.
+    const naa = osloNaa(new Date())
     const dagens = dagensOpplaering(oplSkift ?? [], oplPerioder ?? [], st?.id ?? null, idag, {
       aktivAnsattId: aktiv?.id ?? null,
-      minutter: osloNaa(new Date()).minutter,
+      minutter: naa.minutter,
     })
     // Skjulte rader blir med videre som en SETNING, ikke som ingenting:
     // en tom skjerm uten forklaring ser ut som en oedelagt tablet.
@@ -102,19 +106,23 @@ export default async function OversiktSide(
       }))
     }
 
-    const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag) : null
-    // DAGEN, IKKE MAANEDEN.
+    const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag, 30, naa) : null
+    // VAKTA, IKKE DOEGNET OG IKKE MAANEDEN.
     //
     // Her sto `forventet - utfort`, som er PERIODENS tall - tretti dager.
-    // Kommentaren sa «i dag». Boenes har 67 rutiner i doegnet, saa koen
+    // Kommentaren sa «i dag». Boenes har 55 rutiner i doegnet, saa koen
     // meldte «123 rutiner igjen» klokka sju om morgenen: et etterslep paa
     // under 6 % over en maaned, lest som dagens jobb.
     //
+    // Doegnet var rettelsen, men ikke svaret: 36 av de 55 er morgen og 19
+    // er kveld, og den som staar paa morgenvakt kan ikke gjoere kveldens.
+    //
     // Riktig svar paa feil spoersmaal er dyrere enn et galt tall, for det
-    // ser troverdig ut. Og den som moeter det paa nettbrettet leser «du
-    // kommer aldri i maal» naar hun er 94 % i maal.
+    // ser troverdig ut. Regelen bor i `tablet/skiftkoe.ts`, samme sted
+    // `/rutiner` bruker - ellers sier kortet og sida to ulike tall om
+    // samme jobb.
     const rutinerIgjen = Math.max(
-      0, (rutinestat?.idagForventet ?? 0) - (rutinestat?.idagUtfort ?? 0))
+      0, (rutinestat?.vaktForventet ?? 0) - (rutinestat?.vaktUtfort ?? 0))
     const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
 
     // ER HUN STEMPLET INN? Raden paa «I dag» skal si hva et trykk
