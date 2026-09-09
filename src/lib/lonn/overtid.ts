@@ -29,10 +29,36 @@ import { TIMER_PER_UKE, type Skiftordning } from './tariff'
 //         arbeidstid. Lov, ikke skjønn — og et gulv: en overenskomst kan
 //         være strengere, aldri romsligere.
 //
-// Å FINNE FOR MYE ER TRYGT HER, Å FINNE FOR LITE ER DET IKKE. Denne
-// modulen utløser ingen utbetaling; den gjør et tall synlig. Derfor
-// velges den laveste forsvarlige grensen når skiftordningen er ukjent,
-// og derfor er det verdt å si fra om en uke som såvidt bikker.
+// ---------------------------------------------------------------------
+// UKJENT SKIFTORDNING: VI ANTAR ORDINÆR (37,5), OG DET ER ET VALG
+//
+// Her sto det at «den laveste forsvarlige grensen» velges, og et annet
+// sted i fila at vi antar «den strengeste». **Begge beskrev det motsatte
+// av koden.** `TIMER_PER_UKE[ordning ?? 'ordinaer']` gir 37,5 — den
+// HØYESTE av de fire — og en høyere grense finner FÆRRE timer.
+//
+// To kommentarer som lyver samme vei er ikke slurv. Det er den formen
+// som gjør at en gjennomlesing bekrefter feilen i stedet for å finne
+// den.
+//
+// HVA 37,5 FAKTISK BETYR: vi flagger bare timer som er overtid under
+// ENHVER skiftordning. Ingen falske funn — men et to-skift-menneske
+// (35,5) får to timer i uka som ikke telles. `antattOrdinaer` settes på
+// funnet, og `/lonn` skriver «(skiftordning ikke satt)».
+//
+// DET ER ET ÅPENT VALG, IKKE EN AVGJORT SAK. Modulen utløser ingen
+// utbetaling; den gjør et tall synlig for et menneske. For en DETEKTOR
+// er det å finne for lite den dyre feilen — og målingen på Bønes peker
+// den veien: Lars snitter 35,5 på krona, altså to-skift-normen.
+//
+// Å bytte til 35,5 som standard ville funnet mer, og noe av det ville
+// vært feil for de som faktisk går ordinær. Valget hører hjemme hos den
+// som kjenner overenskomsten, og `overtid-standard.test.ts` binder det
+// som står her til det koden gjør.
+//
+// DEN EKTE FIKSEN ER DATA: `ansatt_avtale` har nesten ingen rader, så
+// nesten alle havner i antakelsen. Er ordningen satt, er spørsmålet
+// borte.
 // =====================================================================
 
 // -------------------------------------------------------------------
@@ -89,6 +115,16 @@ export const TIMER_PER_DAG = 9
 /** Dagsgrense ved gjennomsnittsberegning, individuell avtale (§ 10-5). */
 export const TIMER_PER_DAG_AVTALT = 10
 /** Ukegrense ved gjennomsnittsberegning, individuell avtale (§ 10-5). */
+/**
+ * Ordningen vi antar naar den ikke er satt.
+ *
+ * Staar som en navngitt konstant og ikke som `?? 'ordinaer'` inne i et
+ * uttrykk, av én grunn: da kan `overtid-standard.test.ts` lese den og
+ * kreve at teksten oeverst i fila sier det samme. To kommentarer sa det
+ * motsatte av koden foer den bindingen fantes.
+ */
+export const UKJENT_ORDNING: Skiftordning = 'ordinaer'
+
 export const TIMER_PER_UKE_AVTALT = 48
 
 export type Vaktlinje = {
@@ -197,14 +233,16 @@ export function finnOvertid(
     const ordning = skiftordning(ansattNr)
     // AVTALEN SLÅR SKIFTORDNINGEN. Uke på / uke av gir sju arbeidsdager,
     // og da er 35,5 eller 37,5 ikke grensen som gjelder — men 48 er.
-    const grense = avtalt ? TIMER_PER_UKE_AVTALT : TIMER_PER_UKE[ordning ?? 'ordinaer']
+    const grense = avtalt ? TIMER_PER_UKE_AVTALT : TIMER_PER_UKE[ordning ?? UKJENT_ORDNING]
     const t = timer(minutter)
     if (t <= grense) continue
     funn.push({
       ansattNr, slag: 'uke', noekkel: mandag,
       timer: t, grense, over: timer(minutter - grense * 60),
-      // `antattOrdinaer` betyr «skiftordningen er ukjent, vi antok den
-      // strengeste». Med avtalen brukes ikke skiftordningen i det hele
+      // `antattOrdinaer` betyr «skiftordningen er ukjent, vi antok
+      // ORDINÆR (37,5)» — den grensen som gir færrest funn, ikke den
+      // strengeste. Se toppen av fila: det er et valg, ikke en
+      // selvfølge. Med avtalen brukes ikke skiftordningen i det hele
       // tatt, så forbeholdet ville vært misvisende.
       ...(ordning === null && !avtalt ? { antattOrdinaer: true as const } : {}),
       ...(avtalt ? { langeUkerAvtalt: true as const } : {}),

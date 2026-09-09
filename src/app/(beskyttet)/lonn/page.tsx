@@ -201,13 +201,6 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
 
   // Fastlønnede og tilkallingsvikarer skal ikke i fila. Det var hele
   // avviket på Bønes i mai: 191,68 timer, butikksjefen og Carmen.
-  // Hvor mange satsen peker entydig paa, men feltet staar tomt for. Bare
-  // `ikke_satt` — en MOTSIGELSE maa et menneske avgjoere, og telles ikke
-  // med i noe som kan settes med ett trykk.
-  const utenArbeidstid = [...avtale.values()].filter((a) =>
-    a.timesats != null
-    && vurderSkiftordning(Number(a.timesats), a.skiftordning ?? null)?.slag === 'ikke_satt').length
-
   const fordeling = delEtterLonnsform(
     linjer,
     new Map([...avtale].map(([nr, a]) => [nr, a.lonnsform ?? null])),
@@ -256,6 +249,42 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
     if (l.lonnsart === LONNSART.timelonn) perAnsatt.set(l.ansattNr, l.antall)
   }
   const timer = perArt.get(LONNSART.timelonn) ?? 0
+
+  // =================================================================
+  // TALLET TALTE BARE DE SOM ALT HADDE EN AVTALERAD
+  //
+  // Her sto `[...avtale.values()].filter(...)` — altså bare ansatte som
+  // ALLEREDE har en rad i `ansatt_avtale`. Den som aldri har fått en
+  // rad var ikke med i tellingen i det hele tatt.
+  //
+  // `ansatt_avtale` hadde ÉN rad i hele basen, mot ti ansatte på Bønes
+  // alene. Tallet ble derfor 0, `SkiftFraSats` returnerer `null` på 0,
+  // og knappen forsvant. Sida så ferdig ut mens ingen hadde arbeidstid
+  // satt — og `finnOvertid` antok ordinær (37,5) for dem alle, altså
+  // under-rapporterte overtid for hver eneste to-skift-ansatt.
+  //
+  // «Vi fant ingenting» og «vi så ikke etter» ga samme tall, og samme
+  // tomme skjerm. Det er formen hele dette systemet er bygget for å
+  // nekte.
+  //
+  // NEVNEREN ER NÅ DE SOM FAKTISK JOBBET (`perAnsatt`), ikke de som
+  // tilfeldigvis hadde en rad.
+  // =================================================================
+  const utenOrdning = [...perAnsatt.keys()]
+    .filter((nr) => avtale.get(nr)?.skiftordning == null)
+
+  // Satsen peker entydig: ett trykk holder. En MOTSIGELSE må et menneske
+  // avgjøre, og telles ikke med i noe som kan settes automatisk.
+  const utenArbeidstid = utenOrdning.filter((nr) => {
+    const a = avtale.get(nr)
+    return a?.timesats != null
+      && vurderSkiftordning(Number(a.timesats), null)?.slag === 'ikke_satt'
+  }).length
+
+  // Resten må velges i tabellen: ingen timesats å lese ordningen av,
+  // eller en sats som peker to veier. De er grunnen til at en skjult
+  // knapp ikke får bety «ferdig».
+  const maaVelges = utenOrdning.length - utenArbeidstid
 
   // Kontraktseksponering: hvem jobber mer enn papirene dekker. Regnes paa
   // hele historikken, ikke bare maaneden vi ser paa — en sesong er ikke
@@ -691,6 +720,18 @@ export default async function LonnSide({ searchParams }: { searchParams: Sok }) 
                 feilført sats avgjort når overtid slår inn. Navnene står i
                 tabellen under, så den som trykker har sett hvem det gjelder. */}
             <SkiftFraSats stasjonId={valgt.id} antall={utenArbeidstid} />
+            {/* EN SKJULT KNAPP FÅR IKKE BETY «FERDIG». `SkiftFraSats`
+                returnerer null på 0, så uten denne linja ser sida
+                fullført ut mens ingen har arbeidstid satt — og
+                overtidsgrensen blir 37,5 for alle, også de som går to
+                skift. */}
+            {maaVelges > 0 && (
+              <Status nivaa="handling">
+                {maaVelges === 1
+                  ? '1 ansatt mangler arbeidstid, og satsen avgjør den ikke — velg i tabellen under.'
+                  : `${maaVelges} ansatte mangler arbeidstid, og satsen avgjør den ikke — velg i tabellen under.`}
+              </Status>
+            )}
             <div className="tabellramme">
               <table className="tabell">
                 <thead>
