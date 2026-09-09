@@ -48,18 +48,6 @@ export default async function MalingSide() {
 
   const supabase = await lagSupabaseServerKlient()
 
-  // Alle cluster-stasjoner (navn) via definer-RPC — butikksjef ser ellers bare
-  // sine egne via RLS, men leaderboardet trenger alle.
-  // SJEKKER `error`. Uten den ga et kall mot en funksjon som ikke fantes
-  // samme svar som en kjede uten stasjoner: tom liste, og teksten «Ingen
-  // stasjoner.» `0075` var aldri kjort mot produksjon, og sida sa det
-  // aldri - den bare viste ingenting, i maanedsvis.
-  const { data: stData, error: stFeil } = await supabase.rpc('malekort_stasjoner')
-  const stasjoner = ((stData ?? []) as { id: string; navn: string; butikknummer: string }[]).map((s) => ({
-    id: s.id,
-    navn: `${s.butikknummer} ${s.navn}`,
-  }))
-
   // Butikksjefens egen(e) stasjon(er) — for uthevingen.
   let egenIds: Set<string> | undefined
   if (erButikksjef) {
@@ -77,6 +65,46 @@ export default async function MalingSide() {
   const { data: kortData } = await q.overrideTypes<MalekortDb[]>()
   const malekort = kortData ?? []
 
+  // =================================================================
+  // NAVNENE HENTES PER KORT, OG ER ALLEREDE ANONYMISERT (0194)
+  //
+  // Før sto `malekort_stasjoner()` her: én definer-RPC som ga navnet på
+  // hver stasjon i kjeden til enhver innlogget. Anonymiseringen skjedde
+  // etterpå, i JSX-en — og en butikksjef kunne joine den funksjonen med
+  // `beregn_malekort_salg` over PostgREST og få den navngitte
+  // rangeringen tilbake. Flagget lovet noe visningen ikke kunne holde.
+  //
+  // `malekort_navn(kort.id)` vet hvilket kort den svarer for, og
+  // returnerer `navn = null` for stasjoner kalleren ikke skal se navnet
+  // på. Da finnes ikke koblingen navn-til-tall noe sted å hente.
+  //
+  // Ett kall per kort, ikke ett for sida. Anonymiseringen ER en
+  // egenskap ved kortet; ett felles kall kunne ikke svart for begge.
+  // =================================================================
+  const stasjonerPerKort = await Promise.all(malekort.map(async (k) => {
+    // SJEKKER `error`. Uten den ga et kall mot en funksjon som ikke
+    // fantes samme svar som en kjede uten stasjoner: tom liste, og
+    // teksten «Ingen stasjoner.» `0075` var aldri kjørt mot produksjon,
+    // og sida sa det aldri — den bare viste ingenting, i månedsvis.
+    const { data, error } = await supabase.rpc('malekort_navn', { p_malekort: k.id })
+    if (error) return { feil: error.message, stasjoner: [] as { id: string; navn: string }[] }
+    const rader = (data ?? []) as {
+      id: string; navn: string | null; butikknummer: string | null; anonym: boolean
+    }[]
+    return {
+      feil: null as string | null,
+      stasjoner: rader.map((r, i) => ({
+        id: r.id,
+        // Nummeret følger rekkefølgen fra funksjonen (butikknummer), ikke
+        // rangeringen — ellers ville «Butikk #4» byttet butikk fra uke til
+        // uke, og et anonymt navn som flytter seg er verre enn ingen.
+        navn: r.anonym ? `Butikk #${i + 1}` : `${r.butikknummer} ${r.navn}`,
+      })),
+    }
+  }))
+  const stFeil = stasjonerPerKort.find((x) => x.feil)?.feil ?? null
+  const stasjoner = stasjonerPerKort[0]?.stasjoner ?? []
+
   // «Kunne ikke hente stasjonene» er et annet svar enn «ingen stasjoner»,
   // og forskjellen er hele grunnen til at dette tok en time aa finne.
   if (stFeil) {
@@ -84,7 +112,7 @@ export default async function MalingSide() {
       <Sideramme>
         <Sidehode tittel="Måling" />
         <p className="undertittel">
-          Kunne ikke hente stasjonene ({stFeil.message}). Målekortene kan ikke
+          Kunne ikke hente stasjonene ({stFeil}). Målekortene kan ikke
           regnes ut før det er rettet.
         </p>
       </Sideramme>
@@ -92,7 +120,9 @@ export default async function MalingSide() {
   }
 
   const [resultater, tre] = await Promise.all([
-    Promise.all(malekort.map((m) => beregnMalekort(supabase, m, stasjoner))),
+    // HVERT KORT SINE EGNE NAVN. Anonymiseringen er en egenskap ved
+    // kortet, saa det ene kortets liste kan ikke brukes paa det andre.
+    Promise.all(malekort.map((m, i) => beregnMalekort(supabase, m, stasjonerPerKort[i].stasjoner))),
     erAdmin ? hentVarehierarki(supabase) : Promise.resolve([]),
   ])
 
@@ -179,7 +209,7 @@ export default async function MalingSide() {
                 <SlettKnapp hva={m.navn} handling={slettMalekort} id={m.id} merke="Slett" />
               )}
             </div>
-            <Leaderboard resultat={resultater[i]} egenIds={egenIds} anonymiser={erButikksjef && m.anonymiser} />
+            <Leaderboard resultat={resultater[i]} egenIds={egenIds} />
           </section>
         ))
       )}

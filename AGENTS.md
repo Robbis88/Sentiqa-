@@ -107,23 +107,23 @@ er min kjedes når den ikke lenger kan flyttes.
 
 Slike steder er ikke avvik som kan strammes med et predikat; de er steder RLS ikke rekker. De føres som `capability_gjeld` på ressursen i `supabase/tenant-kontrakt.json`, med navn og utvei, i stedet for å bo i en commit-melding.
 
-**Åpen gjeld: én.** `malekort.anonymiser` (ført 2026-09-09).
+**Åpen gjeld: én, til `0195` er kjørt.** `malekort.anonymiser`.
 
-Flagget bytter butikknavnet til «Butikk #4» i visningen, men rangeringen
-bygges av to `security definer`-funksjoner som enhver `authenticated`
-kan kalle rett over PostgREST: `malekort_stasjoner()` (`0075`) gir
-navnet på hver stasjon i kjeden, og `beregn_malekort_salg()`
-(`0074`/`0085`) gir tallet per `stasjon_id`. En butikksjef eller et
-nettbrett kan joine dem selv og gjenskape den navngitte rangeringen —
-uansett hva admin har huket av.
+Flagget byttet butikknavnet til «Butikk #4» i visningen, mens
+`malekort_stasjoner()` (`0075`) ga navnet på hver stasjon i kjeden til
+enhver `authenticated` — joinet med `beregn_malekort_salg` var den
+navngitte rangeringen tilbake.
 
-**Merk hva som IKKE er hemmelig:** butikksjefen SKAL se rangeringen.
-Det flagget lover å skjule er koblingen navn-til-tall, ikke tallene.
+`0194` flytter anonymiseringen til `malekort_navn(p_malekort)`, som
+kjenner kortet og gir `navn = null` der kalleren ikke skal se det.
+`0195` tar granten på den gamle.
 
-Utveien er skrevet i kontrakten: en smal `malekort_rangering()` som gjør
-anonymiseringen selv, og deretter strammede grants på de to brede —
-samme form som `0165`. Ikke gjort ennå fordi `/maaling` er en lederflate
-i drift, og endringen skal prøves mot ekte data først.
+**Rekkefølgen er motsatt av husregelen:** `0195` fjerner noe den gamle
+koden bruker, så den må kjøres **etter** deployen — `0194`, så merge, så
+`0195`. Til `0195` er kjørt, står hullet åpent.
+
+`src/lib/redesign/anonymisering.test.ts` hindrer at avgjørelsen flytter
+tilbake til visningen.
 
 De tre tidligere postene ble gjort opp 2026-09-02:
 
