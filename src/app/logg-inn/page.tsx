@@ -17,6 +17,11 @@ const FEILTEKST: Record<string, string> = {
   // for det hjelper ikke: neste lenke vil være like tom.
   'ingen-token': 'Lenken manglet nøkkelen sin. Be om en ny under — kommer '
     + 'samme melding igjen, er det noe galt hos oss, og da må du si fra.',
+  // Lenken var fersk og ble godtatt, og likevel ble ingen logget inn.
+  // Å si «utløpt» her ville sendt henne på jakt etter et problem som
+  // ikke finnes — lenken var jo i orden.
+  'ingen-sesjon': 'Lenken ble godtatt, men vi klarte ikke å logge deg inn. '
+    + 'Det er vår feil, ikke din. Prøv en ny lenke under — skjer det igjen, si fra.',
 }
 
 export default async function LoggInnSide({
