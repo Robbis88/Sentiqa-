@@ -72,6 +72,25 @@ describe('sendGlemtLenke', () => {
     expect(kode, 'ingen utvei nevnt når e-posten uteblir').toMatch(/eieren av kjeden/)
   })
 
+  it('den ekte grunnen logges, selv om brukeren ikke får se den', () => {
+    // Den generiske teksten skjuler noe for en fremmed. Uten en logg
+    // skjuler den det for OSS også — og da står man med «klarte ikke
+    // sende» og ingen måte å vite om det er ratebegrensning, feil
+    // SMTP-passord eller en redirect-URL utenfor lista. Det skjedde
+    // første gang dette ble prøvd i drift.
+    expect(kode, 'feilen fra Supabase forsvinner uten spor')
+      .toContain('console.error')
+    expect(kode, 'meldingen fra Supabase må være med i loggen')
+      .toContain('error.message')
+  })
+
+  it('loggen inneholder ikke adressen', () => {
+    // Loggen er stedet vi IKKE vil bekrefte at en adresse finnes — den
+    // leses av flere enn den som eier postkassen.
+    const logg = kode.slice(kode.indexOf('console.error'), kode.indexOf('return {', kode.indexOf('console.error')))
+    expect(logg, 'adressen havner i loggen').not.toContain('felt.data.epost')
+  })
+
   it('feilen skiller ikke på om adressen finnes', () => {
     // Supabase svarer med feil på ratebegrensning og oppsett, ikke på
     // ukjent adresse. Teksten skal derfor handle om sendingen.
