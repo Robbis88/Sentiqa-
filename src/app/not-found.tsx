@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { headers } from 'next/headers'
-import { loggHendelse } from '@/lib/kontrollrom'
+import Meld404 from './meld-404'
 
 /** True bare når 404-en kom fra en lenke på vårt eget domene. */
 function fraEgenSide(referer: string | null, host: string | null): boolean {
@@ -16,22 +16,9 @@ export default async function IkkeFunnet() {
   const h = await headers()
   const referer = h.get('referer')
 
-  // Logg KUN 404 fra egen side (ekte brutt lenke). Bot-skanning/direkte-treff
-  // (ingen/ekstern referer) er støy og ignoreres.
-  if (fraEgenSide(referer, h.get('host'))) {
-    await loggHendelse({
-      type: 'feil',
-      alvorlighet: 'warning',
-      tittel: '404 – brutt intern lenke',
-      detaljer: {
-        referer,
-        bruker_agent: h.get('user-agent') ?? null,
-      },
-    })
-  }
-
   return (
     <div className="laster-side">
+      <Meld404 meld={fraEgenSide(referer, h.get('host'))} referer={referer} />
       <h2>404 – fant ikke siden</h2>
       <p className="undertittel">Siden finnes ikke eller er flyttet.</p>
       <Link href="/">Til forsiden</Link>
