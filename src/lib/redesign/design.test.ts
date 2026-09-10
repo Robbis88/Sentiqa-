@@ -46,6 +46,28 @@ describe('maalingen forstaar det den teller', () => {
     expect(maal(kilde).emoji).toBe(0)
   })
 
+  test('KANARIFUGL: en linjekommentar som slutter med CRLF strippes ogsaa', () => {
+    // DEN FELLA ER EKTE, OG DEN TOK TO VAKTER.
+    //
+    // `brukere/handlinger.test.ts` og `logg-inn/glemt/handlinger.test.ts`
+    // hadde hver sin lokale kopi av denne strippingen, skrevet som en
+    // regex: `l.replace(/\/\/.*$/, '')`.
+    //
+    // `.` matcher ikke `\r` — det er en linjeterminator i JS. Slutter
+    // linja med CRLF, naar `.*$` aldri slutten, og kommentaren blir
+    // STAAENDE. I CI (LF) ble den strippet; hos Robert (CRLF) ikke.
+    // Samme kode, to svar: gronn der ingen ser etter, rod der noen gjor.
+    //
+    // Verre enn den falske roede: der paastanden er `toContain`, kan en
+    // ustrippet kommentar OPPFYLLE den. Da leser vakten sin egen
+    // forklaring og staar gronn uten aa ha sett paa koden.
+    //
+    // Tilstandsmaskinen under har alltid handtert dette riktig. Denne
+    // testen er der for at ingen skal skrive regexen paa nytt.
+    expect(utenKommentarer('const a = 1 // hemmelig\r\nconst b = 2\r\n'))
+      .not.toContain('hemmelig')
+  })
+
   test('men emoji i JSX teller', () => {
     expect(maal('<span>\u{1F947} Gull</span>').emoji).toBe(1)
   })

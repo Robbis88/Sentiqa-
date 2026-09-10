@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+// Felleshjelperen, ikke en lokal kopi. Den lokale var en regex, og en
+// regex kan ikke strippe en `//`-kommentar som slutter med CRLF: `.`
+// matcher ikke `\r`, så `.*$` når aldri slutten av linja. Vakten var
+// derfor grønn i CI (LF) og rød hos Robert (CRLF) — på samme kode.
+import { utenKommentarer } from '@/lib/redesign/design'
 
 // =====================================================================
 // «GLEMT PASSORD?» ER EN ÅPEN DØR SOM IKKE SKAL VÆRE ET OPPSLAGSVERK
@@ -31,11 +36,6 @@ const SKJEMA = readFileSync(
   join(process.cwd(), 'src', 'app', 'logg-inn', 'glemt', 'skjema.tsx'), 'utf8')
 const INNLOGGING = readFileSync(
   join(process.cwd(), 'src', 'app', 'logg-inn', 'skjema.tsx'), 'utf8')
-
-/** Kommentarene strippes først — ellers kan vakten lese sin egen
-    forklaring og stå grønn. Det har skjedd fire ganger i dette prosjektet. */
-const utenKommentarer = (s: string) =>
-  s.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n')
 
 const kode = utenKommentarer(KILDE)
 
