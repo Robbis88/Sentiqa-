@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+// Felleshjelperen, ikke en lokal kopi — se forklaringen i
+// `logg-inn/glemt/handlinger.test.ts`. Den lokale regexen var blind for
+// CRLF, og denne fila har baaret den lengst: her er de fleste paastandene
+// `toContain`, saa en ustrippet kommentar KAN oppfylle dem. Vakten ville
+// da vaert groenn fordi den leste sin egen forklaring.
+import { utenKommentarer } from '@/lib/redesign/design'
 
 // =====================================================================
 // TILGANGSENDRING HAR ÉN STILLE FEILMÅTE.
@@ -23,10 +29,6 @@ import { join } from 'node:path'
 
 const KILDE = readFileSync(join(process.cwd(), 'src', 'app', '(beskyttet)', 'brukere', 'handlinger.ts'), 'utf8')
 
-/** Kommentarene strippes først. Uten det ville vakten kunne lese sin egen
-    forklaring og stå grønn — det har skjedd fire ganger i dette prosjektet. */
-const utenKommentarer = (s: string) =>
-  s.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n')
 
 function kroppen(navn: string): string {
   const kode = utenKommentarer(KILDE)
