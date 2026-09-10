@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="no">
+<body style="margin:0;padding:0;background:#f8fafc;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="font-size:18px;font-weight:600;color:#2e7d6b;padding-bottom:4px;">Sentiqa</td>
+          </tr>
+          <tr>
+            <td style="font-size:20px;font-weight:600;color:#0f1720;padding-bottom:12px;">Nytt passord</td>
+          </tr>
+          <tr>
+            <td style="font-size:15px;line-height:1.55;color:#0f1720;padding-bottom:20px;">Noen har bedt om et nytt passord for {{ .Email }}. Trykk under for å velge et.</td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:20px;">
+              <a href="{{ .SiteURL }}/auth/bekreft?token_hash={{ .TokenHash }}&amp;type=recovery"
+                 style="display:inline-block;background:#2e7d6b;color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;padding:14px 22px;border-radius:8px;">Velg nytt passord</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;line-height:1.55;color:#64748b;padding-bottom:16px;">
+              Virker ikke knappen, lim inn denne adressen i nettleseren:<br>
+              <span style="color:#2e7d6b;word-break:break-all;">{{ .SiteURL }}/auth/bekreft?token_hash={{ .TokenHash }}&amp;type=recovery</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;line-height:1.55;color:#64748b;border-top:1px solid #e2e8f0;padding-top:16px;">Var det ikke deg, trenger du ikke gjøre noe &mdash; passordet ditt er uendret så lenge lenken ikke brukes. Lenken virker i én time og bare én gang.</td>
+          </tr>
+        </table>
+        <div style="max-width:480px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#64748b;padding-top:14px;">
+          R-G Invest AS &middot; Org.nr 937 861 621
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

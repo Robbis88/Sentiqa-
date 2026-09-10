@@ -6,6 +6,11 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 //  1) token_hash + type  → verifyOtp (e-postlenker; virker uansett enhet) — anbefalt
 //  2) code               → exchangeCodeForSession (PKCE)
 // Lykkes verifiseringen er brukeren innlogget (cookie) og sendes til /sett-passord.
+//
+// `?ny=1` skiller de to ærendene på den siden: en invitasjon møtes med
+// «Velkommen», en glemt-passord-lenke med «Nytt passord». PKCE-armen vet
+// ikke hvilken lenke det var — `code` bærer ingen type — og da er den
+// nøytrale teksten det ærlige valget.
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url)
   const token_hash = searchParams.get('token_hash')
@@ -16,10 +21,27 @@ export async function GET(req: NextRequest) {
 
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash })
-    if (!error) return NextResponse.redirect(`${origin}/sett-passord`)
+    const ny = type === 'invite' || type === 'signup' ? '?ny=1' : ''
+    if (!error) return NextResponse.redirect(`${origin}/sett-passord${ny}`)
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) return NextResponse.redirect(`${origin}/sett-passord`)
   }
-  return NextResponse.redirect(`${origin}/logg-inn?feil=invitasjon`)
+  // TO ULIKE FEIL, OG DE HAR HVER SIN AARSAK.
+  //
+  // «ingen-token» betyr at lenken ikke BAR noe. Da er den nesten alltid
+  // bygget av Supabase sin standardmal, som sender tokenet i URL-
+  // fragmentet (`#access_token=…`) — og et fragment naar aldri serveren.
+  // Symptomet er en lenke som ser helt riktig ut og ikke gjoer noe.
+  // Malene i `supabase/templates/` bruker `token_hash` i spoerrestrengen
+  // nettopp for aa unngaa det; ser du denne, stemmer ikke dashboardet med
+  // dem lenger.
+  //
+  // «invitasjon» betyr at tokenet var der og ble avvist: utloept eller
+  // brukt. Det er helt normalt og brukerens sak.
+  //
+  // Ett felles «noe gikk galt» ville gjort en oppsettsfeil hos oss
+  // umulig aa skille fra en gammel lenke hos henne.
+  const grunn = token_hash || code ? 'invitasjon' : 'ingen-token'
+  return NextResponse.redirect(`${origin}/logg-inn?feil=${grunn}`)
 }

@@ -16,7 +16,7 @@ export async function settPassord(_t: SettTilstand, formData: FormData): Promise
 
   const supabase = await lagSupabaseServerKlient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { feil: 'Invitasjonslenken er utløpt eller allerede brukt. Be om en ny.' }
+  if (!user) return { feil: 'Lenken er utløpt eller allerede brukt. Be om en ny under «Glemt passord?».' }
 
   const { error } = await supabase.auth.updateUser({ password: felt.data.passord })
   if (error) return { feil: 'Kunne ikke sette passordet. Prøv igjen.' }

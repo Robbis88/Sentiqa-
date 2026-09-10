@@ -240,6 +240,7 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/': 'utenfor',
   '/logg-inn': 'utenfor',
   '/logg-inn/totp': 'utenfor',
+  '/logg-inn/glemt': 'utenfor',
   '/registrer': 'utenfor',
   '/sett-passord': 'utenfor',
   '/ingen-tilgang': 'utenfor',

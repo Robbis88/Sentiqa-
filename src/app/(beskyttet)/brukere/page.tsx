@@ -7,6 +7,7 @@ import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { NyBruker } from './ny-bruker'
 import { EndreStasjoner } from './endre-stasjoner'
+import { NyttPassord } from './nytt-passord'
 import { fjernBruker } from './handlinger'
 import { SlettKnapp } from '@/components/ui/slett-knapp'
 import { Sideramme } from '@/components/ui/sideramme'
@@ -95,7 +96,7 @@ export default async function BrukereSide() {
                   <Sidepanel
                     knapp="Endre stasjoner"
                     tittel={p.fullt_navn ?? 'Bruker'}
-                    beskrivelse="Endrer hvilke stasjoner brukeren når. Endrer ikke passord eller e-post."
+                    beskrivelse="Endrer hvilke stasjoner brukeren når. Passordet settes med knappen ved siden av."
                   >
                     <EndreStasjoner
                       profilId={p.id}
@@ -103,6 +104,15 @@ export default async function BrukereSide() {
                       stasjoner={(stasjoner ?? []).map((s) => ({ id: s.id, navn: `${s.butikknummer} ${s.navn}` }))}
                       valgte={stasjonsIderForProfil.get(p.id) ?? []}
                     />
+                  </Sidepanel>
+                  <Sidepanel
+                    knapp="Nytt passord"
+                    tittel={p.fullt_navn ?? 'Bruker'}
+                    beskrivelse={'Setter et nytt passord for brukeren. Bruk denne når hun ikke '
+                      + 'kommer inn og «Glemt passord?» ikke er en vei — tablet-kontoen har '
+                      + 'sjelden en postkasse noen leser.'}
+                  >
+                    <NyttPassord profilId={p.id} navn={p.fullt_navn ?? 'brukeren'} />
                   </Sidepanel>
                   <SlettKnapp hva={p.fullt_navn ?? 'brukeren'} handling={fjernBruker} id={p.id} merke="Fjern" />
                 </>
