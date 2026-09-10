@@ -13,12 +13,15 @@ export function GlemtSkjema({ epost }: { epost?: string }) {
   // om at lenken er sendt, er det neste man gjør å trykke en gang til —
   // og da er man i ratebegrensningen som gjør at den FØRSTE lenken var
   // den siste som kom fram.
+  // `.skjema` er en flex-spalte med luft mellom barna, ikke noe
+  // skjema-spesifikt. Uten den klistret kvitteringen og veien tilbake
+  // seg til hverandre, og de to leste som én blokk tekst.
   if (tilstand?.ok) {
     return (
-      <>
+      <div className="skjema">
         <p className="ok" role="status">{tilstand.ok}</p>
         <p className="undertittel"><Link href="/logg-inn">Tilbake til innlogging</Link></p>
-      </>
+      </div>
     )
   }
 

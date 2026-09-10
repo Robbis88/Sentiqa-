@@ -340,6 +340,21 @@ h3 { letter-spacing: -0.01em; }
 .felt input:focus, .felt textarea:focus, .felt select:focus { outline: none; border-color: var(--primaer); box-shadow: 0 0 0 3px var(--primaer-svak); }
 .feil { color: var(--rod); font-size: 0.85rem; margin: 0; white-space: pre-line; }
 
+/* KVITTERINGEN HADDE INGEN FORM.
+   =====================================================================
+   `.feil` har vaert stilt siden begynnelsen; `.ok` fantes bare inne i
+   `.opplaster` og `.stasjon-skjema`. Overalt ellers rendret den som
+   loepende brødtekst - samme farge og vekt som forklaringen over.
+
+   Det var synlig, men det LESTE ikke som et svar. Paa /logg-inn/glemt
+   er kvitteringen hele sidens innhold etter et trykk, og der ble den
+   staaende som om den alltid hadde staatt der.
+
+   Samme form som `.feil`, motsatt farge. Ikke en ramme eller et ikon -
+   et svar trenger ikke en boks for aa vaere et svar, det trenger aa
+   vaere til aa kjenne igjen. */
+.ok { color: var(--gronn); font-size: 0.85rem; margin: 0; white-space: pre-line; }
+
 /* ETT KNAPPESPRAAK.
    =====================================================================
    Elementet var PRIMAERT som standard - fylt groenn flate uten klasse -
