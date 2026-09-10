@@ -12,6 +12,11 @@ export const metadata: Metadata = { title: 'Logg inn – Sentiqa' }
 // bare glemte passordet igjen.
 const FEILTEKST: Record<string, string> = {
   invitasjon: 'Lenken er utløpt eller allerede brukt. Be om en ny under.',
+  // Lenken bar ingenting. Nesten alltid vår feil, ikke hennes — se
+  // kommentaren i /auth/bekreft. Teksten sier derfor ikke «prøv igjen»,
+  // for det hjelper ikke: neste lenke vil være like tom.
+  'ingen-token': 'Lenken manglet nøkkelen sin. Be om en ny under — kommer '
+    + 'samme melding igjen, er det noe galt hos oss, og da må du si fra.',
 }
 
 export default async function LoggInnSide({
