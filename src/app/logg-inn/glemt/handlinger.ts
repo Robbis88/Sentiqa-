@@ -47,7 +47,22 @@ export async function sendGlemtLenke(
   // EN AVVISNING HER ER IKKE «FINNES IKKE». Supabase svarer med feil på
   // ratebegrensning og på oppsettsfeil, ikke på ukjent adresse — så en
   // feil er noe brukeren skal få vite om, uten at den avslører noe.
+  //
+  // MEN DEN SKAL IKKE SVELGES. Første utgave returnerte bare den vennlige
+  // teksten, og da sto vi der: sida sa «klarte ikke sende akkurat nå», og
+  // det fantes ingen måte å vite om det var ratebegrensning, feil
+  // SMTP-passord eller en redirect-URL utenfor lista. Den generiske
+  // teksten er der for å skjule noe for en fremmed, ikke for oss.
+  //
+  // Loggen er derfor delt i to: brukeren får det ufarlige svaret, og den
+  // ekte grunnen havner i Vercel-loggen med adressen utelatt — den er
+  // nettopp det vi ikke vil bekrefte at finnes.
   if (error) {
+    console.error('[glemt-passord] resetPasswordForEmail avvist:', {
+      melding: error.message,
+      status: error.status,
+      kode: error.code,
+    })
     return {
       feil: 'Klarte ikke sende akkurat nå. Har du bedt om en lenke nylig, '
         + 'vent noen minutter og prøv igjen.',
