@@ -153,6 +153,82 @@ export async function endreStasjoner(_t: BrukerTilstand, formData: FormData): Pr
   return { ok: true }
 }
 
+const NyttPassord = z.object({
+  passord: z.string().min(8, { error: 'Passord må være minst 8 tegn.' }),
+  passord_gjenta: z.string(),
+}).refine((d) => d.passord === d.passord_gjenta, {
+  // SAMME GRUNN SOM VED OPPRETTELSE (#247). En skrivefeil i et skjult
+  // felt gir en konto ingen kommer inn på — og her er det verre, for
+  // brukeren HADDE et passord som virket til vi tok det fra henne.
+  error: 'Passordene er ikke like.',
+  path: ['passord_gjenta'],
+})
+
+/**
+ * Setter et nytt passord for en butikksjef eller en tablet-konto.
+ *
+ * HVORFOR DENNE FINNES VED SIDEN AV «GLEMT PASSORD?».
+ * E-postlenken på innloggingssiden dekker den som har en postkasse hun
+ * leser. To tilfeller faller utenfor:
+ *
+ *   TABLET-KONTOEN er delt på stasjonen, og adressen den er opprettet
+ *   med er ofte ikke en postkasse noen åpner. En lenke dit forsvinner.
+ *
+ *   E-POST SOM IKKE KOMMER FRAM. Supabase Auth sender gjennom sin egen
+ *   SMTP, ikke gjennom Resend. Er den ikke satt opp, ser alt riktig ut
+ *   og ingenting skjer. Da må det finnes en vei som ikke går om e-post
+ *   i det hele tatt — ellers er eneste utvei å slette brukeren og lage
+ *   henne på nytt, som er nøyaktig det `endreStasjoner` ble skrevet for
+ *   å slippe.
+ *
+ * FORRIGE PASSORD KREVES IKKE, og det er med vilje: eieren kan det
+ * ikke. Det er derfor handlingen er eierens alene og bare når egen
+ * kjede — grensen ligger i hvem som får trykke, ikke i hva hun vet.
+ */
+export async function settNyttPassord(
+  _t: Kvittering, formData: FormData,
+): Promise<Kvittering> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== 'retailer_admin' || !bruker.retailerId) {
+    return { feil: 'Bare kjedeadministrator kan sette nytt passord.' }
+  }
+
+  const profilId = String(formData.get('profil_id') ?? '')
+  if (!profilId) return { feil: 'Mangler bruker.' }
+
+  const felt = NyttPassord.safeParse({
+    passord: formData.get('passord'),
+    passord_gjenta: formData.get('passord_gjenta') ?? '',
+  })
+  if (!felt.success) return { feil: z.prettifyError(felt.error) }
+
+  let admin
+  try {
+    admin = lagSupabaseAdminKlient()
+  } catch {
+    return { feil: 'Passordbytte er ikke aktivert (mangler service-nøkkel).' }
+  }
+
+  // ADMIN-KLIENTEN OMGÅR RLS, så tenanten må sjekkes her. Rollen sjekkes
+  // også: lista viser bare butikksjefer og tablet-kontoer, men en id i
+  // et skjult felt er ikke en grense — den er en visning.
+  const { data: profil } = await admin
+    .from('profiler').select('id, fullt_navn, rolle')
+    .eq('id', profilId).eq('retailer_id', bruker.retailerId).is('slettet_tid', null)
+    .maybeSingle<{ id: string; fullt_navn: string | null; rolle: string }>()
+  if (!profil) return { feil: 'Fant ikke brukeren i din kjede.' }
+  if (profil.rolle !== 'butikksjef' && profil.rolle !== 'butikkbruker_tablet') {
+    return { feil: 'Passordet til denne brukeren kan ikke settes herfra.' }
+  }
+
+  const { error } = await admin.auth.admin.updateUserById(
+    profilId, { password: felt.data.passord },
+  )
+  if (error) return { feil: `Kunne ikke sette passordet: ${error.message}` }
+
+  return { ok: `Nytt passord satt for ${profil.fullt_navn ?? 'brukeren'}. Gi det videre selv — det vises ikke igjen.` }
+}
+
 // SLETTER ET MENNESKE, IKKE EN RAD. Derfor gaar den via admin-klienten
 // og `auth.admin.deleteUser` - cascade fjerner profil og tilganger. Den
 // kan ikke gaa gjennom `kvitter`, som snakker PostgREST.

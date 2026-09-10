@@ -6,6 +6,11 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 //  1) token_hash + type  → verifyOtp (e-postlenker; virker uansett enhet) — anbefalt
 //  2) code               → exchangeCodeForSession (PKCE)
 // Lykkes verifiseringen er brukeren innlogget (cookie) og sendes til /sett-passord.
+//
+// `?ny=1` skiller de to ærendene på den siden: en invitasjon møtes med
+// «Velkommen», en glemt-passord-lenke med «Nytt passord». PKCE-armen vet
+// ikke hvilken lenke det var — `code` bærer ingen type — og da er den
+// nøytrale teksten det ærlige valget.
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url)
   const token_hash = searchParams.get('token_hash')
@@ -16,7 +21,8 @@ export async function GET(req: NextRequest) {
 
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash })
-    if (!error) return NextResponse.redirect(`${origin}/sett-passord`)
+    const ny = type === 'invite' || type === 'signup' ? '?ny=1' : ''
+    if (!error) return NextResponse.redirect(`${origin}/sett-passord${ny}`)
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) return NextResponse.redirect(`${origin}/sett-passord`)

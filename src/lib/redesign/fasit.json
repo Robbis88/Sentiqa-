@@ -28,6 +28,7 @@
     "/lederstotte",
     "/lenker",
     "/logg-inn",
+    "/logg-inn/glemt",
     "/logg-inn/totp",
     "/lonn",
     "/lonnskost",
@@ -235,7 +236,8 @@
     "/brukere": [
       "endreStasjoner",
       "fjernBruker",
-      "opprettBruker"
+      "opprettBruker",
+      "settNyttPassord"
     ],
     "/fokus": [
       "generer"
@@ -449,6 +451,9 @@
       "lagrePushAbonnement",
       "markerAlle",
       "markerLest"
+    ],
+    "/logg-inn/glemt": [
+      "sendGlemtLenke"
     ],
     "/logg-inn": [
       "loggInn"
@@ -885,6 +890,15 @@
       "8. Konfidensialitet",
       "9. Bistand til Behandlingsansvarlig"
     ],
+    "/logg-inn/glemt": [
+      "Glemt passord"
+    ],
+    "/logg-inn": [
+      "Logg inn"
+    ],
+    "/logg-inn/totp": [
+      "Bekreft innlogging"
+    ],
     "/personvern": [
       "1. Hvem er ansvarlig",
       "10. Informasjonskapsler",
@@ -901,6 +915,9 @@
     ],
     "/registrer": [
       "Sjekk e-posten din"
+    ],
+    "/sett-passord": [
+      "ny ? 'Velkommen' : 'Nytt passord'"
     ]
   },
   "lenker": {
@@ -1008,6 +1025,9 @@
     ],
     "/databehandleravtale": [
       "/",
+      "/personvern"
+    ],
+    "/logg-inn/glemt": [
       "/personvern"
     ],
     "/logg-inn": [

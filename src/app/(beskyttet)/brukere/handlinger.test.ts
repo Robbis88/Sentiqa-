@@ -147,3 +147,67 @@ describe('opprettBruker: passordet kan ikke skrives feil i stillhet', () => {
     expect(skjema).toMatch(/useState\(false\)/)
   })
 })
+
+// =====================================================================
+// EIERENS VEI INN NÅR E-POSTEN IKKE ER EN VEI
+//
+// `settNyttPassord` finnes fordi «Glemt passord?» ikke rekker overalt:
+// tablet-kontoen deles på stasjonen og har sjelden en postkasse noen
+// leser, og Supabase Auth sender lenkene gjennom SIN SMTP — er den ikke
+// satt opp, ser alt riktig ut og ingenting kommer fram.
+//
+// DEN TAR IKKE FORRIGE PASSORD, og kan ikke gjøre det: eieren kan det
+// ikke. Hele grensen ligger derfor i hvem som får trykke og hvem det kan
+// trykkes PÅ. Faller én av de to bort, er dette en knapp som setter
+// passordet til hvem som helst i hvilken som helst kjede — og en id i et
+// skjult felt er ikke en grense, den er en visning.
+// =====================================================================
+describe('settNyttPassord', () => {
+  const kropp = kroppen('settNyttPassord')
+  const skjema = readFileSync(
+    join(process.cwd(), 'src', 'app', '(beskyttet)', 'brukere', 'nytt-passord.tsx'), 'utf8')
+
+  it('KANARIFUGL: vakten finner handlingen og skjemaet', () => {
+    expect(kropp.length, 'fant ikke settNyttPassord').toBeGreaterThan(400)
+    expect(kropp, 'fant ikke selve passordbyttet').toContain('updateUserById')
+    expect(skjema.length, 'fant ikke nytt-passord.tsx').toBeGreaterThan(500)
+  })
+
+  it('slipper bare eier inn', () => {
+    expect(kropp).toMatch(/rolle !== 'retailer_admin'/)
+  })
+
+  it('binder brukeren til eierens egen kjede', () => {
+    // Admin-klienten omgår RLS. Uten dette kunne en eier sette passordet
+    // til en butikksjef i en ANNEN kjede ved å bytte ut id-en i skjemaet.
+    expect(kropp).toContain("eq('retailer_id', bruker.retailerId)")
+    expect(kropp, 'kjeden må komme fra sesjonen, aldri fra skjemaet')
+      .not.toMatch(/formData\.get\(\s*['"]retailer/)
+  })
+
+  it('kan bare treffe butikksjef og tablet-konto', () => {
+    // Lista viser bare de to, men lista er en visning. Uten denne kunne
+    // id-en til en annen EIER limes inn i det skjulte feltet.
+    expect(kropp).toContain("profil.rolle !== 'butikksjef'")
+    expect(kropp).toContain("profil.rolle !== 'butikkbruker_tablet'")
+  })
+
+  it('sjekker gjentakelsen PÅ SERVEREN', () => {
+    // Samme feil som #247, men verre: her HADDE hun et passord som
+    // virket til vi tok det fra henne.
+    const kode = utenKommentarer(KILDE)
+    expect(kode).toMatch(/d\.passord === d\.passord_gjenta/)
+    expect(kropp).toMatch(/formData\.get\('passord_gjenta'\)/)
+  })
+
+  it('svarer med tekst — et passordbytte i stillhet er ikke til å skille fra ingenting', () => {
+    expect(kropp).toMatch(/return \{ ok:/)
+  })
+
+  it('skjemaet har begge feltene og en vis-bryter, skjult som standard', () => {
+    expect(skjema, 'mangler gjentakelsesfeltet').toMatch(/name="passord_gjenta"/)
+    expect(skjema, 'et tablet-passord skal tastes inn på nettbrettet etterpå')
+      .toMatch(/type=\{vis \? 'text' : 'password'\}/)
+    expect(skjema).toMatch(/useState\(false\)/)
+  })
+})
