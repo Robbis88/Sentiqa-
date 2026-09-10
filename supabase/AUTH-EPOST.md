@@ -113,11 +113,21 @@ skal stå i Redirect URLs.
 
 ## Filene
 
-| fil | Supabase-mal | `type` |
-|---|---|---|
-| `invitasjon.html` | Invite user | `invite` |
-| `gjenoppretting.html` | Reset password | `recovery` |
-| `bekreft-registrering.html` | Confirm signup | `signup` |
+| fil | Supabase-mal | `type` | i bruk |
+|---|---|---|---|
+| `invitasjon.html` | Invite user | `invite` | ja — `/registrer` og `/plattform` |
+| `gjenoppretting.html` | Reset password | `recovery` | ja — `/logg-inn/glemt` og `/plattform` |
+| `bekreft-registrering.html` | Confirm signup | `signup` | **nei, reserve** |
+
+`signup`-malen sendes ikke av noe i dag. Hver konto lages enten med
+`inviteUserByEmail` (som bruker `invite`-malen) eller med `createUser`,
+som ikke sender noe. `supabase.auth.signUp()` finnes ikke i koden.
+
+Den ligger her og i dashboardet likevel, fordi alternativet er at den
+dagen noen tar i bruk vanlig registrering, møtes den første brukeren av
+en engelsk standardmal med en lenke som ikke virker — og det er en feil
+som ser ut som en av våre. En ubrukt mal koster ingenting; en
+standardmal som plutselig blir brukt koster en bruker.
 
 Fargene er de samme som i `src/lib/ukebrief/epost.ts`, av samme grunn som
 står forklart der: e-postklienter har ingen CSS-variabler, så alt må stå
