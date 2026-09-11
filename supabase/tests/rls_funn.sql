@@ -77,7 +77,9 @@ with lister as (
       -- Driftsregler for produksjonsplanen (0149).
       'stasjon_produksjon_innstilling',
       -- Tall ingen fil leverer (0184/0185).
-      'bilvask_abonnement', 'butikksjef_fastlonn'
+      'bilvask_abonnement', 'butikksjef_fastlonn',
+    -- Royaltysatsene fra BP (0198). EN rad per retailer per AAR.
+    'royaltysats'
     ]::text[] as kalde
 )
 
