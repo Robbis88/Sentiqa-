@@ -14,9 +14,9 @@
 // ---------------------------------------------------------------------
 // BARE BRUTTOBIDRAGET
 //
-// Omsetningen har sin egen bilvaskkolonne; det som mangler er de 75
-// prosentene som er fortjeneste. Å legge beløpet inn to steder ville
-// gjort ett hull til to tall som ikke stemmer.
+// Omsetningen har sin egen bilvaskkolonne; det som mangler er
+// bruttofortjenesten. Å legge beløpet inn to steder ville gjort ett hull
+// til to tall som ikke stemmer.
 //
 // ---------------------------------------------------------------------
 // BARE MÅNEDER SOM IKKE ER AVLAGT
@@ -32,11 +32,41 @@
 /**
  * Hvor stor del av abonnementsbeløpet som er bruttofortjeneste.
  *
- * Oppgitt av Kelsar. Som satsene i `SATSER` er dette en driftsopplysning
- * som kan variere mellom kjeder — den blir konfigurasjon per retailer
- * den dagen kunde nummer to kommer.
+ * =====================================================================
+ * DENNE MODULEN SKAL TREFFE REGNSKAPET, IKKE SANNHETEN
+ * =====================================================================
+ *
+ * Sto på 0,75 i lang tid, oppgitt av Kelsar. To ting gjorde den feil, og
+ * de trekker i hver sin retning — derfor står begge skrevet her, så ingen
+ * «retter» den tilbake med det ene halve argumentet.
+ *
+ * 1. ØKONOMISK er 0,75 for HØYT. Beløpet i ukesrapporten er det
+ *    stasjonen får utbetalt: 90 kroner per gjennomkjøring. Såpen koster
+ *    ~10,5 % av KASSEPRISEN, ikke av de 90 — og kasseprisene er 249–499.
+ *    Ekte bruttoandel av de 90 blir da 71 % på det billigste programmet
+ *    og 42 % på det dyreste.
+ *
+ * 2. MEN DET ER IKKE DET DENNE MODULEN MÅLER. Jobben her er å tette
+ *    hullet fram til regnskapet kommer, og treffe det regnskapet vil
+ *    vise. Regnskapet fører `21014 MASKINVASK APP` med **100 %
+ *    bruttofortjeneste** — såpen havner på kasselinja `21010`, ikke på
+ *    app-linja. Målt på Kelsar januar–juli 2026: salg 1 206 107,
+ *    bruttofortjeneste 1 206 107, på alle fire stasjoner med vask.
+ *
+ * Modulen skal altså legge inn HELE beløpet. Med 0,75 underrapporterte
+ * den bruttoen med en firedel hver måned som ikke var avlagt — og
+ * lønnsrommet ble tilsvarende for stramt, hver eneste måned.
+ *
+ * At de ekte 42–71 prosentene ikke vises noe sted er et EGET hull, og det
+ * hører hjemme i kostnadsbildet — ikke her, der det ville gjort at
+ * tallene sluttet å stemme med regnskapet de skal forutsi.
+ *
+ * Som satsene i `SATSER` er dette en driftsopplysning som kan variere
+ * mellom kjeder — den blir konfigurasjon per retailer den dagen kunde
+ * nummer to kommer. En kjede som fører app-omsetningen MED varekost skal
+ * ha sin egen andel her.
  */
-export const BILVASK_BRUTTOANDEL = 0.75
+export const BILVASK_BRUTTOANDEL = 1
 
 export type Ukebelop = { ar: number; uke: number; belopKr: number }
 

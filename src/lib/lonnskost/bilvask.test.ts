@@ -45,10 +45,28 @@ describe('ukensDager', () => {
 })
 
 describe('bruttoPerMaaned', () => {
-  it('tar 75 prosent av beløpet', () => {
+  // KANARI MOT EN HALV RETTELSE.
+  //
+  // Andelen sto paa 0,75 og var feil, men den er fristende aa «rette»
+  // tilbake med det ene halve argumentet: oekonomisk ER bruttoandelen av
+  // de 90 kronene bare 42-71 %, fordi saapen koster ~10,5 % av
+  // KASSEPRISEN (249-499) og ikke av utbetalingen.
+  //
+  // Men modulen maaler ikke sannheten - den skal treffe det regnskapet
+  // vil vise naar maaneden avlegges, og regnskapet foerer
+  // `21014 MASKINVASK APP` med 100 % bruttofortjeneste: saapen havner paa
+  // kasselinja 21010. Maalt paa Kelsar jan-jul 2026: salg 1 206 107,
+  // brutto 1 206 107.
+  //
+  // Settes den til noe annet enn 1 uten at foeringen i regnskapet er
+  // endret, slutter lonnsrommet aa stemme med fasiten det maales mot.
+  it('legger inn hele beloepet, fordi regnskapet foerer app-linja med 100 % brutto', () => {
     const m = bruttoPerMaaned([{ ar: 2026, uke: 36, belopKr: 7000 }])
-    expect([...m.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(5250, 2)
-    expect(BILVASK_BRUTTOANDEL).toBe(0.75)
+    expect([...m.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(7000, 2)
+    expect(BILVASK_BRUTTOANDEL).toBe(1)
+    // Ikke 0,75 - og heller ikke den oekonomiske sannheten.
+    expect(BILVASK_BRUTTOANDEL).not.toBe(0.75)
+    expect(BILVASK_BRUTTOANDEL).toBeGreaterThan(0.75)
   })
 
   // ===================================================================
@@ -67,15 +85,15 @@ describe('bruttoPerMaaned', () => {
     expect(iOkt).toBeGreaterThan(0)
 
     const m = bruttoPerMaaned([{ ar: 2026, uke: 40, belopKr: 7000 }])
-    expect(m.get('2026-09')).toBeCloseTo((5250 / 7) * iSep, 2)
-    expect(m.get('2026-10')).toBeCloseTo((5250 / 7) * iOkt, 2)
+    expect(m.get('2026-09')).toBeCloseTo((7000 / 7) * iSep, 2)
+    expect(m.get('2026-10')).toBeCloseTo((7000 / 7) * iOkt, 2)
   })
 
   it('deler også over årsskiftet', () => {
     const m = bruttoPerMaaned([{ ar: 2026, uke: 1, belopKr: 7000 }])
     // Uke 1 i 2026 starter 2025-12-29: tre dager i desember, fire i januar.
-    expect(m.get('2025-12')).toBeCloseTo((5250 / 7) * 3, 2)
-    expect(m.get('2026-01')).toBeCloseTo((5250 / 7) * 4, 2)
+    expect(m.get('2025-12')).toBeCloseTo((7000 / 7) * 3, 2)
+    expect(m.get('2026-01')).toBeCloseTo((7000 / 7) * 4, 2)
   })
 
   // INGEN KRONER I SKJOETENE. Summen over alle maaneder skal alltid vaere
@@ -86,7 +104,7 @@ describe('bruttoPerMaaned', () => {
     }))
     const m = bruttoPerMaaned(uker)
     const sum = [...m.values()].reduce((a, b) => a + b, 0)
-    expect(sum).toBeCloseTo(52 * 8010 * 0.75, 0)
+    expect(sum).toBeCloseTo(52 * 8010 * BILVASK_BRUTTOANDEL, 0)
   })
 
   it('summerer flere uker i samme måned', () => {
@@ -96,7 +114,7 @@ describe('bruttoPerMaaned', () => {
       { ar: 2026, uke: 36, belopKr: 3960 },
     ])
     const sum = [...m.values()].reduce((a, b) => a + b, 0)
-    expect(sum).toBeCloseTo((4860 + 3960) * 0.75, 2)
+    expect(sum).toBeCloseTo((4860 + 3960) * BILVASK_BRUTTOANDEL, 2)
   })
 
   it('gir tomt kart uten uker', () => {
