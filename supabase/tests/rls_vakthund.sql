@@ -158,7 +158,12 @@ declare
     -- Tall ingen fil leverer (0184/0185). Bilvask er én rad per stasjon
     -- per UKE, grunnloenn én per MAANED - de vokser med kalenderen, ikke
     -- med drift. Ingen av dem naar tusen rader paa et aar for en kjede.
-    'bilvask_abonnement', 'butikksjef_fastlonn'
+    'bilvask_abonnement', 'butikksjef_fastlonn',
+    -- Royaltysatsene fra BP (0198). EN rad per retailer per AAR - den
+    -- vokser med kalenderen, ikke med drift, og naar aldri to sifre for
+    -- en kjede. Ingen skrivepolicy: radene kommer fra importen gjennom
+    -- tjenestenoekkelen.
+    'royaltysats'
     -- Her stod opplaring_personer, opplaring_punkter og opplaring_fullfort
     -- (varme). Ingen av dem finnes i basen - de er erstattet av
     -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:
