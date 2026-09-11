@@ -1,3 +1,4 @@
+import type { BpRoyalty } from './bp-royalty'
 // Felles typer for parser-laget. Parserne er rene funksjoner: rå fil inn,
 // strukturert resultat ut. Ingen DB, ingen sideeffekter (§14: testbart).
 
@@ -187,6 +188,13 @@ export type BpResultat = {
   rapporttype: 'st1_bp'
   ar: number | null
   stasjoner: BpStasjon[] // hele kjeden — filtreres mot retailer ved lagring
+  /**
+   * Royaltysatsene fra «Cluster data». `null` når arket mangler, når en
+   * av de tre satsene ikke står der — eller når fila er den gamle malen,
+   * som bærer dem annerledes. `null` betyr «vi vet ikke», og det er et
+   * annet svar enn en gjettet sats.
+   */
+  royalty: BpRoyalty | null
 }
 
 // Per-stasjon-ark i regnskapsfila (avdelingsnivå: omsetning + bruttofortjeneste).

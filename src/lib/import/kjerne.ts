@@ -9,6 +9,7 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
+import { skalLagres } from '@/lib/parsere/bp-royalty'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
 import { manglendeStasjoner, dekningsnotat, erDaglig } from './stasjonsdekning'
@@ -811,7 +812,7 @@ async function lagreSalgsstatistikk(
     if (!stasjonId) { umatchet.push(`${st.butikknummer} (${st.navn})`); continue }
     for (const l of st.linjer) {
       rader.push({
-        retailer_id: retailerId, stasjon_id: stasjonId, dato: r.dato,
+      retailer_id: retailerId, stasjon_id: stasjonId, dato: r.dato,
         ean: l.ean, varenr: l.varenr, varenavn: l.varenavn,
         avdeling_kode: l.avdelingKode, avdeling_navn: l.avdelingNavn,
         vareomrade_kode: l.vareomradeKode, vareomrade_navn: l.vareomradeNavn,
@@ -959,7 +960,7 @@ async function lagreTimesalg(
     if (!stasjonId) { umatchet.push(st.navn); continue }
     for (const t of st.timer) {
       rader.push({
-        retailer_id: retailerId, stasjon_id: stasjonId, dato, time: t.time,
+      retailer_id: retailerId, stasjon_id: stasjonId, dato, time: t.time,
         salg: t.salg, kostpris: t.kostpris, mva: t.mva,
         antall_varer: t.antallVarer, antall_kunder: t.antallKunder,
         inne_kunder: t.inneKunder ?? null, ute_kunder: t.uteKunder ?? null,
@@ -986,7 +987,7 @@ async function lagreKasserer(
     if (!stasjonId) { umatchet.push(`${st.butikknummer} (${st.navn})`); continue }
     for (const k of st.kasserere) {
       rader.push({
-        retailer_id: retailerId, stasjon_id: stasjonId, dato,
+      retailer_id: retailerId, stasjon_id: stasjonId, dato,
         kasserer_nr: k.nr, kasserer_navn: k.navn,
         omsetning_ink_mva: k.omsetningInkMva, bonger: k.bonger,
         retur_antall: k.returAntall, retur_belop: k.returBelop,
@@ -1043,7 +1044,7 @@ async function lagreSvinn(
       if (t.dato) bunke.datoer.add(t.dato)
       else utenDato.push(`${st.butikknummer} ${t.ean ?? t.varenavn ?? '?'}`)
       bunke.rader.push({
-        retailer_id: retailerId, stasjon_id: stasjonId, dato: t.dato,
+      retailer_id: retailerId, stasjon_id: stasjonId, dato: t.dato,
         ean: t.ean, varenavn: t.varenavn, varenummer: t.varenummer,
         operatornr: t.operatornr, transaksjonstype: t.transaksjonstype,
         arsakskode: t.arsakskode, nettopris: t.nettopris, antall: t.antall,
@@ -1290,7 +1291,7 @@ async function lagreBp(
       if (erLaast) continue // regnskapet bærer allerede budsjettet for denne måneden
       const periode = `${ar}-${String(m.maned).padStart(2, '0')}-01`
       const bpLinje = (seksjon: string, kode: string, post: string, budsjett: number) => ({
-        retailer_id: retailerId, stasjon_id: stasjonId, periode, seksjon, kode, post,
+      retailer_id: retailerId, stasjon_id: stasjonId, periode, seksjon, kode, post,
         sortering: null, regnskap: 0, budsjett, avvik: 0, index_pct: 0,
         regnskap_hittil: 0, budsjett_hittil: 0, kilde_jobb_id: jobbId,
       })
@@ -1419,14 +1420,54 @@ async function lagreBp(
   }
   await skrivBatch(supabase, 'regnskapslinjer', bpLinjer)
 
+  // -------------------------------------------------------------------
+  // ROYALTYSATSENE (0198)
+  // -------------------------------------------------------------------
+  // Uten dem regner systemet paa BRUTTOMARGIN, og det er feil vei rundt:
+  // St1 tar royalty av OMSETNING. Konsekvensen er ikke akademisk - det
+  // snur rangeringen mellom varegrupper, og dermed hvor butikksjefene
+  // faar beskjed om aa bruke tiden sin.
+  //
+  // EN SATS VI IKKE KAN AVSTEMME SKAL IKKE LAGRES. `avstemming()` regner
+  // royaltyen ut av satsene og BP-ens egne grunnlagstall og sammenligner
+  // med arkets egen «Sum Royalty». Spriker de, er det noe vi ikke har
+  // forstatt ved fila - og en sats ingen har provd er en sats hele
+  // systemet siden bygger kroneverdier paa.
+  //
+  // Da skrives den IKKE, og importen sier hvorfor. Resten av BP-en
+  // lagres som foer: satsene er en av mange ting i fila, og et hull her
+  // skal ikke koste timebudsjettet.
+  const beslutning = skalLagres(r.royalty)
+  const royaltyNotat = beslutning.notat
+  let royaltyRader = 0
+  if (r.royalty && beslutning.lagre) {
+    await skrivBatch(supabase, 'royaltysats', [{
+      retailer_id: retailerId,
+      aar: r.royalty.ar ?? ar,
+      lav_sats: r.royalty.lavSats,
+      hoy_sats_vask: r.royalty.hoySatsVask,
+      pant_sats: r.royalty.pantSats,
+      bp_sum_royalty: r.royalty.sumRoyalty,
+      bp_sum_cr_salg: r.royalty.sumCrSalg,
+      bp_omsetning_vask: r.royalty.omsetningVask,
+      bp_omsetning_pant: r.royalty.omsetningPant,
+      bp_royalty_vask: r.royalty.royaltyVask,
+      kilde: 'bp',
+    }], 'retailer_id,aar')
+    royaltyRader = 1
+  }
+
   return {
     antallRader:
       aarRader.length + budsjettRader.length + manedRader.length
-      + bpLinjer.length + bpAarRader.length + dokumentLinjer.length,
+      + bpLinjer.length + bpAarRader.length + dokumentLinjer.length + royaltyRader,
     umatchet: [],
     // EN STILLE UTELATELSE ER VERRE ENN EN SYNLIG MERKNAD. Samme
     // mekanisme som `utenEan` og stasjonsdekningen bruker.
-    notat: hoppetNotat(hoppede, Math.max(0, ...mine.map(({ s: st }) => st.maaneder.length))),
+    notat: [
+      hoppetNotat(hoppede, Math.max(0, ...mine.map(({ s: st }) => st.maaneder.length))),
+      royaltyNotat,
+    ].filter(Boolean).join(' ') || null,
   }
 }
 
@@ -1956,7 +1997,7 @@ async function varsleBemanning(
     })
     for (const v of varsler) {
       await opprettVarsel(supabase, {
-        retailer_id: retailerId,
+      retailer_id: retailerId,
         stasjon_id: m.stasjonId,
         type: v.type,
         tittel: v.tittel,

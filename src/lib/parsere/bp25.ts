@@ -297,5 +297,9 @@ export function parseBp25(data: Uint8Array | ArrayBuffer): BpResultat {
     ut.push({ butikknummer: s.butikknummer, timerAar: null, maaneder })
   }
 
-  return { rapporttype: 'st1_bp', ar, stasjoner: ut }
+  // ROYALTY: `null`, ikke et gjett. Den gamle malen baerer satsene
+  // annerledes - `bp/analyse.ts` beskriver at vaskedelen der er korrigert
+  // for appandelen i et felt som ikke finnes i BP26. Til noen har lest
+  // det formatet ordentlig, er «vi vet ikke» det riktige svaret.
+  return { rapporttype: 'st1_bp', ar, stasjoner: ut, royalty: null }
 }

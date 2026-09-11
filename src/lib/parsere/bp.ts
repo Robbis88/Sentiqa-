@@ -1,5 +1,6 @@
 import { celletall, ParserFeil } from './felles'
 import { ER_BP } from './gjenkjenn'
+import { lesRoyaltysatser } from './bp-royalty'
 import { lesArk, arknavn, type Celleverdi } from './xlsx-rader'
 import type { BpResultat, BpStasjon } from './typer'
 
@@ -244,5 +245,11 @@ export async function parseBp(data: Uint8Array | ArrayBuffer): Promise<BpResulta
     ut.push({ butikknummer: s.butikknummer, timerAar: s.timerAar, maaneder })
   }
 
-  return { rapporttype: 'st1_bp', ar, stasjoner: ut }
+  // ROYALTYSATSENE (0198). Ligger i «Cluster data», ikke i arkene over,
+  // og hoerer til hele kjeden - ikke til en stasjon. `null` naar arket
+  // eller en av de tre satsene mangler; en halvlest sats er verre enn
+  // ingen. Se `bp-royalty.ts`.
+  const royalty = lesRoyaltysatser(data)
+
+  return { rapporttype: 'st1_bp', ar: ar ?? royalty?.ar ?? null, stasjoner: ut, royalty }
 }

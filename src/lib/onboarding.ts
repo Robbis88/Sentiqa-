@@ -123,8 +123,21 @@ export const KILDER: Kildekrav[] = [
     navn: 'Forretningsplan (BP)',
     // MÅNEDSFORDELINGEN, ikke årsrammen. Timebudsjettet er en egen
     // kilde (`bp_timer`) fordi det kan komme fra to ulike filer — se der.
-    hentesFra: 'Kjedens BP-fil, én gang i året',
-    laserOpp: 'Lønnsbudsjettet fordelt på måneder — kurven planleggeren leser.',
+    //
+    // BP-EN BÆRER OGSÅ ROYALTYSATSENE (0198). De ligger i «Cluster
+    // data»-arket, og de er kjededata — ikke Kelsar-data. Uten dem kan
+    // ingen modul si hva en forbedring er VERDT: royalty regnes av
+    // omsetning, så en svinngevinst beholdes i sin helhet mens vekst
+    // betaler. Regner systemet på bruttomargin i stedet, snur
+    // rangeringen mellom varegrupper.
+    //
+    // Det finnes ingen trygg standardverdi. Det finnes en trygg
+    // oppførsel: mangler satsene, skal kroneverdier ikke vises.
+    // Satsene lagres bare når de lar seg avstemme mot BP-ens egen
+    // «Sum Royalty» — se `parsere/bp-royalty.ts`.
+    hentesFra: 'Kjedens BP-fil, én gang i året. Bærer også royaltysatsene.',
+    laserOpp: 'Lønnsbudsjettet fordelt på måneder — kurven planleggeren leser — '
+      + 'og royaltysatsene som avgjør hva en forbedring er verdt.',
     anbefaltDager: 0,
     kritisk: true,
   },
