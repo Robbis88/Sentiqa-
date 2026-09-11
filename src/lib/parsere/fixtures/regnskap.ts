@@ -56,16 +56,26 @@ const AVDELINGER: [string, string][] = [
   ['1000', 'Energi'],
 ]
 
-/** Driftskonti per stasjon. 739 er med vilje ukjent for kontoplanen. */
-const KONTI: [string, number, number][] = [
-  ['501', 42180.5, 41000],
-  ['503', 118420.9, 121000],
-  ['540', 22110.4, 22800],
-  ['627', 8120, 8000],
-  ['633', 6420.75, 7310.5],
-  ['634', 9910.2, 9000],
-  ['739', 0, 0.01],
-  ['746', 1204.5, 900],
+/**
+ * Driftskonti per stasjon: kode, navnet arket TRYKKER ved siden av, tall.
+ *
+ * Navnet er ikke pynt. `kontoregister.ts` slår opp PARET, fordi St1
+ * renummererte rapportlinjene i februar 2026 og koden alene ikke lenger
+ * sier hva linja er. En fixture som skriver «Konto 501» ville testet en
+ * virkelighet som ikke finnes.
+ *
+ * `739 Reise-moeter-kurs` sto her for aa oeve den ukjente-kode-stien. Den
+ * stien er naa daekket praktisk i `kontoregister.test.ts`, og 739 er
+ * dessuten et par fra FOER februar 2026 — altsaa en fil vi avviser.
+ */
+const KONTI: [string, string, number, number][] = [
+  ['501', 'Faste lønninger', 42180.5, 41000],
+  ['503', 'Timelønn', 118420.9, 121000],
+  ['540', 'Arb.avg av lønn', 22110.4, 22800],
+  ['627', 'Renhold', 8120, 8000],
+  ['633', 'Forbruksmateriell', 6420.75, 7310.5],
+  ['634', 'Rep & vedlikehold', 9910.2, 9000],
+  ['746', 'Kassedifferanse', 1204.5, 900],
 ]
 
 function clusterArk(wb: ExcelJS.Workbook): void {
@@ -182,13 +192,13 @@ function stasjonsark(wb: ExcelJS.Workbook, nr: string, navn: string, i: number):
   }
 
   // --- Driftskonti (Res, nivaa 1, kode >= 500) -----------------------
-  for (const [kode, reg, bud] of KONTI) {
+  for (const [kode, knavn, reg, bud] of KONTI) {
     const rad: (string | number)[] = new Array(9).fill('')
     rad[0] = kode
     rad[1] = 'Konto'
     rad[2] = 'Res'
     rad[3] = '1'
-    rad[6] = `Konto ${kode}`
+    rad[6] = `${kode} ${knavn}`
     rad[7] = erLone ? reg : reg * (1 + i / 10)
     rad[8] = erLone ? bud : bud * (1 + i / 10)
     ws.addRow(rad)

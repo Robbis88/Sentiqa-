@@ -1,4 +1,5 @@
 import { celletekst, celletall, forsteDatoIso, lastArbeidsbok, ParserFeil } from './felles'
+import { slaaOppKonto } from './kontoregister'
 import type {
   RegnskapLinje,
   RegnskapResultat,
@@ -102,20 +103,9 @@ const SKOL = {
   bruttoRegnskap: 11, bruttoBudsjett: 13,
 } as const
 
-// St1-kontoplan: kostnadskonti i «Res»-seksjonen på per-stasjon-arket (kun
-// kode i regnearket, ikke navn). Brukes for per-stasjon driftskostnader.
-const KONTO_NAVN: Record<string, string> = {
-  '501': 'Faste lønninger', '502': 'Lønnstillegg', '503': 'Timelønn', '505': 'Sykelønn',
-  '506': 'Refundert sykelønn',
-  '508': 'Påløpte feriepenger', '509': 'Bonus', '540': 'Arb.avg av lønn', '541': 'Arb.avg av feriepenger',
-  '590': 'Andre personalkostnader', '621': 'Markedsbidrag', '622': 'Royalty', '623': 'FSA', '624': 'Franchiseavgift',
-  '627': 'Renhold', '628': 'Renovasjon', '629': 'Brøyting', '630': 'Leie driftsmidler', '631': 'Leie utstyr utleie',
-  '632': 'Utstyr & verktøy', '633': 'Forbruksmateriell', '634': 'Rep & vedlikehold', '635': 'Data & kortsystem',
-  '636': 'Pengehåndtering', '637': 'Fremmedtjenester & vakthold', '638': 'Kontorrekvisita', '639': 'Telefon',
-  '740': 'Bilutgifter', '741': 'Reise, møter, kurs', '742': 'Reklame', '743': 'Diverse', '744': 'Forsikringer',
-  '746': 'Kassedifferanse', '771': 'Bank & kortprovisjon', '780': 'Ekstraordinært tap/gevinst', '790': 'Avskrivninger',
-  '810': 'Finanskostnader', '840': 'Ikke driftsrelatert',
-}
+// Hva en kostnadskode betyr ligger i `kontoregister.ts`. Den tabellen som
+// sto her slo opp KODEN ALENE, og var derfor blind for at St1 flyttet
+// rapportlinjene i februar 2026. Se kommentaren i kontoregister.ts.
 
 // «Sammenstilling»-arket. Her ligger stasjonene som KOLONNER, ikke rader, og
 // arket har to like blokker: inneværende måned og hittil i år. Herfra henter vi
@@ -218,8 +208,14 @@ export async function parseRegnskapStasjoner(
         const reg = celletall(rad.getCell(SKOL.salgRegnskap).value)
         const bud = celletall(rad.getCell(SKOL.salgBudsjett).value)
         if (reg === 0 && bud === 0) continue
+        // Koden ALENE sier ikke hva linja er: St1 renummererte i februar
+        // 2026, og 628 betydde «Leie driftsmidler» før det. Arket skriver
+        // navnet ved siden av koden i samme celle — vi leser paret, og
+        // `slaaOppKonto` kaster på en kombinasjon ingen har tatt stilling
+        // til. Se `kontoregister.ts`.
+        const trykt = celletekst(rad.getCell(SKOL.navn).value)
         linjer.push({
-          seksjon: 'driftskostnader', kode: kk, post: KONTO_NAVN[kk] ?? `Konto ${kk}`, sortering: null,
+          seksjon: 'driftskostnader', kode: kk, post: slaaOppKonto(kk, trykt).navn, sortering: null,
           regnskap: reg, budsjett: bud, avvik: reg - bud, indexPct: bud ? ((reg - bud) / bud) * 100 : 0,
           regnskapHittil: 0, budsjettHittil: 0,
         })
