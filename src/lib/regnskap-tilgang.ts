@@ -26,3 +26,31 @@ export const BUTIKKSJEF_DRIFT_KODER = ['627', '628', '629', '632', '633', '634',
 
 // Alle koder en butikksjef har innsyn i.
 export const BUTIKKSJEF_KOSTNAD_KODER = new Set<string>([...BUTIKKSJEF_PERSONAL_KODER, ...BUTIKKSJEF_DRIFT_KODER])
+
+// =====================================================================
+// DE SAMME GRENSENE, UTTRYKT I BEGREP OG IKKE I KODER
+// =====================================================================
+//
+// Listene over er RAPPORTLINJEKODER, og en kode er en adresse - ikke en
+// identitet. St1 renummererte i februar 2026: `628` betydde «Leie
+// driftsmidler» foer og «Renovasjon» naa (se `parsere/kontoregister.ts`).
+//
+// For stasjonsarkene gaar det bra, fordi importen AVVISER filer fra den
+// gamle epoken. Men bilagsbufferen (0199) baerer tolv maaneder bakover i
+// hver fil, og de eldste radene ER fra det gamle skjemaet. Der ville en
+// grense skrevet i koder sluppet leasingkostnaden gjennom som renovasjon.
+//
+// Derfor er grensen for bilagslinjer skrevet i `Kontobegrep`, som er
+// stabilt over skiftet. `kontoregister.test.ts` binder de to listene
+// sammen, slik `lonnskost-koder.test.ts` gjoer for loennskontiene.
+export const BUTIKKSJEF_BEGREP = [
+  // Personal, samlet til én linje i visningen.
+  'faste_lonninger', 'lonnstillegg', 'timelonn', 'sykelonn',
+  'refundert_sykelonn', 'palopte_feriepenger', 'bonus',
+  'arbeidsgiveravgift_lonn', 'arbeidsgiveravgift_feriepenger',
+  'andre_personalkostnader',
+  // Paavirkbar drift, i visningsrekkefoelge.
+  'renhold', 'renovasjon', 'broyting', 'utstyr_verktoy',
+  'forbruksmateriell', 'rep_vedlikehold', 'pengehandtering',
+  'kontorrekvisita', 'kassedifferanse',
+] as const
