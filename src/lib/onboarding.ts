@@ -131,7 +131,14 @@ export const KILDER: Kildekrav[] = [
   {
     noekkel: 'regnskapslinjer',
     navn: 'Regnskapsrapport',
-    hentesFra: 'Regnskapsføreren, hver måned',
+    // FRA OG MED FEBRUAR 2026. St1 renummererte rapportlinjene da, og de
+    // fleste 63x-kodene forskjøv seg med to — 628 betydde «Leie
+    // driftsmidler» før, «Renovasjon» nå. En eldre fil BLIR AVVIST av
+    // parseren med en forklarende beskjed, ikke importert feil. Grunnen
+    // ligger i `parsere/kontoregister.ts`: tilgangsgrensen for butikksjef
+    // er skrevet i rå koder, så en gammel fil ville lagt rader i basen der
+    // koden betyr noe annet enn policyen tror.
+    hentesFra: 'Regnskapsføreren, hver måned. Rapporter fra februar 2026 og senere.',
     laserOpp: 'Faktisk lønn og timer mot budsjett, og avvikene som utløser varsler.',
     anbefaltDager: 0,
     kritisk: false,
