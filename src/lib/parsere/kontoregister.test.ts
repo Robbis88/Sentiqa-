@@ -6,7 +6,7 @@ import {
   slaaOppKonto,
   type Kontobegrep,
 } from './kontoregister'
-import { BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
+import { BUTIKKSJEF_BEGREP, BUTIKKSJEF_DRIFT_KODER, BUTIKKSJEF_KOSTNAD_KODER } from '@/lib/regnskap-tilgang'
 
 // Denne fila beviser at oppslaget SER. En tabell som slår opp koden alene
 // ser nøyaktig like riktig ut som en som leser paret — helt til St1 flytter
@@ -168,5 +168,44 @@ describe('normaliser', () => {
   it('beholder æ, ø og å', () => {
     expect(normaliser('Brøyting')).toBe('brøyting')
     expect(normaliser('Påløpte feriepenger')).toBe('påløpte feriepenger')
+  })
+})
+
+describe('BUTIKKSJEF_BEGREP speiler kodelistene', () => {
+  // Grensen finnes i to former: koder for stasjonsarkene, begrep for
+  // bilagsbufferen (0199). De maa bety det samme, ellers ser en
+  // butikksjef ulike ting avhengig av hvilken kilde tallet kom fra.
+  //
+  // Bufferen er den farlige av de to: den baerer tolv maaneder bakover,
+  // og de eldste radene er fra skjemaet foer februar 2026 der 628 var
+  // «Leie driftsmidler». Derfor kan grensen der ikke skrives i koder.
+  it('hver synlig kode har sitt begrep i lista', () => {
+    const per2026 = registrertePar().filter((p) => p.epoke !== 'for_feb_2026')
+    for (const kode of BUTIKKSJEF_KOSTNAD_KODER) {
+      const begreper = per2026.filter((p) => p.kode === kode).map((p) => p.begrep)
+      expect(begreper.length, `kode ${kode} mangler i registeret`).toBeGreaterThan(0)
+      for (const b of begreper) {
+        expect(BUTIKKSJEF_BEGREP as readonly string[], `kode ${kode} -> ${b}`).toContain(b)
+      }
+    }
+  })
+
+  it('KANARI: ingen begrep i lista hoerer til en kode butikksjefen IKKE ser', () => {
+    // Uten denne kunne lista vokse med noe som aldri ble besluttet -
+    // og en generert plan ville nevnt en admin-kostnad.
+    const per2026 = registrertePar().filter((p) => p.epoke !== 'for_feb_2026')
+    for (const b of BUTIKKSJEF_BEGREP) {
+      const koder = per2026.filter((p) => p.begrep === b).map((p) => p.kode)
+      expect(koder.length, `begrep ${b} finnes ikke i registeret`).toBeGreaterThan(0)
+      for (const k of koder) {
+        expect(BUTIKKSJEF_KOSTNAD_KODER, `begrep ${b} -> kode ${k}`).toContain(k)
+      }
+    }
+  })
+
+  it('KANARI: «leie_driftsmidler» er IKKE i lista', () => {
+    // Det er nettopp den 628 betydde foer februar 2026, og den grensen
+    // hele oevelsen finnes for.
+    expect(BUTIKKSJEF_BEGREP as readonly string[]).not.toContain('leie_driftsmidler')
   })
 })

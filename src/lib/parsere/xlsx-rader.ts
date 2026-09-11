@@ -85,6 +85,40 @@ function pakkUt(
   uz.push(data, true)
 }
 
+/**
+ * En navngitt del av arbeidsboka, som strøm.
+ *
+ * `lesArk` finner arket gjennom `workbook.xml` og relasjonene. Noen deler
+ * har faste navn og ingen relasjon — pivotbufferen er den viktigste:
+ * `xl/pivotCache/pivotCacheRecords1.xml` bærer tolv måneders bilagslinjer
+ * i regnskapsfila, og den kan være over en megabyte.
+ *
+ * Strøm og ikke streng, av samme grunn som `lesArk`: en del vi ikke
+ * trenger samlet skal ikke ligge i minnet samlet.
+ */
+export function lesDelStrom(
+  data: Uint8Array | ArrayBuffer,
+  navn: string,
+  paaBit: (tekst: string, ferdig: boolean) => void,
+): void {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
+  pakkUt(bytes, (n) => n === navn, (_n, t, ferdig) => paaBit(t, ferdig))
+}
+
+/** Samler en hel (liten) del til én streng. */
+export function lesDel(data: Uint8Array | ArrayBuffer, navn: string): string {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
+  return lesHele(bytes, navn)
+}
+
+/** Navnene på alle delene i arbeidsboka. Til å se om en del finnes. */
+export function delnavn(data: Uint8Array | ArrayBuffer): string[] {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
+  const ut: string[] = []
+  pakkUt(bytes, (n) => { ut.push(n); return false }, () => {})
+  return ut
+}
+
 /** Samler en hel (liten) del til én streng. */
 function lesHele(data: Uint8Array, navn: string): string {
   let ut = ''

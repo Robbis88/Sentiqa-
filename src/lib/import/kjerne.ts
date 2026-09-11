@@ -10,6 +10,8 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { skalLagres } from '@/lib/parsere/bp-royalty'
+import { butikknummer, lesBilagsbuffer, summerPerLeverandor, type Bilagslinje } from '@/lib/parsere/bilagsbuffer'
+import { slaaOppKonto } from '@/lib/parsere/kontoregister'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
 import { manglendeStasjoner, dekningsnotat, erDaglig } from './stasjonsdekning'
@@ -288,6 +290,7 @@ export async function behandleJobbKjerne(
     const oppslag = await hentStasjonsoppslag(supabase)
     let res: Lagring
     let dato: string | null = null
+    let bilagsnotat: string | null = null
 
     switch (rapporttype) {
       case 'st1_salgsstatistikk': {
@@ -326,6 +329,13 @@ export async function behandleJobbKjerne(
           const us = await parseUsynligSvinn(buffer)
           await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, us, dato)
         } catch { /* fila har kanskje ikke per-stasjon-ark */ }
+        // BILAGSBUFFEREN (0199). Tolv maaneders leverandoerdetalj foelger
+        // hver opplasting - se `parsere/bilagsbuffer.ts`. Best effort:
+        // noen filer mangler bufferen, og det er ikke en feil ved fila.
+        try {
+          const b = await lagreBilagssum(supabase, retailerId, jobbId, buffer, oppslag.medNummer)
+          if (b) bilagsnotat = b
+        } catch { /* fila har kanskje ikke pivotbuffer */ }
         // Bemanningsvarsler — også best effort.
         try {
           await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
@@ -410,6 +420,7 @@ export async function behandleJobbKjerne(
           // melde «parset» uten at noe manglet paa papiret.
           stasjonsmerknad(rapporttype, res, oppslag.stasjoner),
           res.notat ?? null,
+          bilagsnotat,
         ].filter(Boolean).join(' · ') || null,
       })
       .eq('id', jobbId)
@@ -1130,6 +1141,91 @@ async function sykefravaerssats(
     .in('kode', [...LONNSKONTI, ...SYKEKONTI])
 
   return kjedensSykesats((data ?? []) as Regnskapsrad[])
+}
+
+/**
+ * Bilagssummene fra pivotbufferen (0199).
+ *
+ * =====================================================================
+ * BEGREPET, IKKE KODEN, STYRER HVEM SOM SER RADEN
+ * =====================================================================
+ *
+ * Bufferen baerer TOLV MAANEDER bakover i hver fil. De eldste radene er
+ * derfor fra rapportskjemaet FOER februar 2026, uansett hvor ny fila er -
+ * og der betydde `628` «Leie driftsmidler», ikke «Renovasjon».
+ *
+ * `slaaOppKonto` kjenner igjen begge epokene. Den KASTER paa den gamle,
+ * fordi en stasjonsarkrad derfra ikke kan importeres trygt. Her er svaret
+ * et annet: raden lagres, men uten begrep. NULL betyr skjult for
+ * butikksjef - policyen i 0199 krever et begrep i lista. Feiler lukket.
+ *
+ * Aa kaste her ville betydd at ingen fil kunne importeres i det hele
+ * tatt, siden hver fil baerer gamle perioder. Aa gjette begrepet ut fra
+ * koden ville sluppet leasingkostnaden gjennom som renovasjon.
+ *
+ * Returnerer en merknad naar noe er verdt aa si, ellers `null`.
+ */
+async function lagreBilagssum(
+  supabase: Klient,
+  retailerId: string,
+  jobbId: string,
+  buffer: Buffer,
+  medNummer: Map<string, string>,
+): Promise<string | null> {
+  const linjer: Bilagslinje[] = []
+  const meta = lesBilagsbuffer(buffer, (l) => linjer.push(l))
+  if (!meta || linjer.length === 0) return null
+
+  const summer = summerPerLeverandor(linjer)
+  let utenBegrep = 0
+
+  const rader = summer.map((s) => {
+    const bnr = butikknummer(s.butikk)
+    // KODE + TRYKT NAVN, aldri koden alene. `Rapportlinje` i bufferen er
+    // «627 Renhold» - begge deler i samme streng, som paa stasjonsarket.
+    const kode = /^(\d+)/.exec(s.rapportlinje)?.[1] ?? ''
+    let begrep: string | null = null
+    try {
+      begrep = kode ? slaaOppKonto(kode, s.rapportlinje).begrep : null
+    } catch {
+      begrep = null
+    }
+    if (!begrep) utenBegrep++
+    return {
+      retailer_id: retailerId,
+      stasjon_id: bnr ? (medNummer.get(bnr) ?? null) : null,
+      butikknummer: bnr ?? s.butikk.slice(0, 40),
+      periode: `${s.periode.slice(0, 4)}-${s.periode.slice(4, 6)}-01`,
+      rapportlinje: s.rapportlinje.slice(0, 120),
+      konto: s.konto.slice(0, 120),
+      begrep,
+      // Skranken er sammensatt av tekst; en btree-indeks taaler ikke
+      // vilkaarlig lengde, og en bilagstekst er aldri saa lang.
+      tekst: s.tekst.slice(0, 120),
+      belop_kr: Math.round(s.belopKr * 100) / 100,
+      antall: s.antall,
+      kilde_jobb_id: jobbId,
+      oppdatert_tid: new Date().toISOString(),
+    }
+  })
+
+  await skrivBatch(
+    supabase, 'bilagssum', rader,
+    'retailer_id,butikknummer,periode,konto,tekst',
+  )
+
+  const mnd = meta.perioder.length
+  const deler = [
+    `Leste ${meta.antall.toLocaleString('nb-NO')} bilagslinjer fra ${mnd} maaneder `
+    + `(${meta.perioder[0]}-${meta.perioder[mnd - 1]}).`,
+  ]
+  if (utenBegrep > 0) {
+    deler.push(
+      `${utenBegrep} av ${rader.length} summer er fra et eldre rapportformat og `
+      + 'er skjult for butikksjef.',
+    )
+  }
+  return deler.join(' ')
 }
 
 async function lagreBp(

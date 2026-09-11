@@ -151,8 +151,16 @@ export const KILDER: Kildekrav[] = [
     // ligger i `parsere/kontoregister.ts`: tilgangsgrensen for butikksjef
     // er skrevet i rå koder, så en gammel fil ville lagt rader i basen der
     // koden betyr noe annet enn policyen tror.
+    // OG DEN BÆRER TOLV MÅNEDER BAKOVER (0199). `Kostnader`-arket er en
+    // pivottabell, og en pivottabell lagrer en kopi av kildedataene sine
+    // i fila. Kilden er tolv måneders bilagslinjer med leverandørnavn —
+    // ikke bare måneden rapporten gjelder.
+    //
+    // Det endrer hva vi kan love en ny kunde i uke én: ÉN opplastet
+    // rapport gir et helt års kostnadshistorikk, ikke én måned.
     hentesFra: 'Regnskapsføreren, hver måned. Rapporter fra februar 2026 og senere.',
-    laserOpp: 'Faktisk lønn og timer mot budsjett, og avvikene som utløser varsler.',
+    laserOpp: 'Faktisk lønn og timer mot budsjett, avvikene som utløser varsler — '
+      + 'og tolv måneders bilagsdetalj med leverandørnavn, fra én enkelt fil.',
     anbefaltDager: 0,
     kritisk: false,
   },

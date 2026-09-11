@@ -41,6 +41,7 @@ begin
     ('bemanning_maned', true, false),
     ('bemanning_stasjon', true, false),
     ('bemanning_vindu', true, false),
+    ('bilagssum', true, false),
     ('bilvask_abonnement', true, false),
     ('bp_aar', true, false),
     ('bp_linje', true, false),

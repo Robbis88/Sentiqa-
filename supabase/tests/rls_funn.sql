@@ -28,6 +28,10 @@
 with lister as (
   select
     array[
+      -- Bilagssummene (0199). Vokser med drift: en rad per butikk,
+      -- maaned, konto og leverandoer - Kelsar alene lager ~315 i
+      -- maaneden.
+      'bilagssum',
       'daglig_salg', 'timesalg', 'kassererstatistikk', 'synlig_svinn',
       'regnskapslinjer', 'regnskap_usynlig_svinn', 'rutine_utforinger',
       'sjekkpunkt_svar', 'ik_avlesninger', 'ansatte', 'oppgaver',

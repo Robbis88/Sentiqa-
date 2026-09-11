@@ -491,6 +491,42 @@
    "oppdaterbart": "min_bemanning = 2"
   },
   {
+   "tabell": "bilagssum",
+   "$hvorfor": "Bilagslinjer summert per butikk, maaned, konto og leverandoer, lest ut av pivotbufferen i regnskapsfila (0199). Uten dem er «renhold er hoeyt» alt systemet kan si; med dem er det «ASKO Vest 29 825 paa Lone mot Vardens 7 207». BUTIKKSJEF SER ET UTVALG: bare egne stasjoner, og bare rader med et KONTOBEGREP i den tillatte lista - ikke rapportlinjekode. Koden betyr ulike ting foer og etter februar 2026 (628 var «Leie driftsmidler»), og bufferen baerer tolv maaneder bakover i hver fil, saa de eldste radene er fra det gamle skjemaet uansett hvor ny fila er. Et begrep vi ikke kjente igjen lagres som NULL, og NULL er skjult. ADMIN-RADENE ER KJEDENS NULL-STASJONSRADER: 9900 Admin har ingen stasjon, og de faller ut av mine_stasjoner() av seg selv - null er aldri med i en IN-liste. Derfor null_stasjon = kun_eier. NETTBRETTET NAAR DEN IKKE: dette er kostnadsdetalj, ikke noe som hoerer hjemme paa gulvet. INGEN SKRIVEPOLICY: radene kommer fra importen gjennom tjenestenoekkelen.",
+   "tenant_scope": "retailer_or_station",
+   "null_stasjon": "kun_eier",
+   "data_class": "warm",
+   "operasjoner": [
+    "select"
+   ],
+   "tablet": "none",
+   "manager": {
+    "select": "assigned_stations"
+   },
+   "owner": "retailer",
+   "business_unik": [
+    "butikknummer",
+    "periode",
+    "konto",
+    "tekst"
+   ],
+   "business_unik_unntak": {
+    "konto": "Kontoen ER noekkelen vi bryr oss om - poenget med raden er hvilken konto pengene gikk paa. Den kan derfor ikke varieres uten aa gjoere proberaden til noe annet enn en bilagssum. Kollisjon er umulig likevel: butikknummer, periode og tekst varierer alle per forsoek, og skranken er sammensatt av alle fire.",
+    "rapportlinje": "Foelger kontoen. Staar ikke i skranken i det hele tatt, men er tatt med i proberaden fordi kolonnen er not null."
+   },
+   "$business_unik_hvorfor": "unique (retailer_id, butikknummer, periode, konto, tekst) i 0199. Hver maanedsfil baerer tolv maaneder, saa sju filer overlapper med elleve - uten skranken ville hver opplasting lagt hele fjoraaret oppaa seg selv.",
+   "proberad": {
+    "butikknummer": "'{{unik_nr}}'",
+    "periode": "{{unik_dato}}",
+    "rapportlinje": "'627 Renhold'",
+    "konto": "'6270 Renhold'",
+    "begrep": "'renhold'",
+    "tekst": "'Sonde {{unik}}'",
+    "belop_kr": "1234.50"
+   },
+   "$proberad_hvorfor": "`begrep` maa vaere 'renhold' og ikke null: butikksjefpolicyen krever et begrep i den tillatte lista, og en proberad med null ville gjort at ingen tillatt lesing lyktes - da beviser ingen av avvisningene noe. Se regelen om positiv kontroll i AGENTS.md."
+  },
+  {
    "tabell": "bilvask_abonnement",
    "$hvorfor": "Ukentlige abonnementsinntekter paa bilvask (0184). Kassa ser dem ikke - de betales rett til konto, og uten dem er bruttofortjenesten for lav hver maaned. Baade eier og butikksjef legger inn: rapporten kommer ukentlig, og den som er paa jobb skal kunne foere den. LESING er aapen for alle som naar stasjonen, ogsaa nettbrettet - et beloep for en uke er ikke personopplysninger, og butikksjefen MAA se hva eieren alt har lagt inn, ellers foeres uka to ganger. Sletting er eierens alene.",
    "tenant_scope": "retailer_and_station",
