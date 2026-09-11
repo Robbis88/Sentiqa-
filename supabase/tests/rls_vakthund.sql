@@ -52,6 +52,11 @@ declare
     -- Innloggingsforsoek for vakt og stempling (0112). Vokser med hver
     -- eneste innsjekk, og leses av ledere i revisjonsoyemed.
     'pin_forsok',
+    -- Stoettetilgang og oppslagsloggen (0196). Vokser med hver gang
+    -- plattformen roerer en levende kjede, og leses av kunden selv som
+    -- revisjonsspor. Ingen skrivepolicy finnes - radene kommer fra
+    -- tjenestenoekkelen.
+    'stotte_tilgang', 'stotte_oppslag',
     -- BP-en som eget dokument (0155). Faa rader per aar, men de leses av
     -- hver analysevisning og vokser med hver aargang og hver stasjon.
     'bp_aar', 'bp_linje',

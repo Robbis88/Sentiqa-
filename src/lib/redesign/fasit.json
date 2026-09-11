@@ -342,8 +342,10 @@
       "slettPerson"
     ],
     "/plattform": [
+      "apneStottevindu",
       "deaktiverKunde",
       "godkjennKunde",
+      "lukkStottevindu",
       "opprettKunde",
       "reaktiverKunde",
       "sendInvitasjonPaaNytt",
@@ -715,6 +717,7 @@
       "Ingen aktive kjeder ennå",
       "Mangler service-nøkkel",
       "Ny kunde",
+      "Støttetilgang — ${r.navn}",
       "Venter på godkjenning"
     ],
     "/premier": [

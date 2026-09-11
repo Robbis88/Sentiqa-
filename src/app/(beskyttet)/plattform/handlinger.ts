@@ -6,6 +6,8 @@ import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kvitter, type Kvittering } from '@/lib/kvittering'
 import { taalerAaFeile } from '@/lib/skriv-svar'
+import { krevStotte, apneStotte, lukkStotte, MAKS_TIMER } from '@/lib/stotte'
+import { loggHendelse } from '@/lib/kontrollrom'
 
 async function erEier(): Promise<boolean> {
   const bruker = await hentInnloggetBruker()
@@ -99,6 +101,20 @@ export async function sendInvitasjonPaaNytt(
   )
   if (error) return { feil: `Kunne ikke sende: ${error.message}` }
 
+  // BEVISST UTENFOR STOETTEPORTEN, og det er verdt aa skrive ned hvorfor.
+  // Aa sende en gjenopprettingslenke er funksjonelt en vei inn i kundens
+  // konto - men handlingen finnes nettopp for kunden som IKKE kommer inn,
+  // ofte foer det finnes data i kjeden i det hele tatt. Et stoettevindu
+  // som maa aapnes foerst ville laast den flyten den ble laget for.
+  //
+  // Den skal likevel ikke vaere usporet. Kontrollrommet faar linja.
+  await loggHendelse({
+    type: 'support',
+    alvorlighet: 'warning',
+    tittel: 'Plattform sendte gjenopprettingslenke',
+    detaljer: { epost, av: (await hentInnloggetBruker()).id },
+  })
+
   return { ok: `Lenke sendt til ${epost}` }
 }
 
@@ -187,10 +203,12 @@ export async function godkjennKunde(
 export async function deaktiverKunde(
   _t: Kvittering, fd: FormData,
 ): Promise<Kvittering> {
-  const k = await eierOgAdmin()
-  if ('feil' in k) return k
   const id = String(fd.get('id') ?? '')
   if (!id) return { feil: 'Mangler id.' }
+  // PORTEN. Aa sperre innloggingen for en hel kjede er ikke en handling
+  // som skal kunne gjoeres uten at det staar hvorfor. Se lib/stotte.ts.
+  const k = await krevStotte(id, 'deaktiver_kjede')
+  if (!k.ok) return { feil: k.feil }
 
   const sperrefeil = await settSperre(k.admin, id, true)
   if (sperrefeil) return { feil: sperrefeil }
@@ -206,10 +224,10 @@ export async function deaktiverKunde(
 export async function reaktiverKunde(
   _t: Kvittering, fd: FormData,
 ): Promise<Kvittering> {
-  const k = await eierOgAdmin()
-  if ('feil' in k) return k
   const id = String(fd.get('id') ?? '')
   if (!id) return { feil: 'Mangler id.' }
+  const k = await krevStotte(id, 'reaktiver_kjede')
+  if (!k.ok) return { feil: k.feil }
 
   const sperrefeil = await settSperre(k.admin, id, false)
   if (sperrefeil) return { feil: sperrefeil }
@@ -224,10 +242,12 @@ export async function reaktiverKunde(
 export async function slettKundePermanent(
   _t: Kvittering, fd: FormData,
 ): Promise<Kvittering> {
-  const k = await eierOgAdmin()
-  if ('feil' in k) return k
   const id = String(fd.get('id') ?? '')
   if (!id) return { feil: 'Mangler id.' }
+  // Den mest uopprettelige handlingen i systemet. Den skal aldri kunne
+  // ha skjedd uten at det staar hvem, naar og hvorfor.
+  const k = await krevStotte(id, 'slett_kjede_permanent')
+  if (!k.ok) return { feil: k.feil }
 
   const { data: profiler, error: pe } = await k.admin.from('profiler').select('id').eq('retailer_id', id)
   if (pe) return { feil: `Fant ikke brukerne: ${pe.message}` }
@@ -251,4 +271,48 @@ export async function slettKundePermanent(
         + 'innlogging(er) ble stående igjen. Fjern dem i Supabase.',
     }
     : { ok: 'Kjeden og alle data er slettet' }
+}
+
+// =====================================================================
+// STOETTEVINDUET
+//
+// Den som skal roere en levende kjede, aapner et vindu foerst - med en
+// begrunnelse kunden faar se, og en varighet basen selv begrenser (0196).
+// Handlingene over nekter aa kjoere uten.
+// =====================================================================
+export async function apneStottevindu(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  const id = String(fd.get('id') ?? '')
+  const grunn = String(fd.get('begrunnelse') ?? '')
+  const timer = Number(fd.get('timer') ?? 1)
+  if (!id) return { feil: 'Mangler kjede.' }
+
+  const svar = await apneStotte(id, grunn, timer)
+  if (!svar.ok) return { feil: svar.feil }
+
+  // Kontrollrommet faar den ogsaa. En aapning som bare finnes i kundens
+  // egen logg, er en aapning ingen hos oss ser.
+  await loggHendelse({
+    type: 'support',
+    alvorlighet: 'warning',
+    tittel: 'Stoettetilgang aapnet',
+    detaljer: { retailer_id: id, timer, begrunnelse: grunn.trim().slice(0, 300) },
+  })
+
+  // INGEN revalidatePath paa egen rute: `useKvittering` frisker opp
+  // ruteren selv ETTER at kvitteringen er vist. Kalles den herfra, blir
+  // oppdateringen en del av overgangen, og knappen staar «Aapner ...»
+  // paa noe som alt er lagret.
+  return { ok: `Stoettetilgang aapen i ${Math.min(Math.max(Math.round(timer) || 1, 1), MAKS_TIMER)} time(r).` }
+}
+
+export async function lukkStottevindu(
+  _t: Kvittering, fd: FormData,
+): Promise<Kvittering> {
+  const tilgangId = String(fd.get('tilgang_id') ?? '')
+  if (!tilgangId) return { feil: 'Mangler tilgang.' }
+  const svar = await lukkStotte(tilgangId)
+  if (!svar.ok) return { feil: svar.feil }
+  return { ok: 'Stoettetilgangen er lukket.' }
 }

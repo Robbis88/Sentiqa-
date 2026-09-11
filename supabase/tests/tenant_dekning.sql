@@ -108,6 +108,8 @@ begin
     ('stasjoner', true, false),
     ('stempling', true, false),
     ('stempling_hendelse', true, false),
+    ('stotte_oppslag', true, false),
+    ('stotte_tilgang', true, false),
     ('synlig_svinn', true, false),
     ('tablet_meldinger', true, false),
     ('tilbakemelding', true, false),
