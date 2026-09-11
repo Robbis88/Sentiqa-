@@ -334,6 +334,11 @@ insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values 
 insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values ('3376a919-0000-4000-8000-00003376a919', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'Sondesporsmaal');
 insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values ('350f52b7-0000-4000-8000-0000350f52b7', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'Sondesporsmaal');
 insert into public.sjekkpunkter (id, retailer_id, stasjon_id, sporsmaal) values ('351d6a4e-0000-4000-8000-0000351d6a4e', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sondesporsmaal');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('d7e853fc-0000-4000-8000-0000d7e853fc', 'aaaa0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000a000', 'sonde fastA1 - forutsetning', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('d7f66b7e-0000-4000-8000-0000d7f66b7e', 'aaaa0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000a000', 'sonde fastA2 - forutsetning', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('d8048300-0000-4000-8000-0000d8048300', 'aaaa0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000a000', 'sonde fastA3 - forutsetning', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('d99d2c9e-0000-4000-8000-0000d99d2c9e', 'bbbb0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000b000', 'sonde fastB1 - forutsetning', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('d9ab4420-0000-4000-8000-0000d9ab4420', 'bbbb0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000b000', 'sonde fastB2 - forutsetning', now() + interval '1 hour');
 insert into public.merker (id, retailer_id, navn) values ('3bae7279-0000-4000-8000-00003bae7279', 'aaaa0000-0000-4000-8000-000000000000', 'Sondemerke 418');
 insert into public.ansatte (id, retailer_id, stasjon_id, navn, ansatt_nr, pin_hash) values ('3ccd2e8e-0000-4000-8000-00003ccd2e8e', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sondeansatt', 'merke-418', 'pin-merke-418');
 insert into public.merker (id, retailer_id, navn) values ('3bbc89fb-0000-4000-8000-00003bbc89fb', 'aaaa0000-0000-4000-8000-000000000000', 'Sondemerke 419');
@@ -2015,17 +2020,17 @@ begin
   return ny;
 end $fn$;
 -- --- stotte_oppslag: forutsetninger og proberader ---
-insert into public.stotte_oppslag (id, retailer_id, handling) values ('43f6149a-0000-4000-8000-000043f6149a', 'aaaa0000-0000-4000-8000-000000000000', 'sonde_fastA1');
-insert into public.stotte_oppslag (id, retailer_id, handling) values ('43f6149b-0000-4000-8000-000043f6149b', 'aaaa0000-0000-4000-8000-000000000000', 'sonde_fastA2');
-insert into public.stotte_oppslag (id, retailer_id, handling) values ('43f6149c-0000-4000-8000-000043f6149c', 'aaaa0000-0000-4000-8000-000000000000', 'sonde_fastA3');
-insert into public.stotte_oppslag (id, retailer_id, handling) values ('43f614b9-0000-4000-8000-000043f614b9', 'bbbb0000-0000-4000-8000-000000000000', 'sonde_fastB1');
-insert into public.stotte_oppslag (id, retailer_id, handling) values ('43f614ba-0000-4000-8000-000043f614ba', 'bbbb0000-0000-4000-8000-000000000000', 'sonde_fastB2');
+insert into public.stotte_oppslag (id, retailer_id, tilgang_id, handling) values ('43f6149a-0000-4000-8000-000043f6149a', 'aaaa0000-0000-4000-8000-000000000000', 'd7e853fc-0000-4000-8000-0000d7e853fc', 'sonde_fastA1');
+insert into public.stotte_oppslag (id, retailer_id, tilgang_id, handling) values ('43f6149b-0000-4000-8000-000043f6149b', 'aaaa0000-0000-4000-8000-000000000000', 'd7f66b7e-0000-4000-8000-0000d7f66b7e', 'sonde_fastA2');
+insert into public.stotte_oppslag (id, retailer_id, tilgang_id, handling) values ('43f6149c-0000-4000-8000-000043f6149c', 'aaaa0000-0000-4000-8000-000000000000', 'd8048300-0000-4000-8000-0000d8048300', 'sonde_fastA3');
+insert into public.stotte_oppslag (id, retailer_id, tilgang_id, handling) values ('43f614b9-0000-4000-8000-000043f614b9', 'bbbb0000-0000-4000-8000-000000000000', 'd99d2c9e-0000-4000-8000-0000d99d2c9e', 'sonde_fastB1');
+insert into public.stotte_oppslag (id, retailer_id, tilgang_id, handling) values ('43f614ba-0000-4000-8000-000043f614ba', 'bbbb0000-0000-4000-8000-000000000000', 'd9ab4420-0000-4000-8000-0000d9ab4420', 'sonde_fastB2');
 -- --- stotte_tilgang: forutsetninger og proberader ---
-insert into public.stotte_tilgang (id, retailer_id, begrunnelse, til_tid) values ('c3b5da56-0000-4000-8000-0000c3b5da56', 'aaaa0000-0000-4000-8000-000000000000', 'sonde fastA1 - feilsoeking', now() + interval '1 hour');
-insert into public.stotte_tilgang (id, retailer_id, begrunnelse, til_tid) values ('c3b5da57-0000-4000-8000-0000c3b5da57', 'aaaa0000-0000-4000-8000-000000000000', 'sonde fastA2 - feilsoeking', now() + interval '1 hour');
-insert into public.stotte_tilgang (id, retailer_id, begrunnelse, til_tid) values ('c3b5da58-0000-4000-8000-0000c3b5da58', 'aaaa0000-0000-4000-8000-000000000000', 'sonde fastA3 - feilsoeking', now() + interval '1 hour');
-insert into public.stotte_tilgang (id, retailer_id, begrunnelse, til_tid) values ('c3b5da75-0000-4000-8000-0000c3b5da75', 'bbbb0000-0000-4000-8000-000000000000', 'sonde fastB1 - feilsoeking', now() + interval '1 hour');
-insert into public.stotte_tilgang (id, retailer_id, begrunnelse, til_tid) values ('c3b5da76-0000-4000-8000-0000c3b5da76', 'bbbb0000-0000-4000-8000-000000000000', 'sonde fastB2 - feilsoeking', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('c3b5da56-0000-4000-8000-0000c3b5da56', 'aaaa0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000a000', 'sonde fastA1 - feilsoeking', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('c3b5da57-0000-4000-8000-0000c3b5da57', 'aaaa0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000a000', 'sonde fastA2 - feilsoeking', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('c3b5da58-0000-4000-8000-0000c3b5da58', 'aaaa0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000a000', 'sonde fastA3 - feilsoeking', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('c3b5da75-0000-4000-8000-0000c3b5da75', 'bbbb0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000b000', 'sonde fastB1 - feilsoeking', now() + interval '1 hour');
+insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('c3b5da76-0000-4000-8000-0000c3b5da76', 'bbbb0000-0000-4000-8000-000000000000', '00000000-0000-0000-0000-00000000b000', 'sonde fastB2 - feilsoeking', now() + interval '1 hour');
 -- --- synlig_svinn: forutsetninger og proberader ---
 insert into public.synlig_svinn (id, retailer_id, stasjon_id, dato, ean, varenavn, antall, nettopris_total) values ('f74fb05d-0000-4000-8000-0000f74fb05d', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', date '2026-01-01' + 401, 'fastA1', 'Sondevare', 1, 25);
 insert into public.synlig_svinn (id, retailer_id, stasjon_id, dato, ean, varenavn, antall, nettopris_total) values ('f74fb05e-0000-4000-8000-0000f74fb05e', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', date '2026-01-01' + 402, 'fastA2', 'Sondevare', 1, 25);

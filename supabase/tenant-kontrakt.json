@@ -2371,8 +2371,13 @@
         "select": "retailer"
       },
       "proberad": {
+        "tilgang_id": "'{{seed:stottetilgang}}'",
         "handling": "'sonde_{{unik}}'"
-      }
+      },
+      "seed_ekstra": [
+        "insert into public.stotte_tilgang (id, retailer_id, gitt_til, begrunnelse, til_tid) values ('{{seed:stottetilgang}}', '{{retailer}}', '{{bruker}}', 'sonde {{unik}} - forutsetning', now() + interval '1 hour')"
+      ],
+      "$proberad_hvorfor": "Oppslaget kan ikke finnes uten en tildeling - det er hele poenget med fremmednoekkelen. Forutsetningsraden lages med fersk uuid per forsoek, saa to forsoek aldri deler tildeling. Se $proberad_hvorfor paa stotte_tilgang for hvorfor mottakeren er kjedens egen eier i fiksturen."
     },
     {
       "tabell": "stotte_tilgang",
@@ -2388,9 +2393,11 @@
         "select": "retailer"
       },
       "proberad": {
+        "gitt_til": "'{{bruker}}'",
         "begrunnelse": "'sonde {{unik}} - feilsoeking'",
         "til_tid": "now() + interval '1 hour'"
-      }
+      },
+      "$proberad_hvorfor": "I fiksturen er mottakeren kjedens EGEN eier, ikke en plattform-redaktoer. Fiksturverdenen har ingen plattformrolle - den beviser tenantgrenser mellom kjeder, og plattform_redaktor har retailer_id = null og staar utenfor hele matrisen. Raden er derfor ikke en paastand om hvem som kan FAA stoettetilgang; den finnes for aa bevise at kjede B ikke kan lese kjede A sin. til_tid maa ligge innenfor 24 t av fra_tid (check-skranke i 0196), og begrunnelsen maa vaere minst 10 tegn."
     },
     {
       "tabell": "synlig_svinn",
