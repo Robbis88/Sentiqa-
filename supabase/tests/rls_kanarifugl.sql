@@ -456,6 +456,9 @@ $s$, 'a3330000-0000-4000-8000-000000000001');
 -- Den genererte matrisen naar ikke hit: proberaden dens setter alltid et
 -- gyldig begrep, saa den maaler stasjonsgrensen og ikke begrepsgrensen.
 -- Derfor staar paastandene her.
+-- Radene skrives som EIER: tabellen har ingen skrivepolicy med vilje -
+-- de kommer fra importen gjennom tjenestenoekkelen.
+select pg_temp.som_eier();
 insert into public.bilagssum
   (id, retailer_id, stasjon_id, butikknummer, periode, rapportlinje, konto, begrep, tekst, belop_kr)
 values
