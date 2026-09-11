@@ -8,6 +8,7 @@ import { sendInvitasjonPaaNytt, deaktiverKunde, reaktiverKunde, slettKundePerman
 import { Sidehode, Tomtilstand, Forklaring, Nokkeltall } from '@/components/ui/side'
 import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
+import { ApneStottevindu, LukkStottevindu } from './stottevindu'
 import { Sideramme } from '@/components/ui/sideramme'
 
 // Plattform-eierens tverr-tenant-oversikt: hvem bruker systemet, omfang og hva
@@ -32,13 +33,28 @@ export default async function PlattformSide() {
     )
   }
 
-  const [{ data: retailers }, { data: stasjoner }, { data: profiler }, { data: jobber }, brukere] = await Promise.all([
+  const [{ data: retailers }, { data: stasjoner }, { data: profiler }, { data: jobber }, brukere, { data: stotte }] = await Promise.all([
     admin.from('retailers').select('id, navn, org_nr, opprettet_tid, slettet_tid, godkjent_tid').order('navn').overrideTypes<{ id: string; navn: string; org_nr: string | null; opprettet_tid: string; slettet_tid: string | null; godkjent_tid: string | null }[]>(),
     admin.from('stasjoner').select('retailer_id').is('slettet_tid', null).overrideTypes<{ retailer_id: string }[]>(),
     admin.from('profiler').select('id, retailer_id, rolle').overrideTypes<{ id: string; retailer_id: string | null; rolle: string }[]>(),
     admin.from('import_jobber').select('retailer_id, opprettet_tid').overrideTypes<{ retailer_id: string; opprettet_tid: string }[]>(),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    // Aapne stoettevinduer akkurat naa. Brukes bare til aa vise om
+    // porten staar aapen - selve sjekken gjoeres i handlingen.
+    // Aapne stoettevinduer. Grensen staar fordi PostgREST kutter ved taket
+    // uten aa feile - en avkortet liste ville vist «ingen aapen tilgang»
+    // paa en kjede som har en. Kommentaren staar HER og ikke inne i kjeden:
+    // et «//» midt i kjeden avslutter den for grensevakten, som da aldri
+    // ser `.limit()`. Kjent blindsone, beskrevet i uten-grense.test.ts.
+    admin.from('stotte_tilgang')
+      .select('id, retailer_id, til_tid')
+      .is('avsluttet_tid', null)
+      .gte('til_tid', new Date().toISOString())
+      .limit(200)
+      .overrideTypes<{ id: string; retailer_id: string; til_tid: string }[]>(),
   ])
+
+  const aapenFor = new Map((stotte ?? []).map((t) => [t.retailer_id, t.id]))
 
   const authMap = new Map((brukere.data?.users ?? []).map((u) => [u.id, u]))
   const tell = (rader: { retailer_id: string | null }[], pred: (r: never) => boolean = () => true) => {
@@ -202,6 +218,16 @@ export default async function PlattformSide() {
                       {r.adminInfo?.epost ? (
                         <HandlingKnapp handling={sendInvitasjonPaaNytt} felt={{ epost: r.adminInfo.epost }} merke="Send på nytt" variant="sekundaer" sporsmaal={`Sende påloggingslenke på nytt til ${r.adminInfo.epost}?`} />
                       ) : null}
+                      <Sidepanel
+                        knapp={aapenFor.has(r.id) ? 'Støtte: åpen' : 'Åpne støtte'}
+                        tittel={`Støttetilgang — ${r.navn}`}
+                        beskrivelse="Deaktivering, reaktivering og permanent sletting krever et åpent vindu. Begrunnelsen vises for kunden."
+                      >
+                        <ApneStottevindu id={r.id} navn={r.navn} />
+                      </Sidepanel>
+                      {aapenFor.has(r.id)
+                        ? <LukkStottevindu tilgangId={aapenFor.get(r.id)!} />
+                        : null}
                       <HandlingKnapp handling={deaktiverKunde} felt={{ id: r.id }} merke="Deaktiver" variant="destruktiv" sporsmaal={`Deaktivere ${r.navn}? Brukerne mister tilgang, men data beholdes (kan reaktiveres).`} />
                       <HandlingKnapp handling={slettKundePermanent} felt={{ id: r.id }} merke="Slett" arbeider="Sletter …" variant="destruktiv" sporsmaal={`PERMANENT slette ${r.navn} og ALLE data + brukere? Dette kan ikke angres.`} />
                     </div>

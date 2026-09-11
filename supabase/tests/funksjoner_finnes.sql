@@ -47,6 +47,7 @@ declare
     'slett_person',
     'slett_retailer_permanent',
     'som_uuid',
+    'stotte_er_aapen',
     'svinn_sum',
     'svinn_vindu_sum',
     'uke_avdeling_aggregat',
@@ -91,7 +92,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       29                          as forventet_av_migrasjonene
+       30                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';
