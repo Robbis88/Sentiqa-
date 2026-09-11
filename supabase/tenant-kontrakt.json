@@ -492,17 +492,18 @@
   },
   {
    "tabell": "bilagssum",
-   "$hvorfor": "Bilagslinjer summert per butikk, maaned, konto og leverandoer, lest ut av pivotbufferen i regnskapsfila (0199). Uten dem er «renhold er hoeyt» alt systemet kan si; med dem er det «ASKO Vest 29 825 paa Lone mot Vardens 7 207». BUTIKKSJEF SER ET UTVALG: bare egne stasjoner, og bare rader med et KONTOBEGREP i den tillatte lista - ikke rapportlinjekode. Koden betyr ulike ting foer og etter februar 2026 (628 var «Leie driftsmidler»), og bufferen baerer tolv maaneder bakover i hver fil, saa de eldste radene er fra det gamle skjemaet uansett hvor ny fila er. Et begrep vi ikke kjente igjen lagres som NULL, og NULL er skjult. Admin-radene har stasjon_id = null og faller ut av mine_stasjoner() av seg selv. NETTBRETTET NAAR DEN IKKE: dette er kostnadsdetalj, ikke noe som hoerer hjemme paa gulvet. INGEN SKRIVEPOLICY: radene kommer fra importen gjennom tjenestenoekkelen.",
-   "tenant_scope": "retailer",
+   "$hvorfor": "Bilagslinjer summert per butikk, maaned, konto og leverandoer, lest ut av pivotbufferen i regnskapsfila (0199). Uten dem er «renhold er hoeyt» alt systemet kan si; med dem er det «ASKO Vest 29 825 paa Lone mot Vardens 7 207». BUTIKKSJEF SER ET UTVALG: bare egne stasjoner, og bare rader med et KONTOBEGREP i den tillatte lista - ikke rapportlinjekode. Koden betyr ulike ting foer og etter februar 2026 (628 var «Leie driftsmidler»), og bufferen baerer tolv maaneder bakover i hver fil, saa de eldste radene er fra det gamle skjemaet uansett hvor ny fila er. Et begrep vi ikke kjente igjen lagres som NULL, og NULL er skjult. ADMIN-RADENE ER KJEDENS NULL-STASJONSRADER: 9900 Admin har ingen stasjon, og de faller ut av mine_stasjoner() av seg selv - null er aldri med i en IN-liste. Derfor null_stasjon = kun_eier. NETTBRETTET NAAR DEN IKKE: dette er kostnadsdetalj, ikke noe som hoerer hjemme paa gulvet. INGEN SKRIVEPOLICY: radene kommer fra importen gjennom tjenestenoekkelen.",
+   "tenant_scope": "retailer_or_station",
+   "null_stasjon": "kun_eier",
    "data_class": "warm",
    "operasjoner": [
     "select"
    ],
    "tablet": "none",
-   "manager": "stasjon",
-   "owner": {
-    "select": "retailer"
+   "manager": {
+    "select": "assigned_stations"
    },
+   "owner": "retailer",
    "business_unik": [
     "butikknummer",
     "periode",

@@ -442,6 +442,62 @@ select pg_temp.skriv_avvist('Nettbrett A1 DELETE paa avvik', $s$
   delete from public.avvik where id = 'a3330000-0000-4000-8000-000000000001'
 $s$, 'a3330000-0000-4000-8000-000000000001');
 
+-- =====================================================================
+-- BILAGSSUM: ET UKJENT BEGREP ER SKJULT, IKKE SYNLIG (0199)
+-- =====================================================================
+--
+-- Pivotbufferen baerer TOLV MAANEDER bakover i hver regnskapsfil, saa de
+-- eldste radene er fra rapportskjemaet FOER februar 2026 - uansett hvor
+-- ny fila er. Der betydde `628` «Leie driftsmidler», ikke «Renovasjon».
+--
+-- Importen lagrer slike rader med `begrep = null` i stedet for aa gjette.
+-- Policyen krever et begrep i lista, saa null skal bety SKJULT.
+--
+-- Den genererte matrisen naar ikke hit: proberaden dens setter alltid et
+-- gyldig begrep, saa den maaler stasjonsgrensen og ikke begrepsgrensen.
+-- Derfor staar paastandene her.
+insert into public.bilagssum
+  (id, retailer_id, stasjon_id, butikknummer, periode, rapportlinje, konto, begrep, tekst, belop_kr)
+values
+  -- Synlig: begrep i lista, stasjonen er A1s.
+  ('a5550000-0000-4000-8000-000000000001',
+   'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001',
+   '0001', date '2026-07-01', '627 Renhold', '6270 Renhold', 'renhold',
+   'ASKO VEST AS', 12000),
+  -- Skjult: ukjent begrep (rad fra skjemaet foer feb 2026).
+  ('a5550000-0000-4000-8000-000000000002',
+   'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001',
+   '0001', date '2025-11-01', '628 Leie driftsmidler', '6420 Leie', null,
+   'DNB Finans AS', 33315),
+  -- Skjult: begrepet er kjent, men ikke i butikksjefens liste.
+  ('a5550000-0000-4000-8000-000000000003',
+   'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001',
+   '0001', date '2026-07-01', '630 Leie driftsmidler', '6420 Leie', 'leie_driftsmidler',
+   'DNB Finans AS', 33315);
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- butikksjef A1
+
+select pg_temp.paastand('Butikksjef A1 ser bilagssum med tillatt begrep',
+  exists (select 1 from public.bilagssum
+    where id = 'a5550000-0000-4000-8000-000000000001'));
+
+select pg_temp.paastand('Butikksjef A1 ser IKKE bilagssum uten begrep (gammelt skjema)',
+  not exists (select 1 from public.bilagssum
+    where id = 'a5550000-0000-4000-8000-000000000002'));
+
+select pg_temp.paastand('Butikksjef A1 ser IKKE leasing, selv med kjent begrep',
+  not exists (select 1 from public.bilagssum
+    where id = 'a5550000-0000-4000-8000-000000000003'));
+
+-- Eieren ser alle tre. Uten denne beviser de tre over ingenting: en
+-- tabell ingen kan lese ville gitt samme svar.
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- eier A
+select pg_temp.paastand('Eier A ser alle tre bilagssummene',
+  (select count(*) = 3 from public.bilagssum
+    where id in ('a5550000-0000-4000-8000-000000000001',
+                 'a5550000-0000-4000-8000-000000000002',
+                 'a5550000-0000-4000-8000-000000000003')));
+
 -- --- Nettbrett B1 naar aldri A ---------------------------------------
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');
 select pg_temp.paastand('Nettbrett B1 ser INGEN A-stasjon',
