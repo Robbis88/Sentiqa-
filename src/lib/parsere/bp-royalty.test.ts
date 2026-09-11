@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { zipSync, strToU8 } from 'fflate'
-import { avstemming, lesRoyaltysatser } from './bp-royalty'
+import { avstemming, lesRoyaltysatser, skalLagres } from './bp-royalty'
 
 // =====================================================================
 // «Cluster data» fra BP26. Tallene er Kelsars egne, slik at de kan
@@ -117,5 +117,38 @@ describe('avstemming', () => {
   it('gir null naar kontrolltallene mangler, i stedet for aa antyde', () => {
     const uten = KELSAR.replace(`<c r="C16"><v>10093457.901742566</v></c>`, '')
     expect(avstemming(lesRoyaltysatser(bok(uten))!)).toBeNull()
+  })
+})
+
+describe('skalLagres', () => {
+  it('lagrer satser som stemmer, uten aa si noe', () => {
+    const b = skalLagres(lesRoyaltysatser(bok(KELSAR)))
+    expect(b.lagre).toBe(true)
+    expect(b.notat).toBeNull()
+  })
+
+  it('KANARI: satser som IKKE stemmer blir ikke lagret', () => {
+    // Dette er regelen hele modulen finnes for. En sats ingen har proevd
+    // er en sats hele systemet siden bygger kroneverdier paa.
+    const feil = KELSAR.replace(`<v>0.10000000000000159</v>`, `<v>0.12</v>`)
+    const b = skalLagres(lesRoyaltysatser(bok(feil)))
+    expect(b.lagre).toBe(false)
+    expect(b.notat).toMatch(/IKKE lagret/)
+    expect(b.notat).toMatch(/Resten av BP-en er lagret/)
+  })
+
+  it('lagrer uproevde satser, men SIER at de er uproevde', () => {
+    // «Uproevd» og «feil» er ikke det samme, og en import som tier om
+    // forskjellen gjoer dem like.
+    const uten = KELSAR.replace(`<c r="C16"><v>10093457.901742566</v></c>`, '')
+    const b = skalLagres(lesRoyaltysatser(bok(uten)))
+    expect(b.lagre).toBe(true)
+    expect(b.notat).toMatch(/mangler kontrolltallene/)
+  })
+
+  it('sier ingenting naar fila ikke har satser i det hele tatt', () => {
+    // BP25 baerer dem annerledes. Det er ikke en feil ved fila, og skal
+    // ikke staa som en merknad paa importen.
+    expect(skalLagres(null)).toEqual({ lagre: false, notat: null })
   })
 })

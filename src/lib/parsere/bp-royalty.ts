@@ -150,6 +150,53 @@ export type Avstemming = {
  * ingen maate aa proeve dem paa, og det skal sies i stedet for aa
  * antydes.
  */
+export type Beslutning = {
+  /** Skal satsene lagres? */
+  lagre: boolean
+  /** Hva importen skal fortelle. `null` når det ikke er noe å si. */
+  notat: string | null
+}
+
+/**
+ * Skal disse satsene lagres?
+ *
+ * EN SATS VI IKKE KAN AVSTEMME SKAL IKKE LAGRES. Spriker de mot BP-ens
+ * egen «Sum Royalty», er det noe vi ikke har forstått ved fila — og en
+ * sats ingen har prøvd er en sats hele systemet siden bygger
+ * kroneverdier på.
+ *
+ * Men mangler kontrolltallene helt, er det noe annet enn at de spriker:
+ * da har vi satsene uten en måte å prøve dem på. Det lagres, og det SIES
+ * — for det er forskjell på «uprøvd» og «feil», og en import som tier om
+ * det gjør dem like.
+ *
+ * Regelen ligger her og ikke i importen fordi den er en regel. I
+ * `kjerne.ts` ville den vært en if-setning ingen test når uten en
+ * databasekobling.
+ */
+export function skalLagres(r: BpRoyalty | null): Beslutning {
+  if (!r) return { lagre: false, notat: null }
+  const a = avstemming(r)
+  if (a && !a.stemmer) {
+    return {
+      lagre: false,
+      notat:
+        'Royaltysatsene ble IKKE lagret: de stemmer ikke med BP-ens egen '
+        + `«Sum Royalty» (avvik ${a.avvikPst.toFixed(1).replace('.', ',')} %). `
+        + 'Resten av BP-en er lagret. Sjekk «Cluster data»-arket.',
+    }
+  }
+  if (!a) {
+    return {
+      lagre: true,
+      notat:
+        'Royaltysatsene er lagret, men BP-en mangler kontrolltallene som '
+        + 'gjør dem etterprøvbare («Sum Royalty» m.fl. i «Cluster data»).',
+    }
+  }
+  return { lagre: true, notat: null }
+}
+
 export function avstemming(r: BpRoyalty): Avstemming | null {
   if (
     r.sumRoyalty === null || r.sumCrSalg === null ||

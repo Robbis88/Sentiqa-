@@ -99,7 +99,7 @@ function maaned(o: {
 
 // BP26-form: loennen splittet i 5012 og 5010, timebudsjett per stasjon.
 const BP26: BpResultat = {
-  rapporttype: 'st1_bp', ar: 2026,
+  rapporttype: 'st1_bp', royalty: null, ar: 2026,
   stasjoner: [{
     butikknummer: '9038', timerAar: 13877.65,
     maaneder: [
@@ -133,7 +133,7 @@ const BP26: BpResultat = {
 
 // BP25-form: HELE loennen paa 5010, ingen timebudsjett.
 const BP25: BpResultat = {
-  rapporttype: 'st1_bp', ar: 2025,
+  rapporttype: 'st1_bp', royalty: null, ar: 2025,
   stasjoner: [{
     butikknummer: '9038', timerAar: null,
     maaneder: [
@@ -207,7 +207,7 @@ describe('basen gir samme svar som fila', () => {
     // groenn enten pagineringen fantes eller ikke, og da maaler den
     // ingenting.
     const mange: BpResultat = {
-      rapporttype: 'st1_bp', ar: 2026,
+      rapporttype: 'st1_bp', royalty: null, ar: 2026,
       stasjoner: [{
         butikknummer: '9038', timerAar: 100,
         maaneder: Array.from({ length: 12 }, (_, m) => maaned({
@@ -242,7 +242,7 @@ describe('basen gir samme svar som fila', () => {
     // sida en kjedetotal som ikke er summen av det den nettopp listet
     // opp - og leseren har ingen maate aa vite hvilken som er riktig.
     const to: BpResultat = {
-      rapporttype: 'st1_bp', ar: 2026,
+      rapporttype: 'st1_bp', royalty: null, ar: 2026,
       stasjoner: [
         BP26.stasjoner[0],
         { ...BP26.stasjoner[0], butikknummer: '9145', timerAar: 9512.73 },

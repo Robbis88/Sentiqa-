@@ -229,7 +229,7 @@ describe('summer', () => {
     kontoRader: { kode: string; post: string; belopKr: number }[],
     timelonnKr = 0, fastlonnKr = 0,
   ): BpResultat => ({
-    rapporttype: 'st1_bp',
+    rapporttype: 'st1_bp', royalty: null,
     ar: 2026,
     stasjoner: [{
       butikknummer: '9038',
@@ -245,7 +245,7 @@ describe('summer', () => {
 
   it('summerer stasjoner og filtrerer på butikknummer', () => {
     const to: BpResultat = {
-      rapporttype: 'st1_bp', ar: 2026,
+      rapporttype: 'st1_bp', royalty: null, ar: 2026,
       stasjoner: [
         ...bp([]).stasjoner,
         { butikknummer: '4185', timerAar: 11187.47, maaneder: [{
