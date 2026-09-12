@@ -821,7 +821,14 @@
     "raa_fil_id": "'{{seed:fil}}'",
     "rapporttype": "'st1_salgsstatistikk'"
    },
-   "oppdaterbart": "forsok = 1"
+   "oppdaterbart": "forsok = 1",
+   "business_unik": [
+    "rapporttype"
+   ],
+   "$business_unik_hvorfor": " AKTIV IMPORT (0209): partiell unique (retailer_id, rapporttype, gjelder_dato) where aktiv. Skranken er hele poenget - uten den er «aktiv» en merkelapp og ikke en grense, og to aktive jobber ville blandet to filversjoner i samme tall.",
+   "business_unik_unntak": {
+    "rapporttype": "Rapporttypen er en enum med bundet domene, og den ER det jobben handler om - varieres den, er proberaden en annen slags jobb. Den partielle skranken fra 0209 gjelder dessuten bare `where aktiv`, og proberaden er ikke aktiv: to forsoek kan ikke kollidere."
+   }
   },
   {
    "tabell": "kalender_kilder",
@@ -1954,11 +1961,26 @@
    "owner": "retailer",
    "proberad": {
     "periode": "date '2026-08-01'",
-    "kode": "'20010'",
+    "kode": "'{{unik_nr}}'",
     "navn": "'Sondelinje {{unik}}'",
-    "usynlig_kr": "100"
+    "usynlig_kr": "100",
+    "nivaa": "'produkt'",
+    "analyseomraade": "'butikk'"
    },
-   "oppdaterbart": "navn = 'endret av sonden'"
+   "oppdaterbart": "navn = 'endret av sonden'",
+   "business_unik": [
+    "periode",
+    "nivaa",
+    "kode",
+    "analyseomraade"
+   ],
+   "$business_unik_hvorfor": "unique (retailer_id, stasjon_id, periode, nivaa, kode) i 0208, partiell paa analyseomraade = 'butikk'. Maalt paa 2 892 butikkrader over 35 stasjonsmaaneder: 0 dubletter. NIVAA maa vaere med - arket har bade grupperaden 120 Mat (ProdGr3, eier totalen) og produktradene 12010 osv. (Prod, forklaring), og de skal aldri summeres sammen. Indeksen er partiell fordi drivstoffblokkene har samme firesifrede kode tre ganger per ark med ulik betydning i hver blokk; de kan ikke dele én noekkel og lagres uten unikhet. `kilde_jobb_id` og `kildefil` er proveniens, ikke del av noekkelen - er de med, lagres samme oekonomiske rad paa nytt for hver import.",
+   "$proberad_hvorfor": "`analyseomraade` maa vaere 'butikk': den partielle unike indeksen gjelder bare der, og en proberad utenfor den beviser ingenting om noekkelen. `nivaa` maa vaere satt fordi skranken rus_nivaa_gyldig krever en av to verdier naar den ikke er null.",
+   "business_unik_unntak": {
+    "periode": "Perioden ER radens identitet - en svinnrad er «denne varegruppa, denne maaneden». Varieres den, peker proberaden paa noe annet enn en svinnrad. Kollisjon er umulig likevel: `kode` varierer per forsoek, og noekkelen er sammensatt av stasjon, periode, nivaa og kode.",
+    "nivaa": "Nivaaet har et bundet domene paa to verdier (grupperaden som eier totalen, og produktraden som forklarer den), og ingen av dem kan varieres per forsoek. Fixturen pinner 'produkt' og lar `kode` variere i stedet.",
+    "analyseomraade": "Predikatkolonnen i den partielle indeksen, og den hoerer med: det er BARE butikkrader som er unike. Drivstoffblokkene har samme firesifrede kode tre ganger per ark med ulik betydning i hver blokk, og de kan derfor ikke dele én noekkel - de lagres uten unikhet og summeres aldri. Kolonnen kan ikke varieres per forsoek: utenfor 'butikk' gjelder ikke skranken, og en proberad der ville ikke bevist noe om noekkelen."
+   }
   },
   {
    "tabell": "regnskapsanalyser",

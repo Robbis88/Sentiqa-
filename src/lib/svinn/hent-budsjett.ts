@@ -1,5 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { velgGrunnlagPerNoekkel } from './grunnlag'
 import {
   svinnbilde, vareomradeAv, avdelingAv,
   type Budsjettlinje, type Svinnbilde,
@@ -83,11 +84,12 @@ export async function hentSvinnbudsjett(
     // Én rad per kode per måned — rundt 55 i året, aldri i nærheten av
     // noe radtak.
     supabase.from('regnskap_usynlig_svinn')
-      .select('periode, kode, kast, usynlig_kr')
+      .select('periode, kode, nivaa, analyseomraade, kast, usynlig_kr')
       .eq('stasjon_id', stasjonId).gte('periode', fra).lte('periode', til)
       .is('slettet_tid', null)
       .overrideTypes<{
         periode: string; kode: string | null
+        nivaa: string | null; analyseomraade: string | null
         kast: number | null; usynlig_kr: number | null
       }[]>(),
     // SALGET OG DET DAGLIGE SVINNET, FERDIG SUMMERT I BASEN (`0175`).
@@ -139,9 +141,19 @@ export async function hentSvinnbudsjett(
   const iAvdelingen = (kode: string | null) =>
     avdeling == null || avdelingAv(kode) === avdeling
 
+  // GRUNNLAGET VELGES FOERST, PER PERIODE. Stasjonen er alt gitt av
+  // spoerringen, saa noekkelen er maaneden alene.
+  //
+  // Loekken under er uendret. Etter reimporten ligger grupperaden `120`
+  // i samme svar som `12010`, og `avdelingAv` gir `120` for begge - saa
+  // en raa loekke ville lagt matkastet til to ganger. `velgGrunnlagPerNoekkel`
+  // slipper gjennom ett nivaa per maaned; foer reimport er det de samme
+  // radene som foer, og fasiten er identisk til oeret.
+  const grunnlag = velgGrunnlagPerNoekkel(regnskap.data ?? [], (r) => r.periode)
+
   const kastRegnskap = new Map<string, Map<string, number>>()
   const usynligPerMaaned = new Map<string, number>()
-  for (const r of regnskap.data ?? []) {
+  for (const r of grunnlag.alleRader) {
     if (!iAvdelingen(r.kode)) continue
     const maaned = tilMaaned(r.periode)
     // FORTEGNET STÅR SOM DET STÅR: + er manko, − er overskudd. En

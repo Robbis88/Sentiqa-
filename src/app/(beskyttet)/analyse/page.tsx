@@ -8,6 +8,8 @@ import { PeriodeVelger } from '../periode-velger'
 import { Sidehode, Tomtilstand, Forklaring, Datatabell } from '@/components/ui/side'
 import { Signal, Status, type Statusnivaa } from '@/components/ui/status'
 import { Sideramme } from '@/components/ui/sideramme'
+import { mankoPerStasjon } from '@/lib/svinn/aggreger'
+import type { Datastatus } from '@/lib/svinn/grunnlag'
 
 // «Kjør analyse» (Opus) kan ta litt — gi handlingen tid.
 // AI-analysen av en hel maaned kan bruke mer enn ett minutt. Gaar den
@@ -16,7 +18,12 @@ import { Sideramme } from '@/components/ui/sideramme'
 // i handlinger.ts) var det umulig aa se hva som skjedde.
 export const maxDuration = 300
 
-type Svinn = { stasjon_id: string; navn: string; salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
+type Svinn = {
+  stasjon_id: string; periode?: string | null
+  nivaa: string | null; analyseomraade: string | null
+  kode: string | null; navn: string
+  salg: number | null; usynlig_kr: number | null; usynlig_pst: number | null
+}
 
 const STATUS_TEKST: Record<string, string> = { gronn: 'God', gul: 'Følg med', rod: 'Krever tiltak' }
 /** Samme tre trinn, uttrykt i systemets semantiske spraak. */
@@ -92,27 +99,33 @@ export default async function AnalyseSide({ searchParams }: { searchParams: Prom
   const a = data?.rapport
 
   // Usynlig svinn per stasjon (+ = manko/penger borte, − = overskudd/positiv svinn)
-  let svinnPerStasjon: { navn: string; manko: number; overskudd: number; topp: Svinn[]; bunn: Svinn[] }[] = []
+  let svinnPerStasjon: {
+    navn: string; manko: number; overskudd: number
+    topp: Svinn[]; bunn: Svinn[]
+    datastatus: Datastatus; aarsak: string
+  }[] = []
   if (data?.periode) {
     const [{ data: svinn }, { data: stasjoner }] = await Promise.all([
-      supabase.from('regnskap_usynlig_svinn').select('stasjon_id, navn, salg, usynlig_kr, usynlig_pst').eq('periode', data.periode).is('slettet_tid', null).overrideTypes<Svinn[]>(),
+      supabase.from('regnskap_usynlig_svinn').select('stasjon_id, periode, nivaa, analyseomraade, kode, navn, salg, usynlig_kr, usynlig_pst').eq('periode', data.periode).is('slettet_tid', null).overrideTypes<Svinn[]>(),
       supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
     ])
     const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
-    const grupper = new Map<string, Svinn[]>()
-    for (const s of svinn ?? []) { const l = grupper.get(s.stasjon_id) ?? []; l.push(s); grupper.set(s.stasjon_id, l) }
-    svinnPerStasjon = [...grupper.entries()].filter(([id]) => navnFor.has(id)).map(([id, liste]) => {
-      let manko = 0, overskudd = 0
-      for (const s of liste) { const v = s.usynlig_kr ?? 0; if (v > 0) manko += v; else overskudd += v }
-      const sortert = [...liste].sort((x, y) => (y.usynlig_kr ?? 0) - (x.usynlig_kr ?? 0))
-      return {
-        navn: navnFor.get(id)!,
-        manko: Math.round(manko),
-        overskudd: Math.round(overskudd),
-        topp: sortert.filter((s) => (s.usynlig_kr ?? 0) > 0).slice(0, 5),
-        bunn: sortert.filter((s) => (s.usynlig_kr ?? 0) < 0).slice(-5).reverse(),
-      }
-    }).sort((x, y) => y.manko - x.manko)
+    // TOTALEN FRA GRUPPEN, FORKLARINGEN FRA PRODUKTENE. Summeringen er
+    // uendret; det som er lagt til er nivaavalget. Uten det ville
+    // topplista etter reimport blitt ledet av «120 Mat» - grupperaden er
+    // per definisjon stoerre enn hver av produktradene sine, og
+    // spoersmaalet er hvilken VARE som svinner.
+    svinnPerStasjon = mankoPerStasjon(svinn ?? [])
+      .filter((s) => navnFor.has(s.stasjonId))
+      .map((s) => ({
+        navn: navnFor.get(s.stasjonId)!,
+        manko: s.mankoKr,
+        overskudd: s.overskuddKr,
+        topp: s.topp,
+        bunn: s.bunn,
+        datastatus: s.datastatus,
+        aarsak: s.aarsak,
+      }))
   }
 
   // NIVÅ 1 — svaret. Sammendraget er AI-ens prosa; dette er den ene
