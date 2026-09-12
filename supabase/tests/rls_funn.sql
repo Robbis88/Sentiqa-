@@ -83,7 +83,10 @@ with lister as (
       -- Tall ingen fil leverer (0184/0185).
       'bilvask_abonnement', 'butikksjef_fastlonn',
     -- Royaltysatsene fra BP (0198). EN rad per retailer per AAR.
-    'royaltysats'
+    'royaltysats',
+    -- Maanedsplanen (0200). EN rad per stasjon per MAANED - den vokser
+    -- med kalenderen, ikke med drift.
+    'maanedsplan'
     ]::text[] as kalde
 )
 

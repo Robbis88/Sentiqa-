@@ -61,6 +61,10 @@ export const UNNTAK: Record<string, string> = {
   // Samme sak for PDF: dokumentet har ingen cascade og ingen variabler.
   // Fargene står i ett `F`-objekt som skal følge globals.css.
   'lib/ukebrief/pdf.tsx': 'PDF kan ikke lese CSS-variabler; paletten er samlet i ett objekt',
+  // Maanedsplanen som e-post. Samme begrunnelse som ukebriefen over: en
+  // e-postklient leser ingen variabler, og fargene maa staa paa
+  // elementet. Ett `F`-objekt oeverst, ikke spredt i markupen.
+  'lib/kurs/epost.ts': 'e-post kan ikke lese CSS-variabler; paletten er samlet i ett objekt',
 }
 
 export function tellFarger(kilde: string): number {
