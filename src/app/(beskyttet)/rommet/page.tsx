@@ -8,6 +8,7 @@ import {
   finnSparefunn, omfang,
   type Bilagsrad, type Omsetningsrad, type Stasjon,
 } from '@/lib/rommet/spare'
+import { DRIFT_BEGREP } from '@/lib/kurs/loftestenger'
 
 // =====================================================================
 // REGNSKAPSROMMET — HVOR DET FAKTISK ER PENGER
@@ -63,20 +64,38 @@ export default async function Side() {
     .limit(200)
   const stasjoner = (stasjonsrader ?? []) as Stasjon[]
 
-  // SUMMERT I BASEN (0207). Én rad per stasjon per leverandør per
-  // begrep, ikke én per måned.
+  // =================================================================
+  // FOR EN RANGERT LISTE ER EN GRENSE ET VALG, IKKE EN RISIKO
+  // =================================================================
   //
-  // Første utgave hentet rå `bilagssum` med et tak på 180 rader per
-  // stasjon. 8 029 bilagslinjer blir langt mer enn det, `maaVaereHele`
-  // kastet — helt riktig — og rommet krasjet på første sidelast med
-  // «Feilkode: 2691817940». Samme feil `0205` rettet én time før.
-  const takBilag = Math.max(1, stasjoner.length) * 120
+  // Viewet (0207) gir 1 848 rader for Kelsar - 757 ulike tekster, fordi
+  // `tekst` ogsaa inneholder fakturanumre og «Inngaaende faktura». Det
+  // er nettopp det `erLeverandor` kaster ut etterpaa, saa foerste utgave
+  // hentet en haug med rader for aa forkaste dem, traff taket og krasjet.
+  //
+  // Feilen i tenkningen var aa behandle dette som en sum. Faren
+  // `maaVaereHele` finnes for er en USORTERT spoerring brukt til en
+  // SUM - da ser et avkortet svar ut som ekte tall. Her leter vi etter
+  // de STOERSTE forskjellene, og da er rekkefoelgen halve svaret:
+  //
+  //   - bare begrepene som kan sammenlignes (`DRIFT_BEGREP`)
+  //   - bare beloep over 1 000 kr: en leverandoervavtale verdt aa ringe om
+  //     er ikke to hundre kroner
+  //   - stoerste foerst, og vi SIER det hvis vi traff grensen
+  //
+  // Listene bor fortsatt ett sted - de sendes som filter, ikke gjentas
+  // i viewet.
+  const MATERIELT_KR = 1000
+  const takBilag = 600
   const takMaaned = Math.max(1, stasjoner.length) * 13
 
   const [bilagsvar, omssvar] = await Promise.all([
     supabase.from('v_rommet_leverandor')
       .select('stasjon_id, begrep, tekst, belop_kr, antall, maaneder, eldste, nyeste')
       .eq('retailer_id', bruker.retailerId)
+      .in('begrep', [...DRIFT_BEGREP])
+      .gte('belop_kr', MATERIELT_KR)
+      .order('belop_kr', { ascending: false })
       .limit(takBilag),
     supabase.from('v_kurs_maanedstall')
       .select('stasjon_id, maaned, omsetning_kr')
@@ -84,14 +103,14 @@ export default async function Side() {
       .limit(takMaaned),
   ])
 
-  // EN SIDE SOM KASTER SIER «FEILKODE». Det er ubrukelig for den som
-  // sitter der, og `maaVaereHele` har allerede en presis beskjed - den
-  // skal fram, ikke bort. Feilgrensen over gir en generisk skjerm; her
-  // forklarer vi i stedet hva som skjedde og hva det betyr.
-  let bilag: Bilagsrad[]
+  const bilag = (bilagsvar.data ?? []) as unknown as Bilagsrad[]
+  const avkortet = bilag.length >= takBilag
+
+  // OMSETNINGEN ER NEVNEREN, og den maa vaere HEL. En avkortet omsetning
+  // gir for hoey andel paa hver stasjon, og da er hele sammenligningen
+  // feil - uten at noe sier fra. Her er `maaVaereHele` paa sin plass.
   let oms: Omsetningsrad[]
   try {
-    bilag = maaVaereHele(bilagsvar, 'leverandoersummene', takBilag) as unknown as Bilagsrad[]
     oms = maaVaereHele(omssvar, 'omsetningen', takMaaned) as unknown as Omsetningsrad[]
   } catch (e) {
     return (
@@ -101,9 +120,9 @@ export default async function Side() {
           tittel="Grunnlaget kunne ikke leses helt"
           forklaring={
             `${e instanceof Error ? e.message : String(e)} `
-            + 'Tallene vises ikke, fordi et avkortet grunnlag ser ut som ekte '
-            + 'tall — og da ville sammenligningen mellom stasjonene vært feil '
-            + 'uten at noe sa fra.'
+            + 'Tallene vises ikke, fordi omsetningen er nevneren i hver '
+            + 'sammenligning — en avkortet nevner ville gitt for høy andel på '
+            + 'hver stasjon, uten at noe sa fra.'
           }
         />
       </Sideramme>
@@ -169,6 +188,17 @@ export default async function Side() {
           deg jage 1,6 millioner som ikke finnes. Telefon og forsikring er like
           mange kroner på hver stasjon; der oppstår forskjellen bare fordi vi
           deler på omsetning.
+        </p>
+        <p>
+          Bare beløp over {kr.format(MATERIELT_KR)} er med, og bare de
+          begrepene der en forskjell mellom to stasjoner betyr noe. En
+          leverandøravtale verdt å ringe om er ikke to hundre kroner.
+          {avkortet && (
+            <>
+              {' '}Lista viser de {takBilag} største — det finnes flere under
+              dem.
+            </>
+          )}
         </p>
         <p>
           Grunnlaget dekker {o.eldste} til {o.nyeste}.{' '}
