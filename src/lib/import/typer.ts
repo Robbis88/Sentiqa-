@@ -7,6 +7,7 @@ import type { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import type { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import type { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import type { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
+import type { Leverandorsum } from '@/lib/parsere/bilagsbuffer'
 
 export type ForhandsPayload =
   | { type: 'st1_salgsstatistikk'; salg: Awaited<ReturnType<typeof parseSalgsstatistikk>> }
@@ -18,4 +19,17 @@ export type ForhandsPayload =
       regnskap: Awaited<ReturnType<typeof parseRegnskap>>
       stasjoner: Awaited<ReturnType<typeof parseRegnskapStasjoner>>
       usynlig: Awaited<ReturnType<typeof parseUsynligSvinn>> | null
+      /**
+       * Bilagsbufferen, SUMMERT I NETTLESEREN.
+       *
+       * Raa bilagslinjer er titusener per fil og ville sprengt
+       * kroppsgrensen paa en serverhandling (1 MB). Summeringen er den
+       * samme som lagringen gjoer uansett - én rad per (butikk, periode,
+       * konto, tekst) - saa nettleseren sender det som faktisk skal
+       * lagres, ikke raamaterialet.
+       *
+       * `null` naar fila ikke har pivotbuffer. Noen maanedsfiler mangler
+       * den, og det er ikke en feil ved fila.
+       */
+      bilag: { antall: number; perioder: string[]; summer: Leverandorsum[] } | null
     }

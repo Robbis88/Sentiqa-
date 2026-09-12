@@ -227,3 +227,32 @@ export function butikknummer(butikk: string): string | null {
   const m = /^(\d{3,5})\b/.exec(butikk.trim())
   return m ? m[1] : null
 }
+
+/**
+ * Leser og summerer bufferen i ett kall.
+ *
+ * =====================================================================
+ * LIGGER HER, IKKE I IMPORTKJERNEN
+ * =====================================================================
+ *
+ * Begge veiene inn i importen trenger den, og den ene av dem er
+ * NETTLESEREN: hovedfeltet parser fila lokalt og sender resultatet.
+ * Klienten kan ikke importere fra `import/kjerne.ts` - den er
+ * server-only. Denne modulen er ren, og kan derfor kalles fra begge.
+ *
+ * At dette steget bare fantes paa serversiden er grunnen til at
+ * `bilagssum` sto paa NULL rader i produksjon 2026-09-12, etter maaneder
+ * med vellykkede opplastinger.
+ *
+ * Summert og ikke raa: bufferen er titusener av linjer, og en
+ * serverhandling har en kroppsgrense paa 1 MB. Summeringen er likevel
+ * det som lagres - én rad per (butikk, periode, konto, tekst).
+ */
+export function summerBilagsbuffer(
+  data: Uint8Array | ArrayBuffer,
+): { antall: number; perioder: string[]; summer: Leverandorsum[] } | null {
+  const linjer: Bilagslinje[] = []
+  const meta = lesBilagsbuffer(data, (l) => linjer.push(l))
+  if (!meta || linjer.length === 0) return null
+  return { ...meta, summer: summerPerLeverandor(linjer) }
+}
