@@ -30,9 +30,9 @@ const FIL = join(process.cwd(), 'src', 'lib', 'import', 'kjerne.ts')
 // ---------------------------------------------------------------------
 // HVOR REGELEN GJELDER, OG HVORFOR IKKE OVERALT
 //
-// Merknaden paa jobbraden er mekanismen. Den finnes i
-// `behandleJobbKjerne` mens jobben behandles - altsaa i
-// `case 'regnskap_resultat'`, der alle fem stille catchene sto.
+// Merknaden paa jobbraden er mekanismen, og alle fem best-effort-stegene
+// ligger naa i `etterRegnskap` - fellesfunksjonen begge importveiene
+// kaller. Det er der de fem stille catchene sto.
 //
 // Utenfor den er det sju til, og de er IKKE glemt:
 //
@@ -58,13 +58,19 @@ const FIL = join(process.cwd(), 'src', 'lib', 'import', 'kjerne.ts')
 // Vokser lista, er det en beslutning noen tar - ikke noe som sklir inn.
 // ---------------------------------------------------------------------
 
-/** Bare `case 'regnskap_resultat'`-grenen. Der finnes merknaden. */
+/**
+ * Bare `etterRegnskap`. Der finnes merknaden, og der ligger alle
+ * best-effort-stegene etter at `0203`-runden samlet dem.
+ */
 function regnskapsgrenen(kilde: string): string {
-  const start = kilde.indexOf("case 'regnskap_resultat': {")
-  if (start < 0) throw new Error('fant ikke regnskapsgrenen i kjerne.ts')
-  const slutt = kilde.indexOf("case 'easyatwork_stempling'", start)
-  if (slutt < 0) throw new Error('fant ikke slutten paa regnskapsgrenen')
-  return kilde.slice(start, slutt)
+  const ren = kilde.replace(/\r\n/g, '\n')
+  const start = ren.indexOf('async function etterRegnskap(')
+  if (start < 0) throw new Error('fant ikke etterRegnskap i kjerne.ts')
+  // Funksjonen slutter der neste toppnivådeklarasjon begynner — altså
+  // `}` i kolonne 0 fulgt av en tom linje.
+  const slutt = ren.indexOf('\n}\n', start)
+  if (slutt < 0) throw new Error('fant ikke slutten paa etterRegnskap')
+  return ren.slice(start, slutt + 3)
 }
 
 /** Fila med LF og uten kommentarer — en kommentar er ikke en handling. */
@@ -90,7 +96,7 @@ function tommeCatch(kilde: string): number {
 describe('importkjernen sier fra naar et steg feiler', () => {
   const kilde = readFileSync(FIL, 'utf8')
 
-  it('ingen tomme catch-blokker i regnskapsgrenen', () => {
+  it('ingen tomme catch-blokker i etterRegnskap', () => {
     expect(
       tommeCatch(regnskapsgrenen(kilde)),
       '\nImportkjernen har en `catch` som svelger feilen sin.\n\n'
@@ -108,7 +114,7 @@ describe('importkjernen sier fra naar et steg feiler', () => {
     // utsnittet tomt - og «ingen tomme catcher» ville vaert sant fordi
     // det ikke er noen catcher i det hele tatt.
     const gren = regnskapsgrenen(kilde)
-    expect(gren.length, 'utsnittet er mistenkelig kort').toBeGreaterThan(1500)
+    expect(gren.length, 'utsnittet er mistenkelig kort').toBeGreaterThan(900)
     expect((gren.match(/catch/g) ?? []).length, 'ingen catcher i grenen')
       .toBeGreaterThanOrEqual(5)
   })
@@ -140,7 +146,9 @@ describe('importkjernen sier fra naar et steg feiler', () => {
       'Maanedsplanene ble ikke bygget',
       'Bemanningsvarsler ble ikke laget',
       'Kaffevarsler ble ikke laget',
-      'Bilagsbufferen ble ikke lest',
+      'Bilagsbufferen ble ikke lagret',
+      'Usynlig svinn ble ikke lagret',
+      // Serverveien parser fila selv, og det steget er sitt eget.
       'Usynlig svinn ble ikke lest',
     ]) {
       expect(kilde, `merknaden «${tekst}» er borte`).toContain(tekst)

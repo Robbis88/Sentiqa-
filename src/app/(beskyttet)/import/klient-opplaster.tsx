@@ -9,6 +9,7 @@ import { parseKassererstatistikk } from '@/lib/parsere/kassererstatistikk'
 import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
+import { summerBilagsbuffer } from '@/lib/parsere/bilagsbuffer'
 import type { ForhandsPayload } from '@/lib/import/typer'
 import { importerForhandsparset, registrerRaaFil } from './handlinger'
 import { behandleJobb } from '@/lib/import/behandle'
@@ -53,7 +54,25 @@ async function byggPayload(
     case 'regnskap_resultat': {
       let usynlig: Awaited<ReturnType<typeof parseUsynligSvinn>> | null = null
       try { usynlig = await parseUsynligSvinn(buf) } catch { usynlig = null }
-      return { type, regnskap: await parseRegnskap(buf), stasjoner: await parseRegnskapStasjoner(buf), usynlig }
+      // BILAGSBUFFEREN SUMMERES HER, I NETTLESEREN.
+      //
+      // Fila er allerede aapnet, og bufferen ligger i den. Serveren har
+      // den derimot IKKE paa denne veien - bare det parsete resultatet
+      // sendes. Fram til dette laa `bilagssum` paa null rader i
+      // produksjon, fordi steget bare fantes i serverveien.
+      //
+      // Summert og ikke raa: raa bilagslinjer er titusener per fil, og en
+      // serverhandling har en kroppsgrense paa 1 MB. Summeringen er
+      // likevel det som lagres.
+      let bilag: ReturnType<typeof summerBilagsbuffer> = null
+      try { bilag = summerBilagsbuffer(buf) } catch { bilag = null }
+      return {
+        type,
+        regnskap: await parseRegnskap(buf),
+        stasjoner: await parseRegnskapStasjoner(buf),
+        usynlig,
+        bilag,
+      }
     }
     default: return null
   }

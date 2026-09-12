@@ -12,7 +12,9 @@ import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { skalLagres } from '@/lib/parsere/bp-royalty'
 import { byggPlanerForRetailer } from '@/lib/kurs/hent'
 import { lagreUtkast, lagringsnotat } from '@/lib/kurs/lagre'
-import { butikknummer, lesBilagsbuffer, summerPerLeverandor, type Bilagslinje } from '@/lib/parsere/bilagsbuffer'
+import {
+  butikknummer, summerBilagsbuffer, type Leverandorsum,
+} from '@/lib/parsere/bilagsbuffer'
 import { slaaOppKonto } from '@/lib/parsere/kontoregister'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
 import { bpLinjer as byggLinjer, type Bplinje } from '@/lib/bp/rader'
@@ -345,54 +347,22 @@ export async function behandleJobbKjerne(
         if (!dato) throw new ParserFeil('Fant ingen periode i fil eller filnavn.')
         const perStasjon = await parseRegnskapStasjoner(buffer)
         res = await lagreRegnskap(supabase, retailerId, jobbId, r, dato, perStasjon, oppslag.medNummer)
-        // Usynlig svinn (per stasjon/produkt) — best effort, skal ikke velte importen.
-        try {
-          const us = await parseUsynligSvinn(buffer)
-          await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, us, dato)
-        } catch (e) {
-          // Vanligste aarsak er at fila mangler per-stasjon-ark, og det
-          // er ikke en feil ved fila. Men da skal det STAA at det var
-          // derfor - ikke bare mangle et tall.
-          feilnotater.push(`Usynlig svinn ble ikke lest: ${grunn(e)}`)
-        }
-        // BILAGSBUFFEREN (0199). Tolv maaneders leverandoerdetalj foelger
-        // hver opplasting - se `parsere/bilagsbuffer.ts`. Best effort:
-        // noen filer mangler bufferen, og det er ikke en feil ved fila.
-        try {
-          const b = await lagreBilagssum(supabase, retailerId, jobbId, buffer, oppslag.medNummer)
-          if (b) bilagsnotat = b
-        } catch (e) {
-          feilnotater.push(`Bilagsbufferen ble ikke lest: ${grunn(e)}`)
-        }
-        // MAANEDSPLANEN (0200). Utkast per stasjon, bygget paa RETNINGEN i
-        // de siste tolv maanedene. Best effort: en kjede med for kort
-        // historikk faar ingen plan, og det er riktigere enn en plan
-        // bygget paa to maaneder.
-        //
-        // Den skrives SIST, etter at maanedens egne tall er lagret - ellers
-        // ville retningen manglet den maaneden importen nettopp la inn.
-        try {
-          const planer = await byggPlanerForRetailer({ supabase, retailerId, tilOgMed: dato })
-          const lagret = await lagreUtkast(
-            supabase, retailerId, jobbId,
-            planer.map((p) => ({ stasjonId: p.stasjonId, plan: p.plan })),
-          )
-          plannotat = lagringsnotat(lagret)
-        } catch (e) {
-          // DEN SOM GJEMTE SEG. Planene var tomme og ingenting sa hvorfor.
-          plannotat = `Maanedsplanene ble ikke bygget: ${grunn(e)}`
-        }
-        // Bemanningsvarsler — også best effort.
-        try {
-          await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
-        } catch (e) {
-          feilnotater.push(`Bemanningsvarsler ble ikke laget: ${grunn(e)}`)
-        }
-        // Kaffevarsler — samme kontrakt: best effort.
-        try {
-          await varsleKaffe(supabase, retailerId, oppslag.medNummer, perStasjon)
-        } catch (e) {
-          feilnotater.push(`Kaffevarsler ble ikke laget: ${grunn(e)}`)
+        // ETTERARBEIDET ER FELLES MED NETTLESERVEIEN. Se `etterRegnskap`.
+        {
+          let usynlig: Awaited<ReturnType<typeof parseUsynligSvinn>> | null = null
+          try {
+            usynlig = await parseUsynligSvinn(buffer)
+          } catch (e) {
+            feilnotater.push(`Usynlig svinn ble ikke lest: ${grunn(e)}`)
+          }
+          const etter = await etterRegnskap({
+            supabase, retailerId, jobbId, dato, perStasjon, oppslag,
+            usynlig,
+            bilag: summerBilagsbuffer(buffer),
+          })
+          bilagsnotat = etter.bilagsnotat
+          plannotat = etter.plannotat
+          feilnotater.push(...etter.feil)
         }
         break
       }
@@ -783,6 +753,7 @@ export async function lagreForhandsparset(
     await supabase.from('import_jobber').update({ status: 'feilet', feilmelding: m }).eq('id', jobbId)
     return { ok: false, feil: m }
   }
+  const etternotater: string[] = []
   try {
     const oppslag = await hentStasjonsoppslag(supabase)
     let res: Lagring
@@ -805,12 +776,29 @@ export async function lagreForhandsparset(
       case 'salgsgrid_varetrans':
         res = await lagreSvinn(supabase, retailerId, jobbId, oppslag.medNummer, payload.svinn)
         break
-      case 'regnskap_resultat':
+      case 'regnskap_resultat': {
         dato = payload.regnskap.periode ?? periodeFraFilnavn(meta.filnavn)
         if (!dato) throw new ParserFeil('Fant ingen periode i fil eller filnavn.')
         res = await lagreRegnskap(supabase, retailerId, jobbId, payload.regnskap, dato, payload.stasjoner, oppslag.medNummer)
-        if (payload.usynlig) { try { await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, payload.usynlig, dato) } catch { /* mangler per-stasjon-ark */ } }
+        // SAMME ETTERARBEID SOM SERVERVEIEN, SAMME FUNKSJON.
+        //
+        // Her sto bare `lagreUsynligSvinn`. Bilagsbufferen, maanedsplanene
+        // og varslene manglet - og denne veien er den som brukes hver dag,
+        // for hovedfeltet parser i nettleseren. `bilagssum` sto paa NULL
+        // rader i produksjon 2026-09-12, og maanedsplanene var tomme uten
+        // at noe feilet: koden ble aldri kalt.
+        const etter = await etterRegnskap({
+          supabase, retailerId, jobbId, dato,
+          perStasjon: payload.stasjoner, oppslag,
+          usynlig: payload.usynlig,
+          bilag: payload.bilag,
+        })
+        etternotater.push(
+          ...[etter.bilagsnotat, etter.plannotat].filter((x): x is string => Boolean(x)),
+          ...etter.feil,
+        )
         break
+      }
       default:
         return await settFeil('Ukjent rapporttype.')
     }
@@ -823,6 +811,7 @@ export async function lagreForhandsparset(
           : null,
         stasjonsmerknad(payload.type, res, oppslag.stasjoner),
         res.notat ?? null,
+        ...etternotater,
       ].filter(Boolean).join(' · ') || null,
     }).eq('id', jobbId)
     if (payload.type === 'regnskap_resultat') {
@@ -1217,18 +1206,117 @@ async function sykefravaerssats(
  *
  * Returnerer en merknad naar noe er verdt aa si, ellers `null`.
  */
+// =====================================================================
+// ETTERARBEIDET ETTER ET REGNSKAP - ETT STED, TO KALLERE
+// =====================================================================
+//
+// Det finnes to veier inn i importen, og de gjorde ikke det samme:
+//
+//   behandleJobbKjerne   serveren parser fila (e-postinntak, «Behandle»)
+//   lagreForhandsparset  nettleseren parser, serveren lagrer
+//
+// Den andre er den som brukes HVER DAG - hovedfeltet parser i
+// nettleseren. Og den gjorde bare to av seks steg: regnskapslinjene og
+// usynlig svinn. Bilagsbufferen, maanedsplanene, bemanningsvarslene og
+// kaffevarslene manglet.
+//
+// Maalt i produksjon 2026-09-12: `bilagssum` hadde NULL rader, og
+// `/maanedsplan` var tom etter sju vellykkede importer. Ingenting
+// feilet - koden ble aldri kalt. Det er den dyreste formen dette huset
+// kjenner: to kilder for samme regel, like den dagen de skrives.
+//
+// Derfor ligger etterarbeidet her, og begge veiene kaller det. En ny
+// ting som skal skje etter et regnskap, skal legges til ETT sted.
+// `src/lib/import/envei.test.ts` felles hvis de skiller lag igjen.
+//
+// ---------------------------------------------------------------------
+// HVORFOR `bilag` KOMMER INN FERDIG SUMMERT
+//
+// Serveren har fila og kan lese bufferen selv. Nettleseren har den ogsaa
+// - men raa bilagslinjer er titusener per fil, og en serverhandling har
+// en kroppsgrense paa 1 MB. Summeringen er likevel det som lagres, saa
+// nettleseren sender resultatet i stedet for raamaterialet.
+// =====================================================================
+type EtterOpts = {
+  supabase: Klient
+  retailerId: string
+  jobbId: string
+  dato: string
+  perStasjon: Awaited<ReturnType<typeof parseRegnskapStasjoner>>
+  oppslag: Awaited<ReturnType<typeof hentStasjonsoppslag>>
+  usynlig: Awaited<ReturnType<typeof parseUsynligSvinn>> | null
+  bilag: { antall: number; perioder: string[]; summer: Leverandorsum[] } | null
+}
+
+async function etterRegnskap(o: EtterOpts): Promise<{
+  bilagsnotat: string | null
+  plannotat: string | null
+  feil: string[]
+}> {
+  const { supabase, retailerId, jobbId, dato, perStasjon, oppslag } = o
+  const feil: string[] = []
+  const grunn = (e: unknown) =>
+    (e instanceof Error ? e.message : String(e)).slice(0, 200)
+  let bilagsnotat: string | null = null
+  let plannotat: string | null = null
+
+  // Usynlig svinn per stasjon/produkt.
+  if (o.usynlig) {
+    try {
+      await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, o.usynlig, dato)
+    } catch (e) {
+      feil.push(`Usynlig svinn ble ikke lagret: ${grunn(e)}`)
+    }
+  }
+
+  // BILAGSBUFFEREN (0199). Tolv maaneders leverandoerdetalj per fil.
+  if (o.bilag) {
+    try {
+      bilagsnotat = await lagreBilagssum(supabase, retailerId, jobbId, o.bilag, oppslag.medNummer)
+    } catch (e) {
+      feil.push(`Bilagsbufferen ble ikke lagret: ${grunn(e)}`)
+    }
+  }
+
+  // MAANEDSPLANEN (0200). Utkast per stasjon, bygget paa RETNINGEN i de
+  // siste tolv maanedene. Skrives SIST, etter at maanedens egne tall er
+  // lagret - ellers ville retningen manglet den maaneden importen
+  // nettopp la inn.
+  try {
+    const planer = await byggPlanerForRetailer({ supabase, retailerId, tilOgMed: dato })
+    const lagret = await lagreUtkast(
+      supabase, retailerId, jobbId,
+      planer.map((pl) => ({ stasjonId: pl.stasjonId, plan: pl.plan })),
+    )
+    plannotat = lagringsnotat(lagret)
+  } catch (e) {
+    plannotat = `Maanedsplanene ble ikke bygget: ${grunn(e)}`
+  }
+
+  try {
+    await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
+  } catch (e) {
+    feil.push(`Bemanningsvarsler ble ikke laget: ${grunn(e)}`)
+  }
+
+  try {
+    await varsleKaffe(supabase, retailerId, oppslag.medNummer, perStasjon)
+  } catch (e) {
+    feil.push(`Kaffevarsler ble ikke laget: ${grunn(e)}`)
+  }
+
+  return { bilagsnotat, plannotat, feil }
+}
+
 async function lagreBilagssum(
   supabase: Klient,
   retailerId: string,
   jobbId: string,
-  buffer: Buffer,
+  meta: { antall: number; perioder: string[]; summer: Leverandorsum[] },
   medNummer: Map<string, string>,
 ): Promise<string | null> {
-  const linjer: Bilagslinje[] = []
-  const meta = lesBilagsbuffer(buffer, (l) => linjer.push(l))
-  if (!meta || linjer.length === 0) return null
-
-  const summer = summerPerLeverandor(linjer)
+  const summer = meta.summer
+  if (summer.length === 0) return null
   let utenBegrep = 0
 
   const rader = summer.map((s) => {
