@@ -294,6 +294,24 @@ export async function behandleJobbKjerne(
     let dato: string | null = null
     let bilagsnotat: string | null = null
     let plannotat: string | null = null
+    // =================================================================
+    // «BEST EFFORT» BETYR IKKE «I STILLHET»
+    // =================================================================
+    //
+    // Fem steg under er med vilje ikke-velteende: en plan, et varsel
+    // eller en manglende pivotbuffer skal ikke koste hele importen.
+    //
+    // Men alle fem sto med `catch {}` og sa INGENTING. Det ble oppdaget
+    // 2026-09-12: maanedsplanene var tomme etter en vellykket import, og
+    // det fantes ingen maate aa se hvorfor paa - hverken i UI, i loggen
+    // eller i jobbraden. Diagnosen ble gjetning.
+    //
+    // Et steg som feiler uten aa si fra ser noeyaktig ut som et steg som
+    // ikke hadde noe aa gjoere. Naa skriver de grunnen i merknaden, som
+    // er det ENESTE stedet importen kan forklare seg.
+    const grunn = (e: unknown) =>
+      (e instanceof Error ? e.message : String(e)).slice(0, 200)
+    const feilnotater: string[] = []
 
     switch (rapporttype) {
       case 'st1_salgsstatistikk': {
@@ -331,14 +349,21 @@ export async function behandleJobbKjerne(
         try {
           const us = await parseUsynligSvinn(buffer)
           await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, us, dato)
-        } catch { /* fila har kanskje ikke per-stasjon-ark */ }
+        } catch (e) {
+          // Vanligste aarsak er at fila mangler per-stasjon-ark, og det
+          // er ikke en feil ved fila. Men da skal det STAA at det var
+          // derfor - ikke bare mangle et tall.
+          feilnotater.push(`Usynlig svinn ble ikke lest: ${grunn(e)}`)
+        }
         // BILAGSBUFFEREN (0199). Tolv maaneders leverandoerdetalj foelger
         // hver opplasting - se `parsere/bilagsbuffer.ts`. Best effort:
         // noen filer mangler bufferen, og det er ikke en feil ved fila.
         try {
           const b = await lagreBilagssum(supabase, retailerId, jobbId, buffer, oppslag.medNummer)
           if (b) bilagsnotat = b
-        } catch { /* fila har kanskje ikke pivotbuffer */ }
+        } catch (e) {
+          feilnotater.push(`Bilagsbufferen ble ikke lest: ${grunn(e)}`)
+        }
         // MAANEDSPLANEN (0200). Utkast per stasjon, bygget paa RETNINGEN i
         // de siste tolv maanedene. Best effort: en kjede med for kort
         // historikk faar ingen plan, og det er riktigere enn en plan
@@ -353,15 +378,22 @@ export async function behandleJobbKjerne(
             planer.map((p) => ({ stasjonId: p.stasjonId, plan: p.plan })),
           )
           plannotat = lagringsnotat(lagret)
-        } catch { /* en plan som ikke lar seg bygge skal ikke velte importen */ }
+        } catch (e) {
+          // DEN SOM GJEMTE SEG. Planene var tomme og ingenting sa hvorfor.
+          plannotat = `Maanedsplanene ble ikke bygget: ${grunn(e)}`
+        }
         // Bemanningsvarsler — også best effort.
         try {
           await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
-        } catch { /* varsler skal aldri velte en import */ }
+        } catch (e) {
+          feilnotater.push(`Bemanningsvarsler ble ikke laget: ${grunn(e)}`)
+        }
         // Kaffevarsler — samme kontrakt: best effort.
         try {
           await varsleKaffe(supabase, retailerId, oppslag.medNummer, perStasjon)
-        } catch { /* varsler skal aldri velte en import */ }
+        } catch (e) {
+          feilnotater.push(`Kaffevarsler ble ikke laget: ${grunn(e)}`)
+        }
         break
       }
       case 'easyatwork_stempling': {
@@ -440,6 +472,7 @@ export async function behandleJobbKjerne(
           res.notat ?? null,
           bilagsnotat,
           plannotat,
+          ...feilnotater,
         ].filter(Boolean).join(' · ') || null,
       })
       .eq('id', jobbId)
