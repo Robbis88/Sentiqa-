@@ -492,18 +492,24 @@
   },
   {
    "tabell": "bilagssum",
-   "$hvorfor": "Bilagslinjer summert per butikk, maaned, konto og leverandoer, lest ut av pivotbufferen i regnskapsfila (0199). Uten dem er «renhold er hoeyt» alt systemet kan si; med dem er det «ASKO Vest 29 825 paa Lone mot Vardens 7 207». BUTIKKSJEF SER ET UTVALG: bare egne stasjoner, og bare rader med et KONTOBEGREP i den tillatte lista - ikke rapportlinjekode. Koden betyr ulike ting foer og etter februar 2026 (628 var «Leie driftsmidler»), og bufferen baerer tolv maaneder bakover i hver fil, saa de eldste radene er fra det gamle skjemaet uansett hvor ny fila er. Et begrep vi ikke kjente igjen lagres som NULL, og NULL er skjult. ADMIN-RADENE ER KJEDENS NULL-STASJONSRADER: 9900 Admin har ingen stasjon, og de faller ut av mine_stasjoner() av seg selv - null er aldri med i en IN-liste. Derfor null_stasjon = kun_eier. NETTBRETTET NAAR DEN IKKE: dette er kostnadsdetalj, ikke noe som hoerer hjemme paa gulvet. INGEN SKRIVEPOLICY: radene kommer fra importen gjennom tjenestenoekkelen.",
+   "$hvorfor": "Bilagslinjer summert per butikk, maaned, konto og leverandoer, lest ut av pivotbufferen i regnskapsfila (0199). Uten dem er «renhold er hoeyt» alt systemet kan si; med dem er det «ASKO Vest 29 825 paa Lone mot Vardens 7 207». BUTIKKSJEF SER ET UTVALG: bare egne stasjoner, og bare rader med et KONTOBEGREP i den tillatte lista - ikke rapportlinjekode. Koden betyr ulike ting foer og etter februar 2026 (628 var «Leie driftsmidler»), og bufferen baerer tolv maaneder bakover i hver fil, saa de eldste radene er fra det gamle skjemaet uansett hvor ny fila er. Et begrep vi ikke kjente igjen lagres som NULL, og NULL er skjult. ADMIN-RADENE ER KJEDENS NULL-STASJONSRADER: 9900 Admin har ingen stasjon, og de faller ut av mine_stasjoner() av seg selv - null er aldri med i en IN-liste. Derfor null_stasjon = kun_eier. NETTBRETTET NAAR DEN IKKE: dette er kostnadsdetalj, ikke noe som hoerer hjemme paa gulvet. INGEN SKRIVEPOLICY: radene kommer fra importen gjennom tjenestenoekkelen. SKRIVERETT (0202): importen skriver disse radene, og «Behandle»-knappen kjører importkjernen med BRUKERENS sesjon - ikke tjenesteNøkkelen. 0198/0199/0200 antok tjenesteNøkkelen og lot være å gi skrivepolicy; BP26 feilet da med «new row violates row-level security policy». Skriveretten er `retailer_admin` alene, fordi importruta selv er eierens alene - en policy skal beskrive døra som finnes.",
    "tenant_scope": "retailer_or_station",
    "null_stasjon": "kun_eier",
    "data_class": "warm",
    "operasjoner": [
-    "select"
+    "select",
+    "insert",
+    "update"
    ],
    "tablet": "none",
    "manager": {
     "select": "assigned_stations"
    },
-   "owner": "retailer",
+   "owner": {
+    "select": "retailer",
+    "insert": "retailer",
+    "update": "retailer"
+   },
    "business_unik": [
     "butikknummer",
     "periode",
@@ -524,7 +530,8 @@
     "tekst": "'Sonde {{unik}}'",
     "belop_kr": "1234.50"
    },
-   "$proberad_hvorfor": "`begrep` maa vaere 'renhold' og ikke null: butikksjefpolicyen krever et begrep i den tillatte lista, og en proberad med null ville gjort at ingen tillatt lesing lyktes - da beviser ingen av avvisningene noe. Se regelen om positiv kontroll i AGENTS.md."
+   "$proberad_hvorfor": "`begrep` maa vaere 'renhold' og ikke null: butikksjefpolicyen krever et begrep i den tillatte lista, og en proberad med null ville gjort at ingen tillatt lesing lyktes - da beviser ingen av avvisningene noe. Se regelen om positiv kontroll i AGENTS.md.",
+   "oppdaterbart": "belop_kr = 2345.60"
   },
   {
    "tabell": "bilvask_abonnement",
@@ -1193,11 +1200,12 @@
   },
   {
    "tabell": "maanedsplan",
-   "$hvorfor": "Månedsplanen til butikksjefen (0200), bygget på RETNING og ikke nivå. EIEREN GODKJENNER FØR DEN GÅR, og det gir en grense som må stå i RLS og ikke i en visning: butikksjefens lesepolicy krever status i ('sluppet','sendt'), så hun ser ALDRI et utkast. Et brev som ikke er sluppet er ikke et brev - det er et forslag til eieren, og halvparten kommer aldri til å sendes. Ser hun dem, er godkjenningen meningsløs. Eieren har også UPDATE, som er selve slippet; innholdet låses av en trigger når planen først er sluppet, uansett hvem som skriver. Ingen insert-policy: utkastene skrives av importen gjennom tjenestenøkkelen. Ingen delete: en sendt plan er et dokument over hva vi mente den måneden. NETTBRETTET NÅR DEN IKKE - dette er en samtale mellom eier og butikksjef.",
+   "$hvorfor": "Månedsplanen til butikksjefen (0200), bygget på RETNING og ikke nivå. EIEREN GODKJENNER FØR DEN GÅR, og det gir en grense som må stå i RLS og ikke i en visning: butikksjefens lesepolicy krever status i ('sluppet','sendt'), så hun ser ALDRI et utkast. Et brev som ikke er sluppet er ikke et brev - det er et forslag til eieren, og halvparten kommer aldri til å sendes. Ser hun dem, er godkjenningen meningsløs. Eieren har også UPDATE, som er selve slippet; innholdet låses av en trigger når planen først er sluppet, uansett hvem som skriver. Ingen insert-policy: utkastene skrives av importen gjennom tjenestenøkkelen. Ingen delete: en sendt plan er et dokument over hva vi mente den måneden. NETTBRETTET NÅR DEN IKKE - dette er en samtale mellom eier og butikksjef. SKRIVERETT (0202): importen skriver disse radene, og «Behandle»-knappen kjører importkjernen med BRUKERENS sesjon - ikke tjenesteNøkkelen. 0198/0199/0200 antok tjenesteNøkkelen og lot være å gi skrivepolicy; BP26 feilet da med «new row violates row-level security policy». Skriveretten er `retailer_admin` alene, fordi importruta selv er eierens alene - en policy skal beskrive døra som finnes.",
    "tenant_scope": "stasjon",
    "data_class": "cold",
    "operasjoner": [
     "select",
+    "insert",
     "update"
    ],
    "tablet": "none",
@@ -1206,6 +1214,7 @@
    },
    "owner": {
     "select": "retailer",
+    "insert": "retailer",
     "update": "retailer"
    },
    "business_unik": [
@@ -2103,16 +2112,24 @@
   },
   {
    "tabell": "royaltysats",
-   "$hvorfor": "St1s royaltysatser per aar, lest ut av BP-arket «Cluster data» (0198). GRUNNLAGET ER OMSETNING, IKKE MARGIN: en svinngevinst betaler ingen royalty, bare vekst gjoer det - og uten satsene regner systemet paa bruttomargin, som snur rangeringen mellom varegrupper. HELE KJEDEN LESER: satsene er ikke hemmelige innad, og funksjonen som sier hva en forbedring er verdt maa kunne lese dem ogsaa paa flater en butikksjef ser. Det er kroneverdien de ser, ikke satsen. INGEN SKRIVEPOLICY: radene kommer fra BP-importen gjennom tjenestenoekkelen. En sats som kan redigeres i en visning er en sats ingen lenger vet opphavet til, og den ville gjort hver kroneberegning i systemet til et skjoenn. Er satsen feil, er BP-en feil, og da importeres den paa nytt.",
+   "$hvorfor": "St1s royaltysatser per aar, lest ut av BP-arket «Cluster data» (0198). GRUNNLAGET ER OMSETNING, IKKE MARGIN: en svinngevinst betaler ingen royalty, bare vekst gjoer det - og uten satsene regner systemet paa bruttomargin, som snur rangeringen mellom varegrupper. HELE KJEDEN LESER: satsene er ikke hemmelige innad, og funksjonen som sier hva en forbedring er verdt maa kunne lese dem ogsaa paa flater en butikksjef ser. Det er kroneverdien de ser, ikke satsen. INGEN SKRIVEPOLICY: radene kommer fra BP-importen gjennom tjenestenoekkelen. En sats som kan redigeres i en visning er en sats ingen lenger vet opphavet til, og den ville gjort hver kroneberegning i systemet til et skjoenn. Er satsen feil, er BP-en feil, og da importeres den paa nytt. SKRIVERETT (0202): importen skriver disse radene, og «Behandle»-knappen kjører importkjernen med BRUKERENS sesjon - ikke tjenesteNøkkelen. 0198/0199/0200 antok tjenesteNøkkelen og lot være å gi skrivepolicy; BP26 feilet da med «new row violates row-level security policy». Skriveretten er `retailer_admin` alene, fordi importruta selv er eierens alene - en policy skal beskrive døra som finnes.",
    "tenant_scope": "retailer",
    "data_class": "cold",
    "operasjoner": [
-    "select"
+    "select",
+    "insert",
+    "update"
    ],
-   "tablet": "retailer",
-   "manager": "retailer",
-   "owner": {
+   "tablet": {
     "select": "retailer"
+   },
+   "manager": {
+    "select": "retailer"
+   },
+   "owner": {
+    "select": "retailer",
+    "insert": "retailer",
+    "update": "retailer"
    },
    "business_unik": [
     "aar"
@@ -2124,7 +2141,8 @@
     "hoy_sats_vask": "0.60",
     "pant_sats": "0"
    },
-   "$proberad_hvorfor": "`aar` staar i business_unik (unique (retailer_id, aar) i 0198), saa den maa variere per forsoek - ellers kolliderer andre forsoek med 23505, og en domenefeil er ikke en sikkerhetsavvisning. `{{unik_aar}}` gir et aarstall innenfor check-skranken 2020-2100."
+   "$proberad_hvorfor": "`aar` staar i business_unik (unique (retailer_id, aar) i 0198), saa den maa variere per forsoek - ellers kolliderer andre forsoek med 23505, og en domenefeil er ikke en sikkerhetsavvisning. `{{unik_aar}}` gir et aarstall innenfor check-skranken 2020-2100.",
+   "oppdaterbart": "lav_sats = 0.11"
   },
   {
    "tabell": "rutine_notat",
