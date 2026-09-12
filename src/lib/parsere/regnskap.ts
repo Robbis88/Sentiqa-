@@ -202,7 +202,28 @@ export async function parseRegnskapStasjoner(
       // Driftskostnader pr stasjon («Res»-seksjon): leaf-konto (nivå 1), kun
       // kostnadskonti (>= 500). Regnskap=kol 8, Budsjett=kol 9 (som salg).
       if (type === 'Res') {
-        if (celletekst(rad.getCell(SKOL.nivaTall).value).trim() !== '1') continue
+        // STASJONENS EGET RESULTAT. Arket oppgir det paa rad «RESULTAT»,
+        // nivaa 4 med kode 300 - altsaa utenfor BEGGE filtrene under
+        // (nivaa 1, kode >= 500). Det ble dermed aldri lest, og Kursen
+        // maatte ellers utledet det av brutto minus driftskostnader.
+        //
+        // Et utledet resultat kan drive fra arkets eget. Da ville
+        // «medvind» og «motvind» hvilt paa et tall regnskapsfoereren ikke
+        // kjenner igjen, og det er en daarlig plass aa ha en egen mening.
+        const nivaa = celletekst(rad.getCell(SKOL.nivaTall).value).trim()
+        const navn = celletekst(rad.getCell(SKOL.navn).value).trim()
+        if (nivaa === '4' && /^resultat$/i.test(navn)) {
+          const reg = celletall(rad.getCell(SKOL.salgRegnskap).value)
+          const bud = celletall(rad.getCell(SKOL.salgBudsjett).value)
+          linjer.push({
+            seksjon: 'resultat', kode: null, post: 'RESULTAT', sortering: null,
+            regnskap: reg, budsjett: bud, avvik: reg - bud,
+            indexPct: bud ? ((reg - bud) / bud) * 100 : 0,
+            regnskapHittil: 0, budsjettHittil: 0,
+          })
+          continue
+        }
+        if (nivaa !== '1') continue
         const kk = celletekst(rad.getCell(SKOL.kode).value).trim()
         if (!/^\d+$/.test(kk) || Number(kk) < 500) continue
         const reg = celletall(rad.getCell(SKOL.salgRegnskap).value)

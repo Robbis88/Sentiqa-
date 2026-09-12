@@ -64,6 +64,7 @@ begin
     ('lederstotte_rapporter', true, false),
     ('lenker', true, false),
     ('lonnsart_linje', true, false),
+    ('maanedsplan', true, false),
     ('malekort', true, false),
     ('malekort_scope', true, false),
     ('merker', true, false),

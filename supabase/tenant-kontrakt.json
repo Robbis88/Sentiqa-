@@ -1192,6 +1192,38 @@
    "oppdaterbart": "belop_kr = 1500"
   },
   {
+   "tabell": "maanedsplan",
+   "$hvorfor": "Månedsplanen til butikksjefen (0200), bygget på RETNING og ikke nivå. EIEREN GODKJENNER FØR DEN GÅR, og det gir en grense som må stå i RLS og ikke i en visning: butikksjefens lesepolicy krever status i ('sluppet','sendt'), så hun ser ALDRI et utkast. Et brev som ikke er sluppet er ikke et brev - det er et forslag til eieren, og halvparten kommer aldri til å sendes. Ser hun dem, er godkjenningen meningsløs. Eieren har også UPDATE, som er selve slippet; innholdet låses av en trigger når planen først er sluppet, uansett hvem som skriver. Ingen insert-policy: utkastene skrives av importen gjennom tjenestenøkkelen. Ingen delete: en sendt plan er et dokument over hva vi mente den måneden. NETTBRETTET NÅR DEN IKKE - dette er en samtale mellom eier og butikksjef.",
+   "tenant_scope": "stasjon",
+   "data_class": "cold",
+   "operasjoner": [
+    "select",
+    "update"
+   ],
+   "tablet": "none",
+   "manager": {
+    "select": "assigned_stations"
+   },
+   "owner": {
+    "select": "retailer",
+    "update": "retailer"
+   },
+   "business_unik": [
+    "maaned"
+   ],
+   "$business_unik_hvorfor": "unique (stasjon_id, maaned) i 0200. En plan per stasjon per måned: lastes regnskapet opp på nytt skal utkastet skrives OM, ikke ved siden av.",
+   "proberad": {
+    "maaned": "{{unik_dato}}",
+    "dom": "'motvind'",
+    "ingress": "'Sonde {{unik}}'",
+    "status": "'sluppet'",
+    "sluppet_av": "'{{bruker}}'",
+    "sluppet_tid": "now()"
+   },
+   "$proberad_hvorfor": "Status må være 'sluppet': butikksjefens policy krever det, og en proberad som står som utkast ville gjort at ingen tillatt lesing lyktes - da beviser ingen av avvisningene noe (positiv kontroll, AGENTS.md). `sluppet_av` og `sluppet_tid` må følge med: check-skranken maanedsplan_sluppet_har_person krever begge når status er sluppet.",
+   "oppdaterbart": "status = 'avvist'"
+  },
+  {
    "tabell": "malekort",
    "$hvorfor": "INGEN stasjonskolonne - rent retailer-scope. Beviser at generatoren ikke lager kryss-stasjon-tester der begrepet ikke finnes. Lesing er rollestyrt via vis_tablet siden 0134.",
    "capability_gjeld": "GJORT OPP 2026-09-09 (0194 + 0195, begge kjoert). anonymiser var kosmetisk: flagget byttet butikknavnet til \"Butikk #4\" i visningen, mens malekort_stasjoner() (0075) ga navnet paa HVER stasjon i kjeden til enhver authenticated - joinet med beregn_malekort_salg var den navngitte rangeringen tilbake. 0194 flyttet anonymiseringen til malekort_navn(p_malekort), som kjenner kortet og gir navn = null der kalleren ikke skal se det; 0195 tok granten paa den gamle (kvittering: gammel_grant 0, ny_grant 1). Ble aldri utnyttet - 0194 viste anonyme_kort 0, ingen kort hadde flagget satt. anonymisering.test.ts hindrer at avgjoerelsen flytter tilbake til visningen.",

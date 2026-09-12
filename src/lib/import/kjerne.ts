@@ -10,6 +10,8 @@ import { parseVaretransaksjon } from '@/lib/parsere/varetransaksjon'
 import { parseRegnskap, parseRegnskapStasjoner } from '@/lib/parsere/regnskap'
 import { erBpFil, parseBp } from '@/lib/parsere/bp'
 import { skalLagres } from '@/lib/parsere/bp-royalty'
+import { byggPlanerForRetailer } from '@/lib/kurs/hent'
+import { lagreUtkast, lagringsnotat } from '@/lib/kurs/lagre'
 import { butikknummer, lesBilagsbuffer, summerPerLeverandor, type Bilagslinje } from '@/lib/parsere/bilagsbuffer'
 import { slaaOppKonto } from '@/lib/parsere/kontoregister'
 import { erBp25Fil, parseBp25 } from '@/lib/parsere/bp25'
@@ -291,6 +293,7 @@ export async function behandleJobbKjerne(
     let res: Lagring
     let dato: string | null = null
     let bilagsnotat: string | null = null
+    let plannotat: string | null = null
 
     switch (rapporttype) {
       case 'st1_salgsstatistikk': {
@@ -336,6 +339,21 @@ export async function behandleJobbKjerne(
           const b = await lagreBilagssum(supabase, retailerId, jobbId, buffer, oppslag.medNummer)
           if (b) bilagsnotat = b
         } catch { /* fila har kanskje ikke pivotbuffer */ }
+        // MAANEDSPLANEN (0200). Utkast per stasjon, bygget paa RETNINGEN i
+        // de siste tolv maanedene. Best effort: en kjede med for kort
+        // historikk faar ingen plan, og det er riktigere enn en plan
+        // bygget paa to maaneder.
+        //
+        // Den skrives SIST, etter at maanedens egne tall er lagret - ellers
+        // ville retningen manglet den maaneden importen nettopp la inn.
+        try {
+          const planer = await byggPlanerForRetailer({ supabase, retailerId, tilOgMed: dato })
+          const lagret = await lagreUtkast(
+            supabase, retailerId, jobbId,
+            planer.map((p) => ({ stasjonId: p.stasjonId, plan: p.plan })),
+          )
+          plannotat = lagringsnotat(lagret)
+        } catch { /* en plan som ikke lar seg bygge skal ikke velte importen */ }
         // Bemanningsvarsler — også best effort.
         try {
           await varsleBemanning(supabase, retailerId, perStasjon, dato, oppslag.medNummer)
@@ -421,6 +439,7 @@ export async function behandleJobbKjerne(
           stasjonsmerknad(rapporttype, res, oppslag.stasjoner),
           res.notat ?? null,
           bilagsnotat,
+          plannotat,
         ].filter(Boolean).join(' · ') || null,
       })
       .eq('id', jobbId)

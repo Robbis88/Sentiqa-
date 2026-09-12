@@ -248,6 +248,12 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       // kostnadsramme. Butikksjefen ser sin maanedsramme i /bemanning.
       { sti: '/businessplan/sammenlign', tekst: 'Sammenlign BP', roller: [A] },
       { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
+      // EIERENS ALENE, og det er hele poenget: dette er koeen av
+      // maanedsplaner som venter paa at hun tar stilling. Butikksjefen
+      // er MOTTAKEREN - hun leser sin egen plan naar den er sluppet, og
+      // skal hverken se koeen eller de andre stasjonenes utkast.
+      // RLS-policyen i 0200 haandhever det samme.
+      { sti: '/maanedsplan', tekst: 'Maanedsplaner', roller: [A] },
       // Loenn over tid, mot budsjett. Butikksjefen ser sin egen stasjon -
       // loennsrammen er stasjonens ansvar, og /regnskap svarer bare paa
       // én maaned om gangen.

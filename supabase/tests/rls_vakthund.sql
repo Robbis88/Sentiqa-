@@ -167,7 +167,10 @@ declare
     -- vokser med kalenderen, ikke med drift, og naar aldri to sifre for
     -- en kjede. Ingen skrivepolicy: radene kommer fra importen gjennom
     -- tjenestenoekkelen.
-    'royaltysats'
+    'royaltysats',
+    -- Maanedsplanen (0200). EN rad per stasjon per MAANED - den vokser
+    -- med kalenderen, ikke med drift.
+    'maanedsplan'
     -- Her stod opplaring_personer, opplaring_punkter og opplaring_fullfort
     -- (varme). Ingen av dem finnes i basen - de er erstattet av
     -- opplaering_*-tabellene og ble aldri opprettet. Sjekk 4b fanget det:

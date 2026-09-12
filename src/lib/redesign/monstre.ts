@@ -271,6 +271,11 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // ordne — står her bare fordi kartet skal dekke alle ruter.
   '/avvik': 'arbeidsflyt',
   '/ikmat': 'arbeidsflyt',
+  // Godkjenningskoeen for maanedsplanene. ARBEIDSFLYT og ikke analyse:
+  // noe FORLATER systemet naar du trykker. Nivaa 1 er derfor hvor mange
+  // som venter paa deg, ikke hvordan stasjonene ligger an - det siste
+  // staar paa /regnskap.
+  '/maanedsplan': 'arbeidsflyt',
 
   // --- Analyse ---
   // /ukebrief er analyse og ikke dashbord: den svarer på ÉN ukes

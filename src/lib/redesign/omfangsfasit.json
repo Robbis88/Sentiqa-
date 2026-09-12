@@ -7,6 +7,7 @@
     "/ikmat::ik_avlesninger": "Avlesningene kobles til kontrollpunktet, og punktet bærer stasjonen. Sida grupperer per stasjon (punkterPerStasjon), så ingen tall blandes.",
     "/import::import_jobber": "Importkøen er kjedens, og /import er låst til retailer_admin i appen. En kø per stasjon ville vært feil bilde av en fil som dekker alle fem.",
     "/layout.tsx::varsler": "Bjella i toppstripa, samme som dashbordet: null stasjon betyr hele kjeden, og et filter ville skjult dem.",
+    "/maanedsplan::maanedsplan": "BEVISST HELE KJEDEN. Dette er eierens godkjenningskoe: hun skal se utkastene for ALLE stasjonene sine, og et stasjonsfilter ville gjort koeen ubrukelig - en usluppet plan ville ligget skjult uten at noe sa fra. Grensen ligger to steder i stedet: sida avviser alt annet enn retailer_admin, og RLS-policyen maanedsplan_les_eier (0200) krever samme rolle OG egen kjede. Butikksjefen naar aldri denne ruta; hun leser sin egen plan der hun leser tallene sine, og ser dessuten aldri et utkast.",
     "/mine-opplysninger::kontrolltiltak_bekreftelse": "Brukerens EGNE bekreftelser. Ingen stasjonsdimensjon å blande.",
     "/oversikt::tablet_meldinger": "Beskjeder til nettbrettet. Null stasjon betyr hele kjeden, som for varsler - og nettbrettet står uansett på én stasjon.",
     "/persondata::persondata_logg": "Tilgangsloggen. RLS avgrenser butikksjefen til egne stasjoner (0148), og loggen er RADER med navn, ikke et tall som kan misleses.",
