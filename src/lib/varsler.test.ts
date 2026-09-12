@@ -10,10 +10,13 @@ const { opprettVarsel, varselnoekkel } = await import('./varsler')
 
 /** Minste Supabase-etterligning: `upsert(...).select()` og `insert(...)`. */
 function klient(opprettede: { id: string }[]) {
-  const upsert = vi.fn(
-    (_rad: unknown, _opts?: unknown) =>
-      ({ select: () => ({ limit: () => Promise.resolve({ data: opprettede }) }) }),
-  )
+  // Etterligner `upsert(rad, opts).select().limit()`. Argumentene leses
+  // gjennom `upsert.mock.calls`, ikke i kroppen.
+  // Typeparameteren gir `upsert.mock.calls[0][1]` en type uten at
+  // kroppen maa ta imot argumenter den ikke bruker.
+  const upsert = vi.fn<(rad: unknown, opts?: unknown) => {
+    select: () => { limit: () => Promise<{ data: { id: string }[] }> }
+  }>(() => ({ select: () => ({ limit: () => Promise.resolve({ data: opprettede }) }) }))
   const insert = vi.fn().mockResolvedValue({ error: null })
   return { k: { from: () => ({ upsert, insert }) } as never, upsert, insert }
 }
