@@ -8,6 +8,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { BUTIKKSJEF_BEGREP_SETT, BUTIKKSJEF_PERSONAL_BEGREP_SETT } from '@/lib/regnskap-tilgang'
 import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
+import { svinnPerGruppe } from '@/lib/svinn/aggreger'
 
 // Auto-fokus er ikke-sanntid → Sonnet holder (PROSJEKT.md §8; batch-API senere).
 const MODELL = 'claude-sonnet-4-6'
@@ -25,7 +26,11 @@ type Punkt = z.infer<typeof PunktSchema>
 
 type Klient = SupabaseClient
 type Linje = { post: string; kode: string | null; begrep?: string | null; regnskap: number | null; budsjett: number | null; index_pct: number | null }
-type Svinn = { kode: string | null; navn: string; usynlig_kr: number | null; kast: number | null }
+type Svinn = {
+  kode: string | null; navn: string
+  nivaa: string | null; analyseomraade: string | null
+  usynlig_kr: number | null; kast: number | null
+}
 
 async function forStasjon(
   anthropic: Anthropic,
@@ -37,7 +42,7 @@ async function forStasjon(
   const [{ data: omsRaw }, { data: brfRaw }, { data: svinn }, { data: kost }] = await Promise.all([
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'omsetning').overrideTypes<Linje[]>(),
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'bruttofortjeneste').overrideTypes<Linje[]>(),
-    supabase.from('regnskap_usynlig_svinn').select('kode, navn, usynlig_kr, kast').eq('periode', periode).eq('stasjon_id', stasjonId).is('slettet_tid', null).overrideTypes<Svinn[]>(),
+    supabase.from('regnskap_usynlig_svinn').select('kode, navn, nivaa, analyseomraade, usynlig_kr, kast').eq('periode', periode).eq('stasjon_id', stasjonId).is('slettet_tid', null).overrideTypes<Svinn[]>(),
     supabase.from('regnskapslinjer').select('post, kode, begrep, regnskap, budsjett').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'driftskostnader').overrideTypes<Linje[]>(),
   ])
   if (!omsRaw || omsRaw.length === 0) return null
@@ -61,20 +66,22 @@ async function forStasjon(
     ? kostLinjer.map((k) => `${k.navn}: ${Math.round(k.r)} kr av budsjett ${Math.round(k.b)} kr (${k.b > 0 ? (((k.r - k.b) / k.b) * 100).toFixed(0) : '0'} % avvik)`).join('\n')
     : 'Ingen kostnadsdata.'
 
-  // Aggreger svinn (kast + usynlig) pr avdeling (kode 12010 → avd 120).
-  const svinnPerAvd = new Map<number, { kast: number; usynlig: number }>()
-  for (const s of svinn ?? []) {
-    const k = Number(s.kode)
-    if (!Number.isFinite(k)) continue
-    const avd = Math.floor(k / 100)
-    const rad = svinnPerAvd.get(avd) ?? { kast: 0, usynlig: 0 }
-    rad.kast += s.kast ?? 0
-    rad.usynlig += s.usynlig_kr ?? 0
-    svinnPerAvd.set(avd, rad)
-  }
+  // Aggreger svinn (kast + usynlig) pr varegruppe, GJENNOM NIVAAREGELEN.
+  //
+  // Her sto `Math.floor(Number(kode) / 100)`, som gir 120 for produktet
+  // `12010` - men **1** for grupperaden `120`. Etter reimporten ville
+  // matgruppens egen rad havnet i en boette som ingen leser, og
+  // fokusteksten ville fortsatt blitt regnet paa produktene alene.
+  // Motsatt vei, med et treffende noekkel, ville den dobbelttelt.
+  // `svinnPerGruppe` velger grunnlag per stasjonsmaaned og noekler paa
+  // gruppekoden som streng - `120` fra gruppen, `120` fra `12010`.
+  const gruppesvinn = svinnPerGruppe(svinn ?? [])
+  const svinnPerAvd = new Map(
+    gruppesvinn.grupper.map((g) => [g.gruppe, { kast: g.kastKr, usynlig: g.usynligKr }]),
+  )
 
   const avdTekst = oms.map((l) => {
-    const avd = Number(l.kode)
+    const avd = (l.kode ?? '').trim()
     const sv = svinnPerAvd.get(avd)
     const svDel = sv
       ? `; kast (synlig svinn) ${Math.round(sv.kast)} kr; usynlig ${Math.round(sv.usynlig)} kr (${sv.usynlig > 0 ? 'MANKO' : 'overskudd'})`

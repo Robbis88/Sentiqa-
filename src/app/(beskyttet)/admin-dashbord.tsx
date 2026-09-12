@@ -11,6 +11,7 @@ import {
   type RaaSignal, type Signal as RangertSignal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
+import { svinnPerStasjon, type Stasjonsrad } from '@/lib/svinn/aggreger'
 import { Nokkeltall, Sidehode, Tomtilstand } from '@/components/ui/side'
 import { Liste, Rad } from '@/components/ui/liste'
 import { Signal, Status } from '@/components/ui/status'
@@ -91,8 +92,8 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
         ? supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('periode', sistePeriode).in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>()
         : Promise.resolve({ data: [] as { stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[] }),
       sistePeriode
-        ? supabase.from('regnskap_usynlig_svinn').select('stasjon_id, kast, usynlig_kr').eq('periode', sistePeriode).is('slettet_tid', null).overrideTypes<{ stasjon_id: string; kast: number | null; usynlig_kr: number | null }[]>()
-        : Promise.resolve({ data: [] as { stasjon_id: string; kast: number | null; usynlig_kr: number | null }[] }),
+        ? supabase.from('regnskap_usynlig_svinn').select('stasjon_id, periode, nivaa, analyseomraade, kast, usynlig_kr').eq('periode', sistePeriode).is('slettet_tid', null).overrideTypes<Stasjonsrad[]>()
+        : Promise.resolve({ data: [] as Stasjonsrad[] }),
       supabase.from('tilbakemelding').select('id, stasjon_id, alvorlighet, tekst, opprettet_tid').is('lest_tid', null).order('opprettet_tid', { ascending: false }).limit(12)
         .overrideTypes<{ id: string; stasjon_id: string; alvorlighet: string; tekst: string; opprettet_tid: string }[]>(),
       supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv').is('slettet_tid', null).lte('periode_start', idag).gte('periode_slutt', idag).order('opprettet_tid', { ascending: false }).limit(1).maybeSingle<Konk>(),
@@ -141,11 +142,17 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
       mapp[kode] = { regnskap: eks.regnskap + (l.regnskap ?? 0), budsjett: eks.budsjett + (l.budsjett ?? 0) }
       if (l.seksjon === 'omsetning') avdMedData.add(kode)
     }
-    for (const s of rangSvinnRes.data ?? []) {
-      if (!navnFor.has(s.stasjon_id)) continue
-      const r = sikre(s.stasjon_id)
-      r.kast += s.kast ?? 0
-      r.usynlig += s.usynlig_kr ?? 0
+    // NIVAAREGELEN, IKKE EN SUM OVER ALLE RADER. Etter reimporten
+    // ligger grupperaden «120 Mat» i samme tabell som «12010», og en rå
+    // sum ville tatt begge - altsaa omtrent det dobbelte, uten at noe
+    // feilet. `svinnPerStasjon` velger grunnlag per stasjonsmaaned og
+    // regner paa det ene nivaaet. Foer reimport er det de samme radene
+    // som foer, og tallene er uendret.
+    for (const s of svinnPerStasjon(rangSvinnRes.data ?? [])) {
+      if (!navnFor.has(s.stasjonId)) continue
+      const r = sikre(s.stasjonId)
+      r.kast += s.kastKr
+      r.usynlig += s.usynligKr
     }
     const summer = (m: Record<string, { regnskap: number; budsjett: number }>) =>
       Object.values(m).reduce((a, v) => ({ regnskap: a.regnskap + v.regnskap, budsjett: a.budsjett + v.budsjett }), { regnskap: 0, budsjett: 0 })

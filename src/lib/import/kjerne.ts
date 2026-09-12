@@ -37,9 +37,10 @@ import { lesLonnsart, gjenkjennLonnsart } from '@/lib/parsere/lonnsart'
 import { lesLonnsgrunnlag, gjenkjennLonnsgrunnlag } from '@/lib/parsere/lonnsgrunnlag'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
-import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
+import { parseUsynligSvinn, avstemGrupper } from '@/lib/parsere/usynligsvinn'
 import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
+import { PARSERVERSJON } from './parserversjon'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
 import { opprettVarsel, varselnoekkel } from '@/lib/varsler'
 import { vurderDag, UKER_TILBAKE } from './rimelighet'
@@ -359,6 +360,7 @@ export async function behandleJobbKjerne(
             supabase, retailerId, jobbId, dato, perStasjon, oppslag,
             usynlig,
             bilag: summerBilagsbuffer(buffer),
+            kildefil: filnavn,
           })
           bilagsnotat = etter.bilagsnotat
           plannotat = etter.plannotat
@@ -754,6 +756,9 @@ export async function lagreForhandsparset(
     return { ok: false, feil: m }
   }
   const etternotater: string[] = []
+  // Settes bare av regnskapsimporten, som er den eneste som har en
+  // avstemming i dag. Se kommentaren ved jobbraden under.
+  let avstemmingsfelt: { avvik: number; uavstemteGrupper: number } | null = null
   try {
     const oppslag = await hentStasjonsoppslag(supabase)
     let res: Lagring
@@ -792,19 +797,32 @@ export async function lagreForhandsparset(
           perStasjon: payload.stasjoner, oppslag,
           usynlig: payload.usynlig,
           bilag: payload.bilag,
+          kildefil: meta.filnavn,
         })
         etternotater.push(
           ...[etter.bilagsnotat, etter.plannotat].filter((x): x is string => Boolean(x)),
           ...etter.feil,
         )
+        avstemmingsfelt = etter.avstemming
         break
       }
       default:
         return await settFeil('Ukjent rapporttype.')
     }
+    // AVSTEMMINGEN FOELGER JOBBEN, IKKE BARE NOTATET (0211).
+    //
+    // `avstemt_tid` settes bare naar en avstemming FAKTISK ble kjoert.
+    // For rapporttyper uten en egen avstemming staar den null, og da kan
+    // jobben ikke aktiveres av `aktiver_import()`. Det er med vilje: de
+    // trenger hver sin kontroll foer de kan bli synlige, og den finnes
+    // ikke ennaa.
+    const avst = avstemmingsfelt
     await supabase.from('import_jobber').update({
       status: res.antallRader === 0 ? 'feilet' : 'parset',
       gjelder_dato: dato, antall_rader: res.antallRader, parset_tid: new Date().toISOString(),
+      parserversjon: PARSERVERSJON,
+      avstemt_tid: avst ? new Date().toISOString() : null,
+      avviksantall: avst ? avst.avvik : null,
       feilmelding: [
         res.umatchet.length > 0
           ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}`
@@ -829,6 +847,24 @@ export async function lagreForhandsparset(
 
 // --- Per-type lagring ---
 
+/**
+ * Svinn og bruttofortjeneste per varegruppe (0208).
+ *
+ * =====================================================================
+ * BYGG OG VALIDER FOER NOE SLETTES
+ * =====================================================================
+ *
+ * Her sto `delete()` paa foerste linje, foer en eneste rad var bygget.
+ * Feilet innsettingen etterpaa - nettverk, timeout, batch 3 av 5 - sto
+ * maaneden tom eller delvis, umerket. Naa bygges og kontrolleres alt
+ * foerst; feiler kontrollen, er produksjonsdata uroert.
+ *
+ * INGEN RADER DROPPES. 1000-kronersfilteret kostet Dale 75,90 kroner i
+ * juli - nok til at viewet viste 31 943 der arket sier 32 018,74 - og
+ * Laguneparken 1 402. Mange smaa rader blir et stort beloep.
+ *
+ * Returnerer en merknad naar noe er verdt aa si, ellers `null`.
+ */
 async function lagreUsynligSvinn(
   supabase: Klient,
   retailerId: string,
@@ -836,18 +872,90 @@ async function lagreUsynligSvinn(
   medNummer: Map<string, string>,
   r: Awaited<ReturnType<typeof parseUsynligSvinn>>,
   periode: string,
-): Promise<void> {
-  await supabase.from('regnskap_usynlig_svinn').delete().eq('retailer_id', retailerId).eq('periode', periode)
+  avviksteller: { avvik: number; uavstemteGrupper: number },
+  kildefil?: string,
+): Promise<string | null> {
   const rader: Record<string, unknown>[] = []
+  const umatchet: string[] = []
+  const noekler = new Set<string>()
+  const dubletter: string[] = []
+  let butikk = 0, drivstoff = 0, ukjent = 0, avvik = 0
+
   for (const st of r.stasjoner) {
     const stasjonId = medNummer.get(st.butikknummer)
-    if (!stasjonId) continue
+    if (!stasjonId) { umatchet.push(st.butikknummer); continue }
     for (const p of st.produkter) {
-      if (Math.abs(p.usynligKr) < 1000 && Math.abs(p.kast) < 1000) continue // kun meningsfulle utslag
-      rader.push({ retailer_id: retailerId, stasjon_id: stasjonId, periode, kode: p.kode, navn: p.navn, salg: p.salg, brf_pst: p.brfPst, kast: p.kast, usynlig_kr: p.usynligKr, usynlig_pst: p.usynligPst, kilde_jobb_id: jobbId })
+      if (p.analyseomraade === 'butikk') butikk++
+      else if (p.analyseomraade === 'drivstoff') drivstoff++
+      else ukjent++
+      if (p.avviksstatus === 'avvik') avvik++
+
+      // FORRETNINGSNOEKKELEN kontrolleres FOER skriving. Den partielle
+      // unike indeksen ville tatt det - men da som en 23505 midt i en
+      // batch, etter at slettingen var gjort.
+      if (p.analyseomraade === 'butikk') {
+        const n = `${stasjonId}|${p.nivaa}|${p.kode ?? ''}`
+        if (noekler.has(n)) dubletter.push(`${st.butikknummer} ${p.nivaa} ${p.kode}`)
+        else noekler.add(n)
+      }
+
+      rader.push({
+        retailer_id: retailerId, stasjon_id: stasjonId, periode,
+        kode: p.kode, navn: p.navn,
+        nivaa: p.nivaa, analyseomraade: p.analyseomraade,
+        kode_gruppe: p.kodeGruppe, kodelengde: p.kodelengde,
+        salg: p.salg, bf_kr: p.bfKr, brf_pst: p.brfPst,
+        teoretisk_kr: p.teoretiskKr, teoretisk_pst: p.teoretiskPst,
+        kast: p.kast, kast_pst: p.kastPst,
+        usynlig_kr: p.usynligKr, usynlig_pst: p.usynligPst,
+        kontroll_usynlig_kr: p.kontrollUsynligKr,
+        avviksstatus: p.avviksstatus,
+        kildefil: kildefil ?? null, kilde_rad: p.kildeRad,
+        kilde_jobb_id: jobbId,
+      })
     }
   }
-  if (rader.length > 0) await skrivBatch(supabase, 'regnskap_usynlig_svinn', rader)
+
+  // EN DUBLETT ER IKKE EN DETALJ. To rader paa samme noekkel betyr at
+  // vi ikke vet hvilken som er sann, og da skal ingenting skrives.
+  if (dubletter.length > 0) {
+    throw new ParserFeil(
+      `Svinn: ${dubletter.length} dubletter paa forretningsnoekkelen `
+      + `(${dubletter.slice(0, 3).join(', ')}). Ingenting er lagret - `
+      + 'periodens eksisterende data staar urort.',
+    )
+  }
+  if (rader.length === 0) return null
+
+  // Foerst naa roeres basen.
+  const { error: slettFeil } = await supabase
+    .from('regnskap_usynlig_svinn')
+    .delete().eq('retailer_id', retailerId).eq('periode', periode)
+  if (slettFeil) {
+    throw new ParserFeil(
+      `Svinn: klarte ikke rydde ${periode}: ${slettFeil.message}. Stoppet foer `
+      + 'innsetting - ellers ville radene kommet ved siden av de gamle.',
+    )
+  }
+  await skrivBatch(supabase, 'regnskap_usynlig_svinn', rader)
+
+  const avst = avstemGrupper(r).filter((a) => !a.avstemt)
+  // AVSTEMMINGEN ER ET TALL, IKKE BARE EN TEKST. `0211` krever
+  // `avviksantall = 0` foer en jobb kan aktiveres, og et notat kan ikke
+  // sammenlignes med 0.
+  avviksteller.avvik = avvik
+  avviksteller.uavstemteGrupper = avst.length
+  const deler = [`Svinn: ${butikk} butikkrader, ${drivstoff} drivstoff, ${ukjent} ukjent.`]
+  if (avvik > 0) deler.push(`${avvik} rader der usynlig svinn ikke stemmer med identiteten.`)
+  if (avst.length > 0) {
+    deler.push(
+      `${avst.length} varegrupper avstemmer ikke mot produktradene `
+      + `(${avst.slice(0, 3).map((a) => `${a.butikknummer}/${a.gruppe}`).join(', ')}). `
+      + 'Grupperaden eier totalen.',
+    )
+  }
+  if (umatchet.length > 0) deler.push(`Ukjente stasjoner: ${umatchet.join(', ')}.`)
+  return deler.join(' ')
 }
 
 async function lagreSalgsstatistikk(
@@ -1246,12 +1354,16 @@ type EtterOpts = {
   oppslag: Awaited<ReturnType<typeof hentStasjonsoppslag>>
   usynlig: Awaited<ReturnType<typeof parseUsynligSvinn>> | null
   bilag: { antall: number; perioder: string[]; summer: Leverandorsum[] } | null
+  /** Filnavnet, som proveniens paa hver svinnrad. */
+  kildefil?: string
 }
 
 async function etterRegnskap(o: EtterOpts): Promise<{
   bilagsnotat: string | null
   plannotat: string | null
   feil: string[]
+  /** `null` naar svinn ikke ble forsoekt lagret i det hele tatt. */
+  avstemming: { avvik: number; uavstemteGrupper: number } | null
 }> {
   const { supabase, retailerId, jobbId, dato, perStasjon, oppslag } = o
   const feil: string[] = []
@@ -1260,12 +1372,23 @@ async function etterRegnskap(o: EtterOpts): Promise<{
   let bilagsnotat: string | null = null
   let plannotat: string | null = null
 
-  // Usynlig svinn per stasjon/produkt.
+  // Svinn og bruttofortjeneste per varegruppe, begge nivaaer (0208).
+  let svinnotat: string | null = null
+  const avviksteller = { avvik: 0, uavstemteGrupper: 0 }
+  let svinnForsoekt = false
   if (o.usynlig) {
+    svinnForsoekt = true
     try {
-      await lagreUsynligSvinn(supabase, retailerId, jobbId, oppslag.medNummer, o.usynlig, dato)
+      svinnotat = await lagreUsynligSvinn(
+        supabase, retailerId, jobbId, oppslag.medNummer, o.usynlig, dato,
+        avviksteller, o.kildefil,
+      )
     } catch (e) {
       feil.push(`Usynlig svinn ble ikke lagret: ${grunn(e)}`)
+      // Feilet lagringen, er ingenting avstemt. Et hoeyt tall her er
+      // riktigere enn 0: `0211` krever 0 for aa aktivere, og en jobb som
+      // kastet skal ikke kunne bli synlig.
+      avviksteller.avvik = -1
     }
   }
 
@@ -1305,7 +1428,11 @@ async function etterRegnskap(o: EtterOpts): Promise<{
     feil.push(`Kaffevarsler ble ikke laget: ${grunn(e)}`)
   }
 
-  return { bilagsnotat, plannotat, feil }
+  if (svinnotat) feil.push(svinnotat)
+  return {
+    bilagsnotat, plannotat, feil,
+    avstemming: svinnForsoekt ? avviksteller : null,
+  }
 }
 
 async function lagreBilagssum(

@@ -51,7 +51,7 @@ describe('trygtFilnavn', () => {
       'Avtale om fast ansettelse av mindreårig i tariffbundet bedrift.docx',
       'Rammeavtale ved tilkalling i tariffbundet virksomhet.docx',
       'Vedlegg – kvittering (1).pdf',
-      'C:\\Users\\rob_l\\rapport.xlsx',
+      'C:\\Brukere\\en bruker\\rapport.xlsx',
     ]) {
       expect(trygtFilnavn(n), n).toMatch(/^[A-Za-z0-9._-]+$/)
     }
