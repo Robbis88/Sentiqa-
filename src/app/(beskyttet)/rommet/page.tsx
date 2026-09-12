@@ -63,18 +63,20 @@ export default async function Side() {
     .limit(200)
   const stasjoner = (stasjonsrader ?? []) as Stasjon[]
 
-  // GRENSENE ER SATT AV FORMEN, og sendt gjennom `maaVaereHele`.
-  // PostgREST kutter på tusen UTEN å feile, og et avkortet svar ser ut
-  // som en billig stasjon — det er nettopp den feilen som gjorde at
-  // månedsplanene sto med 0 kroner.
-  const takBilag = Math.max(1, stasjoner.length) * 180
+  // SUMMERT I BASEN (0207). Én rad per stasjon per leverandør per
+  // begrep, ikke én per måned.
+  //
+  // Første utgave hentet rå `bilagssum` med et tak på 180 rader per
+  // stasjon. 8 029 bilagslinjer blir langt mer enn det, `maaVaereHele`
+  // kastet — helt riktig — og rommet krasjet på første sidelast med
+  // «Feilkode: 2691817940». Samme feil `0205` rettet én time før.
+  const takBilag = Math.max(1, stasjoner.length) * 120
   const takMaaned = Math.max(1, stasjoner.length) * 13
 
   const [bilagsvar, omssvar] = await Promise.all([
-    supabase.from('bilagssum')
-      .select('stasjon_id, periode, begrep, tekst, belop_kr, antall')
+    supabase.from('v_rommet_leverandor')
+      .select('stasjon_id, begrep, tekst, belop_kr, antall, maaneder, eldste, nyeste')
       .eq('retailer_id', bruker.retailerId)
-      .not('stasjon_id', 'is', null)
       .limit(takBilag),
     supabase.from('v_kurs_maanedstall')
       .select('stasjon_id, maaned, omsetning_kr')
@@ -82,8 +84,31 @@ export default async function Side() {
       .limit(takMaaned),
   ])
 
-  const bilag = maaVaereHele(bilagsvar, 'bilagssummene', takBilag) as unknown as Bilagsrad[]
-  const oms = maaVaereHele(omssvar, 'omsetningen', takMaaned) as unknown as Omsetningsrad[]
+  // EN SIDE SOM KASTER SIER «FEILKODE». Det er ubrukelig for den som
+  // sitter der, og `maaVaereHele` har allerede en presis beskjed - den
+  // skal fram, ikke bort. Feilgrensen over gir en generisk skjerm; her
+  // forklarer vi i stedet hva som skjedde og hva det betyr.
+  let bilag: Bilagsrad[]
+  let oms: Omsetningsrad[]
+  try {
+    bilag = maaVaereHele(bilagsvar, 'leverandoersummene', takBilag) as unknown as Bilagsrad[]
+    oms = maaVaereHele(omssvar, 'omsetningen', takMaaned) as unknown as Omsetningsrad[]
+  } catch (e) {
+    return (
+      <Sideramme>
+        <Sidehode tittel="Regnskapsrommet" />
+        <Tomtilstand
+          tittel="Grunnlaget kunne ikke leses helt"
+          forklaring={
+            `${e instanceof Error ? e.message : String(e)} `
+            + 'Tallene vises ikke, fordi et avkortet grunnlag ser ut som ekte '
+            + 'tall — og da ville sammenligningen mellom stasjonene vært feil '
+            + 'uten at noe sa fra.'
+          }
+        />
+      </Sideramme>
+    )
+  }
 
   if (bilag.length === 0) {
     return (

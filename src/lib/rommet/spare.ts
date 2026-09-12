@@ -41,14 +41,25 @@ import { DRIFT_BEGREP } from '@/lib/kurs/loftestenger'
 // faste avtaler og står utenfor.
 // =====================================================================
 
-/** Én rad fra `bilagssum`, slik siden leser den. */
+/**
+ * Én rad fra `v_rommet_leverandor` (0207): én per stasjon per
+ * leverandør per begrep, summert over hele perioden.
+ *
+ * FOER SUMMERTE SIDA SELV, og hentet raa `bilagssum` med et tak paa 900
+ * rader. 8 029 bilagslinjer blir langt mer enn det per maaned, saa
+ * `maaVaereHele` kastet og rommet krasjet paa foerste sidelast. Samme
+ * feil som `0205` nettopp rettet, én time senere.
+ */
 export type Bilagsrad = {
   stasjon_id: string | null
-  periode: string
   begrep: string | null
   tekst: string
   belop_kr: number | null
   antall: number | null
+  /** Hvor mange maaneder raden dekker. Aarseffekten skaleres fra den. */
+  maaneder: number | null
+  eldste: string | null
+  nyeste: string | null
 }
 
 /** Omsetning per stasjon, nevneren. Fra `v_kurs_maanedstall`. */
@@ -140,6 +151,11 @@ export function finnSparefunn(
   const navn = new Map(stasjoner.map((s) => [s.id, s.navn]))
 
   // Omsetning per stasjon, summert over månedene grunnlaget dekker.
+  //
+  // MAANEDSTALLET KOMMER HERFRA, ikke fra bilagene. Omsetningen er
+  // nevneren, og aarseffekten skal skaleres fra den SAMME perioden
+  // andelen er regnet over - ellers sammenligner vi en andel fra sju
+  // maaneder med et aar.
   const omsPer = new Map<string, number>()
   const maanedsett = new Set<string>()
   for (const o of omsetning) {
@@ -234,21 +250,27 @@ export function omfang(bilag: readonly Bilagsrad[]): {
   nyeste: string | null
   utenNavn: number
 } {
-  const m = new Set<string>()
   let kroner = 0
   let utenNavn = 0
+  let maaneder = 0
+  let eldste: string | null = null
+  let nyeste: string | null = null
   for (const b of bilag) {
-    m.add(b.periode.slice(0, 7))
     kroner += Number(b.belop_kr ?? 0)
     if (!erLeverandor(b.tekst)) utenNavn++
+    // FLEST MAANEDER, ikke summen. Hver rad dekker sin egen periode, og
+    // en leverandoer som bare finnes i to maaneder gjoer ikke grunnlaget
+    // kortere for de andre.
+    maaneder = Math.max(maaneder, Number(b.maaneder ?? 0))
+    if (b.eldste && (!eldste || b.eldste < eldste)) eldste = b.eldste
+    if (b.nyeste && (!nyeste || b.nyeste > nyeste)) nyeste = b.nyeste
   }
-  const sortert = [...m].sort()
   return {
     linjer: bilag.length,
     kroner: rund(kroner),
-    maaneder: m.size,
-    eldste: sortert[0] ?? null,
-    nyeste: sortert[sortert.length - 1] ?? null,
+    maaneder,
+    eldste: eldste ? eldste.slice(0, 7) : null,
+    nyeste: nyeste ? nyeste.slice(0, 7) : null,
     utenNavn,
   }
 }

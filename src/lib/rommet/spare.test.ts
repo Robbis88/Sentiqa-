@@ -13,8 +13,9 @@ const STASJONER: Stasjon[] = [
 ]
 
 const b = (over: Partial<Bilagsrad>): Bilagsrad => ({
-  stasjon_id: 'lone', periode: '2026-07-01', begrep: 'renhold',
-  tekst: 'ASKO VEST AS', belop_kr: 1000, antall: 1, ...over,
+  stasjon_id: 'lone', begrep: 'renhold', tekst: 'ASKO VEST AS',
+  belop_kr: 1000, antall: 1,
+  maaneder: 1, eldste: '2026-07-01', nyeste: '2026-07-01', ...over,
 })
 
 const oms = (id: string, kr: number, maaned = '2026-07-01'): Omsetningsrad =>
@@ -132,12 +133,13 @@ describe('finnSparefunn', () => {
   it('regner aarseffekt fra det grunnlaget faktisk dekker', () => {
     // To maaneder inn, altsaa x6 til aar. Skaleres det fra ett aar
     // uansett, blir hvert funn seks ganger for lite.
+    //
+    // MAANEDSTALLET KOMMER FRA OMSETNINGEN, som er nevneren: andelen er
+    // regnet over de samme to maanedene.
     const funn = finnSparefunn(
       [
-        b({ stasjon_id: 'lone', periode: '2026-06-01', belop_kr: 10_000 }),
-        b({ stasjon_id: 'lone', periode: '2026-07-01', belop_kr: 10_000 }),
-        b({ stasjon_id: 'varden', periode: '2026-06-01', belop_kr: 2_000 }),
-        b({ stasjon_id: 'varden', periode: '2026-07-01', belop_kr: 2_000 }),
+        b({ stasjon_id: 'lone', belop_kr: 20_000, maaneder: 2 }),
+        b({ stasjon_id: 'varden', belop_kr: 4_000, maaneder: 2 }),
       ],
       [
         oms('lone', 1_000_000, '2026-06-01'), oms('lone', 1_000_000, '2026-07-01'),
@@ -186,12 +188,14 @@ describe('omfang', () => {
     // Et funn uten omfang er et tall. «11 737 linjer over 18 maaneder»
     // er det som gjoer at man tror paa resten.
     const o = omfang([
-      b({ periode: '2025-02-01' }),
-      b({ periode: '2026-07-01' }),
-      b({ periode: '2026-07-01', tekst: 'Inngående faktura' }),
+      b({ maaneder: 18, eldste: '2025-02-01', nyeste: '2026-07-01' }),
+      b({ maaneder: 3, eldste: '2026-05-01', nyeste: '2026-07-01' }),
+      b({ maaneder: 1, tekst: 'Inngående faktura' }),
     ])
     expect(o.linjer).toBe(3)
-    expect(o.maaneder).toBe(2)
+    // FLEST maaneder, ikke summen: en leverandoer som bare finnes i tre
+    // maaneder gjoer ikke grunnlaget kortere for de andre.
+    expect(o.maaneder).toBe(18)
     expect(o.eldste).toBe('2025-02')
     expect(o.nyeste).toBe('2026-07')
     expect(o.utenNavn).toBe(1)
