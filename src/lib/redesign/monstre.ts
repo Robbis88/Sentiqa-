@@ -296,6 +296,11 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // eneste salg er gjort.
   '/businessplan/sammenlign': 'analyse',
   '/regnskap': 'analyse',
+  // Regnskapsrommet: leverandoerene dine, sammenlignet mellom
+  // stasjonene. Analyse og ikke dataliste - nivaa 1 er SVARET (hva
+  // forskjellen mellom stasjonene er verdt i aaret), og tabellene under
+  // forklarer det. Eierens alene: den sammenligner stasjoner med navn.
+  '/rommet': 'analyse',
   // «Koster stasjonen mer i loenn enn den skal, og har den gjort det
   // lenge?» Analyse og ikke dataliste: nivaa 1 er svaret - avviket mot
   // budsjett - og tabellen under forklarer det. Seks kolonner, men de

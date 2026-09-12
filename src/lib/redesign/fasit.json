@@ -53,6 +53,7 @@
     "/redaktor",
     "/registrer",
     "/regnskap",
+    "/rommet",
     "/rutiner",
     "/rutiner/min",
     "/rutiner/oppsett",
@@ -129,6 +130,7 @@
       "/puls",
       "/puls/sporsmal",
       "/regnskap",
+      "/rommet",
       "/rutiner/min",
       "/rutiner/oversikt",
       "/salg",
@@ -781,6 +783,12 @@
       "Påvirkbare kostnader",
       "dynamisk:SEKSJON_TITTEL[navn]",
       "navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'"
+    ],
+    "/rommet": [
+      "Denne siden er eierens",
+      "Ingen bilagsdetalj ennå",
+      "Leverandører, sortert på hva forskjellen er verdt",
+      "dynamisk:f.leverandor"
     ],
     "/rutiner/min": [
       "Ingen punkter ennå",

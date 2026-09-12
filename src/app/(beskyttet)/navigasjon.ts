@@ -248,6 +248,12 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       // kostnadsramme. Butikksjefen ser sin maanedsramme i /bemanning.
       { sti: '/businessplan/sammenlign', tekst: 'Sammenlign BP', roller: [A] },
       { sti: '/regnskap', tekst: 'Regnskap', roller: [A, B] },
+      // EIERENS ALENE. Regnskapsrommet sammenligner stasjoner MED NAVN,
+      // per leverandoer. Det er en eierbeslutning aa ringe ASKO og be om
+      // samme pris som Varden har - og en butikksjef som ser at hennes
+      // stasjon er dyrest paa en avtale hun ikke har forhandlet, har
+      // faatt et tall uten en handling. Hun faar ÉN ting i /maanedsplan.
+      { sti: '/rommet', tekst: 'Regnskapsrommet', roller: [A] },
       // EIERENS ALENE, og det er hele poenget: dette er koeen av
       // maanedsplaner som venter paa at hun tar stilling. Butikksjefen
       // er MOTTAKEREN - hun leser sin egen plan naar den er sluppet, og
