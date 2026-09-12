@@ -1,4 +1,5 @@
 import type { BpRoyalty } from './bp-royalty'
+import type { Kontobegrep } from './kontoregister'
 // Felles typer for parser-laget. Parserne er rene funksjoner: rå fil inn,
 // strukturert resultat ut. Ingen DB, ingen sideeffekter (§14: testbart).
 
@@ -140,6 +141,17 @@ export type RegnskapSeksjon =
 export type RegnskapLinje = {
   seksjon: RegnskapSeksjon
   kode: string | null // regnskapskode, f.eks. '120' (null for total-/kostnadslinjer)
+  /**
+   * Hva linja BETYR, uavhengig av hvilket nummer den hadde det året.
+   *
+   * St1 renummererte rapportlinjene i februar 2026 — `628` betydde «Leie
+   * driftsmidler» før og «Renovasjon» nå. Koden er en adresse; begrepet
+   * er identiteten, og det er begrepet tilgangsgrensen leser (`0203`).
+   *
+   * Satt for `driftskostnader`. Null ellers: omsetning, bruttofortjeneste
+   * og resultat har ingen kontoplan å slå opp i.
+   */
+  begrep: Kontobegrep | null
   post: string // "120 Mat", "Personalkostnad …", "RESULTAT"
   sortering: number | null
   regnskap: number

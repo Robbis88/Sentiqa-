@@ -31,9 +31,10 @@ describe('slaaOppKonto', () => {
     expect(slaaOppKonto('541', 'Arb.avg av feriep.').begrep)
       .toBe(slaaOppKonto('541', 'Arb.avg av feriepenger').begrep)
     // «Renhold» og «Renhold-renovasj» er IKKE samme begrep, selv om de
-    // deler kode og de fleste bokstavene.
+    // deler kode og de fleste bokstavene. Det er hele grunnen til at
+    // paret er noekkelen: en tabell paa kode alene ville svart likt.
     expect(slaaOppKonto('627', 'Renhold').begrep).toBe('renhold')
-    expect(() => slaaOppKonto('627', 'Renhold-renovasj')).toThrow(ParserFeil)
+    expect(slaaOppKonto('627', 'Renhold-renovasj').begrep).toBe('renhold_og_renovasjon')
   })
 
   it('kaster når navnet mangler', () => {
@@ -74,38 +75,44 @@ describe('slaaOppKonto', () => {
   // — feil navn, feil beløp i feil bøtte, og ingen som ropte.
 
   it('KANARI: 628 fra det gamle formatet blir ikke lest som renovasjon', () => {
-    expect(() => slaaOppKonto('628', 'Leie driftsmidler')).toThrow(ParserFeil)
-    expect(() => slaaOppKonto('628', 'Leie driftsmidler')).toThrow(/FØR februar 2026/)
+    // Fram til 0203 KASTET denne. Naa leses den - og det er den samme
+    // kanarifuglen, bare med et sterkere krav: den skal gi det gamle
+    // begrepet, ikke dagens.
+    const g = slaaOppKonto('628', 'Leie driftsmidler')
+    expect(g.begrep).toBe('leie_driftsmidler')
+    expect(g.begrep).not.toBe('renovasjon')
+    expect(g.epoke).toBe('for_feb_2026')
 
-    // Og om noen «fikser» det ved å falle tilbake på koden, skal dette
-    // fortsatt ikke gi renovasjon.
-    let begrep: Kontobegrep | null = null
-    try {
-      begrep = slaaOppKonto('628', 'Leie driftsmidler').begrep
-    } catch {
-      begrep = null
-    }
-    expect(begrep).not.toBe('renovasjon')
+    // OG DET AVGJOERENDE: leasing er ikke butikksjefens kostnad. Var den
+    // det, hadde hele oevelsen vaert forgjeves - da ville en gammel fil
+    // vist leasingen til butikksjefen, bare med riktig NAVN.
+    expect(BUTIKKSJEF_BEGREP as readonly string[]).not.toContain(g.begrep)
   })
 
-  it('KANARI: hele det gamle formatet avvises, ikke bare 628', () => {
-    const gamle: Array<[string, string]> = [
-      ['630', 'Utstyr & verktøy'],
-      ['632', 'Rep & vedlikehold'],
-      ['634', 'Pengehåndtering'],
-      ['636', 'Kontorrekvisita'],
-      ['637', 'Telefon'],
-      ['744', 'Kassedifferanse'],
+  it('KANARI: hele det gamle formatet leses som seg selv, ikke som dagens', () => {
+    // Hvert par: samme kode betyr noe ANNET i dag. Slo oppslaget paa
+    // koden alene, ville begge kolonnene vaert like.
+    const gamle: Array<[string, string, Kontobegrep, Kontobegrep]> = [
+      ['630', 'Utstyr & verktøy', 'utstyr_verktoy', 'leie_driftsmidler'],
+      ['632', 'Rep & vedlikehold', 'rep_vedlikehold', 'utstyr_verktoy'],
+      ['634', 'Pengehåndtering', 'pengehandtering', 'rep_vedlikehold'],
+      ['636', 'Kontorrekvisita', 'kontorrekvisita', 'pengehandtering'],
+      ['637', 'Telefon', 'telefon', 'fremmedtjenester_vakthold'],
+      ['744', 'Kassedifferanse', 'kassedifferanse', 'forsikringer'],
     ]
-    for (const [kode, navn] of gamle) {
-      expect(() => slaaOppKonto(kode, navn), `${kode} ${navn}`).toThrow(/FØR februar 2026/)
+    for (const [kode, navn, gammelt, idag] of gamle) {
+      const g = slaaOppKonto(kode, navn)
+      expect(g.begrep, `${kode} ${navn}`).toBe(gammelt)
+      expect(g.epoke, `${kode} ${navn}`).toBe('for_feb_2026')
+      expect(gammelt, `${kode}: gammelt og nytt begrep er like - da maaler raden ingenting`)
+        .not.toBe(idag)
     }
   })
 
   it('KANARI: det gamle formatet er faktisk registrert — ellers måler testen over ingenting', () => {
     // Uten denne ville testen over bestått også om vi bare hadde slettet
-    // de gamle parene: da kastes det med «ukjent», ikke «gammelt format»,
-    // og brukeren får en beskjed som ikke forklarer noe.
+    // de gamle parene: da kastes det med «ukjent», og fila kan ikke
+    // importeres i det hele tatt — som er nøyaktig det 0203 fjernet.
     const gamle = registrertePar().filter((p) => p.epoke === 'for_feb_2026')
     expect(gamle.length).toBeGreaterThanOrEqual(14)
     expect(gamle.map((p) => p.kode)).toContain('628')
@@ -147,14 +154,76 @@ describe('registeret henger sammen med tilgangsgrensen', () => {
   })
 
   it('ingen synlig kode betyr noe annet i det gamle formatet uten at vi vet det', () => {
-    // Dokumenterer hullet: på en fil fra før februar 2026 betyr 628
-    // «Leie driftsmidler», som butikksjefen IKKE skal se. Det er grunnen
-    // til at slaaOppKonto avviser gamle filer i stedet for å lese dem.
+    // Dokumenterer hvorfor grensen ikke kan staa i koder: paa en fil fra
+    // foer februar 2026 betyr 628 «Leie driftsmidler», som butikksjefen
+    // IKKE skal se - men koden 628 staar i BUTIKKSJEF_DRIFT_KODER.
+    //
+    // Fram til 0203 ble det loest ved aa avvise fila. Naa loeses det ved
+    // at raden baerer begrepet.
     const gamleSynlige = registrertePar()
       .filter((p) => p.epoke === 'for_feb_2026')
       .filter((p) => (BUTIKKSJEF_DRIFT_KODER as readonly string[]).includes(p.kode))
       .filter((p) => p.begrep !== FORVENTET[p.kode])
     expect(gamleSynlige.map((p) => `${p.kode} ${p.navn}`)).toContain('628 leie driftsmidler')
+  })
+})
+
+// =====================================================================
+// HVA EN GAMMEL FIL FAKTISK VISER BUTIKKSJEFEN
+// =====================================================================
+//
+// Dette er beviset paa at 0203 gjoer det den lover. Vi tar hvert par fra
+// det gamle skjemaet og spoer: naar denne raden ligger i basen med sitt
+// begrep, ser butikksjefen den?
+//
+// Svaret skal vaere: de paavirkbare ja, admin-kostnadene nei - uavhengig
+// av at kodene har flyttet seg. En kode som betyr «Pengehaandtering» i
+// 2025 og «Rep & vedlikehold» i 2026 skal vaere synlig begge aar, fordi
+// BEGGE er butikksjefens kostnader. Og 628 skal vaere synlig i 2026
+// (renovasjon) og skjult i 2025 (leasing) - samme tall, to svar.
+// =====================================================================
+describe('det gamle skjemaet gjennom tilgangsgrensen', () => {
+  // Hvert navn her er en BESLUTNING. Vokser lista uten at noen har tatt
+  // stilling, blir dette roedt - og det er meningen: et nytt gammelt par
+  // som sniker seg inn i butikksjefens verden skal ikke gaa stille.
+  const SYNLIG_FRA_GAMMEL_EPOKE = [
+    'forbruksmateriell',        // 631 den gang, 633 i dag
+    'kassedifferanse',          // 744 den gang, 746 i dag
+    'kontorrekvisita',          // 636 den gang, 638 i dag
+    'pengehandtering',          // 634 den gang, 636 i dag
+    'renhold_og_renovasjon',    // 627 den gang; splittet i 627 + 628
+    'rep_vedlikehold',          // 632 den gang, 634 i dag
+    'utstyr_verktoy',           // 630 den gang, 632 i dag
+  ]
+
+  const gamleBegrep = [...new Set(
+    registrertePar().filter((p) => p.epoke === 'for_feb_2026').map((p) => p.begrep),
+  )]
+
+  it('noeyaktig de paavirkbare kostnadene er synlige', () => {
+    const synlige = gamleBegrep
+      .filter((b) => (BUTIKKSJEF_BEGREP as readonly string[]).includes(b))
+      .sort()
+    expect(synlige).toEqual(SYNLIG_FRA_GAMMEL_EPOKE)
+  })
+
+  it('KANARI: leasing, telefon og forsikring er IKKE med', () => {
+    // De tre er admin-kostnader som laa paa koder butikksjefen ser i
+    // dag. Slipper de gjennom, har grensen sluttet aa virke - og det
+    // ville sett ut som om alt var i orden, for navnene er riktige.
+    for (const b of ['leie_driftsmidler', 'telefon', 'forsikringer', 'data_kortsystem']) {
+      expect(gamleBegrep, `${b} finnes ikke i det gamle skjemaet - kanarifuglen maaler ingenting`)
+        .toContain(b)
+      expect(BUTIKKSJEF_BEGREP as readonly string[], `${b} er synlig for butikksjef`)
+        .not.toContain(b)
+    }
+  })
+
+  it('KANARI: 628 er skjult i 2025 og synlig i 2026 — samme tall, to svar', () => {
+    const gammel = slaaOppKonto('628', 'Leie driftsmidler').begrep
+    const ny = slaaOppKonto('628', 'Renovasjon').begrep
+    expect(BUTIKKSJEF_BEGREP as readonly string[]).not.toContain(gammel)
+    expect(BUTIKKSJEF_BEGREP as readonly string[]).toContain(ny)
   })
 })
 
@@ -193,14 +262,38 @@ describe('BUTIKKSJEF_BEGREP speiler kodelistene', () => {
   it('KANARI: ingen begrep i lista hoerer til en kode butikksjefen IKKE ser', () => {
     // Uten denne kunne lista vokse med noe som aldri ble besluttet -
     // og en generert plan ville nevnt en admin-kostnad.
-    const per2026 = registrertePar().filter((p) => p.epoke !== 'for_feb_2026')
+    //
+    // TO LEDD, OG DE MAALER HVER SIN TING.
+    //
+    // 1) Begrepet maa FINNES i registeret - i en av epokene. Et begrep
+    //    ingen kode peker paa er en linje i lista som aldri treffer noe.
+    //    `renhold_og_renovasjon` finnes bare i den gamle epoken, saa et
+    //    filter paa 2026 alene ville felt den av feil grunn.
+    //
+    // 2) Bare 2026-KODENE maa ligge i `BUTIKKSJEF_KOSTNAD_KODER`. Den
+    //    lista beskriver DAGENS skjema, og de gamle kodene er nettopp
+    //    der de to beskrivelsene har lov til aa vaere uenige:
+    //    `utstyr_verktoy` var 630 den gang og er 632 i dag.
+    const alle = registrertePar()
     for (const b of BUTIKKSJEF_BEGREP) {
-      const koder = per2026.filter((p) => p.begrep === b).map((p) => p.kode)
-      expect(koder.length, `begrep ${b} finnes ikke i registeret`).toBeGreaterThan(0)
-      for (const k of koder) {
-        expect(BUTIKKSJEF_KOSTNAD_KODER, `begrep ${b} -> kode ${k}`).toContain(k)
+      const treff = alle.filter((p) => p.begrep === b)
+      expect(treff.length, `begrep ${b} finnes ikke i registeret`).toBeGreaterThan(0)
+      for (const p of treff.filter((x) => x.epoke !== 'for_feb_2026')) {
+        expect(BUTIKKSJEF_KOSTNAD_KODER, `begrep ${b} -> kode ${p.kode}`).toContain(p.kode)
       }
     }
+  })
+
+  it('KANARI: ledd 2 ville sett en kode som ikke hoerer hjemme', () => {
+    // Uten denne kunne filteret paa epoke ha tomt ut hele loekka, og
+    // testen over vaert groenn fordi den ikke sjekket noe.
+    const per2026 = registrertePar().filter((p) => p.epoke !== 'for_feb_2026')
+    const sjekkede = (BUTIKKSJEF_BEGREP as readonly string[])
+      .flatMap((b) => per2026.filter((p) => p.begrep === b))
+    expect(sjekkede.length, 'ingen 2026-par ble sjekket i det hele tatt')
+      .toBeGreaterThanOrEqual(18)
+    // `telefon` staar paa 639 i dag, og 639 er ikke butikksjefens.
+    expect(BUTIKKSJEF_KOSTNAD_KODER).not.toContain('639')
   })
 
   it('KANARI: «leie_driftsmidler» er IKKE i lista', () => {

@@ -6,7 +6,7 @@ import { env } from '@/lib/env'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
-import { BUTIKKSJEF_KOSTNAD_KODER, BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
+import { BUTIKKSJEF_BEGREP_SETT, BUTIKKSJEF_PERSONAL_BEGREP_SETT } from '@/lib/regnskap-tilgang'
 import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
 
 // Auto-fokus er ikke-sanntid → Sonnet holder (PROSJEKT.md §8; batch-API senere).
@@ -24,7 +24,7 @@ const FokusSchema = z.object({
 type Punkt = z.infer<typeof PunktSchema>
 
 type Klient = SupabaseClient
-type Linje = { post: string; kode: string | null; regnskap: number | null; budsjett: number | null; index_pct: number | null }
+type Linje = { post: string; kode: string | null; begrep?: string | null; regnskap: number | null; budsjett: number | null; index_pct: number | null }
 type Svinn = { kode: string | null; navn: string; usynlig_kr: number | null; kast: number | null }
 
 async function forStasjon(
@@ -38,7 +38,7 @@ async function forStasjon(
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'omsetning').overrideTypes<Linje[]>(),
     supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett, index_pct').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'bruttofortjeneste').overrideTypes<Linje[]>(),
     supabase.from('regnskap_usynlig_svinn').select('kode, navn, usynlig_kr, kast').eq('periode', periode).eq('stasjon_id', stasjonId).is('slettet_tid', null).overrideTypes<Svinn[]>(),
-    supabase.from('regnskapslinjer').select('post, kode, regnskap, budsjett').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'driftskostnader').overrideTypes<Linje[]>(),
+    supabase.from('regnskapslinjer').select('post, kode, begrep, regnskap, budsjett').eq('periode', periode).eq('stasjon_id', stasjonId).eq('seksjon', 'driftskostnader').overrideTypes<Linje[]>(),
   ])
   if (!omsRaw || omsRaw.length === 0) return null
   // Drivstoff, pant og «40 CR»-totalen utelates — ikke butikkdrift / dobbelteller.
@@ -46,11 +46,16 @@ async function forStasjon(
   const brf = (brfRaw ?? []).filter((l) => !SKJUL_OMS_KODER.has(l.kode ?? ''))
 
   // Kun butikksjef-påvirkbare kostnader (personal samlet) — aldri royalty/husleie/finans.
-  const paavirkbar = (kost ?? []).filter((l) => BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? ''))
-  const personalSum = paavirkbar.filter((l) => BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? '')).reduce((a, l) => ({ r: a.r + (l.regnskap ?? 0), b: a.b + (l.budsjett ?? 0) }), { r: 0, b: 0 })
+  //
+  // BEGREP, IKKE KODE (0203). `628` var «Leie driftsmidler» før februar
+  // 2026 og er «Renovasjon» nå; et kodefilter ville sluppet leasingen inn
+  // i fokusteksten som en kostnad butikksjefen skal gjøre noe med.
+  const paavirkbar = (kost ?? []).filter((l) => BUTIKKSJEF_BEGREP_SETT.has(l.begrep ?? ''))
+  const erPersonal = (l: Linje) => BUTIKKSJEF_PERSONAL_BEGREP_SETT.has(l.begrep ?? '')
+  const personalSum = paavirkbar.filter(erPersonal).reduce((a, l) => ({ r: a.r + (l.regnskap ?? 0), b: a.b + (l.budsjett ?? 0) }), { r: 0, b: 0 })
   const kostLinjer = [
     ...(personalSum.r || personalSum.b ? [{ navn: 'Personalkostnad', r: personalSum.r, b: personalSum.b }] : []),
-    ...paavirkbar.filter((l) => !BUTIKKSJEF_PERSONAL_KODER.has(l.kode ?? '')).map((l) => ({ navn: l.post, r: l.regnskap ?? 0, b: l.budsjett ?? 0 })),
+    ...paavirkbar.filter((l) => !erPersonal(l)).map((l) => ({ navn: l.post, r: l.regnskap ?? 0, b: l.budsjett ?? 0 })),
   ]
   const kostTekst = kostLinjer.length
     ? kostLinjer.map((k) => `${k.navn}: ${Math.round(k.r)} kr av budsjett ${Math.round(k.b)} kr (${k.b > 0 ? (((k.r - k.b) / k.b) * 100).toFixed(0) : '0'} % avvik)`).join('\n')

@@ -2144,7 +2144,11 @@ async function lagreRegnskap(
   type RegnskapInnsett = Awaited<ReturnType<typeof parseRegnskap>>['linjer'][number]
   const mapLinje = (l: RegnskapInnsett, stasjonId: string | null) => ({
     retailer_id: retailerId, stasjon_id: stasjonId, periode, seksjon: l.seksjon,
-    kode: l.kode, post: l.post, sortering: l.sortering,
+    // BEGREPET ER GRENSEN (0203). Koden blir staaende som sporet tilbake
+    // til arket, men det er `begrep` policyen leser - derfor kan en fil
+    // fra foer februar 2026 endelig importeres uten aa gi butikksjefen
+    // leasingkostnaden servert som renovasjon.
+    kode: l.kode, begrep: l.begrep, post: l.post, sortering: l.sortering,
     regnskap: l.regnskap, budsjett: l.budsjett, avvik: l.avvik, index_pct: l.indexPct,
     regnskap_hittil: l.regnskapHittil, budsjett_hittil: l.budsjettHittil, kilde_jobb_id: jobbId,
   })

@@ -1,5 +1,6 @@
 import { celletekst, celletall, forsteDatoIso, lastArbeidsbok, ParserFeil } from './felles'
-import { slaaOppKonto } from './kontoregister'
+import { slaaOppKonto, slaaOppKontoOm } from './kontoregister'
+import { sjekkOmsetningslinje } from './omsetningsvakt'
 import type {
   RegnskapLinje,
   RegnskapResultat,
@@ -74,9 +75,21 @@ export async function parseRegnskap(
     const linjeSeksjon: RegnskapSeksjon = /^resultat/i.test(post) ? 'resultat' : seksjon
     const kode = celletekst(rad.getCell(KOL.kode).value).trim()
 
+    // CLUSTERARKET: begrepet settes NAAR vi kjenner paret, ellers null.
+    //
+    // Her er det ikke en grense - disse radene har `stasjon_id = null`,
+    // og policyen slipper aldri en butikksjef til dem. Derfor den myke
+    // oppslagsformen: en ukjent linje paa clusterarket skal ikke felle
+    // hele importen, slik den skal paa stasjonsarkene.
+    const kodetall = /^\d+$/.test(kode) ? kode : null
+    const klyngebegrep = kodetall && linjeSeksjon === 'driftskostnader'
+      ? slaaOppKontoOm(kodetall, post)?.begrep ?? null
+      : null
+
     linjer.push({
       seksjon: linjeSeksjon,
-      kode: /^\d+$/.test(kode) ? kode : null,
+      kode: kodetall,
+      begrep: klyngebegrep,
       post,
       sortering: celletall(rad.getCell(KOL.sortering).value) || null,
       regnskap: celletall(rad.getCell(KOL.regnskap).value),
@@ -216,7 +229,7 @@ export async function parseRegnskapStasjoner(
           const reg = celletall(rad.getCell(SKOL.salgRegnskap).value)
           const bud = celletall(rad.getCell(SKOL.salgBudsjett).value)
           linjer.push({
-            seksjon: 'resultat', kode: null, post: 'RESULTAT', sortering: null,
+            seksjon: 'resultat', kode: null, begrep: null, post: 'RESULTAT', sortering: null,
             regnskap: reg, budsjett: bud, avvik: reg - bud,
             indexPct: bud ? ((reg - bud) / bud) * 100 : 0,
             regnskapHittil: 0, budsjettHittil: 0,
@@ -235,8 +248,12 @@ export async function parseRegnskapStasjoner(
         // `slaaOppKonto` kaster på en kombinasjon ingen har tatt stilling
         // til. Se `kontoregister.ts`.
         const trykt = celletekst(rad.getCell(SKOL.navn).value)
+        const konto = slaaOppKonto(kk, trykt)
         linjer.push({
-          seksjon: 'driftskostnader', kode: kk, post: slaaOppKonto(kk, trykt).navn, sortering: null,
+          // BEGREPET FOELGER MED RADEN. Koden blir staaende som den sto i
+          // arket - den er sporet tilbake til fila - men det er `begrep`
+          // tilgangsgrensen leser, og det er stabilt over renummereringen.
+          seksjon: 'driftskostnader', kode: kk, begrep: konto.begrep, post: konto.navn, sortering: null,
           regnskap: reg, budsjett: bud, avvik: reg - bud, indexPct: bud ? ((reg - bud) / bud) * 100 : 0,
           regnskapHittil: 0, budsjettHittil: 0,
         })
@@ -249,6 +266,10 @@ export async function parseRegnskapStasjoner(
       if (!post || /totalt/i.test(post)) continue // hopp grand-total/CR-totalt
       const kode = celletekst(rad.getCell(SKOL.kode).value).trim()
       const koder = /^\d+$/.test(kode) ? kode : null
+      // Omsetningssiden har sin EGEN hardkodede kodeliste, og den har
+      // ingen epoke. Naa som gamle filer slipper inn, maa den maales -
+      // se `omsetningsvakt.ts`.
+      sjekkOmsetningslinje(koder, post)
 
       const salgR = celletall(rad.getCell(SKOL.salgRegnskap).value)
       const salgB = celletall(rad.getCell(SKOL.salgBudsjett).value)
@@ -256,13 +277,13 @@ export async function parseRegnskapStasjoner(
       const brB = celletall(rad.getCell(SKOL.bruttoBudsjett).value)
 
       linjer.push({
-        seksjon: 'omsetning', kode: koder, post, sortering: null,
+        seksjon: 'omsetning', kode: koder, begrep: null, post, sortering: null,
         regnskap: salgR, budsjett: salgB, avvik: salgR - salgB,
         indexPct: celletall(rad.getCell(SKOL.salgIndex).value),
         regnskapHittil: 0, budsjettHittil: 0,
       })
       linjer.push({
-        seksjon: 'bruttofortjeneste', kode: koder, post, sortering: null,
+        seksjon: 'bruttofortjeneste', kode: koder, begrep: null, post, sortering: null,
         regnskap: brR, budsjett: brB, avvik: brR - brB,
         indexPct: brB ? ((brR - brB) / brB) * 100 : 0,
         regnskapHittil: 0, budsjettHittil: 0,
@@ -278,6 +299,7 @@ export async function parseRegnskapStasjoner(
     const linjer: RegnskapLinje[] = [...data.verdier].map(([post, v]) => ({
       seksjon: 'nokkeltall' as const,
       kode: null,
+      begrep: null,
       post,
       sortering: null,
       regnskap: v.mnd ?? 0,

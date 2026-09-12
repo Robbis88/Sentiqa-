@@ -4,13 +4,13 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { kr, prosent, manedAar, avviksKlasse } from '@/lib/format'
 import { byggPeriodeGrupper } from '@/lib/perioder'
-import { BUTIKKSJEF_PERSONAL_KODER, BUTIKKSJEF_DRIFT_KODER } from '@/lib/regnskap-tilgang'
+import { BUTIKKSJEF_PERSONAL_BEGREP_SETT, BUTIKKSJEF_DRIFT_BEGREP } from '@/lib/regnskap-tilgang'
 import { SKJUL_OMS_KODER as SKJUL_OMS } from '@/lib/avdelinger'
 import { PeriodeVelger } from '../periode-velger'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { motBudsjett, storsteAvvik, svaret } from '@/lib/regnskap/mot-budsjett'
 
-type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }
+type Linje = { seksjon: string; kode: string | null; begrep: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }
 type Kost = { navn: string; regnskap: number; budsjett: number }
 
 // Butikksjef ser kun EGEN stasjon: omsetning + BRF + påvirkbare kostnader.
@@ -75,7 +75,7 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   // måned uten tall.
   const { data: alle, error } = await supabase.rpc('regnskap_sum', { p_fra: fra, p_til: aktivPeriode })
   if (error) throw new Error(`regnskap_sum feilet: ${error.message}`)
-  type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
+  type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; begrep: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
   const linjer: Linje[] = ((alle ?? []) as SumRad[])
     .filter((r) => r.stasjon_id === stasjon.id)
     .map((r) => ({ ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0), index_pct: r.budsjett ? (((r.regnskap ?? 0) - r.budsjett) / r.budsjett) * 100 : null }))
@@ -88,13 +88,18 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
 
   // Påvirkbare kostnader: personal samlet til én linje + de utvalgte drift-kodene.
   const drift = seksjon('driftskostnader')
-  const personal = drift.filter((l) => l.kode && BUTIKKSJEF_PERSONAL_KODER.has(l.kode))
+  // BEGREP, IKKE KODE (0203). St1 renummererte i februar 2026, og en
+  // visning som filtrerer paa tall viser feil linje paa hver fil fra foer
+  // det. Loennskodene sto riktignok stille - men da ville halve
+  // filteret her vaert i koder og halve i begrep, og den som leser det
+  // neste gang maa gjette hvilken halvdel som er trygg.
+  const personal = drift.filter((l) => l.begrep && BUTIKKSJEF_PERSONAL_BEGREP_SETT.has(l.begrep))
   const kostnader: Kost[] = []
   if (personal.length > 0) {
     kostnader.push({ navn: 'Personalkostnad', regnskap: sumR(personal), budsjett: personal.reduce((a, l) => a + (l.budsjett ?? 0), 0) })
   }
-  for (const kode of BUTIKKSJEF_DRIFT_KODER) {
-    const l = drift.find((x) => x.kode === kode)
+  for (const begrep of BUTIKKSJEF_DRIFT_BEGREP) {
+    const l = drift.find((x) => x.begrep === begrep)
     if (l && ((l.regnskap ?? 0) !== 0 || (l.budsjett ?? 0) !== 0)) kostnader.push({ navn: l.post, regnskap: l.regnskap ?? 0, budsjett: l.budsjett ?? 0 })
   }
 

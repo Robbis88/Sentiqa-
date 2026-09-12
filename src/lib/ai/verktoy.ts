@@ -2,7 +2,7 @@ import 'server-only'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import type { InnloggetBruker } from '@/lib/auth/typer'
-import { BUTIKKSJEF_KOSTNAD_KODER } from '@/lib/regnskap-tilgang'
+import { BUTIKKSJEF_BEGREP_SETT } from '@/lib/regnskap-tilgang'
 import { UTELAT_KODER } from '@/lib/avdelinger'
 import { byggSvar, type Verktoysvar } from './svar'
 import { hentScope, velgStasjoner, etikettKart, type Stasjon } from './scope'
@@ -777,7 +777,7 @@ export const VERKTOY: Record<string, Verktoy> = {
         const res = await les<Regnskapsrad>(
           supabase
             .from('regnskapslinjer')
-            .select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct, periode')
+            .select('seksjon, kode, begrep, post, regnskap, budsjett, avvik, index_pct, periode')
             .in('periode', maneder)
             .is('stasjon_id', null)
             .order('sortering'),
@@ -821,7 +821,7 @@ export const VERKTOY: Record<string, Verktoy> = {
           hent: ({ supabase: sb, stasjoner }) => {
             let q = sb
               .from('regnskapslinjer')
-              .select('stasjon_id, seksjon, kode, post, regnskap, budsjett, avvik, index_pct, periode')
+              .select('stasjon_id, seksjon, kode, begrep, post, regnskap, budsjett, avvik, index_pct, periode')
               .in('stasjon_id', stasjoner.map((s) => s.id))
               .in('periode', maneder)
               .order('sortering')
@@ -840,7 +840,7 @@ export const VERKTOY: Record<string, Verktoy> = {
                 !erButikksjef
                 || ((l.seksjon === 'omsetning' || l.seksjon === 'bruttofortjeneste')
                     && !UTELAT_KODER.has(l.kode ?? '') && l.kode !== '40')
-                || (l.seksjon === 'driftskostnader' && BUTIKKSJEF_KOSTNAD_KODER.has(l.kode ?? '')),
+                || (l.seksjon === 'driftskostnader' && BUTIKKSJEF_BEGREP_SETT.has(l.begrep ?? '')),
               )
               .map((l) => ({
                 stasjon: kart.get(l.stasjon_id ?? '') ?? l.stasjon_id,
@@ -2146,6 +2146,8 @@ type Regnskapsrad = {
   periode: string
   seksjon: string
   kode: string | null
+  /** Hva linja betyr. Se `parsere/kontoregister.ts` og `0203`. */
+  begrep: string | null
   post: string
   regnskap: number | null
   budsjett: number | null
