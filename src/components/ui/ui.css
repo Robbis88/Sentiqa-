@@ -1115,3 +1115,102 @@
   max-width: none;
   margin-top: 0;
 }
+
+/* --- Månedsplan: godkjenningskøen -----------------------------------
+   Ett kort per stasjon. Eieren leser og bestemmer, så kortet må kunne
+   leses ferdig FØR knappene — derfor står de nederst, ikke i hodet.
+   Et kort der handlingen ligger øverst inviterer til å trykke først. */
+.sq-plankort-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-3);
+}
+.sq-plankort {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-2);
+  padding: var(--luft-4);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius-stor);
+  background: var(--kort);
+}
+.sq-plankort-hode {
+  display: flex;
+  align-items: center;
+  gap: var(--luft-2);
+  flex-wrap: wrap;
+}
+.sq-plankort-tittel {
+  margin: 0;
+  font-size: var(--tekst-svar);
+  font-weight: 700;
+}
+.sq-plankort-status {
+  margin-left: auto;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+.sq-plankort-ingress {
+  margin: 0;
+  color: var(--tekst-svak);
+  font-size: var(--tekst-brod);
+  line-height: var(--linje-luftig);
+  max-width: 62ch;
+}
+.sq-plankort-tom,
+.sq-plankort-merknad {
+  margin: 0;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  max-width: 62ch;
+}
+.sq-plankort-merknad {
+  padding: var(--luft-2) var(--luft-3);
+  background: var(--gul-svak);
+  color: var(--gul);
+  border-radius: var(--radius);
+}
+
+/* Retningen, ikke nivået. Ordene er de samme som i brevet. */
+.sq-dom {
+  font-size: var(--tekst-liten);
+  font-weight: 700;
+  padding: 2px var(--luft-2);
+  border-radius: 999px;
+}
+.sq-dom-medvind { background: var(--gronn-svak); color: var(--gronn); }
+.sq-dom-motvind { background: var(--rod-svak);   color: var(--rod); }
+.sq-dom-flat    { background: var(--gul-svak);   color: var(--gul); }
+
+/* Et punkt er enten en bekreftelse eller en ting å gjøre. Kantfargen
+   skiller dem, for de leses ulikt: den ene er ros, den andre en ordre. */
+.sq-punkt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--luft-3);
+  border-left: 3px solid var(--kant-sterk);
+}
+.sq-punkt-bekreftelse { border-left-color: var(--gronn); }
+.sq-punkt-tiltak      { border-left-color: var(--rod); }
+.sq-punkt-merke {
+  font-size: var(--tekst-liten);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tekst-svak);
+}
+.sq-punkt-bekreftelse .sq-punkt-merke { color: var(--gronn); }
+.sq-punkt-tiltak .sq-punkt-merke      { color: var(--rod); }
+.sq-punkt-tittel { font-weight: 600; }
+.sq-punkt-tekst {
+  color: var(--tekst-svak);
+  font-size: var(--tekst-brod);
+  line-height: var(--linje-luftig);
+  max-width: 62ch;
+}
+.sq-punkt-kr {
+  font-size: var(--tekst-liten);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

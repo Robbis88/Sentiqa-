@@ -33,6 +33,7 @@
     "/lonn",
     "/lonnskost",
     "/maaling",
+    "/maanedsplan",
     "/meldinger",
     "/merker",
     "/mine-opplysninger",
@@ -114,6 +115,7 @@
       "/lonn",
       "/lonnskost",
       "/maaling",
+      "/maanedsplan",
       "/meldinger",
       "/merker",
       "/mine-opplysninger",
@@ -302,6 +304,10 @@
       "opprettMalekort",
       "slettMalekort",
       "sokVarerAksjon"
+    ],
+    "/maanedsplan": [
+      "avvisPlan",
+      "slippPlan"
     ],
     "/meldinger": [
       "sendMelding",
@@ -641,6 +647,12 @@
       "Nytt målekort",
       "dynamisk:m.navn",
       "erAdmin ? 'Ingen målekort ennå' : 'Ingen målekort er delt med deg ennå'"
+    ],
+    "/maanedsplan": [
+      "Avgjort",
+      "Ingen månedsplaner ennå",
+      "Venter på deg",
+      "dynamisk:stasjon"
     ],
     "/meldinger": [
       "Ingen aktive meldinger",
