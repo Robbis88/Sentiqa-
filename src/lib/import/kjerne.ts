@@ -39,7 +39,7 @@ import { parseUsynligSvinn } from '@/lib/parsere/usynligsvinn'
 import { kjorRegnskapsanalyse } from '@/lib/ai/regnskapsanalyse'
 import { genererFokusForRetailer } from '@/lib/ai/fokus'
 import { ParserFeil, forsteDatoIso } from '@/lib/parsere/felles'
-import { opprettVarsel } from '@/lib/varsler'
+import { opprettVarsel, varselnoekkel } from '@/lib/varsler'
 import { vurderDag, UKER_TILBAKE } from './rimelighet'
 import { berorteUker } from './ukecache'
 import { vurderDublett } from './dublett'
@@ -2013,6 +2013,10 @@ async function varsleKaffe(
       tittel: varsel.tittel,
       tekst: varsel.tekst,
       lenke: '/regnskap',
+      // Kaffevarselet ser paa AARET, ikke paa maaneden i fila - derfor
+      // aaret i noekkelen. Uten den ville sju opplastinger gitt sju like
+      // varsler om det samme kaffesvinnet.
+      noekkel: varselnoekkel({ slag: varsel.type, stasjonId: r.stasjon_id, periode: aar }),
     })
   }
 }
@@ -2112,12 +2116,17 @@ async function varsleBemanning(
     })
     for (const v of varsler) {
       await opprettVarsel(supabase, {
-      retailer_id: retailerId,
+        retailer_id: retailerId,
         stasjon_id: m.stasjonId,
         type: v.type,
         tittel: v.tittel,
         tekst: v.tekst,
         lenke: '/bemanning',
+        // NOEKKELEN ER SAKEN, IKKE SETNINGEN. Tittelen er skrevet ut av
+        // tallene, saa en re-import med litt andre tall ville gitt en ny
+        // tittel og dermed et nytt varsel. `type` + stasjon + maaned er
+        // det varselet faktisk handler om. Se 0201.
+        noekkel: varselnoekkel({ slag: v.type, stasjonId: m.stasjonId, periode: periode.slice(0, 7) }),
       })
     }
   }

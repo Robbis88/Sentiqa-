@@ -2747,7 +2747,7 @@
   },
   {
    "tabell": "varsler",
-   "$hvorfor": "Varsler i feeden. Lesingen har TRE grener: ditt eget varsel (mottaker_id = deg), stasjonens (mottaker null + stasjon), og kjedens (mottaker null + stasjon null, kun eier). Proberaden er stasjonens variant - den vanligste - saa matrisen maaler stasjonsgrensen. Ingen delete-policy finnes; et varsel skjules med slettet_tid, ikke ved aa forsvinne.",
+   "$hvorfor": "Varsler i feeden. Lesingen har TRE grener: ditt eget varsel (mottaker_id = deg), stasjonens (mottaker null + stasjon), og kjedens (mottaker null + stasjon null, kun eier). Proberaden er stasjonens variant - den vanligste - saa matrisen maaler stasjonsgrensen. Ingen delete-policy finnes; et varsel skjules med slettet_tid, ikke ved aa forsvinne. DUPLIKATSPERRE (0201): `noekkel` sier hva varselet HANDLER OM - «bemanning:<stasjon>:<maaned>:<slag>» - og en partiell unik indeks gjoer at samme sak bare varsles en gang. Foer den laget hver regnskapsimport bemanningsvarslene paa nytt OG sendte web-push om igjen; en re-import av et halvaar ga femti-hundre varsler ingen hadde bedt om, og de ekte druknet i dem. Noekkelen kan ikke vaere tittelen: titlene skrives ut av tallene, saa et tall som endrer seg litt ville gitt en ny tittel og dermed et nytt varsel. Indeksen er IKKE partiell paa slettet_tid: har du lukket varselet har du tatt stilling, og en ny import skal ikke hente det fram igjen.",
    "tenant_scope": "retailer_or_station",
    "null_stasjon": "kun_eier",
    "data_class": "warm",
