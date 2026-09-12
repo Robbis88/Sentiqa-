@@ -31,9 +31,38 @@ import type { Klasse } from './loftestenger'
 
 type Klient = SupabaseClient
 
-/** Hvor mange måneder Kursen ser bakover. Tolv gir et helt år uten at
-    en sesongtopp blir til en retning. */
-export const MAANEDER_BAKOVER = 12
+/**
+ * Flest måneder et BP-år kan ha. Brukes til å sette radgrensen, ikke til
+ * å velge vindu — vinduet er året, se `fraOgMedIAaret`.
+ */
+export const MAANEDER_I_AARET = 12
+
+/**
+ * Første måned i BP-året som `tilOgMed` hører til.
+ *
+ * =====================================================================
+ * VINDUET ER ÅRET, IKKE TOLV MÅNEDER BAKOVER
+ * =====================================================================
+ *
+ * Her sto et rullende tolvmånedersvindu. Robert 2026-09-12: «vi jobber
+ * for år til år, BP er for hele år... det skulle jo være mot BP».
+ *
+ * Han har rett, og det er ikke en detalj. **Vekstkravet og
+ * bruttoforventningen settes per år, og bruttoforventningen kan gå NED.**
+ * En trend som krysser årsskiftet måler mot to ulike løfter og later som
+ * det er én linje. Juli 2026 mot oktober 2025 er ingen sammenligning
+ * Robert eller St1 gjør.
+ *
+ * Målt: med rullende vindu startet serien i desember 2025 — altså BP25.
+ *
+ * PRISEN ER TO STILLE MÅNEDER. I januar finnes ett punkt, i februar to,
+ * og `retning()` krever tre. Da kommer ingen månedsplan før mars. Det er
+ * Roberts valg, og det er den samme regelen som gjelder en ny kjede:
+ * «vi vet ikke ennå» er et annet svar enn «det holder seg jevnt».
+ */
+export function fraOgMedIAaret(tilOgMed: string): string {
+  return `${tilOgMed.slice(0, 4)}-01-01`
+}
 
 
 /** Én rad fra `v_kurs_maanedstall` (0205). Alt er ferdig summert. */
@@ -116,9 +145,9 @@ export async function byggPlanerForRetailer(opts: {
   const stasjoner = (stasjonsrader ?? []) as { id: string; navn: string }[]
   if (stasjoner.length === 0) return []
 
-  const fra = new Date(`${maanedNokkel(tilOgMed)}T00:00:00Z`)
-  fra.setUTCMonth(fra.getUTCMonth() - (MAANEDER_BAKOVER - 1))
-  const fraIso = fra.toISOString().slice(0, 10)
+  // Fra JANUAR i BP-aaret, ikke tolv maaneder bakover. Se
+  // `fraOgMedIAaret` for hvorfor, og hva det koster.
+  const fraIso = fraOgMedIAaret(tilOgMed)
   const stasjonIder = stasjoner.map((s) => s.id)
 
   // MÅNEDEN SUMMERES I BASEN (0205). Én rad per stasjon per måned.
@@ -139,7 +168,7 @@ export async function byggPlanerForRetailer(opts: {
   // Og det maa vaere under tusen: `max_rows = 1000` i config.toml gjoer
   // at en hoeyere `.limit()` ikke er en grense, bare en kommentar. Det
   // var nettopp feilen - `.limit(7200)` kunne aldri utloese noe.
-  const takMaaneder = stasjonIder.length * (MAANEDER_BAKOVER + 1)
+  const takMaaneder = stasjonIder.length * (MAANEDER_I_AARET + 1)
   const takBilag = stasjonIder.length * 150
 
   const [maanedstall, bilag, satsrad] = await Promise.all([

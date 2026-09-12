@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { byggHistorikk, klasseFor, MAANEDER_BAKOVER } from './hent'
+import { byggHistorikk, fraOgMedIAaret, klasseFor, MAANEDER_I_AARET } from './hent'
+import { MINST_MAALINGER } from './retning'
 
 // =====================================================================
 // HVA SOM TESTES HER, OG HVA SOM IKKE GJØR DET LENGER
@@ -120,9 +121,37 @@ describe('klasseFor', () => {
   })
 })
 
-describe('vinduet', () => {
-  it('ser tolv maaneder bakover', () => {
-    // Et helt aar, saa en sesongtopp ikke blir til en retning.
-    expect(MAANEDER_BAKOVER).toBe(12)
+describe('vinduet er BP-året', () => {
+  // Robert 2026-09-12: «vi jobber for år til år, BP er for hele år... det
+  // skulle jo være mot BP». Vekstkravet og bruttoforventningen settes per
+  // år, og bruttoforventningen kan gå NED — en trend som krysser
+  // årsskiftet måler mot to ulike løfter og later som det er én linje.
+
+  it('starter i januar i året måneden hører til', () => {
+    expect(fraOgMedIAaret('2026-07-01')).toBe('2026-01-01')
+    expect(fraOgMedIAaret('2026-01-01')).toBe('2026-01-01')
+    expect(fraOgMedIAaret('2025-12-01')).toBe('2025-01-01')
+  })
+
+  it('KANARI: krysser ikke årsskiftet', () => {
+    // Med rullende tolvmånedersvindu startet serien i desember 2025 —
+    // altså BP25 — for en plan om juli 2026. Det var målt, ikke antatt:
+    // «Resultatet i juli er 0 kroner. I desember var det 0.»
+    expect(fraOgMedIAaret('2026-01-01')).not.toBe('2025-02-01')
+    expect(fraOgMedIAaret('2026-02-01').slice(0, 4)).toBe('2026')
+  })
+
+  it('et år har tolv måneder, og det er grensen — ikke vinduet', () => {
+    // Konstanten brukes bare til radgrensen. Vinduet er året.
+    expect(MAANEDER_I_AARET).toBe(12)
+  })
+
+  it('to stille måneder er prisen, og den er valgt', () => {
+    // I januar finnes ett punkt, i februar to, og `retning()` krever
+    // tre. Da kommer ingen månedsplan før mars. Roberts valg 2026-09-12:
+    // «vi vet ikke ennå» er et annet svar enn «det holder seg jevnt».
+    const jan = byggHistorikk([r({ maaned: '2026-01-01' })])
+    expect(jan).toHaveLength(1)
+    expect(jan.length).toBeLessThan(MINST_MAALINGER)
   })
 })
