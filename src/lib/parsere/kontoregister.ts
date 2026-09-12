@@ -20,11 +20,16 @@
 // stillhet, og med tall som så helt rimelige ut.
 //
 // **Og det var ikke bare en etikett.** `BUTIKKSJEF_DRIFT_KODER` i
-// `regnskap-tilgang.ts` inneholder `628`, og har vært en RLS-grense siden
+// `regnskap-tilgang.ts` inneholder `628`, og var en RLS-grense fra
 // `0192`. På en eldre fil er 628 LEIE DRIFTSMIDLER — en kostnad
 // tilgangsregelen holder utenfor. En historisk fil ville altså vist
 // butikksjefene leasingkostnaden. Ingen har lastet opp en slik fil ennå.
 // Det er flaks, ikke vern.
+//
+// **Fra `0203` er det vern.** `regnskapslinjer.begrep` bærer betydningen,
+// og policyen hvitlister begreper i stedet for tall. Kodelistene lever
+// videre for lønnskontiene 501–590, som står stille over skiftet — se
+// `regnskap-tilgang.ts`.
 //
 // ---------------------------------------------------------------------
 // LØSNINGEN ER IKKE EN STØRRE TABELL
@@ -180,8 +185,10 @@ reg('745', 'Erstatn - tyveri', 'erstatning_tyveri', 'fra_feb_2026')
 reg('746', 'Kassedifferanse', 'kassedifferanse', 'fra_feb_2026')
 
 // --- Drift, FØR februar 2026 -----------------------------------------
-// Disse er registrert for å kunne KJENNES IGJEN og avvises med en
-// forståelig beskjed — ikke for å importeres. Se `slaaOppKonto()`.
+// Fram til `0203` var disse registrert bare for å kunne KJENNES IGJEN og
+// avvises med en forståelig beskjed. Nå importeres de: raden bærer
+// `begrep`, og tilgangsgrensen leser begrepet i stedet for tallet — så
+// «628 Leie driftsmidler» fra 2025 blir leasing, ikke renovasjon.
 reg('627', 'Renhold-renovasj', 'renhold_og_renovasjon', 'for_feb_2026')
 reg('628', 'Leie driftsmidler', 'leie_driftsmidler', 'for_feb_2026')
 reg('629', 'Leie utstyr for utleie', 'leie_utstyr_utleie', 'for_feb_2026')
@@ -206,6 +213,24 @@ reg('790', 'Avskrivninger', 'avskrivninger')
 reg('810', 'Fin. utgifter', 'finanskostnader')
 reg('840', 'Ikke driftsrelat. innt/kostn', 'ikke_driftsrelatert')
 
+/**
+ * Som `slaaOppKonto`, men svarer `null` i stedet for å kaste.
+ *
+ * ER BARE TRYGG DER BEGREPET IKKE ER EN GRENSE. Clusterarket bærer hele
+ * kjeden, og de radene har `stasjon_id = null` — policyen slipper aldri
+ * en butikksjef til dem uansett hva `begrep` sier. Der er «vi kjente
+ * ikke igjen paret» et akseptabelt svar.
+ *
+ * På stasjonsarkene er det motsatt: der ER begrepet grensen, og et
+ * ukjent par skal felle importen. Bruk `slaaOppKonto` der.
+ */
+export function slaaOppKontoOm(kode: string, trykt: string): Kontooppslag | null {
+  const nkl = normaliser(trykt)
+  const post = nkl ? REGISTER[`${kode}|${nkl}`] : undefined
+  if (!post) return null
+  return { begrep: post.begrep, navn: N[post.begrep], epoke: post.epoke }
+}
+
 /** Alle registrerte par. Kun for tester og verktøy. */
 export function registrertePar(): Array<{ kode: string; navn: string } & Post> {
   return Object.entries(REGISTER).map(([n, p]) => {
@@ -217,17 +242,28 @@ export function registrertePar(): Array<{ kode: string; navn: string } & Post> {
 /**
  * Slår opp hva koden betyr, gitt navnet som står trykt ved siden av den.
  *
- * KASTER på:
- *   - ukjent par (St1 har flyttet noe vi ikke har tatt stilling til)
- *   - par som bare finnes i epoken før februar 2026
+ * KASTER på ukjent par — St1 har flyttet noe ingen har tatt stilling til.
+ * Det er fortsatt hele poenget: en stille feilmerking kan stå i månedsvis.
  *
- * Det siste er med vilje. Vi KAN lese en slik fil riktig — registeret vet
- * hva den gamle koden betyr. Men resten av systemet, inkludert
- * `BUTIKKSJEF_DRIFT_KODER` som er en RLS-grense, resonnerer fortsatt om
- * RÅ KODER. Å importere en gammel fil ville lagt rader i basen der `628`
- * betyr leasing mens policyen tror den betyr renovasjon. Til de grensene
- * er uttrykt i `Kontobegrep` og ikke i tall, er det eneste trygge svaret
- * å avvise fila og si hvorfor.
+ * =====================================================================
+ * DEN GAMLE EPOKEN AVVISES IKKE LENGER (0203)
+ * =====================================================================
+ *
+ * Fram til `0203` kastet denne på et par fra før februar 2026, og
+ * begrunnelsen sto her: resten av systemet — inkludert
+ * `BUTIKKSJEF_DRIFT_KODER`, som er en RLS-grense siden `0192` —
+ * resonnerte om RÅ KODER. En gammel fil ville lagt rader i basen der
+ * `628` betyr leasing mens policyen tror den betyr renovasjon.
+ *
+ * Det stemte, og prisen var at januar 2026 og alt eldre ikke kunne
+ * lastes opp i det hele tatt.
+ *
+ * `0203` flyttet grensen dit den hører hjemme: `regnskapslinjer` bærer
+ * nå `begrep`, og policyen hvitlister begreper, ikke tall. Da er en
+ * gammel fil ikke lenger farlig — den er bare gammel, og registeret vet
+ * nøyaktig hva hver linje var.
+ *
+ * `epoke` følger med ut, så den som bryr seg kan spørre.
  */
 export function slaaOppKonto(kode: string, trykt: string): Kontooppslag {
   const nkl = normaliser(trykt)
@@ -243,14 +279,6 @@ export function slaaOppKonto(kode: string, trykt: string): Kontooppslag {
         `St1 har trolig endret rapportlinjene igjen. ` +
         `Legg paret inn i src/lib/parsere/kontoregister.ts etter å ha sjekket hva det betyr — ` +
         `ikke gjett ut fra koden alene.`,
-    )
-  }
-  if (post.epoke === 'for_feb_2026') {
-    throw new ParserFeil(
-      `Regnskap: «${kode} ${trykt.trim()}» er fra rapportformatet FØR februar 2026, ` +
-        `der ${kode} betyr noe annet enn i dag. Denne fila kan ikke importeres: ` +
-        `tilgangsreglene for butikksjef bruker rå koder, så radene ville fått feil betydning. ` +
-        `Bruk en rapport fra februar 2026 eller senere.`,
     )
   }
   return { begrep: post.begrep, navn: N[post.begrep], epoke: post.epoke }

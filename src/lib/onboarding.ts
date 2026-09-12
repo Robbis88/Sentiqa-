@@ -144,13 +144,18 @@ export const KILDER: Kildekrav[] = [
   {
     noekkel: 'regnskapslinjer',
     navn: 'Regnskapsrapport',
-    // FRA OG MED FEBRUAR 2026. St1 renummererte rapportlinjene da, og de
-    // fleste 63x-kodene forskjøv seg med to — 628 betydde «Leie
-    // driftsmidler» før, «Renovasjon» nå. En eldre fil BLIR AVVIST av
-    // parseren med en forklarende beskjed, ikke importert feil. Grunnen
-    // ligger i `parsere/kontoregister.ts`: tilgangsgrensen for butikksjef
-    // er skrevet i rå koder, så en gammel fil ville lagt rader i basen der
-    // koden betyr noe annet enn policyen tror.
+    // ALDER ER INGEN SPERRE LENGER (`0203`). St1 renummererte
+    // rapportlinjene i februar 2026, og de fleste 63x-kodene forskjøv seg
+    // med to — 628 betydde «Leie driftsmidler» før, «Renovasjon» nå.
+    //
+    // En periode BLE en eldre fil avvist, fordi tilgangsgrensen for
+    // butikksjef var skrevet i rå koder. Det var et ekte onboardingkrav,
+    // og det er borte: raden bærer nå `begrep`, og policyen leser det.
+    // Kontoregisteret kjenner begge skjemaene.
+    //
+    // DETTE ER TYPEN ENDRING SOM GLEMMES. Et krav som forsvinner skal ut
+    // av lista, ellers vokser onboardingen med arbeid som ikke finnes —
+    // og da slutter folk å tro på den. Se AGENTS.md.
     // OG DEN BÆRER TOLV MÅNEDER BAKOVER (0199). `Kostnader`-arket er en
     // pivottabell, og en pivottabell lagrer en kopi av kildedataene sine
     // i fila. Kilden er tolv måneders bilagslinjer med leverandørnavn —
@@ -158,7 +163,7 @@ export const KILDER: Kildekrav[] = [
     //
     // Det endrer hva vi kan love en ny kunde i uke én: ÉN opplastet
     // rapport gir et helt års kostnadshistorikk, ikke én måned.
-    hentesFra: 'Regnskapsføreren, hver måned. Rapporter fra februar 2026 og senere.',
+    hentesFra: 'Regnskapsføreren, hver måned. Eldre rapporter går også inn — ta med det du har.',
     laserOpp: 'Faktisk lønn og timer mot budsjett, avvikene som utløser varsler — '
       + 'og tolv måneders bilagsdetalj med leverandørnavn, fra én enkelt fil.',
     anbefaltDager: 0,

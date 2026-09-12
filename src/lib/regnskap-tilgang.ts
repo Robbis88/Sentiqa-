@@ -43,14 +43,47 @@ export const BUTIKKSJEF_KOSTNAD_KODER = new Set<string>([...BUTIKKSJEF_PERSONAL_
 // Derfor er grensen for bilagslinjer skrevet i `Kontobegrep`, som er
 // stabilt over skiftet. `kontoregister.test.ts` binder de to listene
 // sammen, slik `lonnskost-koder.test.ts` gjoer for loennskontiene.
-export const BUTIKKSJEF_BEGREP = [
-  // Personal, samlet til én linje i visningen.
+// Personal, samlet til én linje i visningen.
+export const BUTIKKSJEF_PERSONAL_BEGREP = [
   'faste_lonninger', 'lonnstillegg', 'timelonn', 'sykelonn',
   'refundert_sykelonn', 'palopte_feriepenger', 'bonus',
   'arbeidsgiveravgift_lonn', 'arbeidsgiveravgift_feriepenger',
   'andre_personalkostnader',
-  // Paavirkbar drift, i visningsrekkefoelge.
-  'renhold', 'renovasjon', 'broyting', 'utstyr_verktoy',
+] as const
+
+// Påvirkbar drift, i visningsrekkefølge. Speiler
+// `BUTIKKSJEF_DRIFT_KODER`, men over skiftet: `628` er `renovasjon` fra
+// februar 2026 og `leie_driftsmidler` før — og bare det første står her.
+// `renhold_og_renovasjon` er den SAMMENSLAATTE linja fra foer februar
+// 2026 - det St1 siden splittet i `627 Renhold` og `628 Renovasjon`.
+// Begge delene staar allerede paa lista, saa unionen aapner ingenting
+// nytt; utelates den, forsvinner derimot hele renholdskostnaden for
+// butikksjefen paa hver maaned foer skiftet, uten at noe sier fra.
+export const BUTIKKSJEF_DRIFT_BEGREP = [
+  'renhold', 'renhold_og_renovasjon', 'renovasjon', 'broyting', 'utstyr_verktoy',
   'forbruksmateriell', 'rep_vedlikehold', 'pengehandtering',
   'kontorrekvisita', 'kassedifferanse',
 ] as const
+
+export const BUTIKKSJEF_BEGREP = [
+  ...BUTIKKSJEF_PERSONAL_BEGREP,
+  ...BUTIKKSJEF_DRIFT_BEGREP,
+] as const
+
+/** Rask oppslagsform. Rekkefølgen betyr noe i visningen, ikke her. */
+export const BUTIKKSJEF_BEGREP_SETT: ReadonlySet<string> = new Set(BUTIKKSJEF_BEGREP)
+export const BUTIKKSJEF_PERSONAL_BEGREP_SETT: ReadonlySet<string> =
+  new Set(BUTIKKSJEF_PERSONAL_BEGREP)
+
+// =====================================================================
+// KODELISTENE LEVER VIDERE - FOR LOENNSKONTIENE
+// =====================================================================
+//
+// `501`-`590` sto STILLE over renummereringen i februar 2026: registeret
+// i `parsere/kontoregister.ts` foerer dem med `epoke: null`.
+// `kontoregister.test.ts` beviser det, saa et kallsted som filtrerer
+// loennskonti paa kode er trygt i begge epokene.
+//
+// Driftskodene er det motsatte, og der er begrepet eneste riktige
+// noekkel. Regelen, kort: **filtrerer du paa noe i 6xx/7xx, bruk
+// begrep.**

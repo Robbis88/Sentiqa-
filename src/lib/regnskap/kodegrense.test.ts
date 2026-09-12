@@ -1,28 +1,31 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { BUTIKKSJEF_KOSTNAD_KODER, BUTIKKSJEF_PERSONAL_KODER } from '../regnskap-tilgang'
+import {
+  BUTIKKSJEF_BEGREP, BUTIKKSJEF_PERSONAL_BEGREP, BUTIKKSJEF_KOSTNAD_KODER,
+} from '../regnskap-tilgang'
+import { registrertePar } from '../parsere/kontoregister'
 
 // =====================================================================
-// KODELISTA FINNES TO STEDER, OG DA MÅ NOEN HOLDE DEM SAMMEN
+// GRENSEN RESONNERER IKKE LENGER OM TALL
+// =====================================================================
 //
-// `regnskap-tilgang.ts` sier hvilke kontoer en butikksjef ser.
-// `0192_kontoene_er_eierens.sql` gjentar den samme lista i en
-// RLS-policy, fordi Postgres ikke kan lese en TypeScript-konstant.
+// Fram til `0203` gjentok `regnskapslinjer_les` kodelista fra
+// `regnskap-tilgang.ts`, og denne testen holdt de to sammen.
 //
-// To kilder for samme regel er den formen dette repoet har blitt bitt
-// av flest ganger: de er like den dagen de skrives, og de skiller lag i
-// stillhet. Går de fra hverandre her, får det to helt ulike uttrykk:
+// Den bindingen er borte fordi PREMISSET var feil: en kode er en
+// adresse, ikke en identitet. St1 renummererte rapportlinjene i februar
+// 2026, og `628` betydde «Leie driftsmidler» før det. En policy skrevet
+// i tall ville vist butikksjefen leasingkostnaden som renovasjon på hver
+// rad fra den gamle epoken — og prisen for å unngå det var at januar
+// 2026 og alt eldre ikke kunne importeres i det hele tatt.
 //
-//   Kode som står i TS men ikke i SQL → butikksjefen ser en tom rad i
-//   en tabell som lover den. Ser ut som «ingen kostnad denne måneden».
+// `0203` skriver grensen i `begrep`. Denne testen beviser at den er det,
+// og at den ikke sklir tilbake.
 //
-//   Kode som står i SQL men ikke i TS → hullet policyen ble skrevet for
-//   å lukke, står halvveis åpent, og ingenting sier fra: appen skjuler
-//   den, så ingen ser den før noen leser den over PostgREST.
-//
-// Den andre er den farlige, og den er usynlig fra brukerflaten. Derfor
-// denne.
+// Selve lista (begrep i policyen == `BUTIKKSJEF_BEGREP`) bindes av
+// `src/lib/parsere/begrepliste.test.ts`. Her måles FORMEN på grensen og
+// de to reglene som ikke handler om lista.
 //
 // ---------------------------------------------------------------------
 // HVORFOR IKKE BARE GENERERE SQL-EN FRA TS
@@ -52,15 +55,17 @@ function policykropp(): { fil: string; sql: string } {
 }
 
 const policy = policykropp()
-const iSql = new Set([...policy.sql.matchAll(/'(\d{3})'/g)].map((m) => m[1]))
+const koderISql = [...policy.sql.matchAll(/'(\d{3})'/g)].map((m) => m[1])
+const begrepISql = [...policy.sql.matchAll(/'([a-z_]{4,})'/g)].map((m) => m[1])
 
 describe('målingen ser policyen', () => {
-  test('KANARIFUGL: den fant en ekte policy med koder i', () => {
+  test('KANARIFUGL: den fant en ekte policy', () => {
     // Bytter policyen navn, eller flyttes lista til en funksjon, blir
-    // settet tomt — og «TS og SQL er like» ville vært sant fordi SQL
-    // ikke har noen koder i det hele tatt.
-    expect(iSql.size, `fant ingen kontokoder i ${policy.fil}`).toBeGreaterThan(10)
+    // uttrekket tomt — og hver påstand under ville vært sann fordi det
+    // ikke er noe å måle.
     expect(policy.sql).toMatch(/butikksjef_stasjoner/)
+    expect(begrepISql.length, `fant ingen begreper i ${policy.fil}`).toBeGreaterThan(10)
+    expect(begrepISql).toContain('renhold')
   })
 
   test('KANARIFUGL: en kode i en kommentar teller ikke', () => {
@@ -68,38 +73,33 @@ describe('målingen ser policyen', () => {
       .replace(/--.*/g, '')
     expect([...ren.matchAll(/'(\d{3})'/g)].map((m) => m[1])).toEqual(['501'])
   })
+
+  test('KANARIFUGL: kodeuttrekket ville sett en kode hvis den var der', () => {
+    // Uten denne kunne påstanden «ingen koder i policyen» vært grønn
+    // fordi regexen var død, ikke fordi kodene var borte.
+    expect([...("using (kode in ('501','628'))").matchAll(/'(\d{3})'/g)].map((m) => m[1]))
+      .toEqual(['501', '628'])
+  })
 })
 
-describe('kodelista er én regel, ikke to', () => {
-  test('SQL og TypeScript har nøyaktig de samme kodene', () => {
-    const iTs = new Set(BUTIKKSJEF_KOSTNAD_KODER)
-    const baresql = [...iSql].filter((k) => !iTs.has(k)).sort()
-    const bareTs = [...iTs].filter((k) => !iSql.has(k)).sort()
-
+describe('grensen er skrevet i begrep, ikke i koder', () => {
+  test('ingen kontokoder igjen i policyen', () => {
     expect(
-      { baresql, bareTs },
-      '\nKodelista i regnskap-tilgang.ts og i RLS-policyen har skilt lag.\n\n'
-      + `  bare i SQL:  ${baresql.join(', ') || '(ingen)'}\n`
-      + `  bare i TS:   ${bareTs.join(', ') || '(ingen)'}\n\n`
-      + 'Bare i SQL: hullet policyen skulle lukke staar halvveis aapent, '
-      + 'og appen skjuler raden - saa ingen ser det foer noen leser den '
-      + 'over PostgREST.\n'
-      + 'Bare i TS: butikksjefen faar en tom rad i en tabell som lover '
-      + 'tallet, og det ser ut som «ingen kostnad denne maaneden».\n',
-    ).toEqual({ baresql: [], bareTs: [] })
+      koderISql,
+      `\n${policy.fil} har kontokoder i tilgangsgrensen igjen: ${koderISql.join(', ')}\n\n`
+      + 'En kode er en ADRESSE. St1 renummererte rapportlinjene i februar 2026 '
+      + '- 628 betydde «Leie driftsmidler» foer og «Renovasjon» naa. En grense '
+      + 'i tall viser derfor leasingkostnaden til butikksjefen paa hver rad fra '
+      + 'den gamle epoken, og tvinger importen til aa avvise gamle filer for aa '
+      + 'unngaa det.\n\nBruk `begrep`. Se 0203 og parsere/kontoregister.ts.\n',
+    ).toEqual([])
   })
 
-  test('de ni lønnskontoene staar i policyen', () => {
-    // Loennskosten leser HELE `driftskostnader` og filtrerer i TS.
-    // Faller én av de ni ut av policyen, blir loennskosten feil uten at
-    // noe feiler - tallet blir bare mindre.
-    const mangler = [...BUTIKKSJEF_PERSONAL_KODER].filter((k) => !iSql.has(k)).sort()
-    expect(
-      mangler,
-      `Loennskontoene ${mangler.join(', ')} mangler i RLS-policyen. `
-      + 'Loennskosten leser dem gjennom den, og et manglende konto gir et '
-      + 'lavere tall - ikke en feilmelding.',
-    ).toEqual([])
+  test('en rad uten begrep er skjult, ikke synlig', () => {
+    // NULL betyr «vi vet ikke hva denne raden er». Ukjent skal falle paa
+    // eierens side, akkurat som en ukjent kode gjorde i 0192.
+    expect(policy.sql, 'policyen krever ikke at begrep er satt')
+      .toMatch(/begrep\s+is\s+not\s+null/i)
   })
 
   test('RESULTAT-linja er stengt for butikksjef', () => {
@@ -111,16 +111,17 @@ describe('kodelista er én regel, ikke to', () => {
     // Samme regel som RLS-vakthunden punkt 1, maalt her fordi denne
     // policyen leses paa hver regnskapsside.
     for (const kall of ['gjeldende_retailer_id', 'gjeldende_rolle', 'auth.uid']) {
-      const raa = new RegExp(`(?<!select\\s)${kall.replace('.', '\\.')}\\s*\\(`, 'g')
-      const alle = [...policy.sql.matchAll(new RegExp(`${kall.replace('.', '\\.')}\\s*\\(`, 'g'))]
-      const pakket = [...policy.sql.matchAll(new RegExp(`select\\s+public\\.${kall.replace('.', '\\.')}\\s*\\(|select\\s+${kall.replace('.', '\\.')}\\s*\\(`, 'g'))]
+      const navn = kall.replace('.', '\\.')
+      const alle = [...policy.sql.matchAll(new RegExp(`${navn}\\s*\\(`, 'g'))]
+      const pakket = [...policy.sql.matchAll(
+        new RegExp(`select\\s+public\\.${navn}\\s*\\(|select\\s+${navn}\\s*\\(`, 'g'),
+      )]
       expect(alle.length, `${kall} kalles ikke i policyen`).toBeGreaterThan(0)
       expect(
         pakket.length,
         `${kall} er kalt uten (select ...) - da evalueres den per rad og `
         + 'regnskapssidene faar statement timeout, som ser ut som 0 rader.',
       ).toBe(alle.length)
-      void raa
     }
   })
 })
@@ -128,10 +129,10 @@ describe('kodelista er én regel, ikke to', () => {
 // =====================================================================
 // REGELEN SOM VILLE FUNNET 506 FØR MIGRASJONEN BLE SKREVET
 //
-// `LONNSKONTI` (lonnskost/maaned.ts) og `BUTIKKSJEF_PERSONAL_KODER`
-// (regnskap-tilgang.ts) er to lister over de samme kontoene, skrevet
-// til hvert sitt formål: den ene summerer lønn, den andre bestemmer
-// hvem som får se den.
+// `LONNSKONTI` (lonnskost/maaned.ts) og personallista i
+// `regnskap-tilgang.ts` er to lister over de samme kontoene, skrevet til
+// hvert sitt formål: den ene summerer lønn, den andre bestemmer hvem som
+// får se den.
 //
 // De hadde skilt lag på ett konto: **506 Refundert sykelønn**.
 // /lonnskost regnet den inn — den er refusjonen av 505, ført negativt.
@@ -139,26 +140,40 @@ describe('kodelista er én regel, ikke to', () => {
 // kostnad, men ikke pengene tilbake, og «Personalkostnad» var for høy
 // på hver stasjon med sykefravær.
 //
-// Det var usynlig så lenge begge var visningsfiltre — to sider som
-// viser litt ulike tall er ubehagelig, men ikke farlig. Det ble farlig
-// i det øyeblikket den ene lista skulle bli en RLS-grense: da ville
-// policyen kuttet 506 for butikksjefen, og lønnskosten hadde blitt for
-// høy også der. En sikkerhetsstramming som gjør et tall galt.
+// Det var usynlig så lenge begge var visningsfiltre. Det ble farlig i
+// det øyeblikket den ene lista skulle bli en RLS-grense: da ville
+// policyen kuttet 506, og lønnskosten hadde blitt for høy også der. En
+// sikkerhetsstramming som gjør et tall galt.
 //
 // Regelen er enkel: **alt lønnskosten summerer, må butikksjefen kunne
 // lese.** Ellers er den ikke lønnskost lenger, den er et utvalg.
+//
+// Etter `0203` går regelen gjennom registeret: konto → begrep → lista.
+// Det er ett ledd mer, og det er ledd nummer to som er poenget — det er
+// der epoken håndteres.
 // =====================================================================
+
+/** Begrepene en rapportlinjekode kan bety, på tvers av epokene. */
+function begrepFor(kode: string): string[] {
+  return [...new Set(registrertePar().filter((p) => p.kode === kode).map((p) => p.begrep))]
+}
+
 describe('lønnskosten og innsynet er enige om kontoplanen', () => {
   test('hver konto lønnskosten summerer, kan butikksjefen lese', async () => {
     const { LONNSKONTI, ANDRE_PERSONALKONTI } = await import('../lonnskost/maaned')
+    const tillatt = new Set<string>(BUTIKKSJEF_BEGREP)
     const mangler = [...LONNSKONTI, ...ANDRE_PERSONALKONTI]
-      .filter((k) => !BUTIKKSJEF_KOSTNAD_KODER.has(k)).sort()
+      .filter((k) => {
+        const b = begrepFor(k)
+        return b.length === 0 || !b.every((x) => tillatt.has(x))
+      })
+      .sort()
 
     expect(
       mangler,
-      `\nKontoene ${mangler.join(', ')} inngaar i loennskosten, men staar ikke `
-      + 'i BUTIKKSJEF_KOSTNAD_KODER.\n\n'
-      + 'Fra 0192 er den lista en RLS-grense. En konto som mangler her blir '
+      `\nKontoene ${mangler.join(', ')} inngaar i loennskosten, men begrepet `
+      + 'deres staar ikke i BUTIKKSJEF_BEGREP.\n\n'
+      + 'Fra 0203 er den lista en RLS-grense. En konto som mangler her blir '
       + 'usynlig for butikksjefen - og siden 506 er NEGATIV, blir tallet da '
       + 'for HOEYT, ikke for lavt. En stramming som gjoer et tall galt er '
       + 'verre enn hullet den lukket.\n',
@@ -166,9 +181,38 @@ describe('lønnskosten og innsynet er enige om kontoplanen', () => {
   })
 
   test('KANARIFUGL: regelen ville tatt 506 slik den sto', () => {
-    const somDenVar = new Set(['501', '502', '503', '505', '508', '509', '540', '541', '590',
-      '627', '628', '629', '632', '633', '634', '636', '638', '746'])
-    const lonn = ['501', '502', '503', '505', '506', '508', '509', '540', '541']
-    expect(lonn.filter((k) => !somDenVar.has(k))).toEqual(['506'])
+    // Lista slik den var foer 506 ble lagt til - uttrykt i begrep.
+    const somDenVar = new Set<string>(
+      BUTIKKSJEF_BEGREP.filter((b) => b !== 'refundert_sykelonn'),
+    )
+    const b = begrepFor('506')
+    expect(b, 'registeret kjenner ikke 506 lenger').toEqual(['refundert_sykelonn'])
+    expect(
+      b.every((x) => somDenVar.has(x)),
+      'regelen ville IKKE sett at 506 manglet - da maaler den ingenting',
+    ).toBe(false)
+  })
+
+  test('KANARIFUGL: loennskodene staar stille over epokeskiftet', () => {
+    // Hele grunnen til at kallsteder fortsatt kan filtrere loennskonti
+    // paa KODE. Flytter St1 en av dem, skal dette bli roedt foer noen
+    // rekker aa stole paa antakelsen.
+    const flyttet = [...BUTIKKSJEF_KOSTNAD_KODER]
+      .filter((k) => Number(k) < 600)
+      .filter((k) => registrertePar().some((p) => p.kode === k && p.epoke !== null))
+      .sort()
+    expect(
+      flyttet,
+      `Loennskontoene ${flyttet.join(', ')} har faatt en epoke i registeret. `
+      + 'Da er de ikke lenger trygge aa filtrere paa kode, og kallstedene i '
+      + 'lonnskost/ og kurs/ maa over paa begrep.',
+    ).toEqual([])
+  })
+
+  test('personallista i begrep og i koder beskriver det samme', () => {
+    const fraKoder = new Set(
+      [...BUTIKKSJEF_KOSTNAD_KODER].filter((k) => Number(k) < 600).flatMap(begrepFor),
+    )
+    expect([...fraKoder].sort()).toEqual([...BUTIKKSJEF_PERSONAL_BEGREP].sort())
   })
 })

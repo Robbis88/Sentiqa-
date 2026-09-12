@@ -489,11 +489,18 @@ describe('ufullstendig periode', () => {
 // =====================================================================
 
 describe('regnskap', () => {
+  // `begrep` er det skjermingen leser fra 0203, ikke `kode`. Husleie har
+  // ingen - den staar ikke i registeret i det hele tatt, og en rad uten
+  // begrep skal falle paa eierens side.
   const linjer = [
-    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'omsetning', kode: '110', post: 'Dagligvarer', regnskap: 100, budsjett: 90, avvik: 10, index_pct: 111 },
-    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'omsetning', kode: '10', post: 'Drivstoff', regnskap: 9000, budsjett: 8000, avvik: 1000, index_pct: 112 },
-    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'driftskostnader', kode: '501', post: 'Lønn', regnskap: 50, budsjett: 45, avvik: 5, index_pct: 111 },
-    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'driftskostnader', kode: '640', post: 'Husleie', regnskap: 70, budsjett: 70, avvik: 0, index_pct: 100 },
+    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'omsetning', kode: '110', begrep: null, post: 'Dagligvarer', regnskap: 100, budsjett: 90, avvik: 10, index_pct: 111 },
+    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'omsetning', kode: '10', begrep: null, post: 'Drivstoff', regnskap: 9000, budsjett: 8000, avvik: 1000, index_pct: 112 },
+    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'driftskostnader', kode: '501', begrep: 'faste_lonninger', post: 'Lønn', regnskap: 50, budsjett: 45, avvik: 5, index_pct: 111 },
+    { stasjon_id: 'id-0142', periode: '2026-07-01', seksjon: 'driftskostnader', kode: '640', begrep: null, post: 'Husleie', regnskap: 70, budsjett: 70, avvik: 0, index_pct: 100 },
+    // DEN GAMLE EPOKEN. Kode 628 staar i BUTIKKSJEF_DRIFT_KODER, men
+    // betydde leasing foer februar 2026. Et kodefilter ville sluppet den
+    // gjennom; et begrepsfilter skal ikke.
+    { stasjon_id: 'id-0142', periode: '2026-01-01', seksjon: 'driftskostnader', kode: '628', begrep: 'leie_driftsmidler', post: 'Leie driftsmidler', regnskap: 30, budsjett: 30, avvik: 0, index_pct: 100 },
   ]
 
   it('butikksjef ser påvirkbare kostnader, ikke husleie eller drivstoff', async () => {
@@ -507,6 +514,9 @@ describe('regnskap', () => {
     expect(poster).toContain('Lønn')
     expect(poster).not.toContain('Husleie')
     expect(poster).not.toContain('Drivstoff')
+    // KANARI for hele 0203: koden staar paa butikksjefens liste, men
+    // begrepet gjoer det ikke - og begrepet vinner.
+    expect(poster).not.toContain('Leie driftsmidler')
   })
 
   it('eier ser alt', async () => {
