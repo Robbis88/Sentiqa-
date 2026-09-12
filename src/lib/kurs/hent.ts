@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
-import { BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
+import { maaVaereHele } from '@/lib/supabase/datobolker'
 import type { Satser } from '@/lib/royalty'
 import { DRIFT_BEGREP } from './loftestenger'
 import { byggMaanedsplan, type Leverandorrad, type Maanedsplan, type Maanedstall } from './plan'
@@ -36,23 +35,25 @@ type Klient = SupabaseClient
     en sesongtopp blir til en retning. */
 export const MAANEDER_BAKOVER = 12
 
-type Linje = {
+
+/** Én rad fra `v_kurs_maanedstall` (0205). Alt er ferdig summert. */
+type Maanedsrad = {
   stasjon_id: string
-  periode: string
-  seksjon: string
-  kode: string | null
-  post: string
-  regnskap: number | null
-  budsjett: number | null
+  maaned: string
+  omsetning_kr: number | null
+  omsetning_budsjett_kr: number | null
+  brutto_kr: number | null
+  matsalg_kr: number | null
+  matkast_kr: number | null
+  usynlig_rest_kr: number | null
+  personal_kr: number | null
+  personal_budsjett_kr: number | null
+  paavirkbar_drift_kr: number | null
+  paavirkbar_drift_budsjett_kr: number | null
+  resultat_kr: number | null
 }
 
-type Svinnrad = {
-  stasjon_id: string
-  periode: string
-  kode: string | null
-  kast: number | null
-  usynlig_kr: number | null
-}
+
 
 type Bilagsrad = {
   stasjon_id: string | null
@@ -65,25 +66,23 @@ type Bilagsrad = {
 
 const maanedNokkel = (iso: string) => `${iso.slice(0, 7)}-01`
 
-/** Mat er varegruppe 12xxx. Vask 21xxx, pant 250xx. */
-const erMat = (kode: string | null) => !!kode && kode.startsWith('12')
-const erVask = (kode: string | null) => !!kode && kode.startsWith('21')
-const erPant = (kode: string | null) => !!kode && kode.startsWith('250')
-
-/**
- * Koder som ikke er butikkens omsetning.
- *
- * `SKJUL_OMS_KODER` holder drivstoff (10), pant (250) og «40 CR» utenfor.
- * DRIVSTOFF ER ~68 % AV OMSETNINGEN og betjener seg selv paa pumpa - det
- * bidrar ikke til stasjonens P&L og skal aldri maales mot butikkens
- * bemanning. `40 CR` er St1s egen total, som dobbelteller mot
- * avdelingene. Se AGENTS.md.
- *
- * Delt konstant og ikke en egen liste her: to lister som skal vaere like
- * driver fra hverandre.
- */
-const utenfor = (kode: string | null) =>
-  !kode || SKJUL_OMS_KODER.has(kode) || erPant(kode)
+// =====================================================================
+// VAREGRUPPEFILTRENE LIGGER I BASEN NÅ (0205)
+// =====================================================================
+//
+// Her sto `erMat` (12xxx), `erVask` (21xxx), `erPant` (250xx) og
+// `utenfor` — sammen med hele summeringen.
+//
+// `SKJUL_OMS_KODER` holder drivstoff (10), pant (250) og «40 CR»
+// utenfor. DRIVSTOFF ER ~68 % AV OMSETNINGEN og betjener seg selv på
+// pumpa; det bidrar ikke til stasjonens P&L og skal aldri måles mot
+// butikkens bemanning. «40 CR» er St1s egen total, som dobbelteller mot
+// avdelingene. Se AGENTS.md.
+//
+// Reglene står nå i `v_kurs_maanedstall`, så konstanten importeres ikke
+// lenger her. Den er fortsatt den ene kilden:
+// `src/lib/kurs/viewliste.test.ts` leser `SKJUL_OMS_KODER` og krever at
+// hver kode i den faktisk holdes utenfor i viewets SQL.
 
 export type Stasjonsplan = { stasjonId: string; plan: Maanedsplan }
 
@@ -122,28 +121,35 @@ export async function byggPlanerForRetailer(opts: {
   const fraIso = fra.toISOString().slice(0, 10)
   const stasjonIder = stasjoner.map((s) => s.id)
 
-  // GRENSENE ER SATT AV FORMEN, IKKE GJETTET. PostgREST kutter på sitt
-  // eget tak UTEN å feile, og et avkortet svar ser ut som en liten
-  // stasjon — se [[sentiqa-avkortet-nevner]].
-  const takLinjer = stasjonIder.length * MAANEDER_BAKOVER * 120
-  const takSvinn = stasjonIder.length * MAANEDER_BAKOVER * 80
-  const takBilag = stasjonIder.length * 400
+  // MÅNEDEN SUMMERES I BASEN (0205). Én rad per stasjon per måned.
+  //
+  // Her sto en raa henting av `regnskapslinjer` med `.limit(7200)`. Den
+  // spurte om 1 563 rader for Kelsar, fikk 1 000, og juli - som nettopp
+  // var skrevet og derfor ligger fysisk bakerst - falt utenfor.
+  // Maanedsplanene sto med 0 kroner paa hver stasjon mens tallene laa i
+  // basen.
+  //
+  // Et `.limit()` hoeyere enn serverens tak er en loegn om hva vi faar.
+  //
+  // TAKET MAA VAERE STOERRE ENN DET LOVLIGE MAKSIMUM. `maaVaereHele`
+  // kaster naar svaret TREFFER taket, fordi det da kan vaere avkortet -
+  // og fem stasjoner x tolv maaneder er 60 lovlige rader. Var taket 60,
+  // ville et helt korrekt svar kastet.
+  //
+  // Og det maa vaere under tusen: `max_rows = 1000` i config.toml gjoer
+  // at en hoeyere `.limit()` ikke er en grense, bare en kommentar. Det
+  // var nettopp feilen - `.limit(7200)` kunne aldri utloese noe.
+  const takMaaneder = stasjonIder.length * (MAANEDER_BAKOVER + 1)
+  const takBilag = stasjonIder.length * 150
 
-  const [linjer, svinn, bilag, satsrad] = await Promise.all([
-    supabase.from('regnskapslinjer')
-      .select('stasjon_id, periode, seksjon, kode, post, regnskap, budsjett')
+  const [maanedstall, bilag, satsrad] = await Promise.all([
+    supabase.from('v_kurs_maanedstall')
+      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr')
       .eq('retailer_id', retailerId)
       .in('stasjon_id', stasjonIder)
-      .gte('periode', fraIso).lte('periode', maanedNokkel(tilOgMed))
-      .in('seksjon', ['omsetning', 'driftskostnader', 'resultat'])
-      .limit(takLinjer),
-    supabase.from('regnskap_usynlig_svinn')
-      .select('stasjon_id, periode, kode, kast, usynlig_kr')
-      .eq('retailer_id', retailerId)
-      .in('stasjon_id', stasjonIder)
-      .gte('periode', fraIso).lte('periode', maanedNokkel(tilOgMed))
-      .is('slettet_tid', null)
-      .limit(takSvinn),
+      .gte('maaned', fraIso).lte('maaned', maanedNokkel(tilOgMed))
+      .order('maaned', { ascending: true })
+      .limit(takMaaneder),
     supabase.from('bilagssum')
       .select('stasjon_id, periode, begrep, tekst, belop_kr, antall')
       .eq('retailer_id', retailerId)
@@ -157,6 +163,15 @@ export async function byggPlanerForRetailer(opts: {
       .maybeSingle(),
   ])
 
+  // ET FULLT SVAR ER IKKE ET BEVIS PAA AT DET ER HELE SVARET.
+  //
+  // `maaVaereHele` er husets egen vakt for dette, og den klemmer taket
+  // ned til de tusen PostgREST faktisk gir - en `.limit()` over det er
+  // ikke en grense. Kaster, og `etterRegnskap` skriver grunnen paa
+  // jobbraden.
+  const maanedsrader = maaVaereHele(maanedstall, 'maanedstall for Kursen', takMaaneder)
+  const bilagsrader = maaVaereHele(bilag, 'bilagssummene for Kursen', takBilag)
+
   // SATSENE ER FRIVILLIGE, MEN FRAVÆRET SKAL SIES. `byggMaanedsplan`
   // viser ingen kroneverdier uten dem, og skriver en merknad om hvorfor.
   const sr = satsrad.data as { lav_sats: number; hoy_sats_vask: number; pant_sats: number } | null
@@ -164,13 +179,12 @@ export async function byggPlanerForRetailer(opts: {
     ? { lavSats: Number(sr.lav_sats), hoySatsVask: Number(sr.hoy_sats_vask), pantSats: Number(sr.pant_sats) }
     : null
 
-  const perStasjon = grupper((linjer.data ?? []) as Linje[], (r) => r.stasjon_id)
-  const svinnPer = grupper((svinn.data ?? []) as Svinnrad[], (r) => r.stasjon_id)
-  const bilagPer = grupper((bilag.data ?? []) as Bilagsrad[], (r) => r.stasjon_id ?? '')
+  const perStasjon = grupper(maanedsrader as unknown as Maanedsrad[], (r) => r.stasjon_id)
+  const bilagPer = grupper(bilagsrader as unknown as Bilagsrad[], (r) => r.stasjon_id ?? '')
 
   const ut: Stasjonsplan[] = []
   for (const st of stasjoner) {
-    const historikk = byggHistorikk(perStasjon.get(st.id) ?? [], svinnPer.get(st.id) ?? [])
+    const historikk = byggHistorikk(perStasjon.get(st.id) ?? [])
     if (historikk.length === 0) continue
     const leverandorer = (bilagPer.get(st.id) ?? [])
       .filter((b) => b.begrep !== null && (DRIFT_BEGREP as readonly string[]).includes(b.begrep))
@@ -220,68 +234,30 @@ function grupper<T>(rader: readonly T[], noekkel: (r: T) => string): Map<string,
   return m
 }
 
-const PERSONAL = BUTIKKSJEF_PERSONAL_KODER
-/** Påvirkbare driftskoder, i 2026-skjemaet. Se `kontoregister.ts`. */
-const DRIFT_KODER = new Set(['627', '628', '629', '632', '633', '636', '638', '746'])
+// `PERSONAL` og `DRIFT_KODER` sto her som to sett av RAAKODER.
+//
+// Begge er borte: summeringen skjer i `v_kurs_maanedstall` (0205), og
+// der filtreres det paa `begrep`. Kodelistene var feil paa to maater -
+// `DRIFT_KODER` manglet `634` uten at noe sted sa hvorfor, og etter
+// `0203` betyr `634` «Pengehaandtering» paa en maaned fra foer februar
+// 2026. Regelen er skrevet i `regnskap-tilgang.ts`: filtrerer du paa noe
+// i 6xx, bruk begrep.
 
-export function byggHistorikk(
-  linjer: readonly Linje[],
-  svinn: readonly Svinnrad[],
-): Maanedstall[] {
-  const perMaaned = new Map<string, Maanedstall>()
-  const tom = (maaned: string): Maanedstall => ({
-    maaned,
-    omsetningKr: 0, omsetningBudsjettKr: 0, bruttoKr: 0,
-    matsalgKr: 0, matkastKr: 0, usynligRestKr: 0,
-    personalKr: 0, personalBudsjettKr: 0,
-    paavirkbarDriftKr: 0, paavirkbarDriftBudsjettKr: 0,
-    resultatKr: 0,
-  })
-  const hent = (iso: string) => {
-    const k = maanedNokkel(iso)
-    let m = perMaaned.get(k)
-    if (!m) { m = tom(k); perMaaned.set(k, m) }
-    return m
-  }
-
-  for (const l of linjer) {
-    const m = hent(l.periode)
-    const reg = Number(l.regnskap ?? 0)
-    const bud = Number(l.budsjett ?? 0)
-    if (l.seksjon === 'resultat') { m.resultatKr = reg; continue }
-    if (l.seksjon === 'omsetning') {
-      // KUN AVDELINGSROLLUPENE. Parseren skriver bare dem i denne
-      // seksjonen, men drivstoff, pant og «40 CR» hoerer ikke til
-      // butikkens tall - se `utenfor`.
-      if (utenfor(l.kode)) continue
-      m.omsetningKr += reg
-      m.omsetningBudsjettKr += bud
-      if (erMat(l.kode)) m.matsalgKr += reg
-      continue
-    }
-    // driftskostnader
-    if (!l.kode) continue
-    if (PERSONAL.has(l.kode)) { m.personalKr += reg; m.personalBudsjettKr += bud; continue }
-    if (DRIFT_KODER.has(l.kode)) {
-      m.paavirkbarDriftKr += reg
-      m.paavirkbarDriftBudsjettKr += bud
-    }
-  }
-
-  for (const s of svinn) {
-    const m = hent(s.periode)
-    if (erMat(s.kode)) m.matkastKr += Number(s.kast ?? 0)
-    // USYNLIG PÅ «RESTEN»: alt utenom mat, vask og pant. Bilvask er
-    // strukturelt negativ og ville dratt hele tallet i pluss.
-    if (!erMat(s.kode) && !erVask(s.kode) && !erPant(s.kode)) {
-      m.usynligRestKr += Number(s.usynlig_kr ?? 0)
-    }
-  }
-
-  // BRUTTO KAN IKKE LESES HER. `regnskapslinjer` for stasjonen bærer
-  // salg og budsjett i omsetningsseksjonen, ikke bruttofortjeneste.
-  // `byggMaanedsplan` bruker brutto bare til å verdsette omsetningsvekst,
-  // og faller tilbake på 50 % når den er 0 — et anslag som er merket i
-  // koden framfor et tall som later som det er målt.
-  return [...perMaaned.values()].sort((a, b) => a.maaned.localeCompare(b.maaned))
+export function byggHistorikk(rader: readonly Maanedsrad[]): Maanedstall[] {
+  return [...rader]
+    .sort((a, b) => a.maaned.localeCompare(b.maaned))
+    .map((r) => ({
+      maaned: maanedNokkel(r.maaned),
+      omsetningKr: Number(r.omsetning_kr ?? 0),
+      omsetningBudsjettKr: Number(r.omsetning_budsjett_kr ?? 0),
+      bruttoKr: Number(r.brutto_kr ?? 0),
+      matsalgKr: Number(r.matsalg_kr ?? 0),
+      matkastKr: Number(r.matkast_kr ?? 0),
+      usynligRestKr: Number(r.usynlig_rest_kr ?? 0),
+      personalKr: Number(r.personal_kr ?? 0),
+      personalBudsjettKr: Number(r.personal_budsjett_kr ?? 0),
+      paavirkbarDriftKr: Number(r.paavirkbar_drift_kr ?? 0),
+      paavirkbarDriftBudsjettKr: Number(r.paavirkbar_drift_budsjett_kr ?? 0),
+      resultatKr: Number(r.resultat_kr ?? 0),
+    }))
 }
