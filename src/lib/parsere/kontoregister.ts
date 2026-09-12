@@ -200,10 +200,17 @@ reg('634', 'Pengehåndtering', 'pengehandtering', 'for_feb_2026')
 reg('635', 'Fremmedtj & vakth', 'fremmedtjenester_vakthold', 'for_feb_2026')
 reg('636', 'Kontorrekvisita', 'kontorrekvisita', 'for_feb_2026')
 reg('637', 'Telefon', 'telefon', 'for_feb_2026')
+// 738 og 743 kom fra januarfila 2026-09-12. De sto ikke her fordi
+// registeret ble bygget av det jeg kunne SE i filene jeg hadde - og de
+// var alle fra februar og senere. Navnet er identiteten i begge:
+// «Bilutgifter» og «Erstatn - tyveri» staar ordrett slik ogsaa i dagens
+// skjema, paa 740 og 745. Forskyvningen paa to stemmer.
+reg('738', 'Bilutgifter', 'bilutgifter', 'for_feb_2026')
 reg('739', 'Reise-møter-kurs', 'reise_moter_kurs', 'for_feb_2026')
 reg('740', 'Reklame', 'reklame', 'for_feb_2026')
 reg('741', 'Diverse', 'diverse', 'for_feb_2026')
 reg('742', 'Forsikringer', 'forsikringer', 'for_feb_2026')
+reg('743', 'Erstatn - tyveri', 'erstatning_tyveri', 'for_feb_2026')
 reg('744', 'Kassedifferanse', 'kassedifferanse', 'for_feb_2026')
 
 // --- Under driftsresultatet. Uendret. --------------------------------
@@ -274,9 +281,30 @@ export function slaaOppKonto(kode: string, trykt: string): Kontooppslag {
   }
   const post = REGISTER[`${kode}|${nkl}`]
   if (!post) {
+    // NAVNET ER IDENTITETEN. Kjenner vi det samme navnet paa en ANNEN
+    // kode, er dette nesten alltid den samme linja fra et annet skjema -
+    // og da er beskjeden verdt mye mer enn «ukjent».
+    //
+    // Uten dette koster hver manglende linje en ny opplasting: januar
+    // 2026 felte foerst paa `743 Erstatn - tyveri`, og `738 Bilutgifter`
+    // laa rett bak den. To runder for noe som kunne vaert sagt i én.
+    //
+    // Det er fortsatt et menneske som tar stilling. Forskjellen er at
+    // beskjeden peker paa hvor man skal se.
+    const andre = Object.entries(REGISTER)
+      .filter(([n]) => n.endsWith(`|${nkl}`) && !n.startsWith(`${kode}|`))
+      .map(([n, p]) => `${n.slice(0, n.indexOf('|'))} (${p.begrep})`)
+      // Sortert, ikke i innsettingsrekkefølge: beskjeden skal lese likt
+      // hver gang, og lavest kode først er den eldste epoken — altså
+      // som regel den man leter etter.
+      .sort()
+    const spor = andre.length > 0
+      ? ` Samme navn staar paa ${andre.join(', ')} — se om det er den samme linja ` +
+        `fra et annet skjema.`
+      : ''
     throw new ParserFeil(
       `Regnskap: ukjent kostnadslinje «${kode} ${trykt.trim()}». ` +
-        `St1 har trolig endret rapportlinjene igjen. ` +
+        `St1 har trolig endret rapportlinjene igjen.${spor} ` +
         `Legg paret inn i src/lib/parsere/kontoregister.ts etter å ha sjekket hva det betyr — ` +
         `ikke gjett ut fra koden alene.`,
     )

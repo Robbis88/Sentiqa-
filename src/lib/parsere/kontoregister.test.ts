@@ -47,6 +47,46 @@ describe('slaaOppKonto', () => {
     expect(() => slaaOppKonto('651', 'Droneleie')).toThrow(/endret rapportlinjene/)
   })
 
+  it('beskjeden peker på samme NAVN på en annen kode', () => {
+    // Navnet er identiteten. Kjenner vi det igjen et annet sted, er det
+    // nesten alltid den samme linja fra et annet skjema — og da er
+    // beskjeden verdt mye mer enn «ukjent».
+    //
+    // Uten dette koster hver manglende linje en ny opplasting: januar
+    // 2026 felte først på «743 Erstatn - tyveri», og «738 Bilutgifter»
+    // lå rett bak den.
+    expect(() => slaaOppKonto('999', 'Kassedifferanse'))
+      .toThrow(/Samme navn staar paa 744 \(kassedifferanse\), 746 \(kassedifferanse\)/)
+  })
+
+  it('KANARI: sporet dukker ikke opp når navnet er ukjent overalt', () => {
+    // Ellers ville beskjeden lovet et spor som ikke finnes, og sendt
+    // folk på leting etter en linje som aldri har eksistert.
+    let melding = ''
+    try { slaaOppKonto('651', 'Droneleie') } catch (e) { melding = (e as Error).message }
+    expect(melding).not.toMatch(/Samme navn/)
+  })
+
+  it('de to parene januar 2026 manglet', () => {
+    // Funnet ved å lese alle 24 regnskapsfilene og telle hvert (kode,
+    // navn)-par, i stedet for å vente på én feil per opplasting.
+    // Registeret var bygget av det jeg kunne SE, og alt jeg hadde sett
+    // var februar og senere.
+    expect(slaaOppKonto('738', 'Bilutgifter').begrep).toBe('bilutgifter')
+    expect(slaaOppKonto('738', 'Bilutgifter').epoke).toBe('for_feb_2026')
+    expect(slaaOppKonto('743', 'Erstatn - tyveri').begrep).toBe('erstatning_tyveri')
+    expect(slaaOppKonto('743', 'Erstatn - tyveri').epoke).toBe('for_feb_2026')
+  })
+
+  it('KANARI: de to nye kodene betyr noe ANNET i dag', () => {
+    // 738 og 743 er ikke bare nye rader - de er samme forskyvning paa
+    // to som resten. 743 er «Diverse» i dagens skjema. Leste vi koden
+    // alene, ville januars tyverierstatning havnet der.
+    expect(slaaOppKonto('743', 'Diverse').begrep).toBe('diverse')
+    expect(slaaOppKonto('740', 'Bilutgifter').begrep).toBe('bilutgifter')
+    expect(slaaOppKonto('745', 'Erstatn - tyveri').begrep).toBe('erstatning_tyveri')
+  })
+
   it('KANARI: en KJENT kode med et UKJENT navn faller ikke tilbake på koden', () => {
     // Dette er regresjonen som faktisk kan snike seg inn: noen legger til
     // en «hjelpsom» fallback som slår opp koden alene når paret bommer.

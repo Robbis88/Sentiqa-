@@ -29,16 +29,34 @@ const KATALOG = join(ROT, 'supabase', 'migrations')
  * `parsere/typer.ts` er parserens egne, og `bpLinje('bp_…')` i
  * importkjernen er BP-ens. Den andre er nettopp den som ble glemt.
  */
+/**
+ * Leser en kildefil med LF, uansett hva som ligger på disk.
+ *
+ * FILENE SJEKKES UT MED CRLF PÅ WINDOWS. Første utgave av denne fila
+ * lette etter `\n\n` og fant `\r\n\r\n` — altså ingenting — og kastet
+ * «fant ikke RegnskapSeksjon i typer.ts».
+ *
+ * Den var GRØNN I CI, som kjører på Linux med LF, og rød bare lokalt.
+ * Det er den verste varianten: porten sier ikke fra, og vakten har
+ * sluttet å måle for den som utvikler.
+ *
+ * Tredje gang denne fella tas i dette prosjektet. Se crlf-notatet i
+ * AGENTS.md-sporet.
+ */
+function les(sti: string): string {
+  return readFileSync(join(ROT, sti), 'utf8').replace(/\r\n/g, '\n')
+}
+
 function seksjonerIKilden(): Set<string> {
   const funnet = new Set<string>()
 
-  const typer = readFileSync(join(ROT, 'src/lib/parsere/typer.ts'), 'utf8')
-  const m = /export type RegnskapSeksjon =([\s\S]*?)\n\n/.exec(typer)
+  const m = /export type RegnskapSeksjon =([\s\S]*?)\n\n/.exec(les('src/lib/parsere/typer.ts'))
   if (!m) throw new Error('fant ikke RegnskapSeksjon i typer.ts')
   for (const t of m[1].matchAll(/'([a-z_]+)'/g)) funnet.add(t[1])
 
-  const kjerne = readFileSync(join(ROT, 'src/lib/import/kjerne.ts'), 'utf8')
-  for (const t of kjerne.matchAll(/bpLinje\('([a-z_]+)'/g)) funnet.add(t[1])
+  for (const t of les('src/lib/import/kjerne.ts').matchAll(/bpLinje\('([a-z_]+)'/g)) {
+    funnet.add(t[1])
+  }
 
   return funnet
 }
@@ -47,7 +65,9 @@ function seksjonerIKilden(): Set<string> {
 function policykropp(): { fil: string; sql: string } {
   let funn: { fil: string; sql: string } | null = null
   for (const fil of readdirSync(KATALOG).filter((n) => n.endsWith('.sql')).sort()) {
-    const ren = readFileSync(join(KATALOG, fil), 'utf8').replace(/--.*/g, '')
+    const ren = readFileSync(join(KATALOG, fil), 'utf8')
+      .replace(/\r\n/g, '\n')
+      .replace(/--.*/g, '')
     const m = /create policy regnskapslinjer_les[\s\S]*?;\s*$/m.exec(ren)
     if (m) funn = { fil, sql: m[0] }
   }
@@ -67,6 +87,16 @@ describe('seksjonsdekning', () => {
     expect(s).toContain('driftskostnader')
     expect(s, 'BP-grenen ble ikke funnet - og det var DEN som ble glemt')
       .toContain('bp_kostnad')
+  })
+
+  it('KANARI: uttrekket tåler CRLF', () => {
+    // Den konkrete feilen, gjenskapt. Uten normaliseringen finner
+    // regexen ingenting, og testen under KASTER i stedet for å måle —
+    // grønn i CI, rød bare på Windows.
+    const medCrlf = "export type RegnskapSeksjon =\r\n  | 'omsetning'\r\n\r\nannet"
+    const m = /export type RegnskapSeksjon =([\s\S]*?)\n\n/
+    expect(m.test(medCrlf)).toBe(false)
+    expect(m.test(medCrlf.replace(/\r\n/g, '\n'))).toBe(true)
   })
 
   it('hver seksjon importen skriver er klassifisert', () => {
