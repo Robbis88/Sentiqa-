@@ -151,3 +151,71 @@ describe('payloaden fra nettleseren baerer bilagene', () => {
       .not.toContain('export function summerBilagsbuffer')
   })
 })
+
+// =====================================================================
+// OG FELTENE PAA JOBBRADEN, SOM DREV FRA HVERANDRE 2026-09-12
+// =====================================================================
+//
+// Vakten over krevde at begge veiene KALLER etterRegnskap. Den sa
+// ingenting om hva de skriver paa jobbraden - og saa la jeg
+// `parserversjon`, `avstemt_tid` og `avviksantall` inn i nettleserveien
+// alene.
+//
+// Maalt i produksjon samme kveld: juli ble behandlet paa nytt gjennom
+// SERVERVEIEN, svinnet kom inn riktig med 272 butikkrader og 0 avvik, og
+// jobben sto likevel med `parserversjon = null`. `0211` ville avvist sin
+// egen import, og aarsaken hadde vaert usynlig: status groenn, radtall
+// riktig, merknad fyldig.
+//
+// Feltene bygges naa ett sted. Denne vakten krever at det blir slik.
+// =====================================================================
+
+describe('fullfoeringsfeltene finnes ett sted', () => {
+  it('KANARI: helperen blir funnet', () => {
+    // Byttes navnet, maaler paastandene under ingenting.
+    expect(kilde).toContain('function fullfoeringsfelt(')
+  })
+
+  it('BEGGE veiene sprer inn fullfoeringsfelt', () => {
+    for (const vei of ['behandleJobbKjerne', 'lagreForhandsparset']) {
+      expect(
+        kropp(vei),
+        `\n${vei} bygger jobbfeltene selv.\n\n`
+        + 'Et felt som skal skrives paa to steder blir glemt paa ett av '
+        + 'dem. Det skjedde med `parserversjon` 2026-09-12.\n',
+      ).toContain('...fullfoeringsfelt(')
+    }
+  })
+
+  it('ingen av veiene skriver feltene PAA EGEN HAAND', () => {
+    const felt = ['parserversjon:', 'avstemt_tid:', 'avviksantall:', 'parset_tid:']
+    for (const vei of ['behandleJobbKjerne', 'lagreForhandsparset']) {
+      const k = kropp(vei)
+      const funnet = felt.filter((f) => k.includes(f))
+      expect(
+        funnet,
+        `\n${vei} setter ${funnet.join(', ')} direkte.\n\n`
+        + 'Da er det to kilder for samme felt igjen, like den dagen de '
+        + 'skrives.\n',
+      ).toEqual([])
+    }
+  })
+
+  it('helperen setter alle fire feltene', () => {
+    const h = kilde.slice(kilde.indexOf('function fullfoeringsfelt('))
+    const slutt = h.indexOf('\n}\n')
+    const kropp_h = h.slice(0, slutt)
+    for (const f of ['gjelder_dato', 'antall_rader', 'parset_tid',
+      'parserversjon', 'avstemt_tid', 'avviksantall']) {
+      expect(kropp_h, `fullfoeringsfelt mangler ${f}`).toContain(f)
+    }
+  })
+
+  it('avstemmingen avgjoer avstemt_tid, ikke et tidspunkt alene', () => {
+    const h = kilde.slice(kilde.indexOf('function fullfoeringsfelt('))
+    // `avstemt_tid` maa vaere betinget. Var den alltid satt, ville
+    // `0211` sluppet gjennom hver jobb - porten ville vaert en attrapp.
+    expect(h).toMatch(/avstemt_tid:\s*o\.avstemming \? naa : null/)
+    expect(h).toMatch(/avviksantall:\s*o\.avstemming \? o\.avstemming\.avvik : null/)
+  })
+})
