@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   BUTIKKSJEF_DRIFT_BEGREP, BUTIKKSJEF_PERSONAL_BEGREP,
@@ -26,17 +26,33 @@ import { SKJUL_OMS_KODER } from '@/lib/avdelinger'
 // lest rett ut av julifila.
 // =====================================================================
 
-const SQL = join(
-  process.cwd(), 'supabase', 'migrations', '0205_kurs_maanedstall.sql',
-)
+const KATALOG = join(process.cwd(), 'supabase', 'migrations')
 
-/** Fila uten `--`-kommentarer. Et navn i en forklaring er ikke et filter. */
+/**
+ * SISTE definisjon av viewet, uten `--`-kommentarer.
+ *
+ * PEKER IKKE PÅ ET FILNAVN. Første utgave leste `0205` — og `0206`
+ * redefinerte viewet en time senere. **En vakt som peker på en fil blir
+ * utdatert av neste migrasjon, og den blir det i stillhet:** den
+ * fortsetter å måle en gammel definisjon og melder at alt er i orden.
+ *
+ * Samme felle tok `begrepliste.test.ts` to ganger samme dag. Hele
+ * katalogen leses, og den siste definisjonen er den som gjelder — som
+ * også er regelen migrasjonene selv følger.
+ */
 function renSql(): string {
-  return readFileSync(SQL, 'utf8')
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((l) => l.replace(/--[^\n]*$/, ''))
-    .join('\n')
+  let siste: string | null = null
+  for (const fil of readdirSync(KATALOG).filter((n) => n.endsWith('.sql')).sort()) {
+    const ren = readFileSync(join(KATALOG, fil), 'utf8')
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map((l) => l.replace(/--[^\n]*$/, ''))
+      .join('\n')
+    const i = ren.search(/create\s+or\s+replace\s+view\s+public\.v_kurs_maanedstall/i)
+    if (i >= 0) siste = ren.slice(i)
+  }
+  if (!siste) throw new Error('fant ingen definisjon av v_kurs_maanedstall')
+  return siste
 }
 
 /** Begrepene i hvert `begrep = any (array[...])`-uttrykk. */
@@ -161,6 +177,19 @@ describe('viewet er trygt', () => {
     // Supabase-standarden grant'er hver ny view til den.
     expect(sql).toMatch(/revoke all on public\.v_kurs_maanedstall from anon/)
     expect(sql).toMatch(/grant select on public\.v_kurs_maanedstall to authenticated/)
+  })
+
+  it('regnskapet avgjør om måneden finnes', () => {
+    // `full outer join` lot en måned med SVINN men uten stasjonsregnskap
+    // komme med, med omsetning 0 og resultat 0. Desember 2025 var
+    // nøyaktig det: 9 kostnadslinjer, alle på klyngenivå.
+    //
+    // En null i en trendserie er et datapunkt. Et hull som later som det
+    // er en null blir regnet med — og det var det Robert så som «+0 på
+    // 8 måneder».
+    expect(sql, 'viewet bruker fortsatt full outer join')
+      .not.toMatch(/full\s+outer\s+join/i)
+    expect(sql, 'svinnet driver fortsatt raden').toMatch(/left join svinn/i)
   })
 
   it('klyngeradene er utelatt', () => {
