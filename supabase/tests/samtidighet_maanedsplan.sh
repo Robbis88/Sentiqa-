@@ -46,7 +46,20 @@ q() { psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "$1"; }
 
 feil() { echo "FUNN: $*" >&2; exit 1; }
 
+# STEGET SKAL ALDRI HENGE.
+#
+# Foerste utgave kalte `feil` midt i en race, mens fd 9 sto aapen mot
+# FIFO-en og to psql-prosesser laa i bakgrunnen. GitHub venter paa alle
+# barn som holder utdatapipen - saa steget sto i 18 minutter etter at
+# testen hadde sagt «FUNN», og ble kansellert i stedet for aa feile.
+#
+# En test som henger i stedet for aa feile, er en test ingen leser.
 opprydding() {
+  exec 9>&- 2>/dev/null || true
+  # Avslutt aapne transaksjoner foer opprydningen, ellers blokkerer
+  # slettingen paa laasene de holder.
+  kill $(jobs -p) 2>/dev/null || true
+  wait 2>/dev/null || true
   q "delete from public.maanedsplan where retailer_id = '$RET';
      delete from public.stasjoner where retailer_id = '$RET';
      delete from public.retailers where id = '$RET';" >/dev/null 2>&1 || true
@@ -113,7 +126,7 @@ race() {
                  where granted and relation = 'public.maanedsplan'::regclass
                    and mode = 'RowExclusiveLock'")" -gt 0 ]; do
     i=$((i+1))
-    [ $i -gt 500 ] && feil "sesjon B tok aldri laasen"
+    [ $i -gt 200 ] && feil "sesjon B tok aldri laasen"
   done
 
   # --- SESJON A: skriveren. Skal BLOKKERE paa radlaasen -------------
@@ -125,15 +138,23 @@ race() {
 
   # VERIFISER at A faktisk venter paa en laas. Uten dette maaler vi
   # kanskje bare «B committet foerst».
-  # `relation`-filteret er ikke pynt: `not granted` uten det teller
-  # hvilken som helst ventende laas i hele klyngen, og da kunne loekka
-  # sluppet videre paa noe helt annet enn racet vi maaler.
+  # VENT TIL A FAKTISK VENTER PAA EN LAAS.
+  #
+  # Foerste utgave saa etter `pg_locks where not granted and relation =
+  # maanedsplan`. Den kunne ALDRI treffe: en sesjon som venter paa en
+  # rad en annen transaksjon holder, venter paa en TRANSACTIONID-laas,
+  # og der er `pg_locks.relation` NULL. Filteret utelukket noeyaktig
+  # den laasen A staar i.
+  #
+  # `pg_stat_activity` sier det direkte, og identifiserer A paa
+  # spoerringsteksten - saa loekka ikke kan slippe videre paa en helt
+  # annen ventende sesjon.
   i=0
-  until [ "$(q "select count(*) from pg_locks
-                 where not granted
-                   and relation = 'public.maanedsplan'::regclass")" -gt 0 ]; do
+  until [ "$(q "select count(*) from pg_stat_activity
+                 where wait_event_type = 'Lock'
+                   and query ilike '%skriv_maanedsplan_utkast%'")" -gt 0 ]; do
     i=$((i+1))
-    if [ $i -gt 200 ]; then
+    if [ $i -gt 100 ]; then
       feil "sesjon A blokkerte aldri - interleavingen ble ikke oppnaadd"
     fi
   done
