@@ -534,18 +534,43 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
         status: (await iAvgjort().locator('.sq-plankort-status').allTextContents()).join(' | '),
       })
 
+      // ===================================================================
+      // `ok` ER BEVIS, IKKE ET SLUTTUTFALL
+      // ===================================================================
+      //
+      // Foerste utgave avsluttet pollen paa `t.ok !== ''`. Kvitteringen
+      // kommer FOER oppfriskningen lander, saa den avsluttet mens kortet
+      // fortsatt sto i koeen - og jeg tok bildet der og kalte det
+      // «oppfriskningen uteble». To kjoeringer paa SAMME kode og samme
+      // ferske seed ga C og E; forskjellen var timing, ikke tilstand.
+      //
+      // Sluttutfallene er TO:
+      //
+      //   a) kortet er flyttet, med riktig varig status
+      //   b) handlingen returnerte feil
+      //
+      // `ok` fanges LOEPENDE underveis, fordi den forsvinner naar
+      // knappen avmonteres. Ved timeout er den fortsatt kjent, og da
+      // kan «lyktes uten oppfriskning» skilles fra «dialogen kom aldri».
+      // ===================================================================
+      let settOk = ''
       let sluttfoert = false
       try {
         await expect.poll(async () => {
           const t = await tilstand()
-          return t.iKoe === 0 || t.feil !== '' || t.ok !== ''
+          if (t.ok !== '') settOk = t.ok
+          const flyttet = t.iKoe === 0 && t.iAvgjort === 1 && t.status === 'Avvist'
+          return flyttet || t.feil !== ''
         }, { timeout: 25_000 }).toBe(true)
         sluttfoert = true
       } catch {
         sluttfoert = false
       }
 
-      const t = await tilstand()
+      const raa = await tilstand()
+      // Kvitteringen kan vaere borte naa. Den vi SAA underveis er den
+      // som betyr noe.
+      const t = { ...raa, ok: raa.ok || settOk }
 
       // --- KLASSIFISER --------------------------------------------
       const bilde = [
@@ -556,20 +581,21 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
         `i «Venter»      : ${t.iKoe}`,
         `i «Avgjort»     : ${t.iAvgjort}`,
         `status          : ${t.status || '(ingen)'}`,
+        `ok sett underveis: ${settOk || '(aldri)'}`,
         `poll fullfoert  : ${sluttfoert}`,
         `POST-kall       :\n    ${nett.join('\n    ') || '(ingen)'}`,
         `console         :\n    ${konsoll.join('\n    ') || '(ingen)'}`,
         `pageerror       :\n    ${sidefeil.join('\n    ') || '(ingen)'}`,
       ].join('\n  ')
 
+      const flyttet = t.iKoe === 0 && t.iAvgjort === 1 && t.status === 'Avvist'
       const dom =
-        t.dialoger === 0 ? 'A  dialogen kom aldri — innsendingen ble stoppet'
+        flyttet ? 'E  full kjede virker'
           : t.feil !== '' ? 'D  serverhandlingen returnerte FEIL'
-            : t.knappDisabled === true ? 'B  handlingen er PENDING eller henger'
-              : t.ok !== '' && t.iKoe > 0
-                ? 'C  handlingen LYKTES, men klientoppfriskningen uteble'
-                : t.iKoe === 0 && t.iAvgjort === 1 && t.status === 'Avvist'
-                  ? 'E  full kjede virker'
+            : t.dialoger === 0 ? 'A  dialogen kom aldri — innsendingen ble stoppet'
+              : t.knappDisabled === true ? 'B  handlingen er PENDING eller henger'
+                : t.ok !== ''
+                  ? 'C  handlingen LYKTES, men klientoppfriskningen uteble'
                   : '?  ingen av de fem — se bildet'
 
       // Bildet skrives ALLTID, ogsaa naar testen passerer. Da har vi

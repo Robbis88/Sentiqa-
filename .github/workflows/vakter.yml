@@ -347,6 +347,41 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      # =================================================================
+      # DATABASEN TILBAKE TIL STARTTILSTAND
+      # =================================================================
+      #
+      # Diagnosesteget over deler Supabase-instans med suiten under, og
+      # det MUTERER: det avviser Underby juni, og - verre - det kjoerer
+      # `oppsett`-prosjektet, som RULLER INN TO-FAKTOR. Uten reset
+      # feilet `eier.setup.ts` med «Eieren ble ikke tvunget til
+      # innrullering», fordi faktoren allerede fantes.
+      #
+      # `continue-on-error` isolerer ingenting, og en UPDATE tilbake til
+      # utkast ville ikke roert `auth.mfa_factors`.
+      #
+      # MIDLERTIDIG, som diagnosesteget selv: begge fjernes naar
+      # aarsaken er funnet.
+      - name: Database tilbake til starttilstand
+        run: |
+          echo "=== diagnose ferdig - resetter databasen ==="
+          npx supabase db reset
+          echo "=== verifiserer starttilstanden ==="
+          mfa=$(psql "$PGURL" -tAc "select count(*) from auth.mfa_factors")
+          avvist=$(psql "$PGURL" -tAc             "select count(*) from public.maanedsplan where status = 'avvist'")
+          utkast=$(psql "$PGURL" -tAc             "select count(*) from public.maanedsplan where status = 'utkast'")
+          sluppet=$(psql "$PGURL" -tAc             "select count(*) from public.maanedsplan where status = 'sluppet'")
+          linjer=$(psql "$PGURL" -tAc "select count(*) from public.regnskapslinjer")
+          echo "mfa_factors=$mfa avvist=$avvist utkast=$utkast sluppet=$sluppet regnskapslinjer=$linjer"
+          # SEEDTILSTANDEN, TALT. Et reset som ikke gjenoppretter er
+          # verre enn ingen: da tror vi vi starter friskt.
+          [ "$mfa" = "0" ]     || { echo "FUNN: mfa-faktorer ikke nullstilt"; exit 1; }
+          [ "$avvist" = "1" ]  || { echo "FUNN: forventet 1 avvist plan (Overby juli)"; exit 1; }
+          [ "$utkast" = "3" ]  || { echo "FUNN: forventet 3 utkast"; exit 1; }
+          [ "$sluppet" = "1" ] || { echo "FUNN: forventet 1 sluppet plan (Grenseby mai)"; exit 1; }
+          [ "$linjer" = "6" ]  || { echo "FUNN: forventet 6 regnskapslinjer"; exit 1; }
+          echo "=== starttilstand bekreftet - full suite starter ==="
+
       - name: Nettlesertester
         run: npx playwright test
 
