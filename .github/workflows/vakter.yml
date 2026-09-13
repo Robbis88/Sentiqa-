@@ -321,6 +321,32 @@ jobs:
 
       # Maaler det kildelesing ikke kan: kontrast, treffomraader, og at
       # beskyttede ruter faktisk redirigerer naar man ber om dem uten okt.
+      # AVVIS-DIAGNOSEN, FOR SEG OG FOERST.
+      #
+      # C har feilet tre ganger med tre ulike aarsaker, og hver gang har
+      # den fulle suiten brukt tolv minutter paa aa fortelle det. Her
+      # kjoeres BARE den, med spor slaatt paa uansett utfall - saa
+      # bildet finnes ogsaa naar den passerer.
+      #
+      # Den kjoerer foerst, paa fersk seed. Det er ogsaa dens egen
+      # forutsetning: Underby juni er utkast rett etter seeding, og C
+      # trenger ikke A eller B for aa staa.
+      #
+      # `continue-on-error`: dette steget skal OPPLYSE, ikke avgjoere.
+      # Dommen faller i den fulle suiten under.
+      - name: Avvis-diagnose (bare C, med spor)
+        continue-on-error: true
+        run: |
+          npx playwright test e2e/maanedsplan.spec.ts             -g 'C  avvis' --trace on --output=test-results-c
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avvis-diagnose
+          path: test-results-c/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Nettlesertester
         run: npx playwright test
 

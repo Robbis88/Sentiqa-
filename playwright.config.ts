@@ -76,6 +76,10 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
+    // Skjermbildet ved timeout. Sporet viser hva som SKJEDDE; bildet
+    // viser hva som STO der da det stoppet - og de to svarer paa ulike
+    // spoersmaal.
+    screenshot: 'only-on-failure',
   },
   projects: [
     // OPPSETTET FORST. Eieren rulles inn i to-faktor en gang, og lagrer
