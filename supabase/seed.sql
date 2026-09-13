@@ -1074,3 +1074,100 @@ where r.id in ('11111111-1111-4111-8111-111111111111',
     select 1 from public.retailer_koderegel x
     where x.retailer_id = r.id and x.rolle = 'produksjon'
       and x.nivaa = 'varegruppe' and x.kode = k);
+
+-- =====================================================================
+-- MAANEDSPLANER MED MAT- OG SVINNANALYSE
+-- =====================================================================
+-- Tre utkast som dekker de tre tilstandene flaten maa taale, saa
+-- `e2e/maanedsplan.spec.ts` maaler noe. Uten disse viser sida
+-- tomtilstanden, og en e2e-test mot den ville vaert groenn uten aa se
+-- en eneste analyseblokk.
+--
+--   Testby   bekreftelse + usikker enkeltmaaling   (Dales juli-form)
+--   Testvik  tiltak + retning tilgjengelig         (Boenes/Varden-form)
+--   Testby   BLOKKERT, forrige maaned              (manglende kastbudsjett)
+--
+-- Tallene er Kelsars faktiske, maalt 2026-09-13. De staar her som
+-- FIKSTUR - produksjonskoden leser dem aldri herfra.
+--
+-- Idempotent: `on conflict (stasjon_id, maaned) do nothing`.
+insert into public.maanedsplan
+  (retailer_id, stasjon_id, maaned, dom, ingress, punkter, merknad, status,
+   matkast, usynlig)
+values
+  ('11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-222222222222', date '2026-07-01',
+   'medvind',
+   'Resultatet i juli er 63 246 kroner. I januar var det −162 491.',
+   '[]'::jsonb, null, 'utkast',
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-07-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'blokkering', null,
+     'dom', jsonb_build_object(
+       'slag', 'bekreftelse', 'ugunstige', 4, 'antallMaaneder', 7,
+       'kurs', jsonb_build_object('vei', 'ned', 'paaRad', 3,
+                                  'endring', -3.41, 'spenn', 3.47),
+       'tekst', 'Under kastbudsjettet: 3,82 % mot 6,23 % budsjettert (−2,41 pp), og kastprosenten faller.',
+       'naa', jsonb_build_object(
+         'maaned', '2026-07-01', 'matsalgKr', 838292.15, 'synligKastKr', 32018.74,
+         'faktiskPst', 3.8195, 'budsjettPst', 6.232289968,
+         'justertBudsjettKr', 52244.80, 'avvikKr', -20226.06,
+         'avvikPstpoeng', -2.4128, 'gunstig', true))),
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-07-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'naaKr', 31902.47, 'kurs', null, 'vindu', 0, 'usikker', true,
+     'aarsakUsikker', 'Fortegnet skifter i de siste 3 månedene. Usikker enkeltmåling — kontroller telling, periodisering og fakturaflyt før tiltak.',
+     'blokkering', null)),
+
+  ('11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-333333333333', date '2026-07-01',
+   'motvind',
+   'Resultatet i juli er 36 991 kroner. I januar var det 52 010.',
+   '[]'::jsonb, null, 'utkast',
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-07-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'blokkering', null,
+     'dom', jsonb_build_object(
+       'slag', 'tiltak', 'ugunstige', 5, 'antallMaaneder', 7,
+       'kurs', jsonb_build_object('vei', 'flat', 'paaRad', 1,
+                                  'endring', 0.69, 'spenn', 6.76),
+       'tekst', 'Ligger klart over kastbudsjettet: 19,33 % mot 13,59 % budsjettert (+5,74 pp), og serien viser ingen stabil forbedring. Over budsjett 5 av 7 måneder.',
+       'naa', jsonb_build_object(
+         'maaned', '2026-07-01', 'matsalgKr', 135687.17, 'synligKastKr', 26229.84,
+         'faktiskPst', 19.3311, 'budsjettPst', 13.592763033,
+         'justertBudsjettKr', 18443.64, 'avvikKr', 7786.20,
+         'avvikPstpoeng', 5.7383, 'gunstig', false))),
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-07-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'naaKr', 3814.60,
+     'kurs', jsonb_build_object('vei', 'opp', 'paaRad', 2,
+                                'endring', 1461.89, 'spenn', 1461.89),
+     'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null)),
+
+  ('11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-222222222222', date '2026-06-01',
+   'flat',
+   'Resultatet i juni er 12 004 kroner. I januar var det −162 491.',
+   '[]'::jsonb, null, 'utkast',
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-06-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'dom', null,
+     'blokkering', 'Datagrunnlag mangler. (2026-04-01) Svinnarket for perioden er ikke avstemt.'),
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-06-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'naaKr', null, 'kurs', null, 'vindu', 0, 'usikker', false,
+     'aarsakUsikker', null,
+     'blokkering', 'Datagrunnlag mangler. Matgruppen ble ikke funnet i 2026-04-01.'))
+on conflict (stasjon_id, maaned) do nothing;

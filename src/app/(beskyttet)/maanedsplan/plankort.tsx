@@ -1,5 +1,7 @@
 'use client'
+import { erRangert, UTEN_KRONEVERDI } from '@/lib/kurs/analysevisning'
 import { HandlingKnapp } from '@/components/ui/handling-knapp'
+import { Analyseblokk } from './analyseblokk'
 import { avvisPlan, slippPlan } from './handlinger'
 
 // =====================================================================
@@ -29,6 +31,8 @@ export function Plankort({
   punkter,
   merknad,
   status,
+  matkast,
+  usynlig,
 }: {
   id: string
   stasjon: string
@@ -37,6 +41,9 @@ export function Plankort({
   punkter: Punkt[]
   merknad: string | null
   status: string
+  /** Lagret oeyeblikksbilde. `unknown` fordi kolonnen er `jsonb`. */
+  matkast: unknown
+  usynlig: unknown
 }) {
   const kr = (n: number) =>
     Math.round(Math.abs(n)).toLocaleString('nb-NO')
@@ -52,6 +59,8 @@ export function Plankort({
       </header>
 
       <p className="sq-plankort-ingress">{ingress}</p>
+
+      <Analyseblokk matkast={matkast} usynlig={usynlig} />
 
       {punkter.length === 0 && (
         <p className="sq-plankort-tom">
@@ -76,6 +85,15 @@ export function Plankort({
           )}
         </div>
       ))}
+
+      {/*
+        * RANGERINGEN MAA VAERE ERLIG. Uten royaltysatser er
+        * `kronerIAret` null paa hvert punkt, og rekkefoelgen er da
+        * vilkaarlig - men den SER ut som en rangering. Da sier vi det.
+        */}
+      {punkter.length > 1 && !erRangert(punkter) && (
+        <p className="sq-plankort-urangert">{UTEN_KRONEVERDI}</p>
+      )}
 
       {merknad && <p className="sq-plankort-merknad">{merknad}</p>}
 

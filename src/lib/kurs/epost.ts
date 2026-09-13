@@ -1,4 +1,9 @@
 import type { Maanedsplan } from './plan'
+import {
+  erRangert, matkastvisning, usynligvisning, UTEN_KRONEVERDI,
+  type Matkastvisning, type Usynligvisning,
+} from './analysevisning'
+import { lesMatkast, lesUsynlig } from './snapshot'
 import { maanedsnavn } from './plan'
 
 // =====================================================================
@@ -66,7 +71,66 @@ const DOMORD = {
 
 export type Epost = { emne: string; html: string; tekst: string }
 
-export function tilEpost(plan: Maanedsplan, basisUrl: string): Epost {
+/**
+ * Linjene en analyseblokk viser. SAMME TEKST som plankortet - de kommer
+ * fra `analysevisning.ts`, og brevet formulerer ingenting selv.
+ */
+function matkastLinjer(m: Matkastvisning): string[] {
+  if (m.slag === 'ikke_beregnet' || m.slag === 'blokkert') {
+    return [
+      m.tittel,
+      m.tekst,
+      ...(m.slag === 'blokkert' && m.maaned ? [`Gjelder måneden ${m.maaned}`] : []),
+    ]
+  }
+  return [
+    ...m.rader.map((r) => `${r.navn}: ${r.verdi}${r.bi ? ` (${r.bi})` : ''}`),
+    m.retning,
+    m.forklaring,
+  ]
+}
+
+function usynligLinjer(u: Usynligvisning): string[] {
+  if (u.slag === 'ikke_beregnet' || u.slag === 'blokkert') {
+    return [
+      u.tittel,
+      u.tekst,
+      ...(u.slag === 'blokkert' && u.maaned ? [`Gjelder måneden ${u.maaned}`] : []),
+    ]
+  }
+  return [u.verdi, u.utvikling, u.forklaring, u.aarsaker]
+}
+
+function blokkHtml(tittel: string, merke: string, linjer: string[]): string {
+  return `
+      <tr><td style="padding:16px 0 0;">
+        <div style="border:1px solid ${F.kant};border-radius:10px;padding:14px 16px;">
+          <div style="font-size:13px;font-weight:700;color:${F.tekst};">
+            ${e(tittel)}
+            <span style="font-weight:600;color:${F.svak};font-size:12px;">
+              &middot; ${e(merke)}
+            </span>
+          </div>
+          ${linjer.map((l) => `
+          <div style="padding-top:6px;font-size:13px;line-height:1.5;color:${F.svak};">
+            ${e(l)}
+          </div>`).join('')}
+        </div>
+      </td></tr>`
+}
+
+/**
+ * Analysen slik den ble LAGRET, ikke slik den ville blitt regnet naa.
+ *
+ * `tilEpost` tar den valgfritt inn, saa den som sender kan gi raden fra
+ * basen. Gir ingen den, vises ingen analyse - brevet paastaar da ikke
+ * noe det ikke har dekning for.
+ */
+export type Epostanalyse = { matkast: unknown; usynlig: unknown }
+
+export function tilEpost(
+  plan: Maanedsplan, basisUrl: string, analyse?: Epostanalyse,
+): Epost {
   const mnd = maanedsnavn(plan.maaned)
   const d = DOMORD[plan.dom]
 
@@ -77,6 +141,28 @@ export function tilEpost(plan: Maanedsplan, basisUrl: string): Epost {
     : plan.dom === 'motvind'
       ? `${plan.stasjonNavn}, én ting i ${mnd}`
       : `${plan.stasjonNavn} — ${mnd}`
+
+  // =====================================================================
+  // ANALYSEN KOMMER FRA SNAPSHOTET, IKKE FRA EN NY BEREGNING
+  // =====================================================================
+  //
+  // Eieren leste et utkast og slapp DET. Regnet vi paa nytt her, kunne
+  // butikksjefen faatt andre tall enn de som ble godkjent - uten at noen
+  // hadde gjort noe galt. Samme funksjoner som plankortet bruker.
+  const m = analyse ? matkastvisning(lesMatkast(analyse.matkast)) : null
+  const u = analyse ? usynligvisning(lesUsynlig(analyse.usynlig)) : null
+
+  const analyseHtml = [
+    m ? blokkHtml('Synlig matkast', m.merke, matkastLinjer(m)) : '',
+    u ? blokkHtml('Uforklart matavvik', u.merke, usynligLinjer(u)) : '',
+  ].join('')
+
+  const urangert = plan.punkter.length > 1 && !erRangert(plan.punkter)
+    ? `
+      <tr><td style="padding:10px 0 0;font-size:12px;line-height:1.5;color:${F.svak};">
+        ${e(UTEN_KRONEVERDI)}
+      </td></tr>`
+    : ''
 
   const punkter = plan.punkter.map((p) => {
     const erTiltak = p.slag === 'tiltak'
@@ -137,7 +223,7 @@ export function tilEpost(plan: Maanedsplan, basisUrl: string): Epost {
       <tr><td style="padding:10px 0 0;font-size:15px;line-height:1.6;color:${F.svak};">
         ${e(plan.ingress)}
       </td></tr>
-      ${punkter}${tomt}${merknad}
+      ${analyseHtml}${punkter}${tomt}${urangert}${merknad}
       <tr><td style="padding:24px 0 0;">
         <a href="${e(basisUrl)}/regnskap"
            style="display:inline-block;background:${F.primaer};color:#ffffff;
@@ -171,6 +257,9 @@ export function tilEpost(plan: Maanedsplan, basisUrl: string): Epost {
     ...(plan.punkter.length === 0
       ? ['Ingen av løftestengene peker feil vei denne måneden. Hold kursen.', '']
       : []),
+    ...(m ? ['SYNLIG MATKAST — ' + m.merke.toUpperCase(), ...matkastLinjer(m), ''] : []),
+    ...(u ? ['UFORKLART MATAVVIK — ' + u.merke.toUpperCase(), ...usynligLinjer(u), ''] : []),
+    ...(plan.punkter.length > 1 && !erRangert(plan.punkter) ? [UTEN_KRONEVERDI, ''] : []),
     ...(plan.merknad ? [plan.merknad, ''] : []),
     `Se tallene: ${basisUrl}/regnskap`,
   ].join('\n')
