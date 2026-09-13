@@ -299,6 +299,134 @@ test.describe('bygg på nytt — det som ikke endrer noe', () => {
 // retry ville startet midt i flyten på en halvt mutert base.
 // `src/lib/redesign/e2e-oppsett.test.ts` feller en endring.
 // =====================================================================
+// =====================================================================
+// ÉN DIAGNOSE FOR BEGGE HANDLINGENE
+// =====================================================================
+//
+// B og C har byttet paa aa feile i fire kjoeringer, og hver gang har
+// bare den ene hatt diagnostikk nok til aa si hvorfor. Da fikser man
+// én av gangen og laerer ingenting om den andre.
+//
+// Her ligger den én gang, og begge bruker den.
+//
+// ---------------------------------------------------------------------
+// SLUTTUTFALLENE ER TO
+//
+//   a) kortet er flyttet, med riktig VARIG status
+//   b) handlingen returnerte feil
+//
+// `.sq-slett-ok` er BEVIS, ikke et sluttutfall: kvitteringen kommer
+// foer oppfriskningen lander, og knappen avmonteres naar kortet flytter.
+// Avsluttet man paa den, maalte man timing. Den fanges loepende og
+// brukes ved timeout til aa skille tilstandene.
+// =====================================================================
+type Flyttediagnose = {
+  dom: string
+  bilde: string
+}
+
+async function diagnoserFlytting(opts: {
+  side: import('@playwright/test').Page
+  /** Kortet slik det staar i koeen, som funksjon — det forsvinner. */
+  iKoe: () => import('@playwright/test').Locator
+  /** Kortet slik det skal staa etterpaa. */
+  iAvgjort: () => import('@playwright/test').Locator
+  /** Statusordet som skal staa paa kortet naar alt virket. */
+  status: string
+  /** Knappen, for aa se om handlingen henger. */
+  knapp: import('@playwright/test').Locator
+  /** Alt vi har lyttet paa siden foer klikket. */
+  spor: { dialoger: () => number; nett: string[]; konsoll: string[]; sidefeil: string[] }
+}): Promise<Flyttediagnose> {
+  const { side, iKoe, iAvgjort, status, knapp, spor } = opts
+  const ok = side.locator('.sq-slett-ok')
+  const feil = side.locator('.sq-slett-feil')
+
+  const les = async () => ({
+    dialoger: spor.dialoger(),
+    knappDisabled: (await knapp.count()) > 0 ? await knapp.isDisabled() : null,
+    ok: (await ok.allTextContents()).join(' | '),
+    feil: (await feil.allTextContents()).join(' | '),
+    iKoe: await iKoe().count(),
+    iAvgjort: await iAvgjort().count(),
+    status: (await iAvgjort().locator('.sq-plankort-status').allTextContents()).join(' | '),
+  })
+
+  let settOk = ''
+  let sluttfoert = false
+  try {
+    await expect.poll(async () => {
+      const t = await les()
+      if (t.ok !== '') settOk = t.ok
+      const flyttet = t.iKoe === 0 && t.iAvgjort === 1 && t.status === status
+      return flyttet || t.feil !== ''
+    }, { timeout: 25_000 }).toBe(true)
+    sluttfoert = true
+  } catch {
+    sluttfoert = false
+  }
+
+  const raa = await les()
+  const t = { ...raa, ok: raa.ok || settOk }
+  const flyttet = t.iKoe === 0 && t.iAvgjort === 1 && t.status === status
+
+  const dom =
+    flyttet ? 'E  full kjede virker'
+      : t.feil !== '' ? 'D  serverhandlingen returnerte FEIL'
+        : t.dialoger === 0 && spor.nett.every((n) => !n.startsWith('--> POST'))
+          ? 'A  ingen innsending — dialogen eller skjemaet stoppet den'
+          : t.knappDisabled === true ? 'B  handlingen er PENDING eller henger'
+            : t.ok !== ''
+              ? 'C  handlingen LYKTES, men flyttingen kom ikke'
+              : '?  ingen av de fem — se bildet'
+
+  const bilde = [
+    `dialoger         : ${t.dialoger}`,
+    `knapp disabled   : ${t.knappDisabled}`,
+    `.sq-slett-ok     : ${t.ok || '(tom)'}  (sett underveis: ${settOk || 'aldri'})`,
+    `.sq-slett-feil   : ${t.feil || '(tom)'}`,
+    `i «Venter»       : ${t.iKoe}`,
+    `i «Avgjort»      : ${t.iAvgjort}`,
+    `status           : ${t.status || '(ingen)'}  (forventet ${status})`,
+    `poll fullfoert   : ${sluttfoert}`,
+    `nett             :\n    ${spor.nett.join('\n    ') || '(ingen)'}`,
+    `console          :\n    ${spor.konsoll.join('\n    ') || '(ingen)'}`,
+    `pageerror        :\n    ${spor.sidefeil.join('\n    ') || '(ingen)'}`,
+  ].join('\n  ')
+
+  return { dom, bilde }
+}
+
+/** Lytterne, satt opp FOER klikket. Se `diagnoserFlytting`. */
+function lyttPaaAlt(side: import('@playwright/test').Page) {
+  let dialoger = 0
+  const nett: string[] = []
+  const konsoll: string[] = []
+  const sidefeil: string[] = []
+
+  side.on('dialog', (d) => { dialoger += 1; return d.accept() })
+  side.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') konsoll.push(`${m.type()}: ${m.text()}`)
+  })
+  side.on('pageerror', (e) => sidefeil.push(e.message))
+  side.on('request', (q) => {
+    const rsc = q.headers()['rsc']
+    if (q.method() === 'POST') {
+      nett.push(`--> POST ${q.url()} next-action=${q.headers()['next-action'] ?? '(ingen)'}`)
+    } else if (rsc) nett.push(`--> RSC ${q.method()} ${q.url()}`)
+  })
+  side.on('response', (v) => {
+    const q = v.request()
+    if (q.method() === 'POST') nett.push(`<-- ${v.status()} POST ${v.url()}`)
+    else if (q.headers()['rsc']) nett.push(`<-- ${v.status()} RSC ${v.url()}`)
+  })
+  side.on('requestfailed', (q) => {
+    nett.push(`XX  ${q.method()} ${q.url()} ${q.failure()?.errorText ?? ''}`)
+  })
+
+  return { dialoger: () => dialoger, nett, konsoll, sidefeil }
+}
+
 test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
   // Økta arves fra `test.use` øverst i fila.
   const venter = (side: import('@playwright/test').Page) =>
@@ -390,47 +518,26 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
         .filter({ hasText: 'Grenseby' }).filter({ hasText: 'juli' })
       await expect(iKoe()).toHaveCount(1)
 
-      await iKoe().getByRole('button', { name: 'Slipp' }).click()
-
-      // DE TO FEILENE SKILLES — UTEN Å KAPPLØPE MED EN KOMPONENT SOM
-      // FORSVINNER.
-      //
-      // Første forsøk ventet på `.sq-slett-ok`. Den lever i
-      // `HandlingKnapp`, og knappen AVMONTERES i det kortet flytter til
-      // «Avgjort» — så påstanden vant eller tapte på om oppfriskningen
-      // rakk å bli ferdig først. Den feilet med «element(s) not found»
-      // på en handling som hadde lyktes.
-      //
-      // FEILMELDINGEN er derimot stabil: feiler handlingen, flytter
-      // kortet seg ikke, knappen blir stående, og teksten blir stående
-      // med den. Vi venter på det første av to utfall og krever
-      // deretter at det var flyttingen — da sier feilmeldingen hvilken
-      // av de to tingene som gikk galt.
-      const feilet = page.locator('.sq-slett-feil')
-      await expect
-        .poll(async () => (await iKoe().count()) === 0 || (await feilet.count()) > 0,
-          { timeout: 20_000, message: 'verken flyttet kortet seg eller kom det en feil' })
-        .toBe(true)
-      expect(await feilet.allTextContents(), 'handlingen feilet').toEqual([])
-
-      // FLYTTET, UTEN OMLASTING.
-      await expect(iKoe()).toHaveCount(0)
-
-      // DEN VARIGE KVITTERINGEN.
-      //
-      // `.sq-slett-ok` lever i `HandlingKnapp`, og knappen avmonteres
-      // naar kortet flytter til «Avgjort» - den er borte i det
-      // oppfriskningen er ferdig. Aa maale den ville vaert aa maale et
-      // blink.
-      //
-      // Det brukeren faktisk sitter igjen med, er STATUSEN paa kortet.
-      const flyttet = avgjort(page).locator('.sq-plankort')
+      const iAvgjort = () => avgjort(page).locator('.sq-plankort')
         .filter({ hasText: 'Grenseby' }).filter({ hasText: 'juli' })
-      await expect(flyttet).toHaveCount(1)
-      await expect(flyttet.locator('.sq-plankort-status')).toHaveText('Sluppet')
+      const knapp = iKoe().getByRole('button', { name: 'Slipp' })
 
-      // Og knappene er borte: en sluppet plan kan ikke slippes igjen.
-      await expect(flyttet.getByRole('button', { name: 'Slipp' })).toHaveCount(0)
+      // LYTTERNE FØRST. Alt som skjer etter klikket skal være fanget.
+      const spor = lyttPaaAlt(page)
+      await knapp.click()
+
+      const { dom, bilde } = await diagnoserFlytting({
+        side: page, iKoe, iAvgjort, status: 'Sluppet', knapp, spor,
+      })
+      console.log(`\n  SLIPP-DIAGNOSE — ${dom}\n  ${bilde}\n`)
+      expect(dom, `Slipp-flyten:\n  ${bilde}\n`).toBe('E  full kjede virker')
+
+      // Og da holder de opprinnelige påstandene av seg selv.
+      await expect(iKoe()).toHaveCount(0)
+      await expect(iAvgjort()).toHaveCount(1)
+      await expect(iAvgjort().locator('.sq-plankort-status')).toHaveText('Sluppet')
+      // En sluppet plan kan ikke slippes igjen.
+      await expect(iAvgjort().getByRole('button', { name: 'Slipp' })).toHaveCount(0)
 
       // DEN NAADDE MOTTAKEREN. Navigering er riktig her: en ANNEN rute,
       // revalidert paa serveren av `slippPlan`.
@@ -476,135 +583,19 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
 
       const knapp = iKoe().getByRole('button', { name: 'Avvis' })
 
-      // --- ALT SOM SKJER, SAMLET INN --------------------------------
-      let dialoger = 0
-      const konsoll: string[] = []
-      const sidefeil: string[] = []
-      const nett: string[] = []
-
-      page.on('dialog', (d) => { dialoger += 1; return d.accept() })
-      page.on('console', (m) => {
-        if (m.type() === 'error' || m.type() === 'warning') {
-          konsoll.push(`${m.type()}: ${m.text()}`)
-        }
-      })
-      page.on('pageerror', (e) => sidefeil.push(e.message))
-      // Serverhandlinger er POST mot samme URL, med `next-action`-hodet.
-      // BAADE POST OG RSC-HENTING.
-      //
-      // POST-en er serverhandlingen. Men `router.refresh()` gir en GET
-      // med `RSC: 1` - og uten den i loggen kan vi ikke skille
-      // «refreshen ble aldri kalt» fra «den ble kalt og serverte det
-      // samme». Det er noeyaktig den forgreningen vi staar i naa.
-      page.on('request', (q) => {
-        const rsc = q.headers()['rsc']
-        if (q.method() === 'POST') {
-          nett.push(`--> POST ${q.url()} next-action=${q.headers()['next-action'] ?? '(ingen)'}`)
-        } else if (rsc) {
-          nett.push(`--> RSC ${q.method()} ${q.url()}`)
-        }
-      })
-      page.on('response', (v) => {
-        const q = v.request()
-        if (q.method() === 'POST') nett.push(`<-- ${v.status()} POST ${v.url()}`)
-        else if (q.headers()['rsc']) nett.push(`<-- ${v.status()} RSC ${v.url()}`)
-      })
-      page.on('requestfailed', (q) => {
-        if (q.method() !== 'POST') return
-        nett.push(`XX  POST ${q.url()} ${q.failure()?.errorText ?? ''}`)
-      })
-
+      // LYTTERNE FØRST. `Avvis` har `sporsmaal`, altså en `confirm` —
+      // og Playwright AUTO-AVVISER en dialog ingen håndterer, så
+      // `preventDefault` i `HandlingKnapp` ville stoppet innsendingen.
+      // `lyttPaaAlt` godtar den, og teller.
+      const spor = lyttPaaAlt(page)
       await knapp.click()
 
-      // --- VENT PAA ETT AV TRE SLUTTUTFALL --------------------------
-      //
-      // `.sq-slett-ok` er MED. Uten den ender «handlingen lyktes, men
-      // oppfriskningen uteble» som samme timeout som «handlingen kjoerte
-      // aldri» - og det var noeyaktig forvekslingen som ga feil svar.
-      const ok = page.locator('.sq-slett-ok')
-      const feil = page.locator('.sq-slett-feil')
-
-      const tilstand = async () => ({
-        dialoger,
-        knappDisabled: (await knapp.count()) > 0 ? await knapp.isDisabled() : null,
-        ok: (await ok.allTextContents()).join(' | '),
-        feil: (await feil.allTextContents()).join(' | '),
-        iKoe: await iKoe().count(),
-        iAvgjort: await iAvgjort().count(),
-        status: (await iAvgjort().locator('.sq-plankort-status').allTextContents()).join(' | '),
+      const { dom, bilde } = await diagnoserFlytting({
+        side: page, iKoe, iAvgjort, status: 'Avvist', knapp, spor,
       })
-
-      // ===================================================================
-      // `ok` ER BEVIS, IKKE ET SLUTTUTFALL
-      // ===================================================================
-      //
-      // Foerste utgave avsluttet pollen paa `t.ok !== ''`. Kvitteringen
-      // kommer FOER oppfriskningen lander, saa den avsluttet mens kortet
-      // fortsatt sto i koeen - og jeg tok bildet der og kalte det
-      // «oppfriskningen uteble». To kjoeringer paa SAMME kode og samme
-      // ferske seed ga C og E; forskjellen var timing, ikke tilstand.
-      //
-      // Sluttutfallene er TO:
-      //
-      //   a) kortet er flyttet, med riktig varig status
-      //   b) handlingen returnerte feil
-      //
-      // `ok` fanges LOEPENDE underveis, fordi den forsvinner naar
-      // knappen avmonteres. Ved timeout er den fortsatt kjent, og da
-      // kan «lyktes uten oppfriskning» skilles fra «dialogen kom aldri».
-      // ===================================================================
-      let settOk = ''
-      let sluttfoert = false
-      try {
-        await expect.poll(async () => {
-          const t = await tilstand()
-          if (t.ok !== '') settOk = t.ok
-          const flyttet = t.iKoe === 0 && t.iAvgjort === 1 && t.status === 'Avvist'
-          return flyttet || t.feil !== ''
-        }, { timeout: 25_000 }).toBe(true)
-        sluttfoert = true
-      } catch {
-        sluttfoert = false
-      }
-
-      const raa = await tilstand()
-      // Kvitteringen kan vaere borte naa. Den vi SAA underveis er den
-      // som betyr noe.
-      const t = { ...raa, ok: raa.ok || settOk }
-
-      // --- KLASSIFISER --------------------------------------------
-      const bilde = [
-        `dialoger        : ${t.dialoger}`,
-        `knapp disabled  : ${t.knappDisabled}`,
-        `.sq-slett-ok    : ${t.ok || '(tom)'}`,
-        `.sq-slett-feil  : ${t.feil || '(tom)'}`,
-        `i «Venter»      : ${t.iKoe}`,
-        `i «Avgjort»     : ${t.iAvgjort}`,
-        `status          : ${t.status || '(ingen)'}`,
-        `ok sett underveis: ${settOk || '(aldri)'}`,
-        `poll fullfoert  : ${sluttfoert}`,
-        `POST-kall       :\n    ${nett.join('\n    ') || '(ingen)'}`,
-        `console         :\n    ${konsoll.join('\n    ') || '(ingen)'}`,
-        `pageerror       :\n    ${sidefeil.join('\n    ') || '(ingen)'}`,
-      ].join('\n  ')
-
-      const flyttet = t.iKoe === 0 && t.iAvgjort === 1 && t.status === 'Avvist'
-      const dom =
-        flyttet ? 'E  full kjede virker'
-          : t.feil !== '' ? 'D  serverhandlingen returnerte FEIL'
-            : t.dialoger === 0 ? 'A  dialogen kom aldri — innsendingen ble stoppet'
-              : t.knappDisabled === true ? 'B  handlingen er PENDING eller henger'
-                : t.ok !== ''
-                  ? 'C  handlingen LYKTES, men klientoppfriskningen uteble'
-                  : '?  ingen av de fem — se bildet'
-
-      // Bildet skrives ALLTID, ogsaa naar testen passerer. Da har vi
-      // fasiten å sammenligne med neste gang den ikke gjør det.
       console.log(`\n  AVVIS-DIAGNOSE — ${dom}\n  ${bilde}\n`)
-
       expect(dom, `Avvis-flyten:\n  ${bilde}\n`).toBe('E  full kjede virker')
 
-      // Og da holder de opprinnelige påstandene av seg selv.
       await expect(iKoe()).toHaveCount(0)
       await expect(iAvgjort()).toHaveCount(1)
       await expect(iAvgjort().locator('.sq-plankort-status')).toHaveText('Avvist')
