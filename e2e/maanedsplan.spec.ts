@@ -392,17 +392,29 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
 
       await iKoe().getByRole('button', { name: 'Slipp' }).click()
 
-      // LYKTES DEN? Uten dette svaret kan «kortet flyttet seg ikke»
-      // bety to helt ulike ting: at oppfriskningen ikke virket, eller
-      // at handlingen aldri gikk gjennom. Den kortvarige kvitteringen
-      // er ikke BEVISET — statusen under er det — men den skiller de
-      // to feilene fra hverandre.
-      await expect(page.locator('.sq-slett-ok'))
-        .toContainText('Sluppet', { timeout: 20_000 })
-      await expect(page.locator('.sq-slett-feil')).toHaveCount(0)
+      // DE TO FEILENE SKILLES — UTEN Å KAPPLØPE MED EN KOMPONENT SOM
+      // FORSVINNER.
+      //
+      // Første forsøk ventet på `.sq-slett-ok`. Den lever i
+      // `HandlingKnapp`, og knappen AVMONTERES i det kortet flytter til
+      // «Avgjort» — så påstanden vant eller tapte på om oppfriskningen
+      // rakk å bli ferdig først. Den feilet med «element(s) not found»
+      // på en handling som hadde lyktes.
+      //
+      // FEILMELDINGEN er derimot stabil: feiler handlingen, flytter
+      // kortet seg ikke, knappen blir stående, og teksten blir stående
+      // med den. Vi venter på det første av to utfall og krever
+      // deretter at det var flyttingen — da sier feilmeldingen hvilken
+      // av de to tingene som gikk galt.
+      const feilet = page.locator('.sq-slett-feil')
+      await expect
+        .poll(async () => (await iKoe().count()) === 0 || (await feilet.count()) > 0,
+          { timeout: 20_000, message: 'verken flyttet kortet seg eller kom det en feil' })
+        .toBe(true)
+      expect(await feilet.allTextContents(), 'handlingen feilet').toEqual([])
 
       // FLYTTET, UTEN OMLASTING.
-      await expect(iKoe()).toHaveCount(0, { timeout: 20_000 })
+      await expect(iKoe()).toHaveCount(0)
 
       // DEN VARIGE KVITTERINGEN.
       //
@@ -447,14 +459,26 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
 
       await iKoe().getByRole('button', { name: 'Avvis' }).click()
 
-      // LYKTES DEN? Uten dette svaret kan «kortet flyttet seg ikke»
-      // bety to helt ulike ting: at oppfriskningen ikke virket, eller
-      // at handlingen aldri gikk gjennom. Den kortvarige kvitteringen
-      // er ikke BEVISET — statusen under er det — men den skiller de
-      // to feilene fra hverandre.
-      await expect(page.locator('.sq-slett-ok'))
-        .toContainText('Avvist', { timeout: 20_000 })
-      await expect(page.locator('.sq-slett-feil')).toHaveCount(0)
+      // DE TO FEILENE SKILLES — UTEN Å KAPPLØPE MED EN KOMPONENT SOM
+      // FORSVINNER.
+      //
+      // Første forsøk ventet på `.sq-slett-ok`. Den lever i
+      // `HandlingKnapp`, og knappen AVMONTERES i det kortet flytter til
+      // «Avgjort» — så påstanden vant eller tapte på om oppfriskningen
+      // rakk å bli ferdig først. Den feilet med «element(s) not found»
+      // på en handling som hadde lyktes.
+      //
+      // FEILMELDINGEN er derimot stabil: feiler handlingen, flytter
+      // kortet seg ikke, knappen blir stående, og teksten blir stående
+      // med den. Vi venter på det første av to utfall og krever
+      // deretter at det var flyttingen — da sier feilmeldingen hvilken
+      // av de to tingene som gikk galt.
+      const feilet = page.locator('.sq-slett-feil')
+      await expect
+        .poll(async () => (await iKoe().count()) === 0 || (await feilet.count()) > 0,
+          { timeout: 20_000, message: 'verken flyttet kortet seg eller kom det en feil' })
+        .toBe(true)
+      expect(await feilet.allTextContents(), 'handlingen feilet').toEqual([])
       await expect(iKoe()).toHaveCount(0, { timeout: 20_000 })
 
       // DEN VARIGE KVITTERINGEN, som i B: knappen avmonteres, statusen
