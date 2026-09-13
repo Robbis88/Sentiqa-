@@ -6,6 +6,14 @@ import { byggMaanedsplan, type Leverandorrad, type Maanedstall } from './plan'
 
 const SATSER: Satser = { lavSats: 0.1, hoySatsVask: 0.6, pantSats: 0 }
 
+// 6 % av matomsetningen. MOTVIND ligger paa 10 % i siste maaned, saa
+// matkast er ekte over budsjett - og kan bli et tiltak paa NIVAA, ikke
+// paa kroneretning. Uten satsen blokkerer confidence gate matkast helt.
+const KASTSATS = { stasjonId: 's1', aar: 2026, andel: 0.06, nivaa: 'avdeling' } as const
+// 10 % mot MEDVINDs 7,5 % i siste maaned: under budsjett, altsaa en
+// bekreftelse - og den kommer naa fra kastdommen, ikke fra kronetrenden.
+const KASTSATS_LAV = { stasjonId: 's1', aar: 2026, andel: 0.10, nivaa: 'avdeling' } as const
+
 /** Tall formateres med hardt mellomrom. Paastandene skal maale innhold. */
 const flat = (t: string) => t.replace(/\s/g, ' ')
 
@@ -20,6 +28,7 @@ function mnd(i: number, over: Partial<Maanedstall> = {}): Maanedstall {
     paavirkbarDriftKr: 40_000, paavirkbarDriftBudsjettKr: 40_000,
     resultatKr: 50_000,
     harSvinndata: true, datastatus: 'gruppe',
+    usynligMatKr: 4_000, avvikAntall: 0, matRader: 9,
     ...over,
   }
 }
@@ -45,7 +54,8 @@ const LEV: Leverandorrad[] = [
 
 describe('byggMaanedsplan — medvind', () => {
   const p = byggMaanedsplan({
-    stasjonNavn: 'Dale', historikk: MEDVIND, leverandorer: LEV, satser: SATSER,
+    stasjonNavn: 'Dale', stasjonId: 's1', butikknummer: '4185', forbehold: null,
+    historikk: MEDVIND, leverandorer: LEV, satser: SATSER, kastsats: KASTSATS_LAV,
   })
 
   it('kjenner medvind', () => {
@@ -58,6 +68,11 @@ describe('byggMaanedsplan — medvind', () => {
     expect(p.punkter.map((x) => x.slag)).toEqual(['bekreftelse', 'tiltak'])
     expect(p.punkter[0].loftestang).toBe('matkast')
     expect(p.punkter[1].loftestang).toBe('personal')
+    // BEKREFTELSEN KOMMER FRA BUDSJETTAVVIKET, ikke fra kronetrenden.
+    // Teksten maaler prosent mot prosent, ikke «naa paa X kroner».
+    expect(p.punkter[0].tekst).toContain('Under kastbudsjettet')
+    expect(p.punkter[0].tekst).toContain('%')
+    expect(p.punkter[0].tekst).not.toContain('kroner')
   })
 
   it('ingressen er skrevet ut av tallene', () => {
@@ -72,7 +87,8 @@ describe('byggMaanedsplan — medvind', () => {
 
 describe('byggMaanedsplan — motvind', () => {
   const p = byggMaanedsplan({
-    stasjonNavn: 'Laguneparken', historikk: MOTVIND, leverandorer: LEV, satser: SATSER,
+    stasjonNavn: 'Laguneparken', stasjonId: 's1', butikknummer: '9038', forbehold: null, historikk: MOTVIND, leverandorer: LEV, satser: SATSER,
+    kastsats: KASTSATS,
   })
 
   it('kjenner motvind', () => {
@@ -88,7 +104,25 @@ describe('byggMaanedsplan — motvind', () => {
 
   it('velger den stoerste, ikke den foerste', () => {
     // Matkast stiger 4 000 i maaneden, drift 2 000. Begge gaar feil vei.
+    //
+    // ETTER P2 holder ikke det alene: matkast maa OGSAA ligge over
+    // kastbudsjettet. MOTVIND er paa 10 % mot 6 % budsjettert, saa den
+    // gjoer det - og da maaler testen fortsatt rangeringen.
     expect(p.punkter[0].loftestang).toBe('matkast')
+    expect(p.matkast.dom?.slag).toBe('tiltak')
+  })
+
+  it('P2: uten kastbudsjett blir matkast ALDRI et tiltak', () => {
+    // Samme historikk, ingen sats. Kastkronene stiger like mye, men
+    // det finnes ingenting aa maale dem mot.
+    const uten = byggMaanedsplan({
+      stasjonNavn: 'Laguneparken', stasjonId: 's1', butikknummer: '9038', forbehold: null, historikk: MOTVIND, leverandorer: LEV,
+      satser: SATSER, kastsats: null,
+    })
+    expect(uten.matkast.dom).toBeNull()
+    expect(uten.matkast.blokkering).toContain('Datagrunnlag mangler')
+    expect(uten.matkast.blokkering).toContain('Kastbudsjett er ikke lastet opp')
+    expect(uten.punkter.some((x) => x.loftestang === 'matkast')).toBe(false)
   })
 
   it('gir ingen bekreftelse i motvind', () => {
@@ -110,9 +144,9 @@ describe('grensene planen aldri bryter', () => {
   // helt annen test, ved et uhell. En vakt som slutter aa se ser
   // noeyaktig ut som en vakt som ikke finner noe.
   const alle = [
-    byggMaanedsplan({ stasjonNavn: 'A', historikk: MEDVIND, leverandorer: LEV, satser: SATSER }),
-    byggMaanedsplan({ stasjonNavn: 'B', historikk: MOTVIND, leverandorer: LEV, satser: SATSER }),
-    byggMaanedsplan({ stasjonNavn: 'C', historikk: DRIFTVIND, leverandorer: LEV, satser: SATSER }),
+    byggMaanedsplan({ stasjonNavn: 'A', stasjonId: 's1', butikknummer: '4177', forbehold: null, historikk: MEDVIND, leverandorer: LEV, satser: SATSER, kastsats: null }),
+    byggMaanedsplan({ stasjonNavn: 'B', stasjonId: 's1', butikknummer: '4185', forbehold: null, historikk: MOTVIND, leverandorer: LEV, satser: SATSER, kastsats: null }),
+    byggMaanedsplan({ stasjonNavn: 'C', stasjonId: 's1', butikknummer: '9038', forbehold: null, historikk: DRIFTVIND, leverandorer: LEV, satser: SATSER, kastsats: null }),
   ]
 
   it('KANARI FOR KANARIFUGLEN: minst én av planene navngir en leverandoer', () => {
@@ -177,7 +211,7 @@ describe('leverandoeren i tiltaket', () => {
     const drift: Maanedstall[] = [0, 1, 2, 3, 4, 5].map((i) =>
       mnd(i, { resultatKr: 90_000 - i * 25_000, paavirkbarDriftKr: 40_000 + i * 9_000 }))
     const p = byggMaanedsplan({
-      stasjonNavn: 'Lone', historikk: drift, leverandorer: LEV, satser: SATSER,
+      stasjonNavn: 'Lone', stasjonId: 's1', butikknummer: '4177', forbehold: null, historikk: drift, leverandorer: LEV, satser: SATSER, kastsats: null,
     })
     expect(p.punkter[0].loftestang).toBe('paavirkbar_drift')
     expect(p.punkter[0].leverandor).toBe('ASKO VEST AS')
@@ -195,7 +229,7 @@ describe('leverandoeren i tiltaket', () => {
       { begrep: 'forbruksmateriell', tekst: 'ASKO VEST AS', belopKr: 29_825, antall: 12 },
     ]
     const p = byggMaanedsplan(
-      { stasjonNavn: 'Varden', historikk: drift, leverandorer: medWashTec, satser: SATSER },
+      { stasjonNavn: 'Varden', stasjonId: 's1', butikknummer: '9145', forbehold: null, historikk: drift, leverandorer: medWashTec, satser: SATSER, kastsats: null },
       { klasseFor: (r) => (r.tekst.includes('WashTec') ? 'folge' : 'spak') },
     )
     expect(p.punkter[0].leverandor).toBe('ASKO VEST AS')
@@ -205,7 +239,7 @@ describe('leverandoeren i tiltaket', () => {
 
 describe('uten royaltysatser', () => {
   const p = byggMaanedsplan({
-    stasjonNavn: 'Ny kjede', historikk: MOTVIND, leverandorer: LEV, satser: null,
+    stasjonNavn: 'Ny kjede', stasjonId: 's1', butikknummer: '4177', forbehold: null, historikk: MOTVIND, leverandorer: LEV, satser: null, kastsats: null,
   })
 
   it('KANARI: viser INGEN kroneverdier, og sier hvorfor', () => {
@@ -224,7 +258,8 @@ describe('uten royaltysatser', () => {
 describe('kort historikk', () => {
   it('gir «flat» og ingen bekreftelse naar retningen ikke kan vites', () => {
     const p = byggMaanedsplan({
-      stasjonNavn: 'Fersk', historikk: [mnd(0), mnd(1)], leverandorer: [], satser: SATSER,
+      stasjonNavn: 'Fersk', stasjonId: 's1', butikknummer: '4177', forbehold: null,
+      historikk: [mnd(0), mnd(1)], leverandorer: [], satser: SATSER, kastsats: null,
     })
     expect(p.dom).toBe('flat')
     expect(p.punkter.some((x) => x.slag === 'bekreftelse')).toBe(false)

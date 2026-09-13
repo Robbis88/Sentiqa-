@@ -33,9 +33,13 @@
 
 import { verdiAvGevinst, type Satser } from '@/lib/royalty'
 import {
-  DRIFT_BEGREP, LOFTESTENGER, type Klasse, type Loftestang, type LoftestangId,
+  DRIFT_BEGREP, LOFTESTENGER, loftestang, type Klasse, type Loftestang, type LoftestangId,
 } from './loftestenger'
 import { erBra, erIlle, retning, type Kurs } from './retning'
+import {
+  gate, kastdom, kasttall, MANGLER,
+  type Gate, type Kastdom, type Kastsats, type Kastmaaned,
+} from './kastvurdering'
 
 export type Svinnserie = {
   /** Maanedene retningen kan regnes paa. Tom naar serien er blokkert. */
@@ -124,6 +128,12 @@ export type Maanedstall = {
   matkastKr: number | null
   /** Manko utenom mat og vask. Positivt tall er mangel. `null` = ukjent. */
   usynligRestKr: number | null
+  /** Usynlig svinn paa MATgruppen: teoretisk BF - faktisk BF - synlig kast. */
+  usynligMatKr: number | null
+  /** Antall svinnrader med `avviksstatus = 'avvik'`. Port 4. */
+  avvikAntall: number | null
+  /** Antall rader som traff `kode like '12%'`. Port 6. */
+  matRader: number | null
   /** Har maaneden svinngrunnlag i det hele tatt? */
   harSvinndata: boolean
   /** `gruppe` eller `eldre_grunnlag`. `null` naar grunnlaget mangler. */
@@ -145,9 +155,31 @@ export type Leverandorrad = {
 
 export type Maanedsdata = {
   stasjonNavn: string
+  /** Stasjonens id. Satsen maa bevises aa hoere til nettopp den. */
+  stasjonId: string
   /** Eldste først. Trenger minst tre for at retning skal bety noe. */
   historikk: readonly Maanedstall[]
   leverandorer: readonly Leverandorrad[]
+  /**
+   * Budsjettert kastprosent for stasjonen, fra `kastbudsjett`.
+   *
+   * `null` naar delingsfila for aaret ikke er lastet opp. Da blokkerer
+   * confidence gate matkastanalysen med aarsak - den regner ikke mot
+   * 0 %, som ville gjort hver stasjon katastrofal.
+   */
+  kastsats: Kastsats | null
+  /**
+   * Port 7: teksten fra `forbehold.ts` for `mat_svinn_stasjon`, eller
+   * `null` naar ingen gjelder. PAAKREVD - en glemt forbeholdssjekk
+   * skal ikke bli en aapen port.
+   */
+  forbehold: string | null
+  /**
+   * Port 9: butikknummeret stasjonen er kjent under. `null` naar
+   * stasjonen ikke har et, og da kan ikke satsen bevises aa hoere til
+   * den. Portene 4 og 6 leses av maanedsraden.
+   */
+  butikknummer: string | null
   /**
    * Royaltysatsene. `null` når kjeden ikke har lastet opp BP med dem —
    * og da vises INGEN kroneverdier. Feiler lukket: et tall uten satser
@@ -177,6 +209,25 @@ export type Maanedsplan = {
   punkter: Planpunkt[]
   /** Sagt rett ut når planen ikke kunne regne kroner. */
   merknad: string | null
+  /**
+   * Synlig matkast mot omsetningsjustert budsjett.
+   *
+   * `dom` er `null` naar confidence gate blokkerte - da baerer
+   * `blokkering` aarsaken, og flaten viser den i stedet for et tall.
+   * Aldri 0 som stand-in.
+   */
+  matkast: { dom: Kastdom | null; blokkering: string | null }
+  /**
+   * Usynlig svinn, HELT SEPARAT fra synlig kast.
+   *
+   * De maales ulikt og betyr ulike ting: synlig kast er registrert i
+   * haandterminalen, usynlig er `teoretisk BF - faktisk BF - synlig
+   * kast`. Fortegnet beholdes - pluss er manko, minus er overskudd, og
+   * et overskudd er ikke automatisk en gevinst.
+   *
+   * `null` naar maaneden mangler svinngrunnlag.
+   */
+  usynlig: Usynligvurdering
 }
 
 // --- hjelpere ---------------------------------------------------------
@@ -193,13 +244,23 @@ type Verdi = { l: Loftestang; serie: number[]; kurs: Kurs; naa: number }
 function serieFor(id: LoftestangId, h: readonly Maanedstall[]): number[] {
   switch (id) {
     case 'omsetning': return h.map((m) => m.omsetningKr - m.omsetningBudsjettKr)
-    // BARE DISSE TO. De maales paa svinnarket; de andre kommer fra
-    // regnskapet, som ER kilden til at maaneden finnes.
+    // MATKAST MAALES IKKE HER, OG SKAL IKKE KUNNE GJOERE DET.
     //
-    // En blokkert serie gir `[]`, og `retning([])` gir `null` - da
-    // hopper `byggMaanedsplan` over loeftestangen. Ingen konklusjon er
-    // riktig svar naar grunnlaget har hull.
-    case 'matkast': return svinnserie(h).rader.map((m) => m.matkastKr ?? 0)
+    // En kommentar som sier «matkast gaar ikke gjennom kroneloypa» er
+    // sann helt til noen fjerner `continue`-en i loekka. Da ville
+    // kastKRONER stille bestemt tiltaket igjen - nettopp feilen som ga
+    // en stasjon 1,0 prosentpoeng over budsjett en BEKREFTELSE.
+    //
+    // Derfor kaster den. `vurderMatkast` er den eneste veien.
+    case 'matkast':
+      throw new Error(
+        'matkast maales mot kastbudsjettet, ikke i kroner. '
+        + 'Bruk vurderMatkast() - se byggMaanedsplan.',
+      )
+    // `usynlig_rest` maales paa svinnarket og trenger serievakten. En
+    // blokkert serie gir `[]`, `retning([])` gir `null`, og da hopper
+    // `byggMaanedsplan` over loeftestangen. Ingen konklusjon er riktig
+    // svar naar grunnlaget har hull.
     case 'usynlig_rest': return svinnserie(h).rader.map((m) => m.usynligRestKr ?? 0)
     case 'personal': return h.map((m) => m.personalKr - m.personalBudsjettKr)
     case 'paavirkbar_drift':
@@ -257,6 +318,162 @@ export type Byggopsjoner = {
   klasseFor?: (r: Leverandorrad) => Klasse
 }
 
+/**
+ * Matkastdommen for siste maaned, med confidence gate foran.
+ *
+ * Gaten kjoeres paa SISTE maaned, fordi det er den som konkluderes paa.
+ * Serien bak den er allerede vaktet av `svinnserie()` - port 8.
+ */
+const som = (m: Maanedstall): Kastmaaned => ({
+  maaned: m.maaned, matsalgKr: m.matsalgKr, matkastKr: m.matkastKr,
+  harSvinndata: m.harSvinndata, datastatus: m.datastatus,
+})
+
+/**
+ * Hva portene faktisk beviser - og hva de ikke gjoer.
+ *
+ * PORT 6, `mat_rader > 0`: beviser at MATGRUPPEN BLE FUNNET i denne
+ * stasjonsmaaneden. Den beviser IKKE at den historiske kodemappingen er
+ * verifisert. Skifter St1 fra `12xxx` til noe annet, slaar porten inn
+ * med én gang; endrer de betydningen av `12010` uten aa endre nummeret,
+ * ser porten ingenting. Det er en annen sak, og den er ikke lukket.
+ *
+ * PORT 9, `stasjonId` og `aar`: beviser at satsraden vi leste hoerer til
+ * den stasjonen vi regner for. Den beviser IKKE at NAVNEKOBLINGEN under
+ * delingsfil-importen var riktig. Delingsfila har ikke butikknummer -
+ * `lagreKastbudsjett` slaar opp paa navn - og en feilkobling DER ville
+ * gitt en konsistent, men gal, `stasjon_id` som denne porten godtar.
+ * Kontroll 3 mot produksjon er beviset for den; porten er beviset for at
+ * ingenting har flyttet seg etterpaa.
+ */
+function portene(
+  d: Maanedsdata, m: Maanedstall, serieblokkering: string | null,
+): Gate {
+  return gate({
+    maaned: som(m),
+    sats: d.kastsats,
+    //   4 avstemming  <- avvik_antall  (0214)
+    //   6 kodemapping <- mat_rader     (0214)
+    //   7 forbehold   <- forbehold.ts, mat_svinn_stasjon
+    //   9 identitet   <- butikknummer + satsens stasjon_id og aar
+    //
+    // `null` betyr «ikke maalt», og det LUKKER porten.
+    avstemt: m.avvikAntall === 0,
+    kodemappingSikker: (m.matRader ?? 0) > 0,
+    forbehold: d.forbehold,
+    serieblokkering,
+    stasjonBevist: d.kastsats !== null
+      && d.butikknummer !== null
+      && d.kastsats.stasjonId === d.stasjonId
+      && d.kastsats.aar === Number(m.maaned.slice(0, 4)),
+  })
+}
+
+function vurderMatkast(d: Maanedsdata): { dom: Kastdom | null; blokkering: string | null } {
+  const serie = svinnserie(d.historikk)
+  const siste = d.historikk[d.historikk.length - 1]
+  if (!siste) return { dom: null, blokkering: MANGLER }
+
+  // =====================================================================
+  // HVER MAANED I SERIEN GAAR GJENNOM PORTENE, IKKE BARE DEN SISTE
+  // =====================================================================
+  //
+  // Foerste utgave portet bare `siste`. Men `kastdom` regner trend over
+  // HELE serien og teller «over budsjett X av 7» over hele serien - saa
+  // en maaned midt i med `avvik_antall > 0`, `mat_rader = 0` eller
+  // `datastatus = 'eldre_grunnlag'` slapp gjennom uten aa bli sett, og
+  // var likevel med i baade retningen og tellingen.
+  //
+  // Serien er den samme som dommen regner paa. Foerste maaned som feiler
+  // blokkerer alt, og aarsaken navngir maaneden.
+  for (const m of serie.rader) {
+    const g = portene(d, m, serie.aarsak)
+    if (!g.kanKonkludere) {
+      const naar = m === siste ? '' : ` (${m.maaned})`
+      return { dom: null, blokkering: `${MANGLER}.${naar} ${g.aarsak}` }
+    }
+  }
+  if (serie.rader.length === 0) {
+    return { dom: null, blokkering: `${MANGLER}. ${serie.aarsak ?? 'Ingen måned å måle.'}` }
+  }
+
+  const tall = serie.rader.map((m) => kasttall(som(m), d.kastsats as Kastsats))
+  return { dom: kastdom(tall), blokkering: null }
+}
+
+/**
+ * Usynlig svinn, for seg selv.
+ *
+ * Ingen budsjettsats, ingen prosent mot matomsetning, ingen
+ * sammenslaaing med synlig kast. Bare nivaaet og retningen, med
+ * fortegnet i behold.
+ */
+function vurderUsynlig(d: Maanedsdata): Usynligvurdering {
+  const tom: Usynligvurdering =
+    { naaKr: null, kurs: null, blokkering: MANGLER, usikker: false, aarsakUsikker: null }
+  const serie = svinnserie(d.historikk)
+  if (serie.blokkert) return { ...tom, blokkering: `${MANGLER}. ${serie.aarsak}` }
+
+  // `usynligMatKr`, IKKE `usynligRestKr`. Rest er alt utenom mat, vask
+  // og pant - en annen stoerrelse, og aa presentere den som usynlig
+  // matsvinn ville vaert feil tall under riktig navn.
+  //
+  // MATGRUPPEN MAA VAERE FUNNET I HVER MAANED. `0215` gjoer
+  // `usynlig_mat_kr` til NULL naar `mat_rader = 0`, men en eldre base
+  // eller en fremtidig endring kan gi 0. Vi spoer derfor `matRader`
+  // direkte: en 0 uten matrader er «ikke funnet», ikke «ingen manko».
+  const utenMatgruppe = serie.rader.filter((m) => (m.matRader ?? 0) === 0)
+  if (utenMatgruppe.length > 0) {
+    return {
+      ...tom,
+      blokkering: `${MANGLER}. Matgruppen ble ikke funnet i `
+        + `${utenMatgruppe.map((m) => m.maaned).join(', ')}.`,
+    }
+  }
+  const verdier = serie.rader.map((m) => m.usynligMatKr).filter((v): v is number => v !== null)
+  if (verdier.length !== serie.rader.length || verdier.length === 0) return tom
+
+  const naaKr = verdier[verdier.length - 1]
+  const kurs = retning(verdier)
+  const positive = verdier.filter((v) => v > 0).length
+
+  // ET OVERSKUDD ER IKKE EN GEVINST. Negativ usynlig betyr at faktisk BF
+  // er hoeyere enn teoretisk - som oftest en periodisering, ikke funne
+  // varer. Og én positiv maaned er ikke en trend.
+  const usikker = naaKr < 0 || positive <= 1
+  const aarsakUsikker = naaKr < 0
+    ? 'Negativt usynlig svinn er et overskudd mot teoretisk BF, som oftest '
+      + 'periodisering. Ikke omtalt som gevinst.'
+    : positive <= 1
+      ? 'Bare én måned med manko i serien. Ikke nok til en retning.'
+      : null
+
+  return {
+    naaKr,
+    // `null` naar serien er for kort. EN MAANED ER IKKE EN TREND.
+    kurs: usikker ? null : kurs,
+    blokkering: null,
+    usikker,
+    aarsakUsikker,
+  }
+}
+
+export type Usynligvurdering = {
+  naaKr: number | null
+  kurs: Kurs | null
+  blokkering: string | null
+  /** Negativ maaned, eller for faa positive til aa si en retning. */
+  usikker: boolean
+  aarsakUsikker: string | null
+}
+
+/** Kroneverdien matkasttiltak rangeres paa: avviket mot budsjettet. */
+function matkastverdi(v: Kastdom | null, satser: Satser | null): number {
+  if (!v || v.slag !== 'tiltak' || !satser) return 0
+  // Marginforbedring: en svinngevinst beholdes i sin helhet.
+  return verdiAvGevinst({ type: 'margin', kroner: Math.abs(v.naa.avvikKr) }, satser) * 12
+}
+
 export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedsplan {
   const klasseFor = o.klasseFor ?? (() => 'spak' as Klasse)
   const siste = d.historikk[d.historikk.length - 1]
@@ -273,11 +490,36 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
   const vurdert: Verdi[] = []
   for (const l of LOFTESTENGER) {
     if (l.klasse !== 'spak') continue
+    // MATKAST GAAR IKKE GJENNOM KRONELOYPA I DET HELE TATT.
+    //
+    // Den gamle veien var `serieFor -> erIlle/erBra -> kronerIAret`, og
+    // den maaler kastKRONER. En stasjon over budsjett med fallende
+    // kroner havnet i `bra` og kunne bli presentert som en BEKREFTELSE
+    // mens den laa 1 prosentpoeng over kastbudsjettet hver maaned.
+    //
+    // Maalt paa et moteksempel 2026-09-13: «Riktig vei 4 maaneder paa
+    // rad. Naa paa 28 000 kroner.» Nivaaet avgjoer, og nivaaet er
+    // `matkast.dom`.
+    if (l.id === 'matkast') continue
     const serie = serieFor(l.id, d.historikk)
     const kurs = retning(serie)
     if (!kurs) continue
     vurdert.push({ l, serie, kurs, naa: serie[serie.length - 1] })
   }
+
+  // =====================================================================
+  // MATKAST: NIVAAET AVGJOER, IKKE RETNINGEN
+  // =====================================================================
+  //
+  // `serieFor('matkast')` brukes IKKE lenger - verken til dommen eller
+  // til rangeringen. Loekka over hopper over matkast, dommen kommer av
+  // avviket mot budsjettet, og `matkastverdi()` rangerer paa det samme
+  // avviket. Kastkronene naar ikke inn i denne beslutningen noe sted.
+  //
+  // Maalt paa Kelsar jan-jul: paa tre av fem stasjoner gir de to
+  // maalestokkene motsatt svar. Lone stiger 7 252 kroner og ligger under
+  // budsjett fem av sju maaneder.
+  const matkast = vurderMatkast(d)
 
   const verdi = (v: Verdi) => kronerIAret(v, siste, d.satser) ?? 0
   const ille = vurdert.filter((v) => erIlle(v.kurs, v.l.god))
@@ -318,17 +560,57 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
     kronerIAret: kronerIAret(v, siste, d.satser),
   })
 
+  // MATKASTPUNKTET, bygget av dommen og ikke av kroneserien.
+  //
+  // Teksten er `matkast.dom.tekst` ordrett. Den generiske «Gaatt feil
+  // vei ... naa paa X kroner» maaler kastkroner, og det er nettopp den
+  // setningen som fortalte en stasjon over budsjett at den gjorde det
+  // bra.
+  const matkastpunkt: Planpunkt | null = matkast.dom
+    ? {
+        slag: matkast.dom.slag === 'tiltak' ? 'tiltak' : 'bekreftelse',
+        loftestang: 'matkast',
+        tittel: loftestang('matkast').navn,
+        tekst: matkast.dom.tekst,
+        kronerIAret: d.satser
+          ? verdiAvGevinst(
+              { type: 'margin', kroner: Math.abs(matkast.dom.naa.avvikKr) }, d.satser) * 12
+          : null,
+      }
+    : null
+
+  const matkasttiltak = matkast.dom?.slag === 'tiltak' ? matkastpunkt : null
+  const matkastbekreftelse = matkast.dom?.slag === 'bekreftelse' ? matkastpunkt : null
+
+  // RANGERING PAA AVVIK MOT BUDSJETT, ikke paa kronetrend. `verdi()`
+  // maaler de andre loeftestengene i kroner i aaret; matkast maales i
+  // avviket mot det omsetningsjusterte budsjettet, gjennom samme
+  // royaltyregel.
+  const stoersteTiltak = (): Planpunkt | null => {
+    const annet = ille[0] ? tiltak(ille[0]) : null
+    if (!matkasttiltak) return annet
+    if (!annet) return matkasttiltak
+    const mv = matkastverdi(matkast.dom, d.satser)
+    return mv >= verdi(ille[0]) ? matkasttiltak : annet
+  }
+
   if (dom === 'medvind') {
-    if (bra[0]) punkter.push(bekreftelse(bra[0]))
+    // Bekreftelsen: matkast under budsjett teller, og den er maalt mot
+    // et budsjett i stedet for mot forrige maaned.
+    if (matkastbekreftelse) punkter.push(matkastbekreftelse)
+    else if (bra[0]) punkter.push(bekreftelse(bra[0]))
     // NESTE løftestang, ikke «fortsett sånn».
-    if (ille[0]) punkter.push(tiltak(ille[0]))
+    const neste = stoersteTiltak()
+    if (neste) punkter.push(neste)
   } else if (dom === 'motvind') {
     // ÉN ting. Den største.
-    if (ille[0]) punkter.push(tiltak(ille[0]))
+    const neste = stoersteTiltak()
+    if (neste) punkter.push(neste)
   } else {
     // Flat: ingen retning å melde. Da er den største som går feil vei
     // fortsatt verdt å nevne, men ingen bekreftelse — flatt er ikke ros.
-    if (ille[0]) punkter.push(tiltak(ille[0]))
+    const neste = stoersteTiltak()
+    if (neste) punkter.push(neste)
   }
 
   const resSerie = d.historikk.map((m) => m.resultatKr)
@@ -352,6 +634,8 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
       ? null
       : 'Kroneverdier vises ikke: kjeden mangler royaltysatser fra BP, og '
         + 'uten dem ville tallene vært bruttofortjeneste utgitt for netto.',
+    matkast,
+    usynlig: vurderUsynlig(d),
   }
 }
 

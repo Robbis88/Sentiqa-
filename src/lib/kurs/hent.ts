@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { forbehold, forbeholdstekst } from '@/lib/regnskap/forbehold'
+import type { Kastsats } from './kastvurdering'
 import { maaVaereHele } from '@/lib/supabase/datobolker'
 import type { Satser } from '@/lib/royalty'
 import { DRIFT_BEGREP } from './loftestenger'
@@ -89,9 +91,23 @@ type Maanedsrad = {
   har_svinndata: boolean | null
   /** `gruppe` eller `eldre_grunnlag`. NULL naar det ikke finnes rader. */
   datastatus: string | null
+  /** MATgruppens identitet. Fra `0214`. */
+  usynlig_mat_kr: number | null
+  /** Rader med avviksstatus 'avvik'. Port 4. `null` = ikke maalt. */
+  avvik_antall: number | null
+  /** Rader som traff `kode like '12%'`. Port 6. `null` = ikke maalt. */
+  mat_rader: number | null
 }
 
 
+
+/** Én rad fra `kastbudsjett`, avdelingsnivaa. */
+type Kastbudsjettrad = {
+  stasjon_id: string
+  ar: number
+  kast_pst_av_salg: number
+  nivaa: string
+}
 
 type Bilagsrad = {
   stasjon_id: string | null
@@ -147,11 +163,12 @@ export async function byggPlanerForRetailer(opts: {
   // kaller. Se [[sentiqa-filtrer-som-flaten]].
   const { data: stasjonsrader } = await supabase
     .from('stasjoner')
-    .select('id, navn')
+    .select('id, navn, butikknummer')
     .eq('retailer_id', retailerId)
     .is('slettet_tid', null)
     .limit(200)
-  const stasjoner = (stasjonsrader ?? []) as { id: string; navn: string }[]
+  const stasjoner = (stasjonsrader ?? []) as
+    { id: string; navn: string; butikknummer: string | null }[]
   if (stasjoner.length === 0) return []
 
   // Fra JANUAR i BP-aaret, ikke tolv maaneder bakover. Se
@@ -179,10 +196,13 @@ export async function byggPlanerForRetailer(opts: {
   // var nettopp feilen - `.limit(7200)` kunne aldri utloese noe.
   const takMaaneder = stasjonIder.length * (MAANEDER_I_AARET + 1)
   const takBilag = stasjonIder.length * 150
+  // Én avdelingsrad per stasjon per aar. Taket er romslig nok til at et
+  // korrekt svar aldri treffer det, og lavt nok til at det kan utloese.
+  const takKast = stasjonIder.length + 5
 
-  const [maanedstall, bilag, satsrad] = await Promise.all([
+  const [maanedstall, bilag, satsrad, kastrader] = await Promise.all([
     supabase.from('v_kurs_maanedstall')
-      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr, har_svinndata, datastatus')
+      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr, har_svinndata, datastatus, usynlig_mat_kr, avvik_antall, mat_rader')
       .eq('retailer_id', retailerId)
       .in('stasjon_id', stasjonIder)
       .gte('maaned', fraIso).lte('maaned', maanedNokkel(tilOgMed))
@@ -199,6 +219,21 @@ export async function byggPlanerForRetailer(opts: {
       .eq('retailer_id', retailerId)
       .eq('aar', Number(tilOgMed.slice(0, 4)))
       .maybeSingle(),
+    // KASTBUDSJETTET. Satsen leses per stasjon og aar - aldri skrevet
+    // inn i koden. `satskilde.test.ts` feller en hardkodet sats.
+    //
+    // BARE AVDELINGSNIVAA (Mat-totalen, kode 120). `0172` sier at finnes
+    // begge nivaaer, er vareomraadene de gjeldende - men de er finere
+    // enn matomsetningen vi maaler mot, og skal ikke summeres paa tvers.
+    // Maalt i produksjon 2026-09-13: 0 vareomraaderader for 2026.
+    supabase.from('kastbudsjett')
+      .select('stasjon_id, ar, kast_pst_av_salg, nivaa')
+      .eq('retailer_id', retailerId)
+      .in('stasjon_id', stasjonIder)
+      .eq('ar', Number(tilOgMed.slice(0, 4)))
+      .eq('nivaa', 'avdeling')
+      .eq('kode', '120')
+      .limit(takKast),
   ])
 
   // ET FULLT SVAR ER IKKE ET BEVIS PAA AT DET ER HELE SVARET.
@@ -217,6 +252,46 @@ export async function byggPlanerForRetailer(opts: {
     ? { lavSats: Number(sr.lav_sats), hoySatsVask: Number(sr.hoy_sats_vask), pantSats: Number(sr.pant_sats) }
     : null
 
+  // =====================================================================
+  // SATSEN: EN TEKNISK FEIL SKAL IKKE SE UT SOM ET MANGLENDE BUDSJETT
+  // =====================================================================
+  //
+  // `kastrader.data ?? []` ville gjort en databasefeil om til «ingen
+  // kastbudsjett», og da hadde confidence gate blokkert med FEIL aarsak
+  // - et onboardingproblem i stedet for et driftsproblem.
+  if (kastrader.error) {
+    throw new Error(
+      `Kunne ikke lese kastbudsjettet for ${retailerId}: ${kastrader.error.message}`)
+  }
+  const kastbudsjettrader = maaVaereHele(kastrader, 'kastbudsjettet for Kursen', takKast)
+
+  // ÉN GYLDIG AVDELINGSSATS PER STASJON OG AAR. To rader er en
+  // datakonflikt, ikke «siste vinner» - en stille overskriving i et Map
+  // ville valgt en av dem uten aa si hvilken.
+  const perStasjon2 = new Map<string, Kastbudsjettrad[]>()
+  for (const k of kastbudsjettrader as unknown as Kastbudsjettrad[]) {
+    const f = perStasjon2.get(k.stasjon_id)
+    if (f) f.push(k)
+    else perStasjon2.set(k.stasjon_id, [k])
+  }
+  const kastsatser = new Map<string, Kastsats>()
+  const satskonflikt = new Map<string, string>()
+  for (const [stasjonId, rader] of perStasjon2) {
+    const gyldige = rader.filter((k) => Number(k.kast_pst_av_salg) > 0)
+    if (gyldige.length === 0) continue          // -> port 3, «mangler»
+    if (gyldige.length > 1) {
+      satskonflikt.set(stasjonId,
+        `${gyldige.length} kastbudsjettsatser for samme stasjon og år. `
+        + 'Kan ikke velge én, og velger ingen.')
+      continue
+    }
+    const k = gyldige[0]
+    kastsatser.set(stasjonId, {
+      stasjonId: k.stasjon_id, aar: k.ar,
+      andel: Number(k.kast_pst_av_salg), nivaa: k.nivaa,
+    })
+  }
+
   const perStasjon = grupper(maanedsrader as unknown as Maanedsrad[], (r) => r.stasjon_id)
   const bilagPer = grupper(bilagsrader as unknown as Bilagsrad[], (r) => r.stasjon_id ?? '')
 
@@ -233,7 +308,17 @@ export async function byggPlanerForRetailer(opts: {
     ut.push({
       stasjonId: st.id,
       plan: byggMaanedsplan(
-        { stasjonNavn: st.navn, historikk, leverandorer, satser },
+        {
+          stasjonNavn: st.navn, stasjonId: st.id, historikk, leverandorer, satser,
+          kastsats: kastsatser.get(st.id) ?? null,
+          butikknummer: st.butikknummer,
+          // PORT 7. Forbeholdet gjelder per periode, stasjon og analyse.
+          // Juni treffer resultat og brutto, ikke mat og svinn - og da
+          // slipper kastanalysen gjennom, som den skal.
+          forbehold: satskonflikt.get(st.id)
+            ?? forbeholdstekst(forbehold(
+              maanedNokkel(tilOgMed), 'mat_svinn_stasjon', st.butikknummer ?? undefined)),
+        },
         { klasseFor: klasseFor },
       ),
     })
@@ -303,6 +388,10 @@ export function byggHistorikk(rader: readonly Maanedsrad[]): Maanedstall[] {
       // ukjent; er den `true`, er 0 et ekte null-kroners kast.
       matkastKr: r.har_svinndata === false ? null : tallEllerNull(r.matkast_kr),
       usynligRestKr: r.har_svinndata === false ? null : tallEllerNull(r.usynlig_rest_kr),
+      usynligMatKr: r.har_svinndata === false ? null : tallEllerNull(r.usynlig_mat_kr),
+      // `null` er «ikke maalt», og portene lukker paa det. Ingen `?? 0`.
+      avvikAntall: tallEllerNull(r.avvik_antall),
+      matRader: tallEllerNull(r.mat_rader),
       harSvinndata: r.har_svinndata ?? false,
       datastatus: r.datastatus,
       personalKr: Number(r.personal_kr ?? 0),
