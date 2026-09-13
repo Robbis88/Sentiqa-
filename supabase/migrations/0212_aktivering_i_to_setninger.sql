@@ -173,8 +173,11 @@ comment on function public.aktiver_import(uuid, uuid) is
 -- ---------------------------------------------------------------------
 with kilde as (
   select s.periode,
-         count(distinct s.kilde_jobb_id) as kilder,
-         min(s.kilde_jobb_id)            as hovedkilde
+         count(distinct s.kilde_jobb_id)   as kilder,
+         -- `min()` finnes ikke for uuid. CI fanget det: nettleserjobben
+         -- kjoerer hver migrasjon mot en lokal Supabase, og denne ville
+         -- feilet paa setning 4 i SQL Editor.
+         (array_agg(s.kilde_jobb_id))[1]   as hovedkilde
     from public.regnskap_usynlig_svinn s
    where s.slettet_tid is null
    group by s.periode
