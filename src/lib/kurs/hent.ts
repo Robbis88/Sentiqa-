@@ -80,6 +80,15 @@ type Maanedsrad = {
   paavirkbar_drift_kr: number | null
   paavirkbar_drift_budsjett_kr: number | null
   resultat_kr: number | null
+  /**
+   * Har stasjonsmaaneden svinnrader i det hele tatt? Fra `0213`.
+   *
+   * `false` betyr at `matkast_kr` og `usynlig_rest_kr` er NULL fordi
+   * grunnlaget mangler - ikke fordi det ble kastet null kroner.
+   */
+  har_svinndata: boolean | null
+  /** `gruppe` eller `eldre_grunnlag`. NULL naar det ikke finnes rader. */
+  datastatus: string | null
 }
 
 
@@ -173,7 +182,7 @@ export async function byggPlanerForRetailer(opts: {
 
   const [maanedstall, bilag, satsrad] = await Promise.all([
     supabase.from('v_kurs_maanedstall')
-      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr')
+      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr, har_svinndata, datastatus')
       .eq('retailer_id', retailerId)
       .in('stasjon_id', stasjonIder)
       .gte('maaned', fraIso).lte('maaned', maanedNokkel(tilOgMed))
@@ -272,6 +281,11 @@ function grupper<T>(rader: readonly T[], noekkel: (r: T) => string): Map<string,
 // 2026. Regelen er skrevet i `regnskap-tilgang.ts`: filtrerer du paa noe
 // i 6xx, bruk begrep.
 
+/** `null` blir `null`, ikke 0. Alt annet blir et tall. */
+function tallEllerNull(v: number | null): number | null {
+  return v == null ? null : Number(v)
+}
+
 export function byggHistorikk(rader: readonly Maanedsrad[]): Maanedstall[] {
   return [...rader]
     .sort((a, b) => a.maaned.localeCompare(b.maaned))
@@ -281,8 +295,16 @@ export function byggHistorikk(rader: readonly Maanedsrad[]): Maanedstall[] {
       omsetningBudsjettKr: Number(r.omsetning_budsjett_kr ?? 0),
       bruttoKr: Number(r.brutto_kr ?? 0),
       matsalgKr: Number(r.matsalg_kr ?? 0),
-      matkastKr: Number(r.matkast_kr ?? 0),
-      usynligRestKr: Number(r.usynlig_rest_kr ?? 0),
+      // INGEN `?? 0` HER. `0213` lar de to vaere NULL naar
+      // stasjonsmaaneden ikke har svinnrader, og `?? 0` ville gjort
+      // fem manglende desembermaaneder til fem perfekte.
+      //
+      // `har_svinndata` er autoriteten. Er den `false`, er tallet
+      // ukjent; er den `true`, er 0 et ekte null-kroners kast.
+      matkastKr: r.har_svinndata === false ? null : tallEllerNull(r.matkast_kr),
+      usynligRestKr: r.har_svinndata === false ? null : tallEllerNull(r.usynlig_rest_kr),
+      harSvinndata: r.har_svinndata ?? false,
+      datastatus: r.datastatus,
       personalKr: Number(r.personal_kr ?? 0),
       personalBudsjettKr: Number(r.personal_budsjett_kr ?? 0),
       paavirkbarDriftKr: Number(r.paavirkbar_drift_kr ?? 0),

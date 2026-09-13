@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { medPrefiks } from './stasjoner'
 
 // =====================================================================
 // Azets månedsregnskap — «Cluster»-arket og ett ark per stasjon
@@ -39,13 +40,9 @@ import ExcelJS from 'exceljs'
 
 const RETAILER = '190 Kelsar Bil AS'
 
-const STASJONER: [string, string][] = [
-  ['4177', 'ST1 Lone'],
-  ['4185', 'ST1 Laguneparken'],
-  ['9038', 'ST1 Bønes'],
-  ['9145', 'ST1 Dale'],
-  ['9467', 'ST1 Varden'],
-]
+// FRA `stasjoner.ts`. Lista sto her for haand, og hadde byttet
+// Dale/Laguneparken og Varden/Boenes - fire av fem par gale.
+const STASJONER: [string, string][] = medPrefiks(true)
 
 /** Avdelingsrollup: kode, navn, og Lones tall der testen kjenner dem. */
 const AVDELINGER: [string, string][] = [

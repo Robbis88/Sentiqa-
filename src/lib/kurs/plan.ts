@@ -37,6 +37,30 @@ import {
 } from './loftestenger'
 import { erBra, erIlle, retning, type Kurs } from './retning'
 
+/**
+ * Maanedene som har svinngrunnlag.
+ *
+ * =====================================================================
+ * DETTE ER EN DATAGRENSE, IKKE EN KONKLUSJONSREGEL
+ * =====================================================================
+ *
+ * `matkast` og `usynlig_rest` maales paa svinnarket. En maaned uten
+ * svinnrader har ingen verdi aa maale - og fram til `0213` kom den inn
+ * som 0 kroner, altsaa som en perfekt maaned.
+ *
+ * MAALT 2026-09-13: filteret fjerner NULL maaneder i dagens data.
+ * `fraOgMedIAaret` starter serien i januar i BP-aaret, og desember 2025
+ * - de eneste radene uten svinngrunnlag - ligger allerede utenfor
+ * vinduet. Filteret er derfor bevist inert i dag; det staar for aa
+ * hindre at fellen slaar til naar vinduet en gang utvides.
+ *
+ * P2 erstatter dette med confidence gate, som ogsaa sier HVORFOR
+ * maaneden mangler. Til da er dette en grense, ikke en forklaring.
+ */
+export function medSvinngrunnlag(h: readonly Maanedstall[]): Maanedstall[] {
+  return h.filter((m) => m.harSvinndata)
+}
+
 export type Maanedstall = {
   /** ISO, første i måneden. */
   maaned: string
@@ -45,9 +69,20 @@ export type Maanedstall = {
   /** Bruttofortjeneste. Brukes til å verdsette omsetningsvekst. */
   bruttoKr: number
   matsalgKr: number
-  matkastKr: number
-  /** Manko utenom mat og vask. Positivt tall er mangel. */
-  usynligRestKr: number
+  /**
+   * Synlig matkast. `null` naar stasjonsmaaneden ikke har svinnrader.
+   *
+   * `0213` sluttet aa `coalesce`-e dette til 0: fem desembermaaneder
+   * 2025 hadde ekte matomsetning og INGEN svinnrader, og nullen gjorde
+   * dem til perfekte maaneder. 0 betyr fra naa av null kroner.
+   */
+  matkastKr: number | null
+  /** Manko utenom mat og vask. Positivt tall er mangel. `null` = ukjent. */
+  usynligRestKr: number | null
+  /** Har maaneden svinngrunnlag i det hele tatt? */
+  harSvinndata: boolean
+  /** `gruppe` eller `eldre_grunnlag`. `null` naar grunnlaget mangler. */
+  datastatus: string | null
   personalKr: number
   personalBudsjettKr: number
   paavirkbarDriftKr: number
@@ -113,8 +148,12 @@ type Verdi = { l: Loftestang; serie: number[]; kurs: Kurs; naa: number }
 function serieFor(id: LoftestangId, h: readonly Maanedstall[]): number[] {
   switch (id) {
     case 'omsetning': return h.map((m) => m.omsetningKr - m.omsetningBudsjettKr)
-    case 'matkast': return h.map((m) => m.matkastKr)
-    case 'usynlig_rest': return h.map((m) => m.usynligRestKr)
+    // BARE DISSE TO FILTRERES. De maales paa svinnarket; de andre
+    // kommer fra regnskapet, som ER kilden til at maaneden finnes.
+    // `?? 0` staar igjen bare som typebeskyttelse — etter filteret er
+    // verdien aldri null, og `medSvinngrunnlag` er beviset.
+    case 'matkast': return medSvinngrunnlag(h).map((m) => m.matkastKr ?? 0)
+    case 'usynlig_rest': return medSvinngrunnlag(h).map((m) => m.usynligRestKr ?? 0)
     case 'personal': return h.map((m) => m.personalKr - m.personalBudsjettKr)
     case 'paavirkbar_drift':
       return h.map((m) => m.paavirkbarDriftKr - m.paavirkbarDriftBudsjettKr)

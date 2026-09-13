@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { navnFor } from './stasjoner'
 
 // =====================================================================
 // St1 0018 «Kassererstatistikk» — ett ark per stasjon
@@ -34,7 +35,7 @@ const K = (
 
 const ARK: { butikk: string; toppradere: number; kasserere: Kasserer[] }[] = [
   {
-    butikk: 'Butikk: St1 Lone (4177)',
+    butikk: `Butikk: St1 ${navnFor('4177')} (4177)`,
     toppradere: 1,
     kasserere: [
       K('12', 'Øien, Julian', 9199.88, 70, 2, 149.8, 5, 612.4, 1, 89),
@@ -43,22 +44,22 @@ const ARK: { butikk: string; toppradere: number; kasserere: Kasserer[] }[] = [
     ],
   },
   {
-    butikk: 'Butikk: 4185 - St1 Laguneparken',
+    butikk: `Butikk: 4185 - St1 ${navnFor('4185')}`,
     toppradere: 2,
     kasserere: [K('4', 'Hansen, Mia', 15320.1, 118, 3, 220, 7, 899.5, 0, 0)],
   },
   {
-    butikk: 'Butikk: St1 Bønes (9038)',
+    butikk: `Butikk: St1 ${navnFor('9038')} (9038)`,
     toppradere: 1,
     kasserere: [K('21', 'Nguyen, An', 22110.4, 164, 5, 401.2, 11, 1420.9, 2, 178)],
   },
   {
-    butikk: 'Butikk: 9145 - St1 Dale',
+    butikk: `Butikk: 9145 - St1 ${navnFor('9145')}`,
     toppradere: 3,
     kasserere: [K('7', 'Berg, Ola', 7740.6, 66, 1, 59.9, 4, 388, 0, 0)],
   },
   {
-    butikk: 'Butikk: St1 Varden (9467)',
+    butikk: `Butikk: St1 ${navnFor('9467')} (9467)`,
     toppradere: 1,
     kasserere: [K('3', 'Solheim, Kari', 11002.2, 92, 2, 130, 6, 705.3, 1, 45)],
   },

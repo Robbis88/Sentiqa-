@@ -151,11 +151,56 @@ describe('leser 5-7 · SQL', () => {
   // Denne formen har gått galt to ganger før: en test som peker på ÉN
   // migrasjonsfil blir stille foreldet neste gang objektet redefineres.
   // Derfor skannes hele mappa, og siste definisjon er den som gjelder.
+  //
+  // TREDJE GANG, 2026-09-13: skanningen holdt ikke. Mønsteret for
+  // `v_kurs_maanedstall` krevde `\n\nselect` — en BLANK LINJE foran
+  // viewets select. `0213` skrev `)\nselect` uten blank linje, så
+  // mønsteret traff ikke, og «siste definisjon» ble stående på `0210`.
+  //
+  // Vakten var grønn mens den leste feil fil. Et mønster som koder
+  // formatering i stedet for struktur er en vakt som slutter å se hver
+  // gang noen skriver SQL litt annerledes. Mønstrene binder derfor til
+  // `grant select on public.<navn>`, som er obligatorisk uansett form.
   const tilfeller: [string, RegExp][] = [
     ['svinn_sum', /create function public\.svinn_sum[\s\S]*?\$\$;/],
-    ['v_kurs_maanedstall', /create or replace view public\.v_kurs_maanedstall[\s\S]*?\n\nselect[\s\S]*?;\n\ngrant/],
-    ['v_kaffe_svinn', /create or replace view public\.v_kaffe_svinn[\s\S]*?;\n\ngrant/],
+    ['v_kurs_maanedstall', /create or replace view public\.v_kurs_maanedstall[\s\S]*?;\s*grant select on public\.v_kurs_maanedstall/],
+    ['v_kaffe_svinn', /create or replace view public\.v_kaffe_svinn[\s\S]*?;\s*grant select on public\.v_kaffe_svinn/],
   ]
+
+  /** Hvilke filer NEVNER at de definerer objektet? */
+  function definerendeFiler(navn: string): string[] {
+    const mappe = join(process.cwd(), 'supabase', 'migrations')
+    const innledning = navn.startsWith('v_')
+      ? `create or replace view public.${navn}`
+      : `create function public.${navn}`
+    return readdirSync(mappe)
+      .filter((n) => n.endsWith('.sql')).sort()
+      .filter((f) => les(join(mappe, f)).includes(innledning))
+  }
+
+  // -------------------------------------------------------------------
+  // KANARI FOR SKANNINGEN SELV
+  //
+  // Den fanger nøyaktig feilen over: en fil som DEFINERER objektet, men
+  // som mønsteret ikke klarer å lese. Da er «siste definisjon» ikke den
+  // siste, og alle påstandene under gjelder en foreldet fil.
+  // -------------------------------------------------------------------
+  for (const [navn, monster] of tilfeller) {
+    it(`KANARI: mønsteret for ${navn} leser hver fil som definerer det`, () => {
+      const filer = definerendeFiler(navn)
+      expect(filer.length, `ingen fil definerer ${navn}`).toBeGreaterThan(0)
+      const mappe = join(process.cwd(), 'supabase', 'migrations')
+      const blinde = filer.filter((f) => {
+        monster.lastIndex = 0
+        return !monster.test(les(join(mappe, f)))
+      })
+      expect(blinde, `mønsteret ser ikke definisjonen i: ${blinde.join(', ')}`).toEqual([])
+
+      // Og den funne fila MÅ være den siste som definerer objektet.
+      const d = sisteDefinisjon(monster)
+      expect(d!.fil).toBe(filer[filer.length - 1])
+    })
+  }
 
   for (const [navn, monster] of tilfeller) {
     it(`${navn} leser v_svinn_grunnlag, ikke tabellen`, () => {

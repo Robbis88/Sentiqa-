@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { medPrefiks } from './stasjoner'
 
 // =====================================================================
 // St1 0714 «Salgsstatistikk avdeling drilldown»
@@ -27,13 +28,8 @@ import ExcelJS from 'exceljs'
 // faktisk ha dem.
 // =====================================================================
 
-const STASJONER: [string, string][] = [
-  ['4177', 'St1 Lone'],
-  ['4185', 'St1 Laguneparken'],
-  ['9038', 'St1 Bønes'],
-  ['9145', 'St1 Dale'],
-  ['9467', 'St1 Varden'],
-]
+// FRA `stasjoner.ts`. Samme bytte som i `regnskap.ts` sto her.
+const STASJONER: [string, string][] = medPrefiks(false)
 
 /** Avdeling, vareområde, varegruppe — og hvor mange varer under hver. */
 // Antallet er ikke tilfeldig: testen paastaar over tusen produktrader
