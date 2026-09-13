@@ -244,13 +244,23 @@ type Verdi = { l: Loftestang; serie: number[]; kurs: Kurs; naa: number }
 function serieFor(id: LoftestangId, h: readonly Maanedstall[]): number[] {
   switch (id) {
     case 'omsetning': return h.map((m) => m.omsetningKr - m.omsetningBudsjettKr)
-    // BARE DISSE TO. De maales paa svinnarket; de andre kommer fra
-    // regnskapet, som ER kilden til at maaneden finnes.
+    // MATKAST MAALES IKKE HER, OG SKAL IKKE KUNNE GJOERE DET.
     //
-    // En blokkert serie gir `[]`, og `retning([])` gir `null` - da
-    // hopper `byggMaanedsplan` over loeftestangen. Ingen konklusjon er
-    // riktig svar naar grunnlaget har hull.
-    case 'matkast': return svinnserie(h).rader.map((m) => m.matkastKr ?? 0)
+    // En kommentar som sier «matkast gaar ikke gjennom kroneloypa» er
+    // sann helt til noen fjerner `continue`-en i loekka. Da ville
+    // kastKRONER stille bestemt tiltaket igjen - nettopp feilen som ga
+    // en stasjon 1,0 prosentpoeng over budsjett en BEKREFTELSE.
+    //
+    // Derfor kaster den. `vurderMatkast` er den eneste veien.
+    case 'matkast':
+      throw new Error(
+        'matkast maales mot kastbudsjettet, ikke i kroner. '
+        + 'Bruk vurderMatkast() - se byggMaanedsplan.',
+      )
+    // `usynlig_rest` maales paa svinnarket og trenger serievakten. En
+    // blokkert serie gir `[]`, `retning([])` gir `null`, og da hopper
+    // `byggMaanedsplan` over loeftestangen. Ingen konklusjon er riktig
+    // svar naar grunnlaget har hull.
     case 'usynlig_rest': return svinnserie(h).rader.map((m) => m.usynligRestKr ?? 0)
     case 'personal': return h.map((m) => m.personalKr - m.personalBudsjettKr)
     case 'paavirkbar_drift':
@@ -501,9 +511,10 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
   // MATKAST: NIVAAET AVGJOER, IKKE RETNINGEN
   // =====================================================================
   //
-  // `serieFor('matkast')` maaler fortsatt kastKRONER, og den brukes til
-  // aa RANGERE loeftestenger mot hverandre i kroner. Men DOMMEN - tiltak,
-  // bekreftelse eller observer - kommer herfra, av avviket mot budsjett.
+  // `serieFor('matkast')` brukes IKKE lenger - verken til dommen eller
+  // til rangeringen. Loekka over hopper over matkast, dommen kommer av
+  // avviket mot budsjettet, og `matkastverdi()` rangerer paa det samme
+  // avviket. Kastkronene naar ikke inn i denne beslutningen noe sted.
   //
   // Maalt paa Kelsar jan-jul: paa tre av fem stasjoner gir de to
   // maalestokkene motsatt svar. Lone stiger 7 252 kroner og ligger under

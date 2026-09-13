@@ -19,6 +19,8 @@
 // Over budsjett hele veien, presentert som en bekreftelse. Nivået
 // avgjør nå, og matkast går ikke gjennom kroneløypa i det hele tatt.
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { byggMaanedsplan, type Maanedstall, type Maanedsdata } from './plan'
 
@@ -171,6 +173,33 @@ describe('blokkert gate → ingen matkast i punktene', () => {
       })
       expect(p.matkast.dom, `${felt} = null skal blokkere`).toBeNull()
     }
+  })
+})
+
+// =====================================================================
+describe('matkast kan ikke maales i kroner igjen', () => {
+  it('planen bygges uten aa kalle serieFor for matkast', () => {
+    // Ville loekka kalt den, hadde `serieFor` kastet - og hele planen
+    // med den. At planen finnes, er beviset paa at matkast er ute av
+    // kroneloypa.
+    const p = plan({
+      historikk: [1, 2, 3, 4].map((i) => mnd({
+        maaned: `2026-0${i}-01`, matkastKr: 40_000, resultatKr: 50_000,
+      })),
+    })
+    expect(p.matkast.dom?.slag).toBe('tiltak')
+  })
+
+  it('KANARI: serieFor(matkast) kaster om noen kaller den', () => {
+    // En kommentar som sier «matkast gaar ikke gjennom kroneloypa» er
+    // sann helt til noen fjerner `continue`-en. Denne er ikke det.
+    const kilde = readFileSync(
+      join(process.cwd(), 'src/lib/kurs/plan.ts'), 'utf8')
+    expect(kilde).toContain("case 'matkast':")
+    const i = kilde.indexOf("case 'matkast':")
+    expect(kilde.slice(i, i + 200)).toContain('throw new Error')
+    // Og loekka hopper faktisk over den.
+    expect(kilde).toContain("if (l.id === 'matkast') continue")
   })
 })
 
