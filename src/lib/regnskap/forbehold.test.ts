@@ -2,85 +2,127 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  ALLE_ANALYSER, FORBEHOLD, forbehold, forbeholdForPeriode, kanVises,
+  ALLE_ANALYSER, FORBEHOLD, KJEDEANALYSER, forbehold, forbeholdForStasjon,
+  forbeholdstekst,
 } from './forbehold'
 import { PARSERVERSJON, kjennerNivaamodellen, parsergrunnlag } from '@/lib/import/parserversjon'
 
 // =====================================================================
-// JUNI SKAL IKKE SPERRES GLOBALT
+// JUNI ER DIMENSJONERT: PERIODE, STASJON OG ANALYSE
 // =====================================================================
-// De 48 kontrollerte stasjonsfeltene er identiske mellom de to
-// juniversjonene. Forskjellen ligger i pant, linje 741 og samlet
-// resultat — altså i klyngen og kjederesultatet, ikke i stasjonene.
+// Rad-for-rad-avstemming 2026-09-13 erstattet den tidligere paastanden
+// om at stasjonstallene var identiske. De er det ikke — men bare for
+// pant, brutto, CR og resultat, og bare paa Lone og Dale.
+//
+// Mat og svinn er identisk mellom filversjonene. Et forbehold paa hele
+// juni ville sperret Boenes' matanalyse for en pantpostering paa Lone.
 // =====================================================================
 
 const JUNI = '2026-06-01'
+const LONE = '4177'
+const DALE = '4185'
+const ANDRE = ['9038', '9145', '9467'] as const
 
-describe('juni 2026', () => {
-  it('stasjonsnivå er OK — bevist identisk', () => {
-    for (const a of ['stasjonsanalyse', 'mat_svinn_stasjon',
-      'personalkost_stasjon', 'resultat_stasjon'] as const) {
-      expect(forbehold(JUNI, a).status, a).toBe('ok')
-      expect(kanVises(JUNI, a), a).toBe(true)
+describe('juni 2026 — de aatte bevisene', () => {
+  it('1 · resultat for Lone er usikkert', () => {
+    const f = forbehold(JUNI, 'resultat_stasjon', LONE)
+    expect(f.status).toBe('usikker')
+    expect(f.belopKr).toBe(7143.80)
+    expect(f.aarsak).toMatch(/pantomklassifisering/)
+  })
+
+  it('2 · resultat for Dale er usikkert', () => {
+    const f = forbehold(JUNI, 'resultat_stasjon', DALE)
+    expect(f.status).toBe('usikker')
+    expect(f.belopKr).toBe(6617.69)
+    expect(f.aarsak).toMatch(/0,01/)   // kassedifferansen er med i beloepet
+  })
+
+  it('3 · mat og svinn for Lone er OK', () => {
+    expect(forbehold(JUNI, 'mat_svinn_stasjon', LONE).status).toBe('ok')
+  })
+
+  it('4 · mat og svinn for Dale er OK', () => {
+    expect(forbehold(JUNI, 'mat_svinn_stasjon', DALE).status).toBe('ok')
+  })
+
+  it('5 · resultat for de tre andre stasjonene er OK', () => {
+    // Ingen diff-rad traff dem. Et forbehold uten en maalt differanse er
+    // en anelse, ikke et funn.
+    for (const s of ANDRE) {
+      expect(forbehold(JUNI, 'resultat_stasjon', s).status, s).toBe('ok')
+      expect(forbehold(JUNI, 'bruttofortjeneste_stasjon', s).status, s).toBe('ok')
+      expect(forbehold(JUNI, 'cr_stasjon', s).status, s).toBe('ok')
     }
   })
 
-  it('klynge og kjederesultat er USIKRE, ikke blokkerte', () => {
-    // Versjonskonflikten ble loest 2026-09-13: Robert valgte A, «en
-    // avlagt maaned skal vise det som ble avlagt». Da er tallet riktig
-    // gjengitt - men det baerer en kjent pantfeil som rettes i august,
-    // og en sammenligning mellom stasjoner maaler den feilen.
-    for (const a of ['klyngeanalyse', 'kjederesultat'] as const) {
+  it('6 · klynge og kjederesultat er usikre', () => {
+    for (const a of KJEDEANALYSER) {
       const f = forbehold(JUNI, a)
       expect(f.status, a).toBe('usikker')
-      expect(f.aarsak).toMatch(/pant/)
-      expect(f.aarsak).toMatch(/13 101,49/)
-      // USIKKER SKAL VISES. Et tall med et forbehold er noe annet enn
-      // ingen tall - blokkering her ville skjult juni for en feil vi
-      // kjenner, kan tallfeste og vet naar rettes.
-      expect(kanVises(JUNI, a), a).toBe(true)
+      expect(f.belopKr, a).toBe(13101.49)
     }
   })
 
-  it('KANARI: «usikker» må ikke kollapse til «ok»', () => {
-    // Forskjellen mellom «ok» og «usikker» er hele verdien av posten.
-    // Blir de like, forsvinner advarselen uten at noen fjernet den.
-    expect(forbehold(JUNI, 'klyngeanalyse').status).not.toBe('ok')
-    expect(forbehold(JUNI, 'klyngeanalyse').aarsak.length).toBeGreaterThan(30)
-    expect(forbehold(JUNI, 'stasjonsanalyse').status).toBe('ok')
-  })
-
-  it('KANARI: forbeholdet må ikke smitte til hele perioden', () => {
-    // Den lette feilen er «juni er usikker» og sperr måneden. Da mister
-    // butikksjefen sin egen stasjonsanalyse for en konflikt på
-    // klyngearket hun ikke eier.
-    const alle = forbeholdForPeriode(JUNI)
-    const merkede = ALLE_ANALYSER.filter((a) => alle[a].status !== 'ok')
-    expect(merkede).toEqual(['klyngeanalyse', 'kjederesultat'])
-  })
-
-  it('andre perioder er urørt', () => {
-    for (const a of ALLE_ANALYSER) {
-      expect(forbehold('2026-07-01', a).status, a).toBe('ok')
-      expect(forbehold('2026-05-01', a).status, a).toBe('ok')
+  it('7 · andre maaneder er uberoert', () => {
+    for (const p of ['2026-05-01', '2026-07-01', '2026-01-01']) {
+      for (const a of ALLE_ANALYSER) {
+        expect(forbehold(p, a, LONE).status, `${p} ${a}`).toBe('ok')
+        expect(forbehold(p, a, DALE).status, `${p} ${a}`).toBe('ok')
+      }
     }
+  })
+
+  it('8 · flaten kan vise aarsak og beloep uten aa vedta versjon B', () => {
+    const t = forbeholdstekst(forbehold(JUNI, 'resultat_stasjon', LONE))!
+    expect(t).toMatch(/^Usikkert tall\./)
+    expect(t).toMatch(/7 143,80 kr/)
+    const kjede = forbeholdstekst(forbehold(JUNI, 'kjederesultat'))!
+    expect(kjede).toMatch(/ikke vedtatt regnskapsfasit/)
+    // Og en OK-analyse har ingen tekst i det hele tatt.
+    expect(forbeholdstekst(forbehold(JUNI, 'mat_svinn_stasjon', LONE))).toBeNull()
   })
 })
 
-describe('forbehold som datasett', () => {
-  it('hver post har en årsak OG en utvei', () => {
-    // Et forbehold uten utvei blir stående for alltid, og da slutter
-    // folk å tro på dem.
+describe('dimensjonen holder', () => {
+  it('KANARI: forbeholdet smitter ikke til nabostasjonen', () => {
+    // Uten stasjonsdimensjonen ville Boenes' resultat blitt usikkert av
+    // en pantpostering paa Lone.
+    expect(forbehold(JUNI, 'resultat_stasjon', LONE).status).toBe('usikker')
+    expect(forbehold(JUNI, 'resultat_stasjon', '9467').status).toBe('ok')
+  })
+
+  it('KANARI: forbeholdet smitter ikke til nabomaaltallet', () => {
+    const per = forbeholdForStasjon(JUNI, LONE)
+    const merket = ALLE_ANALYSER.filter((a) => per[a].status !== 'ok')
+    expect(merket.sort()).toEqual(
+      ['bruttofortjeneste_stasjon', 'cr_stasjon', 'kjederesultat',
+        'klyngeanalyse', 'resultat_stasjon'].sort())
+  })
+
+  it('beloepene summerer seg til kjededifferansen', () => {
+    // 7 143,80 + 6 617,69 = 13 761,49, og med Admins 660,00 trukket fra
+    // blir det 13 101,49. Det er ikke pynt - det er beviset paa at
+    // fordelingen og totalen kommer fra samme avstemming.
+    const lone = forbehold(JUNI, 'resultat_stasjon', LONE).belopKr!
+    const dale = forbehold(JUNI, 'resultat_stasjon', DALE).belopKr!
+    const kjede = forbehold(JUNI, 'kjederesultat').belopKr!
+    expect(Math.round((lone + dale - 660.00) * 100) / 100).toBe(kjede)
+  })
+
+  it('hver post har aarsak, beloep, kildeversjoner OG en utvei', () => {
     for (const p of FORBEHOLD) {
-      expect(p.aarsak.length, p.periode).toBeGreaterThan(30)
-      expect(p.loeses_av.length, p.periode).toBeGreaterThan(20)
+      expect(p.aarsak.length, p.periode).toBeGreaterThan(40)
+      expect(p.loesesAv.length, p.periode).toBeGreaterThan(20)
       expect(p.gjelder.length, p.periode).toBeGreaterThan(0)
+      expect(p.belopKr, p.periode).not.toBeNull()
+      expect(p.kildeversjoner, p.periode).toMatch(/202606/)
     }
   })
 
-  it('ukjent periode og ukjent analyse er OK, ikke tvil', () => {
+  it('ukjent kombinasjon er OK, ikke tvil', () => {
     expect(forbehold('2030-01-01', 'kjederesultat').status).toBe('ok')
-    expect(forbehold(JUNI, 'stasjonsanalyse').aarsak).toBe('')
+    expect(forbehold(JUNI, 'personalkost_stasjon', LONE).status).toBe('ok')
   })
 })
 
