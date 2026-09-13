@@ -656,6 +656,7 @@
     "/maanedsplan": [
       "Avgjort",
       "Ingen månedsplaner ennå",
+      "Køen kunne ikke hentes",
       "Venter på deg",
       "dynamisk:stasjon"
     ],
@@ -671,6 +672,7 @@
     ],
     "/min-plan": [
       "Ingen månedsplan ennå",
+      "Planen kunne ikke hentes",
       "{stasjon} · {maanedsnavn(maaned)} {maaned.slice(0, 4)}"
     ],
     "/mine-opplysninger": [

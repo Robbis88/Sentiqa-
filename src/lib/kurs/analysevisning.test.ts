@@ -13,7 +13,8 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  ingenFeilVei, matkastvisning, medFortegn, rangeringstekst, usynligvisning,
+  ingenFeilVei, matkastvisning, medFortegn, RANGERING_UKJENT,
+  rangeringstekst, usynligvisning,
   USYNLIG_AARSAKER, UTEN_KRONEVERDI,
 } from './analysevisning'
 import { lagSnapshot, lesMatkast, lesUsynlig, ANALYSEVERSJON } from './snapshot'
@@ -242,6 +243,32 @@ describe('rangering', () => {
     expect(ingenFeilVei([{}], { mulig: true, kandidater: ['A'] })).toBe(false)
   })
 
+  // ===================================================================
+  // EN PLAN FRA FØR `0216` SKAL IKKE FRISKMELDES
+  // ===================================================================
+  //
+  // Kolonnen er `null` på alt som ble skrevet før feltet fantes, og vi
+  // vet ikke hva den motoren gjorde — den kan ha valgt et hovedtiltak
+  // på rekkefølgen i `LOFTESTENGER` uten å lagre at den gjorde det.
+  //
+  // Sida skrev `?? { mulig: true, kandidater: [] }`. Det er ikke en
+  // standardverdi, det er en påstand: «rangeringen var mulig, og det
+  // fantes ingen kandidater». Da kunne flaten skrive «Ingen av
+  // løftestengene peker feil vei denne måneden» om en plan ingen har
+  // målt.
+  it('null er IKKE TILGJENGELIG, ikke «alt i orden»', () => {
+    expect(rangeringstekst(null)).toBe(RANGERING_UKJENT)
+    expect(RANGERING_UKJENT).toContain('ikke tilgjengelig')
+    expect(RANGERING_UKJENT).toContain('før')
+  })
+
+  it('null gir ALDRI «ingen løftestenger peker feil vei»', () => {
+    expect(ingenFeilVei([], null)).toBe(false)
+    // Den gamle fallbacken, skrevet ut: dette er påstanden som ble
+    // laget av ingenting.
+    expect(ingenFeilVei([], { mulig: true, kandidater: [] })).toBe(true)
+  })
+
   it('manglende royaltyverdi blir ikke 0', () => {
     const p = plan({
       satser: null,
@@ -331,5 +358,50 @@ describe('SAMME SNAPSHOT: lagret JSON → kort → HTML → ren tekst', () => {
     expect(en.tekst).toContain('Bønes')
     expect(en.html).toContain('Uforklart matavvik')
     expect(en.tekst).toContain('månedene')
+  })
+})
+
+// =====================================================================
+// E-POSTEN LESER RANGERINGEN GJENNOM SAMME VALIDERING
+// =====================================================================
+//
+// Kortet, `/min-plan` og brevet skal si det samme om rangeringen. Sto
+// e-posten igjen med `plan.rangering` mens flatene leste den lagrede
+// raden, kunne butikksjefen fått to forskjellige svar på samme spørsmål
+// — og den ene av dem fra et snapshot ingen hadde validert.
+// =====================================================================
+describe('e-posten og rangeringen', () => {
+  const p = plan({ stasjonNavn: 'St1 Dale', historikk: DALE })
+  const s = lagSnapshot(p)
+  const grunn = JSON.parse(JSON.stringify(s)) as { matkast: unknown; usynlig: unknown }
+
+  it('en ØDELAGT lagret rangering krasjer ikke — den blir ikke tilgjengelig', () => {
+    // `{}` passerte den gamle typecasten, og `rangeringstekst` leste
+    // `r.kandidater.length` på noe som ikke hadde `kandidater`.
+    const e = tilEpost(p, 'https://x', { ...grunn, rangering: {} })
+    expect(e.tekst).toContain(RANGERING_UKJENT)
+    expect(e.tekst).not.toContain('Ingen av løftestengene peker feil vei')
+  })
+
+  it('en gyldig lagret rangering brukes som den er', () => {
+    const e = tilEpost(p, 'https://x', {
+      ...grunn,
+      rangering: { mulig: false, kandidater: ['Matkast', 'Personalkostnad mot budsjett'] },
+    })
+    expect(e.tekst).toContain(UTEN_KRONEVERDI)
+    expect(e.tekst).toContain('Personalkostnad mot budsjett')
+    expect(e.tekst).not.toContain(RANGERING_UKJENT)
+  })
+
+  it('uten lagret rangering brukes den motoren nettopp regnet', () => {
+    const e = tilEpost(p, 'https://x', grunn)
+    expect(e.tekst).not.toContain(RANGERING_UKJENT)
+  })
+
+  it('html og ren tekst sier det samme', () => {
+    const e = tilEpost(p, 'https://x', { ...grunn, rangering: null })
+    expect(e.tekst).toContain(RANGERING_UKJENT)
+    // HTML-en rommer den samme setningen, escapet.
+    expect(e.html).toContain('Rangering er ikke tilgjengelig')
   })
 })

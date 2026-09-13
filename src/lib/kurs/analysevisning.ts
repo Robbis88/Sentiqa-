@@ -231,7 +231,23 @@ export type Rangering = { mulig: boolean; kandidater: readonly string[] }
  * ikke vist i det ene tilfellet den måtte vises i. `rangering` kommer
  * fra motoren og vet hvilke kandidater som fantes FØR valget.
  */
-export function rangeringstekst(r: Rangering): string | null {
+export const RANGERING_UKJENT =
+  'Rangering er ikke tilgjengelig — planen ble laget før '
+  + 'rangeringsanalysen.'
+
+export function rangeringstekst(r: Rangering | null): string | null {
+  // ---------------------------------------------------------------
+  // `null` ER EN TREDJE TILSTAND, OG DEN ER IKKE «ALT I ORDEN»
+  // ---------------------------------------------------------------
+  // Kolonnen kom med `0216`. En eldre plan har `null`, og vi VET IKKE
+  // hva den motoren gjorde - den kan ha valgt et hovedtiltak paa en
+  // vilkaarlig rekkefoelge uten aa lagre at den gjorde det.
+  //
+  // Sida skrev `?? { mulig: true, kandidater: [] }` her. Det er ikke
+  // en standardverdi, det er en paastand: «rangeringen var mulig, og
+  // det fantes ingen kandidater». Da kunne flaten friskmelde en plan
+  // ingen har maalt.
+  if (r === null) return RANGERING_UKJENT
   if (r.mulig) return null
   const n = r.kandidater.length
   return `${UTEN_KRONEVERDI} ${n} løftestenger går feil vei, og uten `
@@ -246,6 +262,11 @@ export function rangeringstekst(r: Rangering): string | null {
  * gikk feil vei, eller at flere gjorde det og ingen kunne velges. Den
  * andre er ikke en god nyhet, og skal ikke leses som en.
  */
-export function ingenFeilVei(punkter: readonly unknown[], r: Rangering): boolean {
+export function ingenFeilVei(
+  punkter: readonly unknown[], r: Rangering | null,
+): boolean {
+  // Uten en rangering vet vi ikke hvorfor lista er tom. Da sier vi
+  // ingenting - `rangeringstekst` forklarer hvorfor i stedet.
+  if (r === null) return false
   return punkter.length === 0 && r.mulig && r.kandidater.length === 0
 }

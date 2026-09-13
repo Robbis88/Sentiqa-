@@ -1,7 +1,8 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maanedsnavn } from '@/lib/kurs/plan'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Feiltilstand, Forklaring } from '@/components/ui/side'
+import { maaVaereHele } from '@/lib/supabase/datobolker'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Planlesing } from './planlesing'
 import type { Punkt } from '../maanedsplan/plankort'
@@ -31,6 +32,14 @@ import type { Punkt } from '../maanedsplan/plankort'
 // begge steder med vilje.
 // =====================================================================
 
+/**
+ * Et TAK, ikke et oenske.
+ *
+ * 240 er tjue stasjoner i tolv maaneder, eller fem stasjoner i fire aar.
+ * En kjede som naar det faar en feilmelding, ikke en avkortet liste.
+ */
+const TAK_PLANER = 240
+
 type Planrad = {
   id: string
   maaned: string
@@ -41,7 +50,8 @@ type Planrad = {
   status: string
   matkast: unknown
   usynlig: unknown
-  rangering: { mulig: boolean; kandidater: string[] } | null
+  /** `jsonb`. Gaar gjennom `lesRangering` i komponenten, ikke her. */
+  rangering: unknown
   stasjoner: { navn: string } | null
 }
 
@@ -57,18 +67,51 @@ export default async function MinPlanSide() {
   }
 
   const supabase = await lagSupabaseServerKlient()
-  // TOLV MÅNEDER × rimelig antall stasjoner. En butikksjef har som regel
-  // én, men kan ha flere — og et avkortet svar ville sett ut som «ingen
-  // plan», ikke som en manglende rad.
-  const { data } = await supabase
+  // =====================================================================
+  // GRENSEN SKAL KUNNE BEVISE AT SVARET ER HELT
+  // =====================================================================
+  //
+  // Her sto `.limit(60)` og `data ?? []`. Begge deler loey paa samme
+  // maate, i hver sin retning:
+  //
+  //   * 60 er NOEYAKTIG fem stasjoner ganger tolv maaneder. Et svar som
+  //     treffer den grensen kan vaere avkortet, og en avkortet liste ser
+  //     ut som en kortere historikk - ikke som en feil.
+  //   * `data ?? []` gjorde en feilet spoerring til null rader, og null
+  //     rader tegnes som «Ingen maanedsplan ennaa».
+  //
+  // `maaVaereHele` er husets vakt for begge: den kaster paa `error`, og
+  // den kaster naar svaret TREFFER taket. Grensen er ikke et oenske om
+  // faerre rader - den er et sted aa oppdage at det ble for mange.
+  const svar = await supabase
     .from('maanedsplan')
     .select('id, maaned, dom, ingress, punkter, merknad, status, matkast, usynlig, rangering, stasjoner(navn)')
     .in('status', ['sluppet', 'sendt'])
     .order('maaned', { ascending: false })
-    .limit(60)
+    .limit(TAK_PLANER)
     .overrideTypes<Planrad[]>()
 
-  const planer = data ?? []
+  let planer: Planrad[]
+  try {
+    planer = maaVaereHele(svar, 'maanedsplanene dine', TAK_PLANER)
+  } catch (e) {
+    return (
+      <Sideramme>
+        <Sidehode tittel="Månedsplanen din" undertittel="Kunne ikke hentes" />
+        <Feiltilstand
+          tittel="Planen kunne ikke hentes"
+          detalj={e instanceof Error ? e.message : String(e)}
+          forklaring={
+            'Dette er ikke det samme som at du ikke har en plan. Spørringen '
+            + 'nådde ikke fram, og sida viser derfor ingenting heller enn en '
+            + 'tom liste som ser riktig ut. Prøv igjen, og si fra dersom den '
+            + 'blir stående.'
+          }
+        />
+      </Sideramme>
+    )
+  }
+
   const nyeste = planer[0]
 
   return (
@@ -112,7 +155,7 @@ export default async function MinPlanSide() {
                 merknad={p.merknad}
                 matkast={p.matkast}
                 usynlig={p.usynlig}
-                rangering={p.rangering ?? { mulig: true, kandidater: [] }}
+                rangering={p.rangering}
               />
             ))}
           </div>

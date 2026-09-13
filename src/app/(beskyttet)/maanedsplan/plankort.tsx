@@ -1,5 +1,6 @@
 'use client'
 import { ingenFeilVei, rangeringstekst } from '@/lib/kurs/analysevisning'
+import { lesRangering } from '@/lib/kurs/snapshot'
 import { HandlingKnapp } from '@/components/ui/handling-knapp'
 import { Analyseblokk } from './analyseblokk'
 import { avvisPlan, slippPlan } from './handlinger'
@@ -45,10 +46,15 @@ export function Plankort({
   /** Lagret oeyeblikksbilde. `unknown` fordi kolonnen er `jsonb`. */
   matkast: unknown
   usynlig: unknown
-  /** Kunne hovedtiltaket velges? Se `plan.ts`. */
-  rangering: { mulig: boolean; kandidater: string[] }
+  /**
+   * Kunne hovedtiltaket velges? `unknown` fordi kolonnen er `jsonb` -
+   * samme grunn som `matkast` og `usynlig`, og den skal gjennom samme
+   * slags leser. `null` ut av `lesRangering` betyr IKKE TILGJENGELIG.
+   */
+  rangering: unknown
 }) {
-  const urangert = rangeringstekst(rangering)
+  const rang = lesRangering(rangering)
+  const urangert = rangeringstekst(rang)
   const kr = (n: number) =>
     Math.round(Math.abs(n)).toLocaleString('nb-NO')
 
@@ -66,7 +72,7 @@ export function Plankort({
 
       <Analyseblokk matkast={matkast} usynlig={usynlig} />
 
-      {ingenFeilVei(punkter, rangering) && (
+      {ingenFeilVei(punkter, rang) && (
         <p className="sq-plankort-tom">
           Ingen av løftestengene peker feil vei denne måneden.
         </p>

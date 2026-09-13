@@ -1085,7 +1085,7 @@ where r.id in ('11111111-1111-4111-8111-111111111111',
 --
 --   Underby   juli  utkast   bekreftelse + usikker enkeltmaaling
 --   Grenseby  juli  utkast   tiltak + retning tilgjengelig
---   Underby   juni  utkast   BLOKKERT, med aarsak og maaned
+--   Underby   juni  utkast   BLOKKERT + rangering = null (plan fra foer 0216)
 --   Grenseby  mai   SLUPPET  urangert plan - se raden selv
 --
 -- I EIERENS KJEDE, og det er ikke tilfeldig. Foerste utgave la dem paa
@@ -1133,7 +1133,8 @@ values
      'naaKr', 31902.47, 'kurs', null, 'vindu', 0, 'usikker', true,
      'aarsakUsikker', 'Fortegnet skifter i de siste 3 månedene. Usikker enkeltmåling — kontroller telling, periodisering og fakturaflyt før tiltak.',
      'blokkering', null),
-   null, null, null),
+   jsonb_build_object('mulig', true, 'kandidater', jsonb_build_array()),
+   null, null),
 
   ('11111111-1111-4111-8111-222222222222',
    '44444444-4444-4444-8444-222222222222', date '2026-07-01',
@@ -1163,7 +1164,8 @@ values
      'kurs', jsonb_build_object('vei', 'opp', 'paaRad', 2,
                                 'endring', 1461.89, 'spenn', 1461.89),
      'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null),
-   null, null, null),
+   jsonb_build_object('mulig', true, 'kandidater', jsonb_build_array('Matkast')),
+   null, null),
 
   ('11111111-1111-4111-8111-222222222222',
    '44444444-4444-4444-8444-111111111111', date '2026-06-01',
@@ -1183,7 +1185,11 @@ values
      'naaKr', null, 'kurs', null, 'vindu', 0, 'usikker', false,
      'aarsakUsikker', null,
      'blokkering', 'Datagrunnlag mangler. Matgruppen ble ikke funnet i 2026-04-01.'),
-   null, null, null),
+   -- `rangering` staar som NULL med vilje: dette er en plan fra FOER
+   -- `0216`, og vi vet ikke hva den motoren gjorde. Flaten skal si
+   -- «ikke tilgjengelig», ikke friskmelde den med en tom kandidatliste.
+   null,
+   null, null),
 
   -- -------------------------------------------------------------------
   -- DEN FJERDE: SLUPPET, og derfor den eneste butikksjefen kan lese.

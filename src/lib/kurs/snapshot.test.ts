@@ -30,7 +30,9 @@
 // =====================================================================
 
 import { describe, expect, it } from 'vitest'
-import { ANALYSEVERSJON, lagSnapshot, lesMatkast, lesUsynlig } from './snapshot'
+import {
+  ANALYSEVERSJON, lagSnapshot, lesMatkast, lesRangering, lesUsynlig,
+} from './snapshot'
 import type { Maanedsplan } from './plan'
 
 const FELLES = {
@@ -220,5 +222,100 @@ describe('lagSnapshot gir noe leserne godtar', () => {
     expect(s.matkast.analyseversjon).toBe(ANALYSEVERSJON)
     expect(s.matkast.beregnetForMaaned).toBe('2026-07-01')
     expect(s.usynlig.beregnetTid).toBe('2026-09-13T12:00:00.000Z')
+  })
+})
+
+// =====================================================================
+// `kurs` SOM MANGLER, MOT `kurs` SOM ER `null`
+// =====================================================================
+//
+// To tilstander som ser like ut i JavaScript og betyr motsatte ting:
+//
+//   kurs: null      MAALT. Serien fantes, men hadde ikke nok punkter
+//                   til en retning. Gyldig. Flaten sier «ingen retning
+//                   ennaa».
+//   ingen `kurs`    UFULLSTENDIG. Snapshotet mangler et felt motoren
+//                   alltid skriver. Ugyldig.
+//
+// Foerste utgave skrev `erKurs(v.kurs ?? null)`. `??` gjoer nettopp den
+// forskjellen usynlig: et manglende felt ble til en gyldig `null`, og
+// leseren godkjente et halvt snapshot mens rapporten min sa at den
+// avviste det.
+//
+// TESTEN BRUKER `delete`, IKKE `= null`. En test som setter feltet til
+// null maaler den gyldige tilstanden og ville vaert groenn i begge
+// utgaver.
+// =====================================================================
+describe('manglende kurs er ikke kurs = null', () => {
+  it('KANARIFUGL: kurs = null er GYLDIG i begge', () => {
+    // Uten denne kunne leseren avvise alt og fortsatt vaere «groenn».
+    expect(lesMatkast(med(MATKAST, { dom: med(KASTDOM, { kurs: null }) }))).not.toBeNull()
+    expect(lesUsynlig(med(USYNLIG, { kurs: null, vindu: 0 }))).not.toBeNull()
+  })
+
+  it('delete dom.kurs avvises', () => {
+    const s = JSON.parse(JSON.stringify(MATKAST))
+    expect(lesMatkast(s), 'kanarifuglen: kopien maa vaere gyldig foer vi river')
+      .not.toBeNull()
+    delete s.dom.kurs
+    expect(lesMatkast(s)).toBeNull()
+  })
+
+  it('delete kurs avvises paa usynlig', () => {
+    const s = JSON.parse(JSON.stringify(USYNLIG))
+    expect(lesUsynlig(s)).not.toBeNull()
+    delete s.kurs
+    expect(lesUsynlig(s)).toBeNull()
+  })
+
+  it('undefined er det samme som manglende', () => {
+    // `jsonb` kan ikke baere `undefined`, men et objekt paa vei INN kan.
+    expect(lesUsynlig({ ...USYNLIG, kurs: undefined })).toBeNull()
+  })
+})
+
+// =====================================================================
+// DEN TREDJE JSONB-KOLONNEN
+// =====================================================================
+//
+// `rangering` gikk rett fra basen til komponenten, typecastet. To ting
+// kunne skje, og begge er stille:
+//
+//   1  `{}` eller en tekst passerte casten, og `rangeringstekst()` leste
+//      `r.kandidater.length` paa noe som ikke hadde `kandidater`.
+//   2  `null` - en plan laget FOER `0216` - ble til
+//      `{ mulig: true, kandidater: [] }`, og da kunne flaten skrive
+//      «Ingen av loeftestengene peker feil vei» om en plan ingen har
+//      maalt.
+// =====================================================================
+describe('lesRangering', () => {
+  const gyldig = { mulig: false, kandidater: ['Matkast', 'Personalkostnad'] }
+
+  it('KANARIFUGL: en gyldig rangering slipper gjennom', () => {
+    expect(lesRangering(gyldig)).toEqual(gyldig)
+    expect(lesRangering({ mulig: true, kandidater: [] }))
+      .toEqual({ mulig: true, kandidater: [] })
+  })
+
+  const avvises = (navn: string, v: unknown) =>
+    it(navn, () => expect(lesRangering(v)).toBeNull())
+
+  avvises('null - planen er eldre enn feltet', null)
+  avvises('tomt objekt', {})
+  avvises('en tekst', 'mulig')
+  avvises('et tall', 7)
+  avvises('en liste', [gyldig])
+  avvises('mulig som tekst', { mulig: 'ja', kandidater: [] })
+  avvises('mulig som mangler', { kandidater: [] })
+  avvises('kandidater som mangler', { mulig: true })
+  avvises('kandidater som tekst', { mulig: true, kandidater: 'Matkast' })
+  avvises('kandidater som objekt', { mulig: true, kandidater: { 0: 'Matkast' } })
+  avvises('en kandidat som ikke er tekst', { mulig: false, kandidater: ['Matkast', 7] })
+  avvises('en kandidat som er null', { mulig: false, kandidater: [null] })
+
+  it('kopierer lista, saa flaten ikke kan skrive i raden', () => {
+    const ut = lesRangering(gyldig)
+    ut!.kandidater.push('Noe annet')
+    expect(gyldig.kandidater).toHaveLength(2)
   })
 })

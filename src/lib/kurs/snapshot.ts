@@ -107,12 +107,37 @@ function erFelles(o: Record<string, unknown>): boolean {
     && tekst(o.beregnetTid)
 }
 
-/** `Kurs` slik `retning()` lager den, eller `null`. */
+/**
+ * `Kurs` slik `retning()` lager den, eller `null`.
+ *
+ * =====================================================================
+ * `null` OG «MANGLER» ER TO FORSKJELLIGE TING
+ * =====================================================================
+ *
+ * `kurs: null` er en MAALING: serien fantes, men hadde ikke nok
+ * punkter til en retning. Det er en gyldig tilstand, og flaten sier
+ * «ingen retning ennaa».
+ *
+ * At noekkelen `kurs` ikke finnes i det hele tatt er noe annet: da er
+ * snapshotet ufullstendig, skrevet av en annen motor eller klippet i
+ * to. Der skal leseren si `null` og flaten «ikke beregnet».
+ *
+ * Foerste utgave skrev `erKurs(v.kurs ?? null)`. `??` gjoer nettopp den
+ * forskjellen usynlig - et manglende felt ble til en gyldig `null`, og
+ * vakten godkjente et halvt snapshot mens den saa ut til aa maale noe.
+ * Derfor sjekkes NOEKKELEN foerst, og `erKurs` tar aldri imot
+ * `undefined`.
+ */
 function erKurs(v: unknown): boolean {
   if (v === null) return true
   if (!obj(v)) return false
   return (v.vei === 'opp' || v.vei === 'ned' || v.vei === 'flat')
     && tall(v.paaRad) && tall(v.endring) && tall(v.spenn)
+}
+
+/** Noekkelen finnes OG verdien er gyldig. */
+function harKurs(o: Record<string, unknown>): boolean {
+  return 'kurs' in o && erKurs(o.kurs)
 }
 
 /**
@@ -136,7 +161,7 @@ function erKastdom(v: unknown): boolean {
   if (!obj(v)) return false
   return (v.slag === 'tiltak' || v.slag === 'observer' || v.slag === 'bekreftelse')
     && erKasttall(v.naa)
-    && erKurs(v.kurs ?? null)
+    && harKurs(v)
     && tall(v.ugunstige) && tall(v.antallMaaneder)
     && tekst(v.tekst)
 }
@@ -153,6 +178,39 @@ export function lesMatkast(v: unknown): Matkastsnapshot | null {
   return v as unknown as Matkastsnapshot
 }
 
+/**
+ * Kunne hovedtiltaket velges? Utfallet slik motoren lagret det.
+ *
+ * =====================================================================
+ * DEN TREDJE JSONB-KOLONNEN, OG DEN ENESTE SOM IKKE HADDE EN LESER
+ * =====================================================================
+ *
+ * `matkast` og `usynlig` gikk gjennom `lesMatkast`/`lesUsynlig`.
+ * `rangering` ble typecastet i sida og sendt rett til komponenten med
+ * `?? { mulig: true, kandidater: [] }`. To feil i samme linje:
+ *
+ *   1  EN OEDELAGT STRUKTUR KRASJET FLATEN. `{}` eller en tekst passerte
+ *      casten, og `rangeringstekst()` leste `r.kandidater.length` paa
+ *      noe som ikke hadde `kandidater`.
+ *
+ *   2  EN GAMMEL PLAN BLE FRISKMELDT. `null` betyr «laget foer feltet
+ *      fantes» - vi vet ikke hva den motoren gjorde. Fallbacken gjorde
+ *      det om til «rangeringen var mulig, og ingen kandidater fantes»,
+ *      og da kunne flaten skrive «Ingen av loeftestengene peker feil vei
+ *      denne maaneden» om en plan ingen har maalt.
+ *
+ * Derfor: `null` ut herfra betyr IKKE TILGJENGELIG, og flaten sier det.
+ */
+export type Rangeringsnapshot = { mulig: boolean; kandidater: string[] }
+
+export function lesRangering(v: unknown): Rangeringsnapshot | null {
+  if (!obj(v)) return null
+  if (typeof v.mulig !== 'boolean') return null
+  if (!Array.isArray(v.kandidater)) return null
+  if (!v.kandidater.every(tekst)) return null
+  return { mulig: v.mulig, kandidater: [...(v.kandidater as string[])] }
+}
+
 export function lesUsynlig(v: unknown): Usynligsnapshot | null {
   if (!obj(v)) return null
   if (!erFelles(v)) return null
@@ -160,7 +218,7 @@ export function lesUsynlig(v: unknown): Usynligsnapshot | null {
   if (!(v.naaKr === null || tall(v.naaKr))) return null
   if (!(v.aarsakUsikker === null || tekst(v.aarsakUsikker))) return null
   if (!(v.blokkering === null || tekst(v.blokkering))) return null
-  if (!erKurs(v.kurs ?? null)) return null
+  if (!harKurs(v)) return null
   // Uten blokkering MAA det finnes et tall. Et snapshot som verken har
   // verdi eller aarsak er en halv struktur.
   if (v.blokkering === null && v.naaKr === null) return null

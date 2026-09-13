@@ -121,6 +121,13 @@ test('en blokkert analyse forsvinner IKKE', async ({ page }) => {
   const u = k.locator('.sq-analyse').filter({ hasText: 'Uforklart matavvik' })
   await expect(u).toContainText('Matgruppen ble ikke funnet')
   await expect(u).toContainText('Gjelder måneden 2026-04-01')
+
+  // SAMME KORT BÆRER EN PLAN FRA FØR `0216`: `rangering` er null.
+  // Sida skrev før `?? { mulig: true, kandidater: [] }`, og da sto det
+  // «Ingen av løftestengene peker feil vei denne måneden» på en plan
+  // ingen har målt. Vi vet ikke hva den gamle motoren gjorde.
+  await expect(k).toContainText('Rangering er ikke tilgjengelig')
+  await expect(k).not.toContainText('Ingen av løftestengene peker feil vei')
 })
 
 test('norsk tegnsett står riktig på skjermen', async ({ page }) => {

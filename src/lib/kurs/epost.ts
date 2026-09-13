@@ -3,7 +3,7 @@ import {
   ingenFeilVei, matkastvisning, rangeringstekst, usynligvisning,
   type Matkastvisning, type Usynligvisning,
 } from './analysevisning'
-import { lesMatkast, lesUsynlig } from './snapshot'
+import { lesMatkast, lesRangering, lesUsynlig } from './snapshot'
 import { maanedsnavn } from './plan'
 
 // =====================================================================
@@ -126,7 +126,17 @@ function blokkHtml(tittel: string, merke: string, linjer: string[]): string {
  * basen. Gir ingen den, vises ingen analyse - brevet paastaar da ikke
  * noe det ikke har dekning for.
  */
-export type Epostanalyse = { matkast: unknown; usynlig: unknown }
+export type Epostanalyse = {
+  matkast: unknown
+  usynlig: unknown
+  /**
+   * Rangeringsutfallet slik det ble LAGRET.
+   *
+   * Utelates den, brukes `plan.rangering` - det motoren nettopp regnet.
+   * Sendes brevet fra en rad i basen, er raden kilden, ogsaa her.
+   */
+  rangering?: unknown
+}
 
 export function tilEpost(
   plan: Maanedsplan, basisUrl: string, analyse?: Epostanalyse,
@@ -160,7 +170,11 @@ export function tilEpost(
   // SAMME KILDE SOM KORTET: `plan.rangering`, ikke en gjetning ut av
   // punktlista. Se `rangeringstekst` for hvorfor den forskjellen betyr
   // noe.
-  const urangertTekst = rangeringstekst(plan.rangering)
+  const urangertTekst = rangeringstekst(
+    analyse && 'rangering' in analyse
+      ? lesRangering(analyse.rangering)
+      : plan.rangering,
+  )
   const urangert = urangertTekst
     ? `
       <tr><td style="padding:10px 0 0;font-size:12px;line-height:1.5;color:${F.svak};">
@@ -258,7 +272,12 @@ export function tilEpost(
         : `${p.slag === 'tiltak' ? 'Står på spill' : 'Verdt'}: ${kr(p.kronerIAret)} kroner i året`,
       '',
     ].filter((x): x is string => x !== null)),
-    ...(ingenFeilVei(plan.punkter, plan.rangering)
+    ...(ingenFeilVei(
+      plan.punkter,
+      analyse && 'rangering' in analyse
+        ? lesRangering(analyse.rangering)
+        : plan.rangering,
+    )
       ? ['Ingen av løftestengene peker feil vei denne måneden. Hold kursen.', '']
       : []),
     ...(m ? ['SYNLIG MATKAST — ' + m.merke.toUpperCase(), ...matkastLinjer(m), ''] : []),
