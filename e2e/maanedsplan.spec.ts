@@ -392,6 +392,15 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
 
       await iKoe().getByRole('button', { name: 'Slipp' }).click()
 
+      // LYKTES DEN? Uten dette svaret kan «kortet flyttet seg ikke»
+      // bety to helt ulike ting: at oppfriskningen ikke virket, eller
+      // at handlingen aldri gikk gjennom. Den kortvarige kvitteringen
+      // er ikke BEVISET — statusen under er det — men den skiller de
+      // to feilene fra hverandre.
+      await expect(page.locator('.sq-slett-ok'))
+        .toContainText('Sluppet', { timeout: 20_000 })
+      await expect(page.locator('.sq-slett-feil')).toHaveCount(0)
+
       // FLYTTET, UTEN OMLASTING.
       await expect(iKoe()).toHaveCount(0, { timeout: 20_000 })
 
@@ -429,7 +438,23 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
         .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })
       await expect(iKoe()).toHaveCount(1)
 
+      // AVVIS SPØR FØRST. `Slipp` gjør det ikke, og det er derfor B
+      // virket uten dette: Playwright AUTO-AVVISER en dialog ingen
+      // håndterer, så `preventDefault` i `HandlingKnapp` stoppet
+      // innsendingen og ingenting skjedde. Kortet ble stående, og
+      // feilen så ut som en oppfriskning som ikke virket.
+      page.on('dialog', (d) => d.accept())
+
       await iKoe().getByRole('button', { name: 'Avvis' }).click()
+
+      // LYKTES DEN? Uten dette svaret kan «kortet flyttet seg ikke»
+      // bety to helt ulike ting: at oppfriskningen ikke virket, eller
+      // at handlingen aldri gikk gjennom. Den kortvarige kvitteringen
+      // er ikke BEVISET — statusen under er det — men den skiller de
+      // to feilene fra hverandre.
+      await expect(page.locator('.sq-slett-ok'))
+        .toContainText('Avvist', { timeout: 20_000 })
+      await expect(page.locator('.sq-slett-feil')).toHaveCount(0)
       await expect(iKoe()).toHaveCount(0, { timeout: 20_000 })
 
       // DEN VARIGE KVITTERINGEN, som i B: knappen avmonteres, statusen
