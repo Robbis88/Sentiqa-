@@ -60,6 +60,17 @@ begin
   insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
     values (v_st, v_ret, '9801', 'Laasestasjon', 'bydel')
     on conflict (id) do nothing;
+  -- En EKTE importjobb: `kilde_jobb_id` har fremmednoekkel, saa en
+  -- tilfeldig uuid ville feilet paa noe helt annet enn det vi maaler.
+  insert into public.raa_filer (id, retailer_id, filnavn, storage_sti, mottakskanal)
+    values ('99999999-9999-4999-8999-999999999904', v_ret,
+            'laas.xlsx', 'x/laas.xlsx', 'drop_zone')
+    on conflict (id) do nothing;
+  insert into public.import_jobber (id, retailer_id, raa_fil_id, rapporttype, status)
+    values ('99999999-9999-4999-8999-999999999905', v_ret,
+            '99999999-9999-4999-8999-999999999904', 'regnskap_resultat', 'parset')
+    on conflict (id) do nothing;
+
   -- INGEN NY PROFIL. `profiler.id` peker paa `auth.users`, og en
   -- testfikstur skal ikke lage brukere. `sluppet_av` trenger bare EN
   -- gyldig profil, saa seedens eier laanes.
@@ -114,19 +125,24 @@ begin
     'kilde_jobb_id = null'
   ] loop
     delete from public.maanedsplan where stasjon_id = v_st;
+    -- RADEN BYGGES FERDIG I ÉT INSERT.
+    --
+    -- Foerste utgave satte status til utkast, fylte feltet og satte den
+    -- tilbake til avvist. Triggeren blokkerer det foerste steget - helt
+    -- riktig - og fiksturen felte da seg selv. `insert` har ingen
+    -- trigger; den er `before update`.
+    --
+    -- `kilde_jobb_id = null` paa en rad som ALT er null endrer
+    -- ingenting, og en update som ikke endrer noe blir ikke blokkert.
+    -- Derfor faar den raden en ekte jobb med én gang.
     insert into public.maanedsplan
       (id, retailer_id, stasjon_id, maaned, dom, ingress, punkter, status,
        kilde_jobb_id)
     values (gen_random_uuid(), v_ret, v_st, date '2026-07-01', 'motvind',
-            'x', '[]'::jsonb, 'avvist', null)
+            'x', '[]'::jsonb, 'avvist',
+            case when v_felt like 'kilde_jobb_id%'
+                 then '99999999-9999-4999-8999-999999999905'::uuid end)
     returning id into v_id;
-    -- `kilde_jobb_id = null` paa en rad som alt er null endrer ingenting,
-    -- saa den raden faar en verdi foerst.
-    if v_felt = 'kilde_jobb_id = null' then
-      update public.maanedsplan set status = 'utkast' where id = v_id;
-      update public.maanedsplan set kilde_jobb_id = gen_random_uuid() where id = v_id;
-      update public.maanedsplan set status = 'avvist' where id = v_id;
-    end if;
 
     perform pg_temp.maa_blokkere(v_id,
       'update public.maanedsplan set ' || v_felt || ' where id = %L');
