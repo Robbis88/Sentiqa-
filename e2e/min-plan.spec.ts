@@ -34,6 +34,14 @@ import { OKTFIL } from './eier'
 //   Underby   juli  utkast    (skal ALDRI vises her)
 //   Grenseby  juli  utkast    (skal ALDRI vises her)
 //   Underby   juni  utkast    (skal ALDRI vises her)
+//
+// ---------------------------------------------------------------------
+// DENNE FILA EIER ÉN RAD: Grenseby mai 2026.
+//
+// `maanedsplan.spec.ts` bygger, slipper og avviser juli- og
+// juni-radene i en serial flyt. Derfor teller denne fila ALDRI kort og
+// leser ALDRI `.first()` på hele lista — begge deler ville vært
+// påstander om rader den ikke eier.
 
 // =====================================================================
 // ØKTA. Uten denne linja kjører fila UTLOGGET.
@@ -47,8 +55,14 @@ import { OKTFIL } from './eier'
 // =====================================================================
 test.use({ storageState: OKTFIL })
 
+// MAI-KORTET, ALLTID. Aldri `.first()` på hele lista.
+//
+// `maanedsplan.spec.ts` har en muterende flyt som SLIPPER Grenseby juli.
+// Da ville `.first()` pekt på et kort denne fila ikke eier, og
+// påstandene under målt andre tall. Grenseby mai 2026 er seedens
+// sluppede plan, og flyten rører den aldri.
 const kort = (side: import('@playwright/test').Page) =>
-  side.locator('.sq-plankort').first()
+  side.locator('.sq-plankort').filter({ hasText: 'mai 2026' }).first()
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/min-plan')

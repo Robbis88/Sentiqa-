@@ -206,7 +206,7 @@ test.describe('telefonbredde', () => {
 const plankort = (side: import('@playwright/test').Page, stasjon: string, mnd: string) =>
   side.locator('.sq-plankort').filter({ hasText: stasjon }).filter({ hasText: mnd })
 
-test.describe('bygg på nytt', () => {
+test.describe('bygg på nytt — det som ikke endrer noe', () => {
   test('knappen sier hvilken måned, hvor mange stasjoner, og hva som IKKE skjer',
     async ({ page }) => {
       await page.goto('/maanedsplan')
@@ -251,6 +251,82 @@ test.describe('bygg på nytt', () => {
     await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
     await page.waitForTimeout(500)
     await expect(page.locator('body')).not.toContainText('Bygget')
+  })
+
+  test('butikksjefens flate har ingen byggeknapp', async ({ page }) => {
+    // NEGATIV TILSTAND PÅ EN ANNEN AKSE: mottakeren skal aldri kunne
+    // bygge planen sin på nytt. `textContent` — en negativ påstand på
+    // `innerText` ville bestått mens knappen var skjult.
+    await page.goto('/min-plan')
+    await expect(page.locator('body')).not.toContainText('på nytt')
+    await expect(page.getByRole('button', { name: /Bygg/ })).toHaveCount(0)
+  })
+})
+
+// =====================================================================
+// DEN MUTERENDE MÅNEDSPLANFLYTEN
+// =====================================================================
+//
+// `test.describe.serial` — og det er en beslutning, ikke en formalitet.
+//
+// A bygger snapshot, B slipper, C avviser, D måler feiltilstand mot det
+// som DA finnes. Stegene deler rader, og rekkefølgen er en del av
+// påstanden. Uten `.serial` ville den avhengigheten vært skjult i
+// Playwrights standardoppførsel, og en framtidig `fullyParallel: true`
+// ville gjort flyten til fem tester som skriver i hverandre.
+//
+// ---------------------------------------------------------------------
+// RADENE DENNE FLYTEN EIER
+//
+//   Underby  5101  juli 2026   utkast   bygges om (A), leses (D)
+//   Grenseby 5102  juli 2026   utkast   bygges om (A), SLIPPES (B)
+//   Overby   5103  juli 2026   avvist   skal stå urørt hele veien
+//   Underby  5101  juni 2026   utkast   AVVISES (C)
+//
+// Ingen andre spec-filer må anta antall eller status på disse fire.
+// `min-plan.spec.ts` leser BARE Grenseby mai 2026, som flyten aldri
+// rører, og teller ingen kort.
+//
+// ---------------------------------------------------------------------
+// HVERT STEG SJEKKER SIN EGEN FORUTSETNING
+//
+// «Ingen test skal bli grønn bare fordi en tidligere test allerede
+// utførte handlingen.» Derfor slår hvert steg fast hva det forventer
+// Å FINNE før det gjør noe — og steg 0 slår fast hele seedtilstanden
+// før den første mutasjonen.
+//
+// `retries: 0` i `playwright.config.ts` er en forutsetning her: en
+// retry ville startet midt i flyten på en halvt mutert base.
+// `src/lib/redesign/e2e-oppsett.test.ts` feller en endring.
+// =====================================================================
+test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
+  // Økta arves fra `test.use` øverst i fila.
+  const venter = (side: import('@playwright/test').Page) =>
+    side.locator('section').filter({ hasText: 'Venter på deg' })
+  const avgjort = (side: import('@playwright/test').Page) =>
+    side.locator('section').filter({ hasText: 'Avgjort' })
+
+  // ===================================================================
+  // 0  SEEDTILSTANDEN, FØR FØRSTE MUTASJON
+  // ===================================================================
+  test('0  seedtilstanden er som forventet', async ({ page }) => {
+    await page.goto('/maanedsplan')
+
+    // Tre utkast venter, og to er avgjort.
+    await expect(venter(page).locator('.sq-plankort')
+      .filter({ hasText: 'Underby' }).filter({ hasText: 'juli' })).toHaveCount(1)
+    await expect(venter(page).locator('.sq-plankort')
+      .filter({ hasText: 'Grenseby' }).filter({ hasText: 'juli' })).toHaveCount(1)
+    await expect(venter(page).locator('.sq-plankort')
+      .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })).toHaveCount(1)
+
+    // Overby juli er AVVIST fra seeden, ikke av denne flyten.
+    const overby = plankort(page, 'Overby', 'juli').first()
+    await expect(overby.locator('.sq-plankort-status')).toHaveText('Avvist')
+
+    // Og juli-snapshottene er seedens, ikke bygget av oss.
+    await expect(plankort(page, 'Underby', 'juli').first())
+      .not.toContainText('Datagrunnlag mangler')
   })
 
   // ===================================================================
@@ -304,55 +380,65 @@ test.describe('bygg på nytt', () => {
   // ===================================================================
   // B  SLIPP -> KORTET FLYTTER SEG, OG PLANEN NAAR BUTIKKSJEFEN
   // ===================================================================
-  test('B  slipp: kortet flytter seg til Avgjort, og planen vises i /min-plan',
+  test('B  slipp: kortet flytter seg til Avgjort med status Sluppet',
     async ({ page }) => {
       await page.goto('/maanedsplan')
 
-      const venter = page.locator('section').filter({ hasText: 'Venter på deg' })
-      const avgjort = page.locator('section').filter({ hasText: 'Avgjort' })
-      await expect(venter.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
-        .filter({ hasText: 'juli' })).toHaveCount(1)
+      // FORUTSETNINGEN, SLAATT FAST FOERST. Uten den ville testen
+      // bestaatt ogsaa hvis et tidligere steg alt hadde sluppet den.
+      const iKoe = () => venter(page).locator('.sq-plankort')
+        .filter({ hasText: 'Grenseby' }).filter({ hasText: 'juli' })
+      await expect(iKoe()).toHaveCount(1)
 
-      await venter.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
-        .filter({ hasText: 'juli' })
-        .getByRole('button', { name: 'Slipp' }).click()
-
-      await expect(page.locator('.sq-slett-ok'))
-        .toContainText('Sluppet', { timeout: 20_000 })
+      await iKoe().getByRole('button', { name: 'Slipp' }).click()
 
       // FLYTTET, UTEN OMLASTING.
-      await expect(venter.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
-        .filter({ hasText: 'juli' })).toHaveCount(0, { timeout: 15_000 })
-      await expect(avgjort.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
-        .filter({ hasText: 'juli' })).toHaveCount(1)
+      await expect(iKoe()).toHaveCount(0, { timeout: 20_000 })
 
-      // OG DEN NAADDE MOTTAKEREN. Her er navigering riktig: det er en
-      // annen rute, og revalideringen av den skjer paa serveren.
+      // DEN VARIGE KVITTERINGEN.
+      //
+      // `.sq-slett-ok` lever i `HandlingKnapp`, og knappen avmonteres
+      // naar kortet flytter til «Avgjort» - den er borte i det
+      // oppfriskningen er ferdig. Aa maale den ville vaert aa maale et
+      // blink.
+      //
+      // Det brukeren faktisk sitter igjen med, er STATUSEN paa kortet.
+      const flyttet = avgjort(page).locator('.sq-plankort')
+        .filter({ hasText: 'Grenseby' }).filter({ hasText: 'juli' })
+      await expect(flyttet).toHaveCount(1)
+      await expect(flyttet.locator('.sq-plankort-status')).toHaveText('Sluppet')
+
+      // Og knappene er borte: en sluppet plan kan ikke slippes igjen.
+      await expect(flyttet.getByRole('button', { name: 'Slipp' })).toHaveCount(0)
+
+      // DEN NAADDE MOTTAKEREN. Navigering er riktig her: en ANNEN rute,
+      // revalidert paa serveren av `slippPlan`.
       await page.goto('/min-plan')
-      await expect(page.locator('.sq-plankort').filter({ hasText: 'juli' }))
+      await expect(page.locator('.sq-plankort').filter({ hasText: 'juli 2026' }))
         .toHaveCount(1)
     })
 
   // ===================================================================
   // C  AVVIS -> KORTET FLYTTER SEG, OG PLANEN NAAR IKKE MOTTAKEREN
   // ===================================================================
-  test('C  avvis: kortet flytter seg, og planen vises IKKE i /min-plan',
+  test('C  avvis: kortet flytter seg til Avgjort med status Avvist',
     async ({ page }) => {
       await page.goto('/maanedsplan')
 
-      const venter = page.locator('section').filter({ hasText: 'Venter på deg' })
-      const avgjort = page.locator('section').filter({ hasText: 'Avgjort' })
-      const kort = () => venter.locator('.sq-plankort').filter({ hasText: 'Underby' })
-        .filter({ hasText: 'juni' })
-      await expect(kort()).toHaveCount(1)
+      const iKoe = () => venter(page).locator('.sq-plankort')
+        .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })
+      await expect(iKoe()).toHaveCount(1)
 
-      await kort().getByRole('button', { name: 'Avvis' }).click()
-      await expect(page.locator('.sq-slett-ok'))
-        .toContainText('Avvist', { timeout: 20_000 })
+      await iKoe().getByRole('button', { name: 'Avvis' }).click()
+      await expect(iKoe()).toHaveCount(0, { timeout: 20_000 })
 
-      await expect(kort()).toHaveCount(0, { timeout: 15_000 })
-      await expect(avgjort.locator('.sq-plankort').filter({ hasText: 'Underby' })
-        .filter({ hasText: 'juni' })).toHaveCount(1)
+      // DEN VARIGE KVITTERINGEN, som i B: knappen avmonteres, statusen
+      // blir staaende.
+      const flyttet = avgjort(page).locator('.sq-plankort')
+        .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })
+      await expect(flyttet).toHaveCount(1)
+      await expect(flyttet.locator('.sq-plankort-status')).toHaveText('Avvist')
+      await expect(flyttet.getByRole('button', { name: 'Avvis' })).toHaveCount(0)
 
       // En avvist plan naar aldri mottakeren. `textContent` — en
       // negativ paastand paa `innerText` ville bestaatt mens kortet var
@@ -408,12 +494,4 @@ test.describe('bygg på nytt', () => {
     await expect(knapp).toBeEnabled()
   })
 
-  test('butikksjefens flate har ingen byggeknapp', async ({ page }) => {
-    // NEGATIV TILSTAND PÅ EN ANNEN AKSE: mottakeren skal aldri kunne
-    // bygge planen sin på nytt. `textContent` — en negativ påstand på
-    // `innerText` ville bestått mens knappen var skjult.
-    await page.goto('/min-plan')
-    await expect(page.locator('body')).not.toContainText('på nytt')
-    await expect(page.getByRole('button', { name: /Bygg/ })).toHaveCount(0)
-  })
 })
