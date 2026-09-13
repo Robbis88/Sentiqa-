@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Kastsats } from './kastvurdering'
 import { maaVaereHele } from '@/lib/supabase/datobolker'
 import type { Satser } from '@/lib/royalty'
 import { DRIFT_BEGREP } from './loftestenger'
@@ -93,6 +94,14 @@ type Maanedsrad = {
 
 
 
+/** Én rad fra `kastbudsjett`, avdelingsnivaa. */
+type Kastbudsjettrad = {
+  stasjon_id: string
+  ar: number
+  kast_pst_av_salg: number
+  nivaa: string
+}
+
 type Bilagsrad = {
   stasjon_id: string | null
   periode: string
@@ -179,8 +188,11 @@ export async function byggPlanerForRetailer(opts: {
   // var nettopp feilen - `.limit(7200)` kunne aldri utloese noe.
   const takMaaneder = stasjonIder.length * (MAANEDER_I_AARET + 1)
   const takBilag = stasjonIder.length * 150
+  // Én avdelingsrad per stasjon per aar. Taket er romslig nok til at et
+  // korrekt svar aldri treffer det, og lavt nok til at det kan utloese.
+  const takKast = stasjonIder.length + 5
 
-  const [maanedstall, bilag, satsrad] = await Promise.all([
+  const [maanedstall, bilag, satsrad, kastrader] = await Promise.all([
     supabase.from('v_kurs_maanedstall')
       .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr, har_svinndata, datastatus')
       .eq('retailer_id', retailerId)
@@ -199,6 +211,21 @@ export async function byggPlanerForRetailer(opts: {
       .eq('retailer_id', retailerId)
       .eq('aar', Number(tilOgMed.slice(0, 4)))
       .maybeSingle(),
+    // KASTBUDSJETTET. Satsen leses per stasjon og aar - aldri skrevet
+    // inn i koden. `satskilde.test.ts` feller en hardkodet sats.
+    //
+    // BARE AVDELINGSNIVAA (Mat-totalen, kode 120). `0172` sier at finnes
+    // begge nivaaer, er vareomraadene de gjeldende - men de er finere
+    // enn matomsetningen vi maaler mot, og skal ikke summeres paa tvers.
+    // Maalt i produksjon 2026-09-13: 0 vareomraaderader for 2026.
+    supabase.from('kastbudsjett')
+      .select('stasjon_id, ar, kast_pst_av_salg, nivaa')
+      .eq('retailer_id', retailerId)
+      .in('stasjon_id', stasjonIder)
+      .eq('ar', Number(tilOgMed.slice(0, 4)))
+      .eq('nivaa', 'avdeling')
+      .eq('kode', '120')
+      .limit(takKast),
   ])
 
   // ET FULLT SVAR ER IKKE ET BEVIS PAA AT DET ER HELE SVARET.
@@ -217,6 +244,17 @@ export async function byggPlanerForRetailer(opts: {
     ? { lavSats: Number(sr.lav_sats), hoySatsVask: Number(sr.hoy_sats_vask), pantSats: Number(sr.pant_sats) }
     : null
 
+  // SATSEN MANGLER ER ET SVAR, IKKE EN NULL. `null` her lar
+  // confidence gate blokkere med aarsak i stedet for aa regne mot 0 %.
+  const kastsatser = new Map<string, Kastsats>()
+  for (const k of (kastrader.data ?? []) as unknown as Kastbudsjettrad[]) {
+    const andel = Number(k.kast_pst_av_salg)
+    if (!(andel > 0)) continue
+    kastsatser.set(k.stasjon_id, {
+      stasjonId: k.stasjon_id, aar: k.ar, andel, nivaa: k.nivaa,
+    })
+  }
+
   const perStasjon = grupper(maanedsrader as unknown as Maanedsrad[], (r) => r.stasjon_id)
   const bilagPer = grupper(bilagsrader as unknown as Bilagsrad[], (r) => r.stasjon_id ?? '')
 
@@ -233,7 +271,10 @@ export async function byggPlanerForRetailer(opts: {
     ut.push({
       stasjonId: st.id,
       plan: byggMaanedsplan(
-        { stasjonNavn: st.navn, historikk, leverandorer, satser },
+        {
+          stasjonNavn: st.navn, historikk, leverandorer, satser,
+          kastsats: kastsatser.get(st.id) ?? null,
+        },
         { klasseFor: klasseFor },
       ),
     })

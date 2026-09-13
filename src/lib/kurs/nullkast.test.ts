@@ -164,7 +164,7 @@ describe('3 · manglende måned kommer ikke inn i trendserien', () => {
       })])[0]),
     ]
     const plan = byggMaanedsplan({
-      stasjonNavn: 'Testeriet', historikk, leverandorer: [], satser: null,
+      stasjonNavn: 'Testeriet', historikk, leverandorer: [], satser: null, kastsats: null,
     })
     // Matkastet FALLER over de tre maanedene med grunnlag. Kom
     // desembernullen med, ville serien vaert [0, 30k, 29k, 28k] og

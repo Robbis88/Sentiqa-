@@ -49,8 +49,15 @@ const uten = (maaned: string): Maanedstall =>
     har_svinndata: false, datastatus: null,
   })])[0]
 
+// 6 % av matomsetningen. Uten en sats blokkerer confidence gate matkast
+// helt, og da ville «ingen matkastkonklusjon» vaert sant av feil grunn.
+const KASTSATS = { stasjonId: 's1', aar: 2026, andel: 0.06, nivaa: 'avdeling' } as const
+
 const plan = (historikk: Maanedstall[]) =>
-  byggMaanedsplan({ stasjonNavn: 'Testeriet', historikk, leverandorer: [], satser: null })
+  byggMaanedsplan({
+    stasjonNavn: 'Testeriet', historikk, leverandorer: [],
+    satser: null, kastsats: KASTSATS,
+  })
 
 const matkastpunkt = (h: Maanedstall[]) =>
   plan(h).punkter.filter((p) => p.loftestang === 'matkast')
