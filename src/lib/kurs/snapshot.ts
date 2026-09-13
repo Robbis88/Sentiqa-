@@ -86,24 +86,83 @@ export function lagSnapshot(plan: Maanedsplan, naa = new Date()): {
 // funksjonene er den eneste veien inn, og de sier `null` på alt de ikke
 // kjenner igjen — en halv struktur skal ikke bli halve tall på flaten.
 
+const tall = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+const tekst = (v: unknown): v is string => typeof v === 'string'
+const obj = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === 'object' && !Array.isArray(v)
+
+/**
+ * Bare STOETTEDE versjoner slipper gjennom.
+ *
+ * En ukjent `analyseversjon` er ikke et snapshot vi kan tegne - formen
+ * kan ha endret seg. Da er «ikke beregnet» riktig svar, ikke en
+ * runtime-feil i `analysevisning`.
+ */
+export const STOTTEDE_VERSJONER: readonly string[] = [ANALYSEVERSJON]
+
 function erFelles(o: Record<string, unknown>): boolean {
-  return typeof o.analyseversjon === 'string'
-    && typeof o.beregnetForMaaned === 'string'
-    && typeof o.beregnetTid === 'string'
+  return tekst(o.analyseversjon)
+    && STOTTEDE_VERSJONER.includes(o.analyseversjon)
+    && tekst(o.beregnetForMaaned)
+    && tekst(o.beregnetTid)
+}
+
+/** `Kurs` slik `retning()` lager den, eller `null`. */
+function erKurs(v: unknown): boolean {
+  if (v === null) return true
+  if (!obj(v)) return false
+  return (v.vei === 'opp' || v.vei === 'ned' || v.vei === 'flat')
+    && tall(v.paaRad) && tall(v.endring) && tall(v.spenn)
+}
+
+/**
+ * HELE STRUKTUREN FLATEN LESER, ikke bare at feltene finnes.
+ *
+ * Foerste utgave sjekket tre strenger og at `dom` og `blokkering` var
+ * til stede, og typecastet resten. Et snapshot uten `dom.naa`, med
+ * `faktiskPst` som tekst, eller uten `kurs` slapp gjennom og krasjet
+ * foerst naar `analysevisning` skulle formatere det.
+ */
+function erKasttall(v: unknown): boolean {
+  if (!obj(v)) return false
+  return tekst(v.maaned)
+    && tall(v.matsalgKr) && tall(v.synligKastKr)
+    && tall(v.faktiskPst) && tall(v.budsjettPst)
+    && tall(v.justertBudsjettKr) && tall(v.avvikKr) && tall(v.avvikPstpoeng)
+    && typeof v.gunstig === 'boolean'
+}
+
+function erKastdom(v: unknown): boolean {
+  if (!obj(v)) return false
+  return (v.slag === 'tiltak' || v.slag === 'observer' || v.slag === 'bekreftelse')
+    && erKasttall(v.naa)
+    && erKurs(v.kurs ?? null)
+    && tall(v.ugunstige) && tall(v.antallMaaneder)
+    && tekst(v.tekst)
 }
 
 export function lesMatkast(v: unknown): Matkastsnapshot | null {
-  if (!v || typeof v !== 'object') return null
-  const o = v as Record<string, unknown>
-  if (!erFelles(o)) return null
-  if (!('dom' in o) || !('blokkering' in o)) return null
-  return o as unknown as Matkastsnapshot
+  if (!obj(v)) return null
+  if (!erFelles(v)) return null
+  const blokkert = v.blokkering === null || tekst(v.blokkering)
+  if (!blokkert) return null
+  // `dom: null` ER gyldig - det er en blokkert analyse. Men er den der,
+  // maa HELE den vaere der.
+  if (v.dom !== null && !erKastdom(v.dom)) return null
+  if (v.dom === null && !tekst(v.blokkering)) return null
+  return v as unknown as Matkastsnapshot
 }
 
 export function lesUsynlig(v: unknown): Usynligsnapshot | null {
-  if (!v || typeof v !== 'object') return null
-  const o = v as Record<string, unknown>
-  if (!erFelles(o)) return null
-  if (typeof o.usikker !== 'boolean' || typeof o.vindu !== 'number') return null
-  return o as unknown as Usynligsnapshot
+  if (!obj(v)) return null
+  if (!erFelles(v)) return null
+  if (typeof v.usikker !== 'boolean' || !tall(v.vindu)) return null
+  if (!(v.naaKr === null || tall(v.naaKr))) return null
+  if (!(v.aarsakUsikker === null || tekst(v.aarsakUsikker))) return null
+  if (!(v.blokkering === null || tekst(v.blokkering))) return null
+  if (!erKurs(v.kurs ?? null)) return null
+  // Uten blokkering MAA det finnes et tall. Et snapshot som verken har
+  // verdi eller aarsak er en halv struktur.
+  if (v.blokkering === null && v.naaKr === null) return null
+  return v as unknown as Usynligsnapshot
 }

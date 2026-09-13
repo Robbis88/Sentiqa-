@@ -1093,7 +1093,7 @@ where r.id in ('11111111-1111-4111-8111-111111111111',
 -- Idempotent: `on conflict (stasjon_id, maaned) do nothing`.
 insert into public.maanedsplan
   (retailer_id, stasjon_id, maaned, dom, ingress, punkter, merknad, status,
-   matkast, usynlig)
+   matkast, usynlig, rangering)
 values
   ('11111111-1111-4111-8111-111111111111',
    '22222222-2222-4222-8222-222222222222', date '2026-07-01',
@@ -1121,7 +1121,8 @@ values
      'beregnetTid', '2026-09-13T12:00:00.000Z',
      'naaKr', 31902.47, 'kurs', null, 'vindu', 0, 'usikker', true,
      'aarsakUsikker', 'Fortegnet skifter i de siste 3 månedene. Usikker enkeltmåling — kontroller telling, periodisering og fakturaflyt før tiltak.',
-     'blokkering', null)),
+     'blokkering', null),
+   null),
 
   ('11111111-1111-4111-8111-111111111111',
    '22222222-2222-4222-8222-333333333333', date '2026-07-01',
@@ -1150,7 +1151,8 @@ values
      'naaKr', 3814.60,
      'kurs', jsonb_build_object('vei', 'opp', 'paaRad', 2,
                                 'endring', 1461.89, 'spenn', 1461.89),
-     'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null)),
+     'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null),
+   null),
 
   ('11111111-1111-4111-8111-111111111111',
    '22222222-2222-4222-8222-222222222222', date '2026-06-01',
@@ -1169,5 +1171,54 @@ values
      'beregnetTid', '2026-09-13T12:00:00.000Z',
      'naaKr', null, 'kurs', null, 'vindu', 0, 'usikker', false,
      'aarsakUsikker', null,
-     'blokkering', 'Datagrunnlag mangler. Matgruppen ble ikke funnet i 2026-04-01.'))
+     'blokkering', 'Datagrunnlag mangler. Matgruppen ble ikke funnet i 2026-04-01.'),
+   null),
+
+  -- -------------------------------------------------------------------
+  -- DEN FJERDE: SLUPPET, og derfor den eneste butikksjefen kan lese.
+  --
+  -- De tre over er UTKAST. De ligger i eierens koe og naar ingen andre -
+  -- hverken RLS-policyen `maanedsplan_les_butikksjef` (0200) eller
+  -- `/min-plan` slipper et utkast gjennom. Uten denne raden ville
+  -- `e2e/min-plan.spec.ts` maalt tomtilstanden og vaert groenn uten aa
+  -- se en eneste plan.
+  --
+  -- Den baerer samtidig det tilfellet som er vanskeligst aa faa riktig:
+  -- EN URANGERT PLAN. To loeftestenger gaar feil vei, kjeden mangler
+  -- royaltysatser fra BP, og motoren har derfor latt vaere aa velge et
+  -- hovedtiltak. `punkter` er tom - men det betyr IKKE at alt er i
+  -- orden, og flaten maa si forskjellen.
+  ('11111111-1111-4111-8111-111111111111',
+   '22222222-2222-4222-8222-333333333333', date '2026-05-01',
+   'motvind',
+   'Resultatet i mai er 18 402 kroner. I januar var det 52 010.',
+   '[]'::jsonb,
+   'Kroneverdier vises ikke: kjeden mangler royaltysatser fra BP, og uten dem ville tallene vaert bruttofortjeneste utgitt for netto.',
+   'sluppet',
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-05-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'blokkering', null,
+     'dom', jsonb_build_object(
+       'slag', 'tiltak', 'ugunstige', 4, 'antallMaaneder', 5,
+       'kurs', jsonb_build_object('vei', 'opp', 'paaRad', 3,
+                                  'endring', 2.14, 'spenn', 4.02),
+       'tekst', 'Ligger over kastbudsjettet: 16,80 % mot 13,59 % budsjettert (+3,21 pp), og kastprosenten stiger.',
+       'naa', jsonb_build_object(
+         'maaned', '2026-05-01', 'matsalgKr', 128430.00, 'synligKastKr', 21576.24,
+         'faktiskPst', 16.7999, 'budsjettPst', 13.592763033,
+         'justertBudsjettKr', 17457.10, 'avvikKr', 4119.14,
+         'avvikPstpoeng', 3.2071, 'gunstig', false))),
+   jsonb_build_object(
+     'analyseversjon', 'p2-kastbudsjett-1',
+     'beregnetForMaaned', '2026-05-01',
+     'beregnetTid', '2026-09-13T12:00:00.000Z',
+     'naaKr', 2941.00,
+     'kurs', jsonb_build_object('vei', 'ned', 'paaRad', 3,
+                                'endring', -880.50, 'spenn', 1902.00),
+     'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null),
+   jsonb_build_object(
+     'mulig', false,
+     'kandidater', jsonb_build_array('Matkast', 'Påvirkbare driftskostnader')))
 on conflict (stasjon_id, maaned) do nothing;

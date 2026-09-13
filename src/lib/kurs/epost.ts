@@ -1,6 +1,6 @@
 import type { Maanedsplan } from './plan'
 import {
-  erRangert, matkastvisning, usynligvisning, UTEN_KRONEVERDI,
+  ingenFeilVei, matkastvisning, rangeringstekst, usynligvisning,
   type Matkastvisning, type Usynligvisning,
 } from './analysevisning'
 import { lesMatkast, lesUsynlig } from './snapshot'
@@ -157,10 +157,14 @@ export function tilEpost(
     u ? blokkHtml('Uforklart matavvik', u.merke, usynligLinjer(u)) : '',
   ].join('')
 
-  const urangert = plan.punkter.length > 1 && !erRangert(plan.punkter)
+  // SAMME KILDE SOM KORTET: `plan.rangering`, ikke en gjetning ut av
+  // punktlista. Se `rangeringstekst` for hvorfor den forskjellen betyr
+  // noe.
+  const urangertTekst = rangeringstekst(plan.rangering)
+  const urangert = urangertTekst
     ? `
       <tr><td style="padding:10px 0 0;font-size:12px;line-height:1.5;color:${F.svak};">
-        ${e(UTEN_KRONEVERDI)}
+        ${e(urangertTekst)}
       </td></tr>`
     : ''
 
@@ -232,8 +236,8 @@ export function tilEpost(
       </td></tr>
       <tr><td style="padding:20px 0 0;border-top:1px solid ${F.kant};margin-top:16px;">
         <div style="padding-top:14px;font-size:12px;line-height:1.5;color:${F.svak};">
-          Månedsplanen bygges på retningen i dine egne tall, ikke på nivået.
-          Den er lest og sluppet av eier før den ble sendt.
+          Månedsplanen bygger på nivå mot budsjett, utvikling over tid og
+          kvaliteten på datagrunnlaget. Den er kontrollert og sluppet av eier.
         </div>
       </td></tr>
     </table>
@@ -254,12 +258,12 @@ export function tilEpost(
         : `${p.slag === 'tiltak' ? 'Står på spill' : 'Verdt'}: ${kr(p.kronerIAret)} kroner i året`,
       '',
     ].filter((x): x is string => x !== null)),
-    ...(plan.punkter.length === 0
+    ...(ingenFeilVei(plan.punkter, plan.rangering)
       ? ['Ingen av løftestengene peker feil vei denne måneden. Hold kursen.', '']
       : []),
     ...(m ? ['SYNLIG MATKAST — ' + m.merke.toUpperCase(), ...matkastLinjer(m), ''] : []),
     ...(u ? ['UFORKLART MATAVVIK — ' + u.merke.toUpperCase(), ...usynligLinjer(u), ''] : []),
-    ...(plan.punkter.length > 1 && !erRangert(plan.punkter) ? [UTEN_KRONEVERDI, ''] : []),
+    ...(urangertTekst ? [urangertTekst, ''] : []),
     ...(plan.merknad ? [plan.merknad, ''] : []),
     `Se tallene: ${basisUrl}/regnskap`,
   ].join('\n')

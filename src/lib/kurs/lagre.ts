@@ -100,6 +100,7 @@ export async function lagreUtkast(
         // e-posten aapnes, kunne butikksjefen faatt andre tall enn de
         // eieren godkjente. Se `snapshot.ts`.
         ...lagSnapshot(u.plan),
+        rangering: u.plan.rangering,
         status: 'utkast',
         kilde_jobb_id: jobbId,
         oppdatert_tid: new Date().toISOString(),

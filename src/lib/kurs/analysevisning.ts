@@ -210,7 +210,42 @@ export function usynligvisning(s: Usynligsnapshot | null): Usynligvisning {
 export const UTEN_KRONEVERDI =
   'Kroneverdi mangler — tiltakene er ikke økonomisk rangert.'
 
-export function erRangert(punkter: readonly { kronerIAret: number | null }[]): boolean {
-  const tiltak = punkter.filter((p) => p.kronerIAret !== null)
-  return tiltak.length === punkter.length && punkter.length > 0
+export type Rangering = { mulig: boolean; kandidater: readonly string[] }
+
+/**
+ * Setningen som står der hovedtiltaket skulle stått.
+ *
+ * =====================================================================
+ * DEN LESES AV `rangering`, IKKE AV `punkter`
+ * =====================================================================
+ *
+ * Her sto `erRangert(punkter)`: «har hvert punkt en kroneverdi?». Den
+ * kunne ikke se forskjell på to tilfeller som ser helt like ut i lista
+ * og betyr motsatte ting:
+ *
+ *   • ÉN løftestang gikk feil vei. Ingenting å rangere.
+ *   • TO gikk feil vei, men ingen hadde kroneverdi, så motoren lot
+ *     være å velge — og lista er derfor tom.
+ *
+ * I begge tilfeller er `punkter.length > 1` usant, og advarselen ble
+ * ikke vist i det ene tilfellet den måtte vises i. `rangering` kommer
+ * fra motoren og vet hvilke kandidater som fantes FØR valget.
+ */
+export function rangeringstekst(r: Rangering): string | null {
+  if (r.mulig) return null
+  const n = r.kandidater.length
+  return `${UTEN_KRONEVERDI} ${n} løftestenger går feil vei, og uten `
+    + 'royaltysatser fra BP kan ingen av dem kalles størst. '
+    + `Kandidater: ${r.kandidater.join(', ')}.`
+}
+
+/**
+ * Skal «ingen løftestenger peker feil vei» stå der?
+ *
+ * BARE NÅR DET ER SANT. En tom punktliste betyr to ting: at ingenting
+ * gikk feil vei, eller at flere gjorde det og ingen kunne velges. Den
+ * andre er ikke en god nyhet, og skal ikke leses som en.
+ */
+export function ingenFeilVei(punkter: readonly unknown[], r: Rangering): boolean {
+  return punkter.length === 0 && r.mulig && r.kandidater.length === 0
 }

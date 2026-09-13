@@ -228,6 +228,14 @@ export type Maanedsplan = {
    * `null` naar maaneden mangler svinngrunnlag.
    */
   usynlig: Usynligvurdering
+  /**
+   * Kunne hovedtiltaket velges?
+   *
+   * `mulig: false` betyr at det fantes flere kandidater, men ingen
+   * kroneverdi aa sammenligne dem med - da er INGEN valgt, og flaten
+   * skal si hvorfor i stedet for aa vise en vilkaarlig vinner.
+   */
+  rangering: { mulig: boolean; kandidater: string[] }
 }
 
 // --- hjelpere ---------------------------------------------------------
@@ -612,11 +620,25 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
   // budsjett fem av sju maaneder.
   const matkast = vurderMatkast(d)
 
-  const verdi = (v: Verdi) => kronerIAret(v, siste, d.satser) ?? 0
-  const ille = vurdert.filter((v) => erIlle(v.kurs, v.l.god))
-    .sort((a, b) => verdi(b) - verdi(a))
-  const bra = vurdert.filter((v) => erBra(v.kurs, v.l.god))
-    .sort((a, b) => verdi(b) - verdi(a))
+  // =====================================================================
+  // EN MANGLENDE KRONEVERDI ER IKKE NULL KRONER
+  // =====================================================================
+  //
+  // `?? 0` sto her. Uten royaltysatser ga `kronerIAret` `null` paa HVERT
+  // punkt, alle ble 0, og `sort` lot da REKKEFOELGEN I `LOFTESTENGER`
+  // avgjoere hvem som var «stoerst». I motvind beholdes bare det
+  // stoerste, saa flaten fikk ett vilkaarlig valgt tiltak - og fordi
+  // lista da hadde lengde 1, ble advarselen om manglende rangering
+  // heller ikke vist.
+  //
+  // Aa merke en liste som urangert ETTER at motoren har kastet de andre
+  // kandidatene, er ingen aerlighet.
+  const verdi = (v: Verdi): number | null => kronerIAret(v, siste, d.satser)
+  const sorter = (a: Verdi[]) =>
+    [...a].sort((x, y) => (verdi(y) ?? 0) - (verdi(x) ?? 0))
+
+  const illeRaa = vurdert.filter((v) => erIlle(v.kurs, v.l.god))
+  const bra = sorter(vurdert.filter((v) => erBra(v.kurs, v.l.god)))
 
   const punkter: Planpunkt[] = []
 
@@ -673,16 +695,35 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
   const matkasttiltak = matkast.dom?.slag === 'tiltak' ? matkastpunkt : null
   const matkastbekreftelse = matkast.dom?.slag === 'bekreftelse' ? matkastpunkt : null
 
-  // RANGERING PAA AVVIK MOT BUDSJETT, ikke paa kronetrend. `verdi()`
-  // maaler de andre loeftestengene i kroner i aaret; matkast maales i
-  // avviket mot det omsetningsjusterte budsjettet, gjennom samme
-  // royaltyregel.
+  // ALLE kandidatene, ikke bare den foerste. Matkast maales i avviket mot
+  // kastbudsjettet, de andre i kroner i aaret - men begge gaar gjennom
+  // `verdiAvGevinst`, saa de er sammenlignbare NAAR satsene finnes.
+  const kandidater: { navn: string; verdi: number | null; punkt: Planpunkt }[] = [
+    ...(matkasttiltak
+      ? [{
+          navn: loftestang('matkast').navn,
+          verdi: d.satser ? matkastverdi(matkast.dom, d.satser) : null,
+          punkt: matkasttiltak,
+        }]
+      : []),
+    ...illeRaa.map((v) => ({ navn: v.l.navn, verdi: verdi(v), punkt: tiltak(v) })),
+  ]
+
+  // KAN DE SAMMENLIGNES? Bare naar HVER kandidat har en kroneverdi.
+  const kanRangeres = kandidater.every((k) => k.verdi !== null)
+  const maaVelges = kandidater.length > 1
+
+
+  // RANGERING PAA AVVIK MOT BUDSJETT, ikke paa kronetrend.
+  //
+  // Kan kandidatene IKKE sammenlignes, og det er flere enn én, velges
+  // ingen. Da ville valget vaert rekkefoelgen i `LOFTESTENGER`, og en
+  // vilkaarlig rekkefoelge skal ikke presenteres som «stoerst».
   const stoersteTiltak = (): Planpunkt | null => {
-    const annet = ille[0] ? tiltak(ille[0]) : null
-    if (!matkasttiltak) return annet
-    if (!annet) return matkasttiltak
-    const mv = matkastverdi(matkast.dom, d.satser)
-    return mv >= verdi(ille[0]) ? matkasttiltak : annet
+    if (kandidater.length === 0) return null
+    if (kandidater.length === 1) return kandidater[0].punkt
+    if (!kanRangeres) return null
+    return [...kandidater].sort((a, b) => (b.verdi as number) - (a.verdi as number))[0].punkt
   }
 
   if (dom === 'medvind') {
@@ -727,6 +768,10 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
         + 'uten dem ville tallene vært bruttofortjeneste utgitt for netto.',
     matkast,
     usynlig: vurderUsynlig(d),
+    rangering: {
+      mulig: kanRangeres || !maaVelges,
+      kandidater: kandidater.map((k) => k.navn),
+    },
   }
 }
 

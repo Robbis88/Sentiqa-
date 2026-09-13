@@ -41,6 +41,7 @@ type Planrad = {
   // enn `0216` - da sier kortet «ikke beregnet», ikke «blokkert».
   matkast: unknown
   usynlig: unknown
+  rangering: { mulig: boolean; kandidater: string[] } | null
 }
 
 export default async function MaanedsplanSide() {
@@ -53,7 +54,7 @@ export default async function MaanedsplanSide() {
   // en stasjon ligget usluppet uten at noe sa fra.
   const { data } = await supabase
     .from('maanedsplan')
-    .select('id, maaned, dom, ingress, punkter, merknad, status, matkast, usynlig, stasjoner(navn)')
+    .select('id, maaned, dom, ingress, punkter, merknad, status, matkast, usynlig, rangering, stasjoner(navn)')
     .order('maaned', { ascending: false })
     .order('status')
     .limit(240)
@@ -106,6 +107,7 @@ export default async function MaanedsplanSide() {
                 status={p.status}
                 matkast={p.matkast}
                 usynlig={p.usynlig}
+                rangering={p.rangering ?? { mulig: true, kandidater: [] }}
               />
             ))}
           </div>
@@ -133,6 +135,7 @@ export default async function MaanedsplanSide() {
                 status={p.status}
                 matkast={p.matkast}
                 usynlig={p.usynlig}
+                rangering={p.rangering ?? { mulig: true, kandidater: [] }}
               />
             ))}
           </div>

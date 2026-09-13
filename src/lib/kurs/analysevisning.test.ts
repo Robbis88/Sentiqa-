@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  erRangert, matkastvisning, medFortegn, usynligvisning,
+  ingenFeilVei, matkastvisning, medFortegn, rangeringstekst, usynligvisning,
   USYNLIG_AARSAKER, UTEN_KRONEVERDI,
 } from './analysevisning'
 import { lagSnapshot, lesMatkast, lesUsynlig, ANALYSEVERSJON } from './snapshot'
@@ -215,11 +215,31 @@ describe('observer vises, men blir aldri et punkt', () => {
 
 // =====================================================================
 describe('rangering', () => {
-  it('uten kroneverdi sier flaten det', () => {
-    expect(erRangert([{ kronerIAret: null }, { kronerIAret: 10 }])).toBe(false)
-    expect(erRangert([{ kronerIAret: 5 }, { kronerIAret: 10 }])).toBe(true)
-    expect(erRangert([])).toBe(false)
-    expect(UTEN_KRONEVERDI).toContain('ikke økonomisk rangert')
+  it('en mulig rangering sier ingenting', () => {
+    expect(rangeringstekst({ mulig: true, kandidater: ['Matkast'] })).toBeNull()
+    expect(rangeringstekst({ mulig: true, kandidater: [] })).toBeNull()
+  })
+
+  it('en umulig rangering NAVNGIR kandidatene', () => {
+    const t = rangeringstekst({
+      mulig: false,
+      kandidater: ['Personalkostnad mot budsjett', 'Påvirkbare driftskostnader'],
+    })
+    expect(t).toContain(UTEN_KRONEVERDI)
+    expect(t).toContain('2 løftestenger')
+    expect(t).toContain('royaltysatser')
+    expect(t).toContain('Personalkostnad mot budsjett')
+    expect(t).toContain('Påvirkbare driftskostnader')
+  })
+
+  it('«ingen peker feil vei» står BARE når det er sant', () => {
+    // Tom liste fordi ingenting gikk feil vei — god nyhet.
+    expect(ingenFeilVei([], { mulig: true, kandidater: [] })).toBe(true)
+    // Tom liste fordi TO gikk feil vei og ingen kunne velges. Samme
+    // lengde, motsatt beskjed.
+    expect(ingenFeilVei([], { mulig: false, kandidater: ['A', 'B'] })).toBe(false)
+    // Kandidater fantes, men ble valgt bort? Da er lista ikke tom.
+    expect(ingenFeilVei([{}], { mulig: true, kandidater: ['A'] })).toBe(false)
   })
 
   it('manglende royaltyverdi blir ikke 0', () => {

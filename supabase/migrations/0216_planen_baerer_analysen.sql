@@ -38,7 +38,15 @@
 -- stoppet med en aarsak, og det er en helt annen beskjed.
 --
 -- ---------------------------------------------------------------------
--- ADDITIV OG BAKOVERKOMPATIBEL. To nullable kolonner. Ingen eksisterende
+-- OGSAA `rangering` - DEN TREDJE KOLONNEN
+--
+-- Kunne hovedtiltaket velges? Uten royaltysatser har ingen kandidat en
+-- kroneverdi, og da velger motoren INGEN - se `plan.ts`. Det maa lagres
+-- sammen med resten: utledet flaten det paa nytt fra `punkter`, ville den
+-- bare sett at lista har ett punkt, ikke at motoren lot vaere aa velge.
+--
+-- ---------------------------------------------------------------------
+-- ADDITIV OG BAKOVERKOMPATIBEL. Tre nullable kolonner. Ingen eksisterende
 -- leser roerer dem, og `punkter` staar uendret ved siden av. Kjoeres FOER
 -- koden deployes, slik `0213`-`0215` ble.
 --
@@ -47,7 +55,8 @@
 
 alter table public.maanedsplan
   add column if not exists matkast jsonb,
-  add column if not exists usynlig jsonb;
+  add column if not exists usynlig jsonb,
+  add column if not exists rangering jsonb;
 
 comment on column public.maanedsplan.matkast is
   'Oeyeblikksbilde av synlig matkast mot omsetningsjustert kastbudsjett: '
@@ -59,6 +68,14 @@ comment on column public.maanedsplan.usynlig is
   'Oeyeblikksbilde av uforklart matavvik: {analyseversjon, '
   'beregnetForMaaned, beregnetTid, naaKr, kurs, vindu, usikker, '
   'aarsakUsikker, blokkering}. NULL som over.';
+
+comment on column public.maanedsplan.rangering is
+  'Kunne hovedtiltaket velges? {mulig, kandidater}. mulig = false betyr '
+  'at flere loeftestenger gikk feil vei, men ingen hadde kroneverdi - '
+  'kjeden mangler royaltysatser - og motoren valgte derfor INGEN. '
+  'Kan ikke utledes av punkter: en tom liste ser likedan ut enten '
+  'ingenting gikk feil vei eller flere gjorde det uten aa kunne rangeres. '
+  'NULL betyr at planen ble laget foer feltet fantes.';
 
 -- ---------------------------------------------------------------------
 -- KVITTERING. Rent lesende.
@@ -75,19 +92,22 @@ select
        where table_schema = 'public' and table_name = 'maanedsplan'
          and column_name = 'matkast')
       then 'FEIL: kolonnen matkast finnes ikke'
-    when not exists (
-      select 1 from information_schema.columns
-       where table_schema = 'public' and table_name = 'maanedsplan'
-         and column_name = 'usynlig')
-      then 'FEIL: kolonnen usynlig finnes ikke'
+    when (select count(*) from information_schema.columns
+           where table_schema = 'public' and table_name = 'maanedsplan'
+             and column_name in ('matkast', 'usynlig', 'rangering')) <> 3
+      then 'FEIL: ikke alle tre kolonnene finnes'
     else 'OK'
   end                                                        as dom,
   (select count(*) from public.maanedsplan)                  as rader,
   (select count(*) from public.maanedsplan where matkast is null) as uten_matkast,
   (select count(*) from public.maanedsplan where usynlig is null) as uten_usynlig,
+  (select count(*) from public.maanedsplan where rangering is null) as uten_rangering,
   (select count(*) from public.maanedsplan where status = 'utkast') as utkast,
   (select count(*) from public.maanedsplan where status <> 'utkast') as avgjort,
   (select coalesce(string_agg(distinct data_type, ', '), '-')
      from information_schema.columns
     where table_schema = 'public' and table_name = 'maanedsplan'
-      and column_name in ('matkast', 'usynlig'))             as kolonnetype;
+      and column_name in ('matkast', 'usynlig', 'rangering'))  as kolonnetype,
+  (select count(*) from information_schema.columns
+    where table_schema = 'public' and table_name = 'maanedsplan'
+      and column_name in ('matkast', 'usynlig', 'rangering'))  as nye_kolonner;

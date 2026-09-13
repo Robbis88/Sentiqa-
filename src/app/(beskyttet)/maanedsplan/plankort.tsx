@@ -1,5 +1,5 @@
 'use client'
-import { erRangert, UTEN_KRONEVERDI } from '@/lib/kurs/analysevisning'
+import { ingenFeilVei, rangeringstekst } from '@/lib/kurs/analysevisning'
 import { HandlingKnapp } from '@/components/ui/handling-knapp'
 import { Analyseblokk } from './analyseblokk'
 import { avvisPlan, slippPlan } from './handlinger'
@@ -33,6 +33,7 @@ export function Plankort({
   status,
   matkast,
   usynlig,
+  rangering,
 }: {
   id: string
   stasjon: string
@@ -44,7 +45,10 @@ export function Plankort({
   /** Lagret oeyeblikksbilde. `unknown` fordi kolonnen er `jsonb`. */
   matkast: unknown
   usynlig: unknown
+  /** Kunne hovedtiltaket velges? Se `plan.ts`. */
+  rangering: { mulig: boolean; kandidater: string[] }
 }) {
+  const urangert = rangeringstekst(rangering)
   const kr = (n: number) =>
     Math.round(Math.abs(n)).toLocaleString('nb-NO')
 
@@ -62,7 +66,7 @@ export function Plankort({
 
       <Analyseblokk matkast={matkast} usynlig={usynlig} />
 
-      {punkter.length === 0 && (
+      {ingenFeilVei(punkter, rangering) && (
         <p className="sq-plankort-tom">
           Ingen av løftestengene peker feil vei denne måneden.
         </p>
@@ -87,13 +91,12 @@ export function Plankort({
       ))}
 
       {/*
-        * RANGERINGEN MAA VAERE ERLIG. Uten royaltysatser er
-        * `kronerIAret` null paa hvert punkt, og rekkefoelgen er da
-        * vilkaarlig - men den SER ut som en rangering. Da sier vi det.
+        * MOTOREN HAR ALLEREDE VALGT naar den kunne. Kunne den ikke -
+        * flere kandidater uten kroneverdi - er `rangering.mulig` usann,
+        * og INGEN er valgt. Da maa flaten si hvorfor, og hvilke som sto
+        * likt. Se `rangeringstekst`.
         */}
-      {punkter.length > 1 && !erRangert(punkter) && (
-        <p className="sq-plankort-urangert">{UTEN_KRONEVERDI}</p>
-      )}
+      {urangert && <p className="sq-plankort-urangert">{urangert}</p>}
 
       {merknad && <p className="sq-plankort-merknad">{merknad}</p>}
 
