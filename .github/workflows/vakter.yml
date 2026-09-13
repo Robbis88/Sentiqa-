@@ -254,7 +254,11 @@ jobs:
       # Interleavingen VERIFISERES paa `pg_locks` - ikke en `sleep`,
       # som ville latt testen degenerere til den lette varianten uten
       # at noen merket det.
+      # `timeout-minutes` er ikke pynt: foerste kjoering sto i 18 minutter
+      # etter at testen HADDE sagt «FUNN», fordi bakgrunnsprosessene holdt
+      # utdatapipen aapen. Steget skal feile, ikke henge.
       - name: Samtidighet paa maanedsplanen
+        timeout-minutes: 3
         run: bash supabase/tests/samtidighet_maanedsplan.sh
 
       # Hemmeligheten: at pin_hash faktisk er lukket for klientrollen, at
