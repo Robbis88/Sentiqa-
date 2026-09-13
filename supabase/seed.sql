@@ -1078,14 +1078,25 @@ where r.id in ('11111111-1111-4111-8111-111111111111',
 -- =====================================================================
 -- MAANEDSPLANER MED MAT- OG SVINNANALYSE
 -- =====================================================================
--- Tre utkast som dekker de tre tilstandene flaten maa taale, saa
--- `e2e/maanedsplan.spec.ts` maaler noe. Uten disse viser sida
--- tomtilstanden, og en e2e-test mot den ville vaert groenn uten aa se
--- en eneste analyseblokk.
+-- Fire planer som dekker tilstandene flaten maa taale, saa
+-- `e2e/maanedsplan.spec.ts` og `e2e/min-plan.spec.ts` maaler noe. Uten
+-- disse viser sidene tomtilstanden, og en e2e-test mot den ville vaert
+-- groenn uten aa se en eneste analyseblokk.
 --
---   Testby   bekreftelse + usikker enkeltmaaling   (Dales juli-form)
---   Testvik  tiltak + retning tilgjengelig         (Boenes/Varden-form)
---   Testby   BLOKKERT, forrige maaned              (manglende kastbudsjett)
+--   Underby   juli  utkast   bekreftelse + usikker enkeltmaaling
+--   Grenseby  juli  utkast   tiltak + retning tilgjengelig
+--   Underby   juni  utkast   BLOKKERT, med aarsak og maaned
+--   Grenseby  mai   SLUPPET  urangert plan - se raden selv
+--
+-- I EIERENS KJEDE, og det er ikke tilfeldig. Foerste utgave la dem paa
+-- Testby og Testvik i kjede 1. Den kjeden har butikksjef og nettbrett,
+-- men INGEN retailer_admin - og `/maanedsplan` er eierens koe.
+-- RLS-policyen `maanedsplan_les_eier` krever hennes kjede, saa planene
+-- naadde aldri en eneste flate. Testene ville maalt tomtilstanden.
+--
+-- Den sluppede raden baerer `sluppet_av` og `sluppet_tid`: constrainten
+-- `maanedsplan_sluppet_har_person` (0200) krever dem, og den har rett -
+-- en status uten en person er en status ingen kan svare for.
 --
 -- Tallene er Kelsars faktiske, maalt 2026-09-13. De staar her som
 -- FIKSTUR - produksjonskoden leser dem aldri herfra.
@@ -1093,10 +1104,10 @@ where r.id in ('11111111-1111-4111-8111-111111111111',
 -- Idempotent: `on conflict (stasjon_id, maaned) do nothing`.
 insert into public.maanedsplan
   (retailer_id, stasjon_id, maaned, dom, ingress, punkter, merknad, status,
-   matkast, usynlig, rangering)
+   matkast, usynlig, rangering, sluppet_av, sluppet_tid)
 values
-  ('11111111-1111-4111-8111-111111111111',
-   '22222222-2222-4222-8222-222222222222', date '2026-07-01',
+  ('11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', date '2026-07-01',
    'medvind',
    'Resultatet i juli er 63 246 kroner. I januar var det −162 491.',
    '[]'::jsonb, null, 'utkast',
@@ -1122,10 +1133,10 @@ values
      'naaKr', 31902.47, 'kurs', null, 'vindu', 0, 'usikker', true,
      'aarsakUsikker', 'Fortegnet skifter i de siste 3 månedene. Usikker enkeltmåling — kontroller telling, periodisering og fakturaflyt før tiltak.',
      'blokkering', null),
-   null),
+   null, null, null),
 
-  ('11111111-1111-4111-8111-111111111111',
-   '22222222-2222-4222-8222-333333333333', date '2026-07-01',
+  ('11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-222222222222', date '2026-07-01',
    'motvind',
    'Resultatet i juli er 36 991 kroner. I januar var det 52 010.',
    '[]'::jsonb, null, 'utkast',
@@ -1152,10 +1163,10 @@ values
      'kurs', jsonb_build_object('vei', 'opp', 'paaRad', 2,
                                 'endring', 1461.89, 'spenn', 1461.89),
      'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null),
-   null),
+   null, null, null),
 
-  ('11111111-1111-4111-8111-111111111111',
-   '22222222-2222-4222-8222-222222222222', date '2026-06-01',
+  ('11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', date '2026-06-01',
    'flat',
    'Resultatet i juni er 12 004 kroner. I januar var det −162 491.',
    '[]'::jsonb, null, 'utkast',
@@ -1172,7 +1183,7 @@ values
      'naaKr', null, 'kurs', null, 'vindu', 0, 'usikker', false,
      'aarsakUsikker', null,
      'blokkering', 'Datagrunnlag mangler. Matgruppen ble ikke funnet i 2026-04-01.'),
-   null),
+   null, null, null),
 
   -- -------------------------------------------------------------------
   -- DEN FJERDE: SLUPPET, og derfor den eneste butikksjefen kan lese.
@@ -1188,8 +1199,8 @@ values
   -- royaltysatser fra BP, og motoren har derfor latt vaere aa velge et
   -- hovedtiltak. `punkter` er tom - men det betyr IKKE at alt er i
   -- orden, og flaten maa si forskjellen.
-  ('11111111-1111-4111-8111-111111111111',
-   '22222222-2222-4222-8222-333333333333', date '2026-05-01',
+  ('11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-222222222222', date '2026-05-01',
    'motvind',
    'Resultatet i mai er 18 402 kroner. I januar var det 52 010.',
    '[]'::jsonb,
@@ -1220,5 +1231,6 @@ values
      'vindu', 3, 'usikker', false, 'aarsakUsikker', null, 'blokkering', null),
    jsonb_build_object(
      'mulig', false,
-     'kandidater', jsonb_build_array('Matkast', 'Påvirkbare driftskostnader')))
+     'kandidater', jsonb_build_array('Matkast', 'Påvirkbare driftskostnader')),
+   '33333333-3333-4333-8333-444444444444', timestamptz '2026-06-03 09:14:00+02')
 on conflict (stasjon_id, maaned) do nothing;

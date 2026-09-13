@@ -10,9 +10,9 @@ import { expect, test } from '@playwright/test'
 //
 // Seedet har tre utkast, ett for hver tilstand som må tåles:
 //
-//   Testby  juli  bekreftelse + usikker enkeltmåling
-//   Testvik juli  tiltak + retning tilgjengelig
-//   Testby  juni  blokkert, med årsak og måned
+//   Underby  juli  bekreftelse + usikker enkeltmåling
+//   Grenseby juli  tiltak + retning tilgjengelig
+//   Underby  juni  blokkert, med årsak og måned
 //
 // ---------------------------------------------------------------------
 // `toContainText`, IKKE `innerText`
@@ -29,8 +29,8 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
 })
 
-test('Testby juli: bekreftelse med alle tallene', async ({ page }) => {
-  const k = kort(page, 'Testby').filter({ hasText: 'Synlig matkast' })
+test('Underby juli: bekreftelse med alle tallene', async ({ page }) => {
+  const k = kort(page, 'Underby').filter({ hasText: 'Synlig matkast' })
   const blokk = k.locator('.sq-analyse').filter({ hasText: 'Synlig matkast' })
   await expect(blokk).toBeVisible()
 
@@ -50,8 +50,8 @@ test('Testby juli: bekreftelse med alle tallene', async ({ page }) => {
   await expect(blokk).toContainText('Under kastbudsjettet')
 })
 
-test('Testby juli: uforklart matavvik er usikkert, ikke en manko', async ({ page }) => {
-  const blokk = kort(page, 'Testby')
+test('Underby juli: uforklart matavvik er usikkert, ikke en manko', async ({ page }) => {
+  const blokk = kort(page, 'Underby')
     .locator('.sq-analyse').filter({ hasText: 'Uforklart matavvik' })
   await expect(blokk).toBeVisible()
 
@@ -71,8 +71,8 @@ test('Testby juli: uforklart matavvik er usikkert, ikke en manko', async ({ page
   await expect(blokk).not.toContainText('gevinst')
 })
 
-test('Testvik juli: tiltak med budsjettavviket som forklaring', async ({ page }) => {
-  const blokk = kort(page, 'Testvik')
+test('Grenseby juli: tiltak med budsjettavviket som forklaring', async ({ page }) => {
+  const blokk = kort(page, 'Grenseby')
     .locator('.sq-analyse').filter({ hasText: 'Synlig matkast' })
   await expect(blokk.locator('.sq-analyse-merke')).toHaveText('tiltak')
   await expect(blokk).toContainText('19,33 %')
@@ -84,8 +84,8 @@ test('Testvik juli: tiltak med budsjettavviket som forklaring', async ({ page })
   await expect(blokk).not.toContainText('feil vei')
 })
 
-test('Testvik juli: retning med PERIODEN i setningen', async ({ page }) => {
-  const blokk = kort(page, 'Testvik')
+test('Grenseby juli: retning med PERIODEN i setningen', async ({ page }) => {
+  const blokk = kort(page, 'Grenseby')
     .locator('.sq-analyse').filter({ hasText: 'Uforklart matavvik' })
   await expect(blokk.locator('.sq-analyse-merke')).toHaveText('retning tilgjengelig')
   await expect(blokk).toContainText('+3 815 kr')
@@ -95,9 +95,9 @@ test('Testvik juli: retning med PERIODEN i setningen', async ({ page }) => {
 })
 
 test('en blokkert analyse forsvinner IKKE', async ({ page }) => {
-  // Juni på Testby. Før P2 falt matkast bare ut av punktene, og kortet
+  // Juni på Underby. Før P2 falt matkast bare ut av punktene, og kortet
   // så komplett ut — da tror den som leser at alt er i orden.
-  const k = page.locator('.sq-plankort').filter({ hasText: 'Testby' }).nth(1)
+  const k = page.locator('.sq-plankort').filter({ hasText: 'Underby' }).nth(1)
   const blokk = k.locator('.sq-analyse').filter({ hasText: 'Synlig matkast' })
   await expect(blokk).toBeVisible()
   await expect(blokk.locator('.sq-analyse-merke')).toHaveText('ikke beregnet')
@@ -129,7 +129,7 @@ test.describe('telefonbredde', () => {
 
   test('analyseblokkene stables og teksten er hel', async ({ page }) => {
     await page.goto('/maanedsplan')
-    const blokker = kort(page, 'Testby').locator('.sq-analyse')
+    const blokker = kort(page, 'Underby').locator('.sq-analyse')
     await expect(blokker.first()).toBeVisible()
 
     // ÉN KOLONNE. To blokker ved siden av hverandre på 390 px ville

@@ -29,10 +29,10 @@ import { expect, test } from '@playwright/test'
 // ---------------------------------------------------------------------
 // SEEDET
 //
-//   Testvik  mai   SLUPPET   tiltak + retning + URANGERT plan
-//   Testby   juli  utkast    (skal ALDRI vises her)
-//   Testvik  juli  utkast    (skal ALDRI vises her)
-//   Testby   juni  utkast    (skal ALDRI vises her)
+//   Grenseby  mai   SLUPPET   tiltak + retning + URANGERT plan
+//   Underby   juli  utkast    (skal ALDRI vises her)
+//   Grenseby  juli  utkast    (skal ALDRI vises her)
+//   Underby   juni  utkast    (skal ALDRI vises her)
 
 const kort = (side: import('@playwright/test').Page) =>
   side.locator('.sq-plankort').first()
@@ -44,7 +44,7 @@ test.beforeEach(async ({ page }) => {
 
 test('den sluppede planen står der, med tallene sine', async ({ page }) => {
   const k = kort(page)
-  await expect(k).toContainText('Testvik')
+  await expect(k).toContainText('Grenseby')
   await expect(k).toContainText('mai 2026')
   await expect(k).toContainText('Motvind')
 
@@ -91,7 +91,7 @@ test('et UTKAST når aldri mottakeren', async ({ page }) => {
   // selv. `textContent` — en negativ påstand på `innerText` ville
   // bestått mens kortet var skjult.
   const liste = page.locator('.sq-plankort-liste')
-  await expect(liste).not.toContainText('Testby')
+  await expect(liste).not.toContainText('Underby')
   await expect(liste).not.toContainText('juli 2026')
   await expect(page.locator('.sq-plankort')).toHaveCount(1)
 })
