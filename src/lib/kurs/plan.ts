@@ -38,7 +38,7 @@ import {
 import { erBra, erIlle, retning, type Kurs } from './retning'
 import {
   gate, kastdom, kasttall, MANGLER,
-  type Kastdom, type Kastsats, type Kastmaaned,
+  type Gate, type Kastdom, type Kastsats, type Kastmaaned,
 } from './kastvurdering'
 
 export type Svinnserie = {
@@ -314,40 +314,78 @@ export type Byggopsjoner = {
  * Gaten kjoeres paa SISTE maaned, fordi det er den som konkluderes paa.
  * Serien bak den er allerede vaktet av `svinnserie()` - port 8.
  */
+const som = (m: Maanedstall): Kastmaaned => ({
+  maaned: m.maaned, matsalgKr: m.matsalgKr, matkastKr: m.matkastKr,
+  harSvinndata: m.harSvinndata, datastatus: m.datastatus,
+})
+
+/**
+ * Hva portene faktisk beviser - og hva de ikke gjoer.
+ *
+ * PORT 6, `mat_rader > 0`: beviser at MATGRUPPEN BLE FUNNET i denne
+ * stasjonsmaaneden. Den beviser IKKE at den historiske kodemappingen er
+ * verifisert. Skifter St1 fra `12xxx` til noe annet, slaar porten inn
+ * med én gang; endrer de betydningen av `12010` uten aa endre nummeret,
+ * ser porten ingenting. Det er en annen sak, og den er ikke lukket.
+ *
+ * PORT 9, `stasjonId` og `aar`: beviser at satsraden vi leste hoerer til
+ * den stasjonen vi regner for. Den beviser IKKE at NAVNEKOBLINGEN under
+ * delingsfil-importen var riktig. Delingsfila har ikke butikknummer -
+ * `lagreKastbudsjett` slaar opp paa navn - og en feilkobling DER ville
+ * gitt en konsistent, men gal, `stasjon_id` som denne porten godtar.
+ * Kontroll 3 mot produksjon er beviset for den; porten er beviset for at
+ * ingenting har flyttet seg etterpaa.
+ */
+function portene(
+  d: Maanedsdata, m: Maanedstall, serieblokkering: string | null,
+): Gate {
+  return gate({
+    maaned: som(m),
+    sats: d.kastsats,
+    //   4 avstemming  <- avvik_antall  (0214)
+    //   6 kodemapping <- mat_rader     (0214)
+    //   7 forbehold   <- forbehold.ts, mat_svinn_stasjon
+    //   9 identitet   <- butikknummer + satsens stasjon_id og aar
+    //
+    // `null` betyr «ikke maalt», og det LUKKER porten.
+    avstemt: m.avvikAntall === 0,
+    kodemappingSikker: (m.matRader ?? 0) > 0,
+    forbehold: d.forbehold,
+    serieblokkering,
+    stasjonBevist: d.kastsats !== null
+      && d.butikknummer !== null
+      && d.kastsats.stasjonId === d.stasjonId
+      && d.kastsats.aar === Number(m.maaned.slice(0, 4)),
+  })
+}
+
 function vurderMatkast(d: Maanedsdata): { dom: Kastdom | null; blokkering: string | null } {
   const serie = svinnserie(d.historikk)
   const siste = d.historikk[d.historikk.length - 1]
   if (!siste) return { dom: null, blokkering: MANGLER }
 
-  const som = (m: typeof siste): Kastmaaned => ({
-    maaned: m.maaned, matsalgKr: m.matsalgKr, matkastKr: m.matkastKr,
-    harSvinndata: m.harSvinndata, datastatus: m.datastatus,
-  })
-
-  // HVER PORT HAR EN KILDE, OG UBEVIST FEILER LUKKET.
+  // =====================================================================
+  // HVER MAANED I SERIEN GAAR GJENNOM PORTENE, IKKE BARE DEN SISTE
+  // =====================================================================
   //
-  //   4 avstemming  <- v_kurs_maanedstall.avvik_antall  (0214)
-  //   6 kodemapping <- v_kurs_maanedstall.mat_rader     (0214)
-  //   7 forbehold   <- forbehold.ts, mat_svinn_stasjon
-  //   9 identitet   <- butikknummer + satsens stasjon_id og aar
+  // Foerste utgave portet bare `siste`. Men `kastdom` regner trend over
+  // HELE serien og teller «over budsjett X av 7» over hele serien - saa
+  // en maaned midt i med `avvik_antall > 0`, `mat_rader = 0` eller
+  // `datastatus = 'eldre_grunnlag'` slapp gjennom uten aa bli sett, og
+  // var likevel med i baade retningen og tellingen.
   //
-  // `null` fra basen betyr «ikke maalt», og det lukker porten. En
-  // `?? true` her ville gjort en manglende maaling til et bestaatt krav.
-  const satsHorerTilStasjonen = d.kastsats !== null
-    && d.butikknummer !== null
-    && d.kastsats.stasjonId === d.stasjonId
-    && d.kastsats.aar === Number(siste.maaned.slice(0, 4))
-
-  const g = gate({
-    maaned: som(siste),
-    sats: d.kastsats,
-    avstemt: siste.avvikAntall === 0,
-    kodemappingSikker: (siste.matRader ?? 0) > 0,
-    forbehold: d.forbehold,
-    serieblokkering: serie.aarsak,
-    stasjonBevist: satsHorerTilStasjonen,
-  })
-  if (!g.kanKonkludere) return { dom: null, blokkering: `${MANGLER}. ${g.aarsak}` }
+  // Serien er den samme som dommen regner paa. Foerste maaned som feiler
+  // blokkerer alt, og aarsaken navngir maaneden.
+  for (const m of serie.rader) {
+    const g = portene(d, m, serie.aarsak)
+    if (!g.kanKonkludere) {
+      const naar = m === siste ? '' : ` (${m.maaned})`
+      return { dom: null, blokkering: `${MANGLER}.${naar} ${g.aarsak}` }
+    }
+  }
+  if (serie.rader.length === 0) {
+    return { dom: null, blokkering: `${MANGLER}. ${serie.aarsak ?? 'Ingen måned å måle.'}` }
+  }
 
   const tall = serie.rader.map((m) => kasttall(som(m), d.kastsats as Kastsats))
   return { dom: kastdom(tall), blokkering: null }
@@ -369,6 +407,19 @@ function vurderUsynlig(d: Maanedsdata): Usynligvurdering {
   // `usynligMatKr`, IKKE `usynligRestKr`. Rest er alt utenom mat, vask
   // og pant - en annen stoerrelse, og aa presentere den som usynlig
   // matsvinn ville vaert feil tall under riktig navn.
+  //
+  // MATGRUPPEN MAA VAERE FUNNET I HVER MAANED. `0215` gjoer
+  // `usynlig_mat_kr` til NULL naar `mat_rader = 0`, men en eldre base
+  // eller en fremtidig endring kan gi 0. Vi spoer derfor `matRader`
+  // direkte: en 0 uten matrader er «ikke funnet», ikke «ingen manko».
+  const utenMatgruppe = serie.rader.filter((m) => (m.matRader ?? 0) === 0)
+  if (utenMatgruppe.length > 0) {
+    return {
+      ...tom,
+      blokkering: `${MANGLER}. Matgruppen ble ikke funnet i `
+        + `${utenMatgruppe.map((m) => m.maaned).join(', ')}.`,
+    }
+  }
   const verdier = serie.rader.map((m) => m.usynligMatKr).filter((v): v is number => v !== null)
   if (verdier.length !== serie.rader.length || verdier.length === 0) return tom
 

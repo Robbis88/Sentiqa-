@@ -175,6 +175,60 @@ describe('blokkert gate → ingen matkast i punktene', () => {
 })
 
 // =====================================================================
+describe('portene gjelder HELE serien, ikke bare siste maaned', () => {
+  // Sju maaneder. Dommen regner trend over alle sju og teller «over
+  // budsjett X av 7» over alle sju - saa en maaned MIDT I som ikke er
+  // portet, er med i baade retningen og tellingen uten aa bli sett.
+  const sju = [1, 2, 3, 4, 5, 6, 7].map((i) => mnd({
+    maaned: `2026-0${i}-01`, matkastKr: 40_000, resultatKr: 50_000,
+  }))
+  const midt = 3   // april, midt i serien
+
+  const medEndring = (i: number, over: Partial<Maanedstall>) =>
+    sju.map((m, j) => (j === i ? { ...m, ...over } : m))
+
+  const midtItilfeller: [string, Partial<Maanedstall>, string][] = [
+    ['avvik i svinnarket', { avvikAntall: 2 }, 'ikke avstemt'],
+    ['avviksantallet ikke maalt', { avvikAntall: null }, 'ikke avstemt'],
+    ['matgruppen ikke funnet', { matRader: 0 }, 'Kodemappingen'],
+    ['matradene ikke maalt', { matRader: null }, 'Kodemappingen'],
+    ['eldre datagrunnlag', { datastatus: 'eldre_grunnlag' }, 'Eldre datagrunnlag'],
+    ['matomsetning mangler', { matsalgKr: 0 }, 'Matomsetning mangler'],
+  ]
+
+  it.each(midtItilfeller)('%s i april blokkerer hele dommen', (_navn, over, tekst) => {
+    const p = plan({ historikk: medEndring(midt, over) })
+    expect(p.matkast.dom).toBeNull()
+    expect(p.matkast.blokkering).toContain(tekst)
+    // AARSAKEN NAVNGIR MAANEDEN. «Datagrunnlag mangler» uten aa si
+    // hvilken maaned er ikke til aa handle paa.
+    expect(p.matkast.blokkering).toContain('2026-04-01')
+    expect(matkastpunkt(p)).toEqual([])
+  })
+
+  it.each(midtItilfeller)('%s i JULI blokkerer ogsaa', (_navn, over, tekst) => {
+    const p = plan({ historikk: medEndring(6, over) })
+    expect(p.matkast.dom).toBeNull()
+    expect(p.matkast.blokkering).toContain(tekst)
+  })
+
+  it('KANARI: uten feilen i april konkluderer den samme serien paa sju maaneder', () => {
+    const p = plan({ historikk: sju })
+    expect(p.matkast.dom?.slag).toBe('tiltak')
+    expect(p.matkast.dom?.antallMaaneder).toBe(7)
+    expect(p.matkast.dom?.ugunstige).toBe(7)
+  })
+
+  it('en umaalt maaned midt i endrer BAADE trend og telling om den slipper gjennom', () => {
+    // Beviset paa at porten paa siste maaned alene ikke rekker: en
+    // maaned med et helt annet kasttall flytter retningen.
+    const utenPort = plan({ historikk: medEndring(midt, { matkastKr: 5_000 }) })
+    const ren = plan({ historikk: sju })
+    expect(utenPort.matkast.dom?.ugunstige).not.toBe(ren.matkast.dom?.ugunstige)
+  })
+})
+
+// =====================================================================
 describe('de fem stasjonene gjennom hele planen', () => {
   // Målt jan–jul 2026, ett nivå per stasjonsmåned. Satsene fra
   // `kastbudsjett`, kontroll 3 mot produksjon 13.09.
@@ -330,6 +384,43 @@ describe('usynlig matsvinn er MATgruppen', () => {
     const p = plan({ historikk: serie([8_000, 7_000, 6_000, 5_000]) })
     expect(p.usynlig.usikker).toBe(false)
     expect(p.usynlig.kurs?.vei).toBe('ned')
+  })
+
+  it('svinnrader UTEN matrader: blokkert, ikke 0', () => {
+    // Den falske nullen. `har_svinndata` er true, saa serien er hel -
+    // men matgruppen ble ikke funnet, og `coalesce(..., 0)` i SQL ga
+    // 0 kroner usynlig mat. `0215` gjoer den til NULL, og analysen
+    // spoer `matRader` i tillegg.
+    const p = plan({
+      historikk: [1, 2, 3, 4].map((i) => mnd({
+        maaned: `2026-0${i}-01`,
+        usynligMatKr: 0, matRader: 0, harSvinndata: true,
+      })),
+    })
+    expect(p.usynlig.naaKr).toBeNull()
+    expect(p.usynlig.blokkering).toContain('Matgruppen ble ikke funnet')
+    expect(p.usynlig.blokkering).toContain('2026-01-01')
+  })
+
+  it('matrader mangler i én maaned midt i: blokkert', () => {
+    const p = plan({
+      historikk: [1, 2, 3, 4].map((i) => mnd({
+        maaned: `2026-0${i}-01`, usynligMatKr: 5_000,
+        ...(i === 2 ? { matRader: 0, usynligMatKr: 0 } : {}),
+      })),
+    })
+    expect(p.usynlig.naaKr).toBeNull()
+    expect(p.usynlig.blokkering).toContain('2026-02-01')
+  })
+
+  it('KANARI: med matrader i alle maanedene konkluderer den', () => {
+    const p = plan({
+      historikk: [1, 2, 3, 4].map((i) => mnd({
+        maaned: `2026-0${i}-01`, usynligMatKr: 5_000, matRader: 9,
+      })),
+    })
+    expect(p.usynlig.naaKr).toBe(5_000)
+    expect(p.usynlig.blokkering).toBeNull()
   })
 
   it('uten svinngrunnlag: blokkert, ikke 0', () => {

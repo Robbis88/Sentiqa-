@@ -103,6 +103,16 @@ describe('ingen hardkodet budsjettsats i produksjonskoden', () => {
 })
 
 // =====================================================================
+/** Den nyeste migrasjonen som definerer `v_kurs_maanedstall`. */
+function sisteViewdefinisjon(): string {
+  const mappe = join(process.cwd(), 'supabase/migrations')
+  const siste = readdirSync(mappe).filter((f) => f.endsWith('.sql')).sort()
+    .filter((f) => les(join(mappe, f)).includes('create or replace view public.v_kurs_maanedstall'))
+    .pop()
+  expect(siste, 'ingen migrasjon definerer v_kurs_maanedstall').toBeDefined()
+  return les(join(mappe, siste as string))
+}
+
 describe('dobbelttelling gjør testen rød', () => {
   const dale = (kast: number): Kastmaaned => ({
     maaned: '2026-07-01', matsalgKr: 838292.15, matkastKr: kast,
@@ -150,6 +160,73 @@ describe('dobbelttelling gjør testen rød', () => {
     // endrer ikke fortegnet på trenden. Det er nettopp derfor en
     // retningstest alene ikke ville fanget dobbelttellingen.
     expect(kastdom(enkel).kurs?.vei).toBe(kastdom(doblet).kurs?.vei)
+  })
+
+  /**
+   * Uttrykket som staar RETT FOER et kolonnealias.
+   *
+   * Foerste utgave saa 400 tegn bakover og traff nabokolonnens
+   * `case when` - groenn mens den var blind. Andre utgave klippet ved
+   * forrige komma, men SQL-kommentarene inneholder komma, og siste
+   * kolonne i en CTE har ikke noe komma etter aliaset.
+   *
+   * Denne stripper `--`-linjer foerst, og godtar alias fulgt av komma
+   * ELLER linjeskift.
+   */
+  function utenSqlKommentarer(sql: string): string {
+    const nl = String.fromCharCode(10)
+    return sql.split(nl).filter((l) => !l.trimStart().startsWith('--')).join(nl)
+  }
+
+  function uttrykkFor(raa: string, alias: string): string {
+    const sql = utenSqlKommentarer(raa)
+    const m = new RegExp(`\\bas ${alias}\\s*(,|$)`, 'm').exec(sql)
+    expect(m, `fant ikke ${alias} i viewet`).not.toBeNull()
+    const foran = sql.slice(0, (m as RegExpExecArray).index)
+    let dybde = 0
+    let kutt = -1
+    for (let k = foran.length - 1; k >= 0; k--) {
+      const c = foran[k]
+      if (c === ')') dybde++
+      else if (c === '(') dybde--
+      else if (c === ',' && dybde === 0) { kutt = k; break }
+    }
+    return foran.slice(kutt + 1).trim()
+  }
+
+  it('SQL: mattallene er NULL naar matgruppen ikke ble funnet', () => {
+    // Kontrakten fra `0215`. `sum()` over null rader er NULL, og en
+    // `coalesce(..., 0)` her ville sagt «null kroner kastet mat» om en
+    // maaned der matgruppen ikke finnes i det hele tatt.
+    const sql = sisteViewdefinisjon()
+    for (const kolonne of ['matkast_kr', 'usynlig_mat_kr']) {
+      const u = uttrykkFor(sql, kolonne)
+      expect(u, `${kolonne} maa gi NULL uten matrader`).toMatch(/^case when /)
+      expect(u, `${kolonne} maa avsluttes med end`).toMatch(/end$/)
+      expect(u).toContain("filter (where s.kode like '12%') = 0 then null")
+    }
+  })
+
+  it('SQL: usynlig_rest_kr BEHOLDER sin coalesce', () => {
+    // Den er en avgrensning, ikke et oppslag: null rader utenfor mat,
+    // vask og pant betyr faktisk at det ikke er noe der.
+    const u = uttrykkFor(sisteViewdefinisjon(), 'usynlig_rest_kr')
+    expect(u).toMatch(/^coalesce\(sum\(s\.usynlig_kr\)/)
+    expect(u).not.toMatch(/^case when /)
+  })
+
+  it('KANARI: vakten ser en gjeninnfoert coalesce paa RIKTIG kolonne', () => {
+    // Injeksjonen som slapp gjennom foerste utgave: `usynlig_mat_kr`
+    // med coalesce, RETT ETTER en `matkast_kr` som fortsatt har sin
+    // `case when`. Vinduet paa 400 tegn saa naboens `end` og godtok den.
+    const skadet = [
+      "    case when count(*) filter (where s.kode like '12%') = 0 then null",
+      "         else coalesce(sum(s.kast) filter (where s.kode like '12%'), 0)",
+      '    end                                        as matkast_kr,',
+      "    coalesce(sum(s.usynlig_kr) filter (where s.kode like '12%'), 0) as usynlig_mat_kr,",
+    ].join(String.fromCharCode(10))
+    expect(uttrykkFor(skadet, 'matkast_kr')).toMatch(/^case when /)
+    expect(uttrykkFor(skadet, 'usynlig_mat_kr')).not.toMatch(/^case when /)
   })
 
   it('SQL-kjeden leser ett nivå', () => {
