@@ -72,17 +72,27 @@ type Post = {
  * stående for alltid, og da slutter folk å tro på dem.
  */
 export const FORBEHOLD: readonly Post[] = [
+  // VERSJONSKONFLIKTEN ER LOEST 2026-09-13. Robert valgte versjon A:
+  // «en avlagt maaned skal vise det som ble avlagt». Pantfeilen staar
+  // derfor i juni og rettes i august, der den hoerer hjemme.
+  //
+  // Statusen gikk fra `blokkert` til `usikker` - ikke til `ok`. Tallet
+  // er riktig gjengitt fra regnskapet, men det BAERER en kjent feil, og
+  // en klyngesammenligning for juni maaler Lone og Dale med den feilen
+  // inne. Det er noe man skal vite naar man leser tallet, ikke noe som
+  // skal hindre at det vises.
   {
     periode: '2026-06-01',
     gjelder: ['klyngeanalyse', 'kjederesultat'],
-    status: 'blokkert',
+    status: 'usikker',
     aarsak:
-      'Filversjonene for juni avviker på pant, linje 741 og samlet resultat '
-      + '(netto −13 101,49 mot RESULTAT-linja). De 48 kontrollerte '
-      + 'stasjonsfeltene er identiske, så stasjonsnivået er upåvirket.',
+      'Kjent pantfeil i juni, rettet i august. Den treffer Lone (−7 143,80) '
+      + 'og Dale (−6 617,69) og forskyver samlet resultat −13 101,49. '
+      + 'Stasjonstallene er riktige som avlagt; en sammenligning mellom '
+      + 'stasjoner for juni bærer feilen.',
     loeses_av:
-      'Regnskapsfører bekrefter hvilken juniversjon som er korrekt, og om '
-      + 'pant skal stå med positiv bruttofortjeneste.',
+      'Augustregnskapet inneholder korreksjonen. Posten kan fjernes når '
+      + 'august er importert og korreksjonen er avstemt mot juni.',
   },
 ]
 

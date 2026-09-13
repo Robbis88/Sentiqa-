@@ -25,15 +25,29 @@ describe('juni 2026', () => {
     }
   })
 
-  it('klynge og kjederesultat er blokkert, med årsak', () => {
+  it('klynge og kjederesultat er USIKRE, ikke blokkerte', () => {
+    // Versjonskonflikten ble loest 2026-09-13: Robert valgte A, «en
+    // avlagt maaned skal vise det som ble avlagt». Da er tallet riktig
+    // gjengitt - men det baerer en kjent pantfeil som rettes i august,
+    // og en sammenligning mellom stasjoner maaler den feilen.
     for (const a of ['klyngeanalyse', 'kjederesultat'] as const) {
       const f = forbehold(JUNI, a)
-      expect(f.status, a).toBe('blokkert')
+      expect(f.status, a).toBe('usikker')
       expect(f.aarsak).toMatch(/pant/)
-      expect(f.aarsak).toMatch(/741/)
       expect(f.aarsak).toMatch(/13 101,49/)
-      expect(kanVises(JUNI, a), a).toBe(false)
+      // USIKKER SKAL VISES. Et tall med et forbehold er noe annet enn
+      // ingen tall - blokkering her ville skjult juni for en feil vi
+      // kjenner, kan tallfeste og vet naar rettes.
+      expect(kanVises(JUNI, a), a).toBe(true)
     }
+  })
+
+  it('KANARI: «usikker» må ikke kollapse til «ok»', () => {
+    // Forskjellen mellom «ok» og «usikker» er hele verdien av posten.
+    // Blir de like, forsvinner advarselen uten at noen fjernet den.
+    expect(forbehold(JUNI, 'klyngeanalyse').status).not.toBe('ok')
+    expect(forbehold(JUNI, 'klyngeanalyse').aarsak.length).toBeGreaterThan(30)
+    expect(forbehold(JUNI, 'stasjonsanalyse').status).toBe('ok')
   })
 
   it('KANARI: forbeholdet må ikke smitte til hele perioden', () => {
@@ -41,8 +55,8 @@ describe('juni 2026', () => {
     // butikksjefen sin egen stasjonsanalyse for en konflikt på
     // klyngearket hun ikke eier.
     const alle = forbeholdForPeriode(JUNI)
-    const blokkerte = ALLE_ANALYSER.filter((a) => alle[a].status === 'blokkert')
-    expect(blokkerte).toEqual(['klyngeanalyse', 'kjederesultat'])
+    const merkede = ALLE_ANALYSER.filter((a) => alle[a].status !== 'ok')
+    expect(merkede).toEqual(['klyngeanalyse', 'kjederesultat'])
   })
 
   it('andre perioder er urørt', () => {
