@@ -103,10 +103,17 @@ test('et UTKAST når aldri mottakeren', async ({ page }) => {
   // som ikke er sluppet er ikke et brev, det er eierens forslag til seg
   // selv. `textContent` — en negativ påstand på `innerText` ville
   // bestått mens kortet var skjult.
+  // INGEN TELLING AV KORT.
+  //
+  // Første utgave krevde `toHaveCount(1)`. Den var bundet til at INGEN
+  // annen test slapp en plan — og `maanedsplan.spec.ts` gjør nettopp det
+  // nå. To spec-filer som deler database kan ikke ha påstander om totaler.
+  //
+  // Det som faktisk skal holde er REGELEN: et utkast når aldri hit.
+  // Underby juni er utkast i seeden og skal aldri stå her.
   const liste = page.locator('.sq-plankort-liste')
-  await expect(liste).not.toContainText('Underby')
-  await expect(liste).not.toContainText('juli 2026')
-  await expect(page.locator('.sq-plankort')).toHaveCount(1)
+  await expect(liste).not.toContainText('juni')
+  await expect(liste).toContainText('mai 2026')
 })
 
 test('mottakeren har ingen knapper å trykke på', async ({ page }) => {

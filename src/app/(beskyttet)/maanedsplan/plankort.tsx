@@ -112,6 +112,7 @@ export function Plankort({
             handling={slippPlan}
             felt={{ id }}
             merke="Slipp"
+            oppfrisk
             hva={`månedsplanen for ${stasjon}`}
             arbeider="Slipper …"
             variant="primar"
@@ -120,6 +121,7 @@ export function Plankort({
             handling={avvisPlan}
             felt={{ id }}
             merke="Avvis"
+            oppfrisk
             hva={`månedsplanen for ${stasjon}`}
             arbeider="Avviser …"
             sporsmaal={`Avvise månedsplanen for ${stasjon}? Den sendes ikke.`}

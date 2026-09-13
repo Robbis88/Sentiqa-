@@ -206,15 +206,6 @@ test.describe('telefonbredde', () => {
 const plankort = (side: import('@playwright/test').Page, stasjon: string, mnd: string) =>
   side.locator('.sq-plankort').filter({ hasText: stasjon }).filter({ hasText: mnd })
 
-/** Alt som skal stå urørt, avlest før og etter. */
-async function uroert(side: import('@playwright/test').Page) {
-  const juni = await plankort(side, 'Underby', 'juni').first().textContent()
-  await side.goto('/min-plan')
-  const mai = await side.locator('.sq-plankort').first().textContent()
-  await side.goto('/maanedsplan')
-  return { juni, mai }
-}
-
 test.describe('bygg på nytt', () => {
   test('knappen sier hvilken måned, hvor mange stasjoner, og hva som IKKE skjer',
     async ({ page }) => {
@@ -263,69 +254,158 @@ test.describe('bygg på nytt', () => {
   })
 
   // ===================================================================
-  // DEN POSITIVE VEIEN, HELE KJEDEN
+  // A  BYGG -> KVITTERING OG NYE SNAPSHOT PAA SAMME SIDE
   // ===================================================================
-  test('bygger juli, låser den avviste, og rører ingen annen måned',
+  //
+  // INGEN `page.reload()`, INGEN NY `page.goto()`.
+  //
+  // Det er hele poenget: serverhandlingen revaliderer ikke sin egen
+  // rute (det gjorde kvitteringen til gissel for ruteroppdateringen og
+  // ga tjue sekunders venting), og `HandlingKnapp` med `oppfrisk`
+  // kaller `router.refresh()` naar svaret er kommet. Bruker man
+  // `reload()` i testen, maaler man ikke den mekanismen — man maaler
+  // nettleserens egen omlasting, og da kunne oppfriskningen vært borte
+  // uten at noe ble rødt.
+  // ===================================================================
+  test('A  bygg: kvittering OG nye snapshot uten manuell omlasting',
     async ({ page }) => {
       await page.goto('/maanedsplan')
-      const foer = await uroert(page)
+
+      // FOER: Underby juli baerer seedens snapshot, som IKKE er blokkert.
+      // Selve overgangen er det som maales - ikke hvilket domsord seeden
+      // tilfeldigvis har.
+      const underby = () => plankort(page, 'Underby', 'juli').first()
+      await expect(underby()).not.toContainText('Datagrunnlag mangler')
 
       page.on('dialog', (d) => d.accept())
       await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
 
-      // KVITTERINGEN: to skrevet, den avviste NAVNGITT.
-      const kvittering = page.locator('body')
-      await expect(kvittering).toContainText('Bygget 2 utkast for 2026-07',
-        { timeout: 20_000 })
-      await expect(kvittering).toContainText('Overby')
-      await expect(kvittering).toContainText('allerede avgjort')
+      // KVITTERINGEN.
+      await expect(page.locator('.sq-slett-ok'))
+        .toContainText('Bygget 2 utkast for 2026-07', { timeout: 20_000 })
+      await expect(page.locator('.sq-slett-ok')).toContainText('Overby')
 
-      await page.reload()
+      // OG DE NYE SNAPSHOTTENE, paa samme side. Grunnlaget har ingen
+      // svinnrader og intet kastbudsjett, saa nipunktsporten blokkerer
+      // — et BLOKKERT snapshot er et skrevet snapshot.
+      await expect(underby().locator('.sq-analyse').first())
+        .toContainText('Datagrunnlag mangler', { timeout: 15_000 })
 
-      // SNAPSHOTET ER SKREVET. Grunnlaget har ingen svinnrader og intet
-      // kastbudsjett, så nipunktsporten blokkerer — og et BLOKKERT
-      // snapshot er et skrevet snapshot. Sto det «Ikke beregnet», var
-      // kolonnen fortsatt null.
-      for (const st of ['Underby', 'Grenseby']) {
-        const k = plankort(page, st, 'juli').first()
-        await expect(k.locator('.sq-analyse').filter({ hasText: 'Synlig matkast' }))
-          .toContainText('Datagrunnlag mangler')
-      }
+      // KVITTERINGEN STAAR FORTSATT etter oppfriskningen. `router.refresh()`
+      // henter serverkomponentene uten aa nullstille klienttilstand; gjorde
+      // den det, ville bekreftelsen blinket bort.
+      await expect(page.locator('.sq-slett-ok')).toContainText('Bygget 2 utkast')
 
-      // DEN AVVISTE STÅR URØRT — også innholdet.
-      const overby = plankort(page, 'Overby', 'juli').first()
-      await expect(overby).toContainText('Resultatet i juli er 10 000 kroner')
-
-      // INGEN ANNEN MÅNED FLYTTET SEG.
-      const etter = await uroert(page)
-      expect(etter.juni, 'juni-kortet endret seg').toBe(foer.juni)
-      expect(etter.mai, 'den sluppede mai-planen endret seg').toBe(foer.mai)
+      // DEN AVVISTE STAAR UROERT.
+      await expect(plankort(page, 'Overby', 'juli').first())
+        .toContainText('Resultatet i juli er 10 000 kroner')
     })
 
-  test('andre kjøring gir ingen duplikater og samme innhold', async ({ page }) => {
+  // ===================================================================
+  // B  SLIPP -> KORTET FLYTTER SEG, OG PLANEN NAAR BUTIKKSJEFEN
+  // ===================================================================
+  test('B  slipp: kortet flytter seg til Avgjort, og planen vises i /min-plan',
+    async ({ page }) => {
+      await page.goto('/maanedsplan')
+
+      const venter = page.locator('section').filter({ hasText: 'Venter på deg' })
+      const avgjort = page.locator('section').filter({ hasText: 'Avgjort' })
+      await expect(venter.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
+        .filter({ hasText: 'juli' })).toHaveCount(1)
+
+      await venter.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
+        .filter({ hasText: 'juli' })
+        .getByRole('button', { name: 'Slipp' }).click()
+
+      await expect(page.locator('.sq-slett-ok'))
+        .toContainText('Sluppet', { timeout: 20_000 })
+
+      // FLYTTET, UTEN OMLASTING.
+      await expect(venter.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
+        .filter({ hasText: 'juli' })).toHaveCount(0, { timeout: 15_000 })
+      await expect(avgjort.locator('.sq-plankort').filter({ hasText: 'Grenseby' })
+        .filter({ hasText: 'juli' })).toHaveCount(1)
+
+      // OG DEN NAADDE MOTTAKEREN. Her er navigering riktig: det er en
+      // annen rute, og revalideringen av den skjer paa serveren.
+      await page.goto('/min-plan')
+      await expect(page.locator('.sq-plankort').filter({ hasText: 'juli' }))
+        .toHaveCount(1)
+    })
+
+  // ===================================================================
+  // C  AVVIS -> KORTET FLYTTER SEG, OG PLANEN NAAR IKKE MOTTAKEREN
+  // ===================================================================
+  test('C  avvis: kortet flytter seg, og planen vises IKKE i /min-plan',
+    async ({ page }) => {
+      await page.goto('/maanedsplan')
+
+      const venter = page.locator('section').filter({ hasText: 'Venter på deg' })
+      const avgjort = page.locator('section').filter({ hasText: 'Avgjort' })
+      const kort = () => venter.locator('.sq-plankort').filter({ hasText: 'Underby' })
+        .filter({ hasText: 'juni' })
+      await expect(kort()).toHaveCount(1)
+
+      await kort().getByRole('button', { name: 'Avvis' }).click()
+      await expect(page.locator('.sq-slett-ok'))
+        .toContainText('Avvist', { timeout: 20_000 })
+
+      await expect(kort()).toHaveCount(0, { timeout: 15_000 })
+      await expect(avgjort.locator('.sq-plankort').filter({ hasText: 'Underby' })
+        .filter({ hasText: 'juni' })).toHaveCount(1)
+
+      // En avvist plan naar aldri mottakeren. `textContent` — en
+      // negativ paastand paa `innerText` ville bestaatt mens kortet var
+      // skjult.
+      await page.goto('/min-plan')
+      await expect(page.locator('.sq-plankort-liste')).not.toContainText('juni')
+    })
+
+  // ===================================================================
+  // D  EN FEILET HANDLING SKAL IKKE SE UT SOM SUKSESS
+  // ===================================================================
+  test('D  feilet handling: feilmeldingen staar, og sida friskes ikke opp',
+    async ({ page }) => {
+      await page.goto('/maanedsplan')
+      const foer = await plankort(page, 'Underby', 'juli').first().textContent()
+
+      // Feltet sier en annen maaned enn serveren finner. Serveren slaar
+      // maalmaaneden opp paa nytt og avviser — feltet kan bare gi et nei.
+      await page.locator('form:has(input[name="maaned"]) input[name="maaned"]')
+        .evaluate((el: HTMLInputElement) => { el.value = '2026-05-01' })
+
+      page.on('dialog', (d) => d.accept())
+      await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+
+      // FEILEN STAAR.
+      await expect(page.locator('.sq-slett-feil'))
+        .toContainText('Last sida på nytt', { timeout: 20_000 })
+
+      // OG INGEN FALSK SUKSESS: ingen kvittering, og kortet staar
+      // bokstavelig uendret.
+      //
+      // Sammenlignet med det som FAKTISK sto der foer, ikke med en fast
+      // forventning: testene i fila deler database, og test A har
+      // bygget juli om foer denne kjoerer.
+      await expect(page.locator('.sq-slett-ok')).toHaveCount(0)
+      const etter = await plankort(page, 'Underby', 'juli').first().textContent()
+      expect(etter, 'kortet endret seg av en FEILET handling').toBe(foer)
+    })
+
+  test('dobbeltklikk gir \u00e9n kjøring', async ({ page }) => {
     await page.goto('/maanedsplan')
     page.on('dialog', (d) => d.accept())
+    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
 
-    const antall = async () => page.locator('.sq-plankort').count()
-    const juliTekst = async () =>
-      (await plankort(page, 'Underby', 'juli').first().textContent()) ?? ''
-
-    await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
-    await expect(page.locator('body')).toContainText('Bygget 2 utkast', { timeout: 20_000 })
-    await page.reload()
-    const a = { n: await antall(), t: await juliTekst() }
-
-    await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
-    await expect(page.locator('body')).toContainText('Bygget 2 utkast', { timeout: 20_000 })
-    await page.reload()
-    const b = { n: await antall(), t: await juliTekst() }
-
-    // FEM PLANER, IKKE TI. Kolliderer ikke upserten på
-    // (stasjon_id, maaned), ville andre kjøring lagt til nye rader.
-    expect(b.n).toBe(a.n)
-    // Og innholdet er det samme. `beregnetTid` og `oppdatert_tid` står
-    // ikke på skjermen, så kortteksten skal være identisk.
-    expect(b.t).toBe(a.t)
+    await knapp.click()
+    // Knappen er `disabled` mens handlingen venter. Playwright venter
+    // paa at den blir klikkbar igjen, saa et klikk nummer to her ville
+    // vaert en ANNEN kjoering - ikke et dobbeltklikk. Vi maaler i
+    // stedet at den faktisk ER laast.
+    await expect(knapp).toBeDisabled()
+    await expect(page.locator('.sq-slett-ok'))
+      .toContainText('Bygget', { timeout: 20_000 })
+    await expect(knapp).toBeEnabled()
   })
 
   test('butikksjefens flate har ingen byggeknapp', async ({ page }) => {

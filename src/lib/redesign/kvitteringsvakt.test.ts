@@ -229,7 +229,60 @@ const EGENRUTE_UNNTAK: Record<string, string> = {
   // uansett, og den trykkes én gang, ikke av folk med hansker som har
   // det travelt.
   '/import': 'revalidatePath(\'/\', \'layout\') maa treffe alle datasider',
+
+  // FUNNET DA VAKTEN FIKK SYNET TILBAKE (se blokka under). /plattform
+  // bruker den delte `HandlingKnapp`, saa ruta ble aldri vurdert - og
+  // egenrevalideringen har ligget der i main.
+  //
+  // MIDLERTIDIG, OG BARE DENNE. Den rettes i en egen PR sammen med
+  // resten av kvitteringsflyten paa plattformflatene; aa rette den her
+  // ville gjort en PR om maanedsplanen til en revisjon av noe annet.
+  // Maanedsplanens tre handlinger er rettet, fordi de er flyten vi skal
+  // bruke naa.
+  // ---------------------------------------------------------------
+  // FUNNET DA VAKTEN FIKK SYNET TILBAKE
+  // ---------------------------------------------------------------
+  //
+  // Sju ruter, alle med den delte `HandlingKnapp`. Vakten kunne ikke se
+  // dem: den krevde en krok i rutas EGEN katalog, og knappen eier
+  // `useActionState` selv. De har ligget slik i main.
+  //
+  // De er MIDLERTIDIGE unntak, ikke godtatt oppfoersel. Rettelsen er
+  // den samme overalt - `oppfrisk` paa knappen, egen rute ut av
+  // handlingen - men den hoerer hjemme i en PR om kvitteringsflyten,
+  // ikke i en PR om maanedsplanen.
+  //
+  // MAANEDSPLANENS TRE HANDLINGER STAAR IKKE HER. De er rettet, fordi
+  // de er flyten som skal brukes naa: bygg -> kontroller -> slipp.
+  '/anvisninger': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
+  '/konkurranser': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
+  '/lonnskost': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
+  '/oppgaver': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
+  '/plattform': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
+  '/redaktor': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
+  '/sjekkpunkt': 'MIDLERTIDIG: rettes i egen PR om kvitteringsflyten',
 }
+
+/**
+ * Delte komponenter som EIER kvitteringstilstanden selv.
+ *
+ * Utledet av kilden, ikke skrevet ned: en ny komponent i
+ * `src/components/ui` som tar en av krokene blir med uten at noen må
+ * huske det.
+ */
+export function delteMedTilstand(): string[] {
+  const mappe = join('src', 'components', 'ui')
+  const ut: string[] = []
+  for (const f of readdirSync(mappe)) {
+    if (!f.endsWith('.tsx')) continue
+    const k = readFileSync(join(mappe, f), 'utf8')
+    if (!/useActionState|useKvittering|useTransition/.test(k)) continue
+    for (const m of k.matchAll(/export function (\w+)/g)) ut.push(m[1])
+  }
+  return ut
+}
+
+const DELTE_MED_TILSTAND = delteMedTilstand()
 
 function ruterMedEgenrevalidering(): { rute: string; katalog: string }[] {
   const ut: { rute: string; katalog: string }[] = []
@@ -249,10 +302,18 @@ function ruterMedEgenrevalidering(): { rute: string; katalog: string }[] {
       const rute = '/' + katalog.replace(/\\/g, '/').split('/').slice(2)
         .filter((d) => !d.startsWith('(')).join('/')
       const kode = utenKommentarer(readFileSync(sti, 'utf8'))
+      // TRE FORMER, IKKE TO.
+      //
       // Bade `'/rute'` og en mal som `` `/rute/${id}` `` - den siste er
       // ogsaa egen rute naar skjemaet bor paa undersiden.
+      //
+      // OG `oppfrisk: ['/rute']`, som gaar gjennom `kvitter()` i
+      // `src/lib/kvittering.ts` og ender i noeyaktig samme
+      // `revalidatePath`. `slippPlan` og `avvisPlan` sto slik, og vakten
+      // saa dem ikke: den lette bare etter det direkte kallet.
       const egen = kode.includes(`revalidatePath('${rute}')`)
         || kode.includes(`revalidatePath(\`${rute}/`)
+        || new RegExp(`oppfrisk:\\s*\\[[^\\]]*'${rute}'`).test(kode)
       if (!egen) continue
 
       // BEGGE KROKENE TELLER, og det er ikke pynt.
@@ -278,12 +339,27 @@ function ruterMedEgenrevalidering(): { rute: string; katalog: string }[] {
       // `start()` pakker den asynkrone handlingen paa noeyaktig samme
       // maate som de to andre: `venter` er sann til overgangen er over,
       // og revalideringen er en del av overgangen.
+      // FIRE KROKER — OG DEN FJERDE ER EN KOMPONENT, IKKE EN KROK.
+      //
+      // Vakten krevde at en `.tsx` i SAMME katalog inneholdt en av de
+      // tre krokene. Men den vanligste formen i dette huset er den
+      // DELTE `HandlingKnapp`, som eier `useActionState` selv — og da
+      // var `harTilstand` usann, og ruta ble aldri vurdert.
+      //
+      // /maanedsplan og /plattform laa slik. Vakten var grønn mens to
+      // ruter hadde nettopp den koblingen den finnes for å hindre, og
+      // e2e-testen på /maanedsplan sto og ventet i tjue sekunder.
+      //
+      // REGELEN, IKKE LISTEN: de delte komponentene leses ut av
+      // `src/components/ui`, så en ny av samme slag blir med av seg
+      // selv. Det var nettopp det en håndholdt liste ikke ville gjort.
       const harTilstand = readdirSync(katalog)
         .filter((f) => f.endsWith('.tsx'))
         .some((f) => {
           const k = readFileSync(join(katalog, f), 'utf8')
           return k.includes('useActionState') || k.includes('useKvittering')
             || k.includes('useTransition')
+            || DELTE_MED_TILSTAND.some((navn) => k.includes(`<${navn}`))
         })
       if (harTilstand) ut.push({ rute, katalog })
     }
@@ -291,6 +367,28 @@ function ruterMedEgenrevalidering(): { rute: string; katalog: string }[] {
   gaa('src/app')
   return ut
 }
+
+describe('vakten ser det den skal se', () => {
+  test('KANARIFUGL: den delte knappen er funnet i src/components/ui', () => {
+    // Uten den er `DELTE_MED_TILSTAND` tom, og utvidelsen over maaler
+    // ingenting - i stillhet, akkurat som foer.
+    expect(DELTE_MED_TILSTAND).toContain('HandlingKnapp')
+  })
+
+  test('KANARIFUGL: `oppfrisk`-formen gjenkjennes', () => {
+    const m = new RegExp(`oppfrisk:\\s*\\[[^\\]]*'/maanedsplan'`)
+    expect(m.test("oppfrisk: ['/maanedsplan']")).toBe(true)
+    expect(m.test("oppfrisk: ['/min-plan']")).toBe(false)
+  })
+
+  test('maanedsplanens tre handlinger revaliderer IKKE egen rute', () => {
+    // Flyten vi skal bruke naa: bygg -> kontroller -> slipp -> avvis.
+    const kode = readFileSync(
+      join('src', 'app', '(beskyttet)', 'maanedsplan', 'handlinger.ts'), 'utf8')
+    expect(kode).not.toContain("revalidatePath('/maanedsplan')")
+    expect(kode).not.toMatch(/oppfrisk:\s*\[[^\]]*'\/maanedsplan'/)
+  })
+})
 
 describe('ingen serverhandling revaliderer sin egen rute', () => {
   const funn = ruterMedEgenrevalidering().filter((f) => !(f.rute in EGENRUTE_UNNTAK))

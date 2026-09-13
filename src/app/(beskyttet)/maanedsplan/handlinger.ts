@@ -35,6 +35,25 @@ import {
 // skriver mest.
 // =====================================================================
 
+// =====================================================================
+// INGEN AV DE TRE REVALIDERER SIN EGEN RUTE
+// =====================================================================
+//
+// `useActionState` holder `venter` sann gjennom hele overgangen, og en
+// revalidering av EGEN rute gjoer ruteroppdateringen til en del av den.
+// Kvitteringen blir gissel for at sida skal tegne seg om - maalt til 45
+// sekunder paa /stempling der serveren svarte paa 190 ms, og her sto
+// e2e-testen og ventet i 20 uten aa faa svar.
+//
+// Sida friskes opp av KLIENTEN i stedet, etter at svaret er kommet:
+// `HandlingKnapp` med `oppfrisk` kaller `router.refresh()` naar
+// `tilstand.ok` er satt. Da staar kvitteringen, og serverdataene er
+// ferske uten at noen maa laste sida paa nytt.
+//
+// ANDRE ruter revalideres fortsatt her: `/min-plan` er butikksjefens
+// flate, og `router.refresh()` naar bare sida du staar paa.
+// =====================================================================
+
 /** Bare eieren slipper planer. Butikksjefen er mottakeren, ikke avsender. */
 const KAN_SLIPPE = 'retailer_admin'
 
@@ -62,7 +81,9 @@ export async function slippPlan(_t: Kvittering, fd: FormData): Promise<Kvitterin
     {
       hva: 'slippe planen',
       ok: 'Sluppet. Butikksjefen ser den nå.',
-      oppfrisk: ['/maanedsplan'],
+      // BARE den andre ruta. Sluppet plan blir synlig paa `/min-plan`,
+      // og den friskes ikke opp av klienten her.
+      oppfrisk: ['/min-plan'],
     },
   )
 }
@@ -88,7 +109,10 @@ export async function avvisPlan(_t: Kvittering, fd: FormData): Promise<Kvitterin
       .update({ status: 'avvist' }, { count: 'exact' })
       .eq('id', id)
       .eq('status', 'utkast'),
-    { hva: 'avvise planen', ok: 'Avvist. Den sendes ikke.', oppfrisk: ['/maanedsplan'] },
+    // INGEN `oppfrisk`. En avvist plan har aldri vaert synlig paa
+    // `/min-plan` - statusfilteret der slipper bare sluppet og sendt
+    // gjennom - saa det finnes ingen annen rute aa friske opp.
+    { hva: 'avvise planen', ok: 'Avvist. Den sendes ikke.' },
   )
 }
 
@@ -149,16 +173,7 @@ export async function byggPlanerPaaNytt(_t: Kvittering, fd: FormData): Promise<K
 
   try {
     const r = await regenererMaaned({ supabase, retailerId: bruker.retailerId, maaned })
-    // INGEN REVALIDERING AV EGEN RUTE.
-    //
-    // `useActionState` holder `venter` sann gjennom hele overgangen, og
-    // en revalidering av EGEN rute gjoer ruteroppdateringen til en del
-    // av den. Kvitteringen blir da gissel for at sida skal tegne seg om
-    // - maalt til 45 sekunder paa /stempling der serveren svarte paa
-    // 190 ms, og her sto e2e-testen og ventet i 20 uten aa faa svar.
-    //
-    // `/min-plan` er en ANNEN rute, og skal friskes opp: butikksjefen
-    // leser den sluppede planen der.
+    // `/min-plan` er en ANNEN rute. Se blokka oeverst i fila.
     revalidatePath('/min-plan')
     return { ok: regenereringsnotat(r) }
   } catch (e) {

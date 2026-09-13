@@ -75,6 +75,8 @@ export function Byggknapp({ maaned, forventet, eksisterende }: {
           hva={`månedsplanene for ${mnd}`}
           arbeider="Bygger …"
           variant="primar"
+          // Snapshottene skrives, og de staar paa DENNE sida.
+          oppfrisk
           sporsmaal={
             `Bygge månedsplanene for ${mnd} på nytt?\n\n`
             + `• Grunnlaget forventer ${st(forventet)}. `
