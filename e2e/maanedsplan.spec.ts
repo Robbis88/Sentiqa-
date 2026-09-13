@@ -175,3 +175,80 @@ test.describe('telefonbredde', () => {
     expect(bredde[0]).toBeLessThanOrEqual(bredde[1] + 1)
   })
 })
+
+// =====================================================================
+// Å BYGGE MÅNEDENS UTKAST PÅ NYTT
+// =====================================================================
+//
+// Knappen finnes fordi den eneste veien til et nytt utkast var å kjøre
+// en regnskapsfil om igjen — og det skriver `regnskapslinjer`,
+// `bilagssum`, `bp_linje` og provenienstabellene på veien.
+//
+// Seedet har ingen `v_kurs_maanedstall`-rader, så kjøringen finner ingen
+// historikk og skriver ingenting. DET ER POENGET her: testen måler at
+// hele kjeden går — handling, RLS, kvittering — og at en tom kjøring
+// SIER at den var tom i stedet for å se vellykket ut.
+// =====================================================================
+test.describe('bygg på nytt', () => {
+  test('knappen sier hva som skjer, før den trykkes', async ({ page }) => {
+    await page.goto('/maanedsplan')
+    const seksjon = page.locator('section').filter({ hasText: 'Bygg juli 2026 på nytt' })
+    await expect(seksjon).toBeVisible()
+
+    // Forklaringen må si hva som IKKE skjer. «Bygg på nytt» alene leses
+    // som «kjør importen om igjen».
+    await expect(seksjon).toContainText('Ingen fil lastes opp')
+    await expect(seksjon).toContainText('ingen import kjøres')
+    await expect(seksjon).toContainText('Bare utkast skrives om')
+  })
+
+  test('den kjører ALDRI av seg selv', async ({ page }) => {
+    // En side som skriver når den åpnes er en side ingen kan stole på.
+    // Bevis: åpne sida to ganger og se at ingen kvittering dukker opp.
+    await page.goto('/maanedsplan')
+    await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
+    await page.reload()
+    await expect(page.locator('.sq-plankort').first()).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('Bygget')
+    await expect(page.locator('body')).not.toContainText('Ingen utkast ble skrevet')
+  })
+
+  test('spørsmålet navngir måneden og antallet', async ({ page }) => {
+    await page.goto('/maanedsplan')
+    let tekst = ''
+    page.on('dialog', async (d) => { tekst = d.message(); await d.dismiss() })
+    await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+    await expect.poll(() => tekst).toContain('juli 2026')
+    expect(tekst).toContain('stasjon')
+    expect(tekst).toContain('Ingen regnskapsdata')
+    expect(tekst).toContain('Sluppet, sendt og avvist står urørt')
+  })
+
+  test('avbryt betyr avbryt', async ({ page }) => {
+    // `window.confirm` uten `preventDefault` kjører handlingen uansett
+    // hva man svarer. Det har skjedd i dette huset før.
+    await page.goto('/maanedsplan')
+    page.on('dialog', (d) => d.dismiss())
+    await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+    await page.waitForTimeout(500)
+    await expect(page.locator('body')).not.toContainText('Bygget')
+    await expect(page.locator('body')).not.toContainText('Ingen utkast ble skrevet')
+  })
+
+  test('en tom kjøring SIER at den var tom', async ({ page }) => {
+    await page.goto('/maanedsplan')
+    page.on('dialog', (d) => d.accept())
+    await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+
+    // Seedet har ingen maanedstall, så ingen plan kan bygges. En handling
+    // som lykkes uten å si fra, ser ut som en som feilet.
+    await expect(page.locator('body')).toContainText(
+      'Ingen utkast ble skrevet for 2026-07', { timeout: 15_000 })
+
+    // OG DE SLUPPEDE PLANENE STÅR. Grenseby mai er `sluppet`; en tom
+    // kjøring skal ikke ha rørt den.
+    await page.goto('/min-plan')
+    await expect(page.locator('.sq-plankort')).toHaveCount(1)
+    await expect(page.locator('.sq-plankort').first()).toContainText('mai 2026')
+  })
+})

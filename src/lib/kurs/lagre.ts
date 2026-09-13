@@ -37,23 +37,68 @@ export type Utkast = {
 
 export type Lagret = {
   skrevet: number
-  /** Stasjoner der planen allerede var sluppet, og derfor sto urørt. */
+  /** Stasjoner der planen sto låst, og derfor urørt. */
   laast: string[]
 }
 
 /**
- * Skriver utkastene. Planer som allerede er sluppet står urørt.
+ * Statusene importen aldri skriver om.
  *
- * Kjøres med tjenestenøkkelen fra importen — det finnes ingen
- * insert-policy for `authenticated`.
+ * `avvist` står IKKE her, og det er med vilje: en ny regnskapsfil er ny
+ * informasjon, og et nytt utkast på en avvist måned er riktig svar. En
+ * MANUELL regenerering er noe annet — se `LAAST_VED_REGENERERING`.
+ */
+export const LAAST_VED_IMPORT = ['sluppet', 'sendt'] as const
+
+/**
+ * Statusene en manuell regenerering aldri skriver om.
+ *
+ * Her er `avvist` med. Eieren har tatt stilling til den måneden, og et
+ * knappetrykk skal ikke gjøre om på den avgjørelsen i stillhet.
+ *
+ * MERK AT TRIGGEREN IKKE DEKKER `avvist`. `maanedsplan_laas_sluppet`
+ * (0200) feller bare `sluppet` og `sendt`. For dem er triggeren
+ * autoriteten og denne lista bare en bedre feilmelding; for `avvist` er
+ * lista den eneste låsen, og det skal stå skrevet her framfor å bli
+ * oppdaget av noen som trodde triggeren tok alt.
+ */
+export const LAAST_VED_REGENERERING = ['sluppet', 'sendt', 'avvist'] as const
+
+export type Lagreopsjoner = {
+  /** Statuser som ikke skrives om. Se de to konstantene over. */
+  laaste?: readonly string[]
+  /**
+   * Behold `kilde_jobb_id` på rader som finnes fra før.
+   *
+   * Regenereringen har ingen importjobb å vise til, og `null` ville
+   * slettet pekeren til filen tallene faktisk kom fra. Verdien leses
+   * derfor tilbake fra raden og skrives uåpnet — den GJETTES ikke ut av
+   * hva PostgREST gjør med en utelatt kolonne i en upsert.
+   */
+  beholdKilde?: boolean
+}
+
+/**
+ * Skriver utkastene. Låste planer står urørt.
+ *
+ * To kallere, og de låser ulikt:
+ *
+ *   importen        tjeneste-/eiernøkkel, `LAAST_VED_IMPORT`
+ *   regenereringen  eierens egen økt, `LAAST_VED_REGENERERING`
+ *
+ * ÉN skriver med to innstillinger, ikke to skrivere. To ville drevet fra
+ * hverandre, og forskjellen ville vist seg først når noen sammenlignet
+ * en regenerert plan med en importert.
  */
 export async function lagreUtkast(
   supabase: Klient,
   retailerId: string,
   jobbId: string | null,
   utkast: readonly Utkast[],
+  opts: Lagreopsjoner = {},
 ): Promise<Lagret> {
   if (utkast.length === 0) return { skrevet: 0, laast: [] }
+  const laaste: readonly string[] = opts.laaste ?? LAAST_VED_IMPORT
 
   const stasjoner = [...new Set(utkast.map((u) => u.stasjonId))]
   const maaneder = [...new Set(utkast.map((u) => u.plan.maaned))]
@@ -65,19 +110,34 @@ export async function lagreUtkast(
   // eget tak UTEN å feile, og et avkortet svar her ville sett ut som «de
   // er ikke sluppet». Da hadde vi skrevet over et brev butikksjefen
   // allerede har lest. Grensen er satt av skranken, ikke gjettet.
-  const { data: eksisterende } = await supabase
+  const { data: eksisterende, error: lesefeil } = await supabase
     .from('maanedsplan')
-    .select('stasjon_id, maaned, status')
+    .select('stasjon_id, maaned, status, kilde_jobb_id')
     .eq('retailer_id', retailerId)
     .in('stasjon_id', stasjoner)
     .in('maaned', maaneder)
     .limit(stasjoner.length * maaneder.length)
 
+  // EN LESEFEIL HER SER UT SOM «INGEN ER SLUPPET».
+  //
+  // `data ?? []` alene ville gjort en avvist eller feilet spoerring til
+  // en tom laaseliste, og da hadde vi skrevet over et brev butikksjefen
+  // har lest. Feiler lesingen, skriver vi ingenting.
+  if (lesefeil) {
+    throw new Error(`Kunne ikke lese eksisterende planer: ${lesefeil.message}`)
+  }
+
+  type Rad = {
+    stasjon_id: string; maaned: string; status: string; kilde_jobb_id: string | null
+  }
+  const noekkel = (stasjonId: string, maaned: string) => `${stasjonId}|${maaned.slice(0, 10)}`
+  const rader = (eksisterende ?? []) as Rad[]
+
   const laastNokkel = new Set(
-    ((eksisterende ?? []) as { stasjon_id: string; maaned: string; status: string }[])
-      .filter((r) => r.status === 'sluppet' || r.status === 'sendt')
-      .map((r) => `${r.stasjon_id}|${r.maaned.slice(0, 10)}`),
+    rader.filter((r) => laaste.includes(r.status))
+      .map((r) => noekkel(r.stasjon_id, r.maaned)),
   )
+  const kildePer = new Map(rader.map((r) => [noekkel(r.stasjon_id, r.maaned), r.kilde_jobb_id]))
 
   const aaSkrive = utkast.filter(
     (u) => !laastNokkel.has(`${u.stasjonId}|${u.plan.maaned}`),
@@ -102,7 +162,9 @@ export async function lagreUtkast(
         ...lagSnapshot(u.plan),
         rangering: u.plan.rangering,
         status: 'utkast',
-        kilde_jobb_id: jobbId,
+        kilde_jobb_id: opts.beholdKilde
+          ? (kildePer.get(noekkel(u.stasjonId, u.plan.maaned)) ?? jobbId)
+          : jobbId,
         oppdatert_tid: new Date().toISOString(),
       })),
       { onConflict: 'stasjon_id,maaned' },
@@ -128,7 +190,7 @@ export function lagringsnotat(l: Lagret): string | null {
   }
   if (l.laast.length > 0) {
     deler.push(
-      `${l.laast.join(', ')} sto urørt: planen er allerede sluppet, og et brev `
+      `${l.laast.join(', ')} sto urørt: planen er allerede avgjort, og et brev `
       + 'butikksjefen har lest skal ikke endre seg under henne.',
     )
   }

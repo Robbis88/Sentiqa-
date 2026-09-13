@@ -1,7 +1,9 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kvitter, type Kvittering } from '@/lib/kvittering'
+import { regenererMaaned, regenereringsnotat, validerMaaned } from '@/lib/kurs/regenerer'
 
 // =====================================================================
 // Å slippe en månedsplan.
@@ -86,4 +88,68 @@ export async function avvisPlan(_t: Kvittering, fd: FormData): Promise<Kvitterin
       .eq('status', 'utkast'),
     { hva: 'avvise planen', ok: 'Avvist. Den sendes ikke.', oppfrisk: ['/maanedsplan'] },
   )
+}
+
+
+// =====================================================================
+// Å BYGGE MÅNEDENS UTKAST PÅ NYTT
+// =====================================================================
+//
+// Den bygger planene av tall som ALLEREDE ligger i basen. Ingen fil
+// lastes opp, ingen importjobb kjøres, og ingen av regnskaps- eller
+// provenienstabellene skrives. Tabellkartet står i
+// `src/lib/kurs/regenerer.ts`, og en vakt leser kildene og feller en
+// skriving som sniker seg inn.
+//
+// ---------------------------------------------------------------------
+// MÅNEDEN KOMMER FRA SKJEMAET, MEN AVGJØRES AV SERVEREN
+//
+// Feltet valideres på form — ISO, første i måneden, ikke framtid — og
+// må DESSUTEN være den nyeste måneden kjeden faktisk har en plan for,
+// slått opp her. Da kan en gammel fane eller et endret felt ikke styre
+// hvilken måned som skrives om; den kan bare gi et nei.
+//
+// Retailer-ID slås opp på brukeren og kommer aldri fra skjemaet.
+// =====================================================================
+
+export async function byggPlanerPaaNytt(_t: Kvittering, fd: FormData): Promise<Kvittering> {
+  const bruker = await hentInnloggetBruker()
+  if (bruker.rolle !== KAN_SLIPPE || !bruker.retailerId) {
+    return { feil: 'Bare eier kan bygge planene på nytt.' }
+  }
+
+  const bedtOm = validerMaaned(fd.get('maaned'))
+  if (!bedtOm) return { feil: 'Ugyldig måned.' }
+
+  const supabase = await lagSupabaseServerKlient()
+
+  // NYESTE MÅNED, SLÅTT OPP PÅ NYTT. RLS gjoer at dette er kjedens egne
+  // rader; `retailerId` står i tillegg, ikke i stedet.
+  const { data: nyeste, error: lesefeil } = await supabase
+    .from('maanedsplan')
+    .select('maaned')
+    .eq('retailer_id', bruker.retailerId)
+    .order('maaned', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (lesefeil) return { feil: `Kunne ikke lese planene: ${lesefeil.message}` }
+  if (!nyeste) return { feil: 'Det finnes ingen planer å bygge om.' }
+
+  const maaned = String(nyeste.maaned).slice(0, 10)
+  if (maaned !== bedtOm) {
+    return {
+      feil: `Sida viste ${bedtOm.slice(0, 7)}, men nyeste måned er nå `
+        + `${maaned.slice(0, 7)}. Last sida på nytt før du bygger.`,
+    }
+  }
+
+  try {
+    const r = await regenererMaaned({ supabase, retailerId: bruker.retailerId, maaned })
+    revalidatePath('/maanedsplan')
+    revalidatePath('/min-plan')
+    return { ok: regenereringsnotat(r) }
+  } catch (e) {
+    return { feil: `Klarte ikke bygge planene: ${e instanceof Error ? e.message : String(e)}` }
+  }
 }

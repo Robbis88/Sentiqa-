@@ -5,6 +5,7 @@ import { Sidehode, Tomtilstand, Feiltilstand, Forklaring } from '@/components/ui
 import { maaVaereHele } from '@/lib/supabase/datobolker'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Plankort, type Punkt } from './plankort'
+import { Byggknapp } from './byggknapp'
 
 // =====================================================================
 // Månedsplanene — eierens godkjenningskø.
@@ -93,6 +94,12 @@ export default async function MaanedsplanSide() {
   const avgjort = alle.filter((p) => p.status !== 'utkast')
   const nyeste = alle[0]?.maaned
 
+  // HVOR MANGE STASJONER KNAPPEN GJELDER. Tallet står i spørsmålet før
+  // kjøring, og skal være målt — ikke et rundt tall noen skrev inn.
+  // Låste planer er med i tallet og navngis i kvitteringen etterpå; å
+  // trekke dem fra her ville skjult at de finnes.
+  const iNyeste = nyeste ? alle.filter((p) => p.maaned === nyeste) : []
+
   return (
     <Sideramme>
       <Sidehode
@@ -113,6 +120,10 @@ export default async function MaanedsplanSide() {
             + 'strek, ikke en retning.'
           }
         />
+      )}
+
+      {nyeste && (
+        <Byggknapp maaned={nyeste.slice(0, 10)} stasjoner={iNyeste.length} />
       )}
 
       {utkast.length > 0 && (

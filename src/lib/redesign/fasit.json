@@ -312,6 +312,7 @@
     ],
     "/maanedsplan": [
       "avvisPlan",
+      "byggPlanerPaaNytt",
       "slippPlan"
     ],
     "/meldinger": [
@@ -655,6 +656,7 @@
     ],
     "/maanedsplan": [
       "Avgjort",
+      "Bygg {mnd} på nytt",
       "Ingen månedsplaner ennå",
       "Køen kunne ikke hentes",
       "Venter på deg",
