@@ -109,6 +109,39 @@ describe('parserversjon', () => {
     expect(kjerne).toContain('avviksantall:')
   })
 
+  it('aktiveringen bytter i TO setninger, ikke én', () => {
+    // `0209` byttet aktiv jobb med én update, «saa det aldri finnes et
+    // oeyeblikk med to aktive». En partiell unik indeks kan ikke
+    // utsettes og sjekkes per rad — foerste ekte kall ga 23505.
+    // Atomisiteten kommer fra transaksjonen, ikke fra setningen.
+    // KODEN, IKKE KOMMENTAREN. `0212` siterer den gamle formen i hodet
+    // for å forklare feilen, og en rå `toContain` kunne ikke skille de
+    // to — vakten ble rød på sin egen begrunnelse. Samme felle som
+    // AGENTS.md beskriver: «verst når en ustrippet kommentar oppfyller
+    // en toContain».
+    const kode = readFileSync(join(process.cwd(), 'supabase', 'migrations',
+      '0212_aktivering_i_to_setninger.sql'), 'utf8')
+      .split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n')
+
+    expect(kode).toContain('set aktiv = false')
+    expect(kode).toContain('set aktiv = true')
+    // Den gamle formen skal ikke komme tilbake.
+    expect(kode).not.toContain('set aktiv = (id = p_jobb)')
+    // Rekkefølgen er hele poenget: deaktiver før aktiver.
+    expect(kode.indexOf('set aktiv = false')).toBeLessThan(kode.indexOf('set aktiv = true'))
+  })
+
+  it('proben som ville fanget det finnes, og ruller tilbake', () => {
+    const probe = readFileSync(join(process.cwd(), 'supabase', 'tests',
+      'aktiver_import_probe.sql'), 'utf8')
+    expect(probe).toContain('public.aktiver_import(')
+    expect(probe).toContain('rollback;')
+    expect(probe).toContain('unique_violation')
+    // Fiksturperioden maa ligge utenfor ekte data.
+    expect(probe).toContain("date '1999-03-01'")
+    expect(probe).not.toMatch(/date '20\d\d-/)
+  })
+
   it('KANARI: aktivering krever bevis, ikke bare «parset»', () => {
     const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations',
       '0211_aktivering_krever_bevis.sql'), 'utf8')
