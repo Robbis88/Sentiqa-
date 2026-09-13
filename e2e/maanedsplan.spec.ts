@@ -490,13 +490,24 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       })
       page.on('pageerror', (e) => sidefeil.push(e.message))
       // Serverhandlinger er POST mot samme URL, med `next-action`-hodet.
+      // BAADE POST OG RSC-HENTING.
+      //
+      // POST-en er serverhandlingen. Men `router.refresh()` gir en GET
+      // med `RSC: 1` - og uten den i loggen kan vi ikke skille
+      // «refreshen ble aldri kalt» fra «den ble kalt og serverte det
+      // samme». Det er noeyaktig den forgreningen vi staar i naa.
       page.on('request', (q) => {
-        if (q.method() !== 'POST') return
-        nett.push(`--> POST ${q.url()} next-action=${q.headers()['next-action'] ?? '(ingen)'}`)
+        const rsc = q.headers()['rsc']
+        if (q.method() === 'POST') {
+          nett.push(`--> POST ${q.url()} next-action=${q.headers()['next-action'] ?? '(ingen)'}`)
+        } else if (rsc) {
+          nett.push(`--> RSC ${q.method()} ${q.url()}`)
+        }
       })
       page.on('response', (v) => {
-        if (v.request().method() !== 'POST') return
-        nett.push(`<-- ${v.status()} ${v.url()}`)
+        const q = v.request()
+        if (q.method() === 'POST') nett.push(`<-- ${v.status()} POST ${v.url()}`)
+        else if (q.headers()['rsc']) nett.push(`<-- ${v.status()} RSC ${v.url()}`)
       })
       page.on('requestfailed', (q) => {
         if (q.method() !== 'POST') return
