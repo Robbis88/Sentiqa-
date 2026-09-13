@@ -343,6 +343,18 @@ language plpgsql
 security invoker
 set search_path = public, pg_temp
 as $$
+-- NAVNEKOLLISJONEN MELLOM OUT-PARAMETRE OG KOLONNER.
+--
+-- `returns table (stasjon_id, maaned, ...)` gjoer navnene til
+-- PL/pgSQL-variabler. I `return query` er de da tvetydige mot
+-- kolonnene med samme navn, og Postgres nekter - «column reference
+-- stasjon_id is ambiguous».
+--
+-- `use_column` sier at kolonnen vinner. Vi TILDELER aldri til
+-- out-parametrene her; hele svaret kommer fra `return query`, saa det
+-- er trygt. Alternativet - aa doepe om parametrene - ville endret
+-- kolonnenavnene kallerne leser.
+#variable_conflict use_column
 declare
   v_retailer uuid := coalesce((select public.gjeldende_retailer_id()), p_retailer_id);
   v_maaneder date[];
