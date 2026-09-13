@@ -165,8 +165,19 @@ export default async function ImportSide(
   // daglige salgsimporter er en forretningsplan fra i fjor for lengst ute
   // av vinduet. Den lastes opp en gang i aaret og er nettopp den man
   // trenger aa finne igjen - for aa kjoere den om igjen mot ny kode.
+  // REGNSKAPET HAR SAMME PROBLEM SOM FORRETNINGSPLANEN. Det kommer én
+  // gang i maaneden, og fire salgsfiler om dagen skyver det ut av de 50
+  // siste paa under to uker. Robert 2026-09-13: «februar ligger ikke
+  // her, jeg har bare de siste 50 der» - midt i en reimport av januar
+  // til mai, der raden med «Behandle paa nytt» er hele poenget.
+  //
+  // Allow-liste, ikke fri tekst: `sp.type` kommer fra URL-en, og en
+  // ufiltrert verdi rett inn i `eq('rapporttype', ...)` er en aapning.
+  const FANER = ['st1_bp', 'regnskap_resultat'] as const
   const sp = await searchParams
-  const filter = sp.type === 'st1_bp' ? 'st1_bp' : null
+  const filter = (FANER as readonly string[]).includes(sp.type ?? '')
+    ? (sp.type as (typeof FANER)[number])
+    : null
   let sporring = supabase
     .from('import_jobber')
     .select(
@@ -292,12 +303,20 @@ export default async function ImportSide(
       <section className="kort">
         <h2>Status</h2>
         <BehandleAlleKnapp antall={jobber.filter((j) => j.status === 'mottatt').length} />
-        {/* Lista viser de 50 siste. Forretningsplanen lastes opp én gang i
-            året, og er nettopp den man trenger å finne igjen — den er for
-            lengst ute av vinduet når salgsfilene kommer daglig. */}
+        {/* Lista viser de 50 siste. Forretningsplanen kommer én gang i året
+            og regnskapet én gang i måneden — begge er nettopp de man
+            trenger å finne igjen, og begge er for lengst ute av vinduet
+            når fire salgsfiler kommer hver dag. */}
         <nav className="sq-faner" aria-label="Filtrer importjobber">
           <Link href="/import" className="sq-fane" aria-current={filter ? undefined : 'page'}>
             Alle
+          </Link>
+          <Link
+            href="/import?type=regnskap_resultat"
+            className="sq-fane"
+            aria-current={filter === 'regnskap_resultat' ? 'page' : undefined}
+          >
+            Regnskap
           </Link>
           <Link
             href="/import?type=st1_bp"
@@ -309,9 +328,9 @@ export default async function ImportSide(
         </nav>
         {jobber.length === 0 ? (
           <p className="undertittel">
-            {filter
-              ? 'Ingen forretningsplaner er lastet opp ennå.'
-              : 'Ingen filer lastet opp ennå.'}
+            {filter === 'st1_bp' ? 'Ingen forretningsplaner er lastet opp ennå.'
+              : filter === 'regnskap_resultat' ? 'Ingen regnskapsfiler er lastet opp ennå.'
+                : 'Ingen filer lastet opp ennå.'}
           </p>
         ) : (
           <table className="tabell">
