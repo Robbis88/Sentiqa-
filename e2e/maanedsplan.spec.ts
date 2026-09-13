@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { OKTFIL } from './eier'
 
 // =====================================================================
 // Mat- og svinnanalysen på månedsplanen — den faktiske flaten.
@@ -20,6 +21,18 @@ import { expect, test } from '@playwright/test'
 // `innerText` gir bare rendret tekst og kan ikke skille «finnes ikke»
 // fra «er skjult». En negativ påstand hører til `textContent`. Se
 // AGENTS.md — det har flaket her før.
+
+// =====================================================================
+// ØKTA. Uten denne linja kjører fila UTLOGGET.
+//
+// Prosjektet `chromium` avhenger av `oppsett`, som logger inn eieren og
+// lagrer økta i `OKTFIL` — men avhengigheten kjører bare steget, den
+// deler ikke økta. Hver spec-fil må be om den selv.
+//
+// Glemte man den, ble hver `goto` sendt til /logg-inn og HVER påstand
+// feilet med «element(s) not found». Det ser ut som en feil i sida.
+// =====================================================================
+test.use({ storageState: OKTFIL })
 
 const kort = (side: import('@playwright/test').Page, stasjon: string) =>
   side.locator('.sq-plankort').filter({ hasText: stasjon }).first()

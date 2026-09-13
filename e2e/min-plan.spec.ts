@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { OKTFIL } from './eier'
 
 // =====================================================================
 // MOTTAKERFLATEN. Planen slik den faktisk når fram.
@@ -33,6 +34,18 @@ import { expect, test } from '@playwright/test'
 //   Underby   juli  utkast    (skal ALDRI vises her)
 //   Grenseby  juli  utkast    (skal ALDRI vises her)
 //   Underby   juni  utkast    (skal ALDRI vises her)
+
+// =====================================================================
+// ØKTA. Uten denne linja kjører fila UTLOGGET.
+//
+// Prosjektet `chromium` avhenger av `oppsett`, som logger inn eieren og
+// lagrer økta i `OKTFIL` — men avhengigheten kjører bare steget, den
+// deler ikke økta. Hver spec-fil må be om den selv.
+//
+// Glemte man den, ble hver `goto` sendt til /logg-inn og HVER påstand
+// feilet med «element(s) not found». Det ser ut som en feil i sida.
+// =====================================================================
+test.use({ storageState: OKTFIL })
 
 const kort = (side: import('@playwright/test').Page) =>
   side.locator('.sq-plankort').first()
