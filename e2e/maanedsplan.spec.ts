@@ -455,9 +455,22 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       // håndterer, så `preventDefault` i `HandlingKnapp` stoppet
       // innsendingen og ingenting skjedde. Kortet ble stående, og
       // feilen så ut som en oppfriskning som ikke virket.
-      page.on('dialog', (d) => d.accept())
+      // TELLES, ikke bare håndteres.
+      //
+      // `kvitter()` returnerer ALLTID noe — `feil` eller `ok`. Kom det
+      // verken en flytting eller en feilmelding, kjørte handlingen
+      // aldri, og da er det innsendingen som ble stoppet. Denne
+      // telleren skiller «dialogen kom aldri» fra «dialogen ble
+      // besvart, men handlingen gjorde ingenting».
+      let dialoger = 0
+      page.on('dialog', (d) => { dialoger += 1; return d.accept() })
 
       await iKoe().getByRole('button', { name: 'Avvis' }).click()
+
+      await expect
+        .poll(() => dialoger,
+          { timeout: 10_000, message: 'bekreftelsesdialogen for Avvis kom aldri' })
+        .toBe(1)
 
       // DE TO FEILENE SKILLES — UTEN Å KAPPLØPE MED EN KOMPONENT SOM
       // FORSVINNER.
