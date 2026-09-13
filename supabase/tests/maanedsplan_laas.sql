@@ -58,7 +58,7 @@ begin
   insert into public.retailers (id, navn) values (v_ret, 'Laasetest')
     on conflict (id) do nothing;
   insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
-    values (v_st, v_ret, 'LT01', 'Laasestasjon', 'bydel')
+    values (v_st, v_ret, '9801', 'Laasestasjon', 'bydel')
     on conflict (id) do nothing;
   insert into public.profiler (id, retailer_id, rolle, fullt_navn)
     values (v_pro, v_ret, 'retailer_admin', 'Laasetest Eier')

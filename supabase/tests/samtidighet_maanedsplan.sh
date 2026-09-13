@@ -55,9 +55,9 @@ trap opprydding EXIT
 q "insert into public.retailers (id, navn) values ('$RET','Racetest')
      on conflict (id) do nothing;
    insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
-     values ('$ST_A','$RET','RT01','Race A','bydel'),
-            ('$ST_B','$RET','RT02','Race B','bydel'),
-            ('$ST_C','$RET','RT03','Race C','bydel')
+     values ('$ST_A','$RET','9811','Race A','bydel'),
+            ('$ST_B','$RET','9812','Race B','bydel'),
+            ('$ST_C','$RET','9813','Race C','bydel')
      on conflict (id) do nothing;
    insert into public.profiler (id, retailer_id, rolle, fullt_navn)
      values ('$PRO','$RET','retailer_admin','Race Eier')
@@ -99,12 +99,20 @@ race() {
     "$( [ "$ny_status" = "avvist" ] && echo null || echo "'$PRO'" )" \
     "$( [ "$ny_status" = "avvist" ] && echo null || echo now\(\) )" \
     "'$maal'" >&9
-  # Vent til B faktisk HAR laasen.
+  # VENT TIL B FAKTISK HAR RADLAASEN.
+  #
+  # Her sto en loekke med `!= ""` som vilkaar. `count(*)` returnerer
+  # ALLTID en verdi, saa den avsluttet paa foerste runde uten aa vente
+  # paa noe som helst - en kontroll som ikke kan feile.
+  #
+  # `pg_locks` sier det direkte: B holder en `RowExclusiveLock` paa
+  # tabellen naar updaten er utfoert.
   local i=0
-  until [ "$(q "select count(*) from public.maanedsplan
-                 where stasjon_id = '$maal' and status = '$ny_status'
-                   and xmin::text <> '0'" )" != "" ] || [ $i -gt 100 ]; do
+  until [ "$(q "select count(*) from pg_locks
+                 where granted and relation = 'public.maanedsplan'::regclass
+                   and mode = 'RowExclusiveLock'")" -gt 0 ]; do
     i=$((i+1))
+    [ $i -gt 500 ] && feil "sesjon B tok aldri laasen"
   done
 
   # --- SESJON A: skriveren. Skal BLOKKERE paa radlaasen -------------
@@ -116,8 +124,13 @@ race() {
 
   # VERIFISER at A faktisk venter paa en laas. Uten dette maaler vi
   # kanskje bare «B committet foerst».
+  # `relation`-filteret er ikke pynt: `not granted` uten det teller
+  # hvilken som helst ventende laas i hele klyngen, og da kunne loekka
+  # sluppet videre paa noe helt annet enn racet vi maaler.
   i=0
-  until [ "$(q "select count(*) from pg_locks where not granted")" -gt 0 ]; do
+  until [ "$(q "select count(*) from pg_locks
+                 where not granted
+                   and relation = 'public.maanedsplan'::regclass")" -gt 0 ]; do
     i=$((i+1))
     if [ $i -gt 200 ]; then
       feil "sesjon A blokkerte aldri - interleavingen ble ikke oppnaadd"
