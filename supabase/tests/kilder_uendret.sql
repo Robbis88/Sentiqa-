@@ -2,104 +2,179 @@
 -- KILDENE SKAL IKKE FLYTTE SEG
 -- =====================================================================
 -- Rent lesende. Kjoeres FOER og ETTER en regenerering av
--- maanedsplanutkastene, og de to svarene sammenlignes kolonne for
--- kolonne.
+-- maanedsplanutkastene, og de to svarene sammenlignes rad for rad.
 --
--- Alt unntatt de fire `maanedsplan_*`-kolonnene skal vaere IDENTISK.
---
--- ---------------------------------------------------------------------
--- HVORFOR BAADE RADANTALL OG SUMMER
---
--- Et radantall alene ser en sletting og en innsetting, men ikke en
--- endring: en rad som faar et nytt beloep har samme antall. En sum alene
--- ser en endring, men to endringer som opphever hverandre gaar fri.
--- Sammen dekker de hverandres blindsone.
---
--- Summene har `::numeric` og ingen avrunding. En avrundet sum ville
--- skjult noeyaktig de smaa flyttingene dette er ment aa fange.
+-- Alt unntatt de tre `maanedsplan`-radene skal vaere IDENTISK.
 --
 -- ---------------------------------------------------------------------
--- IKKE FILTRERT PAA KJEDE
+-- RADANTALL OG SUM BEVISER IKKE UENDRET INNHOLD
+-- ---------------------------------------------------------------------
 --
--- Med vilje: regenereringen kjoerer i én kjede, og en sonde som bare
--- ser den kjeden ville ikke oppdaget at noe traff en annen. Et tall som
--- flytter seg et sted denne veien ikke skulle naadd, er det viktigste
--- funnet sonden kan gjoere.
+-- Foerste utgave sa at antall og sum «dekker hverandres blindsone».
+-- Det er matematisk feil, og det er verdt aa skrive ned hvorfor:
+--
+--     rad A  +100
+--     rad B  -100
+--
+-- Antallet er likt. Summen er lik. To beloep har flyttet seg. To
+-- aggregater over samme mengde er begge invariante under et par som
+-- opphever hverandre - de DELER blindsonen, de dekker den ikke.
+--
+-- Beviset er derfor en DIGEST over hver rad, hele raden:
+--
+--     md5(string_agg(md5(t::text), '' order by <noekkel>))
+--
+-- `t::text` renderer hver kolonne i hver rad. Endres ett beloep hvor som
+-- helst, endres digesten - ogsaa naar summen staar stille.
+--
+-- Antall og sum staar fortsatt her. De er LESBARE for et menneske og
+-- sier hvor man skal lete. De er ikke beviset.
 --
 -- ---------------------------------------------------------------------
--- SLETTEDE RADER TELLES MED
+-- NULL, TOM TABELL, SORTERING
+-- ---------------------------------------------------------------------
 --
--- `slettet_tid` filtreres IKKE bort. En myk sletting er en endring, og
--- en sonde som leser som flaten ville sett den som «raden var her hele
--- tiden, den er bare borte naa».
+-- NULL:  `t::text` skriver raden som record-literal. NULL blir et tomt
+--        felt `(1,,x)`, tom streng blir sitert `(1,"",x)`. De er
+--        entydig forskjellige - det er Postgres' egen record-utskrift,
+--        ikke en antakelse.
+--
+-- TOM:   `string_agg` over null rader gir NULL, og `md5(NULL)` er NULL.
+--        `coalesce(..., 'TOM')` gir en definert verdi.
+--
+-- ORDEN: hver digest sorteres paa en DOKUMENTERT unik noekkel. Ti av
+--        tabellene har `id uuid primary key`. `daglig_salg` har ingen
+--        `id` - den har sammensatt primaernoekkel
+--        `(retailer_id, stasjon_id, dato, ean)`, og den brukes.
+--
+-- ---------------------------------------------------------------------
+-- DAGLIG_SALG: PER MAANED, IKKE SLAATT SAMMEN
+-- ---------------------------------------------------------------------
+--
+-- 2 847 193 rader. Én ordnet `string_agg` over hele tabellen ville
+-- sortert alt paa én gang; her grupperes det per maaned, saa
+-- minnebehovet er én periode av gangen mens HVER rad er dekket.
+--
+-- Maanedsdigestene slaas IKKE sammen til én verdi. Flytter noe seg,
+-- skal man kunne se noeyaktig hvilken maaned - en samlet verdi ville
+-- sagt «noe er galt» og ingenting mer.
+--
+-- Et analysevindu ville ikke bevist paastanden. Regenereringen skal
+-- aldri roere NOEN periode, og da maa alle periodene maales.
 -- =====================================================================
 
-select
-  -- --- Regnskapsgrunnlaget ------------------------------------------
-  (select count(*) from public.regnskapslinjer)                   as regnskapslinjer_rader,
-  (select count(*) from public.regnskapslinjer
-    where slettet_tid is not null)                                as regnskapslinjer_slettede,
-  (select coalesce(sum(regnskap), 0)::numeric
-     from public.regnskapslinjer)                                 as regnskapslinjer_sum,
-  (select coalesce(sum(budsjett), 0)::numeric
-     from public.regnskapslinjer)                                 as regnskapslinjer_budsjett,
+with t as (
 
-  (select count(*) from public.regnskap_usynlig_svinn)            as usynlig_svinn_rader,
-  (select coalesce(sum(usynlig_kr), 0)::numeric
-     from public.regnskap_usynlig_svinn)                          as usynlig_svinn_sum,
-  (select coalesce(sum(salg), 0)::numeric
-     from public.regnskap_usynlig_svinn)                          as usynlig_svinn_salg,
+-- --- Regnskapsgrunnlaget ---------------------------------------------
+select 'regnskapslinjer' as omraade, '(alle)' as noekkel,
+       (select count(*) from public.regnskapslinjer)                    as rader,
+       (select coalesce(sum(regnskap), 0)::text from public.regnskapslinjer) as sum_kr,
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.regnskapslinjer x)                                as digest
+union all
+select 'regnskap_usynlig_svinn', '(alle)',
+       (select count(*) from public.regnskap_usynlig_svinn),
+       (select coalesce(sum(usynlig_kr), 0)::text from public.regnskap_usynlig_svinn),
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.regnskap_usynlig_svinn x)
+union all
+select 'bilagssum', '(alle)',
+       (select count(*) from public.bilagssum),
+       (select coalesce(sum(belop_kr), 0)::text from public.bilagssum),
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.bilagssum x)
 
-  (select count(*) from public.bilagssum)                         as bilagssum_rader,
-  (select coalesce(sum(belop_kr), 0)::numeric
-     from public.bilagssum)                                       as bilagssum_sum,
-  (select coalesce(sum(antall), 0)
-     from public.bilagssum)                                       as bilagssum_antall,
+-- --- Budsjett og satser ----------------------------------------------
+union all
+select 'bp_aar', '(alle)',
+       (select count(*) from public.bp_aar), '-',
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.bp_aar x)
+union all
+select 'bp_linje', '(alle)',
+       (select count(*) from public.bp_linje),
+       (select coalesce(sum(belop_kr), 0)::text from public.bp_linje),
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.bp_linje x)
+union all
+select 'kastbudsjett', '(alle)',
+       (select count(*) from public.kastbudsjett),
+       (select coalesce(sum(kast_pst_av_salg), 0)::text from public.kastbudsjett),
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.kastbudsjett x)
+union all
+select 'royaltysats', '(alle)',
+       (select count(*) from public.royaltysats),
+       (select coalesce(sum(lav_sats), 0)::text from public.royaltysats),
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.royaltysats x)
 
-  -- --- Budsjett og satser -------------------------------------------
-  (select count(*) from public.bp_aar)                            as bp_aar_rader,
-  (select count(*) from public.bp_linje)                          as bp_linje_rader,
-  (select coalesce(sum(belop_kr), 0)::numeric
-     from public.bp_linje)                                        as bp_linje_sum,
-  (select count(*) from public.kastbudsjett)                      as kastbudsjett_rader,
-  (select coalesce(sum(kast_pst_av_salg), 0)::numeric
-     from public.kastbudsjett)                                    as kastbudsjett_sum,
-  (select count(*) from public.royaltysats)                       as royaltysats_rader,
-  (select coalesce(sum(lav_sats + hoy_sats_vask + pant_sats), 0)::numeric
-     from public.royaltysats)                                     as royaltysats_sum,
+-- --- Proveniens og importkoe -----------------------------------------
+union all
+select 'raa_filer', '(alle)',
+       (select count(*) from public.raa_filer), '-',
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.raa_filer x)
+union all
+select 'import_jobber', '(alle)',
+       (select count(*) from public.import_jobber), '-',
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.import_jobber x)
 
-  -- --- Proveniens og importkoe --------------------------------------
-  (select count(*) from public.raa_filer)                         as raa_filer_rader,
-  (select count(*) from public.import_jobber)                     as import_jobber_rader,
-  (select coalesce(string_agg(s, ':' || n::text, ', ' order by s), '-')
-     from (select status::text as s, count(*) as n
-             from public.import_jobber group by 1) x)             as import_jobber_status,
-  (select max(oppdatert_tid) from public.import_jobber)           as import_jobber_sist_rort,
+-- --- Stasjonsregisteret ----------------------------------------------
+union all
+select 'stasjoner', '(alle)',
+       (select count(*) from public.stasjoner), '-',
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.stasjoner x)
 
-  -- --- Tallene planen faktisk leser ---------------------------------
-  -- Gjennom samme view som motoren. Flytter noe seg her, flytter
-  -- analysen seg - uansett hvilken tabell under som var aarsaken.
-  (select count(*) from public.v_kurs_maanedstall)                as kurs_rader,
-  (select coalesce(sum(matsalg_kr), 0)::numeric
-     from public.v_kurs_maanedstall)                              as kurs_matsalg,
-  (select coalesce(sum(matkast_kr), 0)::numeric
-     from public.v_kurs_maanedstall)                              as kurs_synlig_kast,
-  (select coalesce(sum(usynlig_mat_kr), 0)::numeric
-     from public.v_kurs_maanedstall)                              as kurs_usynlig_mat,
-  (select coalesce(sum(usynlig_rest_kr), 0)::numeric
-     from public.v_kurs_maanedstall)                              as kurs_usynlig_rest,
-  (select coalesce(sum(resultat_kr), 0)::numeric
-     from public.v_kurs_maanedstall)                              as kurs_resultat,
-  (select coalesce(sum(omsetning_kr), 0)::numeric
-     from public.v_kurs_maanedstall)                              as kurs_omsetning,
+-- --- DAGLIG_SALG, ÉN RAD PER MAANED ------------------------------------
+union all
+select 'daglig_salg', to_char(d.maaned, 'YYYY-MM'), d.rader, d.sum_kr, d.digest
+  from (
+    select date_trunc('month', x.dato)::date as maaned,
+           count(*)                          as rader,
+           coalesce(sum(x.omsetning_eks_mva), 0)::text as sum_kr,
+           md5(string_agg(md5(x::text), ''
+               order by x.retailer_id, x.stasjon_id, x.dato, x.ean)) as digest
+      from public.daglig_salg x
+     group by 1) d
 
-  -- --- DET SOM HAR LOV TIL AA ENDRE SEG -----------------------------
-  -- Bare disse fire. Antallet planer skal staa likt; det er BARE
-  -- innholdet i juli-radene som skrives om.
-  (select count(*) from public.maanedsplan)                       as maanedsplan_rader,
-  (select count(*) from public.maanedsplan
-    where matkast is not null)                                    as maanedsplan_med_snapshot,
-  (select count(*) from public.maanedsplan
-    where maaned = date '2026-07-01')                             as maanedsplan_juli,
-  (select count(*) from public.maanedsplan
-    where maaned = date '2026-07-01' and matkast is not null)     as maanedsplan_juli_snapshot;
+-- --- TALLENE PLANEN FAKTISK LESER -------------------------------------
+-- Gjennom samme view som motoren. Flytter noe seg her, flytter analysen
+-- seg - uansett hvilken tabell under som var aarsaken.
+union all
+select 'v_kurs_maanedstall', '(alle)',
+       (select count(*) from public.v_kurs_maanedstall),
+       (select coalesce(sum(matkast_kr), 0)::text from public.v_kurs_maanedstall),
+       (select coalesce(md5(string_agg(md5(x::text), ''
+                 order by x.stasjon_id, x.maaned)), 'TOM')
+          from public.v_kurs_maanedstall x)
+
+-- --- DET SOM HAR LOV TIL AA ENDRE SEG ---------------------------------
+-- Bare disse tre radene. `utenom_maalmaaned` er den DIREKTE maalingen
+-- av paastanden «bare radene for maalmaaneden kunne endres»: den skal
+-- vaere identisk foer og etter.
+union all
+select 'maanedsplan', '(alle)',
+       (select count(*) from public.maanedsplan), '-',
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.maanedsplan x)
+union all
+select 'maanedsplan', 'utenom_maalmaaned',
+       (select count(*) from public.maanedsplan
+         where maaned <> date '2026-07-01'), '-',
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.maanedsplan x where x.maaned <> date '2026-07-01')
+union all
+select 'maanedsplan', 'maalmaaned_2026-07',
+       (select count(*) from public.maanedsplan
+         where maaned = date '2026-07-01'),
+       (select count(*)::text from public.maanedsplan
+         where maaned = date '2026-07-01' and matkast is not null),
+       (select coalesce(md5(string_agg(md5(x::text), '' order by x.id)), 'TOM')
+          from public.maanedsplan x where x.maaned = date '2026-07-01')
+)
+select omraade, noekkel, rader, sum_kr, digest
+  from t
+ order by omraade, noekkel;

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { byggPlanerForRetailer } from './hent'
-import { lagreUtkast, LAAST_VED_REGENERERING } from './lagre'
+import { maaVaereHele } from '@/lib/supabase/datobolker'
+import { lagreUtkast } from './lagre'
 
 // =====================================================================
 // Å BYGGE MÅNEDENS UTKAST PÅ NYTT — UTEN Å IMPORTERE NOE
@@ -83,6 +84,14 @@ const MAANEDSFORM = /^\d{4}-(0[1-9]|1[0-2])-01$/
  */
 const FRA_AAR = 2024
 
+/**
+ * Hvor langt tilbake dekningen leses.
+ *
+ * Taket er et sted å oppdage avkorting, ikke et ønske om færre
+ * rader: `maaVaereHele` kaster når svaret TREFFER det.
+ */
+const MAANEDER_TILBAKE = 24
+
 export function validerMaaned(v: unknown, naa = new Date()): string | null {
   if (typeof v !== 'string') return null
   if (!MAANEDSFORM.test(v)) return null
@@ -133,14 +142,18 @@ export async function regenererMaaned(opts: {
   const lagret = await lagreUtkast(
     supabase,
     retailerId,
-    // INGEN JOBB. Denne veien har ingen fil å vise til, og `beholdKilde`
-    // sørger for at pekeren på radene som finnes fra før står urørt.
+    // INGEN JOBB. Denne veien har ingen fil å vise til. `0217` tolker
+    // `null` som «behold pekeren som står der», og dikter ingen opp.
     null,
     iMaaneden.map((p) => ({ stasjonId: p.stasjonId, plan: p.plan })),
-    { laaste: LAAST_VED_REGENERERING, beholdKilde: true },
   )
 
-  return { maaned, skrevet: lagret.skrevet, laast: lagret.laast, hoppet }
+  return {
+    maaned,
+    skrevet: lagret.skrevet,
+    laast: [...lagret.laast, ...lagret.fremmede],
+    hoppet,
+  }
 }
 
 /**
@@ -164,4 +177,110 @@ export function regenereringsnotat(r: Regenerering): string {
   }
   for (const h of r.hoppet) deler.push(`${h.stasjon}: ${h.grunn}`)
   return deler.join(' ')
+}
+
+
+// =====================================================================
+// MÅLMÅNEDEN KOMMER FRA DATAGRUNNLAGET, IKKE FRA `maanedsplan`
+// =====================================================================
+//
+// Foerste utgave leste nyeste maaned i `maanedsplan`. Det er
+// RESULTATTABELLEN: feilet byggingen av augustplanene foer ÉN eneste
+// planrad ble opprettet, ville knappen fortsatt funnet juli — og da kan
+// den ikke reparere maaneden som mangler. En reparasjonsfunksjon som
+// ikke når tilstanden den skal reparere, er ikke en reparasjon.
+//
+// ---------------------------------------------------------------------
+// «KOMPLETT» MÅLES PÅ DATADEKNING, ALDRI PÅ ET BELØP
+//
+// `omsetning_kr > 0` sto her i skissen. Den blander to ting som ser like
+// ut og betyr motsatt: en ekte nullmaaned og en maaned ingen har
+// importert. `linjer_lest` (0217) er antall regnskapslinjer bak raden,
+// og er DATADEKNINGEN.
+//
+// En maaned er komplett naar HVER aktive stasjon har regnskapsrader for
+// den. Svinn og budsjett kan fortsatt mangle — det blokkeres per
+// analyse av nipunktsporten, og er ikke denne funksjonens sak.
+// =====================================================================
+
+export type Maalmaaned = {
+  /** Nyeste komplette datamaaned, eller `null`. */
+  maaned: string | null
+  /** Hvor mange stasjoner grunnlaget forventer. */
+  aktiveStasjoner: number
+  /** Hvorfor det ikke ble noen maaned. `null` naar det ble en. */
+  grunn: string | null
+}
+
+type Dekningsrad = { maaned: string; stasjon_id: string; linjer_lest: number | null }
+
+export async function nyesteKompletteMaaned(opts: {
+  supabase: Klient
+  retailerId: string
+  naa?: Date
+}): Promise<Maalmaaned> {
+  const { supabase, retailerId } = opts
+  const naa = opts.naa ?? new Date()
+
+  const { data: stasjonsrader, error: stasjonsfeil } = await supabase
+    .from('stasjoner')
+    .select('id')
+    .eq('retailer_id', retailerId)
+    .is('slettet_tid', null)
+    .limit(200)
+  if (stasjonsfeil) throw new Error(`Kunne ikke lese stasjonene: ${stasjonsfeil.message}`)
+
+  const aktive = new Set((stasjonsrader ?? []).map((r) => (r as { id: string }).id))
+  if (aktive.size === 0) {
+    return { maaned: null, aktiveStasjoner: 0, grunn: 'Kjeden har ingen aktive stasjoner.' }
+  }
+
+  // ALDRI FRAMTID. Innevärende maaned er lov — den kan vaere komplett
+  // hvis regnskapet er kjoert.
+  const grense = `${naa.getUTCFullYear()}-${String(naa.getUTCMonth() + 1).padStart(2, '0')}-01`
+
+  const tak = aktive.size * (MAANEDER_TILBAKE + 1)
+  const svar = await supabase
+    .from('v_kurs_maanedstall')
+    .select('maaned, stasjon_id, linjer_lest')
+    .eq('retailer_id', retailerId)
+    .lte('maaned', grense)
+    .order('maaned', { ascending: false })
+    .limit(tak)
+  const rader = maaVaereHele(svar, 'datadekningen', tak) as unknown as Dekningsrad[]
+
+  const perMaaned = new Map<string, Set<string>>()
+  for (const r of rader) {
+    // DEKNING, IKKE BELØP. `linjer_lest` er antall regnskapslinjer bak
+    // raden; er den 0 eller null, er maaneden ikke lest for stasjonen.
+    if (!((r.linjer_lest ?? 0) > 0)) continue
+    if (!aktive.has(r.stasjon_id)) continue
+    const m = String(r.maaned).slice(0, 10)
+    const f = perMaaned.get(m)
+    if (f) f.add(r.stasjon_id)
+    else perMaaned.set(m, new Set([r.stasjon_id]))
+  }
+
+  const komplette = [...perMaaned.entries()]
+    .filter(([, st]) => st.size === aktive.size)
+    .map(([m]) => m)
+    .sort()
+
+  if (komplette.length === 0) {
+    const beste = [...perMaaned.entries()].sort((a, b) => b[0].localeCompare(a[0]))[0]
+    return {
+      maaned: null,
+      aktiveStasjoner: aktive.size,
+      grunn: beste
+        ? `Ingen måned har regnskapsdata for alle ${aktive.size} aktive stasjoner. `
+          + `Nyeste er ${beste[0].slice(0, 7)} med ${beste[1].size} av ${aktive.size}.`
+        : 'Ingen måned har regnskapsdata for kjeden.',
+    }
+  }
+
+  return {
+    maaned: komplette[komplette.length - 1],
+    aktiveStasjoner: aktive.size,
+    grunn: null,
+  }
 }

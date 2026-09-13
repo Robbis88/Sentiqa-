@@ -85,18 +85,32 @@ describe('veien skriver ÉN tabell', () => {
   const alle = KALLGRAF.flatMap((f) =>
     skrivinger(les(f)).map((s) => ({ ...s, fil: f })))
 
-  it('KANARIFUGL: vakten finner i det hele tatt en skriving', () => {
-    // `lagre.ts` HAR en upsert mot maanedsplan. Finner ikke vakten den,
-    // måler den ingenting, og alle påstandene under er tomme.
-    expect(alle.length, 'ingen skrivinger funnet — mønsteret ser ikke noe')
-      .toBeGreaterThan(0)
-    expect(alle.some((s) => s.tabell === 'maanedsplan' && s.op === 'upsert')).toBe(true)
+  it('BYGGEVEIEN skriver ikke direkte i det hele tatt', () => {
+    // Etter `0217` gaar all planskriving gjennom
+    // `skriv_maanedsplan_utkast`. Et `.from(x).upsert(...)` i disse tre
+    // filene ville vaert en vei UTENOM laasen i basen - nettopp det
+    // racet vi lukket.
+    const bygg = alle.filter((s) => s.fil.startsWith('src/lib/kurs/'))
+    expect(bygg, `skriver direkte: ${bygg.map((a) => `${a.tabell}.${a.op} i ${a.fil}`).join(', ')}`)
+      .toHaveLength(0)
   })
 
-  it('og den tabellen er maanedsplan', () => {
+  it('og ingen fil i grafen skriver en ANNEN tabell enn maanedsplan', () => {
+    // `handlinger.ts` har `slippPlan` og `avvisPlan`, som oppdaterer
+    // status paa maanedsplan. De hoerer ikke til byggeveien, men de er i
+    // fila - og de skal fortsatt ikke kunne roere noe annet.
     const andre = alle.filter((s) => s.tabell !== 'maanedsplan')
     expect(andre, `skriver mot ${andre.map((a) => `${a.tabell} (${a.op}, ${a.fil})`).join(', ')}`)
       .toHaveLength(0)
+  })
+
+  it('KANARIFUGL: skriveren i basen kalles, og bare den', () => {
+    // Uten denne maaler testen over ingenting: en fil som ikke skriver
+    // noe som helst ville ogsaa bestaatt.
+    const kall = KALLGRAF.flatMap((f) =>
+      [...les(f).matchAll(/\.rpc\(\s*['"]([a-z_0-9]+)['"]/g)].map((m) => m[1]))
+    expect(kall).toContain('skriv_maanedsplan_utkast')
+    expect(new Set(kall).size, `flere rpc-er: ${[...new Set(kall)].join(', ')}`).toBe(1)
   })
 
   it('ingen av de fredede tabellene skrives', () => {

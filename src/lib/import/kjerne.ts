@@ -1439,6 +1439,19 @@ async function etterRegnskap(o: EtterOpts): Promise<{
   // lagret - ellers ville retningen manglet den maaneden importen
   // nettopp la inn.
   try {
+    // GJELDER_DATO SETTES HER, IKKE FOERST VED `parset`.
+    //
+    // `skriv_maanedsplan_utkast` (0217) validerer `p_kilde_jobb_id` mot
+    // `import_jobber` - kjede, rapporttype OG maaned - og feiler lukket.
+    // Fram til naa ble `gjelder_dato` satt i samme oppdatering som
+    // `status = 'parset'`, altsaa ETTER at planene ble skrevet. Da var
+    // den NULL i det oeyeblikket valideringen kjoerte, og importen ville
+    // avvist sin egen jobb.
+    //
+    // Jobben VET maaneden sin her. At feltet sto tomt til slutten var
+    // en rekkefoelge, ikke en regel.
+    await supabase.from('import_jobber').update({ gjelder_dato: dato }).eq('id', jobbId)
+
     const planer = await byggPlanerForRetailer({ supabase, retailerId, tilOgMed: dato })
     const lagret = await lagreUtkast(
       supabase, retailerId, jobbId,

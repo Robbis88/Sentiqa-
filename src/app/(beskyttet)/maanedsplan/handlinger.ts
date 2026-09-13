@@ -3,7 +3,9 @@ import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kvitter, type Kvittering } from '@/lib/kvittering'
-import { regenererMaaned, regenereringsnotat, validerMaaned } from '@/lib/kurs/regenerer'
+import {
+  nyesteKompletteMaaned, regenererMaaned, regenereringsnotat, validerMaaned,
+} from '@/lib/kurs/regenerer'
 
 // =====================================================================
 // Å slippe en månedsplan.
@@ -123,24 +125,25 @@ export async function byggPlanerPaaNytt(_t: Kvittering, fd: FormData): Promise<K
 
   const supabase = await lagSupabaseServerKlient()
 
-  // NYESTE MÅNED, SLÅTT OPP PÅ NYTT. RLS gjoer at dette er kjedens egne
-  // rader; `retailerId` står i tillegg, ikke i stedet.
-  const { data: nyeste, error: lesefeil } = await supabase
-    .from('maanedsplan')
-    .select('maaned')
-    .eq('retailer_id', bruker.retailerId)
-    .order('maaned', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // MÅLMÅNEDEN SLÅS OPP PÅ NYTT, I DATAGRUNNLAGET.
+  //
+  // Ikke i `maanedsplan`: det er resultattabellen, og en måned som
+  // ALDRI fikk en planrad ville da vært utenåelig for reparasjonen.
+  // `nyesteKompletteMaaned` leser `v_kurs_maanedstall.linjer_lest` —
+  // datadekning, ikke beløp.
+  let maal
+  try {
+    maal = await nyesteKompletteMaaned({ supabase, retailerId: bruker.retailerId })
+  } catch (e) {
+    return { feil: `Kunne ikke lese datagrunnlaget: ${e instanceof Error ? e.message : String(e)}` }
+  }
+  if (!maal.maaned) return { feil: maal.grunn ?? 'Fant ingen komplett datamåned.' }
 
-  if (lesefeil) return { feil: `Kunne ikke lese planene: ${lesefeil.message}` }
-  if (!nyeste) return { feil: 'Det finnes ingen planer å bygge om.' }
-
-  const maaned = String(nyeste.maaned).slice(0, 10)
+  const maaned = maal.maaned
   if (maaned !== bedtOm) {
     return {
-      feil: `Sida viste ${bedtOm.slice(0, 7)}, men nyeste måned er nå `
-        + `${maaned.slice(0, 7)}. Last sida på nytt før du bygger.`,
+      feil: `Sida viste ${bedtOm.slice(0, 7)}, men nyeste komplette datamåned `
+        + `er nå ${maaned.slice(0, 7)}. Last sida på nytt før du bygger.`,
     }
   }
 

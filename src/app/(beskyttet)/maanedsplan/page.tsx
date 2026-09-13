@@ -3,6 +3,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maanedsnavn } from '@/lib/kurs/plan'
 import { Sidehode, Tomtilstand, Feiltilstand, Forklaring } from '@/components/ui/side'
 import { maaVaereHele } from '@/lib/supabase/datobolker'
+import { nyesteKompletteMaaned } from '@/lib/kurs/regenerer'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Plankort, type Punkt } from './plankort'
 import { Byggknapp } from './byggknapp'
@@ -94,11 +95,24 @@ export default async function MaanedsplanSide() {
   const avgjort = alle.filter((p) => p.status !== 'utkast')
   const nyeste = alle[0]?.maaned
 
-  // HVOR MANGE STASJONER KNAPPEN GJELDER. Tallet står i spørsmålet før
-  // kjøring, og skal være målt — ikke et rundt tall noen skrev inn.
-  // Låste planer er med i tallet og navngis i kvitteringen etterpå; å
-  // trekke dem fra her ville skjult at de finnes.
-  const iNyeste = nyeste ? alle.filter((p) => p.maaned === nyeste) : []
+  // MÅLMÅNEDEN OG FORVENTNINGEN, fra DATAGRUNNLAGET.
+  //
+  // To tall, og de skal stå hver for seg: hvor mange stasjoner
+  // grunnlaget forventer, og hvor mange planer som allerede finnes.
+  // Er de ulike, er det nettopp da man vil se begge — ett tall ville
+  // skjult at noe mangler.
+  //
+  // Feiler oppslaget, faller knappen bort. En knapp som ikke vet hvilken
+  // måned den gjelder, skal ikke stå der.
+  let maal: { maaned: string | null; aktiveStasjoner: number } | null = null
+  try {
+    maal = await nyesteKompletteMaaned({ supabase, retailerId: bruker.retailerId! })
+  } catch {
+    maal = null
+  }
+  const planerIMaal = maal?.maaned
+    ? alle.filter((p) => String(p.maaned).slice(0, 10) === maal!.maaned).length
+    : 0
 
   return (
     <Sideramme>
@@ -122,8 +136,12 @@ export default async function MaanedsplanSide() {
         />
       )}
 
-      {nyeste && (
-        <Byggknapp maaned={nyeste.slice(0, 10)} stasjoner={iNyeste.length} />
+      {maal?.maaned && (
+        <Byggknapp
+          maaned={maal.maaned}
+          forventet={maal.aktiveStasjoner}
+          eksisterende={planerIMaal}
+        />
       )}
 
       {utkast.length > 0 && (

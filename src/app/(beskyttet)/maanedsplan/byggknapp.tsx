@@ -4,7 +4,7 @@ import { maanedsnavn } from '@/lib/kurs/plan'
 import { byggPlanerPaaNytt } from './handlinger'
 
 // =====================================================================
-// «Bygg utkastene på nytt fra eksisterende data»
+// «Bygg månedens utkast på nytt fra eksisterende data»
 // =====================================================================
 //
 // Eierens egen knapp. Den finnes fordi den eneste veien til et nytt
@@ -20,31 +20,52 @@ import { byggPlanerPaaNytt } from './handlinger'
 // side som skriver når den åpnes er en side ingen kan stole på.
 //
 // ---------------------------------------------------------------------
+// TO TALL, HVER FOR SEG
+//
+// Hvor mange stasjoner DATAGRUNNLAGET forventer, og hvor mange planer
+// som allerede finnes. Er de ulike, mangler det planer — og det er
+// nettopp da man vil se begge. Ett tall ville skjult forskjellen, og
+// det er den forskjellen knappen finnes for å lukke.
+//
+// ---------------------------------------------------------------------
 // SPØRSMÅLET SIER HVA SOM SKJER, IKKE «ER DU SIKKER»
 //
-// Måneden, antallet stasjoner, at ingen regnskapsdata eller importer
-// endres, og at bare utkast kan skrives om. «Er du sikker?» er et
-// spørsmål ingen kan svare informert på.
+// Måneden, begge tallene, at ingen regnskapsdata eller importer endres,
+// og at bare utkast kan skrives om. «Er du sikker?» er et spørsmål ingen
+// kan svare informert på.
 // =====================================================================
 
-export function Byggknapp({ maaned, stasjoner }: {
-  /** ISO, første i måneden. Serveren slår den opp på nytt før den bygger. */
+export function Byggknapp({ maaned, forventet, eksisterende }: {
+  /**
+   * Nyeste KOMPLETTE datamåned, fra `v_kurs_maanedstall.linjer_lest`.
+   *
+   * Serveren slår den opp på nytt før den bygger — feltet her kan bare
+   * gi et nei, aldri styre hvilken måned som skrives om.
+   */
   maaned: string
-  /** Hvor mange planer måneden har. Målt på sida, ikke antatt. */
-  stasjoner: number
+  /** Hvor mange aktive stasjoner grunnlaget forventer. */
+  forventet: number
+  /** Hvor mange planer måneden allerede har. */
+  eksisterende: number
 }) {
   const mnd = `${maanedsnavn(maaned)} ${maaned.slice(0, 4)}`
-  const antall = `${stasjoner} ${stasjoner === 1 ? 'stasjon' : 'stasjoner'}`
+  const st = (n: number) => `${n} ${n === 1 ? 'stasjon' : 'stasjoner'}`
+  const mangler = forventet - eksisterende
 
   return (
     <section>
       <h2>Bygg {mnd} på nytt</h2>
       <Forklaring>
-        Planene for {mnd} bygges på nytt av tallene som allerede ligger i
-        basen. Ingen fil lastes opp, ingen import kjøres, og verken
-        regnskapet, svinnet, bilagene, budsjettene eller satsene endres.
-        Bare utkast skrives om — en plan du har sluppet, sendt eller
-        avvist står urørt, og navngis i svaret.
+        {mnd} er den nyeste måneden der alle stasjonene har regnskapsdata.
+        Grunnlaget forventer {st(forventet)}, og {eksisterende} av dem har
+        en plan fra før{mangler > 0 ? ` — ${st(mangler)} mangler` : ''}.
+      </Forklaring>
+      <Forklaring>
+        Planene bygges på nytt av tallene som allerede ligger i basen.
+        Ingen fil lastes opp, ingen import kjøres, og verken regnskapet,
+        svinnet, bilagene, budsjettene eller satsene endres. Bare utkast
+        skrives om — en plan du har sluppet, sendt eller avvist står urørt,
+        og navngis i svaret.
       </Forklaring>
       <div className="knapperad">
         <HandlingKnapp
@@ -56,7 +77,9 @@ export function Byggknapp({ maaned, stasjoner }: {
           variant="primar"
           sporsmaal={
             `Bygge månedsplanene for ${mnd} på nytt?\n\n`
-            + `• Gjelder ${antall} — bare ${mnd}, ingen andre måneder.\n`
+            + `• Grunnlaget forventer ${st(forventet)}. `
+            + `${eksisterende} har en plan fra før.\n`
+            + `• Gjelder bare ${mnd} — ingen andre måneder.\n`
             + '• Ingen regnskapsdata, svinndata, bilag, budsjetter eller '
             + 'importer endres.\n'
             + '• Bare utkast skrives om. Sluppet, sendt og avvist står urørt.'

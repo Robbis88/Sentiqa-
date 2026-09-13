@@ -237,6 +237,26 @@ jobs:
       - name: Tenant-kanarifugl (PORT 1)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_kanarifugl.sql
 
+      # LAASEN PAA MAANEDSPLANEN, FELT FOR FELT.
+      #
+      # En vakt som bare proever `punkter` beviser ikke at `merknad`
+      # eller snapshotet er laast. Denne endrer hvert laaste felt for
+      # seg, og krever at hvert av dem feller triggeren. Kanarifugler:
+      # et utkast maa fortsatt kunne endres, og `sluppet -> sendt` maa
+      # fortsatt gaa. Ruller tilbake selv.
+      - name: Maanedsplanens laas
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/maanedsplan_laas.sql
+
+      # DEN EKTE TO-SESJONS-TESTEN.
+      #
+      # Racet `0217` lukker kan ikke maales med én sesjon: sesjon B
+      # holder en aapen transaksjon mens A blokkerer paa radlaasen.
+      # Interleavingen VERIFISERES paa `pg_locks` - ikke en `sleep`,
+      # som ville latt testen degenerere til den lette varianten uten
+      # at noen merket det.
+      - name: Samtidighet paa maanedsplanen
+        run: bash supabase/tests/samtidighet_maanedsplan.sh
+
       # Hemmeligheten: at pin_hash faktisk er lukket for klientrollen, at
       # verifiseringen virker, at rate limitingen bremser og at
       # revisjonssporet ikke baerer noe hemmelig.

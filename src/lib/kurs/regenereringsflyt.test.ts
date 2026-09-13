@@ -82,6 +82,7 @@ type Planrad = {
  */
 function base(planer: Planrad[]) {
   const upserts: Record<string, unknown>[][] = []
+  const rpcKall: { navn: string; arg: Record<string, unknown> }[] = []
 
   const svar: Record<string, { data: unknown; error: null }> = {
     stasjoner: { data: STASJONER, error: null },
@@ -92,7 +93,45 @@ function base(planer: Planrad[]) {
     maanedsplan: { data: planer, error: null },
   }
 
+  /**
+   * Etterligner `skriv_maanedsplan_utkast` (0217).
+   *
+   * Den viktige delen er LÅSEN: den ligger i basen, ikke i
+   * TypeScript. Fiksturen speiler den, så testene måler at koden tror
+   * på svaret — selve atomisiteten måles med to økter i
+   * `supabase/tests/samtidighet_maanedsplan.sh`.
+   */
+  function skriv(arg: Record<string, unknown>) {
+    const rader = arg.p_rader as { stasjon_id: string; maaned: string }[]
+    const status = new Map(planer.map((p) => [`${p.stasjon_id}|${p.maaned}`, p.status]))
+    const svarrader = rader.map((r) => {
+      const n = `${r.stasjon_id}|${r.maaned}`
+      const s0 = status.get(n) ?? null
+      const laast = s0 !== null && ['sluppet', 'sendt', 'avvist'].includes(s0)
+      return {
+        stasjon_id: r.stasjon_id, maaned: r.maaned,
+        skrevet: !laast, status_ved_start: s0, tilhorer_kjeden: true,
+      }
+    })
+    upserts.push(rader.filter((_, i) => svarrader[i].skrevet).map((r, i) => ({
+      ...rader.filter((_, j) => svarrader[j].skrevet)[i],
+      // Basen setter disse; fiksturen speiler det så testene kan se dem.
+      status: 'utkast',
+      kilde_jobb_id: arg.p_kilde_jobb_id
+        ?? kildePer.get(`${r.stasjon_id}|${r.maaned}`) ?? null,
+    })))
+    return { data: svarrader, error: null }
+  }
+
+  const kildePer = new Map(planer.map((p) => [
+    `${p.stasjon_id}|${p.maaned}`, p.kilde_jobb_id,
+  ]))
+
   const klient = {
+    rpc(navn: string, arg: Record<string, unknown>) {
+      rpcKall.push({ navn, arg })
+      return { then: (ok: (v: unknown) => void) => ok(skriv(arg)) }
+    },
     from(tabell: string) {
       const b: Record<string, unknown> = {}
       for (const ledd of ['select', 'eq', 'in', 'is', 'gte', 'lte', 'order', 'limit']) {
@@ -101,23 +140,19 @@ function base(planer: Planrad[]) {
       b.maybeSingle = () => ({
         then: (ok: (v: unknown) => void) => ok(svar[tabell]),
       })
-      b.upsert = (rader: Record<string, unknown>[]) => {
-        upserts.push(rader)
-        return { then: (ok: (v: unknown) => void) => ok({ data: null, error: null }) }
-      }
       b.then = (ok: (v: unknown) => void) => ok(svar[tabell])
       return b
     },
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { klient: klient as any, upserts }
+  return { klient: klient as any, upserts, rpcKall }
 }
 
 const kjor = (planer: Planrad[] = []) => {
-  const { klient, upserts } = base(planer)
+  const { klient, upserts, rpcKall } = base(planer)
   return regenererMaaned({ supabase: klient, retailerId: RETAILER, maaned: JULI })
-    .then((r) => ({ r, skrevet: upserts.flat() }))
+    .then((r) => ({ r, skrevet: upserts.flat(), rpcKall }))
 }
 
 // =====================================================================
@@ -215,21 +250,18 @@ describe('3  idempotens', () => {
     expect(new Set(noekler).size).toBe(noekler.length)
   })
 
-  it('upserten kolliderer på (stasjon_id, maaned)', async () => {
-    // Uten riktig konfliktnøkkel ville andre kjøring lagt til nye rader
-    // i stedet for å oppdatere, og «fem juliplaner» blitt ti.
-    const { klient, upserts } = base([])
-    const kall: unknown[] = []
-    const ekte = klient.from
-    klient.from = (t: string) => {
-      const b = ekte.call(klient, t)
-      const u = b.upsert
-      b.upsert = (rader: unknown, opts: unknown) => { kall.push(opts); return u(rader) }
-      return b
-    }
-    await regenererMaaned({ supabase: klient, retailerId: RETAILER, maaned: JULI })
-    expect(upserts.flat()).toHaveLength(2)
-    expect(kall).toContainEqual({ onConflict: 'stasjon_id,maaned' })
+  it('skrivingen gaar gjennom den atomiske funksjonen i basen', async () => {
+    // Uten riktig skriver ville laasen ligget i TypeScript igjen, og
+    // racet vaert aapent. Navnet paa funksjonen er derfor en paastand
+    // verdt aa laase.
+    const { rpcKall, skrevet } = await kjor()
+    expect(rpcKall).toHaveLength(1)
+    expect(rpcKall[0].navn).toBe('skriv_maanedsplan_utkast')
+    expect(skrevet).toHaveLength(2)
+    // Kjede og jobb er EGNE argumenter - de ligger ikke i radene, der
+    // en klient kunne valgt dem.
+    expect(rpcKall[0].arg.p_retailer_id).toBe(RETAILER)
+    expect(rpcKall[0].arg.p_kilde_jobb_id).toBeNull()
   })
 })
 
