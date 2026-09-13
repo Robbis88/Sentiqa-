@@ -92,6 +92,15 @@ ARBEIDSMAPPE=$(mktemp -d)
 EGEN_PGID=$(ps -o pgid= -p $$ | tr -d ' ')
 
 opprydding() {
+  # AVVAEPNE TRAPPEN FOERST.
+  #
+  # Gruppedrapet under sender TERM til HELE gruppen - og dette skallet
+  # er i den. Uten denne linja utloeser signalet trappen paa nytt, som
+  # dreper gruppen paa nytt, i det uendelige: foerste kjoering endte i
+  # `Segmentation fault` (exit 139) tjue sekunder ETTER at testen hadde
+  # sagt «ingen funn».
+  trap '' EXIT INT TERM
+
   exec 9>&- 2>/dev/null || true
 
   # Barna foerst, hoeflig. De holder aapne transaksjoner, og slettingen
@@ -103,20 +112,23 @@ opprydding() {
     wait 2>/dev/null || true
   fi
 
+  # DATABASEN RYDDES FOER GRUPPEDRAPET, ikke etter: opprydningen er
+  # selv en psql-prosess i gruppen, og ville blitt drept midtveis.
+  q "delete from public.maanedsplan where retailer_id = '$RET';
+     delete from public.stasjoner where retailer_id = '$RET';
+     delete from public.retailers where id = '$RET';" >/dev/null 2>&1 || true
+
+  rm -rf "$ARBEIDSMAPPE" 2>/dev/null || true
+
   # GRUPPEDRAPET, med selen paa. `kill -- -PGID` er farlig hvis PGID
-  # ikke er vaar: da treffer den noen andres prosesser. Derfor to
-  # vilkaar - den maa vaere et tall, og den maa vaere LIK denne
-  # prosessens egen gruppe.
+  # ikke er vaar: da treffer den noen andres prosesser. Tre vilkaar -
+  # den maa finnes, vaere et tall stoerre enn 1, og vaere LIK denne
+  # prosessens egen pid. Er skriptet ikke gruppeleder, hopper vi over
+  # det og lar den eksplisitte avslutningen over vaere opprydningen.
   if [ -n "$EGEN_PGID" ] && [ "$EGEN_PGID" = "$$" ] \
      && [ "$EGEN_PGID" -gt 1 ] 2>/dev/null; then
     kill -- "-$EGEN_PGID" 2>/dev/null || true
   fi
-
-  rm -rf "$ARBEIDSMAPPE" 2>/dev/null || true
-
-  q "delete from public.maanedsplan where retailer_id = '$RET';
-     delete from public.stasjoner where retailer_id = '$RET';
-     delete from public.retailers where id = '$RET';" >/dev/null 2>&1 || true
 }
 trap opprydding EXIT INT TERM
 
@@ -146,7 +158,11 @@ rader() {           # $1 = stasjons-uuid-liste, komma-separert
 # =====================================================================
 # Hvert steg logges. Scenariet skal kunne LESES ut av loggen, ikke
 # utledes av at det ikke feilet.
-spor() { echo "      $*"; }
+#
+# STDERR, IKKE STDOUT. `race()` leses med `$(...)`, og stdout blir da
+# fanget som returverdi - foerste utgave skrev sporet rett inn i
+# svarstrengen, saa det forsvant fra loggen og forstyrret grep-ene.
+spor() { echo "      $*" >&2; }
 
 race() {
   local stasjoner="$1" ny_status="$2" maal="$3" jobb="${4:-null}"
