@@ -19,6 +19,7 @@ function mnd(i: number, over: Partial<Maanedstall> = {}): Maanedstall {
     personalKr: 300_000, personalBudsjettKr: 300_000,
     paavirkbarDriftKr: 40_000, paavirkbarDriftBudsjettKr: 40_000,
     resultatKr: 50_000,
+    harSvinndata: true, datastatus: 'gruppe',
     ...over,
   }
 }

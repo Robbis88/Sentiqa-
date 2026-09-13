@@ -34,7 +34,11 @@ const r = (over: Partial<Rad>): Rad => ({
   matsalg_kr: 0, matkast_kr: 0, usynlig_rest_kr: 0,
   personal_kr: 0, personal_budsjett_kr: 0,
   paavirkbar_drift_kr: 0, paavirkbar_drift_budsjett_kr: 0,
-  resultat_kr: 0, ...over,
+  resultat_kr: 0,
+  // Standardfiksturen HAR svinngrunnlag. Radene som ikke har det
+  // settes eksplisitt i testen som maaler nettopp det.
+  har_svinndata: true, datastatus: 'gruppe',
+  ...over,
 })
 
 describe('byggHistorikk', () => {
@@ -56,6 +60,8 @@ describe('byggHistorikk', () => {
       usynligRestKr: 40_000, personalKr: 200_000, personalBudsjettKr: 185_000,
       paavirkbarDriftKr: 20_000, paavirkbarDriftBudsjettKr: 17_000,
       resultatKr: -10_201,
+      // Fra `0213`. Sto ikke her før, fordi viewet ikke hadde dem.
+      harSvinndata: true, datastatus: 'gruppe',
     })
   })
 

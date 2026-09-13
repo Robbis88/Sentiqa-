@@ -55,7 +55,7 @@ describe(`parseVaretransaksjon (St1 0452 — ${kilde.merke})`, () => {
   })
 
   it('tåler begge butikkformatene St1 bruker', async () => {
-    // «St1 Lone (4177)» og «9145 - St1 Dale» står om hverandre i samme
+    // «St1 Lone (4177)» og «9145 - St1 Varden» står om hverandre i samme
     // fil. Begge må gi butikknummeret.
     const r = await resultat()
     expect(r.stasjoner.map((s) => s.butikknummer)).toContain('9145')

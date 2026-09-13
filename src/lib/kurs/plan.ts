@@ -37,6 +37,75 @@ import {
 } from './loftestenger'
 import { erBra, erIlle, retning, type Kurs } from './retning'
 
+export type Svinnserie = {
+  /** Maanedene retningen kan regnes paa. Tom naar serien er blokkert. */
+  rader: Maanedstall[]
+  blokkert: boolean
+  /** `null` naar serien er brukbar. Ellers hvorfor den ikke er det. */
+  aarsak: string | null
+}
+
+/**
+ * Serien `matkast` og `usynlig_rest` kan maales paa.
+ *
+ * =====================================================================
+ * Å FJERNE EN MANGLENDE MÅNED ER IKKE DET SAMME SOM Å HÅNDTERE DEN
+ * =====================================================================
+ *
+ * Foerste utgave filtrerte bort ALLE maaneder uten svinngrunnlag. Det
+ * er riktig for desember 2025, som ligger FORAN vinduet - men galt for
+ * et hull MIDT i det.
+ *
+ * Mangler mars, blir januar, februar og april tre jevnt fordelte
+ * punkter i regresjonen. Avstanden mellom februar og april er dobbelt
+ * saa lang som mellom januar og februar, og stigningstallet lyver. Et
+ * komprimert hull er en oppdiktet maaling.
+ *
+ * REGELEN: maanedene UTEN grunnlag maa utgjoere en sammenhengende
+ * PREFIKS. Alt annet blokkerer retningen.
+ *
+ *   [des, jan, feb, mar]   des mangler   ->  OK, serien er jan-mar
+ *   [jan, feb, mar, apr]   mar mangler   ->  BLOKKERT, hull
+ *   [jan, feb, mar, apr]   apr mangler   ->  BLOKKERT, siste maaned
+ *
+ * Den siste er egen fordi den ikke er et hull: serien er sammenhengende,
+ * men den slutter for tidlig. Da er «naa» en eldre maaned presentert som
+ * denne, og det er verre enn ingen konklusjon.
+ *
+ * MAALT 2026-09-13, kontroll 4: alle 35 stasjonsmaanedene januar-juli
+ * har 55-61 svinnrader. INGEN interne hull finnes i dagens data, saa
+ * blokkeringen er bevist inert - den staar for at fellen ikke skal slaa
+ * til naar en fil en gang mangler.
+ *
+ * NIVAAET er ikke blokkert av dette. En blokkert retning betyr at
+ * loeftestangen ikke faar en konklusjon her; P2s confidence gate
+ * erstatter dette med en aarsak flaten kan vise.
+ */
+export function svinnserie(h: readonly Maanedstall[]): Svinnserie {
+  const foerste = h.findIndex((m) => m.harSvinndata)
+  if (foerste === -1) {
+    return { rader: [], blokkert: true, aarsak: 'Ingen måned har svinngrunnlag.' }
+  }
+  const resten = h.slice(foerste)
+  const manglende = resten.filter((m) => !m.harSvinndata)
+  if (manglende.length > 0) {
+    const sisteMangler = !resten[resten.length - 1].harSvinndata
+    return {
+      rader: [],
+      blokkert: true,
+      aarsak: sisteMangler
+        ? `Siste måned mangler svinngrunnlag (${resten[resten.length - 1].maaned}).`
+        : `Hull i serien: ${manglende.map((m) => m.maaned).join(', ')} mangler svinngrunnlag.`,
+    }
+  }
+  return { rader: resten, blokkert: false, aarsak: null }
+}
+
+/** Maanedene som har svinngrunnlag, uten aa vurdere hull. */
+export function medSvinngrunnlag(h: readonly Maanedstall[]): Maanedstall[] {
+  return h.filter((m) => m.harSvinndata)
+}
+
 export type Maanedstall = {
   /** ISO, første i måneden. */
   maaned: string
@@ -45,9 +114,20 @@ export type Maanedstall = {
   /** Bruttofortjeneste. Brukes til å verdsette omsetningsvekst. */
   bruttoKr: number
   matsalgKr: number
-  matkastKr: number
-  /** Manko utenom mat og vask. Positivt tall er mangel. */
-  usynligRestKr: number
+  /**
+   * Synlig matkast. `null` naar stasjonsmaaneden ikke har svinnrader.
+   *
+   * `0213` sluttet aa `coalesce`-e dette til 0: fem desembermaaneder
+   * 2025 hadde ekte matomsetning og INGEN svinnrader, og nullen gjorde
+   * dem til perfekte maaneder. 0 betyr fra naa av null kroner.
+   */
+  matkastKr: number | null
+  /** Manko utenom mat og vask. Positivt tall er mangel. `null` = ukjent. */
+  usynligRestKr: number | null
+  /** Har maaneden svinngrunnlag i det hele tatt? */
+  harSvinndata: boolean
+  /** `gruppe` eller `eldre_grunnlag`. `null` naar grunnlaget mangler. */
+  datastatus: string | null
   personalKr: number
   personalBudsjettKr: number
   paavirkbarDriftKr: number
@@ -113,8 +193,14 @@ type Verdi = { l: Loftestang; serie: number[]; kurs: Kurs; naa: number }
 function serieFor(id: LoftestangId, h: readonly Maanedstall[]): number[] {
   switch (id) {
     case 'omsetning': return h.map((m) => m.omsetningKr - m.omsetningBudsjettKr)
-    case 'matkast': return h.map((m) => m.matkastKr)
-    case 'usynlig_rest': return h.map((m) => m.usynligRestKr)
+    // BARE DISSE TO. De maales paa svinnarket; de andre kommer fra
+    // regnskapet, som ER kilden til at maaneden finnes.
+    //
+    // En blokkert serie gir `[]`, og `retning([])` gir `null` - da
+    // hopper `byggMaanedsplan` over loeftestangen. Ingen konklusjon er
+    // riktig svar naar grunnlaget har hull.
+    case 'matkast': return svinnserie(h).rader.map((m) => m.matkastKr ?? 0)
+    case 'usynlig_rest': return svinnserie(h).rader.map((m) => m.usynligRestKr ?? 0)
     case 'personal': return h.map((m) => m.personalKr - m.personalBudsjettKr)
     case 'paavirkbar_drift':
       return h.map((m) => m.paavirkbarDriftKr - m.paavirkbarDriftBudsjettKr)

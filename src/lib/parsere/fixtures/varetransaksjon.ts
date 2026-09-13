@@ -1,11 +1,13 @@
 import ExcelJS from 'exceljs'
+import { navnFor } from './stasjoner'
 
 // =====================================================================
 // St1 0452 «Varetransaksjonsliste» — synlig svinn
 //
 // Verdiene er de `varetransaksjon.test.ts` alt sto og påsto, altså
 // observasjoner fra den ekte fila da testen ble skrevet: tre stasjoner
-// (4177, 9145, 9467), og Lones pant-transaksjon 1001 «Pant 2 kr»,
+// (4177 Lone, 9145 Varden, 9467 Bønes), og Lones pant-transaksjon
+// 1001 «Pant 2 kr»,
 // 12.05.2026, 4 stk, 8,00 kr.
 //
 // Formen er den parseren møter: seks rader topptekst før dataene,
@@ -34,13 +36,13 @@ const LONE: Rad[] = [
     pris: 21.9, antall: 3, total: 65.7 },
 ]
 
-const DALE: Rad[] = [
+const VARDEN: Rad[] = [   // 9145
   { ean: '7622210419941', navn: 'Kvikk Lunsj', varenr: '41994', operator: '7',
     type: 'Synlig svinn', arsak: 'Brekkasje', dato: '11.05.2026',
     pris: 18.5, antall: 2, total: 37 },
 ]
 
-const VARDEN: Rad[] = [
+const BOENES: Rad[] = [   // 9467
   { ean: '7040110000012', navn: 'Baguette skinke', varenr: '11000', operator: '3',
     type: 'Synlig svinn', arsak: 'Kassert', dato: '13.05.2026',
     pris: 49.9, antall: 1, total: 49.9 },
@@ -59,9 +61,9 @@ export async function lagVaretransaksjon(): Promise<Buffer> {
   ws.addRow([])
 
   for (const [butikk, rader] of [
-    ['Butikk: St1 Lone (4177)', LONE],
-    ['Butikk: 9145 - St1 Dale', DALE],
-    ['Butikk: St1 Varden (9467)', VARDEN],
+    [`Butikk: St1 ${navnFor('4177')} (4177)`, LONE],
+    [`Butikk: 9145 - St1 ${navnFor('9145')}`, VARDEN],
+    [`Butikk: St1 ${navnFor('9467')} (9467)`, BOENES],
   ] as [string, Rad[]][]) {
     ws.addRow([butikk])
     ws.addRow(['Underleverandør: Diverse'])
