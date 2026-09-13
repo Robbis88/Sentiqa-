@@ -35,6 +35,7 @@ const rad = (over: Partial<Rad>): Rad => ({
   personal_kr: 300_000, personal_budsjett_kr: 300_000,
   paavirkbar_drift_kr: 40_000, paavirkbar_drift_budsjett_kr: 40_000,
   resultat_kr: 50_000, har_svinndata: true, datastatus: 'gruppe',
+  usynlig_mat_kr: 4_000, avvik_antall: 0, mat_rader: 9,
   ...over,
 })
 
@@ -55,8 +56,8 @@ const KASTSATS = { stasjonId: 's1', aar: 2026, andel: 0.06, nivaa: 'avdeling' } 
 
 const plan = (historikk: Maanedstall[]) =>
   byggMaanedsplan({
-    stasjonNavn: 'Testeriet', historikk, leverandorer: [],
-    satser: null, kastsats: KASTSATS,
+    stasjonNavn: 'Testeriet', stasjonId: 's1', historikk, leverandorer: [],
+    satser: null, kastsats: KASTSATS, butikknummer: '4185', forbehold: null,
   })
 
 const matkastpunkt = (h: Maanedstall[]) =>

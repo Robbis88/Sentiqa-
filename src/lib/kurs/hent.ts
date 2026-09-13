@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { forbehold, forbeholdstekst } from '@/lib/regnskap/forbehold'
 import type { Kastsats } from './kastvurdering'
 import { maaVaereHele } from '@/lib/supabase/datobolker'
 import type { Satser } from '@/lib/royalty'
@@ -90,6 +91,12 @@ type Maanedsrad = {
   har_svinndata: boolean | null
   /** `gruppe` eller `eldre_grunnlag`. NULL naar det ikke finnes rader. */
   datastatus: string | null
+  /** MATgruppens identitet. Fra `0214`. */
+  usynlig_mat_kr: number | null
+  /** Rader med avviksstatus 'avvik'. Port 4. `null` = ikke maalt. */
+  avvik_antall: number | null
+  /** Rader som traff `kode like '12%'`. Port 6. `null` = ikke maalt. */
+  mat_rader: number | null
 }
 
 
@@ -156,11 +163,12 @@ export async function byggPlanerForRetailer(opts: {
   // kaller. Se [[sentiqa-filtrer-som-flaten]].
   const { data: stasjonsrader } = await supabase
     .from('stasjoner')
-    .select('id, navn')
+    .select('id, navn, butikknummer')
     .eq('retailer_id', retailerId)
     .is('slettet_tid', null)
     .limit(200)
-  const stasjoner = (stasjonsrader ?? []) as { id: string; navn: string }[]
+  const stasjoner = (stasjonsrader ?? []) as
+    { id: string; navn: string; butikknummer: string | null }[]
   if (stasjoner.length === 0) return []
 
   // Fra JANUAR i BP-aaret, ikke tolv maaneder bakover. Se
@@ -194,7 +202,7 @@ export async function byggPlanerForRetailer(opts: {
 
   const [maanedstall, bilag, satsrad, kastrader] = await Promise.all([
     supabase.from('v_kurs_maanedstall')
-      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr, har_svinndata, datastatus')
+      .select('stasjon_id, maaned, omsetning_kr, omsetning_budsjett_kr, brutto_kr, matsalg_kr, matkast_kr, usynlig_rest_kr, personal_kr, personal_budsjett_kr, paavirkbar_drift_kr, paavirkbar_drift_budsjett_kr, resultat_kr, har_svinndata, datastatus, usynlig_mat_kr, avvik_antall, mat_rader')
       .eq('retailer_id', retailerId)
       .in('stasjon_id', stasjonIder)
       .gte('maaned', fraIso).lte('maaned', maanedNokkel(tilOgMed))
@@ -244,14 +252,43 @@ export async function byggPlanerForRetailer(opts: {
     ? { lavSats: Number(sr.lav_sats), hoySatsVask: Number(sr.hoy_sats_vask), pantSats: Number(sr.pant_sats) }
     : null
 
-  // SATSEN MANGLER ER ET SVAR, IKKE EN NULL. `null` her lar
-  // confidence gate blokkere med aarsak i stedet for aa regne mot 0 %.
+  // =====================================================================
+  // SATSEN: EN TEKNISK FEIL SKAL IKKE SE UT SOM ET MANGLENDE BUDSJETT
+  // =====================================================================
+  //
+  // `kastrader.data ?? []` ville gjort en databasefeil om til «ingen
+  // kastbudsjett», og da hadde confidence gate blokkert med FEIL aarsak
+  // - et onboardingproblem i stedet for et driftsproblem.
+  if (kastrader.error) {
+    throw new Error(
+      `Kunne ikke lese kastbudsjettet for ${retailerId}: ${kastrader.error.message}`)
+  }
+  const kastbudsjettrader = maaVaereHele(kastrader, 'kastbudsjettet for Kursen', takKast)
+
+  // ÉN GYLDIG AVDELINGSSATS PER STASJON OG AAR. To rader er en
+  // datakonflikt, ikke «siste vinner» - en stille overskriving i et Map
+  // ville valgt en av dem uten aa si hvilken.
+  const perStasjon2 = new Map<string, Kastbudsjettrad[]>()
+  for (const k of kastbudsjettrader as unknown as Kastbudsjettrad[]) {
+    const f = perStasjon2.get(k.stasjon_id)
+    if (f) f.push(k)
+    else perStasjon2.set(k.stasjon_id, [k])
+  }
   const kastsatser = new Map<string, Kastsats>()
-  for (const k of (kastrader.data ?? []) as unknown as Kastbudsjettrad[]) {
-    const andel = Number(k.kast_pst_av_salg)
-    if (!(andel > 0)) continue
-    kastsatser.set(k.stasjon_id, {
-      stasjonId: k.stasjon_id, aar: k.ar, andel, nivaa: k.nivaa,
+  const satskonflikt = new Map<string, string>()
+  for (const [stasjonId, rader] of perStasjon2) {
+    const gyldige = rader.filter((k) => Number(k.kast_pst_av_salg) > 0)
+    if (gyldige.length === 0) continue          // -> port 3, «mangler»
+    if (gyldige.length > 1) {
+      satskonflikt.set(stasjonId,
+        `${gyldige.length} kastbudsjettsatser for samme stasjon og år. `
+        + 'Kan ikke velge én, og velger ingen.')
+      continue
+    }
+    const k = gyldige[0]
+    kastsatser.set(stasjonId, {
+      stasjonId: k.stasjon_id, aar: k.ar,
+      andel: Number(k.kast_pst_av_salg), nivaa: k.nivaa,
     })
   }
 
@@ -272,8 +309,15 @@ export async function byggPlanerForRetailer(opts: {
       stasjonId: st.id,
       plan: byggMaanedsplan(
         {
-          stasjonNavn: st.navn, historikk, leverandorer, satser,
+          stasjonNavn: st.navn, stasjonId: st.id, historikk, leverandorer, satser,
           kastsats: kastsatser.get(st.id) ?? null,
+          butikknummer: st.butikknummer,
+          // PORT 7. Forbeholdet gjelder per periode, stasjon og analyse.
+          // Juni treffer resultat og brutto, ikke mat og svinn - og da
+          // slipper kastanalysen gjennom, som den skal.
+          forbehold: satskonflikt.get(st.id)
+            ?? forbeholdstekst(forbehold(
+              maanedNokkel(tilOgMed), 'mat_svinn_stasjon', st.butikknummer ?? undefined)),
         },
         { klasseFor: klasseFor },
       ),
@@ -344,6 +388,10 @@ export function byggHistorikk(rader: readonly Maanedsrad[]): Maanedstall[] {
       // ukjent; er den `true`, er 0 et ekte null-kroners kast.
       matkastKr: r.har_svinndata === false ? null : tallEllerNull(r.matkast_kr),
       usynligRestKr: r.har_svinndata === false ? null : tallEllerNull(r.usynlig_rest_kr),
+      usynligMatKr: r.har_svinndata === false ? null : tallEllerNull(r.usynlig_mat_kr),
+      // `null` er «ikke maalt», og portene lukker paa det. Ingen `?? 0`.
+      avvikAntall: tallEllerNull(r.avvik_antall),
+      matRader: tallEllerNull(r.mat_rader),
       harSvinndata: r.har_svinndata ?? false,
       datastatus: r.datastatus,
       personalKr: Number(r.personal_kr ?? 0),

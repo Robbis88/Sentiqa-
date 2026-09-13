@@ -38,6 +38,7 @@ const rad = (over: Partial<Rad>): Rad => ({
   personal_kr: 0, personal_budsjett_kr: 0,
   paavirkbar_drift_kr: 0, paavirkbar_drift_budsjett_kr: 0,
   resultat_kr: 0, har_svinndata: true, datastatus: 'gruppe',
+  usynlig_mat_kr: 0, avvik_antall: 0, mat_rader: 9,
   ...over,
 })
 
@@ -50,7 +51,8 @@ const DESEMBER: Rad[] = [
   { stasjon_id: '9467', matsalg_kr: 121_185 },
 ].map((s) => rad({
   ...s, maaned: '2025-12-01',
-  matkast_kr: null, usynlig_rest_kr: null,
+  matkast_kr: null, usynlig_rest_kr: null, usynlig_mat_kr: null,
+  avvik_antall: null, mat_rader: null,
   har_svinndata: false, datastatus: null,
 }))
 
@@ -151,7 +153,8 @@ describe('3 · manglende måned kommer ikke inn i trendserien', () => {
     const historikk = [
       byggHistorikk([rad({
         maaned: '2025-12-01', matsalg_kr: 511_258,
-        matkast_kr: null, usynlig_rest_kr: null,
+        matkast_kr: null, usynlig_rest_kr: null, usynlig_mat_kr: null,
+        avvik_antall: null, mat_rader: null,
         har_svinndata: false, datastatus: null,
         omsetning_kr: 1_000_000, omsetning_budsjett_kr: 1_000_000,
         brutto_kr: 500_000, resultat_kr: 10_000,
@@ -164,7 +167,8 @@ describe('3 · manglende måned kommer ikke inn i trendserien', () => {
       })])[0]),
     ]
     const plan = byggMaanedsplan({
-      stasjonNavn: 'Testeriet', historikk, leverandorer: [], satser: null, kastsats: null,
+      stasjonNavn: 'Testeriet', stasjonId: 's1', historikk, leverandorer: [],
+      satser: null, kastsats: null, butikknummer: '4185', forbehold: null,
     })
     // Matkastet FALLER over de tre maanedene med grunnlag. Kom
     // desembernullen med, ville serien vaert [0, 30k, 29k, 28k] og

@@ -24,7 +24,7 @@ function plan(over: Partial<Maanedsplan> = {}): Maanedsplan {
     ],
     merknad: null,
     matkast: { dom: null, blokkering: null },
-    usynlig: { naaKr: null, kurs: null, blokkering: null },
+    usynlig: { naaKr: null, kurs: null, blokkering: null, usikker: false, aarsakUsikker: null },
     ...over,
   }
 }

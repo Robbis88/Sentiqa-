@@ -38,6 +38,7 @@ const r = (over: Partial<Rad>): Rad => ({
   // Standardfiksturen HAR svinngrunnlag. Radene som ikke har det
   // settes eksplisitt i testen som maaler nettopp det.
   har_svinndata: true, datastatus: 'gruppe',
+  usynlig_mat_kr: 0, avvik_antall: 0, mat_rader: 9,
   ...over,
 })
 
@@ -60,8 +61,9 @@ describe('byggHistorikk', () => {
       usynligRestKr: 40_000, personalKr: 200_000, personalBudsjettKr: 185_000,
       paavirkbarDriftKr: 20_000, paavirkbarDriftBudsjettKr: 17_000,
       resultatKr: -10_201,
-      // Fra `0213`. Sto ikke her før, fordi viewet ikke hadde dem.
+      // Fra `0213` og `0214`. Sto ikke her før, fordi viewet ikke hadde dem.
       harSvinndata: true, datastatus: 'gruppe',
+      usynligMatKr: 0, avvikAntall: 0, matRader: 9,
     })
   })
 

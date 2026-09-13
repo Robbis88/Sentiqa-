@@ -273,13 +273,16 @@ function tekstFor(
       : `${ugunstige} av ${antall} måneder`
     // FØLSOM TREND: ikke påstå «kastet øker» når klassifiseringen
     // avhenger av terskelen. Nivået bærer tiltaket alene.
+    // Setningsleddet baerer sitt eget bindeord. «og» foran «men det gaar
+    // riktig vei» ville vaert galt norsk, og en fast «og ` + utvikling`
+    // ga «og og det staar stille» paa Laguneparken.
     const utvikling = folsom || kurs === null
-      ? 'serien viser ingen stabil forbedring'
+      ? 'og serien viser ingen stabil forbedring'
       : kurs.vei === 'ned'
         ? 'men det går riktig vei'
         : kurs.vei === 'opp' ? 'og det går feil vei' : 'og det står stille'
     return `Ligger klart over kastbudsjettet: ${niv} (${pp(naa.avvikPstpoeng)} pp), `
-      + `og ${utvikling}. Over budsjett ${hvorOfte}.`
+      + `${utvikling}. Over budsjett ${hvorOfte}.`
   }
 
   if (slag === 'observer') {
