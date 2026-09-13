@@ -149,7 +149,16 @@ export async function byggPlanerPaaNytt(_t: Kvittering, fd: FormData): Promise<K
 
   try {
     const r = await regenererMaaned({ supabase, retailerId: bruker.retailerId, maaned })
-    revalidatePath('/maanedsplan')
+    // INGEN REVALIDERING AV EGEN RUTE.
+    //
+    // `useActionState` holder `venter` sann gjennom hele overgangen, og
+    // en revalidering av EGEN rute gjoer ruteroppdateringen til en del
+    // av den. Kvitteringen blir da gissel for at sida skal tegne seg om
+    // - maalt til 45 sekunder paa /stempling der serveren svarte paa
+    // 190 ms, og her sto e2e-testen og ventet i 20 uten aa faa svar.
+    //
+    // `/min-plan` er en ANNEN rute, og skal friskes opp: butikksjefen
+    // leser den sluppede planen der.
     revalidatePath('/min-plan')
     return { ok: regenereringsnotat(r) }
   } catch (e) {
