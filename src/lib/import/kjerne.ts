@@ -147,6 +147,45 @@ function periodeFraFilnavn(filnavn: string): string | null {
 
 // Behandler én kø-jobb: last ned → gjenkjenn → parse → lagre. Returnerer om
 // noe ble lagret. Setter status undervegs og varsler ved feil.
+/**
+ * Feltene BEGGE importveiene skal skrive naar en jobb fullfoeres.
+ *
+ * =====================================================================
+ * DETTE ER TREDJE GANG TO VEIER HAR DREVET FRA HVERANDRE
+ * =====================================================================
+ *
+ * `bilagssum` hadde null rader fordi nettleserveien gjorde to av seks
+ * steg. `envei.test.ts` ble skrevet for aa hindre gjentakelsen - og saa
+ * la jeg `parserversjon` inn i NETTLESERVEIEN alene. Maalt i produksjon
+ * 2026-09-12: juli ble behandlet paa nytt med den nye parseren, svinnet
+ * kom inn riktig, og jobben sto likevel med `parserversjon = null`.
+ * `0211` ville avvist sin egen import.
+ *
+ * Et felt som skal skrives paa to steder blir glemt paa ett av dem. Naar
+ * feltene bygges ÉN gang og spres inn, kan de ikke lenger skille lag -
+ * og `envei.test.ts` krever at begge veiene kaller denne.
+ */
+function fullfoeringsfelt(o: {
+  dato: string | null
+  antallRader: number
+  /** `null` naar ingen avstemming ble kjoert for denne rapporttypen. */
+  avstemming: { avvik: number; uavstemteGrupper: number } | null
+}) {
+  const naa = new Date().toISOString()
+  return {
+    gjelder_dato: o.dato,
+    antall_rader: o.antallRader,
+    parset_tid: naa,
+    parserversjon: PARSERVERSJON,
+    // `avstemt_tid` settes bare naar en avstemming FAKTISK ble kjoert.
+    // Staar den null, avviser `aktiver_import()` jobben - og det er
+    // riktig: «parset» betyr at koden ikke kastet, ikke at radene
+    // stemmer.
+    avstemt_tid: o.avstemming ? naa : null,
+    avviksantall: o.avstemming ? o.avstemming.avvik : null,
+  }
+}
+
 export async function behandleJobbKjerne(
   supabase: Klient,
   retailerId: string,
@@ -297,6 +336,8 @@ export async function behandleJobbKjerne(
     let dato: string | null = null
     let bilagsnotat: string | null = null
     let plannotat: string | null = null
+    // Settes av regnskapsgrenen. Se `fullfoeringsfelt`.
+    let avstemmingsfelt: { avvik: number; uavstemteGrupper: number } | null = null
     // =================================================================
     // «BEST EFFORT» BETYR IKKE «I STILLHET»
     // =================================================================
@@ -365,6 +406,7 @@ export async function behandleJobbKjerne(
           bilagsnotat = etter.bilagsnotat
           plannotat = etter.plannotat
           feilnotater.push(...etter.feil)
+          avstemmingsfelt = etter.avstemming
         }
         break
       }
@@ -426,9 +468,9 @@ export async function behandleJobbKjerne(
         // det eneste stedet importen kan forklare seg, saa naar det
         // finnes ett, har den forklart seg.
         status: res.antallRader === 0 && !res.notat ? 'feilet' : 'parset',
-        gjelder_dato: dato,
-        antall_rader: res.antallRader,
-        parset_tid: new Date().toISOString(),
+        ...fullfoeringsfelt({
+          dato, antallRader: res.antallRader, avstemming: avstemmingsfelt,
+        }),
         // MERKNADER, IKKE BARE FEIL. Feltet heter `feilmelding`, men
         // det er det eneste stedet importen kan si noe til den som
         // lastet opp - og en stille utelatelse er verre enn en synlig
@@ -809,20 +851,11 @@ export async function lagreForhandsparset(
       default:
         return await settFeil('Ukjent rapporttype.')
     }
-    // AVSTEMMINGEN FOELGER JOBBEN, IKKE BARE NOTATET (0211).
-    //
-    // `avstemt_tid` settes bare naar en avstemming FAKTISK ble kjoert.
-    // For rapporttyper uten en egen avstemming staar den null, og da kan
-    // jobben ikke aktiveres av `aktiver_import()`. Det er med vilje: de
-    // trenger hver sin kontroll foer de kan bli synlige, og den finnes
-    // ikke ennaa.
-    const avst = avstemmingsfelt
     await supabase.from('import_jobber').update({
       status: res.antallRader === 0 ? 'feilet' : 'parset',
-      gjelder_dato: dato, antall_rader: res.antallRader, parset_tid: new Date().toISOString(),
-      parserversjon: PARSERVERSJON,
-      avstemt_tid: avst ? new Date().toISOString() : null,
-      avviksantall: avst ? avst.avvik : null,
+      ...fullfoeringsfelt({
+        dato, antallRader: res.antallRader, avstemming: avstemmingsfelt,
+      }),
       feilmelding: [
         res.umatchet.length > 0
           ? `Ukjente stasjoner (registrer dem): ${res.umatchet.join(', ')}`

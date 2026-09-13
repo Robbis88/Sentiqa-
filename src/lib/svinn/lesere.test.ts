@@ -121,12 +121,25 @@ describe('leser 4 · hent-budsjett — fasiten mot kastbudsjettet', () => {
 // 5-7 · SQL-LESERNE. Migrasjonen leses; den kan ikke kjøres herfra.
 // ---------------------------------------------------------------------
 
+/**
+ * Les en fil og NORMALISER linjeskiftene.
+ *
+ * CRLF-FELLA, TREDJE GANG I DETTE PROSJEKTET. Git sjekker ut `.sql` med
+ * CRLF på Windows, LF i CI. Et mønster som inneholder to linjeskift på
+ * rad er derfor GRØNT I CI OG RØDT LOKALT — og det motsatte kan også
+ * skje. `seksjoner.test.ts` og `begrepliste.test.ts` har vært her før;
+ * dette er tredje gang.
+ */
+function les(sti: string): string {
+  return readFileSync(sti, 'utf8').split('\r\n').join('\n')
+}
+
 /** Siste definisjon av et SQL-objekt på tvers av hele migrasjonsmappa. */
 function sisteDefinisjon(monster: RegExp): { fil: string; sql: string } | null {
   const mappe = join(process.cwd(), 'supabase', 'migrations')
   let treff: { fil: string; sql: string } | null = null
   for (const f of readdirSync(mappe).filter((n) => n.endsWith('.sql')).sort()) {
-    const sql = readFileSync(join(mappe, f), 'utf8')
+    const sql = les(join(mappe, f))
     const m = monster.exec(sql)
     if (m) treff = { fil: f, sql: m[0] }
     monster.lastIndex = 0
@@ -154,8 +167,7 @@ describe('leser 5-7 · SQL', () => {
   }
 
   it('grunnlagsviewet finnes, med security_invoker og uten anon', () => {
-    const sql = readFileSync(
-      join(process.cwd(), 'supabase', 'migrations', '0210_lesere_ett_nivaa.sql'), 'utf8')
+    const sql = les(join(process.cwd(), 'supabase', 'migrations', '0210_lesere_ett_nivaa.sql'))
     expect(sql).toContain('create or replace view public.v_svinn_grunnlag')
     expect(sql).toContain('with (security_invoker = true)')
     expect(sql).toContain('revoke all on public.v_svinn_grunnlag from anon;')
@@ -163,8 +175,7 @@ describe('leser 5-7 · SQL', () => {
   })
 
   it('REGELEN i SQL er den samme som i TypeScript', () => {
-    const sql = readFileSync(
-      join(process.cwd(), 'supabase', 'migrations', '0210_lesere_ett_nivaa.sql'), 'utf8')
+    const sql = les(join(process.cwd(), 'supabase', 'migrations', '0210_lesere_ett_nivaa.sql'))
     // Omraadet: butikk eller gammel rad.
     expect(sql).toContain("analyseomraade = 'butikk' or analyseomraade is null")
     // Valget: gruppe naar den finnes, ellers produkt. Aldri begge.
@@ -175,11 +186,25 @@ describe('leser 5-7 · SQL', () => {
     expect(sql).toContain('as datastatus')
   })
 
+  it('KANARI: les() fjerner CRLF', () => {
+    // Uten denne er hele SQL-vakten over en attrapp paa Windows: mine
+    // moenstre inneholder to linjeskift paa rad, og med `\r\n` traff de
+    // ingenting. Testene var GROENNE I CI og ROEDE LOKALT 2026-09-12.
+    //
+    // Paastanden maa gjelde begge steder, saa den sier ikke at fila HAR
+    // CRLF - bare at den ikke har det etter normalisering.
+    const sti = join(process.cwd(), 'supabase', 'migrations', '0210_lesere_ett_nivaa.sql')
+    expect(les(sti)).not.toContain('\r')
+    expect(les(sti).length).toBeLessThanOrEqual(readFileSync(sti, 'utf8').length)
+    // Og moensteret som brukes over MAA finne noe i den normaliserte teksten.
+    expect(les(sti)).toMatch(/\n\nselect/)
+  })
+
   it('KANARI: grunnlagsviewet er registrert i anon-sonden', () => {
     // Supabase gir `anon` grant paa hvert nytt view. Den vakten felte
     // dette arbeidet én gang alt.
-    const maal = JSON.parse(readFileSync(
-      join(process.cwd(), 'supabase', 'tests', 'sonde_maal.json'), 'utf8')) as { views: string[] }
+    const maal = JSON.parse(les(
+      join(process.cwd(), 'supabase', 'tests', 'sonde_maal.json'))) as { views: string[] }
     expect(maal.views).toContain('v_svinn_grunnlag')
   })
 })
