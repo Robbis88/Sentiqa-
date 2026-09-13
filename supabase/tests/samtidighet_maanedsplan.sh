@@ -51,7 +51,7 @@ set -euo pipefail
 # og det staar skrevet framfor aa bli antatt.
 if [ "${SAMTIDIGHET_EGEN_SESJON:-}" != "1" ] && command -v setsid > /dev/null 2>&1; then
   export SAMTIDIGHET_EGEN_SESJON=1
-  exec setsid --wait "$0" "$@"
+  exec setsid --wait bash "$0" "$@"
 fi
 
 RET=99999999-9999-4999-8999-9999999990a1
