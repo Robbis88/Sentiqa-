@@ -1,5 +1,8 @@
 'use client'
+import { ingenFeilVei, rangeringstekst } from '@/lib/kurs/analysevisning'
+import { lesRangering } from '@/lib/kurs/snapshot'
 import { HandlingKnapp } from '@/components/ui/handling-knapp'
+import { Analyseblokk } from './analyseblokk'
 import { avvisPlan, slippPlan } from './handlinger'
 
 // =====================================================================
@@ -29,6 +32,9 @@ export function Plankort({
   punkter,
   merknad,
   status,
+  matkast,
+  usynlig,
+  rangering,
 }: {
   id: string
   stasjon: string
@@ -37,7 +43,18 @@ export function Plankort({
   punkter: Punkt[]
   merknad: string | null
   status: string
+  /** Lagret oeyeblikksbilde. `unknown` fordi kolonnen er `jsonb`. */
+  matkast: unknown
+  usynlig: unknown
+  /**
+   * Kunne hovedtiltaket velges? `unknown` fordi kolonnen er `jsonb` -
+   * samme grunn som `matkast` og `usynlig`, og den skal gjennom samme
+   * slags leser. `null` ut av `lesRangering` betyr IKKE TILGJENGELIG.
+   */
+  rangering: unknown
 }) {
+  const rang = lesRangering(rangering)
+  const urangert = rangeringstekst(rang)
   const kr = (n: number) =>
     Math.round(Math.abs(n)).toLocaleString('nb-NO')
 
@@ -53,7 +70,9 @@ export function Plankort({
 
       <p className="sq-plankort-ingress">{ingress}</p>
 
-      {punkter.length === 0 && (
+      <Analyseblokk matkast={matkast} usynlig={usynlig} />
+
+      {ingenFeilVei(punkter, rang) && (
         <p className="sq-plankort-tom">
           Ingen av løftestengene peker feil vei denne måneden.
         </p>
@@ -76,6 +95,14 @@ export function Plankort({
           )}
         </div>
       ))}
+
+      {/*
+        * MOTOREN HAR ALLEREDE VALGT naar den kunne. Kunne den ikke -
+        * flere kandidater uten kroneverdi - er `rangering.mulig` usann,
+        * og INGEN er valgt. Da maa flaten si hvorfor, og hvilke som sto
+        * likt. Se `rangeringstekst`.
+        */}
+      {urangert && <p className="sq-plankort-urangert">{urangert}</p>}
 
       {merknad && <p className="sq-plankort-merknad">{merknad}</p>}
 

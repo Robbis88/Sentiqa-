@@ -1,7 +1,8 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maanedsnavn } from '@/lib/kurs/plan'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
+import { Sidehode, Tomtilstand, Feiltilstand, Forklaring } from '@/components/ui/side'
+import { maaVaereHele } from '@/lib/supabase/datobolker'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Plankort, type Punkt } from './plankort'
 
@@ -28,6 +29,9 @@ import { Plankort, type Punkt } from './plankort'
 // stasjonenes utkast.
 // =====================================================================
 
+/** Se `/min-plan`: et tak aa oppdage avkorting paa, ikke en visningsgrense. */
+const TAK_PLANER = 240
+
 type Planrad = {
   id: string
   maaned: string
@@ -37,6 +41,12 @@ type Planrad = {
   merknad: string | null
   status: string
   stasjoner: { navn: string } | null
+  // ANALYSEN, SLIK DEN BLE BEREGNET. `null` paa planer som er eldre
+  // enn `0216` - da sier kortet «ikke beregnet», ikke «blokkert».
+  matkast: unknown
+  usynlig: unknown
+  /** `jsonb`. Gaar gjennom `lesRangering` i komponenten, ikke her. */
+  rangering: unknown
 }
 
 export default async function MaanedsplanSide() {
@@ -47,15 +57,38 @@ export default async function MaanedsplanSide() {
   // GRENSEN ER EKSPLISITT. Tolv måneder × rimelig antall stasjoner. Et
   // avkortet svar ville sett ut som «ingen flere planer» — og da hadde
   // en stasjon ligget usluppet uten at noe sa fra.
-  const { data } = await supabase
+  const svar = await supabase
     .from('maanedsplan')
-    .select('id, maaned, dom, ingress, punkter, merknad, status, stasjoner(navn)')
+    .select('id, maaned, dom, ingress, punkter, merknad, status, matkast, usynlig, rangering, stasjoner(navn)')
     .order('maaned', { ascending: false })
     .order('status')
-    .limit(240)
+    .limit(TAK_PLANER)
     .overrideTypes<Planrad[]>()
 
-  const alle = data ?? []
+  // KOEEN MAA VAERE HEL. Et avkortet svar ville skjult et usluppet
+  // utkast, og et utkast ingen ser er en stasjon uten en plan - uten at
+  // noe sa fra. `maaVaereHele` kaster paa `error` OG paa et svar som
+  // treffer taket; begge tegnes som en feil, ikke som en tom koe.
+  let alle: Planrad[]
+  try {
+    alle = maaVaereHele(svar, 'maanedsplanene', TAK_PLANER)
+  } catch (e) {
+    return (
+      <Sideramme>
+        <Sidehode tittel="Månedsplaner" undertittel="Kunne ikke hentes" />
+        <Feiltilstand
+          tittel="Køen kunne ikke hentes"
+          detalj={e instanceof Error ? e.message : String(e)}
+          forklaring={
+            'Dette er ikke det samme som en tom kø. Et avkortet eller feilet '
+            + 'svar ville skjult et usluppet utkast, og da hadde en stasjon '
+            + 'ligget uten plan uten at noe sa fra.'
+          }
+        />
+      </Sideramme>
+    )
+  }
+
   const utkast = alle.filter((p) => p.status === 'utkast')
   const avgjort = alle.filter((p) => p.status !== 'utkast')
   const nyeste = alle[0]?.maaned
@@ -100,6 +133,9 @@ export default async function MaanedsplanSide() {
                 punkter={p.punkter ?? []}
                 merknad={p.merknad}
                 status={p.status}
+                matkast={p.matkast}
+                usynlig={p.usynlig}
+                rangering={p.rangering}
               />
             ))}
           </div>
@@ -125,6 +161,9 @@ export default async function MaanedsplanSide() {
                 punkter={p.punkter ?? []}
                 merknad={p.merknad}
                 status={p.status}
+                matkast={p.matkast}
+                usynlig={p.usynlig}
+                rangering={p.rangering}
               />
             ))}
           </div>

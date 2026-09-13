@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { lagSnapshot } from './snapshot'
 import type { Maanedsplan } from './plan'
 
 // =====================================================================
@@ -95,6 +96,11 @@ export async function lagreUtkast(
         ingress: u.plan.ingress,
         punkter: u.plan.punkter,
         merknad: u.plan.merknad,
+        // ANALYSEN FRYSES HER. Regnet vi den paa nytt naar sida eller
+        // e-posten aapnes, kunne butikksjefen faatt andre tall enn de
+        // eieren godkjente. Se `snapshot.ts`.
+        ...lagSnapshot(u.plan),
+        rangering: u.plan.rangering,
         status: 'utkast',
         kilde_jobb_id: jobbId,
         oppdatert_tid: new Date().toISOString(),

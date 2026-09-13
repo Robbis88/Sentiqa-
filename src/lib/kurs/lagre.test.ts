@@ -7,7 +7,8 @@ function plan(navn: string, maaned = '2026-07-01'): Maanedsplan {
     stasjonNavn: navn, maaned, dom: 'motvind',
     ingress: 'x', punkter: [], merknad: null,
     matkast: { dom: null, blokkering: null },
-    usynlig: { naaKr: null, kurs: null, blokkering: null, usikker: false, aarsakUsikker: null },
+    usynlig: { naaKr: null, kurs: null, blokkering: null, usikker: false, aarsakUsikker: null, vindu: 0 },
+    rangering: { mulig: true, kandidater: [] },
   }
 }
 

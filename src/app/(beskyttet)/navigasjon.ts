@@ -259,7 +259,12 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       // er MOTTAKEREN - hun leser sin egen plan naar den er sluppet, og
       // skal hverken se koeen eller de andre stasjonenes utkast.
       // RLS-policyen i 0200 haandhever det samme.
-      { sti: '/maanedsplan', tekst: 'Maanedsplaner', roller: [A] },
+      { sti: '/maanedsplan', tekst: 'Månedsplaner', roller: [A] },
+      // MOTTAKERFLATEN. Kommentaren over sa at butikksjefen «leser sin
+      // egen plan naar den er sluppet» - men det fantes ingen rute som
+      // viste den. RLS ga henne lesetilgang; en tilgang er ikke en flate,
+      // og planen naadde henne aldri.
+      { sti: '/min-plan', tekst: 'Månedsplanen din', roller: [A, B] },
       // Loenn over tid, mot budsjett. Butikksjefen ser sin egen stasjon -
       // loennsrammen er stasjonens ansvar, og /regnskap svarer bare paa
       // én maaned om gangen.

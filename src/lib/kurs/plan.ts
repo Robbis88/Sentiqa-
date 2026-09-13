@@ -228,6 +228,14 @@ export type Maanedsplan = {
    * `null` naar maaneden mangler svinngrunnlag.
    */
   usynlig: Usynligvurdering
+  /**
+   * Kunne hovedtiltaket velges?
+   *
+   * `mulig: false` betyr at det fantes flere kandidater, men ingen
+   * kroneverdi aa sammenligne dem med - da er INGEN valgt, og flaten
+   * skal si hvorfor i stedet for aa vise en vilkaarlig vinner.
+   */
+  rangering: { mulig: boolean; kandidater: string[] }
 }
 
 // --- hjelpere ---------------------------------------------------------
@@ -410,7 +418,7 @@ function vurderMatkast(d: Maanedsdata): { dom: Kastdom | null; blokkering: strin
  */
 function vurderUsynlig(d: Maanedsdata): Usynligvurdering {
   const tom: Usynligvurdering =
-    { naaKr: null, kurs: null, blokkering: MANGLER, usikker: false, aarsakUsikker: null }
+    { naaKr: null, kurs: null, blokkering: MANGLER, usikker: false, aarsakUsikker: null, vindu: 0 }
   const serie = svinnserie(d.historikk)
   if (serie.blokkert) return { ...tom, blokkering: `${MANGLER}. ${serie.aarsak}` }
 
@@ -434,37 +442,128 @@ function vurderUsynlig(d: Maanedsdata): Usynligvurdering {
   if (verdier.length !== serie.rader.length || verdier.length === 0) return tom
 
   const naaKr = verdier[verdier.length - 1]
-  const kurs = retning(verdier)
-  const positive = verdier.filter((v) => v > 0).length
-
-  // ET OVERSKUDD ER IKKE EN GEVINST. Negativ usynlig betyr at faktisk BF
-  // er hoeyere enn teoretisk - som oftest en periodisering, ikke funne
-  // varer. Og én positiv maaned er ikke en trend.
-  const usikker = naaKr < 0 || positive <= 1
-  const aarsakUsikker = naaKr < 0
-    ? 'Negativt usynlig svinn er et overskudd mot teoretisk BF, som oftest '
-      + 'periodisering. Ikke omtalt som gevinst.'
-    : positive <= 1
-      ? 'Bare én måned med manko i serien. Ikke nok til en retning.'
-      : null
+  const v = usynligretning(verdier)
 
   return {
     naaKr,
-    // `null` naar serien er for kort. EN MAANED ER IKKE EN TREND.
-    kurs: usikker ? null : kurs,
+    kurs: v.kurs,
     blokkering: null,
-    usikker,
-    aarsakUsikker,
+    usikker: v.usikker,
+    aarsakUsikker: v.aarsak,
+    vindu: v.vindu,
   }
+}
+
+/** Hvor mange maaneder retningsvinduet er. Foerste versjon: tre. */
+export const USYNLIG_VINDU = 3
+
+/**
+ * Kan uforklart matavvik faa en retning, og i saa fall hvilken?
+ *
+ * =====================================================================
+ * TRE SAMMENHENGENDE MAANEDER, IKKE TO POSITIVE HVOR SOM HELST
+ * =====================================================================
+ *
+ * Foerste regel var `naaKr < 0 || positive <= 1`. Den godkjente en
+ * retning saa snart serien hadde to positive maaneder - uansett hvor.
+ *
+ * Maalt paa Dale januar-juli 2026:
+ *
+ *     jan +19 034   feb -6 333   mar -2 062   apr -9 992
+ *     mai  -2 958   jun -5 643   jul +31 902
+ *
+ * To positive (januar og juli) med fem negative imellom passerte, og
+ * juli fikk en trend. Snittet de seks foregaaende maanedene var -1 326;
+ * juli er +31 902. Det er ikke en utvikling, det er et sprang.
+ *
+ * ---------------------------------------------------------------------
+ * REGELEN
+ *
+ *   1  De tre siste validerte maanedene maa ha SAMME FORTEGN.
+ *   2  Siste maaned maa ikke vaere en ekstrem enkeltmaaling:
+ *      |siste| <= 3 x median(|tidligere validerte maaneder|).
+ *   3  RETNINGEN REGNES PAA VINDUET, ikke paa hele serien. Brukes tre
+ *      maaneder som bevis for at retningen finnes, maa retningen ogsaa
+ *      maales paa de tre - ellers beviser vinduet noe annet enn det som
+ *      vises.
+ *
+ * Punkt 2 maaler mot ALLE tidligere validerte maaneder, ikke bare de to
+ * andre i vinduet: to tall gir en skjoer median. Maalt paa Kelsars fem
+ * stasjoner gir begge lesningene samme utfall - `usynlig.test.ts`
+ * holder begge.
+ *
+ * ---------------------------------------------------------------------
+ * «OPP» I ET POSITIVT UFORKLART AVVIK BETYR VERRE. «Ned» betyr bedre,
+ * men ikke noedvendigvis loest: Laguneparken faller tre maaneder paa
+ * rad og ligger fortsatt +1 405.
+ */
+export function usynligretning(verdier: readonly number[]): {
+  kurs: Kurs | null
+  usikker: boolean
+  aarsak: string | null
+  /** Maanedene retningen faktisk er regnet paa. Tom naar den mangler. */
+  vindu: number
+} {
+  if (verdier.length < USYNLIG_VINDU) {
+    return {
+      kurs: null, usikker: true, vindu: 0,
+      aarsak: `Færre enn ${USYNLIG_VINDU} måneder med grunnlag. `
+        + 'For kort til å si en retning.',
+    }
+  }
+
+  const vindu = verdier.slice(-USYNLIG_VINDU)
+  const siste = vindu[vindu.length - 1]
+  const tidligere = verdier.slice(0, -1)
+
+  // 1 SAMME FORTEGN. Null teller med begge veier - en maaned paa null
+  //   bryter ikke en serie, men snur den heller ikke.
+  const alleOver = vindu.every((x) => x >= 0)
+  const alleUnder = vindu.every((x) => x <= 0)
+  if (!alleOver && !alleUnder) {
+    return {
+      kurs: null, usikker: true, vindu: 0,
+      aarsak: `Fortegnet skifter i de siste ${USYNLIG_VINDU} månedene. `
+        + 'Usikker enkeltmåling — kontroller telling, periodisering og '
+        + 'fakturaflyt før tiltak.',
+    }
+  }
+
+  // 2 INGEN EKSTREM ENKELTMAALING.
+  const median = (a: readonly number[]): number => {
+    const s = [...a].sort((x, y) => x - y)
+    const m = Math.floor(s.length / 2)
+    return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m]
+  }
+  const med = tidligere.length > 0 ? median(tidligere.map(Math.abs)) : 0
+  if (med > 0 && Math.abs(siste) > 3 * med) {
+    return {
+      kurs: null, usikker: true, vindu: 0,
+      aarsak: 'Siste måned er mer enn tre ganger medianen av de foregående. '
+        + 'Usikker enkeltmåling — kontroller telling, periodisering og '
+        + 'fakturaflyt før tiltak.',
+    }
+  }
+
+  // 3 RETNINGEN PAA VINDUET.
+  return { kurs: retning(vindu), usikker: false, aarsak: null, vindu: USYNLIG_VINDU }
 }
 
 export type Usynligvurdering = {
   naaKr: number | null
   kurs: Kurs | null
   blokkering: string | null
-  /** Negativ maaned, eller for faa positive til aa si en retning. */
+  /** Fortegnsskifte eller ekstrem enkeltmaaling i vinduet. */
   usikker: boolean
   aarsakUsikker: string | null
+  /**
+   * Antall maaneder retningen er regnet paa. `0` naar den mangler.
+   *
+   * Flaten MAA si perioden: «har oekt de siste tre maanedene», ikke
+   * bare «stigende». Ellers presenteres en tremaanedersbevegelse som en
+   * stabil trend for hele aaret.
+   */
+  vindu: number
 }
 
 /** Kroneverdien matkasttiltak rangeres paa: avviket mot budsjettet. */
@@ -521,11 +620,25 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
   // budsjett fem av sju maaneder.
   const matkast = vurderMatkast(d)
 
-  const verdi = (v: Verdi) => kronerIAret(v, siste, d.satser) ?? 0
-  const ille = vurdert.filter((v) => erIlle(v.kurs, v.l.god))
-    .sort((a, b) => verdi(b) - verdi(a))
-  const bra = vurdert.filter((v) => erBra(v.kurs, v.l.god))
-    .sort((a, b) => verdi(b) - verdi(a))
+  // =====================================================================
+  // EN MANGLENDE KRONEVERDI ER IKKE NULL KRONER
+  // =====================================================================
+  //
+  // `?? 0` sto her. Uten royaltysatser ga `kronerIAret` `null` paa HVERT
+  // punkt, alle ble 0, og `sort` lot da REKKEFOELGEN I `LOFTESTENGER`
+  // avgjoere hvem som var «stoerst». I motvind beholdes bare det
+  // stoerste, saa flaten fikk ett vilkaarlig valgt tiltak - og fordi
+  // lista da hadde lengde 1, ble advarselen om manglende rangering
+  // heller ikke vist.
+  //
+  // Aa merke en liste som urangert ETTER at motoren har kastet de andre
+  // kandidatene, er ingen aerlighet.
+  const verdi = (v: Verdi): number | null => kronerIAret(v, siste, d.satser)
+  const sorter = (a: Verdi[]) =>
+    [...a].sort((x, y) => (verdi(y) ?? 0) - (verdi(x) ?? 0))
+
+  const illeRaa = vurdert.filter((v) => erIlle(v.kurs, v.l.god))
+  const bra = sorter(vurdert.filter((v) => erBra(v.kurs, v.l.god)))
 
   const punkter: Planpunkt[] = []
 
@@ -582,16 +695,35 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
   const matkasttiltak = matkast.dom?.slag === 'tiltak' ? matkastpunkt : null
   const matkastbekreftelse = matkast.dom?.slag === 'bekreftelse' ? matkastpunkt : null
 
-  // RANGERING PAA AVVIK MOT BUDSJETT, ikke paa kronetrend. `verdi()`
-  // maaler de andre loeftestengene i kroner i aaret; matkast maales i
-  // avviket mot det omsetningsjusterte budsjettet, gjennom samme
-  // royaltyregel.
+  // ALLE kandidatene, ikke bare den foerste. Matkast maales i avviket mot
+  // kastbudsjettet, de andre i kroner i aaret - men begge gaar gjennom
+  // `verdiAvGevinst`, saa de er sammenlignbare NAAR satsene finnes.
+  const kandidater: { navn: string; verdi: number | null; punkt: Planpunkt }[] = [
+    ...(matkasttiltak
+      ? [{
+          navn: loftestang('matkast').navn,
+          verdi: d.satser ? matkastverdi(matkast.dom, d.satser) : null,
+          punkt: matkasttiltak,
+        }]
+      : []),
+    ...illeRaa.map((v) => ({ navn: v.l.navn, verdi: verdi(v), punkt: tiltak(v) })),
+  ]
+
+  // KAN DE SAMMENLIGNES? Bare naar HVER kandidat har en kroneverdi.
+  const kanRangeres = kandidater.every((k) => k.verdi !== null)
+  const maaVelges = kandidater.length > 1
+
+
+  // RANGERING PAA AVVIK MOT BUDSJETT, ikke paa kronetrend.
+  //
+  // Kan kandidatene IKKE sammenlignes, og det er flere enn én, velges
+  // ingen. Da ville valget vaert rekkefoelgen i `LOFTESTENGER`, og en
+  // vilkaarlig rekkefoelge skal ikke presenteres som «stoerst».
   const stoersteTiltak = (): Planpunkt | null => {
-    const annet = ille[0] ? tiltak(ille[0]) : null
-    if (!matkasttiltak) return annet
-    if (!annet) return matkasttiltak
-    const mv = matkastverdi(matkast.dom, d.satser)
-    return mv >= verdi(ille[0]) ? matkasttiltak : annet
+    if (kandidater.length === 0) return null
+    if (kandidater.length === 1) return kandidater[0].punkt
+    if (!kanRangeres) return null
+    return [...kandidater].sort((a, b) => (b.verdi as number) - (a.verdi as number))[0].punkt
   }
 
   if (dom === 'medvind') {
@@ -636,6 +768,10 @@ export function byggMaanedsplan(d: Maanedsdata, o: Byggopsjoner = {}): Maanedspl
         + 'uten dem ville tallene vært bruttofortjeneste utgitt for netto.',
     matkast,
     usynlig: vurderUsynlig(d),
+    rangering: {
+      mulig: kanRangeres || !maaVelges,
+      kandidater: kandidater.map((k) => k.navn),
+    },
   }
 }
 

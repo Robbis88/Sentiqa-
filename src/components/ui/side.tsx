@@ -97,6 +97,44 @@ export function Nokkeltall({
 }
 
 /**
+ * Når spørringen ikke lyktes.
+ *
+ * =====================================================================
+ * TOM OG ØDELAGT ER TO TILSTANDER, IKKE ÉN
+ * =====================================================================
+ *
+ * `const rader = data ?? []` gjør en feilet spørring om til null rader,
+ * og null rader tegnes som `Tomtilstand`. Butikksjefen leser «Ingen
+ * månedsplan ennå» — en rolig, riktig-utseende beskjed — mens sannheten
+ * er at kolonnen mangler, RLS avviste henne, eller basen er nede.
+ *
+ * Det er samme form som en vakt som slutter å se: tilstanden der noe er
+ * galt ser ut som tilstanden der alt er i orden.
+ *
+ * Samme komponent brukes når svaret kan være AVKORTET. Et svar som
+ * treffer taket er ikke et svar, og en halv liste ser ut som en hel.
+ */
+export function Feiltilstand({
+  tittel,
+  detalj,
+  forklaring,
+}: {
+  tittel: string
+  /** Den tekniske årsaken. Vises, ikke svelges. */
+  detalj: string
+  /** Hva dette IKKE betyr, og hva den som leser skal gjøre. */
+  forklaring: string
+}) {
+  return (
+    <div className="sq-tom">
+      <p className="sq-tom-tittel">{tittel}</p>
+      <p className="feil" role="alert">{detalj}</p>
+      <p className="sq-tom-forklaring">{forklaring}</p>
+    </div>
+  )
+}
+
+/**
  * Når det ikke er noe å vise.
  *
  * En tom liste er et øyeblikk der brukeren enten er ny eller har gjort

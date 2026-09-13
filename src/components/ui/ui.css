@@ -1214,3 +1214,128 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* =====================================================================
+   MAT- OG SVINNANALYSEN PÅ PLANKORTET
+   =====================================================================
+   Seks spørsmål butikksjefen skal kunne svare på, i to blokker: hvor
+   ligger vi, hva var budsjettet ved DENNE omsetningen, over eller under,
+   riktig eller feil vei, er tallet pålitelig, og hvorfor et tiltak.
+
+   EN BLOKKERT ANALYSE FORSVINNER IKKE. Før P2 falt matkast bare ut av
+   punktene når den ikke kunne regnes, og kortet så komplett ut.
+
+   Ingen nye farger — tokenene finnes fra før. To kolonner på skjerm,
+   én på telefon. */
+.sq-analyser {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--luft-3);
+}
+.sq-analyse {
+  border: 1px solid var(--kant);
+  border-left: 3px solid var(--kant-sterk);
+  border-radius: 10px;
+  padding: var(--luft-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-2);
+  min-width: 0;
+}
+.sq-analyse-tiltak       { border-left-color: var(--rod); }
+.sq-analyse-bekreftelse  { border-left-color: var(--gronn); }
+.sq-analyse-observer     { border-left-color: var(--gul); }
+.sq-analyse-usikker      { border-left-color: var(--gul); }
+.sq-analyse-retning      { border-left-color: var(--kant-sterk); }
+.sq-analyse-blokkert,
+.sq-analyse-ikke_beregnet { border-left-color: var(--kant-sterk); }
+
+.sq-analyse-hode {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--luft-2);
+  flex-wrap: wrap;
+}
+.sq-analyse-tittel {
+  margin: 0;
+  font-size: var(--tekst-brod);
+  font-weight: 700;
+}
+.sq-analyse-merke {
+  font-size: var(--tekst-liten);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--kant);
+  color: var(--tekst-svak);
+  white-space: nowrap;
+}
+.sq-merke-tiltak      { background: var(--rod-svak);   color: var(--rod); }
+.sq-merke-bekreftelse { background: var(--gronn-svak); color: var(--gronn); }
+.sq-merke-observer,
+.sq-merke-usikker     { background: var(--gul-svak);   color: var(--gul); }
+
+/* Talltabellen. `dl` fordi det ER navn og verdi, ikke en tabell med
+   akser — og fordi en skjermleser da får paret. */
+.sq-analyse-rader { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.sq-analyse-rad {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--luft-2);
+  border-bottom: 1px solid var(--kant);
+  padding-bottom: 3px;
+}
+.sq-analyse-rad:last-child { border-bottom: none; }
+.sq-analyse-rad dt { color: var(--tekst-svak); font-size: var(--tekst-liten); }
+.sq-analyse-rad dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+.sq-analyse-bi {
+  display: block;
+  font-weight: 400;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  white-space: normal;
+}
+.sq-analyse-tall {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sq-analyse-retning,
+.sq-analyse-usikker,
+.sq-analyse-forklaring,
+.sq-analyse-aarsaker,
+.sq-analyse-stengt-tekst,
+.sq-analyse-stengt-maaned {
+  margin: 0;
+  font-size: var(--tekst-liten);
+  line-height: var(--linje-luftig);
+  color: var(--tekst-svak);
+  max-width: 62ch;
+}
+.sq-analyse-retning { font-weight: 600; color: var(--tekst); }
+.sq-analyse-usikker { font-weight: 600; color: var(--gul); }
+.sq-analyse-stengt-tittel {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--tekst-brod);
+}
+.sq-analyse-stengt-maaned { font-variant-numeric: tabular-nums; }
+.sq-analyse-stengt { display: flex; flex-direction: column; gap: 4px; }
+
+.sq-plankort-urangert {
+  margin: 0;
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+  font-style: italic;
+}

@@ -296,6 +296,17 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // eneste salg er gjort.
   '/businessplan/sammenlign': 'analyse',
   '/regnskap': 'analyse',
+  // Butikksjefens leseflate for planen eieren har sluppet. ANALYSE og
+  // ikke arbeidsflyt: hun skal ikke godkjenne, avvise eller sende noe -
+  // ingenting forlater systemet naar hun leser. Nivaa 1 er svaret som én
+  // setning (domsordet og ingressen), nivaa 2 perioden (maaneden),
+  // nivaa 3 analyseblokken - hvor matkastet ligger mot det
+  // omsetningsjusterte budsjettet - og nivaa 4 de enkelte punktene.
+  //
+  // `/maanedsplan` staar som 'arbeidsflyt' rett over, og det er riktig
+  // for EIEREN: der venter utkast paa at noen tar stilling. Samme tall,
+  // to roller, to moenstre.
+  '/min-plan': 'analyse',
   // Regnskapsrommet: leverandoerene dine, sammenlignet mellom
   // stasjonene. Analyse og ikke dataliste - nivaa 1 er SVARET (hva
   // forskjellen mellom stasjonene er verdt i aaret), og tabellene under

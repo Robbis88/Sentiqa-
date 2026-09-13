@@ -36,6 +36,7 @@
     "/maanedsplan",
     "/meldinger",
     "/merker",
+    "/min-plan",
     "/mine-opplysninger",
     "/nyheter",
     "/oppgaver",
@@ -119,6 +120,7 @@
       "/maanedsplan",
       "/meldinger",
       "/merker",
+      "/min-plan",
       "/mine-opplysninger",
       "/nyheter",
       "/oppgaver",
@@ -161,6 +163,7 @@
       "/maaling",
       "/meldinger",
       "/merker",
+      "/min-plan",
       "/mine-opplysninger",
       "/nyheter",
       "/oppgaver",
@@ -653,6 +656,7 @@
     "/maanedsplan": [
       "Avgjort",
       "Ingen månedsplaner ennå",
+      "Køen kunne ikke hentes",
       "Venter på deg",
       "dynamisk:stasjon"
     ],
@@ -665,6 +669,11 @@
       "Ingen merker satt opp",
       "Merke for fullført opplæring",
       "Tildel et merke"
+    ],
+    "/min-plan": [
+      "Ingen månedsplan ennå",
+      "Planen kunne ikke hentes",
+      "{stasjon} · {maanedsnavn(maaned)} {maaned.slice(0, 4)}"
     ],
     "/mine-opplysninger": [
       "dynamisk:o(T.ikkeGjor)",
@@ -786,6 +795,7 @@
     ],
     "/rommet": [
       "Denne siden er eierens",
+      "Grunnlaget kunne ikke leses helt",
       "Ingen bilagsdetalj ennå",
       "Leverandører, sortert på hva forskjellen er verdt",
       "dynamisk:f.leverandor"

@@ -390,29 +390,40 @@ describe('usynlig matsvinn er MATgruppen', () => {
     expect(p.usynlig.naaKr).toBe(-4_200)
   })
 
-  it('en negativ måned merkes usikker, ikke som gevinst', () => {
+  it('et fortegnsskifte i siste måned blokkerer retningen', () => {
     const p = plan({ historikk: serie([1_000, 2_000, 3_000, -4_200]) })
     expect(p.usynlig.usikker).toBe(true)
-    expect(p.usynlig.aarsakUsikker).toContain('overskudd')
+    expect(p.usynlig.aarsakUsikker).toContain('Fortegnet skifter')
+    expect(p.usynlig.aarsakUsikker).toContain('Usikker enkeltmåling')
     expect(p.usynlig.aarsakUsikker).toContain('periodisering')
-    // Sier eksplisitt at det IKKE er en gevinst — ikke bare unnlater å
-    // kalle det det.
-    expect(p.usynlig.aarsakUsikker).toContain('Ikke omtalt som gevinst')
-    // INGEN retning på en usikker serie.
     expect(p.usynlig.kurs).toBeNull()
+    expect(p.usynlig.vindu).toBe(0)
+    // Verdien vises likevel, MED fortegn.
+    expect(p.usynlig.naaKr).toBe(-4_200)
   })
 
-  it('én positiv måned er ikke en trend', () => {
+  it('én positiv måned etter tre negative er ikke en trend', () => {
     const p = plan({ historikk: serie([-1_000, -2_000, -3_000, 4_000]) })
     expect(p.usynlig.usikker).toBe(true)
-    expect(p.usynlig.aarsakUsikker).toContain('Bare én måned med manko')
+    expect(p.usynlig.aarsakUsikker).toContain('Fortegnet skifter')
     expect(p.usynlig.kurs).toBeNull()
   })
 
-  it('KANARI: en ren, positiv serie får en retning', () => {
+  it('KANARI: en ren, positiv serie får en retning paa vinduet', () => {
     const p = plan({ historikk: serie([8_000, 7_000, 6_000, 5_000]) })
     expect(p.usynlig.usikker).toBe(false)
     expect(p.usynlig.kurs?.vei).toBe('ned')
+    expect(p.usynlig.vindu).toBe(3)
+  })
+
+  it('tre sammenhengende negative gir retning, men ingen gevinst', () => {
+    // Fortegnet er konsistent, saa regelen slipper den gjennom. At et
+    // overskudd ikke er en gevinst er en TEKST-regel, ikke en
+    // retningsregel - se `usynligtekst` i plankortet.
+    const p = plan({ historikk: serie([-1_000, -2_000, -3_000, -4_000]) })
+    expect(p.usynlig.usikker).toBe(false)
+    expect(p.usynlig.naaKr).toBe(-4_000)
+    expect(p.usynlig.vindu).toBe(3)
   })
 
   it('svinnrader UTEN matrader: blokkert, ikke 0', () => {
