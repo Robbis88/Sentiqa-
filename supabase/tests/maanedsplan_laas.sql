@@ -53,16 +53,22 @@ do $$
 declare
   v_ret uuid := '99999999-9999-4999-8999-999999999901';
   v_st  uuid := '99999999-9999-4999-8999-999999999902';
-  v_pro uuid := '99999999-9999-4999-8999-999999999903';
+  v_pro uuid := '33333333-3333-4333-8333-444444444444';  -- seedens eier
 begin
   insert into public.retailers (id, navn) values (v_ret, 'Laasetest')
     on conflict (id) do nothing;
   insert into public.stasjoner (id, retailer_id, butikknummer, navn, stasjonstype)
     values (v_st, v_ret, '9801', 'Laasestasjon', 'bydel')
     on conflict (id) do nothing;
-  insert into public.profiler (id, retailer_id, rolle, fullt_navn)
-    values (v_pro, v_ret, 'retailer_admin', 'Laasetest Eier')
-    on conflict (id) do nothing;
+  -- INGEN NY PROFIL. `profiler.id` peker paa `auth.users`, og en
+  -- testfikstur skal ikke lage brukere. `sluppet_av` trenger bare EN
+  -- gyldig profil, saa seedens eier laanes.
+  if not exists (select 1 from public.profiler where id = v_pro) then
+    raise exception
+      'Fant ikke seedens eier (%). Denne testen laaner den til sluppet_av; '
+      'er den borte, maaler testen ikke det den tror.', v_pro
+      using errcode = 'assert_failure';
+  end if;
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -72,7 +78,7 @@ do $$
 declare
   v_ret  uuid := '99999999-9999-4999-8999-999999999901';
   v_st   uuid := '99999999-9999-4999-8999-999999999902';
-  v_pro  uuid := '99999999-9999-4999-8999-999999999903';
+  v_pro  uuid := '33333333-3333-4333-8333-444444444444';
   v_id   uuid;
   v_felt text;
   -- HVERT FELT EIEREN FAKTISK GODKJENNER. `merknad` sto ikke i
@@ -134,7 +140,7 @@ do $$
 declare
   v_ret uuid := '99999999-9999-4999-8999-999999999901';
   v_st  uuid := '99999999-9999-4999-8999-999999999902';
-  v_pro uuid := '99999999-9999-4999-8999-999999999903';
+  v_pro uuid := '33333333-3333-4333-8333-444444444444';  -- seedens eier
   v_id  uuid;
 begin
   -- Et UTKAST kan endres fritt. Uten denne ville testene over bestaatt
@@ -235,7 +241,7 @@ do $$
 declare
   v_ret uuid := '99999999-9999-4999-8999-999999999901';
   v_st  uuid := '99999999-9999-4999-8999-999999999902';
-  v_pro uuid := '99999999-9999-4999-8999-999999999903';
+  v_pro uuid := '33333333-3333-4333-8333-444444444444';  -- seedens eier
   v_rader jsonb;
   v_skrevet boolean;
   v_ingress text;

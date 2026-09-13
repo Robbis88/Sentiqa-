@@ -38,7 +38,9 @@ RET=99999999-9999-4999-8999-9999999990a1
 ST_A=99999999-9999-4999-8999-9999999990a2
 ST_B=99999999-9999-4999-8999-9999999990a3
 ST_C=99999999-9999-4999-8999-9999999990a4
-PRO=99999999-9999-4999-8999-9999999990a5
+# Seedens eier. `profiler.id` peker paa `auth.users`, saa fiksturen
+# lager ingen ny profil - `sluppet_av` trenger bare EN gyldig.
+PRO=33333333-3333-4333-8333-444444444444
 
 q() { psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "$1"; }
 
@@ -46,7 +48,6 @@ feil() { echo "FUNN: $*" >&2; exit 1; }
 
 opprydding() {
   q "delete from public.maanedsplan where retailer_id = '$RET';
-     delete from public.profiler where id = '$PRO';
      delete from public.stasjoner where retailer_id = '$RET';
      delete from public.retailers where id = '$RET';" >/dev/null 2>&1 || true
 }
@@ -59,9 +60,9 @@ q "insert into public.retailers (id, navn) values ('$RET','Racetest')
             ('$ST_B','$RET','9812','Race B','bydel'),
             ('$ST_C','$RET','9813','Race C','bydel')
      on conflict (id) do nothing;
-   insert into public.profiler (id, retailer_id, rolle, fullt_navn)
-     values ('$PRO','$RET','retailer_admin','Race Eier')
-     on conflict (id) do nothing;" > /dev/null
+" > /dev/null
+
+[ "$(q "select count(*) from public.profiler where id = '$PRO'")" = "1" ]   || feil "fant ikke seedens eier ($PRO) - sluppet_av kan ikke settes"
 
 rader() {           # $1 = stasjons-uuid-liste, komma-separert
   local ut="[" f=1
