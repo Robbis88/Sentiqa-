@@ -1076,6 +1076,75 @@ where r.id in ('11111111-1111-4111-8111-111111111111',
       and x.nivaa = 'varegruppe' and x.kode = k);
 
 -- =====================================================================
+-- MINSTE GYLDIGE REGNSKAPSGRUNNLAG
+-- =====================================================================
+-- TO RADER PER STASJON, én maaned. Ikke mer.
+--
+-- `v_kurs_maanedstall` gir en rad for (stasjon, maaned) hvis og bare
+-- hvis `regnskapslinjer` har minst én rad der, i en av de fire
+-- seksjonene. `linjer_lest` (0217) teller dem, og det er DEN verdien
+-- «nyeste komplette datamaaned» maales paa - ikke et beloep.
+--
+-- Alle TRE aktive stasjonene i Analysekjeden maa ha juli, ellers er
+-- maaneden ikke komplett og byggeknappen skal ikke vises. Det er
+-- nettopp den regelen dette seedet finnes for aa gjoere maalbar.
+--
+-- ---------------------------------------------------------------------
+-- HVORFOR SAA LITE
+--
+-- Fristelsen er aa seede et helt regnskap saa planene blir «ekte». Da
+-- flytter risikoen seg fra «er tallet riktig» til «ligner testdataene
+-- paa virkeligheten» - samme begrunnelse som staar i
+-- `businessplan.spec.ts`.
+--
+-- Det som skal maales her er KJEDEN: komplett grunnlag -> knappen vises
+-- -> handlingen kjoerer -> utkast skrives -> snapshot lagres. Med to
+-- rader per stasjon blir dommen `flat` og punktlista tom, fordi
+-- `retning()` trenger tre maalinger. Det er et ekte utfall, ikke et
+-- fattig et: en kjede med én maaned regnskap har ingen retning.
+--
+-- Mat- og svinnanalysen blokkeres av nipunktsporten (ingen svinnrader,
+-- ingen kastbudsjett), og snapshotet baerer da `blokkering` med aarsak.
+-- Ogsaa det er et ekte utfall - og det er det flaten viser oftest hos
+-- en ny kjede.
+--
+-- Idempotent: fast `id`, `on conflict (id) do nothing`.
+-- =====================================================================
+insert into public.regnskapslinjer
+  (id, retailer_id, stasjon_id, periode, seksjon, kode, post, regnskap, budsjett)
+values
+  -- Underby 5101
+  ('55555555-5555-4555-8555-000000000001',
+   '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', date '2026-07-01',
+   'omsetning', '120', 'Mat', 400000, 400000),
+  ('55555555-5555-4555-8555-000000000002',
+   '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-111111111111', date '2026-07-01',
+   'resultat', null, 'RESULTAT', 50000, 45000),
+  -- Grenseby 5102
+  ('55555555-5555-4555-8555-000000000003',
+   '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-222222222222', date '2026-07-01',
+   'omsetning', '120', 'Mat', 300000, 320000),
+  ('55555555-5555-4555-8555-000000000004',
+   '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-222222222222', date '2026-07-01',
+   'resultat', null, 'RESULTAT', 20000, 25000),
+  -- Overby 5103. MAA VAERE MED: uten den er juli ikke komplett, og
+  -- knappen forsvinner - som den skal.
+  ('55555555-5555-4555-8555-000000000005',
+   '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-333333333333', date '2026-07-01',
+   'omsetning', '120', 'Mat', 250000, 250000),
+  ('55555555-5555-4555-8555-000000000006',
+   '11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-333333333333', date '2026-07-01',
+   'resultat', null, 'RESULTAT', 10000, 12000)
+on conflict (id) do nothing;
+
+
+-- =====================================================================
 -- MAANEDSPLANER MED MAT- OG SVINNANALYSE
 -- =====================================================================
 -- Fire planer som dekker tilstandene flaten maa taale, saa
@@ -1238,5 +1307,22 @@ values
    jsonb_build_object(
      'mulig', false,
      'kandidater', jsonb_build_array('Matkast', 'Påvirkbare driftskostnader')),
-   '33333333-3333-4333-8333-444444444444', timestamptz '2026-06-03 09:14:00+02')
+   '33333333-3333-4333-8333-444444444444', timestamptz '2026-06-03 09:14:00+02'),
+
+  -- -------------------------------------------------------------------
+  -- DEN FEMTE: AVVIST juli paa Overby.
+  --
+  -- Eieren har tatt stilling, og `0217` gjoer den uroerlig: hverken
+  -- regenereringen, importen, en PATCH over PostgREST eller annen kode
+  -- skal kunne gjoere den om til utkast.
+  --
+  -- Den staar her for at `e2e/maanedsplan.spec.ts` skal kunne maale
+  -- laasen PAA FLATEN: bygger man juli paa nytt, blir Underby og
+  -- Grenseby skrevet mens Overby navngis som uroert.
+  ('11111111-1111-4111-8111-222222222222',
+   '44444444-4444-4444-8444-333333333333', date '2026-07-01',
+   'flat',
+   'Resultatet i juli er 10 000 kroner.',
+   '[]'::jsonb, null, 'avvist',
+   null, null, null, null, null)
 on conflict (stasjon_id, maaned) do nothing;

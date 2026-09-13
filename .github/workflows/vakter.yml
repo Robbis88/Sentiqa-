@@ -259,7 +259,12 @@ jobs:
       # utdatapipen aapen. Steget skal feile, ikke henge.
       - name: Samtidighet paa maanedsplanen
         timeout-minutes: 3
-        run: bash supabase/tests/samtidighet_maanedsplan.sh
+        # TO LAG, og de dekker ulike ting:
+        #   `timeout 180`      hard grense paa selve skriptet
+        #   `timeout-minutes`  GitHubs stegavbrudd, som bakstopper
+        # Skriptet gjoer seg selv til sesjonsleder og dreper sin egen
+        # prosessgruppe ved avslutning - se `setsid` oeverst i fila.
+        run: timeout --kill-after=10 180 bash supabase/tests/samtidighet_maanedsplan.sh
 
       # Hemmeligheten: at pin_hash faktisk er lukket for klientrollen, at
       # verifiseringen virker, at rate limitingen bremser og at

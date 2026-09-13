@@ -34,6 +34,26 @@ set -euo pipefail
 
 : "${PGURL:?PGURL maa vaere satt}"
 
+# =====================================================================
+# EGEN SESJON, SLIK AT GRUPPEDRAPET FAKTISK ER VAART EGET
+# =====================================================================
+# `set -m` alene gir IKKE skriptet sin egen prosessgruppe: den setter
+# bakgrunnsjobber i egne grupper, mens skriptet beholder gruppen det ble
+# startet i. Da ville `$$` aldri vaert lik PGID, gruppedrapet aldri
+# utloest - og vi ville trodd vi hadde et vern vi ikke hadde.
+#
+# `setsid --wait` gjoer skriptet til sesjons- OG gruppeleder, og venter
+# paa det saa exitkoden naar fram. Da er `$$ = PGID`, og
+# `kill -- -$PGID` treffer noeyaktig vaare egne prosesser.
+#
+# Finnes ikke `setsid`, kjoerer vi videre uten gruppedrapet. Da er den
+# eksplisitte avslutningen av de to psql-barna den eneste opprydningen -
+# og det staar skrevet framfor aa bli antatt.
+if [ "${SAMTIDIGHET_EGEN_SESJON:-}" != "1" ] && command -v setsid > /dev/null 2>&1; then
+  export SAMTIDIGHET_EGEN_SESJON=1
+  exec setsid --wait "$0" "$@"
+fi
+
 RET=99999999-9999-4999-8999-9999999990a1
 ST_A=99999999-9999-4999-8999-9999999990a2
 ST_B=99999999-9999-4999-8999-9999999990a3
@@ -46,25 +66,59 @@ q() { psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "$1"; }
 
 feil() { echo "FUNN: $*" >&2; exit 1; }
 
-# STEGET SKAL ALDRI HENGE.
+# =====================================================================
+# STEGET SKAL ALDRI HENGE
+# =====================================================================
 #
 # Foerste utgave kalte `feil` midt i en race, mens fd 9 sto aapen mot
 # FIFO-en og to psql-prosesser laa i bakgrunnen. GitHub venter paa alle
 # barn som holder utdatapipen - saa steget sto i 18 minutter etter at
-# testen hadde sagt «FUNN», og ble kansellert i stedet for aa feile.
+# testen HADDE sagt «FUNN», og ble kansellert i stedet for aa feile.
 #
 # En test som henger i stedet for aa feile, er en test ingen leser.
+#
+# ---------------------------------------------------------------------
+# EGEN PROSESSGRUPPE, OG EN KONTROLLERT DRAP
+#
+# `set -m` gir dette skallet sin egen prosessgruppe. Ved avslutning
+# drepes gruppen - men BARE etter at vi har kontrollert at PGID
+# faktisk er vaar egen og ikke arvet fra den som kalte oss. Et `kill`
+# paa en negativ PID uten den sjekken ville kunnet ta ned hele
+# CI-jobben.
+# =====================================================================
+set -m
+
+ARBEIDSMAPPE=$(mktemp -d)
+EGEN_PGID=$(ps -o pgid= -p $$ | tr -d ' ')
+
 opprydding() {
   exec 9>&- 2>/dev/null || true
-  # Avslutt aapne transaksjoner foer opprydningen, ellers blokkerer
-  # slettingen paa laasene de holder.
-  kill $(jobs -p) 2>/dev/null || true
-  wait 2>/dev/null || true
+
+  # Barna foerst, hoeflig. De holder aapne transaksjoner, og slettingen
+  # under ville ellers blokkere paa laasene deres.
+  local barn
+  barn=$(jobs -p 2>/dev/null || true)
+  if [ -n "$barn" ]; then
+    kill $barn 2>/dev/null || true
+    wait 2>/dev/null || true
+  fi
+
+  # GRUPPEDRAPET, med selen paa. `kill -- -PGID` er farlig hvis PGID
+  # ikke er vaar: da treffer den noen andres prosesser. Derfor to
+  # vilkaar - den maa vaere et tall, og den maa vaere LIK denne
+  # prosessens egen gruppe.
+  if [ -n "$EGEN_PGID" ] && [ "$EGEN_PGID" = "$$" ] \
+     && [ "$EGEN_PGID" -gt 1 ] 2>/dev/null; then
+    kill -- "-$EGEN_PGID" 2>/dev/null || true
+  fi
+
+  rm -rf "$ARBEIDSMAPPE" 2>/dev/null || true
+
   q "delete from public.maanedsplan where retailer_id = '$RET';
      delete from public.stasjoner where retailer_id = '$RET';
      delete from public.retailers where id = '$RET';" >/dev/null 2>&1 || true
 }
-trap opprydding EXIT
+trap opprydding EXIT INT TERM
 
 q "insert into public.retailers (id, navn) values ('$RET','Racetest')
      on conflict (id) do nothing;
@@ -90,11 +144,18 @@ rader() {           # $1 = stasjons-uuid-liste, komma-separert
 # =====================================================================
 # Kjoerer ÉN race: B setter $2 paa $1 midt i A sin skriving.
 # =====================================================================
+# Hvert steg logges. Scenariet skal kunne LESES ut av loggen, ikke
+# utledes av at det ikke feilet.
+spor() { echo "      $*"; }
+
 race() {
   local stasjoner="$1" ny_status="$2" maal="$3" jobb="${4:-null}"
-  local fifo out
-  fifo=$(mktemp -u); mkfifo "$fifo"
-  out=$(mktemp)
+  local mappe fifo out
+  # EGEN MAPPE PER SCENARIO. Delte FIFO-navn mellom scenarier ville
+  # gitt en gjenbrukt deskriptor dersom ett av dem feilet halvveis.
+  mappe=$(mktemp -d "$ARBEIDSMAPPE/race.XXXXXX")
+  fifo="$mappe/b"; mkfifo "$fifo"
+  out="$mappe/a.ut"
 
   # Nullstill: alle stasjonene som utkast.
   q "delete from public.maanedsplan where retailer_id = '$RET';" > /dev/null
@@ -108,11 +169,13 @@ race() {
   psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$fifo" > /dev/null &
   local bpid=$!
   exec 9>"$fifo"
+  spor "B  transaksjon startet (pid $bpid)"
   printf 'begin;\nupdate public.maanedsplan set status = %s, sluppet_av = %s, sluppet_tid = %s where stasjon_id = %s;\n' \
     "'$ny_status'" \
     "$( [ "$ny_status" = "avvist" ] && echo null || echo "'$PRO'" )" \
     "$( [ "$ny_status" = "avvist" ] && echo null || echo now\(\) )" \
     "'$maal'" >&9
+  spor "B  status -> $ny_status paa $maal, IKKE committet"
   # VENT TIL B FAKTISK HAR RADLAASEN.
   #
   # Her sto en loekke med `!= ""` som vilkaar. `count(*)` returnerer
@@ -128,6 +191,7 @@ race() {
     i=$((i+1))
     [ $i -gt 200 ] && feil "sesjon B tok aldri laasen"
   done
+  spor "B  holder RowExclusiveLock paa maanedsplan"
 
   # --- SESJON A: skriveren. Skal BLOKKERE paa radlaasen -------------
   psql "$PGURL" -v ON_ERROR_STOP=1 -tAc \
@@ -135,6 +199,7 @@ race() {
        from public.skriv_maanedsplan_utkast('$(rader "$stasjoner")'::jsonb,
             '$RET'::uuid, $jobb);" > "$out" 2>&1 &
   local apid=$!
+  spor "A  RPC startet (pid $apid)"
 
   # VERIFISER at A faktisk venter paa en laas. Uten dette maaler vi
   # kanskje bare «B committet foerst».
@@ -155,17 +220,22 @@ race() {
                    and query ilike '%skriv_maanedsplan_utkast%'")" -gt 0 ]; do
     i=$((i+1))
     if [ $i -gt 100 ]; then
+      # EXIT 1, ikke bare en logglinje. Uten laaseobservasjonen har
+      # testen ikke maalt racet, og da er «gikk bra» en loegn.
       feil "sesjon A blokkerte aldri - interleavingen ble ikke oppnaadd"
     fi
   done
+  spor "A  observert ventende: wait_event_type = Lock"
 
   printf 'commit;\n' >&9
   exec 9>&-
+  spor "B  COMMIT"
   wait "$bpid" || true
   wait "$apid" || feil "sesjon A feilet: $(cat "$out")"
+  spor "A  fortsatte: $(tr '\n' ' ' < "$out")"
 
   cat "$out"
-  rm -f "$fifo" "$out"
+  rm -rf "$mappe"
 }
 
 # =====================================================================

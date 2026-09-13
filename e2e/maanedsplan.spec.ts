@@ -177,49 +177,77 @@ test.describe('telefonbredde', () => {
 })
 
 // =====================================================================
-// Å BYGGE MÅNEDENS UTKAST PÅ NYTT
+// Å BYGGE MÅNEDENS UTKAST PÅ NYTT — DEN POSITIVE PRODUKSJONSVEIEN
 // =====================================================================
 //
 // Knappen finnes fordi den eneste veien til et nytt utkast var å kjøre
 // en regnskapsfil om igjen — og det skriver `regnskapslinjer`,
 // `bilagssum`, `bp_linje` og provenienstabellene på veien.
 //
-// Seedet har ingen `v_kurs_maanedstall`-rader, så kjøringen finner ingen
-// historikk og skriver ingenting. DET ER POENGET her: testen måler at
-// hele kjeden går — handling, RLS, kvittering — og at en tom kjøring
-// SIER at den var tom i stedet for å se vellykket ut.
+// Seedet har minste gyldige regnskapsgrunnlag for juli 2026 på ALLE tre
+// stasjonene i Analysekjeden, så juli er en komplett datamåned. Da
+// vises knappen, og hele kjeden kan måles:
+//
+//   komplett grunnlag -> knappen vises -> eieren bekrefter ->
+//   serverhandlingen kjører -> juliutkast bygges -> snapshot lagres ->
+//   fredede rader står urørt
+//
+// SEEDETS JULI-TILSTAND:
+//   Underby  5101   utkast   skal SKRIVES
+//   Grenseby 5102   utkast   skal SKRIVES
+//   Overby   5103   AVVIST   skal stå urørt og NAVNGIS
+//
+// Og utenfor juli:
+//   Underby  juni   utkast   annen måned — skal ikke røres
+//   Grenseby mai    sluppet  avgjort — skal ikke røres
 // =====================================================================
-test.describe('bygg på nytt', () => {
-  test('knappen sier hva som skjer, før den trykkes', async ({ page }) => {
-    await page.goto('/maanedsplan')
-    const seksjon = page.locator('section').filter({ hasText: 'Bygg juli 2026 på nytt' })
-    await expect(seksjon).toBeVisible()
 
-    // Forklaringen må si hva som IKKE skjer. «Bygg på nytt» alene leses
-    // som «kjør importen om igjen».
-    await expect(seksjon).toContainText('Ingen fil lastes opp')
-    await expect(seksjon).toContainText('ingen import kjøres')
-    await expect(seksjon).toContainText('Bare utkast skrives om')
-  })
+/** Kortet for én stasjon i én måned, uansett hvilken seksjon det står i. */
+const plankort = (side: import('@playwright/test').Page, stasjon: string, mnd: string) =>
+  side.locator('.sq-plankort').filter({ hasText: stasjon }).filter({ hasText: mnd })
+
+/** Alt som skal stå urørt, avlest før og etter. */
+async function uroert(side: import('@playwright/test').Page) {
+  const juni = await plankort(side, 'Underby', 'juni').first().textContent()
+  await side.goto('/min-plan')
+  const mai = await side.locator('.sq-plankort').first().textContent()
+  await side.goto('/maanedsplan')
+  return { juni, mai }
+}
+
+test.describe('bygg på nytt', () => {
+  test('knappen sier hvilken måned, hvor mange stasjoner, og hva som IKKE skjer',
+    async ({ page }) => {
+      await page.goto('/maanedsplan')
+      const seksjon = page.locator('section').filter({ hasText: 'Bygg juli 2026 på nytt' })
+      await expect(seksjon).toBeVisible()
+
+      // FORVENTNINGEN FRA DATAGRUNNLAGET, ikke antall planrader.
+      await expect(seksjon).toContainText('Grunnlaget forventer 3 stasjoner')
+
+      // Forklaringen må si hva som IKKE skjer. «Bygg på nytt» alene
+      // leses som «kjør importen om igjen».
+      await expect(seksjon).toContainText('Ingen fil lastes opp')
+      await expect(seksjon).toContainText('ingen import kjøres')
+      await expect(seksjon).toContainText('Bare utkast skrives om')
+    })
 
   test('den kjører ALDRI av seg selv', async ({ page }) => {
     // En side som skriver når den åpnes er en side ingen kan stole på.
-    // Bevis: åpne sida to ganger og se at ingen kvittering dukker opp.
     await page.goto('/maanedsplan')
     await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
     await page.reload()
     await expect(page.locator('.sq-plankort').first()).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Bygget')
-    await expect(page.locator('body')).not.toContainText('Ingen utkast ble skrevet')
   })
 
-  test('spørsmålet navngir måneden og antallet', async ({ page }) => {
+  test('spørsmålet navngir måneden og begge tallene', async ({ page }) => {
     await page.goto('/maanedsplan')
     let tekst = ''
     page.on('dialog', async (d) => { tekst = d.message(); await d.dismiss() })
     await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
     await expect.poll(() => tekst).toContain('juli 2026')
-    expect(tekst).toContain('stasjon')
+    expect(tekst).toContain('Grunnlaget forventer 3 stasjoner')
     expect(tekst).toContain('Ingen regnskapsdata')
     expect(tekst).toContain('Sluppet, sendt og avvist står urørt')
   })
@@ -232,23 +260,80 @@ test.describe('bygg på nytt', () => {
     await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
     await page.waitForTimeout(500)
     await expect(page.locator('body')).not.toContainText('Bygget')
-    await expect(page.locator('body')).not.toContainText('Ingen utkast ble skrevet')
   })
 
-  test('en tom kjøring SIER at den var tom', async ({ page }) => {
+  // ===================================================================
+  // DEN POSITIVE VEIEN, HELE KJEDEN
+  // ===================================================================
+  test('bygger juli, låser den avviste, og rører ingen annen måned',
+    async ({ page }) => {
+      await page.goto('/maanedsplan')
+      const foer = await uroert(page)
+
+      page.on('dialog', (d) => d.accept())
+      await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+
+      // KVITTERINGEN: to skrevet, den avviste NAVNGITT.
+      const kvittering = page.locator('body')
+      await expect(kvittering).toContainText('Bygget 2 utkast for 2026-07',
+        { timeout: 20_000 })
+      await expect(kvittering).toContainText('Overby')
+      await expect(kvittering).toContainText('allerede avgjort')
+
+      await page.reload()
+
+      // SNAPSHOTET ER SKREVET. Grunnlaget har ingen svinnrader og intet
+      // kastbudsjett, så nipunktsporten blokkerer — og et BLOKKERT
+      // snapshot er et skrevet snapshot. Sto det «Ikke beregnet», var
+      // kolonnen fortsatt null.
+      for (const st of ['Underby', 'Grenseby']) {
+        const k = plankort(page, st, 'juli').first()
+        await expect(k.locator('.sq-analyse').filter({ hasText: 'Synlig matkast' }))
+          .toContainText('Datagrunnlag mangler')
+      }
+
+      // DEN AVVISTE STÅR URØRT — også innholdet.
+      const overby = plankort(page, 'Overby', 'juli').first()
+      await expect(overby).toContainText('Resultatet i juli er 10 000 kroner')
+
+      // INGEN ANNEN MÅNED FLYTTET SEG.
+      const etter = await uroert(page)
+      expect(etter.juni, 'juni-kortet endret seg').toBe(foer.juni)
+      expect(etter.mai, 'den sluppede mai-planen endret seg').toBe(foer.mai)
+    })
+
+  test('andre kjøring gir ingen duplikater og samme innhold', async ({ page }) => {
     await page.goto('/maanedsplan')
     page.on('dialog', (d) => d.accept())
+
+    const antall = async () => page.locator('.sq-plankort').count()
+    const juliTekst = async () =>
+      (await plankort(page, 'Underby', 'juli').first().textContent()) ?? ''
+
     await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+    await expect(page.locator('body')).toContainText('Bygget 2 utkast', { timeout: 20_000 })
+    await page.reload()
+    const a = { n: await antall(), t: await juliTekst() }
 
-    // Seedet har ingen maanedstall, så ingen plan kan bygges. En handling
-    // som lykkes uten å si fra, ser ut som en som feilet.
-    await expect(page.locator('body')).toContainText(
-      'Ingen utkast ble skrevet for 2026-07', { timeout: 15_000 })
+    await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+    await expect(page.locator('body')).toContainText('Bygget 2 utkast', { timeout: 20_000 })
+    await page.reload()
+    const b = { n: await antall(), t: await juliTekst() }
 
-    // OG DE SLUPPEDE PLANENE STÅR. Grenseby mai er `sluppet`; en tom
-    // kjøring skal ikke ha rørt den.
+    // FEM PLANER, IKKE TI. Kolliderer ikke upserten på
+    // (stasjon_id, maaned), ville andre kjøring lagt til nye rader.
+    expect(b.n).toBe(a.n)
+    // Og innholdet er det samme. `beregnetTid` og `oppdatert_tid` står
+    // ikke på skjermen, så kortteksten skal være identisk.
+    expect(b.t).toBe(a.t)
+  })
+
+  test('butikksjefens flate har ingen byggeknapp', async ({ page }) => {
+    // NEGATIV TILSTAND PÅ EN ANNEN AKSE: mottakeren skal aldri kunne
+    // bygge planen sin på nytt. `textContent` — en negativ påstand på
+    // `innerText` ville bestått mens knappen var skjult.
     await page.goto('/min-plan')
-    await expect(page.locator('.sq-plankort')).toHaveCount(1)
-    await expect(page.locator('.sq-plankort').first()).toContainText('mai 2026')
+    await expect(page.locator('body')).not.toContainText('på nytt')
+    await expect(page.getByRole('button', { name: /Bygg/ })).toHaveCount(0)
   })
 })
