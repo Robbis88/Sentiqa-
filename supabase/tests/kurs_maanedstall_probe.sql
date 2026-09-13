@@ -86,38 +86,71 @@ begin
   end loop;
 
   -- -------------------------------------------------------------------
-  -- 2) DRIVSTOFF ER UTENFOR, OG DET SKAL MAALES - IKKE ANTAS
+  -- 2) «40 CR» ER BUTIKKTOTALEN, OG DEN SKAL IKKE MED
   --
-  -- Drivstoff er ~68 % av omsetningen. Kom den med, ville hver av
-  -- summene over vaert flere ganger for hoey - saa punkt 1 fanger det.
-  -- Men den fanger det bare saa lenge fasiten er riktig, og denne
-  -- kontrollen staar paa egne bein: raadataene for kode 10 skal vaere
-  -- STORE, og viewet skal likevel vaere lite.
+  -- FOERSTE UTGAVE AV DENNE KONTROLLEN VAR FEIL, og den ble roed
+  -- foerste gang den kjoerte - 2026-09-13, maaneder etter at den ble
+  -- skrevet. Den lette etter drivstofflinjer paa `kode = '10'` og
+  -- konkluderte med at noe var borte da den ikke fant dem.
+  --
+  -- Maalt i produksjon: **drivstoff finnes ikke i `regnskapslinjer` i
+  -- det hele tatt.** Omsetningsseksjonen per stasjon er ren butikk:
+  --
+  --     40 CR   5 928 970      <- TOTALEN, ikke en avdeling
+  --    120 Mat  1 936 773
+  --    180 …      912 983
+  --    …
+  --    sum av avdelingene 5 928 749  (= 40 CR, paa avrunding naer)
+  --
+  -- `'10'` i `UTELAT_KODER` har derfor aldri truffet en eneste rad her.
+  -- Det er samme doede filterarm som AGENTS.md beskriver for `ENERGI` i
+  -- salgsdataene, og den staar igjen fordi en ubrukt verdi i et sett er
+  -- ufarlig - mens en fjerning kan treffe en kjede vi ikke har maalt.
+  --
+  -- DEN EKTE RISIKOEN ER `40`. Kommer totalen med ved siden av
+  -- avdelingene, DOBLES omsetningen i hver maanedsplan. Det er den
+  -- kontrollen som hoerer hjemme her.
   -- -------------------------------------------------------------------
-  select sum(l.regnskap) as drivstoff,
+  select sum(l.regnskap) filter (where l.kode = '40')                    as cr,
+         sum(l.regnskap) filter (where l.kode <> '40')                   as avdelinger,
+         sum(l.regnskap) filter (where l.kode = '250')                   as pant,
          (select sum(v.omsetning_kr) from public.v_kurs_maanedstall v
-           where v.maaned = date '2026-07-01') as i_viewet
+           where v.maaned = date '2026-07-01')                           as i_viewet
     into f
     from public.regnskapslinjer l
    where l.periode = date '2026-07-01'
      and l.seksjon = 'omsetning'
-     and l.kode = '10'
+     and l.kode is not null
      and l.stasjon_id is not null
      and l.slettet_tid is null;
 
-  if coalesce(f.drivstoff, 0) = 0 then
+  -- KANARI: finnes totalen i det hele tatt? Flytter St1 den, maaler
+  -- kontrollen under ingenting - og da skal proben si fra, ikke tie.
+  if coalesce(f.cr, 0) = 0 then
     raise exception
-      'SONDE: fant ingen drivstofflinjer (kode 10) for juli. Da maaler '
-      'kontrollen under ingenting - sjekk om St1 har flyttet koden, og '
-      'se omsetningsvakt.ts.';
+      'SONDE: fant ingen «40 CR»-linjer for juli. Da maaler kontrollen '
+      'under ingenting - sjekk om St1 har flyttet koden, og se '
+      'SKJUL_OMS_KODER i avdelingene.';
   end if;
-  if f.i_viewet > f.drivstoff then
+
+  -- Viewet skal vaere avdelingene MINUS pant - altsaa verken med
+  -- totalen eller med pant.
+  if abs(f.i_viewet - (f.avdelinger - coalesce(f.pant, 0))) > 5 then
     avvik := avvik || format(
-      'drivstoff er kommet INN i omsetningen: view %s mot drivstoff %s',
-      round(f.i_viewet), round(f.drivstoff));
+      'omsetningen i viewet stemmer ikke: view %s, avdelinger minus pant %s',
+      round(f.i_viewet), round(f.avdelinger - coalesce(f.pant, 0)));
   end if;
-  raise notice 'SONDE: drivstoff juli % kr, holdt utenfor. Viewet gir % kr.',
-    round(f.drivstoff), round(f.i_viewet);
+
+  -- Og det harde symptomet, paa egne bein: kom totalen med, ville
+  -- viewet vaert omtrent det dobbelte av den.
+  if f.i_viewet > f.cr then
+    avvik := avvik || format(
+      '«40 CR» er kommet INN i omsetningen: view %s mot total %s',
+      round(f.i_viewet), round(f.cr));
+  end if;
+
+  raise notice 'SONDE: 40 CR juli % kr, holdt utenfor. Viewet gir % kr.',
+    round(f.cr), round(f.i_viewet);
 
   -- -------------------------------------------------------------------
   -- 3) INGEN MAANED MED TALL SKAL STAA MED NULL OMSETNING
