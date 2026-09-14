@@ -35,8 +35,19 @@ with koe as (
     from public.maanedsplan
 ),
 aapner as (
-  -- `standardmaaned`: nyeste maaned med utkast, ellers nyeste i det
-  -- hele tatt.
+  -- `standardmaaned` etter rettelsen i #284: NYESTE MAANED SOM HAR EN
+  -- PLAN, uansett status.
+  --
+  -- Her sto `coalesce(max(maaned) where status='utkast', max(maaned))`
+  -- - den gamle regelen. Sonden ville dermed valgt juni mens sida
+  -- valgte juli, og en riktig side ville sett ut som et avvik.
+  --
+  -- En sonde som koder en annen regel enn koden, maaler ikke koden.
+  select max(maaned) as m from koe
+),
+gammel as (
+  -- Hva den FORRIGE regelen ville valgt. Staar her for aa vise at
+  -- rettelsen betyr noe i dagens data - ikke som et krav.
   select coalesce(
            (select max(maaned) from koe where status = 'utkast'),
            (select max(maaned) from koe)
@@ -51,7 +62,7 @@ select * from (
          (select count(*)::text from koe
            where status = 'utkast' and maaned = (select m from aapner))
            || ' utkast i koen' as b,
-         'nyeste maaned med utkast' as c
+         'nyeste maaned som har en plan - status teller ikke med' as c
 
   -- --- 2  DET SOM SKAL VAERE SKJULT, MEN TELT -------------------------
   -- Dette er tallet flaten MAA skrive ut. Et filter som bare skjuler,
@@ -106,18 +117,20 @@ select * from (
     from koe
    where id = '2f7a85ef-34cc-4197-8a3b-56703fa5f8c8'
 
-  -- --- 6  KOMMER DEN NYESTE MAANEDEN FOERST? -------------------------
-  -- `maanederIKoe` sorterer nyeste foerst. Er den nyeste maaneden med
-  -- utkast IKKE den nyeste maaneden i det hele tatt, staar det en
-  -- avgjort maaned over den i velgeren - og det er riktig, men verdt
-  -- aa se.
+  -- --- 6  BETYR RETTELSEN NOE I DAGENS DATA? --------------------------
+  -- Den gamle regelen mot den nye. Er de like, er rettelsen usynlig i
+  -- dag - og da beviser ikke denne kjoeringen at den virker. Er de
+  -- ulike, er det nettopp forskjellen #284 handlet om.
+  --
+  -- IKKE ET KRAV, en observasjon. Begge utfall er i orden; de betyr
+  -- bare ulike ting for hva maalingen har vist.
   union all
-  select 6, 'nyeste maaned i basen',
-         to_char((select max(maaned) from koe), 'YYYY-MM'),
-         'mot aapningsmaaned ' || to_char((select m from aapner), 'YYYY-MM'),
-         case when (select max(maaned) from koe) = (select m from aapner)
-              then 'like - velgeren aapner paa toppen'
-              else 'ulike - en nyere maaned er helt avgjort' end
+  select 6, 'gammel regel mot ny',
+         'gammel: ' || to_char((select m from gammel), 'YYYY-MM'),
+         'ny: ' || to_char((select m from aapner), 'YYYY-MM'),
+         case when (select m from gammel) = (select m from aapner)
+              then 'like - rettelsen er usynlig i disse dataene'
+              else 'ULIKE - den gamle ville aapnet paa en eldre maaned' end
 
 ) r
  order by sort, noekkel;
