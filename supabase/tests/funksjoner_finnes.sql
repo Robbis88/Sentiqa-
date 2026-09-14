@@ -46,6 +46,7 @@ declare
     'regnskap_sum',
     'sett_avvik_lopenr',
     'sett_oppdatert_tid',
+    'skriv_maanedsplan_utkast',
     'slett_person',
     'slett_retailer_permanent',
     'som_uuid',
@@ -94,7 +95,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       32                          as forventet_av_migrasjonene
+       33                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

@@ -40,11 +40,46 @@ export default defineConfig({
   // Ingen retry. En flaky nettlesertest som «gaar over av seg selv» er
   // verre enn ingen - den laerer folk aa kjore paa nytt i stedet for aa
   // lese. Er den ustabil, skal den fikses eller fjernes.
+  //
+  // OG DET ER NAA EN FORUTSETNING, ikke bare en holdning: den muterende
+  // maanedsplanflyten i `e2e/maanedsplan.spec.ts` bygger, slipper og
+  // avviser ekte rader. En retry ville startet midt i den flyten paa en
+  // halvt mutert base og latt som det var seedtilstanden.
+  // `src/lib/redesign/e2e-oppsett.test.ts` feller en endring her.
   retries: 0,
+
+  // =====================================================================
+  // ÉN ARBEIDER, OG INGEN PARALLELLE FILER
+  // =====================================================================
+  //
+  // Alle spec-filene deler ÉN database. `fullyParallel` er `false` som
+  // standard, saa testene INNE i en fil gaar serielt - men FILENE gaar
+  // i parallell over flere arbeidere, og det holdt ikke:
+  //
+  //   `maanedsplan.spec.ts` slipper Grenseby juli.
+  //   `min-plan.spec.ts` leser butikksjefens liste.
+  //
+  // Kjoerer de samtidig, ser den andre en liste som endrer seg under
+  // foettene paa den. Det er ikke flakiness man kan feilsoeke; det er to
+  // tester som skriver i hverandres fikstur.
+  //
+  // Antallet var dessuten AVHENGIG AV MASKINEN: standarden er halvparten
+  // av kjernene, saa en to-kjerners runner ga én arbeider og en
+  // fire-kjerners ga to. Da ville en test bestaatt eller feilet av hvor
+  // den kjoerte.
+  //
+  // Prisen er kjoeretid. Den er verdt aa betale for et svar man kan tro
+  // paa.
+  workers: 1,
+  fullyParallel: false,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
+    // Skjermbildet ved timeout. Sporet viser hva som SKJEDDE; bildet
+    // viser hva som STO der da det stoppet - og de to svarer paa ulike
+    // spoersmaal.
+    screenshot: 'only-on-failure',
   },
   projects: [
     // OPPSETTET FORST. Eieren rulles inn i to-faktor en gang, og lagrer

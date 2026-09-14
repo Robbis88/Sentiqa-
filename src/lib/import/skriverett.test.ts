@@ -64,17 +64,37 @@ function ressurs(tabell: string): Ressurs | undefined {
 /**
  * Tabellene kildene skriver til.
  *
- * To former, og begge må med: `skrivBatch(supabase, 'x', …)` er den
- * vanlige, og en rå `.from('x').insert/upsert/update` finnes der batchen
- * ikke passer. Rekkefølgen på kjeden varierer (`.from(...)` og
- * skrivekallet står ofte på hver sin linje), så vi ser i et vindu
- * framover — ikke etter et eksakt uttrykk.
+ * TRE former, og alle må med:
+ *
+ *   `skrivBatch(supabase, 'x', …)`      den vanlige
+ *   `.from('x').insert/upsert/update`   der batchen ikke passer
+ *   `.rpc('skriv_…')`                   en skrivefunksjon i basen
+ *
+ * Den tredje kom med `0217`: månedsplanene skrives nå gjennom
+ * `skriv_maanedsplan_utkast`, fordi låsen må ligge i SETNINGEN og ikke
+ * i en forhåndssjekk. Uten denne armen sluttet detektoren å se
+ * `maanedsplan` — og kanarifuglen felte den med én gang, som den skal.
+ *
+ * Rekkefølgen på kjeden varierer (`.from(...)` og skrivekallet står
+ * ofte på hver sin linje), så vi ser i et vindu framover — ikke etter
+ * et eksakt uttrykk.
  */
+
+/** Skrivefunksjoner i basen, og tabellen hver av dem skriver. */
+const SKRIVEFUNKSJONER: Record<string, string> = {
+  skriv_maanedsplan_utkast: 'maanedsplan',
+}
+
 function skrevneTabeller(kilde: string): Set<string> {
   const funnet = new Set<string>()
 
   for (const m of kilde.matchAll(/skrivBatch\(\s*\w+\s*,\s*'([a-z_]+)'/g)) {
     funnet.add(m[1])
+  }
+
+  for (const m of kilde.matchAll(/\.rpc\(\s*'([a-z_0-9]+)'/g)) {
+    const tabell = SKRIVEFUNKSJONER[m[1]]
+    if (tabell) funnet.add(tabell)
   }
 
   for (const m of kilde.matchAll(/\.from\('([a-z_]+)'\)/g)) {

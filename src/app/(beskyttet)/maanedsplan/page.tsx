@@ -3,8 +3,10 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { maanedsnavn } from '@/lib/kurs/plan'
 import { Sidehode, Tomtilstand, Feiltilstand, Forklaring } from '@/components/ui/side'
 import { maaVaereHele } from '@/lib/supabase/datobolker'
+import { nyesteKompletteMaaned } from '@/lib/kurs/regenerer'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Plankort, type Punkt } from './plankort'
+import { Byggknapp } from './byggknapp'
 
 // =====================================================================
 // Månedsplanene — eierens godkjenningskø.
@@ -93,6 +95,25 @@ export default async function MaanedsplanSide() {
   const avgjort = alle.filter((p) => p.status !== 'utkast')
   const nyeste = alle[0]?.maaned
 
+  // MÅLMÅNEDEN OG FORVENTNINGEN, fra DATAGRUNNLAGET.
+  //
+  // To tall, og de skal stå hver for seg: hvor mange stasjoner
+  // grunnlaget forventer, og hvor mange planer som allerede finnes.
+  // Er de ulike, er det nettopp da man vil se begge — ett tall ville
+  // skjult at noe mangler.
+  //
+  // Feiler oppslaget, faller knappen bort. En knapp som ikke vet hvilken
+  // måned den gjelder, skal ikke stå der.
+  let maal: { maaned: string | null; aktiveStasjoner: number } | null = null
+  try {
+    maal = await nyesteKompletteMaaned({ supabase, retailerId: bruker.retailerId! })
+  } catch {
+    maal = null
+  }
+  const planerIMaal = maal?.maaned
+    ? alle.filter((p) => String(p.maaned).slice(0, 10) === maal!.maaned).length
+    : 0
+
   return (
     <Sideramme>
       <Sidehode
@@ -112,6 +133,14 @@ export default async function MaanedsplanSide() {
             + 'måneder med tall før retningen betyr noe — to punkter er en '
             + 'strek, ikke en retning.'
           }
+        />
+      )}
+
+      {maal?.maaned && (
+        <Byggknapp
+          maaned={maal.maaned}
+          forventet={maal.aktiveStasjoner}
+          eksisterende={planerIMaal}
         />
       )}
 
