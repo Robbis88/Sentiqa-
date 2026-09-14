@@ -381,12 +381,32 @@ describe('vakten ser det den skal se', () => {
     expect(m.test("oppfrisk: ['/min-plan']")).toBe(false)
   })
 
+  // KOMMENTARENE STRIPPES FOERST, og det er ikke en detalj.
+  //
+  // Vakten leste fila raa. Da felte den enhver kommentar som SITERTE
+  // `revalidatePath('/maanedsplan')` - for eksempel en blokk som
+  // forklarer hvorfor kallet ble fjernet. En vakt som ikke taaler at
+  // koden beskrives, laerer folk aa skrive om prosaen i stedet for aa
+  // rette koden, og da maaler den til slutt ingenting.
+  //
+  // `utenKommentarer` brukes allerede av resten av fila. Her manglet den.
   test('maanedsplanens tre handlinger revaliderer IKKE egen rute', () => {
     // Flyten vi skal bruke naa: bygg -> kontroller -> slipp -> avvis.
-    const kode = readFileSync(
-      join('src', 'app', '(beskyttet)', 'maanedsplan', 'handlinger.ts'), 'utf8')
+    const kode = utenKommentarer(readFileSync(
+      join('src', 'app', '(beskyttet)', 'maanedsplan', 'handlinger.ts'), 'utf8'))
     expect(kode).not.toContain("revalidatePath('/maanedsplan')")
     expect(kode).not.toMatch(/oppfrisk:\s*\[[^\]]*'\/maanedsplan'/)
+  })
+
+  test('KANARIFUGL: stripping skjuler ikke et ekte kall', () => {
+    // Uten denne ville `utenKommentarer` kunnet strippe for mye - og en
+    // vakt som ser bort fra koden er verre enn en som ser for mye.
+    const kode = utenKommentarer(
+      "// revalidatePath('/maanedsplan') er fjernet\n"
+      + "revalidatePath('/maanedsplan')\n",
+    )
+    expect(kode).toContain("revalidatePath('/maanedsplan')")
+    expect(kode).not.toContain('er fjernet')
   })
 })
 
