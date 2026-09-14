@@ -301,3 +301,121 @@ test('treg oppfriskning (8 s) holder ikke kvitteringen tilbake', async ({ page }
 
   await page.unroute(/_rsc=/)
 })
+
+// =====================================================================
+// ADVARSELEN MAA KUNNE INNTREFFE, ELLERS ER DEN DOED KODE
+// =====================================================================
+//
+// `router.refresh()` returnerer `void`. En henging er usynlig for
+// `try/catch` - den fanger bare et synkront kast. Det andre tilfellet
+// fanges av TIDEN: `oppfrisker` staar i sin transition til hentingen er
+// ferdig, og blir den staaende i 10 sekunder, sier komponenten ifra.
+//
+// Den mekanismen hviler paa en ANTAKELSE om Next: at `router.refresh()`
+// inne i `startTransition` holder `isPending` sann til RSC-hentingen er
+// ferdig. Er den feil, fyrer advarselen ALDRI, og en test som bare
+// sjekket at den ikke staar der ville vaert groenn i begge tilfeller.
+//
+// RSC-SVARENE HOLDES AAPNE, ikke forsinket med en fast tid. Da er «minst
+// ett kall er fortsatt aapent» noe som MAALES, ikke antas - og
+// slippetidspunktet er vaart, saa «forsvant den etterpaa» kan ogsaa
+// maales.
+// =====================================================================
+
+function holdRsc(side: Page) {
+  const slipper: (() => void)[] = []
+  let hold = true
+  const rute = async (r: import('@playwright/test').Route) => {
+    if (hold) await new Promise<void>((ok) => slipper.push(ok))
+    await r.continue()
+  }
+  return {
+    paa: () => side.route(/_rsc=/, rute),
+    slipp: () => { hold = false; slipper.splice(0).forEach((f) => f()) },
+    av: () => side.unroute(/_rsc=/, rute),
+  }
+}
+
+test('advarselen kommer naar oppfriskningen blir staaende', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto('/maanedsplan')
+  await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
+
+  let start = Date.now()
+  const { handling, rsc, revalidert } = lytt(page, () => start)
+  const hold = holdRsc(page)
+  await hold.paa()
+
+  const knapp = byggeknapp(page)
+  await expect(knapp).toBeVisible()
+  page.on('dialog', (d) => d.accept())
+
+  start = Date.now()
+  await knapp.click()
+
+  // 1  KVITTERINGEN FOER OPPFRISKNINGEN. Alle RSC-kall henger.
+  await expect(page.locator('.sq-slett-ok').first()).toBeVisible({ timeout: 6_000 })
+  const tKvittering = Date.now() - start
+  await expect(knapp).toBeEnabled()
+  const tKnapp = Date.now() - start
+  const apneVedKvittering = rsc.filter((k) => k.ferdig === null).length
+
+  // 2  ADVARSELEN. Kommer den ikke, holder ikke refreshen sin egen
+  //    transition aapen - og da er hele mekanismen doed kode.
+  await expect(page.locator('.sq-oppfrisk-feil')).toBeVisible({ timeout: 20_000 })
+  const tAdvarsel = Date.now() - start
+  const apneVedAdvarsel = rsc.filter((k) => k.ferdig === null).length
+  const montertVedAdvarsel = await page.locator('form:has(input[name="maaned"])').count()
+
+  const l = (s: string) => console.log(`  ${s}`)
+  l('')
+  l('========== TIDSLINJE, HOLDT OPPFRISKNING ==========')
+  for (const k of handling) {
+    l(`POST next-action      sendt ${k.sendt} ms  ferdig ${k.ferdig} ms  status ${k.status}`)
+  }
+  l(`x-action-revalidated  ${revalidert.map((r) => r ?? '(fravaerende)').join(', ')}`)
+  l(`kvittering synlig     ${tKvittering} ms`)
+  l(`knappen aktiv         ${tKnapp} ms`)
+  l(`aapne RSC ved kvittering  ${apneVedKvittering}`)
+  l(`advarsel vist         ${tAdvarsel} ms`)
+  l(`aapne RSC ved advarsel    ${apneVedAdvarsel} av ${rsc.length}`)
+  l(`skjema montert        ${montertVedAdvarsel === 1}`)
+
+  expect(apneVedKvittering, 'ingen RSC-kall var aapne - holdet virket ikke').toBeGreaterThan(0)
+  expect(tKvittering, 'kvitteringen ventet paa den holdte RSC-hentingen').toBeLessThan(6_000)
+  expect(tAdvarsel, 'advarselen kom ikke rundt 10 s').toBeGreaterThan(9_000)
+  expect(apneVedAdvarsel, 'alle RSC var ferdige - da maaler ikke testen en henging')
+    .toBeGreaterThan(0)
+  await expect(page.locator('.sq-slett-ok').first(),
+    'kvitteringen skal staa VED SIDEN AV advarselen').toBeVisible()
+  expect(montertVedAdvarsel, 'skjemaet forsvant').toBe(1)
+  expect(handling.length, 'det ble sendt mer enn én serverhandling').toBe(1)
+
+  // 3  SLIPP DEM, og se hva som skjer.
+  hold.slipp()
+  await expect.poll(() => rsc.filter((k) => k.ferdig === null).length,
+    { timeout: 20_000, message: 'RSC-kall fullfoerte ikke etter slipp' }).toBe(0)
+  const tSluppet = Date.now() - start
+  l(`alle RSC ferdige      ${tSluppet} ms`)
+
+  // 4  KJENT MANGEL, MAALT HER FRAMFOR AA BLI ANTATT.
+  //
+  //    `visningFroset` settes av timeren, men settes bare tilbake til
+  //    `false` naar et NYTT handlingssvar kommer. Naar oppfriskningen
+  //    fullfoerer, ryddes timeren - flagget blir staaende. Advarselen
+  //    sier da «last sida paa nytt» om en side som ER oppdatert.
+  //
+  //    `expect.soft` med vilje: de ti maalingene over skal rapporteres
+  //    selv naar denne feller, og roedt skal peke paa NOEYAKTIG denne
+  //    setningen. Rettingen hoerer hjemme i produksjonskoden, og denne
+  //    committen er diagnostisk.
+  const advarselEtter = await page.locator('.sq-oppfrisk-feil').count()
+  l(`advarsel etter slipp  ${advarselEtter === 0 ? 'borte' : 'staar fortsatt'}`)
+  l('==================================================')
+  expect.soft(advarselEtter,
+    'KJENT MANGEL: advarselen blir staaende etter at oppfriskningen '
+    + 'fullfoerte. `visningFroset` har ingen vei tilbake til false uten '
+    + 'et nytt handlingssvar. Krever en produksjonsendring.').toBe(0)
+
+  await hold.av()
+})

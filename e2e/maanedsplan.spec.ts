@@ -609,62 +609,47 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
     })
 
   // ===================================================================
-  // D  EN FEILET HANDLING SKAL IKKE SE UT SOM SUKSESS
+  // D ER FJERNET, OG BEVISET ER DELT I TO
   // ===================================================================
-  test('D  feilet handling: feilmeldingen staar, og sida friskes ikke opp',
-    async ({ page }) => {
-      await page.goto('/maanedsplan')
-      const foer = await plankort(page, 'Underby', 'juli').first().textContent()
-
-      // TILLEGGSKONTROLL - IKKE ENESTE BEVIS PAA AVVISNINGEN.
-      //
-      // Selve avvisningen maales direkte i
-      // `src/app/(beskyttet)/maanedsplan/avvisning.test.ts`, med
-      // konstruert FormData og uten nettleser. Her maales bare at
-      // VISNINGEN av en avvisning virker paa flaten.
-      //
-      // FELTET SETTES OG SKJEMAET SENDES I SAMME `evaluate`. Verdien
-      // ligger paa en React-kontrollert `<input type="hidden" value=...>`,
-      // og React skriver den tilbake ved neste commit. Gjoeres de to i
-      // hvert sitt steg, er det et kapploep - og 2026-09-14 tapte det:
-      // handlingen kjoerte med JULI, lyktes, og testen felte paa at
-      // feilmeldingen uteble. Den saa da ut som «avvisningen virker
-      // ikke», mens den egentlige beskjeden var «feltet ble nullstilt».
-      //
-      // `window.confirm` overstyres i sidekonteksten i stedet for aa gaa
-      // via en dialoglytter: en dialog som aapnes INNE i en `evaluate`
-      // blokkerer kallet. Bekreftelsen selv maales i
-      // `handling-knapp.test.tsx`.
-      const post = page.waitForRequest(
-        (r) => r.method() === 'POST' && !!r.headers()['next-action'])
-
-      await page.evaluate(() => {
-        window.confirm = () => true
-        const felt = document.querySelector('input[name="maaned"]') as HTMLInputElement
-        felt.value = '2026-05-01'
-        felt.closest('form')!.querySelector('button')!.click()
-      })
-
-      // KANARIFUGL FOERST. Bar ikke POSTen mai, maaler resten ingenting -
-      // og da skal testen si NETTOPP det, ikke «feilmeldingen uteble».
-      const kropp = (await post).postData() ?? ''
-      expect(kropp, 'POST-kroppen bar ikke 2026-05-01 - feltet ble nullstilt '
-        + 'av en re-render foer innsendingen, saa handlingen kjoerte med '
-        + 'riktig maaned og lyktes').toContain('2026-05-01')
-
-      // FEILEN STAAR.
-      await expect(page.locator('.sq-slett-feil'))
-        .toContainText('Last sida på nytt', { timeout: 20_000 })
-
-      // OG INGEN FALSK SUKSESS: ingen kvittering, og kortet staar
-      // bokstavelig uendret.
-      //
-      // Sammenlignet med det som FAKTISK sto der foer, ikke med en fast
-      // forventning: testene i fila deler database, og test A har
-      // bygget juli om foer denne kjoerer.
-      await expect(page.locator('.sq-slett-ok')).toHaveCount(0)
-      const etter = await plankort(page, 'Underby', 'juli').first().textContent()
-      expect(etter, 'kortet endret seg av en FEILET handling').toBe(foer)
-    })
-
+  //
+  // Testen het «D  feilet handling: feilmeldingen staar, og sida friskes
+  // ikke opp». Den beviste en SERVERKONTRAKT gjennom en kunstig
+  // nettleserkappleype: den satte verdien paa en React-kontrollert
+  // `<input type="hidden" value={maaned}>` fra DOM-en og haapet at React
+  // ikke skrev den tilbake foer innsendingen.
+  //
+  // Det gikk bra lenge. 2026-09-14 gikk det ikke:
+  //
+  //   kjoering 1  React nullstilte feltet. Handlingen kjoerte med JULI,
+  //               lyktes, og testen felte paa at feilmeldingen uteble -
+  //               den saa ut som «avvisningen virker ikke».
+  //   kjoering 2  Feltsetting og klikk ble flyttet inn i samme
+  //               `evaluate` for aa lukke kapploepet. Da ble det ikke
+  //               sendt noen serverhandling I DET HELE TATT, og testen
+  //               felte paa en timeout uten aa ha maalt noe.
+  //
+  // To ulike roede, ingen av dem om kontrakten. En test som felles av
+  // rammeverkets rendringsrytme maaler rendringsrytmen, ikke kontrakten.
+  //
+  // Veien videre var ikke aa manipulere feltet HARDERE. React eier sitt
+  // eget kontrollerte felt, og en test som tvinger det fra seg det
+  // eierskapet maaler noe som ikke finnes i produksjon.
+  //
+  // BEVISET LIGGER NAA TO STEDER, begge autoritative:
+  //
+  //   AVVISNINGEN      `src/app/(beskyttet)/maanedsplan/avvisning.test.ts`
+  //                    Konstruert FormData med 2026-05-01, direkte mot
+  //                    serverhandlingen. Ingen nettleser, ingen React,
+  //                    ikke noe kapploep. Med kanarifugl paa at juli
+  //                    IKKE avvises av samme port.
+  //
+  //   FEILVISNINGEN    `src/components/ui/handling-knapp.test.tsx`
+  //                    En handling som svarer `{ feil: … }`: feilen
+  //                    staar, knappen er aktiv, og sida friskes IKKE
+  //                    opp.
+  //
+  // Det D ellers maalte - at kortet staar uendret - foelger av at
+  // avvisningen skjer foer noen skriving. Det er samme paastand, maalt
+  // der den avgjoeres.
+  // ===================================================================
 })

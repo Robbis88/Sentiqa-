@@ -120,19 +120,30 @@ describe('kvitteringen er uavhengig av oppfriskningen', () => {
     expect(knapp().disabled).toBe(false)
   })
 
-  test('en feilet handling friskes ikke opp', async () => {
+  // AUTORITETEN FOR FEILVISNINGEN.
+  //
+  // `e2e/maanedsplan.spec.ts` hadde et steg D som beviste dette i
+  // nettleseren ved aa manipulere et React-kontrollert skjult felt. Den
+  // er fjernet: den felte paa rendringsrytmen, ikke paa kontrakten.
+  // Denne testen eier paastanden naa, og serveravvisningen eies av
+  // `src/app/(beskyttet)/maanedsplan/avvisning.test.ts`.
+  test('en feilet handling: feilen staar, knappen er aktiv, ingen oppfriskning', async () => {
     let frisket = 0
     ;(globalThis as Record<string, unknown>).__oppfrisk = () => { frisket++ }
 
     const { handling, svar } = styrtHandling()
-    await tegn({ handling, oppfrisk: true })
+    await tegn({ handling, oppfrisk: true, arbeider: 'Bygger …' })
 
     await act(async () => { skjema().requestSubmit() })
-    await act(async () => { svar({ feil: 'Gikk ikke.' }) })
+    expect(knapp().disabled, 'laast mens den sender').toBe(true)
 
-    expect(feil()).toBe('Gikk ikke.')
-    expect(kvittering()).toBeNull()
-    expect(frisket, 'en feil skal ikke se ut som suksess').toBe(0)
+    await act(async () => { svar({ feil: 'Sida viste 2026-05 … Last sida på nytt.' }) })
+
+    expect(feil()).toBe('Sida viste 2026-05 … Last sida på nytt.')
+    expect(kvittering(), 'en feil skal ikke ogsaa vise en kvittering').toBeNull()
+    expect(knapp().disabled, 'knappen skal vaere aapen igjen etter en feil').toBe(false)
+    expect(knapp().textContent).toContain('Bygg')
+    expect(frisket, 'en feil skal ikke friske opp sida som om den lyktes').toBe(0)
   })
 
   test('oppfrisk er av som standard', async () => {
