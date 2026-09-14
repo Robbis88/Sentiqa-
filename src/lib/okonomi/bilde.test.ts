@@ -73,6 +73,13 @@ describe('svakeste — lov 2', () => {
     for (const a of alle) for (const b of alle) expect(svakeste(a, b)).toBe(svakeste(b, a))
   })
 
+  it('skjult slaar alt - et tall utledet av noe du ikke ser, ser du ikke', () => {
+    for (const k of alle) {
+      expect(svakeste('skjult', k)).toBe('skjult')
+      expect(svakeste(k, 'skjult')).toBe('skjult')
+    }
+  })
+
   it('KANARIFUGL: den returnerer faktisk BEGGE verdier, ikke bare én', () => {
     // Uten denne ville `() => 'mangler'` bestaatt den foerste testen, og
     // `(a) => a` den siste.
@@ -183,6 +190,51 @@ describe('styringsavviket arver svakeste kilde', () => {
   })
 })
 
+// =====================================================================
+// FORKLARINGEN MAA VAERE SANN
+// =====================================================================
+describe('grunn beskriver den faktiske motoren', () => {
+  it('rommets grunn skiller anslaatt fra faktisk brutto', () => {
+    // «ganget med faktisk brutto» var feil naar bruttoen var anslaatt:
+    // et anslag med en fasitforklaring.
+    const fasit = byggOkonomibilde(INN({ rom: ROM({ anslaatt: false }) })).lonnsrom
+    expect(fasit.grunn).toMatch(/faktisk brutto/)
+    expect(fasit.grunn).not.toMatch(/anslått/)
+
+    const anslag = byggOkonomibilde(INN({ rom: ROM({ anslaatt: true }) })).lonnsrom
+    expect(anslag.grunn).toMatch(/anslått brutto/)
+    expect(anslag.grunn).not.toMatch(/faktisk/)
+  })
+
+  it('bruttoens grunn nevner svinn og bilvask NAAR de bidro', () => {
+    // `byggLonnsrom` trekker fra ekstra svinn og legger til
+    // bilvaskbidraget. En forklaring som bare nevner BP-skaleringen
+    // gjoer et anslag 40 000 under den uforklarlig.
+    const b = byggOkonomibilde(INN({
+      rom: ROM({ anslaatt: true, ekstraSvinnKr: 12000, bilvaskBruttoKr: 32000 }),
+    })).brutto
+    expect(b.grunn).toMatch(/kalibrering/)
+    expect(b.grunn).toMatch(/svinn/)
+    expect(b.grunn).toMatch(/bilvask/)
+  })
+
+  it('KANARIFUGL: og den nevner dem IKKE naar de er null', () => {
+    // En tekst som alltid lister alt er like lite etterrettelig som en
+    // som utelater noe - og ville bestaatt testen over uansett.
+    const b = byggOkonomibilde(INN({
+      rom: ROM({ anslaatt: true, ekstraSvinnKr: 0, bilvaskBruttoKr: 0 }),
+    })).brutto
+    expect(b.grunn).toMatch(/kalibrering/)
+    expect(b.grunn).not.toMatch(/svinn/)
+    expect(b.grunn).not.toMatch(/bilvask/)
+  })
+
+  it('en avlagt maaned har ingen anslagsforklaring i det hele tatt', () => {
+    expect(byggOkonomibilde(INN({ rom: ROM({ anslaatt: false }) })).brutto.grunn)
+      .toBeUndefined()
+  })
+})
+
 describe('royalty og drift har ingen tidlig kilde', () => {
   it('royalty er fasit naar regnskapet er inne', () => {
     expect(byggOkonomibilde(INN()).royalty.kilde).toBe('fasit')
@@ -217,6 +269,24 @@ describe('sikkerhetsgrad', () => {
     expect(sikkerhetsgrad([F('fasit'), F('prognose')])).toBe('middels')
   })
 
+  it('skjulte felt teller ikke med', () => {
+    // Tilgang er ikke datakvalitet. Fire avstemte tall og ett skjermet
+    // er fortsatt et avstemt bilde.
+    expect(sikkerhetsgrad([F('fasit'), F('fasit'), F('skjult')])).toBe('hoy')
+  })
+
+  it('er ALT skjult, er det ingenting aa bedoemme', () => {
+    // En tom liste bestaar `every`, saa uten en egen vakt ville dette
+    // gitt `hoy` - full sikkerhet om ingenting.
+    expect(sikkerhetsgrad([F('skjult'), F('skjult')])).toBe('lav')
+    expect(sikkerhetsgrad([])).toBe('lav')
+  })
+
+  it('KANARIFUGL: en mangel ved siden av et skjult felt senker fortsatt', () => {
+    expect(sikkerhetsgrad([F('fasit'), F('mangler'), F('skjult')])).toBe('middels')
+    expect(sikkerhetsgrad([F('prognose'), F('skjult')])).toBe('lav')
+  })
+
   it('bildet med regnskap er hoy, uten er lav', () => {
     expect(byggOkonomibilde(INN()).sikkerhet).toBe('hoy')
     // UTEN REGNSKAP ER ROMMET OGSAA ANSLAATT. `byggLonnsrom` setter
@@ -238,8 +308,22 @@ describe('skjermFor', () => {
     // en handling.
     const b = skjermFor('butikksjef', byggOkonomibilde(INN()))
     expect(b.royalty.verdi).toBeNull()
-    expect(b.royalty.kilde).toBe('mangler')
     expect(b.royalty.grunn).toMatch(/eierens linje/)
+  })
+
+  // =================================================================
+  // TILGANG ER IKKE DATAKVALITET
+  // =================================================================
+  //
+  // Her sto `kilde: 'mangler'`, og da senket skjermingen sikkerheten paa
+  // et ellers helt avstemt bilde. De to betyr ikke det samme:
+  //
+  //   mangler   vi har ikke tallet
+  //   skjult    vi har det, men det er ikke ditt
+  it('skjermet royalty er SKJULT, ikke manglende', () => {
+    const b = skjermFor('butikksjef', byggOkonomibilde(INN()))
+    expect(b.royalty.kilde).toBe('skjult')
+    expect(b.royalty.kilde).not.toBe('mangler')
   })
 
   it('men hun ser alt hun kan paavirke', () => {
@@ -256,10 +340,25 @@ describe('skjermFor', () => {
       .toBe(REGNSKAP.royaltyKr)
   })
 
-  it('skjermingen trekker sikkerheten ned, fordi et felt faktisk mangler', () => {
-    // Bildet er ikke lenger komplett for henne, og det skal vises.
+  it('skjermingen trekker IKKE sikkerheten ned', () => {
+    // Tallene hun ser er like avstemte enten hun faar se royaltylinja
+    // eller ikke. At hun ikke faar se den sier ingenting om hvor sikre
+    // de andre er.
     expect(byggOkonomibilde(INN()).sikkerhet).toBe('hoy')
-    expect(skjermFor('butikksjef', byggOkonomibilde(INN())).sikkerhet).toBe('middels')
+    expect(
+      skjermFor('butikksjef', byggOkonomibilde(INN())).sikkerhet,
+      '\nSkjermingen senket sikkerheten paa et helt avstemt bilde.\n'
+      + 'Tilgang er ikke datakvalitet.\n',
+    ).toBe('hoy')
+  })
+
+  it('KANARIFUGL: en EKTE mangel senker den fortsatt', () => {
+    // Uten denne kunne `sikkerhetsgrad` returnert `hoy` bestandig og
+    // bestaatt testen over. De to tilfellene maa skilles.
+    const utenDrift = INN({ regnskap: { ...REGNSKAP, paavirkbarDriftKr: null } })
+    const b = skjermFor('butikksjef', byggOkonomibilde(utenDrift))
+    expect(b.paavirkbarDrift.kilde).toBe('mangler')
+    expect(b.sikkerhet).toBe('middels')
   })
 
   it('KANARIFUGL: nettbrettet gaar ikke gjennom denne i det hele tatt', () => {

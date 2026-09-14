@@ -54,24 +54,42 @@ import { styringsavvik, type Lonnsrom, type Styringsavvik } from '@/lib/lonnskos
 import type { Brukerrolle } from '@/lib/auth/typer'
 
 /**
- * Hvor sikkert ett tall er.
+ * Hvor sikkert ett tall er — og det ene unntaket.
  *
  * `plan` er BP-ens eget tall. Det er ikke et anslag på hva som skjer —
  * det er hva noen bestemte at skulle skje, og derfor SVAKERE enn en
  * prognose når spørsmålet er «hva ble det».
+ *
+ * ---------------------------------------------------------------------
+ * `skjult` LIGGER IKKE PÅ SAMME AKSE SOM DE FIRE ANDRE
+ * ---------------------------------------------------------------------
+ *
+ * Her sto `mangler` også for et felt butikksjefen ikke skal se, og da
+ * falt et ellers helt avstemt bilde fra `hoy` til `middels` bare fordi
+ * royalty var skjermet.
+ *
+ * **Tilgang er ikke datakvalitet.** At hun ikke får se royaltylinja sier
+ * ingenting om hvor sikre tallene hun FÅR se er — de er like avstemte.
+ *
+ * De fire første svarer på «hvor sikre er vi». `skjult` svarer på «er
+ * dette ditt å se», og holdes derfor utenfor `sikkerhetsgrad`.
  */
-export type Kilde = 'mangler' | 'plan' | 'prognose' | 'fasit'
+export type Kilde = 'mangler' | 'plan' | 'prognose' | 'fasit' | 'skjult'
 
-/** Svakest først. Rekkefølgen ER regelen i lov 2. */
-const STYRKE: readonly Kilde[] = ['mangler', 'plan', 'prognose', 'fasit'] as const
+/** Svakest først. Rekkefølgen ER regelen i lov 2. `skjult` står utenfor. */
+const STYRKE = ['mangler', 'plan', 'prognose', 'fasit'] as const
 
 /**
  * Den svakeste av to kilder.
  *
  * LOV 2. Uten den ville et avledet tall arvet den sterkeste, og et
  * anslag ville stått merket som fasit fordi ett av leddene var det.
+ *
+ * ER ETT AV LEDDENE SKJULT, ER SVARET SKJULT. Et tall utledet av noe du
+ * ikke får se, er noe du ikke får se — ikke et usikkert tall.
  */
 export function svakeste(a: Kilde, b: Kilde): Kilde {
+  if (a === 'skjult' || b === 'skjult') return 'skjult'
   return STYRKE[Math.min(STYRKE.indexOf(a), STYRKE.indexOf(b))]
 }
 
@@ -160,6 +178,32 @@ function bruttokilde(rom: Lonnsrom): Kilde {
 }
 
 /**
+ * Hva anslaget faktisk bygger på.
+ *
+ * =====================================================================
+ * FORKLARINGEN MÅ VÆRE SANN, OGSÅ NÅR DEN ER KORT
+ * =====================================================================
+ *
+ * Her sto «BP-brutto skalert med faktisk omsetning og kalibrering» —
+ * som er halve regnestykket. `byggLonnsrom` trekker også fra svinn
+ * utover det normale og legger til bilvaskbidraget, og et anslag som
+ * er 40 000 lavere enn BP-skaleringen alene ville vært uforklarlig for
+ * den som leser.
+ *
+ * FORMELEN KOPIERES IKKE HIT. Denne funksjonen NEVNER leddene; den
+ * regner ingen av dem. Og den nevner dem bare når de faktisk bidro —
+ * en tekst som alltid lister alt er like lite etterrettelig som en som
+ * utelater noe.
+ */
+function bruttogrunn(rom: Lonnsrom): string | undefined {
+  if (!rom.anslaatt) return undefined
+  const ledd = ['BP-brutto skalert med løpende omsetning og kalibrering']
+  if (rom.ekstraSvinnKr !== 0) ledd.push('fratrukket svinn utover det normale')
+  if (rom.bilvaskBruttoKr !== 0) ledd.push('pluss bilvaskbidraget')
+  return `Anslått av lønnsromsmotoren: ${ledd.join(', ')}.`
+}
+
+/**
  * Bildet for én stasjon i én måned.
  *
  * TAR FERDIG HENTEDE DATA. Ingen IO her: da kan hver regel prøves med
@@ -182,11 +226,7 @@ export function byggOkonomibilde(inn: Bildeinput): Okonomibilde {
   const brutto: Felt =
     rom.bruttoKr === null
       ? mangler('Verken regnskap eller nok grunnlag til et anslag.')
-      : {
-        verdi: rom.bruttoKr,
-        kilde: bk,
-        grunn: rom.anslaatt ? 'BP-brutto skalert med faktisk omsetning og kalibrering.' : undefined,
-      }
+      : { verdi: rom.bruttoKr, kilde: bk, grunn: bruttogrunn(rom) }
 
   // --- BP-LØNNA. Alltid plan. Den skrives aldri om. ------------------
   const bpLonn: Felt =
@@ -198,7 +238,16 @@ export function byggOkonomibilde(inn: Bildeinput): Okonomibilde {
   const lonnsrom: Felt =
     rom.romKr === null
       ? mangler('Uten BP finnes det ikke noe rom.')
-      : { verdi: rom.romKr, kilde: bk, grunn: 'Lønnsandel fra BP, ganget med faktisk brutto.' }
+      : {
+        verdi: rom.romKr,
+        kilde: bk,
+        // «FAKTISK BRUTTO» VAR FEIL NÅR BRUTTOEN VAR ANSLÅTT. Rommet er
+        // like anslått som bruttoen det er regnet av, og teksten må si
+        // det — ellers står et anslag med en fasitforklaring.
+        grunn: rom.anslaatt
+          ? 'Lønnsandel fra BP, ganget med anslått brutto.'
+          : 'Lønnsandel fra BP, ganget med faktisk brutto.',
+      }
 
   // --- LØNNA. Fasit slår easy@work. ---------------------------------
   const lonn: Felt =
@@ -260,10 +309,24 @@ export function byggOkonomibilde(inn: Bildeinput): Okonomibilde {
  * `lav`, blandet er `middels`. En prosentgrense her ville vært et tall
  * ingen kunne begrunnet — og bildet skal si hvor sikkert det er, ikke
  * hvor sikkert det er på en skala noen fant på.
+ *
+ * ---------------------------------------------------------------------
+ * SKJULTE FELT TELLER IKKE MED
+ * ---------------------------------------------------------------------
+ *
+ * Her sto ingen slik filtrering, og et helt avstemt bilde falt fra
+ * `hoy` til `middels` bare fordi royalty var skjermet for butikksjefen.
+ * **Tilgang er ikke datakvalitet.** Tallene hun ser er like avstemte
+ * enten hun får se royaltylinja eller ikke.
+ *
+ * Er ALT skjult, er det ingenting igjen å bedømme, og da er `lav` det
+ * ærligste — ikke `hoy` fordi en tom liste består `every`.
  */
 export function sikkerhetsgrad(felter: readonly Felt[]): Sikkerhet {
-  if (felter.every((f) => f.kilde === 'fasit')) return 'hoy'
-  if (felter.some((f) => f.kilde === 'fasit')) return 'middels'
+  const bedoemmes = felter.filter((f) => f.kilde !== 'skjult')
+  if (bedoemmes.length === 0) return 'lav'
+  if (bedoemmes.every((f) => f.kilde === 'fasit')) return 'hoy'
+  if (bedoemmes.some((f) => f.kilde === 'fasit')) return 'middels'
   return 'lav'
 }
 
@@ -279,10 +342,23 @@ export function sikkerhetsgrad(felter: readonly Felt[]): Sikkerhet {
  *
  * Royalty er eierens. Det er en kjedeavtale butikksjefen verken
  * forhandler eller påvirker — et tall uten en handling.
+ *
+ * ---------------------------------------------------------------------
+ * `skjult`, IKKE `mangler`
+ * ---------------------------------------------------------------------
+ *
+ * Her sto `kilde: 'mangler'`, og da senket skjermingen sikkerheten på et
+ * ellers helt avstemt bilde. De to betyr ikke det samme:
+ *
+ *   mangler   vi har ikke tallet
+ *   skjult    vi har det, men det er ikke ditt
+ *
+ * Det første er en opplysning om datakvalitet. Det andre er en
+ * opplysning om rolle, og den skal ikke gjøre noe annet tall usikrere.
  */
 export function skjermFor(rolle: Brukerrolle, bilde: Okonomibilde): Okonomibilde {
   if (rolle !== 'butikksjef') return bilde
-  const skjermet: Felt = { verdi: null, kilde: 'mangler', grunn: 'Royalty er eierens linje.' }
+  const skjermet: Felt = { verdi: null, kilde: 'skjult', grunn: 'Royalty er eierens linje.' }
   return {
     ...bilde,
     royalty: skjermet,
