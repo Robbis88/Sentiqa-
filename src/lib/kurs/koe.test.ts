@@ -37,30 +37,51 @@ describe('maanederIKoe', () => {
 })
 
 describe('standardmaaned', () => {
-  it('aapner paa nyeste maaned som har et UTKAST', () => {
+  it('aapner paa nyeste maaned som har en plan', () => {
     expect(standardmaaned(KOE)).toBe('2026-07-01')
   })
 
-  it('hopper over nyere maaneder der alt er avgjort', () => {
-    // August er nyest, men der venter ingenting. Koeen er en
-    // arbeidsflate: aapner den paa august, maa eieren lete etter juli.
+  // =================================================================
+  // DEN REGELEN SOM BLE RETTET, OG HVORFOR
+  // =================================================================
+  //
+  // Foerste utgave valgte nyeste maaned MED UTKAST. Maalt i produksjon
+  // 2026-09-14 ga den feil svar: juli var ferdigbehandlet samme dag (5
+  // sluppet, 0 utkast), og regelen valgte JUNI - fem seks maaneder
+  // gamle utkast, presentert som «Venter paa deg», mens maaneden som
+  // faktisk var gjort laa bak nedtrekkslista.
+  //
+  // Denne testen er den gamle regelen, snudd. Kommer den tilbake, blir
+  // den roed.
+  it('velger en FERDIGBEHANDLET nyere maaned framfor eldre utkast', () => {
+    // August er nyest og helt avgjort. Juli har to utkast som venter.
     const medAugust = [K('2026-08-01', 'sluppet'), ...KOE]
-    expect(standardmaaned(medAugust)).toBe('2026-07-01')
+    expect(
+      standardmaaned(medAugust),
+      '\nKoeen aapnet paa en eldre maaned fordi den hadde utkast.\n'
+      + 'Det var regelen som gjorde juni til «aktuell maaned» i\n'
+      + 'produksjon 2026-09-14, med juli ferdig og gjemt bak velgeren.\n',
+    ).toBe('2026-08-01')
   })
 
-  it('faller tilbake til nyeste maaned naar ingenting er utkast', () => {
-    // Uten utkast finnes ingen arbeidsflate, og da er historikkens
-    // nyeste maaned riktig dor. Her er det juli: den AVVISTE raden
-    // ligger der, selv om de to utkastene er filtrert bort.
-    const ingenUtkast = KOE.filter((r) => r.status !== 'utkast')
-    expect(standardmaaned(ingenUtkast)).toBe('2026-07-01')
-
-    // Og uten juli i det hele tatt faller den videre ned.
-    expect(standardmaaned([K('2026-05-01', 'sluppet')])).toBe('2026-05-01')
+  it('status paavirker ikke valget i det hele tatt', () => {
+    // Samme maaneder, alle statuser byttet om: samme svar.
+    const snudd = KOE.map((r) => K(r.maaned, r.status === 'utkast' ? 'sluppet' : 'utkast'))
+    expect(standardmaaned(snudd)).toBe(standardmaaned(KOE))
   })
 
   it('gir null paa tom koe, saa sida kan vise en tomtilstand', () => {
     expect(standardmaaned([])).toBeNull()
+  })
+
+  // =================================================================
+  // KANARIFUGL
+  // =================================================================
+  it('KANARIFUGL: den plukker faktisk den NYESTE, ikke den foerste', () => {
+    // Uten denne ville «returner rader[0].maaned» bestaatt hver test
+    // over, siden KOE tilfeldigvis er sortert nyest foerst.
+    const usortert = [K('2026-03-01', 'utkast'), K('2026-09-01', 'avvist'), K('2026-05-01', 'sluppet')]
+    expect(standardmaaned(usortert)).toBe('2026-09-01')
   })
 })
 
