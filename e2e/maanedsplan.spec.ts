@@ -110,7 +110,13 @@ test('Grenseby juli: retning med PERIODEN i setningen', async ({ page }) => {
 test('en blokkert analyse forsvinner IKKE', async ({ page }) => {
   // Juni på Underby. Før P2 falt matkast bare ut av punktene, og kortet
   // så komplett ut — da tror den som leser at alt er i orden.
-  const k = page.locator('.sq-plankort').filter({ hasText: 'Underby' }).nth(1)
+  //
+  // MÅNEDEN VELGES EKSPLISITT. Køen åpner på juli, og juniutkastet er
+  // nettopp det filteret holder utenfor — se «0b» i den serielle
+  // blokka. `.nth(1)` fungerte bare så lenge begge månedene sto i samme
+  // liste, og var dessuten avhengig av DOM-rekkefølgen på tvers av dem.
+  await page.goto('/maanedsplan?maned=2026-06-01')
+  const k = page.locator('.sq-plankort').filter({ hasText: 'Underby' }).first()
   const blokk = k.locator('.sq-analyse').filter({ hasText: 'Synlig matkast' })
   await expect(blokk).toBeVisible()
   await expect(blokk.locator('.sq-analyse-merke')).toHaveText('ikke beregnet')
