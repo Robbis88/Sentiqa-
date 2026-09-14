@@ -1,99 +1,121 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Request } from '@playwright/test'
 import { OKTFIL } from './eier'
 
 // =====================================================================
 // DIAGNOSTIKK: ER `oppfrisker` EN PAALITELIG MAALING AV RSC-HENTINGEN?
 // =====================================================================
 //
-// Bakgrunn. `HandlingKnapp` kjoerer `router.refresh()` i sin EGEN
-// `useTransition`, og bruker `isPending` derfra som maal paa «visningen
-// hentes fortsatt». Blir den staaende i 10 sekunder, viser knappen en
-// advarsel om at visningen ikke kunne oppdateres.
+// `HandlingKnapp` kjoerer `router.refresh()` i sin EGEN `useTransition`.
+// Blir den staaende i 10 sekunder, viser knappen en advarsel om at
+// visningen ikke kunne oppdateres.
 //
-// 2026-09-14 fyrte den advarselen i CI paa en HELT VANLIG handling -
-// uten kunstig forsinkelse. Det betyr én av to ting, og de er motsatte:
+// MAALT PAA `a6df5cc`, SAMME SHA, TO KJOERINGER:
 //
-//   FALSK POSITIV  `isPending` staar lenge av grunner som ikke betyr
-//                  noe, og advarselen ville plaget hver handling.
-//   SANN POSITIV   oppfriskningen henger faktisk, og da er problemet
-//                  flyttet - ikke fjernet.
+//   attempt 1   advarsel borte etter        4 ms
+//   attempt 2   advarsel borte etter   ALDRI innen 5 000 ms
 //
-// Denne fila AVGJOER IKKE hvilken. Den MAALER, slik at avgjoerelsen kan
-// tas paa et tall i stedet for en antakelse. Terskelen paa 10 sekunder
-// roeres ikke foer maalingen foreligger.
+// Begge med alle fem RSC-kall bekreftet ferdige foerst. Det er ikke et
+// lesetidspunkt - det er to ulike utfall av samme kode.
 //
 // ---------------------------------------------------------------------
-// HVA SOM KAN OBSERVERES, OG HVA SOM MAA UTLEDES
+// TO TILFELLER SOM SER LIKE UT UTENFRA
 // ---------------------------------------------------------------------
 //
-// `oppfrisker` er en React-hook inne i komponenten. Den kan ikke leses
-// fra nettleseren uten aa endre produksjonskoden, og produksjonskoden
-// skal vaere byte-identisk i denne runden. Den utledes derfor:
+//   A  transitionen settler aldri   `oppfrisker` blir staaende true,
+//                                   `true -> false`-grenen kjoerer aldri,
+//                                   og `froset` blir derfor staaende.
+//                                   Advarselen er da RIKTIG.
+//   B  flagget ryddes ikke          `oppfrisker` er false, men
+//                                   advarselen staar likevel. Da er
+//                                   flagglogikken feil.
 //
-//   false -> true   samtidig med at kvitteringen blir synlig. Effekten
-//                   som starter oppfriskningen kjoerer i den commiten.
-//                   UTLEDET, ikke maalt.
-//   true  -> false  ikke observerbar direkte. Men advarselen settes av
-//                   en timer paa 10 s som ryddes naar `oppfrisker` gaar
-//                   av - saa advarsel = «sto i minst 10 s», ingen
-//                   advarsel innen 12 s = «gikk av foer 10 s».
-//                   BINAERT, ikke et tidspunkt.
-//
-// Alt annet - POST, RSC-kall, kvittering, knapp, advarsel, montert -
-// maales direkte.
+// De kan ikke skilles uten aa se `oppfrisker`. Derfor baerer skjemaet et
+// INERT `data-oppfrisker`-attributt - ingen styling, ingen atferd, ingen
+// semantikk for hjelpemidler. (`aria-busy` ville ikke vaert inert: den
+// forteller skjermlesere at regionen oppdateres, og da ville et
+// diagnostisk behov endret hva brukere opplever.)
 //
 // ---------------------------------------------------------------------
-// EGEN FIL, EGEN DOM
+// `requestfinished` BEVISER IKKE AT REACT HAR COMMITTET
 // ---------------------------------------------------------------------
 //
-// Testene laa foer i `test.describe.serial`-blokka i maanedsplan.spec.ts.
-// Da steg D feilet 2026-09-14, hoppet Playwright over resten av blokka,
-// og ingen av dem kjoerte i det hele tatt. En diagnose som forsvinner
-// naar noe annet feiler, er en diagnose man ikke har.
-//
-// Fila arver ikke tilstand: den paastaar ingenting om ANTALL planer.
-// Kjoerer `maanedsplan.spec.ts` foerst og har sluppet eller avvist noen,
-// sier kvitteringen «Ingen utkast ble skrevet» i stedet for «Bygget N» -
-// og begge er gyldige her. Det maales er TIDSLINJA, ikke tallet.
+// Den sier at nettverkskroppen er mottatt. Mellom den og en oppdatert
+// skjerm ligger flight-parsing, render og commit. Denne fila KREVER
+// derfor ikke at advarselen forsvinner naar nettverket er ferdig - den
+// MAALER hva som skjer, og klassifiserer utfallet.
 // =====================================================================
 
 test.use({ storageState: OKTFIL })
 
-type Kall = { url: string; sendt: number; ferdig: number | null; status: number | null }
+type Kall = {
+  url: string
+  sendt: number
+  /** Responsheaderne mottatt. */
+  svar: number | null
+  status: number | null
+  /** Kroppen mottatt. */
+  ferdig: number | null
+  feilet: number | null
+}
 
+// =====================================================================
+// FIRE HENDELSER, HOLDT FRA HVERANDRE
+// =====================================================================
+//
+// Foerste utgave gjorde to feil samtidig:
+//
+//   1  Den blandet `response` og `requestfinished` til ett «ferdig».
+//      De er ulike ting: headere mot kropp.
+//   2  Lytteren var `async` og awaitet `r.response()` INNE i
+//      `requestfinished`. Testen rakk aa lese arrayet foer handleren var
+//      ferdig, og handlings-POSTen sto som `ferdig null status null` i
+//      en kjoering som ellers var groenn.
+//
+// Alt bokfoeres synkront naa, og hver hendelse har sitt eget felt.
+// =====================================================================
 function lytt(side: Page, t0: () => number) {
   const handling: Kall[] = []
   const rsc: Kall[] = []
   const revalidert: (string | null)[] = []
 
-  const finn = (liste: Kall[], url: string) =>
-    [...liste].reverse().find((k) => k.url === url && k.ferdig === null)
+  const erHandling = (r: Request) =>
+    r.method() === 'POST' && !!r.headers()['next-action']
+  const listeFor = (r: Request) =>
+    erHandling(r) ? handling : r.url().includes('_rsc=') ? rsc : null
+  const finn = (liste: Kall[], r: Request, felt: 'svar' | 'ferdig' | 'feilet') =>
+    [...liste].reverse().find((k) => k.url === r.url() && k[felt] === null)
 
   side.on('request', (r) => {
-    const n = { url: r.url(), sendt: Date.now() - t0(), ferdig: null, status: null }
-    if (r.method() === 'POST' && r.headers()['next-action']) handling.push(n)
-    else if (r.url().includes('_rsc=')) rsc.push(n)
+    const liste = listeFor(r)
+    if (!liste) return
+    liste.push({
+      url: r.url(),
+      sendt: Date.now() - t0(),
+      svar: null,
+      status: null,
+      ferdig: null,
+      feilet: null,
+    })
   })
   side.on('response', (r) => {
-    if (r.request().method() === 'POST' && r.request().headers()['next-action']) {
-      revalidert.push(r.headers()['x-action-revalidated'] ?? null)
-    }
-  })
-  // `requestfinished` er naar KROPPEN er mottatt. `response` fyrer paa
-  // headerne, og ville gitt et for tidlig «ferdig».
-  side.on('requestfinished', async (r) => {
-    const liste = r.method() === 'POST' && r.headers()['next-action'] ? handling
-      : r.url().includes('_rsc=') ? rsc : null
+    const req = r.request()
+    const liste = listeFor(req)
     if (!liste) return
-    const k = finn(liste, r.url())
+    if (erHandling(req)) revalidert.push(r.headers()['x-action-revalidated'] ?? null)
+    const k = finn(liste, req, 'svar')
     if (!k) return
-    k.ferdig = Date.now() - t0()
-    k.status = (await r.response())?.status() ?? null
+    k.svar = Date.now() - t0()
+    k.status = r.status()
+  })
+  side.on('requestfinished', (r) => {
+    const liste = listeFor(r)
+    const k = liste && finn(liste, r, 'ferdig')
+    if (k) k.ferdig = Date.now() - t0()
   })
   side.on('requestfailed', (r) => {
-    const liste = r.url().includes('_rsc=') ? rsc : null
-    const k = liste && finn(liste, r.url())
-    if (k) { k.ferdig = Date.now() - t0(); k.status = -1 }
+    const liste = listeFor(r)
+    const k = liste && finn(liste, r, 'feilet')
+    if (k) k.feilet = Date.now() - t0()
   })
 
   return { handling, rsc, revalidert }
@@ -110,11 +132,30 @@ async function blikk(side: Page) {
       kvittering: skjema?.querySelector('.sq-slett-ok')?.textContent ?? null,
       feil: skjema?.querySelector('.sq-slett-feil')?.textContent ?? null,
       advarsel: !!skjema?.querySelector('.sq-oppfrisk-feil'),
+      oppfrisker: skjema?.getAttribute('data-oppfrisker') ?? null,
       knappAktiv: !!knapp && !knapp.disabled,
     }
   })
 }
 
+const byggeknapp = (side: Page) =>
+  side.getByRole('button', { name: /Bygg .* på nytt/ })
+
+/** Kall som verken er ferdige eller feilet. */
+const aapne = (rsc: Kall[]) =>
+  rsc.filter((k) => k.ferdig === null && k.feilet === null).length
+
+function skrivKall(l: (s: string) => void, navn: string, kall: Kall[]) {
+  for (const k of kall) {
+    l(`${navn}  sendt ${String(k.sendt).padStart(6)}`
+      + `  svar ${String(k.svar ?? -1).padStart(6)}`
+      + `  ferdig ${String(k.ferdig ?? -1).padStart(6)}`
+      + `  feilet ${String(k.feilet ?? -1).padStart(6)}`
+      + `  status ${k.status}`)
+  }
+}
+
+// =====================================================================
 test('TIDSLINJE: en helt vanlig, uforsinket oppfriskning', async ({ page }) => {
   test.setTimeout(120_000)
   await page.goto('/maanedsplan')
@@ -123,21 +164,20 @@ test('TIDSLINJE: en helt vanlig, uforsinket oppfriskning', async ({ page }) => {
   let start = Date.now()
   const { handling, rsc, revalidert } = lytt(page, () => start)
 
-  const knapp = page.getByRole('button', { name: /Bygg .* på nytt/ })
+  const knapp = byggeknapp(page)
   await expect(knapp).toBeVisible()
   page.on('dialog', (d) => d.accept())
 
   start = Date.now()
   await knapp.click()
 
-  // SAMPLING hvert 100. ms i 25 sekunder. Lenge nok til aa se baade at
-  // advarselen kommer (10 s) og at den eventuelt IKKE kommer.
   const merke: Record<string, number | null> = {
     kvittering: null, knappAktiv: null, advarselVist: null,
-    advarselBorte: null, avmontert: null,
+    advarselBorte: null, avmontert: null, oppfriskerAv: null,
   }
   let sisteKvittering: string | null = null
   let saaAdvarsel = false
+  let saaOppfrisker = false
 
   while (Date.now() - start < 25_000) {
     const b = await blikk(page)
@@ -150,72 +190,174 @@ test('TIDSLINJE: en helt vanlig, uforsinket oppfriskning', async ({ page }) => {
     if (b.knappAktiv && merke.kvittering !== null && merke.knappAktiv === null) {
       merke.knappAktiv = t
     }
-    if (b.advarsel && merke.advarselVist === null) { merke.advarselVist = t; saaAdvarsel = true }
+    if (b.oppfrisker === 'true') saaOppfrisker = true
+    if (saaOppfrisker && b.oppfrisker === 'false' && merke.oppfriskerAv === null) {
+      merke.oppfriskerAv = t
+    }
+    if (b.advarsel && merke.advarselVist === null) {
+      merke.advarselVist = t
+      saaAdvarsel = true
+    }
     if (!b.advarsel && saaAdvarsel && merke.advarselBorte === null) merke.advarselBorte = t
     await page.waitForTimeout(100)
   }
 
   const slutt = await blikk(page)
-  const apneRsc = rsc.filter((k) => k.ferdig === null)
-  const sisteRsc = rsc.length ? Math.max(...rsc.map((k) => k.ferdig ?? 1e9)) : null
-
-  // -------------------------------------------------------------------
-  // KLASSIFISERING. Fire tilstander, og de er gjensidig utelukkende.
-  // -------------------------------------------------------------------
-  const rscFerdigFoerAdvarsel = merke.advarselVist !== null
-    && apneRsc.length === 0 && sisteRsc !== null && sisteRsc < merke.advarselVist
-
-  const dom = merke.avmontert !== null ? 'C  komponenten ble AVMONTERT'
-    : merke.advarselVist === null ? 'D  transitionen avsluttet normalt (ingen advarsel innen 25 s)'
-      : rscFerdigFoerAdvarsel ? 'A  ALLE RSC-svar ferdige, men transitionen stod fortsatt pending'
-        : 'B  minst ett RSC-svar var fortsatt aapent da advarselen kom'
-
   const l = (s: string) => console.log(`  ${s}`)
   l('')
   l('================ TIDSLINJE, VANLIG OPPFRISKNING ================')
-  for (const k of handling) {
-    l(`POST next-action        sendt ${k.sendt} ms   ferdig ${k.ferdig} ms   status ${k.status}`)
-  }
-  l(`x-action-revalidated    ${revalidert.map((r) => r ?? '(fravaerende)').join(', ') || '(ingen POST)'}`)
-  l(`kvittering synlig       ${merke.kvittering} ms`)
-  l(`knappen aktiv igjen     ${merke.knappAktiv} ms`)
-  l(`oppfrisker false->true  ${merke.kvittering} ms   (UTLEDET: samme commit som kvitteringen)`)
-  l(`advarsel vist           ${merke.advarselVist} ms`)
-  l(`advarsel fjernet        ${merke.advarselBorte} ms`)
-  l(`oppfrisker true->false  ${merke.advarselVist === null ? '< 10 000 ms (ingen advarsel)' : '>= 10 000 ms (advarsel kom)'}   (UTLEDET)`)
-  l(`komponent montert       ${slutt.montert}   avmontert ved ${merke.avmontert} ms`)
-  l(`RSC-kall                ${rsc.length} totalt, ${apneRsc.length} fortsatt aapne`)
-  for (const k of rsc.slice(0, 25)) {
-    l(`  _rsc  sendt ${String(k.sendt).padStart(6)} ms  ferdig ${String(k.ferdig ?? -1).padStart(6)} ms  status ${k.status}`)
-  }
-  l(`siste RSC ferdig        ${sisteRsc} ms`)
-  l(`kvitteringstekst        ${JSON.stringify(sisteKvittering)}`)
-  l('')
-  l(`DOM: ${dom}`)
+  skrivKall(l, 'POST next-action', handling)
+  l(`x-action-revalidated  ${revalidert.map((r) => r ?? '(fravaerende)').join(', ') || '(ingen)'}`)
+  l(`kvittering synlig     ${merke.kvittering} ms`)
+  l(`knappen aktiv igjen   ${merke.knappAktiv} ms`)
+  l(`oppfrisker sett true  ${saaOppfrisker}   (MAALT paa data-oppfrisker)`)
+  l(`oppfrisker -> false   ${merke.oppfriskerAv} ms`)
+  l(`advarsel vist         ${merke.advarselVist} ms`)
+  l(`advarsel fjernet      ${merke.advarselBorte} ms`)
+  l(`sluttilstand          oppfrisker=${slutt.oppfrisker} advarsel=${slutt.advarsel}`)
+  l(`komponent montert     ${slutt.montert}   avmontert ved ${merke.avmontert} ms`)
+  l(`RSC-kall              ${rsc.length} totalt, ${aapne(rsc)} fortsatt aapne`)
+  l(`siste RSC ferdig      ${rsc.length ? Math.max(...rsc.map((k) => k.ferdig ?? -1)) : null} ms`)
+  l(`kvitteringstekst      ${JSON.stringify(sisteKvittering)}`)
   l('===============================================================')
 
-  // -------------------------------------------------------------------
-  // DET SOM FAKTISK PAASTAAS HER er bare frikoblingen. Klassifiseringen
-  // over er en MAALING, ikke en port - den skal rapporteres, ikke feile.
-  // -------------------------------------------------------------------
   expect(merke.kvittering, 'kvitteringen kom aldri').not.toBeNull()
   expect(merke.kvittering!, 'kvitteringen ventet paa oppfriskningen').toBeLessThan(6_000)
   expect(merke.knappAktiv, 'knappen ble aldri aktiv igjen').not.toBeNull()
   expect(slutt.montert, 'skjemaet forsvant fra sida').toBe(true)
   expect(revalidert, 'handlingen revaliderte').toEqual([null])
+  expect(handling.length, 'mer enn én serverhandling').toBe(1)
+  expect(handling[0].status, 'handlingen svarte ikke 200').toBe(200)
 })
 
 // =====================================================================
-// DE FIRE SOM LAA I DEN SERIELLE BLOKKA
+function holdRsc(side: Page) {
+  const slipper: (() => void)[] = []
+  let hold = true
+  const rute = async (r: import('@playwright/test').Route) => {
+    if (hold) await new Promise<void>((ok) => slipper.push(ok))
+    await r.continue()
+  }
+  return {
+    paa: () => side.route(/_rsc=/, rute),
+    slipp: () => { hold = false; slipper.splice(0).forEach((f) => f()) },
+    av: () => side.unroute(/_rsc=/, rute),
+  }
+}
+
+test('KLASSIFISER: hva skjer naar oppfriskningen holdes', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto('/maanedsplan')
+  await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
+
+  let start = Date.now()
+  const { handling, rsc, revalidert } = lytt(page, () => start)
+  const hold = holdRsc(page)
+  await hold.paa()
+
+  const knapp = byggeknapp(page)
+  await expect(knapp).toBeVisible()
+  page.on('dialog', (d) => d.accept())
+
+  start = Date.now()
+  await knapp.click()
+
+  // 1  KVITTERINGEN FOER OPPFRISKNINGEN. Alle RSC-kall henger.
+  await expect(page.locator('.sq-slett-ok').first()).toBeVisible({ timeout: 6_000 })
+  const tKvittering = Date.now() - start
+  await expect(knapp).toBeEnabled()
+  const tKnapp = Date.now() - start
+  const apneVedKvittering = aapne(rsc)
+
+  // 2  ADVARSELEN.
+  await expect(page.locator('.sq-oppfrisk-feil')).toBeVisible({ timeout: 20_000 })
+  const tAdvarsel = Date.now() - start
+  const apneVedAdvarsel = aapne(rsc)
+  const vedAdvarsel = await blikk(page)
+
+  // 3  SLIPP DEM.
+  hold.slipp()
+  await expect.poll(() => aapne(rsc),
+    { timeout: 20_000, message: 'RSC-kall fullfoerte ikke etter slipp' }).toBe(0)
+  const tSluppet = Date.now() - start
+
+  // 4  SAMPLE I FEM SEKUNDER ETTERPAA - OG KREV INGENTING.
+  //
+  //    `requestfinished` beviser at kroppen er mottatt, ikke at React
+  //    har parset flighten, rendret og committet. Aa kreve at advarselen
+  //    er borte i det oeyeblikket ville vaert aa maale ett ledd og lese
+  //    resultatet av et annet.
+  //
+  //    Her maales det som faktisk skjer, og utfallet klassifiseres.
+  let tOppfriskerAv: number | null = null
+  let tAdvarselBorte: number | null = null
+  const t4 = Date.now()
+  while (Date.now() - t4 < 5_000) {
+    const b = await blikk(page)
+    const t = Date.now() - t4
+    if (b.oppfrisker === 'false' && tOppfriskerAv === null) tOppfriskerAv = t
+    if (!b.advarsel && tAdvarselBorte === null) tAdvarselBorte = t
+    if (tOppfriskerAv !== null && tAdvarselBorte !== null) break
+    await page.waitForTimeout(100)
+  }
+  const slutt = await blikk(page)
+
+  const dom = !slutt.advarsel
+    ? 'C  advarselen ble ryddet som forventet'
+    : slutt.oppfrisker === 'true'
+      ? 'A  transitionen settler ALDRI - `oppfrisker` staar fortsatt true, '
+        + 'saa `true -> false`-grenen kjoerer aldri. Advarselen er RIKTIG, '
+        + 'og problemet ligger i at oppfriskningen ikke fullfoerer.'
+      : 'B  `oppfrisker` er false, men advarselen staar likevel - '
+        + 'flagglogikken rydder ikke `froset`.'
+
+  const l = (s: string) => console.log(`  ${s}`)
+  l('')
+  l('========== KLASSIFISERING, HOLDT OPPFRISKNING ==========')
+  skrivKall(l, 'POST next-action', handling)
+  l(`x-action-revalidated       ${revalidert.map((r) => r ?? '(fravaerende)').join(', ')}`)
+  l(`kvittering synlig          ${tKvittering} ms`)
+  l(`knappen aktiv              ${tKnapp} ms`)
+  l(`aapne RSC ved kvittering   ${apneVedKvittering} av ${rsc.length}`)
+  l(`advarsel vist              ${tAdvarsel} ms`)
+  l(`aapne RSC ved advarsel     ${apneVedAdvarsel} av ${rsc.length}`)
+  l(`data-oppfrisker v/advarsel ${vedAdvarsel.oppfrisker}`)
+  l(`alle RSC ferdige           ${tSluppet} ms`)
+  l('--- etter slipp, maalt fra siste requestfinished ---')
+  l(`oppfrisker -> false        ${tOppfriskerAv === null ? 'ALDRI innen 5000' : tOppfriskerAv} ms`)
+  l(`advarsel borte             ${tAdvarselBorte === null ? 'ALDRI innen 5000' : tAdvarselBorte} ms`)
+  l(`sluttilstand               oppfrisker=${slutt.oppfrisker} advarsel=${slutt.advarsel}`)
+  l(`skjema montert             ${slutt.montert}`)
+  l(`nye aapne RSC              ${aapne(rsc)}`)
+  skrivKall(l, '  _rsc', rsc)
+  l('')
+  l(`DOM: ${dom}`)
+  l('=======================================================')
+
+  // DET SOM PAASTAAS er bare det som allerede er etablert. Utfallet
+  // over er en MAALING, ikke en port.
+  expect(apneVedKvittering, 'ingen RSC-kall var aapne - holdet virket ikke')
+    .toBeGreaterThan(0)
+  expect(tKvittering, 'kvitteringen ventet paa den holdte RSC-hentingen')
+    .toBeLessThan(6_000)
+  expect(tAdvarsel, 'advarselen kom ikke rundt 10 s').toBeGreaterThan(9_000)
+  expect(apneVedAdvarsel, 'alle RSC var ferdige - da maaler ikke testen en henging')
+    .toBeGreaterThan(0)
+  expect(vedAdvarsel.oppfrisker,
+    'transitionen var ikke pending da advarselen kom - da maaler timeren noe '
+    + 'annet enn den tror').toBe('true')
+  await expect(page.locator('.sq-slett-ok').first(),
+    'kvitteringen skal staa VED SIDEN AV advarselen').toBeVisible()
+  expect(slutt.montert, 'skjemaet forsvant').toBe(true)
+  expect(handling.length, 'det ble sendt mer enn én serverhandling').toBe(1)
+  expect(revalidert, 'handlingen revaliderte').toEqual([null])
+  expect(aapne(rsc), 'nye RSC-kall aapnet seg mens vi maalte').toBe(0)
+
+  await hold.av()
+})
+
 // =====================================================================
-//
-// Flyttet hit 2026-09-14. De laa i `test.describe.serial` i
-// maanedsplan.spec.ts, og da steg D feilet ble hele resten av blokka
-// hoppet over - ingen av dem kjoerte. En vakt som forsvinner naar noe
-// annet feiler, er ikke en vakt.
-//
-// De paastaar ingenting om ANTALL planer, saa de taaler hvilken
-// tilstand A-D enn etterlater.
+// DE TRE ENKLE
 // =====================================================================
 
 function tellHandlinger(side: Page) {
@@ -236,18 +378,13 @@ function tellHandlinger(side: Page) {
   return { kall, svar }
 }
 
-const byggeknapp = (side: Page) =>
-  side.getByRole('button', { name: /Bygg .* på nytt/ })
-
 test('to raske klikk gir NØYAKTIG én serverhandling', async ({ page }) => {
   await page.goto('/maanedsplan')
   page.on('dialog', (d) => d.accept())
   const { kall } = tellHandlinger(page)
   const knapp = byggeknapp(page)
 
-  // BEGGE I SAMME TIKK, forbi Playwrights egen ventelogikk. `click()`
-  // venter paa at knappen er klikkbar, og ville dermed gjort klikk to til
-  // en ANNEN kjoering i stedet for et dobbeltklikk.
+  // BEGGE I SAMME TIKK, forbi Playwrights egen ventelogikk.
   await knapp.evaluate((el: HTMLElement) => { el.click(); el.click() })
 
   await expect(page.locator('.sq-slett-ok').first()).toBeVisible({ timeout: 20_000 })
@@ -270,11 +407,7 @@ test('handlingssvaret baerer ikke x-action-revalidated', async ({ page }) => {
     + `x-action-revalidated=${svar[0]?.revalidert ?? '(fravaerende)'}`)
   expect(svar.length).toBe(1)
   expect(svar[0].status).toBe(200)
-  expect(
-    svar[0].revalidert,
-    'Handlingen revaliderte. Da sender Next en fersk flight-payload for '
-    + 'ruta du staar paa, inne i handlingens egen overgang.',
-  ).toBeNull()
+  expect(svar[0].revalidert, 'handlingen revaliderte').toBeNull()
 })
 
 test('treg oppfriskning (8 s) holder ikke kvitteringen tilbake', async ({ page }) => {
@@ -282,8 +415,7 @@ test('treg oppfriskning (8 s) holder ikke kvitteringen tilbake', async ({ page }
   await page.goto('/maanedsplan')
   page.on('dialog', (d) => d.accept())
 
-  // 8 sekunder er UNDER advarselsterskelen paa 10. Kvitteringen skal
-  // komme med én gang, og advarselen skal IKKE staa der.
+  // 8 sekunder er UNDER advarselsterskelen paa 10.
   await page.route(/_rsc=/, async (rute) => {
     await new Promise((r) => setTimeout(r, 8_000))
     await rute.continue()
@@ -300,143 +432,4 @@ test('treg oppfriskning (8 s) holder ikke kvitteringen tilbake', async ({ page }
     .toBeLessThan(6_000)
 
   await page.unroute(/_rsc=/)
-})
-
-// =====================================================================
-// ADVARSELEN MAA KUNNE INNTREFFE, ELLERS ER DEN DOED KODE
-// =====================================================================
-//
-// `router.refresh()` returnerer `void`. En henging er usynlig for
-// `try/catch` - den fanger bare et synkront kast. Det andre tilfellet
-// fanges av TIDEN: `oppfrisker` staar i sin transition til hentingen er
-// ferdig, og blir den staaende i 10 sekunder, sier komponenten ifra.
-//
-// Den mekanismen hviler paa en ANTAKELSE om Next: at `router.refresh()`
-// inne i `startTransition` holder `isPending` sann til RSC-hentingen er
-// ferdig. Er den feil, fyrer advarselen ALDRI, og en test som bare
-// sjekket at den ikke staar der ville vaert groenn i begge tilfeller.
-//
-// RSC-SVARENE HOLDES AAPNE, ikke forsinket med en fast tid. Da er «minst
-// ett kall er fortsatt aapent» noe som MAALES, ikke antas - og
-// slippetidspunktet er vaart, saa «forsvant den etterpaa» kan ogsaa
-// maales.
-// =====================================================================
-
-function holdRsc(side: Page) {
-  const slipper: (() => void)[] = []
-  let hold = true
-  const rute = async (r: import('@playwright/test').Route) => {
-    if (hold) await new Promise<void>((ok) => slipper.push(ok))
-    await r.continue()
-  }
-  return {
-    paa: () => side.route(/_rsc=/, rute),
-    slipp: () => { hold = false; slipper.splice(0).forEach((f) => f()) },
-    av: () => side.unroute(/_rsc=/, rute),
-  }
-}
-
-test('advarselen kommer naar oppfriskningen blir staaende', async ({ page }) => {
-  test.setTimeout(120_000)
-  await page.goto('/maanedsplan')
-  await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
-
-  let start = Date.now()
-  const { handling, rsc, revalidert } = lytt(page, () => start)
-  const hold = holdRsc(page)
-  await hold.paa()
-
-  const knapp = byggeknapp(page)
-  await expect(knapp).toBeVisible()
-  page.on('dialog', (d) => d.accept())
-
-  start = Date.now()
-  await knapp.click()
-
-  // 1  KVITTERINGEN FOER OPPFRISKNINGEN. Alle RSC-kall henger.
-  await expect(page.locator('.sq-slett-ok').first()).toBeVisible({ timeout: 6_000 })
-  const tKvittering = Date.now() - start
-  await expect(knapp).toBeEnabled()
-  const tKnapp = Date.now() - start
-  const apneVedKvittering = rsc.filter((k) => k.ferdig === null).length
-
-  // 2  ADVARSELEN. Kommer den ikke, holder ikke refreshen sin egen
-  //    transition aapen - og da er hele mekanismen doed kode.
-  await expect(page.locator('.sq-oppfrisk-feil')).toBeVisible({ timeout: 20_000 })
-  const tAdvarsel = Date.now() - start
-  const apneVedAdvarsel = rsc.filter((k) => k.ferdig === null).length
-  const montertVedAdvarsel = await page.locator('form:has(input[name="maaned"])').count()
-
-  const l = (s: string) => console.log(`  ${s}`)
-  l('')
-  l('========== TIDSLINJE, HOLDT OPPFRISKNING ==========')
-  for (const k of handling) {
-    l(`POST next-action      sendt ${k.sendt} ms  ferdig ${k.ferdig} ms  status ${k.status}`)
-  }
-  l(`x-action-revalidated  ${revalidert.map((r) => r ?? '(fravaerende)').join(', ')}`)
-  l(`kvittering synlig     ${tKvittering} ms`)
-  l(`knappen aktiv         ${tKnapp} ms`)
-  l(`aapne RSC ved kvittering  ${apneVedKvittering}`)
-  l(`advarsel vist         ${tAdvarsel} ms`)
-  l(`aapne RSC ved advarsel    ${apneVedAdvarsel} av ${rsc.length}`)
-  l(`skjema montert        ${montertVedAdvarsel === 1}`)
-
-  expect(apneVedKvittering, 'ingen RSC-kall var aapne - holdet virket ikke').toBeGreaterThan(0)
-  expect(tKvittering, 'kvitteringen ventet paa den holdte RSC-hentingen').toBeLessThan(6_000)
-  expect(tAdvarsel, 'advarselen kom ikke rundt 10 s').toBeGreaterThan(9_000)
-  expect(apneVedAdvarsel, 'alle RSC var ferdige - da maaler ikke testen en henging')
-    .toBeGreaterThan(0)
-  await expect(page.locator('.sq-slett-ok').first(),
-    'kvitteringen skal staa VED SIDEN AV advarselen').toBeVisible()
-  expect(montertVedAdvarsel, 'skjemaet forsvant').toBe(1)
-  expect(handling.length, 'det ble sendt mer enn én serverhandling').toBe(1)
-
-  // 3  SLIPP DEM, og se hva som skjer.
-  hold.slipp()
-  await expect.poll(() => rsc.filter((k) => k.ferdig === null).length,
-    { timeout: 20_000, message: 'RSC-kall fullfoerte ikke etter slipp' }).toBe(0)
-  const tSluppet = Date.now() - start
-  l(`alle RSC ferdige      ${tSluppet} ms`)
-
-  //    4  ADVARSELEN SKAL TREKKES TILBAKE.
-  //
-  //       Maalt ROEDT paa 82bdc59 OG paa 0474368. Den foerste gangen var
-  //       det produksjonskoden: `visningFroset` hadde ingen vei tilbake
-  //       til false. Den andre gangen var det MAALEREN.
-  //
-  //       `expect.poll` over venter paa testsidens `rsc`-array, som
-  //       fylles av `requestfinished` - altsaa naar nettverkskroppen er
-  //       mottatt. Mellom DET og «advarselen er borte» ligger fire ledd
-  //       som ikke er gratis: React maa motta flight-payloaden, rendre,
-  //       committe, og foerst DA gaar `oppfrisker` av, effekten kjoerer
-  //       og flagget ryddes. En engangslesing rett etter nettverket
-  //       maaler foerste ledd og leser resultatet av det siste.
-  //
-  //       «Rettingen virker ikke» og «maaleren leser for tidlig» ser
-  //       IDENTISKE ut i en engangslesing. Derfor pollingen - og derfor
-  //       er taket STRAMT. Et romslig tak ville gjort testen groenn
-  //       uansett hvilken av de to det er, og da maaler den ingenting.
-  const tFerdig = Date.now()
-  let tBorte: number | null = null
-  try {
-    await expect.poll(() => page.locator('.sq-oppfrisk-feil').count(), {
-      timeout: 5_000,
-      message: 'Produksjonsrettingen ryddet IKKE `froset` innen fem sekunder '
-        + 'etter at alle RSC-kall var bekreftet ferdige. Advarselen sier da '
-        + '«last sida paa nytt» om en side som ER oppdatert.',
-    }).toBe(0)
-    tBorte = Date.now() - tFerdig
-  } finally {
-    l('advarsel borte etter  ' + (tBorte === null ? 'ALDRI innen 5000' : tBorte) + ' ms')
-    l('           (maalt fra siste requestfinished)')
-    l('==================================================')
-  }
-
-  //    SAMTIDIG: ingenting annet har flyttet seg mens vi ventet.
-  expect(await page.locator('form:has(input[name="maaned"])').count(),
-    'skjemaet forsvant mens vi ventet paa at advarselen skulle gaa').toBe(1)
-  expect(rsc.filter((k) => k.ferdig === null).length,
-    'nye RSC-kall aapnet seg mens vi ventet - da maaler ikke testen det den tror').toBe(0)
-
-  await hold.av()
 })
