@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   byggLonnsrom, kalibrering, normalSvinnandel, erDrivstoff, erAvdelingsniva, maanedsrader,
-  styringsavvik, type Lonnsrom,
+  styringsavvik, type Lonnsrom, type Styringsrom,
 } from './rom'
 
 const R = (maaned: string, omsetningKr: number | null, bruttoKr: number | null) =>
@@ -383,6 +383,42 @@ describe('styringsavvik', () => {
     const v = styringsavvik(ROM(null), 383285)
     expect(v.kroner).toBeNull()
     expect(v.mangler).toMatch(/BP/)
+  })
+
+  // =================================================================
+  // TYPEGRENSEN, HAANDHEVET AV KOMPILATOREN
+  // =================================================================
+  //
+  // Paastanden var «strukturelt umulig aa maale mot BP». Den var ikke
+  // sann saa lenge signaturen tok hele `Lonnsrom`, som BAERER
+  // `bpLonnKr`. Naa tar den `Styringsrom` - to felt - og da er det
+  // `tsc` som sier nei, ikke en roed test.
+  it('KANARIFUGL: typegrensen sperrer for bpLonnKr', () => {
+    const rom: Styringsrom = { romKr: 344957, anslaatt: false }
+    // @ts-expect-error `bpLonnKr` finnes ikke paa `Styringsrom`, og det
+    // er hele poenget. Utvides typen tilbake til `Lonnsrom`, slutter
+    // dette aa vaere en feil - og da feiler `tsc` paa en ubrukt
+    // `@ts-expect-error`.
+    expect(rom.bpLonnKr).toBeUndefined()
+  })
+
+  it('avviser et rom som ikke er et tall', () => {
+    // Hver sammenligning mot NaN er usann, saa `NaN <= 0` slipper
+    // gjennom. Uten en egen finite-vakt ville maaneden staatt som
+    // `normal` med `NaN` kroner - rolig fordi tallet var oedelagt.
+    for (const rom of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const v = styringsavvik({ romKr: rom, anslaatt: false }, 383285)
+      expect(v.kroner, String(rom)).toBeNull()
+      expect(v.andelAvRom, String(rom)).toBeNull()
+      expect(v.mangler, String(rom)).toMatch(/ikke et tall|null eller negativt/)
+    }
+  })
+
+  it('KANARIFUGL: uten finite-vakten ville NaN gitt normal med NaN-beloep', () => {
+    // Beviser at det er VAKTEN som fanger det, ikke `<= 0`-testen.
+    expect(Number.NaN <= 0).toBe(false)
+    expect(Number.NaN >= 10).toBe(false)
+    expect(Number.isFinite(Number.NaN)).toBe(false)
   })
 
   it('deler ikke paa et rom som er null eller negativt', () => {

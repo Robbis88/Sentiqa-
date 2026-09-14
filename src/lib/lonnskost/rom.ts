@@ -30,6 +30,8 @@
 // som blir bedre for hver regnskapsrapport som lastes opp.
 // =====================================================================
 
+import { TERSKLER } from '@/lib/regnskap/terskler'
+
 /**
  * Hvor mange avlagte måneder marginen læres av.
  *
@@ -89,8 +91,6 @@ export function erAvdelingsniva(post: string): boolean {
   const m = /^(\d+)\s/.exec(post.trim())
   return m !== null && m[1].length <= 2
 }
-
-import { TERSKLER } from '@/lib/regnskap/terskler'
 
 export type Maanedsgrunnlag = {
   maaned: string // yyyy-mm
@@ -378,13 +378,18 @@ export function maanedsrader(
 // avvik. Begge tallene er sanne; de svarer på hvert sitt spørsmål.
 //
 // ---------------------------------------------------------------------
-// SIGNATUREN ER GRENSEN
+// SIGNATUREN ER GRENSEN, OG DEN MÅ FAKTISK HÅNDHEVE DEN
 // ---------------------------------------------------------------------
 //
-// Funksjonen tar et `Lonnsrom`, ikke et `bpLonnKr`. Da er det
-// STRUKTURELT UMULIG å måle mot BP herfra — man kan ikke gjøre feil
-// med et tall man ikke har fått. `bpLonnKr` ligger i rommet, men bare
-// for at flaten skal kunne vise begge ved siden av hverandre.
+// Her sto `styringsavvik(rom: Lonnsrom, …)` med påstanden at det var
+// «strukturelt umulig å måle mot BP». **Det var ikke sant.** `Lonnsrom`
+// BÆRER `bpLonnKr` — flaten trenger det for å vise begge tallene ved
+// siden av hverandre — så `rom.bpLonnKr` ville kompilert fint. Testene
+// ville tatt det, men en påstand om typegrensen som typen ikke holder,
+// er verre enn ingen påstand.
+//
+// `Styringsrom` er derfor de to feltene funksjonen faktisk trenger.
+// Skriver noen `rom.bpLonnKr` nå, feiler `tsc` — ikke en test.
 //
 // ---------------------------------------------------------------------
 // GRENSENE ER DE SAMME, NEVNEREN ER IKKE
@@ -415,6 +420,16 @@ export function maanedsrader(
  */
 export type Alvor = 'normal' | 'endring' | 'handling'
 
+/**
+ * Det `styringsavvik` faktisk trenger — og ikke en ting mer.
+ *
+ * `Lonnsrom` fra `byggLonnsrom` passer rett inn (strukturell typing), så
+ * kallstedene merker ingenting. Forskjellen er at `bpLonnKr`,
+ * `lonnsandel` og `kalibrering` ikke finnes INNE i funksjonen, og da kan
+ * de heller ikke brukes ved et uhell.
+ */
+export type Styringsrom = Pick<Lonnsrom, 'romKr' | 'anslaatt'>
+
 export type Styringsavvik = {
   /** Kroner over rommet. Negativt betyr innenfor. Null når det ikke kan regnes. */
   kroner: number | null
@@ -433,7 +448,7 @@ export type Styringsavvik = {
  * `lonnKr` er det som faktisk er kjørt: fra regnskapet når måneden er
  * avlagt, ellers easy@work-anslaget. `null` før noen av delene finnes.
  */
-export function styringsavvik(rom: Lonnsrom, lonnKr: number | null): Styringsavvik {
+export function styringsavvik(rom: Styringsrom, lonnKr: number | null): Styringsavvik {
   const tomt = (mangler: string): Styringsavvik =>
     ({ kroner: null, andelAvRom: null, alvor: 'normal', anslaatt: rom.anslaatt, mangler })
 
@@ -444,6 +459,18 @@ export function styringsavvik(rom: Lonnsrom, lonnKr: number | null): Styringsavv
   }
   if (rom.romKr === null) {
     return tomt('Uten BP finnes det ikke noe rom å måle mot.')
+  }
+  // SAMME VAKT PÅ ROMMET SOM PÅ LØNNA.
+  //
+  // Her sto bare `romKr <= 0`. Et `NaN` slipper gjennom den — hver
+  // sammenligning mot NaN er usann — og ville gitt `NaN` kroner, `NaN`
+  // andel og `alvor: 'normal'`, fordi `NaN >= 10` også er usann. Altså
+  // en måned som ser rolig ut fordi tallet er ødelagt.
+  //
+  // `byggLonnsrom` gir ryddige tall i dag. Men dette er en eksportert
+  // domenefunksjon, og den skal ikke stole på hvem som kaller den.
+  if (!Number.isFinite(rom.romKr)) {
+    return tomt('Rommet er ikke et tall.')
   }
   // Samme vakt som `if (lonnB > 0)` i regnskapsvarslene: et rom på null
   // gjør enhver lønn uendelig mye for høy, og det er ikke en opplysning.
