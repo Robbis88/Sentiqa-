@@ -2,47 +2,46 @@ import { expect, test, type Page, type Request } from '@playwright/test'
 import { OKTFIL } from './eier'
 
 // =====================================================================
-// DIAGNOSTIKK: ER `oppfrisker` EN PAALITELIG MAALING AV RSC-HENTINGEN?
+// KVITTERINGEN ER HANDLINGENS SVAR, IKKE OPPFRISKNINGENS
 // =====================================================================
 //
-// `HandlingKnapp` kjoerer `router.refresh()` i sin EGEN `useTransition`.
-// Blir den staaende i 10 sekunder, viser knappen en advarsel om at
-// visningen ikke kunne oppdateres.
+// `HandlingKnapp` kjoerer `router.refresh()` i sin EGEN `useTransition`,
+// atskilt fra handlingens. Kontrakten fila vokter:
 //
-// MAALT PAA `a6df5cc`, SAMME SHA, TO KJOERINGER:
+//   kvitteringen og den aktive knappen kommer av at SERVEREN svarte,
+//   ikke av at visningen rakk aa oppdatere seg.
 //
-//   attempt 1   advarsel borte etter        4 ms
-//   attempt 2   advarsel borte etter   ALDRI innen 5 000 ms
-//
-// Begge med alle fem RSC-kall bekreftet ferdige foerst. Det er ikke et
-// lesetidspunkt - det er to ulike utfall av samme kode.
+// Blir oppfriskningen staaende i 10 sekunder, sier knappen ifra i en
+// EGEN linje ved siden av kvitteringen - ikke i stedet for den.
 //
 // ---------------------------------------------------------------------
-// TO TILFELLER SOM SER LIKE UT UTENFRA
+// TO TILSTANDER SOM SER LIKE UT, OG BARE ÉN AV DEM ER LOV
 // ---------------------------------------------------------------------
 //
-//   A  transitionen settler aldri   `oppfrisker` blir staaende true,
-//                                   `true -> false`-grenen kjoerer aldri,
-//                                   og `froset` blir derfor staaende.
-//                                   Advarselen er da RIKTIG.
-//   B  flagget ryddes ikke          `oppfrisker` er false, men
-//                                   advarselen staar likevel. Da er
-//                                   flagglogikken feil.
+//   A  advarselen staar, `data-oppfrisker` er fortsatt "true"
+//      Transitionen er ikke ferdig. Den nye servertilstanden er ikke
+//      bevist committet i visningen, og advarselen er RIKTIG.
 //
-// De kan ikke skilles uten aa se `oppfrisker`. Derfor baerer skjemaet et
-// INERT `data-oppfrisker`-attributt - ingen styling, ingen atferd, ingen
-// semantikk for hjelpemidler. (`aria-busy` ville ikke vaert inert: den
-// forteller skjermlesere at regionen oppdateres, og da ville et
-// diagnostisk behov endret hva brukere opplever.)
+//   B  advarselen staar, `data-oppfrisker` er "false"
+//      Transitionen ER ferdig, og advarselen skulle vaert ryddet. Da
+//      sier den «last sida paa nytt» om en side som ER oppdatert.
+//      FEIL, og fila feller den.
+//
+//   C  advarselen er borte
+//      Ryddet som forventet.
+//
+// A og C er begge gyldige utfall og varierer mellom kjoeringer. B er
+// det ikke. Uten `data-oppfrisker` kunne de ikke skilles - se
+// `handling-knapp.tsx` for hvorfor attributtet er inert.
 //
 // ---------------------------------------------------------------------
 // `requestfinished` BEVISER IKKE AT REACT HAR COMMITTET
 // ---------------------------------------------------------------------
 //
 // Den sier at nettverkskroppen er mottatt. Mellom den og en oppdatert
-// skjerm ligger flight-parsing, render og commit. Denne fila KREVER
-// derfor ikke at advarselen forsvinner naar nettverket er ferdig - den
-// MAALER hva som skjer, og klassifiserer utfallet.
+// skjerm ligger flight-parsing, render og commit. Fila KREVER derfor
+// ikke at advarselen er borte i det oeyeblikket nettverket er ferdig -
+// den maaler hva som faktisk skjer, og feller bare B.
 // =====================================================================
 
 test.use({ storageState: OKTFIL })

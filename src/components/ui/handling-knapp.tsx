@@ -230,24 +230,22 @@ export function HandlingKnapp({
     <form
       action={kjor}
       className="sq-slett"
-      // INERT. Ingen styling, ingen atferd, ingen semantikk for
-      // hjelpemidler — den finnes bare for å gjøre transitionens
-      // tilstand målbar utenfra.
+      // INERT, og den har ett formål: kontrakttesten som avviser
+      // tilstanden «advarselen står mens transitionen er ferdig».
       //
-      // `aria-busy` ville vært fristende, men den er IKKE inert: den
-      // forteller skjermlesere at regionen oppdateres, og da ville et
-      // diagnostisk behov endret hva brukere faktisk opplever.
+      // Uten den kan `oppfrisker` bare utledes, og de to tilstandene ser
+      // like ut utenfra:
       //
-      // Den finnes fordi `oppfrisker` ellers bare kan UTLEDES, og de to
-      // tilfellene vi må skille ser like ut utenfra:
+      //   transitionen står ennå  →  advarselen er RIKTIG
+      //   transitionen er ferdig  →  advarselen skulle vært ryddet
       //
-      //   transitionen settler aldri   →  `oppfrisker` blir stående true
-      //   flagget ryddes ikke          →  `oppfrisker` er false, men
-      //                                   advarselen står likevel
+      // Den første er lov, den andre er en feil. `maanedsplanflyten` i
+      // `e2e/oppfriskning.spec.ts` skiller dem på dette attributtet.
       //
-      // Målt på `a6df5cc`: advarselen forsvant på 4 ms i ett forsøk og
-      // ALDRI innen 5 s i det neste — samme SHA. Uten dette attributtet
-      // kan de to ikke skilles.
+      // INGEN STYLING, ingen atferd, ingen betydning for brukeren.
+      // `aria-busy` ville vært fristende og er IKKE inert: den forteller
+      // skjermlesere at regionen oppdateres, og da ville et testbehov
+      // endret hva folk faktisk opplever.
       data-oppfrisker={oppfrisker ? 'true' : 'false'}
       // BEKREFTELSEN MÅ STOPPE INNSENDINGEN, ikke bare spørre. Uten
       // `preventDefault` kjører handlingen uansett hva man svarer.
