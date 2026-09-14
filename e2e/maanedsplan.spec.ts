@@ -110,7 +110,13 @@ test('Grenseby juli: retning med PERIODEN i setningen', async ({ page }) => {
 test('en blokkert analyse forsvinner IKKE', async ({ page }) => {
   // Juni på Underby. Før P2 falt matkast bare ut av punktene, og kortet
   // så komplett ut — da tror den som leser at alt er i orden.
-  const k = page.locator('.sq-plankort').filter({ hasText: 'Underby' }).nth(1)
+  //
+  // MÅNEDEN VELGES EKSPLISITT. Køen åpner på juli, og juniutkastet er
+  // nettopp det filteret holder utenfor — se «0b» i den serielle
+  // blokka. `.nth(1)` fungerte bare så lenge begge månedene sto i samme
+  // liste, og var dessuten avhengig av DOM-rekkefølgen på tvers av dem.
+  await page.goto('/maanedsplan?maned=2026-06-01')
+  const k = page.locator('.sq-plankort').filter({ hasText: 'Underby' }).first()
   const blokk = k.locator('.sq-analyse').filter({ hasText: 'Synlig matkast' })
   await expect(blokk).toBeVisible()
   await expect(blokk.locator('.sq-analyse-merke')).toHaveText('ikke beregnet')
@@ -440,13 +446,12 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
   test('0  seedtilstanden er som forventet', async ({ page }) => {
     await page.goto('/maanedsplan')
 
-    // Tre utkast venter, og to er avgjort.
+    // KOEEN AAPNER PAA NYESTE MAANED MED UTKAST. Seeden har utkast i
+    // juli OG juni; juli er nyest, og det er den som vises.
     await expect(venter(page).locator('.sq-plankort')
       .filter({ hasText: 'Underby' }).filter({ hasText: 'juli' })).toHaveCount(1)
     await expect(venter(page).locator('.sq-plankort')
       .filter({ hasText: 'Grenseby' }).filter({ hasText: 'juli' })).toHaveCount(1)
-    await expect(venter(page).locator('.sq-plankort')
-      .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })).toHaveCount(1)
 
     // Overby juli er AVVIST fra seeden, ikke av denne flyten.
     const overby = plankort(page, 'Overby', 'juli').first()
@@ -456,6 +461,72 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
     await expect(plankort(page, 'Underby', 'juli').first())
       .not.toContainText('Datagrunnlag mangler')
   })
+
+  // ===================================================================
+  // 0b  JUNI ER SKJULT — MEN IKKE I STILLHET
+  // ===================================================================
+  //
+  // Dette er halve poenget med filteret, og den farlige halvparten.
+  // Sida sier selv at «et utkast ingen ser er en stasjon uten en plan».
+  // Hadde juni bare forsvunnet, ville vi byttet feilslippet mot en
+  // usluppet plan ingen visste om.
+  // ===================================================================
+  test('0b  juniutkastet er skjult, TELT, og naabart via velgeren',
+    async ({ page }) => {
+      await page.goto('/maanedsplan')
+
+      // Ikke i koeen.
+      await expect(venter(page).locator('.sq-plankort')
+        .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })).toHaveCount(0)
+
+      // Men sagt fra om. `textContent`, ikke `innerText`: en negativ
+      // paastand maa ikke kunne bestaa fordi teksten er uutlagt.
+      await expect(venter(page)).toContainText('1 eldre utkast venter')
+      await expect(venter(page)).toContainText('en annen måned')
+
+      // Og velgeren finnes, med juni i.
+      await page.goto('/maanedsplan?maned=2026-06-01')
+      await expect(venter(page).locator('.sq-plankort')
+        .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })).toHaveCount(1)
+      // Naa er det juli som holdes utenfor — to utkast der.
+      await expect(venter(page)).toContainText('2 eldre utkast venter')
+    })
+
+  // ===================================================================
+  // 0c  SPOERSMAALET NAVNGIR MAANEDEN
+  // ===================================================================
+  //
+  // `bekreftelse.test.ts` beviser at kilden sier det. Denne beviser at
+  // dialogen faktisk KOMMER, og hva den staar med paa skjermen.
+  //
+  // Den AVVISER dialogen, saa ingenting muteres — og da beviser den
+  // samtidig at avbryt betyr avbryt.
+  // ===================================================================
+  test('0c  Slipp spoer foerst, navngir maaneden, og avbryt avbryter',
+    async ({ page }) => {
+      await page.goto('/maanedsplan?maned=2026-06-01')
+
+      const kort = venter(page).locator('.sq-plankort')
+        .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })
+      await expect(kort).toHaveCount(1)
+
+      let tekst = ''
+      let antall = 0
+      page.on('dialog', (d) => { antall += 1; tekst = d.message(); return d.dismiss() })
+
+      await kort.getByRole('button', { name: 'Slipp' }).click()
+      await expect.poll(() => antall, { timeout: 5_000 }).toBe(1)
+
+      expect(tekst, `dialogteksten var:\n  ${tekst}\n`).toContain('Underby')
+      expect(tekst, `dialogteksten var:\n  ${tekst}\n`).toContain('juni 2026')
+      expect(tekst).toContain('kan ikke skrives om')
+
+      // AVBRYT BETYR AVBRYT. Kortet staar fortsatt i koeen, og ingen
+      // kvittering kom.
+      await expect(kort).toHaveCount(1)
+      await expect(kort.locator('.sq-slett-ok')).toHaveCount(0)
+      await expect(kort.locator('.sq-plankort-status')).toHaveCount(0)
+    })
 
   // ===================================================================
   // A  BYGG -> KVITTERING OG NYE SNAPSHOT PAA SAMME SIDE
@@ -573,7 +644,9 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
   // ===================================================================
   test('C  avvis: kortet flytter seg til Avgjort med status Avvist',
     async ({ page }) => {
-      await page.goto('/maanedsplan')
+      // JUNI MAA VELGES. Koeen aapner paa juli, og juniutkastet er
+      // nettopp det filteret holder utenfor — se 0b.
+      await page.goto('/maanedsplan?maned=2026-06-01')
 
       const iKoe = () => venter(page).locator('.sq-plankort')
         .filter({ hasText: 'Underby' }).filter({ hasText: 'juni' })

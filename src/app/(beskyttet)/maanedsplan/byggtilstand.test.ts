@@ -70,9 +70,16 @@ function finn(node: unknown, type: unknown): ReactElement | null {
 const dekning = (maaned: string, stasjoner: string[]) =>
   stasjoner.map((stasjon_id) => ({ maaned, stasjon_id, linjer_lest: 2 }))
 
-async function side() {
+/**
+ * Sida, med sokeparametrene den naa tar imot.
+ *
+ * `?maned=` kom da koeen ble snevret inn til én maaned om gangen. Disse
+ * testene maaler byggknappen, som staar OVER koeen og ikke paavirkes av
+ * hvilken maaned som vises — standard er derfor tom sok.
+ */
+async function side(sok: { maned?: string; ar?: string } = {}) {
   const modul = await import('./page')
-  return (await modul.default()) as ReactElement
+  return (await modul.default({ searchParams: Promise.resolve(sok) })) as ReactElement
 }
 
 beforeEach(() => {

@@ -27,6 +27,7 @@ export type Punkt = {
 export function Plankort({
   id,
   stasjon,
+  maanedstekst,
   dom,
   ingress,
   punkter,
@@ -38,6 +39,18 @@ export function Plankort({
 }: {
   id: string
   stasjon: string
+  /**
+   * Maaneden, ferdig formatert av sida — «juli 2026».
+   *
+   * FERDIG FORMATERT MED VILJE. `maanedsnavn` bor i `kurs/plan.ts`, som
+   * drar med seg royalty og loeftestenger; en klientkomponent trenger
+   * ikke det i bunten for aa skrive tre ord.
+   *
+   * OG DEN ER PAAKREVD. Bekreftelsen under NAVNGIR maaneden, og en
+   * valgfri prop ville latt den falle bort i stillhet — som er nettopp
+   * den feilen kortet finnes for aa hindre.
+   */
+  maanedstekst: string
   dom: 'medvind' | 'motvind' | 'flat'
   ingress: string
   punkter: Punkt[]
@@ -106,6 +119,19 @@ export function Plankort({
 
       {merknad && <p className="sq-plankort-merknad">{merknad}</p>}
 
+      {/*
+        * BEGGE SPOERSMAALENE NAVNGIR MAANEDEN, OG DET ER HELE POENGET.
+        *
+        * «Slipp planen for Lone?» ville ikke hindret feilslippet
+        * 2026-09-14: stasjonen var riktig, maaneden var ikke. Et
+        * spoersmaal som bare bekrefter det man alt trodde, bekrefter
+        * ogsaa feilen.
+        *
+        * Slipp hadde ikke noe spoersmaal i det hele tatt. Avvis hadde et
+        * som bare navnga stasjonen. Nu sier begge hvilken maaned, og
+        * Slipp sier dessuten at det ikke kan gjoeres om — for det er
+        * sant: `maanedsplan_laas_sluppet` (0200) laaser innholdet.
+        */}
       {status === 'utkast' && (
         <div className="knapperad">
           <HandlingKnapp
@@ -113,18 +139,26 @@ export function Plankort({
             felt={{ id }}
             merke="Slipp"
             oppfrisk
-            hva={`månedsplanen for ${stasjon}`}
+            hva={`månedsplanen for ${stasjon}, ${maanedstekst}`}
             arbeider="Slipper …"
             variant="primar"
+            sporsmaal={
+              `Slipp månedsplanen for ${stasjon} — ${maanedstekst}?\n\n`
+              + 'Butikksjefen ser den med én gang, og innholdet kan ikke '
+              + 'skrives om etterpå.'
+            }
           />
           <HandlingKnapp
             handling={avvisPlan}
             felt={{ id }}
             merke="Avvis"
             oppfrisk
-            hva={`månedsplanen for ${stasjon}`}
+            hva={`månedsplanen for ${stasjon}, ${maanedstekst}`}
             arbeider="Avviser …"
-            sporsmaal={`Avvise månedsplanen for ${stasjon}? Den sendes ikke.`}
+            sporsmaal={
+              `Avvise månedsplanen for ${stasjon} — ${maanedstekst}?\n\n`
+              + 'Den sendes ikke.'
+            }
           />
         </div>
       )}
