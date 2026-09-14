@@ -72,6 +72,23 @@ type Kall = {
 //      en kjoering som ellers var groenn.
 //
 // Alt bokfoeres synkront naa, og hver hendelse har sitt eget felt.
+//
+// ---------------------------------------------------------------------
+// OBSERVASJONSFUNN, IKKE FORKLART
+// ---------------------------------------------------------------------
+//
+// Paa cf27965 sto handlings-POSTen i normaltidslinja som:
+//
+//   svar 468 ms   ferdig -1   feilet 470 ms   status 200
+//
+// Altsaa `requestfailed` TO millisekunder etter at responsen kom med
+// status 200, og uten at `requestfinished` fyrte. Kvitteringen ble
+// rendret og serverhandlingen ble utfoert, saa den blokkerer ingenting.
+//
+// Men den er ikke forklart, og skal ikke kalles uskyldig uten videre
+// bevis. Den er bare SYNLIG fordi de fire hendelsene holdes fra
+// hverandre - den gamle bokfoeringen ville vist `ferdig null` og ikke
+// mer.
 // =====================================================================
 function lytt(side: Page, t0: () => number) {
   const handling: Kall[] = []
@@ -228,6 +245,17 @@ test('TIDSLINJE: en helt vanlig, uforsinket oppfriskning', async ({ page }) => {
   expect(revalidert, 'handlingen revaliderte').toEqual([null])
   expect(handling.length, 'mer enn én serverhandling').toBe(1)
   expect(handling[0].status, 'handlingen svarte ikke 200').toBe(200)
+
+  // EN NORMAL OPPFRISKNING SKAL FULLFOERE. Uten disse fire kunne testen
+  // vaert groenn ogsaa naar transitionen henger - og da maaler den bare
+  // at kvitteringen kom.
+  expect(saaOppfrisker, 'oppfriskningen startet aldri - data-oppfrisker ble aldri true')
+    .toBe(true)
+  expect(merke.oppfriskerAv,
+    'oppfrisker gikk ALDRI tilbake til false paa en uforsinket oppfriskning')
+    .not.toBeNull()
+  expect(slutt.advarsel, 'advarsel paa en helt vanlig oppfriskning').toBe(false)
+  expect(aapne(rsc), 'RSC-kall sto fortsatt aapne etter 25 s').toBe(0)
 })
 
 // =====================================================================
@@ -352,6 +380,18 @@ test('KLASSIFISER: hva skjer naar oppfriskningen holdes', async ({ page }) => {
   expect(handling.length, 'det ble sendt mer enn én serverhandling').toBe(1)
   expect(revalidert, 'handlingen revaliderte').toEqual([null])
   expect(aapne(rsc), 'nye RSC-kall aapnet seg mens vi maalte').toBe(0)
+
+  // A OG C ER BEGGE GYLDIGE UTFALL. B ER DET IKKE.
+  //
+  //   A  transitionen staar fortsatt -> advarselen er RIKTIG. Den nye
+  //      servertilstanden er ikke bevist committet i visningen.
+  //   C  transitionen ble ferdig     -> advarselen er ryddet.
+  //   B  transitionen ble ferdig, men advarselen staar likevel. Da
+  //      rydder ikke flagglogikken `froset`, og det er en ekte feil.
+  //
+  // Uten denne porten ble B bare LOGGET, og en ekte flaggfeil ville
+  // passert i stillhet bak en groenn suite.
+  expect(dom.startsWith('B'), dom).toBe(false)
 
   await hold.av()
 })
