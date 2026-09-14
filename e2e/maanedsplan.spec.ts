@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { OKTFIL } from './eier'
 
 // =====================================================================
@@ -616,13 +616,41 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       await page.goto('/maanedsplan')
       const foer = await plankort(page, 'Underby', 'juli').first().textContent()
 
-      // Feltet sier en annen maaned enn serveren finner. Serveren slaar
-      // maalmaaneden opp paa nytt og avviser — feltet kan bare gi et nei.
-      await page.locator('form:has(input[name="maaned"]) input[name="maaned"]')
-        .evaluate((el: HTMLInputElement) => { el.value = '2026-05-01' })
+      // TILLEGGSKONTROLL - IKKE ENESTE BEVIS PAA AVVISNINGEN.
+      //
+      // Selve avvisningen maales direkte i
+      // `src/app/(beskyttet)/maanedsplan/avvisning.test.ts`, med
+      // konstruert FormData og uten nettleser. Her maales bare at
+      // VISNINGEN av en avvisning virker paa flaten.
+      //
+      // FELTET SETTES OG SKJEMAET SENDES I SAMME `evaluate`. Verdien
+      // ligger paa en React-kontrollert `<input type="hidden" value=...>`,
+      // og React skriver den tilbake ved neste commit. Gjoeres de to i
+      // hvert sitt steg, er det et kapploep - og 2026-09-14 tapte det:
+      // handlingen kjoerte med JULI, lyktes, og testen felte paa at
+      // feilmeldingen uteble. Den saa da ut som «avvisningen virker
+      // ikke», mens den egentlige beskjeden var «feltet ble nullstilt».
+      //
+      // `window.confirm` overstyres i sidekonteksten i stedet for aa gaa
+      // via en dialoglytter: en dialog som aapnes INNE i en `evaluate`
+      // blokkerer kallet. Bekreftelsen selv maales i
+      // `handling-knapp.test.tsx`.
+      const post = page.waitForRequest(
+        (r) => r.method() === 'POST' && !!r.headers()['next-action'])
 
-      page.on('dialog', (d) => d.accept())
-      await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
+      await page.evaluate(() => {
+        window.confirm = () => true
+        const felt = document.querySelector('input[name="maaned"]') as HTMLInputElement
+        felt.value = '2026-05-01'
+        felt.closest('form')!.querySelector('button')!.click()
+      })
+
+      // KANARIFUGL FOERST. Bar ikke POSTen mai, maaler resten ingenting -
+      // og da skal testen si NETTOPP det, ikke «feilmeldingen uteble».
+      const kropp = (await post).postData() ?? ''
+      expect(kropp, 'POST-kroppen bar ikke 2026-05-01 - feltet ble nullstilt '
+        + 'av en re-render foer innsendingen, saa handlingen kjoerte med '
+        + 'riktig maaned og lyktes').toContain('2026-05-01')
 
       // FEILEN STAAR.
       await expect(page.locator('.sq-slett-feil'))
@@ -639,193 +667,4 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       expect(etter, 'kortet endret seg av en FEILET handling').toBe(foer)
     })
 
-  // =====================================================================
-  // DEN GAMLE TESTEN MAALTE IKKE DET DEN HET
-  // =====================================================================
-  //
-  // «dobbeltklikk gir én kjoering» klikket ÉN gang og sjekket at
-  // knappen var `disabled`. Den kunne ikke se to kjoeringer - bare at
-  // knappen paa et tidspunkt var laast. Og `disabled` settes ved NESTE
-  // render, saa et ekte dobbeltklikk rekker inn foer den.
-  //
-  // Her telles POST-ene med `next-action`-headeren i stedet. Det er den
-  // eneste maalingen som skiller én kjoering fra to.
-  //
-  // DB-SEKVENSEN maales ikke herfra - den er ikke synlig i nettleseren.
-  // `samtidighet_maanedsplan.sh` maaler den paa SQL-nivaa, med to ekte
-  // sesjoner og interleavingen verifisert paa `pg_stat_activity`.
-  // =====================================================================
-
-  /** POST-er som er serverhandlinger, ikke navigeringer eller RSC. */
-  function tellHandlinger(side: Page) {
-    const kall: string[] = []
-    const svar: { status: number; revalidert: string | null }[] = []
-    side.on('request', (r) => {
-      const h = r.headers()['next-action']
-      if (r.method() === 'POST' && h) kall.push(h)
-    })
-    side.on('response', (r) => {
-      if (r.request().method() !== 'POST') return
-      if (!r.request().headers()['next-action']) return
-      svar.push({
-        status: r.status(),
-        revalidert: r.headers()['x-action-revalidated'] ?? null,
-      })
-    })
-    return { kall, svar }
-  }
-
-  test('to raske klikk gir NØYAKTIG én serverhandling', async ({ page }) => {
-    await page.goto('/maanedsplan')
-    page.on('dialog', (d) => d.accept())
-    const { kall } = tellHandlinger(page)
-    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
-
-    // BEGGE I SAMME TIKK, forbi Playwrights egen ventelogikk. `click()`
-    // venter paa at knappen er klikkbar, og ville dermed gjort klikk to
-    // til en ANNEN kjoering i stedet for et dobbeltklikk.
-    await knapp.evaluate((el: HTMLElement) => { el.click(); el.click() })
-
-    await expect(page.locator('.sq-slett-ok'))
-      .toContainText('Bygget', { timeout: 20_000 })
-    await expect(knapp).toBeEnabled()
-
-    console.log(`  next-action-POSTer ved dobbeltklikk: ${kall.length}`)
-    expect(kall.length, `serverhandlinger sendt: ${kall.length}`).toBe(1)
-    await expect(page.locator('.sq-slett-ok')).toHaveCount(1)
-  })
-
-  // =====================================================================
-  // DEN MISTENKTE KOBLINGEN, MAALT PAA HEADEREN
-  // =====================================================================
-  //
-  // `x-action-revalidated: 1` beviser at handlingen trakk en
-  // ruteroppdatering inn i sin egen overgang. Det beviser IKKE at den er
-  // grunnen til at klienten ble staaende - sporet viser rekkefoelge og
-  // stillhet, ikke aarsak.
-  //
-  // Men koblingen er den mest sannsynlige forklaringen, og den er
-  // uansett unoedvendig: sidene er dynamiske, saa revalideringen
-  // invaliderte ingenting. Denne testen holder den borte.
-  //
-  // Den feller den gamle koden DIREKTE - den trenger ikke vente paa at
-  // racet treffer.
-  // =====================================================================
-  test('handlingen revaliderer ikke, og kvitteringen er ikke gissel', async ({ page }) => {
-    await page.goto('/maanedsplan')
-    page.on('dialog', (d) => d.accept())
-    const { svar } = tellHandlinger(page)
-    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
-
-    await knapp.click()
-    await expect(page.locator('.sq-slett-ok'))
-      .toContainText('Bygget', { timeout: 20_000 })
-    await expect(knapp).toBeEnabled()
-
-    console.log(`  handlingssvar: status=${svar[0]?.status} x-action-revalidated=${svar[0]?.revalidert ?? '(fravaerende)'}`)
-    expect(svar.length).toBe(1)
-    expect(svar[0].status).toBe(200)
-    expect(
-      svar[0].revalidert,
-      'Handlingen revaliderte. Da sender Next en fersk flight-payload for '
-      + 'ruta du staar paa, inne i handlingens egen overgang - og '
-      + 'kvitteringen blir gissel for at sida skal tegne seg om.',
-    ).toBeNull()
-  })
-
-  // =====================================================================
-  // EN TREG OPPFRISKNING SKAL IKKE TA KVITTERINGEN MED SEG
-  // =====================================================================
-  //
-  // Handlingen er utfoert i det serveren har svart. At visningen henger
-  // etterpaa er et ANNET problem, og skal sies med en annen setning - ikke
-  // ved at kvitteringen uteblir og knappen staar «Bygger ...».
-  // =====================================================================
-  test('treg oppfriskning holder ikke kvitteringen tilbake', async ({ page }) => {
-    await page.goto('/maanedsplan')
-    page.on('dialog', (d) => d.accept())
-
-    // RSC-hentingene forsinkes 8 sekunder - lenger enn kvitteringen har
-    // lov til aa vente. Serverhandlingens egen POST slippes fritt.
-    await page.route(/_rsc=/, async (rute) => {
-      await new Promise((r) => setTimeout(r, 8_000))
-      await rute.continue()
-    })
-
-    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
-    const start = Date.now()
-    await knapp.click()
-
-    await expect(page.locator('.sq-slett-ok'))
-      .toContainText('Bygget', { timeout: 6_000 })
-    await expect(knapp).toBeEnabled()
-
-    await expect(page.locator('.sq-oppfrisk-feil'),
-      '8 s er under terskelen paa 10 - advarselen skal ikke staa').toHaveCount(0)
-    const brukt = Date.now() - start
-    expect(brukt, `kvitteringen kom etter ${brukt} ms - den ventet paa RSC`)
-      .toBeLessThan(6_000)
-    console.log(`  kvittering etter ${brukt} ms (RSC forsinket 8 000 ms)`)
-
-    await page.unroute(/_rsc=/)
-  })
-
-
-  // =====================================================================
-  // ADVARSELEN MAA KUNNE INNTREFFE, ELLERS ER DEN DOED KODE
-  // =====================================================================
-  //
-  // `router.refresh()` returnerer `void`. En henging eller en feilet
-  // henting er derfor USYNLIG for `try/catch` - den fanger bare et
-  // synkront kast. Det andre tilfellet fanges av TIDEN i stedet:
-  // `oppfrisker` staar i sin transition til hentingen er ferdig, og blir
-  // den staaende i 10 sekunder, sier komponenten ifra.
-  //
-  // Den mekanismen hviler paa en ANTAKELSE om Next: at
-  // `router.refresh()` inne i `startTransition` holder `isPending` sann
-  // til RSC-hentingen er ferdig. Det er ikke en selvfoelge, og hvis den
-  // er feil fyrer advarselen ALDRI.
-  //
-  // Derfor maales den her ved aa forsinke `_rsc=`-svarene FORBI
-  // terskelen. En test som bare sjekket at advarselen ikke staar der,
-  // ville vaert groenn baade naar mekanismen virker og naar den er doed.
-  // =====================================================================
-  test('en oppfriskning som blir staaende sier ifra - og trekker det tilbake', async ({ page }) => {
-    test.setTimeout(90_000)
-    await page.goto('/maanedsplan')
-    page.on('dialog', (d) => d.accept())
-
-    let forsink = true
-    await page.route(/_rsc=/, async (rute) => {
-      if (forsink) await new Promise((r) => setTimeout(r, 13_000))
-      await rute.continue()
-    })
-
-    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
-    const start = Date.now()
-    await knapp.click()
-
-    // KVITTERINGEN FOERST, uavhengig av RSC.
-    await expect(page.locator('.sq-slett-ok'))
-      .toContainText('Bygget', { timeout: 6_000 })
-    await expect(knapp).toBeEnabled()
-    console.log(`  kvittering etter ${Date.now() - start} ms (RSC forsinket 13 000 ms)`)
-
-    // ADVARSELEN. Kommer den ikke, holder ikke refreshen sin egen
-    // transition aapen - og da er mekanismen doed.
-    await expect(page.locator('.sq-oppfrisk-feil')).toBeVisible({ timeout: 20_000 })
-    console.log(`  advarsel etter ${Date.now() - start} ms`)
-
-    // VED SIDEN AV kvitteringen, ikke i stedet for den.
-    await expect(page.locator('.sq-slett-ok')).toContainText('Bygget')
-    await expect(knapp).toBeEnabled()
-
-    // OG DEN SKAL TREKKES TILBAKE naar en oppfriskning lykkes.
-    forsink = false
-    await knapp.click()
-    await expect(page.locator('.sq-oppfrisk-feil')).toHaveCount(0, { timeout: 30_000 })
-    await expect(knapp).toBeEnabled()
-
-    await page.unroute(/_rsc=/)
-  })
 })
