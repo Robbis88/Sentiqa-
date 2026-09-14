@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { kvitter, type Kvittering } from '@/lib/kvittering'
@@ -36,22 +35,49 @@ import {
 // =====================================================================
 
 // =====================================================================
-// INGEN AV DE TRE REVALIDERER SIN EGEN RUTE
+// INGEN AV DE TRE REVALIDERER NOE SOM HELST
 // =====================================================================
 //
 // `useActionState` holder `venter` sann gjennom hele overgangen, og en
-// revalidering av EGEN rute gjoer ruteroppdateringen til en del av den.
-// Kvitteringen blir gissel for at sida skal tegne seg om - maalt til 45
-// sekunder paa /stempling der serveren svarte paa 190 ms, og her sto
-// e2e-testen og ventet i 20 uten aa faa svar.
+// ruteroppdatering inne i den overgangen gjoer kvitteringen til gissel
+// for at sida skal tegne seg om - maalt til 45 sekunder paa /stempling
+// der serveren svarte paa 190 ms.
 //
-// Sida friskes opp av KLIENTEN i stedet, etter at svaret er kommet:
-// `HandlingKnapp` med `oppfrisk` kaller `router.refresh()` naar
-// `tilstand.ok` er satt. Da staar kvitteringen, og serverdataene er
-// ferske uten at noen maa laste sida paa nytt.
+// ---------------------------------------------------------------------
+// DET HOLDT IKKE AA FJERNE REVALIDERINGEN AV EGEN RUTE
+// ---------------------------------------------------------------------
 //
-// ANDRE ruter revalideres fortsatt her: `/min-plan` er butikksjefens
-// flate, og `router.refresh()` naar bare sida du staar paa.
+// #281 fjernet `revalidatePath('/maanedsplan')` og beholdt
+// `revalidatePath('/min-plan')`, med begrunnelsen at en ANNEN rute er
+// ufarlig. Det var feil, og det ble maalt paa `main` 2026-09-14:
+//
+//   0,95 s   POST /maanedsplan  (next-action)
+//   1,45 s   200, **x-action-revalidated: 1**
+//   2,14 s   siste nettverkshendelse i hele sporet
+//   20,99 s  timeout - knappen fortsatt «Bygger …», ingen kvittering
+//
+// Next setter `x-action-revalidated: 1` og sender en fersk
+// flight-payload for ruta du STAAR PAA saa snart handlingen revaliderer
+// NOE SOM HELST - `revalidatePath`-doksene sier det rett ut: «This will
+// purge the Client Cache». Ruteroppdateringen av `/maanedsplan` ble
+// dermed en del av handlingens egen overgang igjen, samtidig med
+// `router.refresh()` fra klienten. To ruteroppdateringer i én overgang,
+// og naar de fletter seg feil committer React aldri.
+//
+// ---------------------------------------------------------------------
+// HVORFOR DET IKKE KOSTER NOE AA FJERNE DEN
+// ---------------------------------------------------------------------
+//
+// `/min-plan` kaller `lagSupabaseServerKlient()`, som awaiter
+// `cookies()`. Sida er DYNAMISK - det finnes ingen cachet utgave aa
+// invalidere. Og `staleTimes.dynamic` har vaert **0 sekunder siden Next
+// 15**, saa klienten henter den ferskt ved hver navigering uansett.
+//
+// Revalideringen kostet oss feilen og ga oss ingenting.
+//
+// Sida friskes opp av KLIENTEN: `HandlingKnapp` med `oppfrisk` kaller
+// `router.refresh()` i sin EGEN transition naar `tilstand.ok` er satt.
+// `oppfriskvakt.test.ts` holder de to fra hverandre.
 // =====================================================================
 
 /** Bare eieren slipper planer. Butikksjefen er mottakeren, ikke avsender. */
@@ -81,9 +107,9 @@ export async function slippPlan(_t: Kvittering, fd: FormData): Promise<Kvitterin
     {
       hva: 'slippe planen',
       ok: 'Sluppet. Butikksjefen ser den nå.',
-      // BARE den andre ruta. Sluppet plan blir synlig paa `/min-plan`,
-      // og den friskes ikke opp av klienten her.
-      oppfrisk: ['/min-plan'],
+      // INGEN `oppfrisk`. Se blokka oeverst: `/min-plan` er dynamisk og
+      // hentes ferskt uansett, og revalideringen trakk ruteroppdateringen
+      // inn i handlingens overgang.
     },
   )
 }
@@ -173,8 +199,9 @@ export async function byggPlanerPaaNytt(_t: Kvittering, fd: FormData): Promise<K
 
   try {
     const r = await regenererMaaned({ supabase, retailerId: bruker.retailerId, maaned })
-    // `/min-plan` er en ANNEN rute. Se blokka oeverst i fila.
-    revalidatePath('/min-plan')
+    // INGEN revalidering. Se blokka oeverst: den satte
+    // `x-action-revalidated: 1` og trakk ruteroppdateringen av
+    // `/maanedsplan` inn i handlingens egen overgang.
     return { ok: regenereringsnotat(r) }
   } catch (e) {
     return { feil: `Klarte ikke bygge planene: ${e instanceof Error ? e.message : String(e)}` }

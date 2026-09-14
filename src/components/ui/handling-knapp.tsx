@@ -1,5 +1,5 @@
 'use client'
-import { useActionState, useEffect, useRef } from 'react'
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Knapp, type Knappevariant } from './knapp'
 import type { Kvittering } from '@/lib/kvittering'
@@ -19,31 +19,94 @@ import type { Kvittering } from '@/lib/kvittering'
 // Neste navigering fjerner den; det holder.
 //
 // ---------------------------------------------------------------------
-// `oppfrisk` — OPT-IN, OG DET ER HELE POENGET
+// TRE TILSTANDER, OG DE ER TRE MED VILJE
 // ---------------------------------------------------------------------
 //
-// En serverhandling må IKKE revalidere sin egen rute:
-// `useActionState` holder `venter` sann gjennom hele overgangen, og en
-// revalidering av egen rute gjør ruteroppdateringen til en del av den.
-// Kvitteringen blir gissel for at sida skal tegne seg om — målt til 45
-// sekunder på /stempling der serveren svarte på 190 ms. Regelen står i
-// `kvitteringsvakt.test.ts`.
+//   sender      handlingen er underveis          -> knappen er låst
+//   resultat    serveren har svart               -> kvitteringen står
+//   oppfrisker  visningen hentes på nytt         -> egen, stille melding
 //
-// Men å bare fjerne revalideringen etterlater sida med gamle
-// serverdata til noen laster den manuelt. Derfor gjør KLIENTEN det, ETTER
-// at svaret er kommet: `router.refresh()` henter serverkomponentene på
-// nytt uten å nullstille klienttilstand — så kvitteringen blir stående.
+// Den tredje skal ALDRI holde den første åpen eller skjule den andre.
+// Derfor kjører oppfriskningen i sin EGEN `useTransition`, ikke i
+// handlingens. `venter` fra `useActionState` styrer knappen; `oppfrisker`
+// styrer bare sin egen linje.
 //
-// TRE EGENSKAPER SOM MÅ HOLDE:
+// ---------------------------------------------------------------------
+// HVA SOM ER MÅLT, OG HVA SOM ER HYPOTESE
+// ---------------------------------------------------------------------
 //
-//   OPT-IN     `oppfrisk` er `false` som standard, så de 25 eksisterende
-//              kallstedene er uendret. Bare den som trenger det, slår
-//              det på.
+// MÅLT, fra Playwright-sporet på `main` 2026-09-14 (PR #281):
+//
+//   0,95 s   POST /maanedsplan  (next-action)
+//   1,45 s   200, x-action-revalidated: 1
+//   2,14 s   siste nettverkshendelse i hele sporet
+//   20,99 s  timeout — knappen fortsatt «Bygger …», ingen kvittering
+//
+// Altså: handlingen lyktes, revalideringen kjørte, nettverket var stille
+// i 19 sekunder, og React committet aldri.
+//
+// IKKE MÅLT: at det var nettopp SAMSPILLET mellom den revalideringen og
+// `router.refresh()` som holdt overgangen åpen. Sporet viser rekkefølge
+// og stillhet, ikke årsak. At React entangler de to er en HYPOTESE — og
+// den er sterk, men den er uprøvd til denne endringen har stått en tid
+// uten at feilen kommer tilbake.
+//
+// Derfor gjøres to ting, ikke én:
+//
+//   1  Revalideringen fjernes, så handlingens overgang ikke lenger kan
+//      inneholde en ruteroppdatering (`oppfriskvakt.test.ts`).
+//   2  Komponenten gjøres robust UANSETT hva som holder oppfriskningen
+//      åpen — den kan ikke lenger ta kvitteringen med seg.
+//
+// Punkt 2 står på egne ben. Er hypotesen feil, er den fortsatt riktig.
+//
+// FIRE EGENSKAPER SOM MÅ HOLDE:
+//
+//   OPT-IN      `oppfrisk` er `false` som standard, så de 25 eksisterende
+//               kallstedene er uendret.
 //   BARE VED OK En feilet handling skal ikke friske opp sida som om den
-//              lyktes. `tilstand.feil` gir ingen refresh.
-//   ÉN GANG    `useEffect` på `tilstand` ville kjørt på nytt ved hver
-//              re-render. `sist`-referansen holder på objektet vi
-//              allerede har frisket opp for.
+//               lyktes. `tilstand.feil` gir ingen refresh.
+//   ÉN GANG     `sist`-referansen holder på objektet vi allerede har
+//               frisket opp for, så en re-render ikke starter en ny runde.
+//   ALDRI FATAL `router.refresh()` står i try/catch. Kastet den før, døde
+//               effekten og kvitteringen forsvant med den.
+//
+// ---------------------------------------------------------------------
+// `try/catch` DEKKER ET SYNKRONT KAST — INGENTING MER
+// ---------------------------------------------------------------------
+//
+// `router.refresh()` returnerer `void`. Det finnes ingen promise å
+// awaite og ingen feil å fange hvis hentingen feiler eller blir
+// stående. `catch` fanger bare at KALLET selv kaster synkront.
+//
+// Det er to forskjellige tilfeller, og de håndteres av to forskjellige
+// mekanismer:
+//
+//   KASTER SYNKRONT   `catch` → `kastet` med én gang.
+//   HENGER / FEILER   usynlig for oss. Fanges av TIDEN i stedet:
+//                     `oppfrisker` står i transitionen til den er ferdig,
+//                     og blir den stående i 10 sekunder → `froset`.
+//
+// Den andre hvilte på en antakelse om Next: at `router.refresh()` inne i
+// `startTransition` holder `isPending` sann til RSC-hentingen er ferdig.
+// Den er nå MÅLT, i CI på `82bdc59`, med RSC-svarene holdt åpne:
+//
+//   kvittering 159 ms · knapp aktiv 165 ms · 5 av 5 RSC-kall åpne
+//   advarsel 10 589 ms · alle RSC ferdige 11 454 ms
+//
+// Antakelsen holder: advarselen fyrte, og den fyrte mens hentingen
+// faktisk hang. Samme måling avdekket at den ble stående etterpå — se
+// blokka om de to flaggene lenger ned.
+//
+// ---------------------------------------------------------------------
+// LÅSEN MOT DOBBELTKLIKK ER SYNKRON, IKKE EN RENDER-EGENSKAP
+// ---------------------------------------------------------------------
+//
+// `disabled={venter}` settes ved NESTE render. Et dobbeltklikk rekker
+// inn før den. Den gamle e2e-testen het «dobbeltklikk gir én kjøring»,
+// men målte bare at knappen på et tidspunkt var `disabled` — den kunne
+// ikke se to kjøringer. `sender`-referansen settes i `onSubmit`, i samme
+// tikk som klikket, og er derfor den eneste låsen som faktisk holder.
 // =====================================================================
 
 export type { Kvittering }
@@ -91,22 +154,108 @@ export function HandlingKnapp({
   // etter refreshen utløst en ny refresh, i ring.
   const sist = useRef<Kvittering>(undefined)
 
+  // OPPFRISKNINGEN HAR SIN EGEN OVERGANG. Den deler ikke pending med
+  // handlingen, og kan derfor ikke holde knappen låst.
+  const [oppfrisker, startOppfrisk] = useTransition()
+
+  // ===================================================================
+  // TO FLAGG, FORDI DE TO TILFELLENE HAR ULIK LEVETID
+  // ===================================================================
+  //
+  //   `kastet`  `router.refresh()` kastet synkront. Oppfriskningen ble
+  //             ALDRI gjennomført. Det blir den heller ikke av at
+  //             `oppfrisker` går av — så advarselen skal bli stående til
+  //             et nytt handlingssvar eller en navigering.
+  //
+  //   `froset`  10-sekunderstimeren løp ut mens hentingen pågikk. Den
+  //             sier «dette tar for lang tid», ikke «dette skjedde
+  //             aldri» — og fullfører hentingen, er påstanden ikke sann
+  //             lenger og skal trekkes tilbake.
+  //
+  // Ett felles flagg kunne ikke skille dem. Målt i CI på `82bdc59`:
+  // advarselen ble stående etter at alle fem RSC-kallene fullførte på
+  // 11 454 ms, og sa «last sida på nytt» om en side som var oppdatert.
+  // ===================================================================
+  const [kastet, settKastet] = useState(false)
+  const [froset, settFroset] = useState(false)
+
+  // Har DENNE runden faktisk vært aktiv? Uten den ville effekten under
+  // ryddet på førstegangsrenderen — der `oppfrisker` er `false` uten at
+  // noen oppfriskning har skjedd — og et synkront kast som aldri rakk å
+  // gjøre transitionen pending ville blitt visket bort med det samme.
+  const rundeAktiv = useRef(false)
+
+  // Synkron lås. Settes i `onSubmit`, nullstilles når handlingen er
+  // ferdig — ikke når kvitteringen er lest.
+  const sender = useRef(false)
+  useEffect(() => { if (!venter) sender.current = false }, [venter])
+
   useEffect(() => {
     if (!oppfrisk) return
     if (!tilstand?.ok) return          // en feil skal ikke se ut som suksess
     if (sist.current === tilstand) return
     sist.current = tilstand
-    router.refresh()
+    // EN NY RUNDE BEGYNNER PÅ BLANKT ARK. Begge flaggene ryddes før
+    // oppfriskningen starter, ikke etter.
+    settKastet(false)
+    settFroset(false)
+    rundeAktiv.current = false
+    startOppfrisk(() => {
+      // KASTER DEN, ER HANDLINGEN LIKEVEL UTFØRT. Uten denne tok en
+      // feilende refresh med seg hele effekten — og kvitteringen med den.
+      try { router.refresh() } catch { settKastet(true) }
+    })
   }, [oppfrisk, tilstand, router])
+
+  // Blir oppfriskningen stående, sier vi det — i stedet for å la sida
+  // vise gamle tall ved siden av en kvittering som sier at noe er endret.
+  // Og fullfører den, trekker vi det tilbake.
+  useEffect(() => {
+    if (oppfrisker) {
+      rundeAktiv.current = true
+      const t = setTimeout(() => settFroset(true), 10_000)
+      return () => clearTimeout(t)
+    }
+    // AKTIV -> FERDIG. Bare når en runde faktisk har vært aktiv: på
+    // førstegangsrenderen er `oppfrisker` også `false`, og der skal
+    // ingenting ryddes.
+    if (!rundeAktiv.current) return
+    rundeAktiv.current = false
+    // BARE `froset`. `kastet` betyr at hentingen aldri ble gjennomført,
+    // og det blir ikke sant av at transitionen er over.
+    settFroset(false)
+  }, [oppfrisker])
 
   return (
     <form
       action={kjor}
       className="sq-slett"
+      // INERT, og den har ett formål: kontrakttesten som avviser
+      // tilstanden «advarselen står mens transitionen er ferdig».
+      //
+      // Uten den kan `oppfrisker` bare utledes, og de to tilstandene ser
+      // like ut utenfra:
+      //
+      //   transitionen står ennå  →  advarselen er RIKTIG
+      //   transitionen er ferdig  →  advarselen skulle vært ryddet
+      //
+      // Den første er lov, den andre er en feil. `maanedsplanflyten` i
+      // `e2e/oppfriskning.spec.ts` skiller dem på dette attributtet.
+      //
+      // INGEN STYLING, ingen atferd, ingen betydning for brukeren.
+      // `aria-busy` ville vært fristende og er IKKE inert: den forteller
+      // skjermlesere at regionen oppdateres, og da ville et testbehov
+      // endret hva folk faktisk opplever.
+      data-oppfrisker={oppfrisker ? 'true' : 'false'}
       // BEKREFTELSEN MÅ STOPPE INNSENDINGEN, ikke bare spørre. Uten
       // `preventDefault` kjører handlingen uansett hva man svarer.
+      //
+      // Rekkefølgen er ikke tilfeldig: låsen sjekkes FØRST, og settes
+      // SIST. Et avbrutt spørsmål skal ikke låse knappen for godt.
       onSubmit={(e) => {
-        if (sporsmaal && !window.confirm(sporsmaal)) e.preventDefault()
+        if (sender.current) { e.preventDefault(); return }
+        if (sporsmaal && !window.confirm(sporsmaal)) { e.preventDefault(); return }
+        sender.current = true
       }}
     >
       {Object.entries(felt ?? {}).map(([navn, verdi]) => (
@@ -127,6 +276,16 @@ export function HandlingKnapp({
       {tilstand?.ok && (
         <span className="sq-slett-ok" role="status">
           {tilstand.ok === 'ok' ? bekreftelse : tilstand.ok}
+        </span>
+      )}
+      {/*
+        EGEN LINJE, VED SIDEN AV KVITTERINGEN — aldri i stedet for den.
+        Handlingen er utført uansett hva som skjer med visningen.
+      */}
+      {(kastet || froset) && (
+        <span className="sq-oppfrisk-feil" role="status">
+          Visningen kunne ikke oppdateres. Handlingen er utført — last
+          sida på nytt for å se den.
         </span>
       )}
     </form>

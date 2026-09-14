@@ -609,50 +609,47 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
     })
 
   // ===================================================================
-  // D  EN FEILET HANDLING SKAL IKKE SE UT SOM SUKSESS
+  // D ER FJERNET, OG BEVISET ER DELT I TO
   // ===================================================================
-  test('D  feilet handling: feilmeldingen staar, og sida friskes ikke opp',
-    async ({ page }) => {
-      await page.goto('/maanedsplan')
-      const foer = await plankort(page, 'Underby', 'juli').first().textContent()
-
-      // Feltet sier en annen maaned enn serveren finner. Serveren slaar
-      // maalmaaneden opp paa nytt og avviser — feltet kan bare gi et nei.
-      await page.locator('form:has(input[name="maaned"]) input[name="maaned"]')
-        .evaluate((el: HTMLInputElement) => { el.value = '2026-05-01' })
-
-      page.on('dialog', (d) => d.accept())
-      await page.getByRole('button', { name: /Bygg juli 2026 på nytt/ }).click()
-
-      // FEILEN STAAR.
-      await expect(page.locator('.sq-slett-feil'))
-        .toContainText('Last sida på nytt', { timeout: 20_000 })
-
-      // OG INGEN FALSK SUKSESS: ingen kvittering, og kortet staar
-      // bokstavelig uendret.
-      //
-      // Sammenlignet med det som FAKTISK sto der foer, ikke med en fast
-      // forventning: testene i fila deler database, og test A har
-      // bygget juli om foer denne kjoerer.
-      await expect(page.locator('.sq-slett-ok')).toHaveCount(0)
-      const etter = await plankort(page, 'Underby', 'juli').first().textContent()
-      expect(etter, 'kortet endret seg av en FEILET handling').toBe(foer)
-    })
-
-  test('dobbeltklikk gir \u00e9n kjøring', async ({ page }) => {
-    await page.goto('/maanedsplan')
-    page.on('dialog', (d) => d.accept())
-    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
-
-    await knapp.click()
-    // Knappen er `disabled` mens handlingen venter. Playwright venter
-    // paa at den blir klikkbar igjen, saa et klikk nummer to her ville
-    // vaert en ANNEN kjoering - ikke et dobbeltklikk. Vi maaler i
-    // stedet at den faktisk ER laast.
-    await expect(knapp).toBeDisabled()
-    await expect(page.locator('.sq-slett-ok'))
-      .toContainText('Bygget', { timeout: 20_000 })
-    await expect(knapp).toBeEnabled()
-  })
-
+  //
+  // Testen het «D  feilet handling: feilmeldingen staar, og sida friskes
+  // ikke opp». Den beviste en SERVERKONTRAKT gjennom en kunstig
+  // nettleserkappleype: den satte verdien paa en React-kontrollert
+  // `<input type="hidden" value={maaned}>` fra DOM-en og haapet at React
+  // ikke skrev den tilbake foer innsendingen.
+  //
+  // Det gikk bra lenge. 2026-09-14 gikk det ikke:
+  //
+  //   kjoering 1  React nullstilte feltet. Handlingen kjoerte med JULI,
+  //               lyktes, og testen felte paa at feilmeldingen uteble -
+  //               den saa ut som «avvisningen virker ikke».
+  //   kjoering 2  Feltsetting og klikk ble flyttet inn i samme
+  //               `evaluate` for aa lukke kapploepet. Da ble det ikke
+  //               sendt noen serverhandling I DET HELE TATT, og testen
+  //               felte paa en timeout uten aa ha maalt noe.
+  //
+  // To ulike roede, ingen av dem om kontrakten. En test som felles av
+  // rammeverkets rendringsrytme maaler rendringsrytmen, ikke kontrakten.
+  //
+  // Veien videre var ikke aa manipulere feltet HARDERE. React eier sitt
+  // eget kontrollerte felt, og en test som tvinger det fra seg det
+  // eierskapet maaler noe som ikke finnes i produksjon.
+  //
+  // BEVISET LIGGER NAA TO STEDER, begge autoritative:
+  //
+  //   AVVISNINGEN      `src/app/(beskyttet)/maanedsplan/avvisning.test.ts`
+  //                    Konstruert FormData med 2026-05-01, direkte mot
+  //                    serverhandlingen. Ingen nettleser, ingen React,
+  //                    ikke noe kapploep. Med kanarifugl paa at juli
+  //                    IKKE avvises av samme port.
+  //
+  //   FEILVISNINGEN    `src/components/ui/handling-knapp.test.tsx`
+  //                    En handling som svarer `{ feil: … }`: feilen
+  //                    staar, knappen er aktiv, og sida friskes IKKE
+  //                    opp.
+  //
+  // Det D ellers maalte - at kortet staar uendret - foelger av at
+  // avvisningen skjer foer noen skriving. Det er samme paastand, maalt
+  // der den avgjoeres.
+  // ===================================================================
 })
