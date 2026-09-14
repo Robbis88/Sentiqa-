@@ -82,17 +82,21 @@ import type { Kvittering } from '@/lib/kvittering'
 // Det er to forskjellige tilfeller, og de håndteres av to forskjellige
 // mekanismer:
 //
-//   KASTER SYNKRONT   `catch` → `visningFroset` med én gang.
+//   KASTER SYNKRONT   `catch` → `kastet` med én gang.
 //   HENGER / FEILER   usynlig for oss. Fanges av TIDEN i stedet:
 //                     `oppfrisker` står i transitionen til den er ferdig,
-//                     og blir den stående i 10 sekunder, sier vi ifra.
+//                     og blir den stående i 10 sekunder → `froset`.
 //
-// Den andre hviler på at `router.refresh()` inne i `startTransition`
-// faktisk holder `isPending` sann til RSC-hentingen er ferdig. Det er en
-// antakelse om Next, ikke en selvfølge, og den MÅLES i
-// `maanedsplan.spec.ts` ved å forsinke `_rsc=`-svarene forbi terskelen.
-// Slår den antakelsen feil, fyrer advarselen aldri — og da er en test
-// som bare sier «ingen advarsel» en test som ikke måler noe.
+// Den andre hvilte på en antakelse om Next: at `router.refresh()` inne i
+// `startTransition` holder `isPending` sann til RSC-hentingen er ferdig.
+// Den er nå MÅLT, i CI på `82bdc59`, med RSC-svarene holdt åpne:
+//
+//   kvittering 159 ms · knapp aktiv 165 ms · 5 av 5 RSC-kall åpne
+//   advarsel 10 589 ms · alle RSC ferdige 11 454 ms
+//
+// Antakelsen holder: advarselen fyrte, og den fyrte mens hentingen
+// faktisk hang. Samme måling avdekket at den ble stående etterpå — se
+// blokka om de to flaggene lenger ned.
 //
 // ---------------------------------------------------------------------
 // LÅSEN MOT DOBBELTKLIKK ER SYNKRON, IKKE EN RENDER-EGENSKAP
@@ -153,7 +157,33 @@ export function HandlingKnapp({
   // OPPFRISKNINGEN HAR SIN EGEN OVERGANG. Den deler ikke pending med
   // handlingen, og kan derfor ikke holde knappen låst.
   const [oppfrisker, startOppfrisk] = useTransition()
-  const [visningFroset, settVisningFroset] = useState(false)
+
+  // ===================================================================
+  // TO FLAGG, FORDI DE TO TILFELLENE HAR ULIK LEVETID
+  // ===================================================================
+  //
+  //   `kastet`  `router.refresh()` kastet synkront. Oppfriskningen ble
+  //             ALDRI gjennomført. Det blir den heller ikke av at
+  //             `oppfrisker` går av — så advarselen skal bli stående til
+  //             et nytt handlingssvar eller en navigering.
+  //
+  //   `froset`  10-sekunderstimeren løp ut mens hentingen pågikk. Den
+  //             sier «dette tar for lang tid», ikke «dette skjedde
+  //             aldri» — og fullfører hentingen, er påstanden ikke sann
+  //             lenger og skal trekkes tilbake.
+  //
+  // Ett felles flagg kunne ikke skille dem. Målt i CI på `82bdc59`:
+  // advarselen ble stående etter at alle fem RSC-kallene fullførte på
+  // 11 454 ms, og sa «last sida på nytt» om en side som var oppdatert.
+  // ===================================================================
+  const [kastet, settKastet] = useState(false)
+  const [froset, settFroset] = useState(false)
+
+  // Har DENNE runden faktisk vært aktiv? Uten den ville effekten under
+  // ryddet på førstegangsrenderen — der `oppfrisker` er `false` uten at
+  // noen oppfriskning har skjedd — og et synkront kast som aldri rakk å
+  // gjøre transitionen pending ville blitt visket bort med det samme.
+  const rundeAktiv = useRef(false)
 
   // Synkron lås. Settes i `onSubmit`, nullstilles når handlingen er
   // ferdig — ikke når kvitteringen er lest.
@@ -165,20 +195,35 @@ export function HandlingKnapp({
     if (!tilstand?.ok) return          // en feil skal ikke se ut som suksess
     if (sist.current === tilstand) return
     sist.current = tilstand
-    settVisningFroset(false)
+    // EN NY RUNDE BEGYNNER PÅ BLANKT ARK. Begge flaggene ryddes før
+    // oppfriskningen starter, ikke etter.
+    settKastet(false)
+    settFroset(false)
+    rundeAktiv.current = false
     startOppfrisk(() => {
       // KASTER DEN, ER HANDLINGEN LIKEVEL UTFØRT. Uten denne tok en
       // feilende refresh med seg hele effekten — og kvitteringen med den.
-      try { router.refresh() } catch { settVisningFroset(true) }
+      try { router.refresh() } catch { settKastet(true) }
     })
   }, [oppfrisk, tilstand, router])
 
   // Blir oppfriskningen stående, sier vi det — i stedet for å la sida
   // vise gamle tall ved siden av en kvittering som sier at noe er endret.
+  // Og fullfører den, trekker vi det tilbake.
   useEffect(() => {
-    if (!oppfrisker) return
-    const t = setTimeout(() => settVisningFroset(true), 10_000)
-    return () => clearTimeout(t)
+    if (oppfrisker) {
+      rundeAktiv.current = true
+      const t = setTimeout(() => settFroset(true), 10_000)
+      return () => clearTimeout(t)
+    }
+    // AKTIV -> FERDIG. Bare når en runde faktisk har vært aktiv: på
+    // førstegangsrenderen er `oppfrisker` også `false`, og der skal
+    // ingenting ryddes.
+    if (!rundeAktiv.current) return
+    rundeAktiv.current = false
+    // BARE `froset`. `kastet` betyr at hentingen aldri ble gjennomført,
+    // og det blir ikke sant av at transitionen er over.
+    settFroset(false)
   }, [oppfrisker])
 
   return (
@@ -220,7 +265,7 @@ export function HandlingKnapp({
         EGEN LINJE, VED SIDEN AV KVITTERINGEN — aldri i stedet for den.
         Handlingen er utført uansett hva som skjer med visningen.
       */}
-      {visningFroset && (
+      {(kastet || froset) && (
         <span className="sq-oppfrisk-feil" role="status">
           Visningen kunne ikke oppdateres. Handlingen er utført — last
           sida på nytt for å se den.

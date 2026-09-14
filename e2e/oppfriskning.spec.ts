@@ -398,24 +398,27 @@ test('advarselen kommer naar oppfriskningen blir staaende', async ({ page }) => 
   const tSluppet = Date.now() - start
   l(`alle RSC ferdige      ${tSluppet} ms`)
 
-  // 4  KJENT MANGEL, MAALT HER FRAMFOR AA BLI ANTATT.
+  //    4  ADVARSELEN SKAL TREKKES TILBAKE.
   //
-  //    `visningFroset` settes av timeren, men settes bare tilbake til
-  //    `false` naar et NYTT handlingssvar kommer. Naar oppfriskningen
-  //    fullfoerer, ryddes timeren - flagget blir staaende. Advarselen
-  //    sier da «last sida paa nytt» om en side som ER oppdatert.
+  //       Maalt ROEDT paa 82bdc59: advarselen ble staaende etter at alle
+  //       fem RSC-kallene fullfoerte paa 11 454 ms, og sa «last sida paa
+  //       nytt» om en side som VAR oppdatert.
   //
-  //    `expect.soft` med vilje: de ti maalingene over skal rapporteres
-  //    selv naar denne feller, og roedt skal peke paa NOEYAKTIG denne
-  //    setningen. Rettingen hoerer hjemme i produksjonskoden, og denne
-  //    committen er diagnostisk.
+  //       Rettet med to flagg: `froset` ryddes naar runden gaar fra aktiv
+  //       til ferdig, `kastet` gjoer det ikke - en oppfriskning som
+  //       kastet ble aldri gjennomfoert, og det blir den ikke av at
+  //       transitionen er over.
+  //
+  //       Kontrolleres FOERST etter at expect.poll over har bevist at
+  //       null RSC-kall staar aapne.
   const advarselEtter = await page.locator('.sq-oppfrisk-feil').count()
   l(`advarsel etter slipp  ${advarselEtter === 0 ? 'borte' : 'staar fortsatt'}`)
   l('==================================================')
-  expect.soft(advarselEtter,
-    'KJENT MANGEL: advarselen blir staaende etter at oppfriskningen '
-    + 'fullfoerte. `visningFroset` har ingen vei tilbake til false uten '
-    + 'et nytt handlingssvar. Krever en produksjonsendring.').toBe(0)
+  expect(advarselEtter,
+    'Advarselen ble staaende etter at ALLE RSC-kall fullfoerte. Da sier '
+    + 'den «last sida paa nytt» om en side som ER oppdatert. `froset` skal '
+    + 'ryddes naar runden gaar fra aktiv til ferdig - `kastet` skal ikke.')
+    .toBe(0)
 
   await hold.av()
 })

@@ -52,6 +52,7 @@ const knapp = () => vert.querySelector('button') as HTMLButtonElement
 const skjema = () => vert.querySelector('form') as HTMLFormElement
 const kvittering = () => vert.querySelector('.sq-slett-ok')?.textContent ?? null
 const feil = () => vert.querySelector('.sq-slett-feil')?.textContent ?? null
+const advarsel = () => !!vert.querySelector('.sq-oppfrisk-feil')
 
 /** En handling vi styrer selv: den svarer foerst naar vi sier fra. */
 function styrtHandling() {
@@ -118,6 +119,69 @@ describe('kvitteringen er uavhengig av oppfriskningen', () => {
 
     expect(kvittering()).toBe('Sluppet.')
     expect(knapp().disabled).toBe(false)
+  })
+
+  // `kastet` OG `froset` HAR ULIK LEVETID, og det er hele grunnen til at
+  // de er to flagg.
+  //
+  // Et kast betyr at oppfriskningen ALDRI ble gjennomfoert. Det blir den
+  // ikke av at `oppfrisker` gaar av igjen - og transitionen gaar av med
+  // én gang her, siden kallet kastet foer det rakk aa hente noe.
+  // Ryddet effekten paa `oppfrisker === false` uten aa skille, ville
+  // advarselen blinket bort i samme oeyeblikk som den kom.
+  test('et synkront kast staar, og ryddes IKKE av at oppfrisker gaar av', async () => {
+    ;(globalThis as Record<string, unknown>).__oppfrisk = () => {
+      throw new Error('RSC nede')
+    }
+
+    const { handling, svar } = styrtHandling()
+    await tegn({ handling, oppfrisk: true })
+
+    await act(async () => { skjema().requestSubmit() })
+    await act(async () => { svar({ ok: 'Sluppet.' }) })
+    // En ekstra runde med effekter, saa `oppfrisker` rekker aa gaa av.
+    await act(async () => { await Promise.resolve() })
+
+    expect(advarsel(), 'kast-advarselen skal staa').toBe(true)
+    expect(kvittering(), 'kvitteringen skal staa ved siden av').toBe('Sluppet.')
+    expect(knapp().disabled, 'knappen skal vaere aapen').toBe(false)
+  })
+
+  test('foerstegangsrender rydder ingen advarsel', async () => {
+    // `oppfrisker` er `false` her uten at noen oppfriskning har skjedd.
+    // Effekten maa se forskjell paa det og en runde som er FERDIG.
+    ;(globalThis as Record<string, unknown>).__oppfrisk = () => {}
+    const { handling } = styrtHandling()
+    await tegn({ handling, oppfrisk: true })
+    expect(advarsel()).toBe(false)
+    expect(kvittering()).toBeNull()
+  })
+
+  test('et nytt vellykket svar rydder advarselen og starter en ny runde', async () => {
+    let kast = true
+    let frisket = 0
+    ;(globalThis as Record<string, unknown>).__oppfrisk = () => {
+      frisket++
+      if (kast) throw new Error('RSC nede')
+    }
+
+    const { handling, svar } = styrtHandling()
+    await tegn({ handling, oppfrisk: true })
+
+    await act(async () => { skjema().requestSubmit() })
+    await act(async () => { svar({ ok: 'Foerste.' }) })
+    await act(async () => { await Promise.resolve() })
+    expect(advarsel(), 'advarselen skal staa etter kastet').toBe(true)
+
+    // NY RUNDE. Begge flaggene skal ryddes FOER den starter.
+    kast = false
+    await act(async () => { skjema().requestSubmit() })
+    await act(async () => { svar({ ok: 'Andre.' }) })
+    await act(async () => { await Promise.resolve() })
+
+    expect(advarsel(), 'et nytt svar skal rydde en tidligere advarsel').toBe(false)
+    expect(kvittering()).toBe('Andre.')
+    expect(frisket, 'den nye runden skal ha friskes opp for seg selv').toBe(2)
   })
 
   // AUTORITETEN FOR FEILVISNINGEN.
