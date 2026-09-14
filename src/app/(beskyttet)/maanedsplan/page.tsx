@@ -7,6 +7,9 @@ import { nyesteKompletteMaaned } from '@/lib/kurs/regenerer'
 import { Sideramme } from '@/components/ui/sideramme'
 import { Plankort, type Punkt } from './plankort'
 import { Byggknapp } from './byggknapp'
+import { Maanedsvelger } from '@/components/ui/periode'
+import { lesMaaned } from '@/lib/periode'
+import { delKoe, maanederIKoe, standardmaaned } from '@/lib/kurs/koe'
 
 // =====================================================================
 // Månedsplanene — eierens godkjenningskø.
@@ -34,6 +37,10 @@ import { Byggknapp } from './byggknapp'
 /** Se `/min-plan`: et tak aa oppdage avkorting paa, ikke en visningsgrense. */
 const TAK_PLANER = 240
 
+/** «en annen måned» / «6 andre måneder». Tallet skal aldri staa som «1 andre». */
+const andreMaaneder = (n: number) =>
+  n === 1 ? 'en annen måned' : `${n} andre måneder`
+
 type Planrad = {
   id: string
   maaned: string
@@ -51,7 +58,9 @@ type Planrad = {
   rangering: unknown
 }
 
-export default async function MaanedsplanSide() {
+export default async function MaanedsplanSide(
+  { searchParams }: { searchParams: Promise<{ maned?: string; ar?: string }> },
+) {
   const bruker = await hentInnloggetBruker()
   if (bruker.rolle !== 'retailer_admin') return <p>Du har ikke tilgang.</p>
 
@@ -91,9 +100,29 @@ export default async function MaanedsplanSide() {
     )
   }
 
-  const utkast = alle.filter((p) => p.status === 'utkast')
-  const avgjort = alle.filter((p) => p.status !== 'utkast')
+  // =================================================================
+  // ÉN MÅNED OM GANGEN
+  // =================================================================
+  //
+  // Køen viste alle utkast i alle måneder. 2026-09-14 sto det 30 der,
+  // over sju måneder, og det tredje klikket på åtte sekunder traff juni
+  // i stedet for juli — fordi lista rykker opp hver gang et kort flytter
+  // seg til «Avgjort».
+  //
+  // SPØRRINGEN ER UENDRET. Hele køen hentes fortsatt, og `maaVaereHele`
+  // felter et avkortet svar. Det er VISNINGEN som snevres inn, og
+  // `delKoe` teller det den holder utenfor slik at flaten kan si det.
+  // Et filter som bare skjuler, ville byttet én feil mot en verre.
+  const standard = standardmaaned(alle)
+  const sp = await searchParams
+  const valgt = standard ? lesMaaned(sp, standard) : null
+  const { utkast, avgjort, skjulteUtkast, skjulteMaaneder } = delKoe(alle, valgt)
+  const maaneder = maanederIKoe(alle)
   const nyeste = alle[0]?.maaned
+
+  /** «juli 2026». Formateres her, så klientkortet slipper `kurs/plan`. */
+  const tekstFor = (m: string) =>
+    `${maanedsnavn(String(m).slice(0, 10))} ${String(m).slice(0, 4)}`
 
   // MÅLMÅNEDEN OG FORVENTNINGEN, fra DATAGRUNNLAGET.
   //
@@ -144,12 +173,34 @@ export default async function MaanedsplanSide() {
         />
       )}
 
+      {valgt && (
+        <Maanedsvelger maaneder={maaneder} valgt={valgt} knapp="Vis måneden" />
+      )}
+
+      {utkast.length === 0 && skjulteUtkast > 0 && (
+        <Tomtilstand
+          tittel={`Ingenting venter i ${tekstFor(valgt!)}`}
+          forklaring={
+            `${skjulteUtkast} eldre utkast venter `
+            + `i ${andreMaaneder(skjulteMaaneder)}. `
+            + 'Velg måneden over for å ta stilling til dem.'
+          }
+        />
+      )}
+
       {utkast.length > 0 && (
         <section>
           <h2>Venter på deg</h2>
           <Forklaring>
             Butikksjefen ser ingenting før du slipper. Et brev som ikke er
             sluppet er ikke et brev — det er et forslag til deg.
+            {skjulteUtkast > 0 && (
+              <>
+                {' '}Køen viser {tekstFor(valgt!)}. {skjulteUtkast} eldre{' '}
+                utkast venter i{' '}
+                {andreMaaneder(skjulteMaaneder)}.
+              </>
+            )}
           </Forklaring>
           <div className="sq-plankort-liste">
             {utkast.map((p) => (
@@ -157,6 +208,7 @@ export default async function MaanedsplanSide() {
                 key={p.id}
                 id={p.id}
                 stasjon={p.stasjoner?.navn ?? 'Ukjent stasjon'}
+                maanedstekst={tekstFor(p.maaned)}
                 dom={p.dom}
                 ingress={p.ingress}
                 punkter={p.punkter ?? []}
@@ -185,6 +237,7 @@ export default async function MaanedsplanSide() {
                 key={p.id}
                 id={p.id}
                 stasjon={p.stasjoner?.navn ?? 'Ukjent stasjon'}
+                maanedstekst={tekstFor(p.maaned)}
                 dom={p.dom}
                 ingress={p.ingress}
                 punkter={p.punkter ?? []}
