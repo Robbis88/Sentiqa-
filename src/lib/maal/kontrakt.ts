@@ -198,6 +198,70 @@ export type Maalspenn = {
   maalverdi: number
 }
 
+export type Spenndom =
+  | { gyldig: true }
+  | { gyldig: false; grunn: string }
+
+/**
+ * Er dette et mål i det hele tatt?
+ *
+ * =====================================================================
+ * RETNINGEN LESES AV LØFTESTANGEN, OG DEN GJELDER OGSÅ FOR VERDIEN
+ * =====================================================================
+ *
+ * Her sto ingenting, og `aarseffekt` gjorde `Math.abs` på spennet. Da
+ * fikk et mål som går FEIL vei en positiv årsgevinst:
+ *
+ *   matkast 3,90 → 3,10 %   forbedring    +113 600
+ *   matkast 3,10 → 3,90 %   forverring    +113 600     <- samme tall
+ *
+ * Det er ikke en visningsfeil. `aarseffekt` fryses som `aarseffekt_kr`
+ * når målet settes (E8), og et lagret gevinstpotensial for et mål som
+ * går bakover er en løgn ingen senere kan se at var det.
+ *
+ * `fremdrift` leste `loftestang().god` riktig hele tiden. To syn på
+ * samme sannhet i samme fil er ett for mye.
+ *
+ * ---------------------------------------------------------------------
+ * ET MÅL UTEN SPENN ER IKKE ET MÅL
+ *
+ * `start === mål` er teknisk håndterbart — `fremdrift` gir 0 og ikke en
+ * divisjon på null. Men det er ingen forpliktelse, og det skal ikke
+ * kunne lagres. Grensen hører hjemme her, ved skrivingen, ikke i E8 der
+ * den måtte gjettes.
+ *
+ * ---------------------------------------------------------------------
+ * IKKE-ENDELIGE TALL ER HVERKEN LIKE ELLER ULIKE
+ *
+ * `NaN !== NaN`, og hver sammenligning mot NaN er usann. Uten denne
+ * ville et skjemafelt som ikke lot seg lese passert som gyldig og gitt
+ * `NaN` kroner i året.
+ */
+export function gyldigSpenn(spenn: Maalspenn): Spenndom {
+  const l = loftestang(spenn.loftestang)
+  const { startverdi: fra, maalverdi: til } = spenn
+
+  if (!Number.isFinite(fra) || !Number.isFinite(til)) {
+    return { gyldig: false, grunn: 'Start eller mål er ikke et tall.' }
+  }
+  if (fra === til) {
+    return { gyldig: false, grunn: 'Start og mål er like — et mål uten spenn er ikke et mål.' }
+  }
+  if (l.god === 'ned' && til > fra) {
+    return {
+      gyldig: false,
+      grunn: `${l.navn} skal ned. Målet ${til} ligger over dagens ${fra}.`,
+    }
+  }
+  if (l.god === 'opp' && til < fra) {
+    return {
+      gyldig: false,
+      grunn: `${l.navn} skal opp. Målet ${til} ligger under dagens ${fra}.`,
+    }
+  }
+  return { gyldig: true }
+}
+
 /**
  * Hva målet er verdt i kroner i året, om det nås og holdes.
  *
@@ -215,11 +279,33 @@ export type Maalspenn = {
  *
  * `aarseffekt.test.ts` binder de to sammen: samme underliggende
  * forbedring, uttrykt månedlig og årlig, skal gi samme kroneverdi.
+ *
+ * ---------------------------------------------------------------------
+ * KASTER PÅ ET UGYLDIG SPENN
+ * ---------------------------------------------------------------------
+ *
+ * Her sto `Math.abs`, og da fikk et mål i feil retning samme positive
+ * årsgevinst som det riktige. Se `gyldigSpenn`.
+ *
+ * **Kaster, og gir ikke null.** Et `null` ville latt en kallssti lagre
+ * ingenting i stillhet; et kast blir en kvittering brukeren ser. Samme
+ * valg som `loftestang()` gjør på en ukjent id.
+ *
+ * Den som skriver skal kalle `gyldigSpenn` FØRST og gi grunnen videre —
+ * kastet er bakstopperen, ikke porten.
  */
 export function aarseffekt(spenn: Maalspenn, g: Maalgrunnlag): number {
+  const dom = gyldigSpenn(spenn)
+  if (!dom.gyldig) throw new Error(`Ugyldig maalspenn: ${dom.grunn}`)
+
   const k = MAALKONTRAKT[spenn.loftestang]
   const l = loftestang(spenn.loftestang)
-  const delta = Math.abs(spenn.maalverdi - spenn.startverdi)
+  // RETNINGEN, IKKE AVSTANDEN. `gyldigSpenn` har alt slaatt fast at
+  // maalet ligger riktig vei, saa dette er garantert positivt - men det
+  // er `god` som gjoer det, ikke `Math.abs`.
+  const delta = l.god === 'ned'
+    ? spenn.startverdi - spenn.maalverdi
+    : spenn.maalverdi - spenn.startverdi
 
   // VOLUM BETALER ROYALTY, MARGIN GJØR DET IKKE. Skillet er `royalty.ts`
   // sitt, og det kalles — det gjentas ikke.
@@ -259,6 +345,20 @@ export type Fremdrift = {
  * RETNINGEN LESES AV LØFTESTANGEN, ikke av fortegnet på spennet. `god`
  * i `loftestenger.ts` vet at omsetning skal opp og matkast ned; å utlede
  * det av tallene ville gitt en andre sannhet om hva som er bedre.
+ *
+ * ---------------------------------------------------------------------
+ * DENNE KASTER IKKE, OG DET ER MED VILJE
+ * ---------------------------------------------------------------------
+ *
+ * `aarseffekt` kaster på et ugyldig spenn fordi den kalles når målet
+ * SETTES. `fremdrift` kalles når et lagret mål LESES, og en rad som
+ * likevel skulle være rar må ikke kunne ta ned sida.
+ *
+ * Porten står ved skrivingen (`gyldigSpenn`), som `maanedsplan`-
+ * triggeren: basen vokter det som skrives, flaten tegner det som står.
+ *
+ * ANDELEN KLEMMES IKKE TIL NULL. Går et mål bakover, skal det SES — en
+ * stasjon som blir verre må ikke se ut som en som står stille.
  */
 export function fremdrift(spenn: Maalspenn, naa: number): Fremdrift {
   const l = loftestang(spenn.loftestang)

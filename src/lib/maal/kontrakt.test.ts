@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aarseffekt, fremdrift, kanSettesSomMaal, IKKE_MAALBARE, MAALKONTRAKT,
+  aarseffekt, fremdrift, gyldigSpenn, kanSettesSomMaal, IKKE_MAALBARE, MAALKONTRAKT,
   type Maalgrunnlag,
 } from './kontrakt'
 import { LOFTESTENGER, loftestang, type LoftestangId } from '@/lib/kurs/loftestenger'
@@ -153,10 +153,110 @@ describe('aarseffekt', () => {
     expect(kr).toBeCloseTo(48_000, 0)
   })
 
-  it('retningen spiller ingen rolle for beloepet — bare spennet', () => {
-    const ned = aarseffekt({ loftestang: 'matkast', startverdi: 3.90, maalverdi: 3.10 }, LONE)
-    const opp = aarseffekt({ loftestang: 'matkast', startverdi: 3.10, maalverdi: 3.90 }, LONE)
-    expect(ned).toBe(opp)
+  // =================================================================
+  // ET MAAL I FEIL RETNING HAR INGEN AARSGEVINST
+  // =================================================================
+  //
+  // Her sto det motsatte: «retningen spiller ingen rolle for beloepet».
+  // `aarseffekt` gjorde `Math.abs`, og da fikk 3,10 -> 3,90 samme
+  // +113 600 som 3,90 -> 3,10.
+  //
+  // Det er ikke en visningsfeil. Tallet fryses som `aarseffekt_kr` naar
+  // maalet settes (E8), og et lagret gevinstpotensial for et maal som
+  // gaar bakover er en loegn ingen senere kan se at var det.
+  it('kaster i stedet for aa gjoere et feilrettet maal positivt', () => {
+    expect(() => aarseffekt(
+      { loftestang: 'matkast', startverdi: 3.10, maalverdi: 3.90 }, LONE,
+    )).toThrow(/Ugyldig maalspenn/)
+  })
+
+  it('kaster ogsaa naar omsetning peker nedover', () => {
+    expect(() => aarseffekt(
+      { loftestang: 'omsetning', startverdi: 14_200_000, maalverdi: 13_000_000 }, LONE,
+    )).toThrow(/skal opp/)
+  })
+
+  it('kaster paa et spenn uten spenn', () => {
+    expect(() => aarseffekt(
+      { loftestang: 'matkast', startverdi: 3.10, maalverdi: 3.10 }, LONE,
+    )).toThrow(/uten spenn/)
+  })
+
+  // =================================================================
+  // KANARIFUGL
+  // =================================================================
+  it('KANARIFUGL: den kaster ikke paa det som ER riktig vei', () => {
+    // Uten denne ville `aarseffekt = () => { throw }` bestaatt hver
+    // kast-test over.
+    expect(() => aarseffekt(
+      { loftestang: 'matkast', startverdi: 3.90, maalverdi: 3.10 }, LONE,
+    )).not.toThrow()
+    expect(() => aarseffekt(
+      { loftestang: 'omsetning', startverdi: 14_200_000, maalverdi: 14_484_000 }, LONE,
+    )).not.toThrow()
+  })
+})
+
+// =====================================================================
+// GYLDIGHETEN, FOER NOE FRYSES
+// =====================================================================
+//
+// `fremdrift` leste `loftestang().god` riktig hele tiden; `aarseffekt`
+// gjorde det ikke. To syn paa samme sannhet i samme fil er ett for mye.
+// Porten staar her, ved skrivingen.
+// =====================================================================
+describe('gyldigSpenn — retningen er loeftestangens, ikke fortegnet', () => {
+  const dom = (loftestang: LoftestangId, startverdi: number, maalverdi: number) =>
+    gyldigSpenn({ loftestang, startverdi, maalverdi })
+
+  it('matkast NED er gyldig', () => {
+    expect(loftestang('matkast').god).toBe('ned')
+    expect(dom('matkast', 3.90, 3.10)).toEqual({ gyldig: true })
+  })
+
+  it('matkast OPP er ugyldig, og sier hvorfor', () => {
+    const d = dom('matkast', 3.10, 3.90)
+    expect(d.gyldig).toBe(false)
+    expect(d.gyldig === false && d.grunn).toMatch(/skal ned/)
+  })
+
+  it('omsetning OPP er gyldig', () => {
+    expect(loftestang('omsetning').god).toBe('opp')
+    expect(dom('omsetning', 14_200_000, 14_484_000)).toEqual({ gyldig: true })
+  })
+
+  it('omsetning NED er ugyldig', () => {
+    const d = dom('omsetning', 14_200_000, 13_900_000)
+    expect(d.gyldig).toBe(false)
+    expect(d.gyldig === false && d.grunn).toMatch(/skal opp/)
+  })
+
+  it('start lik maal er ugyldig for alle fem', () => {
+    for (const l of LOFTESTENGER) {
+      const d = dom(l.id, 100, 100)
+      expect(d.gyldig, l.id).toBe(false)
+      expect(d.gyldig === false && d.grunn, l.id).toMatch(/uten spenn/)
+    }
+  })
+
+  it('et tall som ikke er et tall er ugyldig', () => {
+    // `NaN !== NaN`, og hver sammenligning mot NaN er usann. Uten denne
+    // ville et uleselig skjemafelt passert og gitt NaN kroner i aaret.
+    expect(dom('matkast', Number.NaN, 3.10).gyldig).toBe(false)
+    expect(dom('matkast', 3.90, Number.NaN).gyldig).toBe(false)
+    expect(dom('matkast', 3.90, Number.POSITIVE_INFINITY).gyldig).toBe(false)
+  })
+
+  // =================================================================
+  // KANARIFUGL
+  // =================================================================
+  it('KANARIFUGL: den godtar faktisk de riktige, for hver av de fem', () => {
+    // Uten denne ville `gyldigSpenn = () => ({gyldig:false})` bestaatt
+    // hver ugyldighetstest over.
+    for (const l of LOFTESTENGER) {
+      const riktigVei = l.god === 'ned' ? dom(l.id, 100, 90) : dom(l.id, 100, 110)
+      expect(riktigVei, l.id).toEqual({ gyldig: true })
+    }
   })
 })
 
