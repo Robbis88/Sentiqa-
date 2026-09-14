@@ -400,25 +400,43 @@ test('advarselen kommer naar oppfriskningen blir staaende', async ({ page }) => 
 
   //    4  ADVARSELEN SKAL TREKKES TILBAKE.
   //
-  //       Maalt ROEDT paa 82bdc59: advarselen ble staaende etter at alle
-  //       fem RSC-kallene fullfoerte paa 11 454 ms, og sa «last sida paa
-  //       nytt» om en side som VAR oppdatert.
+  //       Maalt ROEDT paa 82bdc59 OG paa 0474368. Den foerste gangen var
+  //       det produksjonskoden: `visningFroset` hadde ingen vei tilbake
+  //       til false. Den andre gangen var det MAALEREN.
   //
-  //       Rettet med to flagg: `froset` ryddes naar runden gaar fra aktiv
-  //       til ferdig, `kastet` gjoer det ikke - en oppfriskning som
-  //       kastet ble aldri gjennomfoert, og det blir den ikke av at
-  //       transitionen er over.
+  //       `expect.poll` over venter paa testsidens `rsc`-array, som
+  //       fylles av `requestfinished` - altsaa naar nettverkskroppen er
+  //       mottatt. Mellom DET og «advarselen er borte» ligger fire ledd
+  //       som ikke er gratis: React maa motta flight-payloaden, rendre,
+  //       committe, og foerst DA gaar `oppfrisker` av, effekten kjoerer
+  //       og flagget ryddes. En engangslesing rett etter nettverket
+  //       maaler foerste ledd og leser resultatet av det siste.
   //
-  //       Kontrolleres FOERST etter at expect.poll over har bevist at
-  //       null RSC-kall staar aapne.
-  const advarselEtter = await page.locator('.sq-oppfrisk-feil').count()
-  l(`advarsel etter slipp  ${advarselEtter === 0 ? 'borte' : 'staar fortsatt'}`)
-  l('==================================================')
-  expect(advarselEtter,
-    'Advarselen ble staaende etter at ALLE RSC-kall fullfoerte. Da sier '
-    + 'den «last sida paa nytt» om en side som ER oppdatert. `froset` skal '
-    + 'ryddes naar runden gaar fra aktiv til ferdig - `kastet` skal ikke.')
-    .toBe(0)
+  //       «Rettingen virker ikke» og «maaleren leser for tidlig» ser
+  //       IDENTISKE ut i en engangslesing. Derfor pollingen - og derfor
+  //       er taket STRAMT. Et romslig tak ville gjort testen groenn
+  //       uansett hvilken av de to det er, og da maaler den ingenting.
+  const tFerdig = Date.now()
+  let tBorte: number | null = null
+  try {
+    await expect.poll(() => page.locator('.sq-oppfrisk-feil').count(), {
+      timeout: 5_000,
+      message: 'Produksjonsrettingen ryddet IKKE `froset` innen fem sekunder '
+        + 'etter at alle RSC-kall var bekreftet ferdige. Advarselen sier da '
+        + '«last sida paa nytt» om en side som ER oppdatert.',
+    }).toBe(0)
+    tBorte = Date.now() - tFerdig
+  } finally {
+    l('advarsel borte etter  ' + (tBorte === null ? 'ALDRI innen 5000' : tBorte) + ' ms')
+    l('           (maalt fra siste requestfinished)')
+    l('==================================================')
+  }
+
+  //    SAMTIDIG: ingenting annet har flyttet seg mens vi ventet.
+  expect(await page.locator('form:has(input[name="maaned"])').count(),
+    'skjemaet forsvant mens vi ventet paa at advarselen skulle gaa').toBe(1)
+  expect(rsc.filter((k) => k.ferdig === null).length,
+    'nye RSC-kall aapnet seg mens vi ventet - da maaler ikke testen det den tror').toBe(0)
 
   await hold.av()
 })
