@@ -20,24 +20,31 @@ import { utenKommentarer } from './skrivevakt'
 // ventetilstanden.
 //
 // ---------------------------------------------------------------------
-// HVORFOR
+// HVA SOM ER MAALT, OG HVA SOM ER HYPOTESE
 // ---------------------------------------------------------------------
 //
-// `useActionState` holder `venter` sann gjennom HELE overgangen sin. Da
-// #281 fjernet revalideringen av EGEN rute, trodde vi koblingen var
-// borte. Den var ikke det:
+// MAALT: revalideringen kjoerte (headeren), og klienten ble staaende
+// etterpaa. Begge deler staar i sporet.
 //
-//   **Next setter `x-action-revalidated: 1` og sender en fersk
-//   flight-payload for ruta du STAAR PAA saa snart handlingen
-//   revaliderer NOE SOM HELST.**
+// IKKE MAALT: at det var nettopp samspillet mellom den revalideringen og
+// `router.refresh()` som holdt overgangen aapen. Sporet viser rekkefoelge
+// og stillhet - ikke aarsak.
 //
-// `revalidatePath('/min-plan')` er en annen rute, men den purrer
-// klientcachen (`revalidatePath`-doksene: «This will purge the Client
-// Cache»), og da blir ruteroppdateringen av `/maanedsplan` en del av
-// handlingens egen overgang igjen. Oppa det kaller `HandlingKnapp` sin
-// `router.refresh()`. To ruteroppdateringer i samme overgang, og naar de
-// fletter seg feil, committer React aldri - verken kvitteringen eller
-// den aktive knappen naar skjermen.
+// HYPOTESEN denne vakten haandhever: `useActionState` holder `venter`
+// sann gjennom HELE overgangen sin, og Next setter
+// `x-action-revalidated: 1` og sender en fersk flight-payload for ruta du
+// STAAR PAA saa snart handlingen revaliderer NOE SOM HELST -
+// `revalidatePath`-doksene sier det rett ut: «This will purge the Client
+// Cache». `revalidatePath('/min-plan')` er en annen rute, men purrer
+// likevel klientcachen, og trekker dermed en ruteroppdatering av
+// `/maanedsplan` inn i handlingens egen overgang. Oppa det kaller
+// `HandlingKnapp` sin `router.refresh()`. To ruteroppdateringer i samme
+// overgang er en plausibel maate aa aldri committe paa.
+//
+// Hypotesen er ikke bevist. Den er sterk nok til aa handle paa, og
+// rettingen er det som proever den: holder feilen seg borte over tid,
+// styrkes den. Vakten her koster ingenting hvis hypotesen er feil -
+// revalideringen var uansett uten virkning (se under).
 //
 // ---------------------------------------------------------------------
 // HVORFOR DET ER TRYGT AA FJERNE REVALIDERINGEN

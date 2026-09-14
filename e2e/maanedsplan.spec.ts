@@ -690,20 +690,25 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       .toContainText('Bygget', { timeout: 20_000 })
     await expect(knapp).toBeEnabled()
 
+    console.log(`  next-action-POSTer ved dobbeltklikk: ${kall.length}`)
     expect(kall.length, `serverhandlinger sendt: ${kall.length}`).toBe(1)
     await expect(page.locator('.sq-slett-ok')).toHaveCount(1)
   })
 
   // =====================================================================
-  // ROTAARSAKEN, MAALT PAA HEADEREN
+  // DEN MISTENKTE KOBLINGEN, MAALT PAA HEADEREN
   // =====================================================================
   //
-  // `x-action-revalidated: 1` i svaret er beviset paa at handlingen trakk
-  // en ruteroppdatering inn i sin egen overgang. Det felte kjoeringen paa
-  // `main` 2026-09-14: POST svarte 200 paa 0,5 s, nettverket var stille
-  // fra 2,14 s, og knappen sto «Bygger ...» i 20 sekunder uten kvittering.
+  // `x-action-revalidated: 1` beviser at handlingen trakk en
+  // ruteroppdatering inn i sin egen overgang. Det beviser IKKE at den er
+  // grunnen til at klienten ble staaende - sporet viser rekkefoelge og
+  // stillhet, ikke aarsak.
   //
-  // Denne feller den gamle koden DIREKTE - den trenger ikke vente paa at
+  // Men koblingen er den mest sannsynlige forklaringen, og den er
+  // uansett unoedvendig: sidene er dynamiske, saa revalideringen
+  // invaliderte ingenting. Denne testen holder den borte.
+  //
+  // Den feller den gamle koden DIREKTE - den trenger ikke vente paa at
   // racet treffer.
   // =====================================================================
   test('handlingen revaliderer ikke, og kvitteringen er ikke gissel', async ({ page }) => {
@@ -717,6 +722,7 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       .toContainText('Bygget', { timeout: 20_000 })
     await expect(knapp).toBeEnabled()
 
+    console.log(`  handlingssvar: status=${svar[0]?.status} x-action-revalidated=${svar[0]?.revalidert ?? '(fravaerende)'}`)
     expect(svar.length).toBe(1)
     expect(svar[0].status).toBe(200)
     expect(
@@ -754,11 +760,72 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       .toContainText('Bygget', { timeout: 6_000 })
     await expect(knapp).toBeEnabled()
 
+    await expect(page.locator('.sq-oppfrisk-feil'),
+      '8 s er under terskelen paa 10 - advarselen skal ikke staa').toHaveCount(0)
     const brukt = Date.now() - start
     expect(brukt, `kvitteringen kom etter ${brukt} ms - den ventet paa RSC`)
       .toBeLessThan(6_000)
+    console.log(`  kvittering etter ${brukt} ms (RSC forsinket 8 000 ms)`)
 
     await page.unroute(/_rsc=/)
   })
 
+
+  // =====================================================================
+  // ADVARSELEN MAA KUNNE INNTREFFE, ELLERS ER DEN DOED KODE
+  // =====================================================================
+  //
+  // `router.refresh()` returnerer `void`. En henging eller en feilet
+  // henting er derfor USYNLIG for `try/catch` - den fanger bare et
+  // synkront kast. Det andre tilfellet fanges av TIDEN i stedet:
+  // `oppfrisker` staar i sin transition til hentingen er ferdig, og blir
+  // den staaende i 10 sekunder, sier komponenten ifra.
+  //
+  // Den mekanismen hviler paa en ANTAKELSE om Next: at
+  // `router.refresh()` inne i `startTransition` holder `isPending` sann
+  // til RSC-hentingen er ferdig. Det er ikke en selvfoelge, og hvis den
+  // er feil fyrer advarselen ALDRI.
+  //
+  // Derfor maales den her ved aa forsinke `_rsc=`-svarene FORBI
+  // terskelen. En test som bare sjekket at advarselen ikke staar der,
+  // ville vaert groenn baade naar mekanismen virker og naar den er doed.
+  // =====================================================================
+  test('en oppfriskning som blir staaende sier ifra - og trekker det tilbake', async ({ page }) => {
+    test.setTimeout(90_000)
+    await page.goto('/maanedsplan')
+    page.on('dialog', (d) => d.accept())
+
+    let forsink = true
+    await page.route(/_rsc=/, async (rute) => {
+      if (forsink) await new Promise((r) => setTimeout(r, 13_000))
+      await rute.continue()
+    })
+
+    const knapp = page.getByRole('button', { name: /Bygg juli 2026 på nytt/ })
+    const start = Date.now()
+    await knapp.click()
+
+    // KVITTERINGEN FOERST, uavhengig av RSC.
+    await expect(page.locator('.sq-slett-ok'))
+      .toContainText('Bygget', { timeout: 6_000 })
+    await expect(knapp).toBeEnabled()
+    console.log(`  kvittering etter ${Date.now() - start} ms (RSC forsinket 13 000 ms)`)
+
+    // ADVARSELEN. Kommer den ikke, holder ikke refreshen sin egen
+    // transition aapen - og da er mekanismen doed.
+    await expect(page.locator('.sq-oppfrisk-feil')).toBeVisible({ timeout: 20_000 })
+    console.log(`  advarsel etter ${Date.now() - start} ms`)
+
+    // VED SIDEN AV kvitteringen, ikke i stedet for den.
+    await expect(page.locator('.sq-slett-ok')).toContainText('Bygget')
+    await expect(knapp).toBeEnabled()
+
+    // OG DEN SKAL TREKKES TILBAKE naar en oppfriskning lykkes.
+    forsink = false
+    await knapp.click()
+    await expect(page.locator('.sq-oppfrisk-feil')).toHaveCount(0, { timeout: 30_000 })
+    await expect(knapp).toBeEnabled()
+
+    await page.unroute(/_rsc=/)
+  })
 })

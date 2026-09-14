@@ -71,9 +71,21 @@ async function tegn(props: Record<string, unknown>) {
 }
 
 describe('kvitteringen er uavhengig av oppfriskningen', () => {
-  test('svaret staar med én gang, selv om oppfriskningen aldri fullfoerer', async () => {
-    // En `router.refresh()` som ALDRI gjoer noe. Henger kvitteringen paa
-    // den, ser vi det her - og det var nettopp det som skjedde i prod.
+  // HVA DENNE FAKTISK MAALER, og hva den IKKE maaler.
+  //
+  // Mocken er en `() => {}` som returnerer med én gang. Det er IKKE en
+  // hengende oppfriskning - `router.refresh()` returnerer `void`, og i
+  // jsdom finnes det ingen RSC-henting aa vente paa. Det er heller ingen
+  // ekte React-transition rundt en ruteroppdatering her.
+  //
+  // Det denne beviser er smalere, og fortsatt verdt aa ha: kvitteringen
+  // og den aapne knappen kommer av HANDLINGENS svar, ikke av at
+  // oppfriskningen har gjort noe.
+  //
+  // En ekte treg eller hengende oppfriskning kan bare maales i en ekte
+  // nettleser, ved aa forsinke `_rsc=`-svarene. Det gjoeres i
+  // `e2e/maanedsplan.spec.ts`.
+  test('svaret staar av seg selv, uten at oppfriskningen har utrettet noe', async () => {
     ;(globalThis as Record<string, unknown>).__oppfrisk = () => {}
 
     const { handling, svar } = styrtHandling()
@@ -90,7 +102,10 @@ describe('kvitteringen er uavhengig av oppfriskningen', () => {
     expect(knapp().textContent).toContain('Bygg')
   })
 
-  test('en oppfriskning som kaster feller ikke kvitteringen', async () => {
+  // SYNKRONT KAST - det eneste `try/catch` faktisk dekker. En henging
+  // eller en feilet henting er usynlig for `catch`, fordi kallet
+  // returnerer `void`. Den maales av tiden i stedet, i nettleseren.
+  test('en oppfriskning som kaster SYNKRONT feller ikke kvitteringen', async () => {
     ;(globalThis as Record<string, unknown>).__oppfrisk = () => {
       throw new Error('RSC nede')
     }

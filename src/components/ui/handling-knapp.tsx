@@ -31,24 +31,34 @@ import type { Kvittering } from '@/lib/kvittering'
 // handlingens. `venter` fra `useActionState` styrer knappen; `oppfrisker`
 // styrer bare sin egen linje.
 //
-// MÅLT PÅ `main` 2026-09-14, PR #281:
+// ---------------------------------------------------------------------
+// HVA SOM ER MÅLT, OG HVA SOM ER HYPOTESE
+// ---------------------------------------------------------------------
+//
+// MÅLT, fra Playwright-sporet på `main` 2026-09-14 (PR #281):
 //
 //   0,95 s   POST /maanedsplan  (next-action)
 //   1,45 s   200, x-action-revalidated: 1
 //   2,14 s   siste nettverkshendelse i hele sporet
 //   20,99 s  timeout — knappen fortsatt «Bygger …», ingen kvittering
 //
-// Handlingen LYKTES, nettverket var stille i 19 sekunder, og React
-// committet aldri. Årsaken lå ikke her, men i at handlingen fremdeles
-// revaliderte `/min-plan`: Next setter `x-action-revalidated: 1` og
-// sender en fersk flight-payload for ruta du STÅR PÅ så snart noe
-// revalideres. Ruteroppdateringen ble dermed en del av handlingens egen
-// overgang igjen — sammen med `router.refresh()` herfra. To
-// ruteroppdateringer i samme overgang.
+// Altså: handlingen lyktes, revalideringen kjørte, nettverket var stille
+// i 19 sekunder, og React committet aldri.
 //
-// Revalideringen er fjernet (`oppfriskvakt.test.ts` holder den borte).
-// Denne komponenten er gjort robust uansett: en treg, hengende eller
-// kastende oppfriskning kan ikke lenger ta kvitteringen med seg.
+// IKKE MÅLT: at det var nettopp SAMSPILLET mellom den revalideringen og
+// `router.refresh()` som holdt overgangen åpen. Sporet viser rekkefølge
+// og stillhet, ikke årsak. At React entangler de to er en HYPOTESE — og
+// den er sterk, men den er uprøvd til denne endringen har stått en tid
+// uten at feilen kommer tilbake.
+//
+// Derfor gjøres to ting, ikke én:
+//
+//   1  Revalideringen fjernes, så handlingens overgang ikke lenger kan
+//      inneholde en ruteroppdatering (`oppfriskvakt.test.ts`).
+//   2  Komponenten gjøres robust UANSETT hva som holder oppfriskningen
+//      åpen — den kan ikke lenger ta kvitteringen med seg.
+//
+// Punkt 2 står på egne ben. Er hypotesen feil, er den fortsatt riktig.
 //
 // FIRE EGENSKAPER SOM MÅ HOLDE:
 //
@@ -60,6 +70,29 @@ import type { Kvittering } from '@/lib/kvittering'
 //               frisket opp for, så en re-render ikke starter en ny runde.
 //   ALDRI FATAL `router.refresh()` står i try/catch. Kastet den før, døde
 //               effekten og kvitteringen forsvant med den.
+//
+// ---------------------------------------------------------------------
+// `try/catch` DEKKER ET SYNKRONT KAST — INGENTING MER
+// ---------------------------------------------------------------------
+//
+// `router.refresh()` returnerer `void`. Det finnes ingen promise å
+// awaite og ingen feil å fange hvis hentingen feiler eller blir
+// stående. `catch` fanger bare at KALLET selv kaster synkront.
+//
+// Det er to forskjellige tilfeller, og de håndteres av to forskjellige
+// mekanismer:
+//
+//   KASTER SYNKRONT   `catch` → `visningFroset` med én gang.
+//   HENGER / FEILER   usynlig for oss. Fanges av TIDEN i stedet:
+//                     `oppfrisker` står i transitionen til den er ferdig,
+//                     og blir den stående i 10 sekunder, sier vi ifra.
+//
+// Den andre hviler på at `router.refresh()` inne i `startTransition`
+// faktisk holder `isPending` sann til RSC-hentingen er ferdig. Det er en
+// antakelse om Next, ikke en selvfølge, og den MÅLES i
+// `maanedsplan.spec.ts` ved å forsinke `_rsc=`-svarene forbi terskelen.
+// Slår den antakelsen feil, fyrer advarselen aldri — og da er en test
+// som bare sier «ingen advarsel» en test som ikke måler noe.
 //
 // ---------------------------------------------------------------------
 // LÅSEN MOT DOBBELTKLIKK ER SYNKRON, IKKE EN RENDER-EGENSKAP
