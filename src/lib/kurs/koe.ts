@@ -28,13 +28,34 @@
 // at filteret kan forsvares.
 //
 // ---------------------------------------------------------------------
-// HVORFOR NYESTE MED UTKAST, OG IKKE BARE NYESTE
+// HVORFOR NYESTE MÅNED, OG IKKE NYESTE MED UTKAST
 // ---------------------------------------------------------------------
 //
-// Køen er en arbeidsflate. Åpner den på en måned der alt er avgjort, må
-// eieren lete for å finne det som faktisk venter — og da er vi tilbake
-// til å lete i en liste. Er ingenting utkast, faller den tilbake til
-// nyeste måned med noe som helst, så historikken fortsatt har en dør.
+// Første utgave åpnet på nyeste måned MED UTKAST, med begrunnelsen at
+// køen er en arbeidsflate. Den ble målt i produksjon 2026-09-14, rett
+// etter deployen, og begrunnelsen holdt ikke:
+//
+//   juli          5 sluppet, 0 utkast     <- ferdigbehandlet samme dag
+//   juni          5 utkast
+//   januar–mai   25 utkast
+//
+// Regelen valgte JUNI. Sida ville dermed ledet med fem seks måneder
+// gamle utkast under «Venter på deg», mens måneden som faktisk var
+// gjort lå bak nedtrekkslista.
+//
+// **Regelen er riktig mens du jobber, og gal rett etter at du er
+// ferdig** — som er nøyaktig når du åpner sida neste gang.
+//
+// Nå åpner den på nyeste måned som har en plan i det hele tatt. Da er
+// det første bildet hvor kjeden STÅR, ikke hvor den henger etter:
+//
+//   Ingenting venter i juli 2026
+//   30 eldre utkast venter i 6 andre måneder
+//
+// Sikkerheten forsvinner ikke med dette. De eldre utkastene telles
+// fortsatt av `delKoe`, de er nåbare via velgeren, måneden navngis
+// fortsatt ved Slipp og Avvis, og et klikk kan fortsatt ikke krysse en
+// månedsgrense uten et aktivt valg.
 // =====================================================================
 
 /** `YYYY-MM-DD`, alltid den første i måneden. */
@@ -64,15 +85,17 @@ export function maanederIKoe(rader: Koerad[]): Koemaaned[] {
 }
 
 /**
- * Måneden køen skal åpne på.
+ * Måneden køen skal åpne på: den nyeste som har en plan.
  *
- * Nyeste med et utkast. Finnes ingen utkast, nyeste måned i det hele
- * tatt. Er det ingen rader, `null` — og da har sida en tomtilstand, ikke
- * en velger uten valg.
+ * STATUS TELLER IKKE MED. En ferdigbehandlet måned er fortsatt den siste
+ * måneden kjeden har tatt stilling til, og det er det første bildet
+ * eieren skal møte — se begrunnelsen øverst. Utkast i eldre måneder
+ * telles av `delKoe` og nås via velgeren.
+ *
+ * `null` når det ikke finnes rader, så sida kan vise en tomtilstand i
+ * stedet for en velger uten valg.
  */
 export function standardmaaned(rader: Koerad[]): Koemaaned | null {
-  const medUtkast = maanederIKoe(rader.filter((r) => r.status === 'utkast'))
-  if (medUtkast.length > 0) return medUtkast[0]
   return maanederIKoe(rader)[0] ?? null
 }
 
