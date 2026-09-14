@@ -90,6 +90,8 @@ export function erAvdelingsniva(post: string): boolean {
   return m !== null && m[1].length <= 2
 }
 
+import { TERSKLER } from '@/lib/regnskap/terskler'
+
 export type Maanedsgrunnlag = {
   maaned: string // yyyy-mm
   omsetningKr: number
@@ -353,4 +355,113 @@ export function maanedsrader(
     ...fraEasyatwork.map((m) => m.maaned),
     ...fraRom.filter((r) => r.romKr !== null).map((r) => r.maaned),
   ])].sort((a, b) => b.localeCompare(a))
+}
+
+// =====================================================================
+// STYRINGSAVVIKET: LØNNEN MOT ROMMET, IKKE MOT BP
+// =====================================================================
+//
+// `regnskap-varsler.ts` måler lønn mot LØNNSBUDSJETTET:
+//
+//     lonnPst = (lonnR - lonnB) / lonnB * 100
+//
+// Det er riktig der: varselet handler om hva St1 budsjetterte. Men det
+// er ikke spørsmålet butikksjefen står med, og forskjellen er hele
+// grunnen til at `byggLonnsrom` finnes:
+//
+//     BP sier 383 285 i lønn for august — under forutsetning av at
+//     måneden leverer 1 201 000 i brutto. Kommer det mindre inn, er det
+//     mindre å bruke.
+//
+// Faller brutto 10 %, faller rommet til 344 957. Den som brukte 383 285
+// er da 11 % over det hun hadde råd til, mens BP-varselet sier null
+// avvik. Begge tallene er sanne; de svarer på hvert sitt spørsmål.
+//
+// ---------------------------------------------------------------------
+// SIGNATUREN ER GRENSEN
+// ---------------------------------------------------------------------
+//
+// Funksjonen tar et `Lonnsrom`, ikke et `bpLonnKr`. Da er det
+// STRUKTURELT UMULIG å måle mot BP herfra — man kan ikke gjøre feil
+// med et tall man ikke har fått. `bpLonnKr` ligger i rommet, men bare
+// for at flaten skal kunne vise begge ved siden av hverandre.
+//
+// ---------------------------------------------------------------------
+// GRENSENE ER DE SAMME, NEVNEREN ER IKKE
+// ---------------------------------------------------------------------
+//
+// 5 og 10 % kommer fra `regnskap/terskler.ts`, samme fil som
+// regnskapsvarslene og `/businessplan` leser. To sannheter om hva «for
+// mye lønn» betyr ville gitt gult ett sted og grønt et annet for samme
+// stasjon.
+//
+// ---------------------------------------------------------------------
+// ET ANSLÅTT AVVIK ER LIKE ALVORLIG — OG SKAL MERKES
+// ---------------------------------------------------------------------
+//
+// `anslaatt` følger med ut, men den demper ikke `alvor`. Hele poenget
+// med å ligge foran regnskapet er at et anslag er verdt å handle på;
+// det er sikkerheten som skal stå ved siden av tallet, ikke alvoret som
+// skal trekkes ned.
+// =====================================================================
+
+
+/**
+ * Samme tre trinn som resten av systemet.
+ *
+ * Ordene er `Statusnivaa` sine, men typen importeres ikke: et
+ * domenebibliotek skal ikke peke på en UI-komponent. At de er like er
+ * med vilje — en fjerde navngiving for det samme hjelper ingen.
+ */
+export type Alvor = 'normal' | 'endring' | 'handling'
+
+export type Styringsavvik = {
+  /** Kroner over rommet. Negativt betyr innenfor. Null når det ikke kan regnes. */
+  kroner: number | null
+  /** Avviket som andel av rommet. 0,11 = 11 % over. */
+  andelAvRom: number | null
+  alvor: Alvor
+  /** Arvet fra rommet: sant når bruttoen bak det er anslått, ikke lest. */
+  anslaatt: boolean
+  /** Hvorfor det ikke lot seg regne. Null når det gjorde det. */
+  mangler: string | null
+}
+
+/**
+ * Hvor mye over — eller under — det stasjonen har råd til.
+ *
+ * `lonnKr` er det som faktisk er kjørt: fra regnskapet når måneden er
+ * avlagt, ellers easy@work-anslaget. `null` før noen av delene finnes.
+ */
+export function styringsavvik(rom: Lonnsrom, lonnKr: number | null): Styringsavvik {
+  const tomt = (mangler: string): Styringsavvik =>
+    ({ kroner: null, andelAvRom: null, alvor: 'normal', anslaatt: rom.anslaatt, mangler })
+
+  // ET MANGLENDE TALL ER IKKE ET AVVIK PÅ NULL. Uten dette ville en
+  // måned uten lønnsfil sett ut som en måned i balanse.
+  if (lonnKr === null || !Number.isFinite(lonnKr)) {
+    return tomt('Lønnstallet er ikke kommet ennå.')
+  }
+  if (rom.romKr === null) {
+    return tomt('Uten BP finnes det ikke noe rom å måle mot.')
+  }
+  // Samme vakt som `if (lonnB > 0)` i regnskapsvarslene: et rom på null
+  // gjør enhver lønn uendelig mye for høy, og det er ikke en opplysning.
+  if (rom.romKr <= 0) {
+    return tomt('Rommet er null eller negativt — brutto bærer ingen lønn.')
+  }
+
+  const kroner = lonnKr - rom.romKr
+  const andelAvRom = kroner / rom.romKr
+  const pst = andelAvRom * 100
+
+  return {
+    kroner,
+    andelAvRom,
+    alvor: pst >= TERSKLER.lonnOverRod ? 'handling'
+      : pst >= TERSKLER.lonnOverGul ? 'endring'
+        : 'normal',
+    anslaatt: rom.anslaatt,
+    mangler: null,
+  }
 }

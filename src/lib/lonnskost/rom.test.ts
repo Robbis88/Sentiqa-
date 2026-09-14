@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   byggLonnsrom, kalibrering, normalSvinnandel, erDrivstoff, erAvdelingsniva, maanedsrader,
+  styringsavvik, type Lonnsrom,
 } from './rom'
 
 const R = (maaned: string, omsetningKr: number | null, bruttoKr: number | null) =>
@@ -296,5 +297,120 @@ describe('byggLonnsrom med bilvask', () => {
   it('uten bilvask er alt som før', () => {
     const uten = byggLonnsrom(juli, grunn, BP)[0]
     expect(uten.bilvaskBruttoKr).toBe(0)
+  })
+})
+
+// =====================================================================
+// STYRINGSAVVIKET
+// =====================================================================
+//
+// Dales BP: 1 201 000 i brutto, 383 285 i loenn. Loennsandel 31,9 %.
+//
+// Faller brutto 10 % til 1 080 900, faller rommet til 344 957 - og den
+// som brukte hele BP-loenna er da 11 % over det hun hadde raad til,
+// mens BP-varselet sier null avvik.
+// =====================================================================
+
+const ROM = (romKr: number | null, anslaatt = false): Lonnsrom => ({
+  maaned: '2026-08',
+  bruttoKr: romKr === null ? null : romKr / ANDEL,
+  anslaatt,
+  lonnsandel: ANDEL,
+  romKr,
+  bpLonnKr: 383285,
+  kalibrering: 1,
+  ekstraSvinnKr: 0,
+  omsetningKr: 4200000,
+  svinnKr: 0,
+  bilvaskBruttoKr: 0,
+})
+
+/** Rommet naar bruttoen faller ti prosent under planen. */
+const ROM_SVAKT = ROM(ANDEL * 1080900)
+
+describe('styringsavvik', () => {
+  it('maaler mot ROMMET, ikke mot BP-loenna', () => {
+    // Samme `bpLonnKr` i begge, ulikt rom. Maalte den mot BP, ville de
+    // to gitt samme svar - og det er hele feilen denne funksjonen
+    // finnes for aa hindre.
+    const paaPlanen = styringsavvik(ROM(383285), 383285)
+    const svaktSalg = styringsavvik(ROM_SVAKT, 383285)
+
+    expect(paaPlanen.kroner).toBeCloseTo(0, 6)
+    expect(paaPlanen.alvor).toBe('normal')
+
+    expect(svaktSalg.kroner).toBeGreaterThan(38000)
+    expect(svaktSalg.alvor).toBe('handling')
+  })
+
+  it('KANARIFUGL: de to rommene har SAMME bpLonnKr', () => {
+    // Uten denne kunne testen over bestaatt fordi fiksturene skilte seg
+    // paa BP i stedet for paa rommet.
+    expect(ROM(383285).bpLonnKr).toBe(ROM_SVAKT.bpLonnKr)
+    expect(ROM(383285).romKr).not.toBeCloseTo(ROM_SVAKT.romKr!, 0)
+  })
+
+  it('bruker tersklene fra regnskap/terskler, ikke egne', () => {
+    const rom = ROM_SVAKT.romKr!
+    // Rett under 5 % er normalt, rett over er en endring.
+    expect(styringsavvik(ROM_SVAKT, rom * 1.049).alvor).toBe('normal')
+    expect(styringsavvik(ROM_SVAKT, rom * 1.051).alvor).toBe('endring')
+    // Rett under 10 % er fortsatt endring, rett over krever handling.
+    expect(styringsavvik(ROM_SVAKT, rom * 1.099).alvor).toBe('endring')
+    expect(styringsavvik(ROM_SVAKT, rom * 1.101).alvor).toBe('handling')
+  })
+
+  it('under rommet gir negative kroner og ingen alarm', () => {
+    const v = styringsavvik(ROM_SVAKT, ROM_SVAKT.romKr! * 0.9)
+    expect(v.kroner).toBeLessThan(0)
+    expect(v.andelAvRom).toBeCloseTo(-0.1, 6)
+    expect(v.alvor).toBe('normal')
+  })
+
+  // =================================================================
+  // ET MANGLENDE TALL ER IKKE ET AVVIK PAA NULL
+  // =================================================================
+  it('sier fra naar loennstallet ikke er kommet', () => {
+    const v = styringsavvik(ROM(383285), null)
+    expect(v.kroner).toBeNull()
+    expect(v.mangler).toMatch(/ikke kommet/)
+    // IKKE null kroner. En maaned uten loennsfil ville ellers sett ut
+    // som en maaned i balanse.
+    expect(v.kroner).not.toBe(0)
+  })
+
+  it('sier fra naar BP mangler, saa det ikke finnes noe rom', () => {
+    const v = styringsavvik(ROM(null), 383285)
+    expect(v.kroner).toBeNull()
+    expect(v.mangler).toMatch(/BP/)
+  })
+
+  it('deler ikke paa et rom som er null eller negativt', () => {
+    for (const rom of [0, -1000]) {
+      const v = styringsavvik(ROM(rom), 383285)
+      expect(v.andelAvRom, `rom ${rom}`).toBeNull()
+      expect(Number.isFinite(v.andelAvRom ?? 0)).toBe(true)
+      expect(v.mangler).toMatch(/null eller negativt/)
+    }
+  })
+
+  // =================================================================
+  // ET ANSLAATT AVVIK ER LIKE ALVORLIG - OG SKAL MERKES
+  // =================================================================
+  it('arver rommets usikkerhet uten aa dempe alvoret', () => {
+    const sikkert = styringsavvik(ROM(ANDEL * 1080900, false), 383285)
+    const anslaatt = styringsavvik(ROM(ANDEL * 1080900, true), 383285)
+
+    expect(sikkert.anslaatt).toBe(false)
+    expect(anslaatt.anslaatt).toBe(true)
+    // Hele poenget med aa ligge foran regnskapet er at et anslag er
+    // verdt aa handle paa. Sikkerheten staar ved siden av tallet;
+    // alvoret trekkes ikke ned.
+    expect(anslaatt.alvor).toBe(sikkert.alvor)
+    expect(anslaatt.kroner).toBe(sikkert.kroner)
+  })
+
+  it('anslaatt foelger med ogsaa naar avviket ikke kan regnes', () => {
+    expect(styringsavvik(ROM(null, true), 383285).anslaatt).toBe(true)
   })
 })
