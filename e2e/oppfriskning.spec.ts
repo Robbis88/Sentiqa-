@@ -473,3 +473,160 @@ test('treg oppfriskning (8 s) holder ikke kvitteringen tilbake', async ({ page }
 
   await page.unroute(/_rsc=/)
 })
+
+// =====================================================================
+// HVOR LENGE ER `oppfrisker` AKTIV PAA EN VANLIG OPPFRISKNING?
+// =====================================================================
+//
+// FEILEN DENNE RETTER. Attempt 3 paa 2054c93 maalte «oppfrisker -> false
+// 10 551 ms» paa en uforsinket oppfriskning, og jeg holdt det tallet opp
+// mot terskelen paa 10 000 ms. Det er to ULIKE NULLPUNKTER:
+//
+//   10 551 ms   maalt fra KLIKKET
+//   10 000 ms   maalt fra da effekten saa `oppfrisker === true`
+//
+// Mellom klikket og transition-start ligger serverhandlingen, svaret og
+// commiten som setter kvitteringen. Den avstanden er ikke null - den var
+// 531 ms i samme kjoering. Tallene kan altsaa ikke sammenlignes, og
+// «terskelen ligger i normalvariasjonen» var en slutning uten grunnlag.
+//
+// ---------------------------------------------------------------------
+// MUTATIONOBSERVER, IKKE POLLING
+// ---------------------------------------------------------------------
+//
+// 100 ms prøvetaking kan ikke se en advarsel som vises og fjernes i
+// mellomrommet. Observeren staar i SIDA, startes FOER handlingen, og
+// skriver hver overgang med tidsstempel til et array. Da kan ingen
+// overgang bli usynlig - den ligger i loggen selv om den varte i 5 ms.
+//
+// Tre proever i samme kjoering. Variasjonen vi har sett er stor (709,
+// 948 og 10 551 ms fra klikk), og ett enkelt tall ville ikke sagt om
+// dette er normalen eller et utslag.
+// =====================================================================
+test('MAALING: hvor lenge staar transitionen paa en uforsinket oppfriskning', async ({ page }) => {
+  test.setTimeout(180_000)
+  await page.goto('/maanedsplan')
+  await expect(page.getByRole('heading', { name: 'Månedsplaner' })).toBeVisible()
+  page.on('dialog', (d) => d.accept())
+
+  const l = (s: string) => console.log(`  ${s}`)
+  l('')
+  l('===== TRANSITIONENS VARIGHET, MAALT MED MUTATIONOBSERVER =====')
+
+  for (let proeve = 1; proeve <= 3; proeve++) {
+    const knapp = byggeknapp(page)
+    await expect(knapp).toBeVisible()
+
+    // OBSERVEREN FOERST. Alt som skjer etter dette punktet er logget.
+    await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>
+      const t0 = performance.now()
+      const logg: { hva: string; t: number }[] = []
+      w.__t0 = t0
+      w.__logg = logg
+      const skriv = (hva: string) =>
+        logg.push({ hva, t: Math.round(performance.now() - t0) })
+
+      const felt = document.querySelector('input[name="maaned"]')
+      const skjema = felt?.closest('form') as HTMLFormElement | null
+      skriv('start:oppfrisker=' + (skjema?.getAttribute('data-oppfrisker') ?? '?'))
+
+      const sjekk = (n: Node, tegn: string) => {
+        if (n.nodeType !== 1) return
+        const e = n as HTMLElement
+        if (e.classList?.contains('sq-oppfrisk-feil')) skriv('advarsel' + tegn)
+        if (e.classList?.contains('sq-slett-ok')) skriv('kvittering' + tegn)
+        if (e.classList?.contains('sq-slett-feil')) skriv('feilmelding' + tegn)
+      }
+
+      const obs = new MutationObserver((muts) => {
+        for (const m of muts) {
+          if (m.type === 'attributes' && m.attributeName === 'data-oppfrisker') {
+            skriv('oppfrisker=' + (m.target as HTMLElement).getAttribute('data-oppfrisker'))
+          }
+          if (m.type === 'attributes' && m.attributeName === 'disabled') {
+            skriv('knapp-disabled=' + String((m.target as HTMLButtonElement).disabled))
+          }
+          if (m.type === 'childList') {
+            m.addedNodes.forEach((n) => sjekk(n, '+'))
+            m.removedNodes.forEach((n) => sjekk(n, '-'))
+          }
+        }
+      })
+      // HELE BODY. `router.refresh()` kan bytte ut noder, og en observer
+      // festet paa skjemaet alene ville sluttet aa se etter det.
+      obs.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['data-oppfrisker', 'disabled'],
+        childList: true,
+        subtree: true,
+      })
+      w.__obs = obs
+    })
+
+    await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>
+      ;(w.__logg as { hva: string; t: number }[])
+        .push({ hva: 'KLIKK', t: Math.round(performance.now() - (w.__t0 as number)) })
+    })
+    await knapp.click()
+
+    // Vent til transitionen er over. Er den ikke over, leser vi loggen
+    // likevel - en diagnose skal ikke feile paa det den maaler.
+    try {
+      await page.waitForFunction(() => {
+        const felt = document.querySelector('input[name="maaned"]')
+        return felt?.closest('form')?.getAttribute('data-oppfrisker') === 'false'
+      }, undefined, { timeout: 30_000 })
+    } catch { /* logges som «aldri» under */ }
+
+    const logg = await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>
+      ;(w.__obs as MutationObserver).disconnect()
+      return w.__logg as { hva: string; t: number }[]
+    })
+
+    const foerste = (p: string) => logg.find((r) => r.hva === p)?.t ?? null
+    const klikk = foerste('KLIKK') ?? 0
+    const paa = logg.find((r) => r.hva === 'oppfrisker=true')?.t ?? null
+    const av = paa === null ? null
+      : (logg.find((r) => r.hva === 'oppfrisker=false' && r.t > paa)?.t ?? null)
+    const advPaa = foerste('advarsel+')
+    const advAv = advPaa === null ? null
+      : (logg.find((r) => r.hva === 'advarsel-' && r.t > advPaa)?.t ?? null)
+    const kvitt = foerste('kvittering+')
+
+    const varighet = paa !== null && av !== null ? av - paa : null
+
+    const dom = varighet === null
+      ? 'UAVKLART  transitionen ble aldri ferdig innen 30 s'
+      : varighet < 10_000
+        ? 'A  transitionen var aktiv ' + varighet + ' ms - UNDER terskelen. '
+          + 'Fravaer av advarsel er riktig.'
+        : advPaa !== null
+          ? 'B  transitionen var aktiv ' + varighet + ' ms - OVER terskelen, '
+            + 'og advarselen ble vist. Mekanismen virker, men normal drift '
+            + 'treffer terskelen.'
+          : 'C  transitionen var aktiv ' + varighet + ' ms - OVER terskelen, '
+            + 'men advarselen ble ALDRI vist. Timer-/maalelogikken er ufullstendig.'
+
+    l('')
+    l(`--- proeve ${proeve} ---`)
+    l('ABSOLUTT, fra observerstart:')
+    for (const r of logg) l(`   ${String(r.t).padStart(7)} ms  ${r.hva}`)
+    l('VARIGHETER:')
+    l(`   true-start minus klikk        ${paa === null ? 'aldri' : paa - klikk} ms`)
+    l(`   false minus true-start        ${varighet === null ? 'aldri' : varighet} ms   (terskel 10 000)`)
+    l(`   kvittering minus klikk        ${kvitt === null ? 'aldri' : kvitt - klikk} ms`)
+    l(`   advarsel vist minus true-start ${advPaa === null || paa === null ? 'ikke vist' : advPaa - paa} ms`)
+    l(`   advarsel fjernet minus vist   ${advAv === null || advPaa === null ? 'ikke fjernet' : advAv - advPaa} ms`)
+    l(`DOM: ${dom}`)
+
+    // MAALING, IKKE PORT. Det eneste som paastaas er at observeren
+    // faktisk saa noe - uten det maaler proeven ingenting.
+    expect(paa, 'observeren saa aldri at transitionen startet').not.toBeNull()
+    expect(kvitt, 'kvitteringen kom aldri').not.toBeNull()
+  }
+
+  l('==============================================================')
+})
