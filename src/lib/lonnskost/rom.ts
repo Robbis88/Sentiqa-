@@ -30,6 +30,8 @@
 // som blir bedre for hver regnskapsrapport som lastes opp.
 // =====================================================================
 
+import { TERSKLER } from '@/lib/regnskap/terskler'
+
 /**
  * Hvor mange avlagte måneder marginen læres av.
  *
@@ -353,4 +355,140 @@ export function maanedsrader(
     ...fraEasyatwork.map((m) => m.maaned),
     ...fraRom.filter((r) => r.romKr !== null).map((r) => r.maaned),
   ])].sort((a, b) => b.localeCompare(a))
+}
+
+// =====================================================================
+// STYRINGSAVVIKET: LØNNEN MOT ROMMET, IKKE MOT BP
+// =====================================================================
+//
+// `regnskap-varsler.ts` måler lønn mot LØNNSBUDSJETTET:
+//
+//     lonnPst = (lonnR - lonnB) / lonnB * 100
+//
+// Det er riktig der: varselet handler om hva St1 budsjetterte. Men det
+// er ikke spørsmålet butikksjefen står med, og forskjellen er hele
+// grunnen til at `byggLonnsrom` finnes:
+//
+//     BP sier 383 285 i lønn for august — under forutsetning av at
+//     måneden leverer 1 201 000 i brutto. Kommer det mindre inn, er det
+//     mindre å bruke.
+//
+// Faller brutto 10 %, faller rommet til 344 957. Den som brukte 383 285
+// er da 11 % over det hun hadde råd til, mens BP-varselet sier null
+// avvik. Begge tallene er sanne; de svarer på hvert sitt spørsmål.
+//
+// ---------------------------------------------------------------------
+// SIGNATUREN ER GRENSEN, OG DEN MÅ FAKTISK HÅNDHEVE DEN
+// ---------------------------------------------------------------------
+//
+// Her sto `styringsavvik(rom: Lonnsrom, …)` med påstanden at det var
+// «strukturelt umulig å måle mot BP». **Det var ikke sant.** `Lonnsrom`
+// BÆRER `bpLonnKr` — flaten trenger det for å vise begge tallene ved
+// siden av hverandre — så `rom.bpLonnKr` ville kompilert fint. Testene
+// ville tatt det, men en påstand om typegrensen som typen ikke holder,
+// er verre enn ingen påstand.
+//
+// `Styringsrom` er derfor de to feltene funksjonen faktisk trenger.
+// Skriver noen `rom.bpLonnKr` nå, feiler `tsc` — ikke en test.
+//
+// ---------------------------------------------------------------------
+// GRENSENE ER DE SAMME, NEVNEREN ER IKKE
+// ---------------------------------------------------------------------
+//
+// 5 og 10 % kommer fra `regnskap/terskler.ts`, samme fil som
+// regnskapsvarslene og `/businessplan` leser. To sannheter om hva «for
+// mye lønn» betyr ville gitt gult ett sted og grønt et annet for samme
+// stasjon.
+//
+// ---------------------------------------------------------------------
+// ET ANSLÅTT AVVIK ER LIKE ALVORLIG — OG SKAL MERKES
+// ---------------------------------------------------------------------
+//
+// `anslaatt` følger med ut, men den demper ikke `alvor`. Hele poenget
+// med å ligge foran regnskapet er at et anslag er verdt å handle på;
+// det er sikkerheten som skal stå ved siden av tallet, ikke alvoret som
+// skal trekkes ned.
+// =====================================================================
+
+
+/**
+ * Samme tre trinn som resten av systemet.
+ *
+ * Ordene er `Statusnivaa` sine, men typen importeres ikke: et
+ * domenebibliotek skal ikke peke på en UI-komponent. At de er like er
+ * med vilje — en fjerde navngiving for det samme hjelper ingen.
+ */
+export type Alvor = 'normal' | 'endring' | 'handling'
+
+/**
+ * Det `styringsavvik` faktisk trenger — og ikke en ting mer.
+ *
+ * `Lonnsrom` fra `byggLonnsrom` passer rett inn (strukturell typing), så
+ * kallstedene merker ingenting. Forskjellen er at `bpLonnKr`,
+ * `lonnsandel` og `kalibrering` ikke finnes INNE i funksjonen, og da kan
+ * de heller ikke brukes ved et uhell.
+ */
+export type Styringsrom = Pick<Lonnsrom, 'romKr' | 'anslaatt'>
+
+export type Styringsavvik = {
+  /** Kroner over rommet. Negativt betyr innenfor. Null når det ikke kan regnes. */
+  kroner: number | null
+  /** Avviket som andel av rommet. 0,11 = 11 % over. */
+  andelAvRom: number | null
+  alvor: Alvor
+  /** Arvet fra rommet: sant når bruttoen bak det er anslått, ikke lest. */
+  anslaatt: boolean
+  /** Hvorfor det ikke lot seg regne. Null når det gjorde det. */
+  mangler: string | null
+}
+
+/**
+ * Hvor mye over — eller under — det stasjonen har råd til.
+ *
+ * `lonnKr` er det som faktisk er kjørt: fra regnskapet når måneden er
+ * avlagt, ellers easy@work-anslaget. `null` før noen av delene finnes.
+ */
+export function styringsavvik(rom: Styringsrom, lonnKr: number | null): Styringsavvik {
+  const tomt = (mangler: string): Styringsavvik =>
+    ({ kroner: null, andelAvRom: null, alvor: 'normal', anslaatt: rom.anslaatt, mangler })
+
+  // ET MANGLENDE TALL ER IKKE ET AVVIK PÅ NULL. Uten dette ville en
+  // måned uten lønnsfil sett ut som en måned i balanse.
+  if (lonnKr === null || !Number.isFinite(lonnKr)) {
+    return tomt('Lønnstallet er ikke kommet ennå.')
+  }
+  if (rom.romKr === null) {
+    return tomt('Uten BP finnes det ikke noe rom å måle mot.')
+  }
+  // SAMME VAKT PÅ ROMMET SOM PÅ LØNNA.
+  //
+  // Her sto bare `romKr <= 0`. Et `NaN` slipper gjennom den — hver
+  // sammenligning mot NaN er usann — og ville gitt `NaN` kroner, `NaN`
+  // andel og `alvor: 'normal'`, fordi `NaN >= 10` også er usann. Altså
+  // en måned som ser rolig ut fordi tallet er ødelagt.
+  //
+  // `byggLonnsrom` gir ryddige tall i dag. Men dette er en eksportert
+  // domenefunksjon, og den skal ikke stole på hvem som kaller den.
+  if (!Number.isFinite(rom.romKr)) {
+    return tomt('Rommet er ikke et tall.')
+  }
+  // Samme vakt som `if (lonnB > 0)` i regnskapsvarslene: et rom på null
+  // gjør enhver lønn uendelig mye for høy, og det er ikke en opplysning.
+  if (rom.romKr <= 0) {
+    return tomt('Rommet er null eller negativt — brutto bærer ingen lønn.')
+  }
+
+  const kroner = lonnKr - rom.romKr
+  const andelAvRom = kroner / rom.romKr
+  const pst = andelAvRom * 100
+
+  return {
+    kroner,
+    andelAvRom,
+    alvor: pst >= TERSKLER.lonnOverRod ? 'handling'
+      : pst >= TERSKLER.lonnOverGul ? 'endring'
+        : 'normal',
+    anslaatt: rom.anslaatt,
+    mangler: null,
+  }
 }
