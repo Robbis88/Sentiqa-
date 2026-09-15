@@ -71,6 +71,13 @@ export const TILLEGGSSATS: Record<string, number> = {
 export const ANDEL_AV_TIMESATS: Record<string, number> = {
   2: 1,     // timelønn
   12: 1,    // sykelønn — full lønn, arbeidsgiverperioden
+  // MÅLT mot kronefila for Dale mai 2026: 33 rader der art 1410 og art 2
+  // står på samme ansatt og dag. 32 av dem er identiske på både timer og
+  // kroner, over 23 ULIKE observerte timesatser (142,99 til 284,97) — og
+  // det er spredningen som gjør faktoren til en faktor og ikke et snitt.
+  // Den 33. er pinseaften med 0,96 timer; 0,38 % er avrunding på øret,
+  // samme argument som for 96 og 97 under.
+  1410: 1,  // helligdagsgodtgjørelse — full dobling av egen timesats
   96: 0.5,  // 50 % overtidstillegg (dag og uke)
   97: 1,    // 100 % overtidstillegg (alle fire variantene)
 }

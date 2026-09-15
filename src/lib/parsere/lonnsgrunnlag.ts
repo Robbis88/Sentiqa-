@@ -92,6 +92,15 @@ const noekkel = (navn: string): string => navn
 const LONNSART: { kode: string; tekst: string; navn: string[] }[] = [
   { kode: '2', tekst: '2 Timelønn', navn: ['timer'] },
   { kode: '12', tekst: '12 Sykelønn', navn: ['sykelønn'] },
+  // MÅLT 2026-09-15, ikke antatt. Kolonnen bar verdi i ALLE fem
+  // stasjonenes filer januar–juli 2026 (54–139 rader hver), og fram til
+  // nå kastet parseren på den: «har ingen lønnsart i Sentiqa». Den var
+  // altså ikke et framtidig tilfelle, men grunnen til at ingen av de 23
+  // filene lot seg lese.
+  //
+  // `TIL_KONTO` kjente arten fra før (`'1410': '503'`) — det var bare
+  // kolonnenavnet som manglet her. Mappingen er urørt.
+  { kode: '1410', tekst: '1410 Helligdagsgodtgjørelse', navn: ['helligdagsgodtgjørelse'] },
   { kode: '1429', tekst: '1429 Tillegg hverdag 18-21', navn: ['tillegg hverdag 18-21'] },
   { kode: '1430', tekst: '1430 Tillegg hverdag 21-24', navn: ['tillegg hverdag 21-24'] },
   { kode: '1431', tekst: '1431 Tillegg hverdag 00-06', navn: ['tillegg hverdag 00-06'] },
@@ -330,5 +339,119 @@ export function lesLonnsgrunnlag(tekst: string): LonnsgrunnlagResultat {
     fraDato: datoer[0],
     tilDato: datoer[datoer.length - 1],
     linjer,
+  }
+}
+
+/**
+ * Ansatte OG perioden de gjelder for.
+ *
+ * PERIODEN ER IKKE PYNT. Satsen er ikke en egenskap ved en person, den
+ * er en egenskap ved en person i en maaned: ansatt 1104304 sto med
+ * 143,34 i april og mai, og 185,58 fra juni. Et register uten periode
+ * kan derfor prise juli med aprilsatsen og se helt riktig ut.
+ *
+ * Det skjedde. Maaletesten lette seg fram med «filnavn inneholder
+ * aarstallet», traff alle 2026-filene, og gjorde avviket for Dale juli
+ * BEDRE enn det var. En maalefeil som pynter er farligere enn en som
+ * skriker.
+ *
+ * `beregnArbeidssted` krever derfor at hvert register dekker maaneden
+ * den regner.
+ */
+export type Ansattregister = {
+  /** Foerste og siste dagslinje i fila. */
+  fraDato: string
+  tilDato: string
+  ansatte: Ansattrad[]
+}
+
+/** En ansatt slik lønnsgrunnlaget kjenner hen: nummer, sats, hjemstasjon. */
+export type Ansattrad = {
+  ansattNr: string
+  ansattNavn: string
+  /** Timesatsen, fra kolonnen «Lønn». */
+  timesats: number
+  /** Hovedlokasjon — hjemstasjonen, ikke der hen jobbet. */
+  hovedlokasjon: string
+}
+
+/**
+ * Hvem lønnsgrunnlaget kjenner, og hva de koster per time.
+ *
+ * =====================================================================
+ * HVORFOR DENNE FINNES VED SIDEN AV `lesLonnsgrunnlag`
+ *
+ * `lesLonnsgrunnlag` leser bare DAGSLINJER, og hopper dessuten over
+ * enhver art med `timer === 0`. Det er riktig for det den svarer på:
+ * hvilke timer ble jobbet her.
+ *
+ * Men en ansatt som jobbet hele måneden på en ANNEN stasjon har ingen
+ * dagslinjer i sin egen stasjons fil. Hun står der bare som en
+ * ansattsum med null timer — og med timesatsen sin. Målt på Lone juli
+ * 2026: `timer = 0`, `Lønn = 138,00`, samme måned som hun jobbet 79,82
+ * timer på Bønes.
+ *
+ * Det er nettopp den raden som gjør det mulig å prise en innlånt
+ * ansatt. Uten den ville kryssarbeidet vært synlig i Basis Export, men
+ * umulig å regne kroner av.
+ *
+ * ---------------------------------------------------------------------
+ * LESER BÅDE ANSATTSUMMER OG DAGSLINJER
+ *
+ * Fila har fire nivåer om hverandre (se toppen). Her vil vi ha hver
+ * ansatt ÉN gang, uansett hvilket nivå hen først dukker opp på. Timene
+ * summeres ikke — det er `lesLonnsgrunnlag` sin jobb, og to veier til
+ * samme sum er to steder de kan skille lag.
+ *
+ * En rad uten ansattnummer er en stasjonssum og hoppes over.
+ */
+export function ansattregister(tekst: string): Ansattregister {
+  const rader = csvRader(tekst.replace(/^﻿/, ''))
+  const iTopp = finnTopprad(rader)
+  if (iTopp < 0) throw new Error('Fant ingen topprad med «Stemplingsnummer».')
+  const noekler = rader[iTopp].map((x) => x.trim()).map(noekkel)
+
+  const k = (nk: string): number => {
+    const i = noekler.indexOf(nk)
+    if (i < 0) throw new Error(`Lønnsgrunnlaget mangler kolonnen «${nk}».`)
+    return i
+  }
+  const iNr = k('stemplingsnummer')
+  const iNavn = k('ansatt')
+  const iSats = k('lønn')
+  const iHoved = k('hovedlokasjon')
+  const iDato = k('dato')
+
+  const ut = new Map<string, Ansattrad>()
+  const datoer: string[] = []
+  for (const r of rader.slice(iTopp + 1)) {
+    const dato = (r[iDato] ?? '').trim()
+    if (ISO_DATO.test(dato)) datoer.push(dato)
+    const ansattNr = (r[iNr] ?? '').trim()
+    if (ansattNr === '') continue // stasjonssum
+    if (ut.has(ansattNr)) continue
+    const timesats = tall(r[iSats] ?? '')
+    // EN SATS PÅ NULL ER IKKE EN SATS. Den ville priset hver time til
+    // null kroner, og en gratis ansatt ser ut som en billig måned.
+    if (!Number.isFinite(timesats) || timesats <= 0) continue
+    ut.set(ansattNr, {
+      ansattNr,
+      ansattNavn: (r[iNavn] ?? '').trim(),
+      timesats,
+      hovedlokasjon: (r[iHoved] ?? '').trim(),
+    })
+  }
+  // UTEN DAGSLINJER VET VI IKKE HVILKEN PERIODE FILA GJELDER, og et
+  // register uten periode kan ikke kontrolleres mot maaneden det brukes
+  // paa. Det er samme innsats som at `lesLonnsgrunnlag` kaster naar fila
+  // ikke har en eneste dagslinje.
+  if (!datoer.length) {
+    throw new Error('Lønnsgrunnlaget hadde ingen dagslinjer, og perioden kan ikke avgjøres.')
+  }
+  datoer.sort()
+  return {
+    fraDato: datoer[0],
+    tilDato: datoer[datoer.length - 1],
+    ansatte: [...ut.values()],
   }
 }
