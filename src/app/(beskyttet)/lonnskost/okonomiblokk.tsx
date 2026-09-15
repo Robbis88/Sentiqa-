@@ -1,4 +1,4 @@
-import { kr } from '@/lib/format'
+import { kr, manedAar } from '@/lib/format'
 import { Datatabell } from '@/components/ui/side'
 import { Signal } from '@/components/ui/status'
 import { Kildemerke } from '@/components/ui/kilde'
@@ -40,6 +40,41 @@ function Tallrad({ navn, felt }: { navn: string; felt: Felt }) {
 }
 
 /**
+ * Måneden blokken gjelder, i klartekst.
+ *
+ * =====================================================================
+ * TO LØNNSROM PÅ SAMME SKJERM, MED FAKTOR 2,5 MELLOM SEG
+ * =====================================================================
+ *
+ * Målt i produksjon 2026-09-15. Overskriften sto uten måned, og rett
+ * under den viste nøkkeltallene `Lønn av brutto · august 2026` med
+ * `Rommet er 346 285 kr` — mens blokken sa `Lønnsrom 137 489 kr`.
+ *
+ * Tallene motsa ikke hverandre. De gjaldt ULIKE MÅNEDER: nøkkeltallene
+ * krever easy@work-data og faller derfor på siste avlagte måned, mens
+ * blokken viser den nyeste måneden med et rom — altså den inneværende,
+ * halvgåtte. Halve måneden, omtrent halve tallet.
+ *
+ * Uten måneden i overskriften ser det ut som systemet svarer to ting på
+ * samme spørsmål. Det er den farligste formen i dette systemet: to tall
+ * som ser sammenlignbare ut og ikke er det.
+ *
+ * ---------------------------------------------------------------------
+ * LESER `bilde.maaned`, UTLEDER INGENTING
+ * ---------------------------------------------------------------------
+ *
+ * Måneden er valgt av kallstedet og båret hele veien gjennom
+ * `byggOkonomibilde`. Å regne den ut på nytt her — av dagens dato, av
+ * dekningen, av noe som helst — ville gitt en andre mening om hvilken
+ * periode tallene gjelder, og da kunne overskriften og radene skilt lag.
+ *
+ * `okonomiblokk.test.tsx` beviser at perioden kommer herfra.
+ */
+function periode(bilde: Okonomibilde): string {
+  return manedAar.format(new Date(`${bilde.maaned}-01`))
+}
+
+/**
  * Lønnsblokken: brutto, rom, lønn og avviket mellom dem.
  *
  * ---------------------------------------------------------------------
@@ -69,7 +104,7 @@ export function Lonnsblokk({ bilde }: { bilde: Okonomibilde }) {
   const sikkerhet = sikkerhetsgrad(rader.map((r) => r.felt))
 
   return (
-    <Datatabell tittel={`Lønnsrommet · sikkerhet ${ORD_SIKKERHET[sikkerhet]}`}>
+    <Datatabell tittel={`Lønnsrommet · ${periode(bilde)} · sikkerhet ${ORD_SIKKERHET[sikkerhet]}`}>
       <thead>
         <tr>
           <th>Post</th>
