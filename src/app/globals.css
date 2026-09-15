@@ -1197,6 +1197,28 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-tab-liste { display: flex; flex-direction: column; gap: 0.6rem; }
 .pp-tab-rad { background: var(--natt-flate); border: 1px solid var(--natt-kant); border-radius: 12px; padding: 0.8rem 0.9rem; }
 .pp-tab-rad.ferdig { border-color: var(--gronn); background: var(--natt-flate-ferdig); }
+
+/* --- Morgendagens plan ---------------------------------------------
+   LESEVISNING, OG DET SKAL SYNES. To lister med tall paa samme skjerm
+   der den ene gjelder en annen dag - samme form som feilslippet der
+   juni ble sluppet i stedet for juli. Dempet flate og venstrekant
+   skiller den fra dagens plan uten aa bruke en farge; fargene her
+   betyr noe annet (groent = ferdig, roedt = haster).
+
+   Vernet mot aa skrive paa feil dag er IKKE denne stilen - det er at
+   `tablet-morgendag.tsx` ikke har knapper. Se `morgendag.test.ts`. */
+.pp-morgendag { opacity: 0.92; border-left: 3px solid var(--natt-kant-sterk); padding-left: 0.9rem; }
+.pp-morgendag > h2 { color: var(--natt-tekst-svak); }
+.pp-morgendag-gruppe {
+  margin: 0.9rem 0 0.4rem;
+  font-size: var(--tekst-liten);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--natt-tekst-dempet);
+}
+/* Ingen stolpe, ingen knapper - raden baerer bare tall. */
+.pp-tab-rad.lesevisning { background: transparent; border-style: dashed; }
+.pp-tab-rad.lesevisning .pp-tab-bunn { justify-content: flex-start; }
 .pp-tab-topp { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 .pp-tab-navn { font-weight: 700; color: var(--natt-tekst); }
 .pp-tab-tall { font-weight: 800; color: var(--natt-tekst); font-size: 1.1rem; white-space: nowrap; }
