@@ -20,6 +20,7 @@
 // siden av tallet — ikke i en fotnote.
 
 import type { Lonnsartlinje } from '@/lib/parsere/lonnsart'
+import { delOppKostnad, type Kostnadsniva } from './kostnadsniva'
 
 /**
  * En ferdig summert linje: en loennsart i en maaned.
@@ -565,3 +566,43 @@ export const MANGLER = [
   'faste tillegg som ikke er en arbeidet time (konto 502), for eksempel mobildekning',
   'bonus (konto 509)',
 ] as const
+
+/**
+ * Anslaget delt paa det BP faktisk budsjetterer.
+ *
+ * UTLEDET, IKKE ET FELT. `EasyatworkMaaned` settes sammen fire steder i
+ * denne fila, og et femte felt aa holde i synk paa alle fire ville vaert
+ * fire steder det kunne glemmes. Her regnes det av maaneden som finnes.
+ *
+ * ---------------------------------------------------------------------
+ * FERIEPENGER OG AGA BLIR HELE PAA STYRINGSSIDEN
+ *
+ * 508, 540 og 541 ligger i BP, og de beregnes av HELE kontantloenna -
+ * ogsaa den delen som er sykeloenn. Det er slik regnskapet foerer det,
+ * og maalingen over 30 stasjonsmaaneder delte paa noeyaktig samme maate.
+ * Vi splitter dem derfor ikke.
+ *
+ * Aga legges under 540 alene. Regnskapet deler den i 540 og 541, men
+ * begge er styringskonti, saa summen blir den samme - og easy@work-
+ * anslaget har ikke grunnlag for aa dele dem.
+ *
+ * ---------------------------------------------------------------------
+ * HVA VI IKKE VET
+ *
+ *   501  ukjent naar `fastlonnKilde` er null. EN FASTLOENNET FINNES
+ *        IKKE I EKSPORTEN, og fravaeret er usynlig. Paa Boenes er
+ *        lederens fastloenn 27 % av loennskosten. Foer denne endringen
+ *        ble den 0 kroner gjennom `?? 0`, og styringskosten ble for lav
+ *        - altsaa rommet for stort.
+ *   502, 506, 509  ukjent ALLTID. De finnes ikke i noen easy@work-
+ *        eksport. Derfor er `ovrigLonnKr` alltid `null` herfra: vi
+ *        kjenner sykeloenna, men ikke resten av det som staar utenfor BP.
+ */
+export function easyatworkNiva(m: EasyatworkMaaned): Kostnadsniva {
+  const ukjente = ['502', '506', '509']
+  if (m.fastlonnKilde === null) ukjente.push('501')
+  return delOppKostnad(
+    { ...m.perKonto, 508: m.feriepengerKr, 540: m.agaKr },
+    ukjente,
+  )
+}

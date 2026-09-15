@@ -39,6 +39,9 @@ const REGNSKAP: Regnskapstall = {
   omsetningKr: 4200000,
   bruttoKr: 1201000,
   lonnKr: 390000,
+  // 501+503+508+540+541. Differansen mot `lonnKr` er 502/505/506/509 —
+  // ekte kostnad, men utenfor BP og derfor utenfor rommet.
+  styringskostKr: 380000,
   royaltyKr: 420000,
   paavirkbarDriftKr: 96000,
 }
@@ -48,6 +51,7 @@ const INN = (o: Partial<Bildeinput> = {}): Bildeinput => ({
   maaned: '2026-08',
   rom: ROM(),
   regnskap: REGNSKAP,
+  easyatworkStyringskostKr: null,
   easyatworkLonnKr: 371000,
   dagligOmsetningKr: 4150000,
   dekning: DEKNING,
@@ -166,9 +170,16 @@ describe('styringsavviket arver svakeste kilde', () => {
   })
 
   it('fasit rom + prognose loenn gir ogsaa prognose', () => {
-    const b = byggOkonomibilde(INN({ regnskap: { ...REGNSKAP, lonnKr: null } }))
+    // Avviket foelger STYRINGSKOSTEN, ikke hele loenna - derfor maa
+    // begge staa som ikke-fasit for at prognosen skal slaa inn.
+    const b = byggOkonomibilde(INN({
+      regnskap: { ...REGNSKAP, lonnKr: null, styringskostKr: null },
+      easyatworkLonnKr: 390000,
+      easyatworkStyringskostKr: 380000,
+    }))
     expect(b.lonnsrom.kilde).toBe('fasit')
     expect(b.lonn.kilde).toBe('prognose')
+    expect(b.styringskost.kilde).toBe('prognose')
     expect(b.styringsavvik.kilde).toBe('prognose')
   })
 
@@ -183,10 +194,57 @@ describe('styringsavviket arver svakeste kilde', () => {
   })
 
   it('kaller E2 sin funksjon og regner ikke selv', () => {
-    // Loenn 390 000 mot rom 383 285: 1,75 % over, altsaa normalt.
+    // STYRINGSKOST 380 000 mot rom 383 285: 3 285 innenfor.
+    //
+    // Her sto 390 000 - hele loennskosten - og ga 6 715 OVER. De 10 000
+    // som skiller dem er 502/505/506/509, konti BP aldri budsjetterte.
+    // Se `lonnskost/kostnadsniva.ts`.
     const b = byggOkonomibilde(INN())
-    expect(b.styringsavvik.avvik.kroner).toBeCloseTo(6715, 0)
+    expect(b.styringsavvik.avvik.kroner).toBeCloseTo(-3285, 0)
     expect(b.styringsavvik.avvik.alvor).toBe('normal')
+  })
+
+  it('maaler rommet mot styringskosten, ikke mot hele loennskosten', () => {
+    // REGRESJONSVAKT. Sykeloenn skal ikke spise av BP-rommet.
+    // Samme maaned, samme rom - bare mer sykeloenn i `lonnKr`.
+    const med = byggOkonomibilde(INN({
+      regnskap: { ...REGNSKAP, lonnKr: 425330, styringskostKr: 380000 },
+    }))
+    const uten = byggOkonomibilde(INN({
+      regnskap: { ...REGNSKAP, lonnKr: 390000, styringskostKr: 380000 },
+    }))
+    expect(med.styringsavvik.avvik.kroner).toBe(uten.styringsavvik.avvik.kroner)
+    expect(med.lonn.verdi).not.toBe(uten.lonn.verdi)
+  })
+
+  it('en ukjent styringskost trekker ned SIKKERHETEN', () => {
+    // KANARIFUGL for at `styringskost` er med i `sikkerhetsgrad`.
+    //
+    // Uten den kunne bildet melde `hoy` mens tallet loennsrommet faktisk
+    // maales mot ikke lot seg regne - alle ANDRE felt var fasit, saa
+    // provenance alene fikk bildet til aa se komplett ut.
+    const alt = byggOkonomibilde(INN())
+    expect(alt.sikkerhet).toBe('hoy')
+
+    const utenNivaa = byggOkonomibilde(INN({
+      regnskap: { ...REGNSKAP, styringskostKr: null },
+      easyatworkStyringskostKr: null,
+    }))
+    expect(utenNivaa.styringskost.kilde).toBe('mangler')
+    expect(utenNivaa.sikkerhet).not.toBe('hoy')
+  })
+
+  it('et ukjent nivaa er ikke null kroner', () => {
+    // Fastloenna ligger i 501, altsaa INNE i BP-nivaaet. Er den ukjent,
+    // kan styringskosten ikke regnes - og da finnes det ikke noe avvik.
+    // Null her ville gitt et rom som saa romsligere ut enn det er.
+    const b = byggOkonomibilde(INN({
+      regnskap: { ...REGNSKAP, styringskostKr: null },
+      easyatworkStyringskostKr: null,
+    }))
+    expect(b.styringskost.kilde).toBe('mangler')
+    expect(b.styringsavvik.avvik.kroner).toBeNull()
+    expect(b.styringsavvik.avvik.mangler).toBeTruthy()
   })
 })
 

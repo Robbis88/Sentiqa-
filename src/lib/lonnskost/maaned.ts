@@ -41,6 +41,8 @@
  * St1s kontoplan er tresifret her; BP-en bruker fire siffer for de samme
  * postene. Se `bp.ts` — de to settene møtes aldri i samme måned.
  */
+import { delOppKostnad, type Kostnadsniva } from './kostnadsniva'
+
 export const LONNSKONTI = [
   '501', // Faste lønninger
   '502', // Lønnstillegg
@@ -113,6 +115,17 @@ export type Maanedslonn = {
   agaKr: number
   /** Summen av de ni kontiene. Verifisert mot Bønes juli 2026. */
   lonnskostKr: number
+  /**
+   * De ni kontiene delt paa det BP faktisk budsjetterer.
+   *
+   * `null` naar maaneden ikke er avlagt: da finnes det ingen bokfoert
+   * kostnad aa dele opp, og easy@work-anslaget er kilden i stedet.
+   *
+   * `lonnskostKr` er fortsatt totalen og skal fortsatt vises. Det er
+   * `niva.styringskostKr` som skal maales mot lonnsrommet - se
+   * `kostnadsniva.ts` for hvorfor.
+   */
+  niva: Kostnadsniva | null
   /** 590. Utenfor lønnskosten med vilje. */
   andrePersonalKr: number
   budsjettKr: number | null
@@ -214,6 +227,16 @@ export function byggLonnskost(
       ? kontantKr + feriepengerKr + agaKr
       : rader.reduce((a, r) => a + r.regnskap, 0)
 
+    // EN AVLAGT MAANED HAR INGEN UKJENTE KONTI. Et regnskap uten linje
+    // for en konto betyr null kroner, ikke «vi vet ikke» - det er
+    // forskjellen paa et fravaer og et hull. For en aapen maaned finnes
+    // det ingen bokfoert kostnad i det hele tatt, og da er `niva` null
+    // heller enn en oppdeling av budsjettall som later som om de er
+    // kostnader.
+    const perKonto: Record<string, number> = {}
+    if (avlagt) for (const r of rader) perKonto[r.kode] = (perKonto[r.kode] ?? 0) + r.regnskap
+    const niva = avlagt ? delOppKostnad(perKonto) : null
+
     const andrePersonalKr = (avlagt ? drift : bp)
       .filter((l) => ANDRE_PERSONALKONTI.includes(l.kode as never))
       .reduce((a, l) => a + (avlagt ? tall(l.regnskap) : tall(l.budsjett)), 0)
@@ -231,6 +254,7 @@ export function byggLonnskost(
       feriepengerKr,
       agaKr,
       lonnskostKr,
+      niva,
       andrePersonalKr,
       budsjettKr: harBudsjett ? budsjett : null,
       budsjettKilde: harBudsjett ? (avlagt ? 'st1_maaned' : 'bp') : null,

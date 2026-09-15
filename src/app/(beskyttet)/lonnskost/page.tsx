@@ -9,7 +9,7 @@ import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
-import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
+import { MANGLER, SATSER, easyatworkNiva } from '@/lib/lonnskost/easyatwork'
 import { maanedsrader } from '@/lib/lonnskost/rom'
 import { byggOkonomibilde, skjermFor } from '@/lib/okonomi/bilde'
 import { avslutteteUkerIMaaned, byggDekning } from '@/lib/okonomi/dekning'
@@ -242,6 +242,11 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const aarstall = {
     maaneder: avlagteIAar.length,
     lonnskostKr: sum(avlagteIAar.map((m) => m.lonnskostKr)),
+    // Samme skille som for maaneden. En avlagt maaned har alltid et
+    // kjent nivaa, men `some(null)` fanger det om det endrer seg.
+    styringskostKr: avlagteIAar.some((m) => m.niva?.styringskostKr == null)
+      ? null
+      : sum(avlagteIAar.map((m) => m.niva!.styringskostKr)),
     budsjettKr: sum(avlagteIAar.map((m) => m.budsjettKr ?? romAvlagt.find((r) => r.maaned === m.maaned)?.bpLonnKr)),
     romKr: sum(romAvlagt.map((r) => r.romKr)),
     // Rommet finnes bare for maaneder som har baade BP og brutto. Uten
@@ -255,7 +260,8 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     bpMaaneder: iAar(rom).filter((r) => r.bpLonnKr != null).length,
   }
   const aarsavvik = aarstall.romMaaneder === aarstall.maaneder && aarstall.maaneder > 0
-    ? aarstall.lonnskostKr - aarstall.romKr
+    && aarstall.styringskostKr != null
+    ? aarstall.styringskostKr - aarstall.romKr
     : null
   const grunnlagPer = new Map(rom.map((r) => [r.maaned, r]))
   // DEN INNEVAERENDE MAANEDEN ER DEN ENESTE SOM KAN PAAVIRKES.
@@ -266,16 +272,34 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const naa = rom.find((r) => r.romKr != null && eaPerMaaned.has(r.maaned))
   const naaEa = naa ? eaPerMaaned.get(naa.maaned) : undefined
   const naaAvlagt = naa ? maaneder.find((m) => m.maaned === naa.maaned)?.avlagt : false
-  const naaBrukt = naaAvlagt
-    ? maaneder.find((m) => m.maaned === naa!.maaned)?.lonnskostKr ?? null
-    : naaEa?.lonnskostKr ?? null
-  const igjen = naa?.romKr != null && naaBrukt != null ? naa.romKr - naaBrukt : null
+  // HVA SOM ER BRUKT AV ROMMET ER IKKE HELE LOENNSKOSTEN.
+  //
+  // Rommet er regnet av BP-loenn, som dekker 501+503+508+540+541. Holdt
+  // vi ni konti mot det, ville sykeloenn spist av et rom som aldri var
+  // satt av til den. Dale i juli 2026: 35 330 kr, 8,71 % av nivaaet, og
+  // 34 830 av dem var sykeloenn.
+  //
+  // `null` naar styringskosten ikke kan regnes - da finnes det ikke noe
+  // «igjen» aa vise, og et tall her ville vaert en gjetning.
+  const naaStyring = naaAvlagt
+    ? maaneder.find((m) => m.maaned === naa!.maaned)?.niva?.styringskostKr ?? null
+    : naaEa ? easyatworkNiva(naaEa).styringskostKr : null
+  const igjen = naa?.romKr != null && naaStyring != null ? naa.romKr - naaStyring : null
 
-  // FAKTISK ANDEL, ikke rommet i kroner. `naaBrukt` delt paa den samme
-  // bruttoen rommet er regnet av - saa de to prosentene er sammenlignbare
-  // per konstruksjon.
-  const naaAndel = naa?.bruttoKr != null && naa.bruttoKr > 0 && naaBrukt != null
-    ? naaBrukt / naa.bruttoKr
+  // FAKTISK ANDEL, ikke rommet i kroner. Delt paa den samme bruttoen
+  // rommet er regnet av - saa de to prosentene er sammenlignbare per
+  // konstruksjon.
+  //
+  // TELLEREN MAA VAERE STYRINGSKOSTEN. `naa.lonnsandel` er
+  // BP-loenn / BP-brutto, altsaa fem konti. Sto `naaBrukt` her - alle ni
+  // - ville kortets gronn/roed-signal vaert epler mot paerer, og det er
+  // nettopp ANDELEN kommentaren ved kortet kaller «kontrollen».
+  //
+  // Feilen slo begge veier: en avlagt maaned med sykefravaer ga falsk
+  // roed, og en aapen maaned med ukjent fastloenn ga falsk GROENN, fordi
+  // easy@work-anslaget mangler 501 helt.
+  const naaAndel = naa?.bruttoKr != null && naa.bruttoKr > 0 && naaStyring != null
+    ? naaStyring / naa.bruttoKr
     : null
   const andelsavvik = naaAndel != null && naa?.lonnsandel != null
     ? naaAndel - naa.lonnsandel
@@ -324,11 +348,18 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           omsetningKr: null,
           bruttoKr: null,
           lonnKr: bildeMaanedslonn.lonnskostKr,
+          // ROMMET MAALES MOT DENNE, IKKE MOT `lonnKr`. Se
+          // `lonnskost/kostnadsniva.ts`.
+          styringskostKr: bildeMaanedslonn.niva?.styringskostKr ?? null,
           royaltyKr: null,
           paavirkbarDriftKr: null,
         }
         : null,
       easyatworkLonnKr: eaPerMaaned.get(bildeRom.maaned)?.lonnskostKr ?? null,
+      easyatworkStyringskostKr: (() => {
+        const ea = eaPerMaaned.get(bildeRom.maaned)
+        return ea ? easyatworkNiva(ea).styringskostKr : null
+      })(),
       dagligOmsetningKr: bildeRom.omsetningKr,
       dekning: byggDekning({
         maaned: bildeRom.maaned,
@@ -466,9 +497,14 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             retning={andelsavvik == null ? 'flat' : andelsavvik > 0 ? 'opp' : 'ned'}
             bra={andelsavvik == null ? undefined : andelsavvik <= 0}
           />
+          {/* BRUKT AV ROMMET, ikke hele loennskosten. Kortet staar ved
+              siden av «igjen», og de to maa gaa opp mot lonnsrommet:
+              rom - brukt = igjen. Sto hele loennskosten her, ville Dale i
+              juli 2026 vist 441 171 brukt av et rom paa 383 285 og
+              samtidig «igjen -22 556». Tre tall, to regnestykker. */}
           <Nokkeltall
-            merkelapp="Brukt så langt"
-            verdi={naaBrukt == null ? '—' : kr.format(Math.round(naaBrukt))}
+            merkelapp="Brukt av rommet"
+            verdi={naaStyring == null ? '—' : kr.format(Math.round(naaStyring))}
             sammenlignet={naaEa == null
               ? undefined
               : `${naaEa.timer.toLocaleString('nb-NO')} timer`}
@@ -676,12 +712,30 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             // reserven sto budsjettkolonnen tom for nettopp den rollen
             // sida er bygget for.
             const budsjettKr = m?.budsjettKr ?? r?.bpLonnKr ?? null
-            const brukt = m?.avlagt ? m.lonnskostKr : ea?.lonnskostKr ?? null
-            const avvikRom = r?.romKr != null && brukt != null ? brukt - r.romKr : null
+            // ALT SOM MAALES MOT ROMMET MAA VAERE PAA BP-NIVAA.
+            //
+            // `brukt` er hele loennskosten og hoerer hjemme i
+            // kolonnene som VISER kostnaden. Rommet er regnet av
+            // BP-loenn, som dekker 501+503+508+540+541 - og avviket og
+            // andelen maa derfor regnes av styringskosten.
+            //
+            // Sto `brukt` her, slo feilen begge veier: en avlagt maaned
+            // med sykefravaer saa ut som overforbruk (Dale juli: 35 330
+            // kr som aldri var budsjettert), mens en AAPEN maaned med
+            // ukjent fastloenn saa ut som om det var MER rom enn det er
+            // - easy@work-anslaget mangler 501 helt.
+            const bruktStyring = m?.avlagt
+              ? m.niva?.styringskostKr ?? null
+              : ea ? easyatworkNiva(ea).styringskostKr : null
+            const avvikRom = r?.romKr != null && bruktStyring != null
+              ? bruktStyring - r.romKr
+              : null
             // ANDELEN PER RAD, regnet av samme brutto som rommet - saa den
             // og budsjettandelen er sammenlignbare per konstruksjon.
-            const radAndel = r?.bruttoKr != null && r.bruttoKr > 0 && brukt != null
-              ? brukt / r.bruttoKr
+            // `r.lonnsandel` er BP-loenn / BP-brutto, altsaa fem konti;
+            // telleren maa vaere de samme fem.
+            const radAndel = r?.bruttoKr != null && r.bruttoKr > 0 && bruktStyring != null
+              ? bruktStyring / r.bruttoKr
               : null
             const radAndelsavvik = radAndel != null && r?.lonnsandel != null
               ? radAndel - r.lonnsandel
