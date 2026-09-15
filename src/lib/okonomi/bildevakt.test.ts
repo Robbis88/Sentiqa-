@@ -132,6 +132,13 @@ describe('sammenstilleren peker ikke oppover i lagene', () => {
     // `styringsavvik` er E2 sin. Blir den kopiert hit, er lagdelingen
     // borte selv om aritmetikkvakten skulle staa groenn.
     expect(KILDE).toContain("from '@/lib/lonnskost/rom'")
-    expect(KILDE).toContain('styringsavvik(rom, lonn.verdi)')
+    expect(KILDE).toContain('styringsavvik(rom, styringskost.verdi)')
+    // OG DEN MAA FAA STYRINGSKOSTEN, IKKE HELE LOENNA.
+    //
+    // Rommet er regnet av BP-loenn, som dekker 501+503+508+540+541.
+    // `lonn.verdi` er alle ni kontiene. Sto det `lonn.verdi` her igjen,
+    // ville 502/505/506/509 spist av et rom som aldri var satt av til
+    // dem - 8,71 % paa Dale i juli 2026, der 34 830 kr var sykeloenn.
+    expect(KILDE).not.toContain('styringsavvik(rom, lonn.verdi)')
   })
 })

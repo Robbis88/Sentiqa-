@@ -58,6 +58,7 @@ const BILDE = (maaned: string) => byggOkonomibilde({
   rom: ROM({ maaned }),
   regnskap: null,
   easyatworkLonnKr: null,
+  easyatworkStyringskostKr: null,
   dagligOmsetningKr: 2100000,
   dekning: DEKNING,
 } satisfies Bildeinput)

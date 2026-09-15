@@ -133,7 +133,19 @@ export type Dekning = {
 export type Regnskapstall = {
   omsetningKr: number | null
   bruttoKr: number | null
+  /** Hele lønnskosten, alle ni konti. Til visning. */
   lonnKr: number | null
+  /**
+   * 501+503+508+540+541 — det BP faktisk budsjetterer.
+   *
+   * DETTE er tallet lønnsrommet måles mot, ikke `lonnKr`. De to lå på
+   * ulikt nivå fram til nå: rommet er regnet av BP-lønn, som dekker fem
+   * konti, mens `lonnKr` er ni. Differansen ble lest som overforbruk —
+   * 8,71 % på Dale i juli 2026, der 34 830 kr av det var sykelønn.
+   *
+   * `null` betyr KAN IKKE REGNES. Se `lonnskost/kostnadsniva.ts`.
+   */
+  styringskostKr: number | null
   royaltyKr: number | null
   paavirkbarDriftKr: number | null
 }
@@ -146,6 +158,11 @@ export type Bildeinput = {
   regnskap: Regnskapstall | null
   /** Anslaget fra easy@work, med manuell fastlønn lagt til. */
   easyatworkLonnKr: number | null
+  /**
+   * Samme anslag, men bare styringskontiene. `null` når fastlønna ikke
+   * er kjent — den ligger i 501 og dermed inne i nivået.
+   */
+  easyatworkStyringskostKr: number | null
   /** Løpende omsetning fra `v_butikksalg`. */
   dagligOmsetningKr: number | null
   dekning: Dekning
@@ -161,7 +178,15 @@ export type Okonomibilde = {
   /** BP-ens lønnstall. ALLTID `plan` — det er hele poenget med det. */
   bpLonn: Felt
   lonnsrom: Felt
+  /** Hele lønnskosten. Til visning — IKKE det rommet måles mot. */
   lonn: Felt
+  /**
+   * Lønnskost på BP-nivå. Dette er tallet `styringsavvik` regnes av.
+   *
+   * Står ved siden av `lonn` med vilje: flaten skal kunne vise begge, og
+   * differansen mellom dem ER «øvrige lønnskostnader».
+   */
+  styringskost: Felt
   styringsavvik: Avviksfelt
   royalty: Felt
   paavirkbarDrift: Felt
@@ -261,14 +286,39 @@ export function byggOkonomibilde(inn: Bildeinput): Okonomibilde {
         }
         : mangler('Lønnsfila er ikke kommet.')
 
+  // --- STYRINGSKOSTEN. Samme kilderekkefølge som lønna. -------------
+  //
+  // MÅLES MOT ROMMET I STEDET FOR `lonn`. Rommet er `BP-lønn / BP-brutto
+  // × brutto`, og BP-lønn dekker 501+503+508+540+541. Holdt vi ni konti
+  // mot det, ville 502, 505, 506 og 509 spist av et rom som aldri var
+  // satt av til dem. Målt over 30 stasjonsmåneder er de budsjettert med
+  // null i hver eneste.
+  const styringskost: Felt =
+    regnskap?.styringskostKr != null
+      ? { verdi: regnskap.styringskostKr, kilde: 'fasit' }
+      : inn.easyatworkStyringskostKr != null
+        ? {
+          verdi: inn.easyatworkStyringskostKr,
+          kilde: 'prognose',
+          grunn: 'easy@work på BP-nivå. Mangler overtid; 502/505/506/509 er utenfor.',
+        }
+        : mangler(
+          lonn.verdi === null
+            ? 'Lønnsfila er ikke kommet.'
+            // EN UKJENT FASTLØNN ER IKKE NULL KRONER. Uten dette ville
+            // rommet blitt målt mot en styringskost som mangler 501, og
+            // sett romsligere ut enn det er.
+            : 'Fastlønna er ikke kjent, og den ligger inne i BP-nivået.',
+        )
+
   // --- AVVIKET. LOV 2: svakeste kilde vinner. ------------------------
   //
   // `styringsavvik` er E2 sin, og den kalles — den gjentas ikke. At
   // rommet er anslått gjør avviket til et anslag, uansett hvor sikkert
   // lønnstallet er.
   const styringsfelt: Avviksfelt = {
-    avvik: styringsavvik(rom, lonn.verdi),
-    kilde: svakeste(lonnsrom.kilde, lonn.kilde),
+    avvik: styringsavvik(rom, styringskost.verdi),
+    kilde: svakeste(lonnsrom.kilde, styringskost.kilde),
   }
 
   // --- ROYALTY. FASIT-ONLY, og det er en datagrense. -----------------
@@ -294,11 +344,19 @@ export function byggOkonomibilde(inn: Bildeinput): Okonomibilde {
     bpLonn,
     lonnsrom,
     lonn,
+    styringskost,
     styringsavvik: styringsfelt,
     royalty,
     paavirkbarDrift,
     dekning: inn.dekning,
-    sikkerhet: sikkerhetsgrad([omsetning, brutto, lonn, royalty, paavirkbarDrift]),
+    // STYRINGSKOSTEN TELLER MED I SIKKERHETEN.
+    //
+    // Uten den kunne bildet melde `middels` mens tallet lønnsrommet
+    // faktisk måles mot ikke lot seg regne: en åpen måned med ukjent
+    // fastlønn gir `lonn: prognose` og `styringskost: mangler`, og da
+    // ville provenance alene fått bildet til å se mer komplett ut enn
+    // det er.
+    sikkerhet: sikkerhetsgrad([omsetning, brutto, lonn, styringskost, royalty, paavirkbarDrift]),
   }
 }
 
@@ -363,7 +421,8 @@ export function skjermFor(rolle: Brukerrolle, bilde: Okonomibilde): Okonomibilde
     ...bilde,
     royalty: skjermet,
     sikkerhet: sikkerhetsgrad([
-      bilde.omsetning, bilde.brutto, bilde.lonn, skjermet, bilde.paavirkbarDrift,
+      bilde.omsetning, bilde.brutto, bilde.lonn, bilde.styringskost,
+      skjermet, bilde.paavirkbarDrift,
     ]),
   }
 }

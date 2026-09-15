@@ -97,7 +97,17 @@ export function Lonnsblokk({ bilde }: { bilde: Okonomibilde }) {
   const rader: { navn: string; felt: Felt }[] = [
     { navn: 'Bruttofortjeneste', felt: bilde.brutto },
     { navn: 'Lønnsrom', felt: bilde.lonnsrom },
-    { navn: 'Lønn', felt: bilde.lonn },
+    // LØNN MOT BUDSJETT, IKKE HELE LØNNSKOSTEN.
+    //
+    // Sto `bilde.lonn` her, ville de tre tallene i blokka ikke gått opp:
+    // ni konti over rommet, og et styringsavvik regnet av fem. Leseren
+    // ville trukket det ene fra det andre og fått et annet tall enn det
+    // som sto under — og på Dale i juli 2026 var forskjellen 35 330 kr,
+    // nesten alt sykelønn.
+    //
+    // «Øvrige lønnskostnader» som egen rad hører til trinn 3. Her holder
+    // det at raden ved siden av rommet er den avviket faktisk regnes av.
+    { navn: 'Lønn mot budsjett', felt: bilde.styringskost },
   ]
 
   const avvik = bilde.styringsavvik.avvik

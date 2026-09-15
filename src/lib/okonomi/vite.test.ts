@@ -42,7 +42,8 @@ const DEKNING = (o: Partial<Dekning> = {}): Dekning => ({
 const REGNSKAP: Regnskapstall = {
   omsetningKr: 4200000,
   bruttoKr: 1201000,
-  lonnKr: 390000, // 1,75 % over rommet - normal
+  lonnKr: 390000,
+  styringskostKr: 380000, // 1,75 % over rommet - normal
   royaltyKr: 420000,
   paavirkbarDriftKr: 96000,
 }
@@ -52,6 +53,7 @@ const BILDE = (o: Partial<Bildeinput> = {}) => byggOkonomibilde({
   maaned: '2026-08',
   rom: ROM(),
   regnskap: REGNSKAP,
+  easyatworkStyringskostKr: null,
   easyatworkLonnKr: 371000,
   dagligOmsetningKr: 4150000,
   dekning: DEKNING(),
@@ -71,28 +73,28 @@ describe('rolig som standard', () => {
     // Uten denne ville `() => []` bestaatt testen over, og hele fila
     // ville vaert stum uten at noe ble roedt. Samme form som vakter som
     // har vaert groenne mens de var i stykker.
-    const over = BILDE({ regnskap: { ...REGNSKAP, lonnKr: 430000 } }) // 12,2 %
+    const over = BILDE({ regnskap: { ...REGNSKAP, lonnKr: 430000, styringskostKr: 430000 } }) // 12,2 %
     expect(hvaBoerJegViteNaa(over).length).toBeGreaterThan(0)
   })
 })
 
 describe('avviket oversettes, det doemmes ikke paa nytt', () => {
   it('over roed terskel blir kritisk', () => {
-    const b = BILDE({ regnskap: { ...REGNSKAP, lonnKr: 430000 } }) // 12,2 %
+    const b = BILDE({ regnskap: { ...REGNSKAP, lonnKr: 430000, styringskostKr: 430000 } }) // 12,2 %
     const beskjed = hvaBoerJegViteNaa(b)[0]
     expect(beskjed.nivaa).toBe('kritisk')
     expect(beskjed.tittel).toContain('gikk over rommet')
   })
 
   it('over gul, men under roed, blir oppmerksomhet', () => {
-    const b = BILDE({ regnskap: { ...REGNSKAP, lonnKr: 410000 } }) // 6,97 %
+    const b = BILDE({ regnskap: { ...REGNSKAP, lonnKr: 410000, styringskostKr: 410000 } }) // 6,97 %
     expect(hvaBoerJegViteNaa(b)[0].nivaa).toBe('oppmerksomhet')
   })
 
   it('KANARIFUGL: nivaaet foelger alvor, det er ikke fast', () => {
     // Uten denne kunne begge testene over bestaatt med en konstant.
-    const roed = hvaBoerJegViteNaa(BILDE({ regnskap: { ...REGNSKAP, lonnKr: 430000 } }))[0]
-    const gul = hvaBoerJegViteNaa(BILDE({ regnskap: { ...REGNSKAP, lonnKr: 410000 } }))[0]
+    const roed = hvaBoerJegViteNaa(BILDE({ regnskap: { ...REGNSKAP, lonnKr: 430000, styringskostKr: 430000 } }))[0]
+    const gul = hvaBoerJegViteNaa(BILDE({ regnskap: { ...REGNSKAP, lonnKr: 410000, styringskostKr: 410000 } }))[0]
     expect(roed.nivaa).not.toBe(gul.nivaa)
   })
 
@@ -102,6 +104,10 @@ describe('avviket oversettes, det doemmes ikke paa nytt', () => {
     const b = BILDE({
       regnskap: null,
       easyatworkLonnKr: 430000,
+      // Avviket foelger styringskosten, saa anslaget maa baere den ogsaa
+      // - ellers staar avviket som «kan ikke regnes» og testen maaler
+      // noe annet enn den tror.
+      easyatworkStyringskostKr: 430000,
       rom: ROM({ anslaatt: true }),
       dekning: DEKNING({ regnskap: false }),
     })
@@ -174,7 +180,7 @@ describe('hver kjensgjerning sies én gang', () => {
     // et bilde uten BP - der det verken finnes rom eller avvik - gitt
     // en TOM liste. Tom betyr «alt i orden».
     const b = BILDE({
-      regnskap: { ...REGNSKAP, lonnKr: 390000 },
+      regnskap: { ...REGNSKAP, lonnKr: 390000, styringskostKr: 390000 },
       rom: ROM({ romKr: null, bpLonnKr: null, lonnsandel: null }),
     })
     const funn = hvaBoerJegViteNaa(b)
@@ -188,7 +194,7 @@ describe('rekkefoelgen er prioritet', () => {
     // Flaten skal kunne rendre lista rett ned. Sorterer den selv, har vi
     // to meninger om hva som haster.
     const b = BILDE({
-      regnskap: { ...REGNSKAP, lonnKr: 430000 },
+      regnskap: { ...REGNSKAP, lonnKr: 430000, styringskostKr: 430000 },
       dekning: DEKNING({ mangler: ['Bilvask uke 39'], retningPaaFeil: 'for_lavt' }),
     })
     const funn = hvaBoerJegViteNaa(b)

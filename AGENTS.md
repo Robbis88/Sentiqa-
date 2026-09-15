@@ -240,6 +240,48 @@ i testen.
 **Hver vakt har en kanarifugl, og det er ikke pynt.** To av dem har vært grønne mens de var i stykker — RLS-vakthunden i månedsvis fordi den forutsatte at det fantes policyer å vurdere, rollevakten fordi regexen ikke tålte parenteser og dermed var blind for `!erLeder(bruker.rolle)`. **En vakt som slutter å se, ser nøyaktig ut som en vakt som ikke finner noe.** Legger du til en ny kontroll, legg til noe som feiler når den slutter å måle.
 
 
+# Et styringstall er gyldig bare når teller og referanse måler samme ting
+
+Et tall som sammenlignes med et annet må dekke nøyaktig det samme. Bryter
+den regelen, blir svaret ikke «litt unøyaktig» — det blir et **feil
+beslutningssignal**, og det ser helt normalt ut.
+
+To brudd er funnet i samme system, begge i lønnskjeden:
+
+**Ni konti mot et fem-konto-budsjett.** Lønnsrommet er
+`BP-lønn / BP-brutto × brutto`, og BP-lønn dekker `501 503 508 540 541`.
+Lønnstallet som ble holdt mot det var summen av ni. Differansen —
+sykelønn, bonus, lønnstillegg, NAV-refusjon — ble lest som overforbruk.
+På Dale i juli 2026 var det 35 330 kr, 8,71 %, og 34 830 av dem var
+sykelønn. Butikksjefen fikk rødt fordi noen var syk.
+
+**Hovedlokasjon mot arbeidssted.** Daglig lønnskost fører timene på den
+ansattes hjemstasjon. Stasjonen som faktisk hadde arbeidet fikk dem ikke.
+På Bønes i juli 2026 forsvant 97,31 timer og 15 191 kr — 10,9 % — og
+feilen gikk alltid samme vei: for lite lønn, altså for mye lønnsrom.
+
+## Hva det betyr i praksis
+
+Før du sammenligner to tall, spør hva hvert av dem **dekker**: hvilke
+konti, hvilken periode, hvilken stasjon, hvilke ansatte. Er svarene
+ulike, er sammenligningen ugyldig uansett hvor riktig hvert tall er for
+seg.
+
+**Nivået skal være en kontrakt, ikke en antakelse.** Ligger definisjonen
+to steder — for eksempel en kodeliste i SQL og en i TypeScript — må en
+vakt holde dem mot hverandre. `bp-kontrakt.test.ts` gjør det for
+BP-kontiene, fordi `bp_maaned_for_mine_stasjoner` (0183) bærer en
+håndkopiert liste og en kjørt migrasjon aldri endres.
+
+**En ukjent verdi er ikke null.** `?? 0` på et ledd som inngår i
+referansen gir et styringstall som er for lavt og et rom som ser for
+stort ut. `easyatwork.ts` gjorde det med fastlønn, som er 27 % av
+lønnskosten på Bønes. Ukjent skal stoppe konklusjonen, ikke pynte den.
+
+**Merk retningen når du finner et brudd.** «For stort grønt rom» er
+farlig; «ser dyrere ut enn det er» lærer folk å se bort fra varsler.
+Begge skal rettes, men den første haster.
+
 # Onboarding skal holdes levende
 
 Onboarding skal beskrive hva en ny retailer trenger i **dagens** Sentiqa —
