@@ -1206,6 +1206,42 @@
    "oppdaterbart": "belop_kr = 1500"
   },
   {
+   "tabell": "lonnsregister",
+   "$hvorfor": "Hva easy@work oppga om en person paa en stasjon i en maaneds loennsgrunnlag (0218). KILDEOBSERVASJON, IKKE HR-MASTERDATA - registeret vet hva fila sa, ikke hva som er sant om ansettelsesforholdet. Finnes fordi timesatsen KASTES ved dagens import: lesLonnsgrunnlag bruker den til aa regne belop_kr og skriver den aldri. Maalt paa Lones julifil 2026: 18 ansatte i registeret, 15 i lonnsart_linje - tre forsvinner, blant dem Carmen med 0 timer paa Lone og 79,82 paa Boenes. Samme scope som lonnsart_linje: INGEN retailer_id, kjeden naas gjennom stasjonen. Raden baerer navn og timesats per person, altsaa loennsopplysninger, saa lesing krever retailer_admin eller butikksjef og nettbrettet naar den ikke. Sletting er eierens alene: en rad som forsvinner er en ansatt som ikke lenger kan prises. Skrives normalt gjennom lonnsregister_snapshot(), som erstatter hele stasjonsmaaneden atomisk - policyene staar likevel, for funksjonen er en smal vei og ikke den eneste doera.",
+   "tenant_scope": "station",
+   "data_class": "warm",
+   "operasjoner": [
+    "select",
+    "insert",
+    "update",
+    "delete"
+   ],
+   "tablet": "none",
+   "manager": {
+    "select": "assigned_stations",
+    "insert": "assigned_stations",
+    "update": "assigned_stations"
+   },
+   "owner": "retailer",
+   "business_unik": [
+    "stasjon_id",
+    "kilde_maaned",
+    "ansatt_nr"
+   ],
+   "$business_unik_hvorfor": "Ansattnummeret ALENE holder ikke. Maalt i produksjon juli 2026: nummer 1018 peker paa Andre Fjoerstad paa Varden OG Marietta Iacovou paa Boenes, begge aktive samtidig. Nummeret er en kildereferanse, ikke en personidentitet - stasjonen er det som skiller dem. En noekkel paa (retailer, nummer, maaned) kunne ikke lagret begge, og en modell som ikke kan uttrykke en feil vi VET finnes, er feil modell.",
+   "business_unik_unntak": {
+    "kilde_maaned": "Maaneden er en yyyy-mm-streng med et check-constraint, og kan derfor ikke varieres med {{unik}} uten aa bli ugyldig. Den trenger det heller ikke: ansatt_nr i samme noekkel er {{unik}}, saa to forsoek kan aldri kollidere paa (stasjon_id, kilde_maaned, ansatt_nr). Skulle noekkelen en dag miste ansatt_nr, maa unntaket vekk og maaneden komme fra en fersk forutsetningsrad."
+   },
+   "proberad": {
+    "ansatt_nr": "'{{unik}}'",
+    "kilde_maaned": "'2026-07'",
+    "navn": "'Sonde Sondesen'",
+    "timesats": "199.50"
+   },
+   "$oppdaterbart_hvorfor": "ansatt_nr og kilde_maaned inngaar i business_unik; timesats gjor det ikke.",
+   "oppdaterbart": "timesats = 210.00"
+  },
+  {
    "tabell": "maanedsplan",
    "$hvorfor": "Månedsplanen til butikksjefen (0200), bygget på RETNING og ikke nivå. EIEREN GODKJENNER FØR DEN GÅR, og det gir en grense som må stå i RLS og ikke i en visning: butikksjefens lesepolicy krever status i ('sluppet','sendt'), så hun ser ALDRI et utkast. Et brev som ikke er sluppet er ikke et brev - det er et forslag til eieren, og halvparten kommer aldri til å sendes. Ser hun dem, er godkjenningen meningsløs. Eieren har også UPDATE, som er selve slippet; innholdet låses av en trigger når planen først er sluppet, uansett hvem som skriver. Ingen insert-policy: utkastene skrives av importen gjennom tjenestenøkkelen. Ingen delete: en sendt plan er et dokument over hva vi mente den måneden. NETTBRETTET NÅR DEN IKKE - dette er en samtale mellom eier og butikksjef. SKRIVERETT (0202): importen skriver disse radene, og «Behandle»-knappen kjører importkjernen med BRUKERENS sesjon - ikke tjenesteNøkkelen. 0198/0199/0200 antok tjenesteNøkkelen og lot være å gi skrivepolicy; BP26 feilet da med «new row violates row-level security policy». Skriveretten er `retailer_admin` alene, fordi importruta selv er eierens alene - en policy skal beskrive døra som finnes.",
    "tenant_scope": "stasjon",

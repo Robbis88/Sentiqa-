@@ -43,6 +43,19 @@ import { fordelVakt, TIMEART } from '@/lib/lonn/tilleggsfordeling'
 import { koble } from '@/lib/lonn/identitet'
 
 /**
+ * Den delen av et register motoren faktisk leser.
+ *
+ * `Ansattregister` bærer også `utenSats` og `konflikter` — kjente
+ * personer uten pris, og numre kilden sa to ting om. Motoren ser dem
+ * IKKE, og det er et valg, ikke en forglemmelse: å koble dem inn endrer
+ * hvilke timer som blir priset, og det er en egen beslutning med egne
+ * målinger. Feltene er utelatt her så den dagen noen kobler dem på, må
+ * de endre denne typen — og da står de foran valget i stedet for å gli
+ * forbi det.
+ */
+export type Prisregister = Pick<Ansattregister, 'fraDato' | 'tilDato' | 'ansatte'>
+
+/**
  * Er hver time vi KAN se, priset?
  *
  * `minimum` betyr at noe vi vet om ikke lot seg prise — en ukoblet
@@ -134,7 +147,7 @@ export type Inndata = {
    * hoerer til en person I EN MAANED, og et register fra feil maaned gir
    * feil kroner og et resultat som ser komplett ut.
    */
-  registre: readonly Ansattregister[]
+  registre: readonly Prisregister[]
   /** Numre et menneske har klassifisert som fastlønn. Aldri utledet. */
   fastlonnede?: ReadonlySet<string>
   /**
