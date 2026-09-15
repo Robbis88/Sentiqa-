@@ -46,6 +46,26 @@ describe('lønn mot rom måles på BP-nivå', () => {
     expect(linjer, `blandet nivå:\n${linjer.join('\n')}`).toEqual([])
   })
 
+  it('ingen andel regnes av en ni-konto-sum', () => {
+    // HULLET I FØRSTE UTGAVE. Vakten over leter bare etter `romKr` på
+    // samme linje. Nøkkeltallkortet «Lønn av brutto» sammenlignet mot
+    // `lonnsandel` i stedet — BP-lønn / BP-brutto, altså fem konti — og
+    // slapp rett gjennom. Vercel Agent Review fant det; vakten gjorde
+    // det ikke.
+    //
+    // Retning: avlagt måned med sykefravær ga falsk rød, åpen måned med
+    // ukjent fastlønn ga falsk GRØNN — easy@work-anslaget mangler 501.
+    const linjer = KODE.split('\n')
+      .filter((l) => /lonnsandel|bruttoKr/.test(l))
+      .filter((l) => /\blonnskostKr\b|\bnaaBrukt\b|\bbrukt\b/.test(l))
+    expect(linjer, `blandet nivå:\n${linjer.join('\n')}`).toEqual([])
+  })
+
+  it('nøkkeltallkortets andel regnes av styringskosten', () => {
+    expect(KODE).toContain('naaStyring / naa.bruttoKr')
+    expect(KODE).not.toContain('naaBrukt / naa.bruttoKr')
+  })
+
   it('andelen per rad regnes av styringskosten', () => {
     // `r.lonnsandel` er BP-lønn / BP-brutto, altså fem konti. Telleren
     // må være de samme fem, ellers er avviket epler mot pærer.

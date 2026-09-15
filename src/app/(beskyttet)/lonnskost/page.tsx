@@ -272,9 +272,6 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const naa = rom.find((r) => r.romKr != null && eaPerMaaned.has(r.maaned))
   const naaEa = naa ? eaPerMaaned.get(naa.maaned) : undefined
   const naaAvlagt = naa ? maaneder.find((m) => m.maaned === naa.maaned)?.avlagt : false
-  const naaBrukt = naaAvlagt
-    ? maaneder.find((m) => m.maaned === naa!.maaned)?.lonnskostKr ?? null
-    : naaEa?.lonnskostKr ?? null
   // HVA SOM ER BRUKT AV ROMMET ER IKKE HELE LOENNSKOSTEN.
   //
   // Rommet er regnet av BP-loenn, som dekker 501+503+508+540+541. Holdt
@@ -289,11 +286,20 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     : naaEa ? easyatworkNiva(naaEa).styringskostKr : null
   const igjen = naa?.romKr != null && naaStyring != null ? naa.romKr - naaStyring : null
 
-  // FAKTISK ANDEL, ikke rommet i kroner. `naaBrukt` delt paa den samme
-  // bruttoen rommet er regnet av - saa de to prosentene er sammenlignbare
-  // per konstruksjon.
-  const naaAndel = naa?.bruttoKr != null && naa.bruttoKr > 0 && naaBrukt != null
-    ? naaBrukt / naa.bruttoKr
+  // FAKTISK ANDEL, ikke rommet i kroner. Delt paa den samme bruttoen
+  // rommet er regnet av - saa de to prosentene er sammenlignbare per
+  // konstruksjon.
+  //
+  // TELLEREN MAA VAERE STYRINGSKOSTEN. `naa.lonnsandel` er
+  // BP-loenn / BP-brutto, altsaa fem konti. Sto `naaBrukt` her - alle ni
+  // - ville kortets gronn/roed-signal vaert epler mot paerer, og det er
+  // nettopp ANDELEN kommentaren ved kortet kaller «kontrollen».
+  //
+  // Feilen slo begge veier: en avlagt maaned med sykefravaer ga falsk
+  // roed, og en aapen maaned med ukjent fastloenn ga falsk GROENN, fordi
+  // easy@work-anslaget mangler 501 helt.
+  const naaAndel = naa?.bruttoKr != null && naa.bruttoKr > 0 && naaStyring != null
+    ? naaStyring / naa.bruttoKr
     : null
   const andelsavvik = naaAndel != null && naa?.lonnsandel != null
     ? naaAndel - naa.lonnsandel
@@ -491,9 +497,14 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
             retning={andelsavvik == null ? 'flat' : andelsavvik > 0 ? 'opp' : 'ned'}
             bra={andelsavvik == null ? undefined : andelsavvik <= 0}
           />
+          {/* BRUKT AV ROMMET, ikke hele loennskosten. Kortet staar ved
+              siden av «igjen», og de to maa gaa opp mot lonnsrommet:
+              rom - brukt = igjen. Sto hele loennskosten her, ville Dale i
+              juli 2026 vist 441 171 brukt av et rom paa 383 285 og
+              samtidig «igjen -22 556». Tre tall, to regnestykker. */}
           <Nokkeltall
-            merkelapp="Brukt så langt"
-            verdi={naaBrukt == null ? '—' : kr.format(Math.round(naaBrukt))}
+            merkelapp="Brukt av rommet"
+            verdi={naaStyring == null ? '—' : kr.format(Math.round(naaStyring))}
             sammenlignet={naaEa == null
               ? undefined
               : `${naaEa.timer.toLocaleString('nb-NO')} timer`}
