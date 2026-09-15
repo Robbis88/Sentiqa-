@@ -11,8 +11,12 @@ import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 import { MANGLER, SATSER } from '@/lib/lonnskost/easyatwork'
 import { maanedsrader } from '@/lib/lonnskost/rom'
+import { byggOkonomibilde, skjermFor } from '@/lib/okonomi/bilde'
+import { avslutteteUkerIMaaned, byggDekning } from '@/lib/okonomi/dekning'
+import { hentSalgsdager } from '@/lib/okonomi/hent'
 import { ManuelleTall } from './manuelle-tall'
 import { Lonnsformer } from './lonnsformer'
+import { HvaBoerJegVite, Lonnsblokk } from './okonomiblokk'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -144,6 +148,9 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   } = await hentLonnskost(
     supabase, valgtStasjon!, FRA,
   )
+  // Ved siden av, ikke inni: `hentLonnskost` svarer på lønnskost.
+  // Salgsdager er dekningens spørsmål, og hører til økonomibildet.
+  const salgsdagerPer = await hentSalgsdager(supabase, valgtStasjon!, FRA)
   const avlagte = maaneder.filter((m) => m.avlagt)
   const siste = avlagte[0]
 
@@ -273,6 +280,91 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const andelsavvik = naaAndel != null && naa?.lonnsandel != null
     ? naaAndel - naa.lonnsandel
     : null
+  // ===================================================================
+  // ØKONOMIBILDET FOR DEN MÅNEDEN DET ER NOE Å SI OM
+  //
+  // IKKE `naa` OVER. Den krever at easy@work-fila finnes
+  // (`eaPerMaaned.has`) — og det er nettopp måneden UTEN lønnsfil som
+  // har mest å fortelle: «lønnsfila er ikke kommet», «tre salgsdager
+  // mangler». Bandt vi bildet til `naa`, ville blokken forsvunnet i den
+  // tilstanden den er bygget for.
+  //
+  // Nyeste måned med et rom. `rom` er sortert nyest først.
+  // ===================================================================
+  const bildeRom = rom.find((r) => r.bruttoKr != null || r.romKr != null)
+  const bildeAvlagt = bildeRom
+    ? maaneder.find((m) => m.maaned === bildeRom.maaned)?.avlagt ?? false
+    : false
+  const bildeMaanedslonn = bildeRom
+    ? maaneder.find((m) => m.maaned === bildeRom.maaned)
+    : undefined
+  const forventedeUker = bildeRom
+    ? avslutteteUkerIMaaned(bildeRom.maaned, new Date())
+    : new Set<string>()
+
+  const bilde = bildeRom
+    ? skjermFor(bruker.rolle, byggOkonomibilde({
+      stasjonId: valgtStasjon!,
+      maaned: bildeRom.maaned,
+      rom: bildeRom,
+      // REGNSKAPET BÆRER BARE LØNNA HER.
+      //
+      // `omsetningKr` er `null` med vilje: /lonnskost henter aldri
+      // regnskapets omsetning — `hentLonnskost` bruker den internt til
+      // marginen og gir den ikke fra seg. Brutto leses uansett av
+      // `rom`, som alt har valgt fasit over anslag, så lønnsblokken er
+      // komplett uten den.
+      //
+      // Royalty og påvirkbar drift står `null` av samme grunn: de er
+      // ikke lønnsblokkens felt. Blir de vist her (E4b), må de HENTES —
+      // ikke antas. Et felt som står `mangler` fordi ingen koblet det,
+      // ser ut som et hull i dataene.
+      regnskap: bildeAvlagt && bildeMaanedslonn
+        ? {
+          omsetningKr: null,
+          bruttoKr: null,
+          lonnKr: bildeMaanedslonn.lonnskostKr,
+          royaltyKr: null,
+          paavirkbarDriftKr: null,
+        }
+        : null,
+      easyatworkLonnKr: eaPerMaaned.get(bildeRom.maaned)?.lonnskostKr ?? null,
+      dagligOmsetningKr: bildeRom.omsetningKr,
+      dekning: byggDekning({
+        maaned: bildeRom.maaned,
+        salgsdagerHar: salgsdagerPer.get(bildeRom.maaned) ?? 0,
+        // SAMME SETT SOM NEVNEREN. En egen regel her ville latt en
+        // måned få flere uker registrert enn den ventet.
+        bilvaskUkerHar: bilvaskUker
+          .filter((u) => forventedeUker.has(`${u.ar}-${u.uke}`)).length,
+        // ===============================================================
+        // EN STASJON UTEN BILVASK VENTER INGEN BILVASKUKER
+        // ===============================================================
+        //
+        // Uten dette leddet ville hver stasjon uten vaskehall stått med
+        // «4 bilvaskuker mangler» hver eneste måned, for alltid — et
+        // varsel ingen kan lukke, om en fil som aldri kommer. Og et
+        // varsel som alltid står, lærer folk å se forbi hele blokken.
+        //
+        // Kelsars fem stasjoner har alle bilvask, så feilen ville ikke
+        // vist seg her. Den ville truffet første kjede uten.
+        //
+        // UTLEDET, IKKE KONFIGURERT. Har stasjonen noen gang registrert
+        // en bilvaskuke, har den bilvask. Det krever ingen ny
+        // innstilling i onboarding — og en trygg standardverdi som
+        // virker er forskjellen på et nytt onboardingsteg og ingen.
+        //
+        // Prisen: en ny stasjon MED bilvask varsler ikke før første uke
+        // er lagt inn. Det er riktig vei å ta feil på — heller tie én
+        // gang enn å rope hver måned.
+        bilvaskUkerAv: bilvaskUker.length > 0 ? forventedeUker.size : null,
+        lonnsfil: eaPerMaaned.has(bildeRom.maaned),
+        regnskap: bildeAvlagt,
+        naa: new Date(),
+      }),
+    }))
+    : null
+
   const sisteEa = easyatwork[0]
   const ukjenteArter = [...new Set(easyatwork.flatMap((e) => e.ukjenteArter))]
   // Bare der de to faktisk maaler samme maaned. En differanse mot en
@@ -331,6 +423,19 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           {'. Budsjettet under er for lavt til de er tatt stilling til.'}
         </Status>
       )}
+
+      {/* ===================================================================
+          HVA BØR JEG VITE NÅ? — ØVERST, OG BARE NÅR DET FINNES NOE.
+          Rendres ikke i det hele tatt når måneden er i orden. Se
+          `HvaBoerJegVite`: en overskrift som alltid står, leses ikke.
+          =================================================================== */}
+      {bilde && <HvaBoerJegVite bilde={bilde} />}
+
+      {/* LØNNSBLOKKEN MED KILDEMERKING. Hvert tall bærer hvor sikkert
+          det er - fasit, prognose, plan eller mangler - og hva anslaget
+          bygger på. Kilden er `byggOkonomibilde` sin; flaten utleder
+          den aldri selv. */}
+      {bilde && <Lonnsblokk bilde={bilde} />}
 
       {/* LOENNSROMMET FOERST. Budsjettet forutsetter en brutto som
           kanskje ikke kom; rommet er den samme andelen av det som

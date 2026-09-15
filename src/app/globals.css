@@ -2311,6 +2311,75 @@ button.liten { min-height: 40px; }
 .sq-status-kritisk { color: var(--rod); font-weight: 600; }
 .sq-status-kritisk .sq-status-prikk { background: var(--rod); }
 
+/* --- «Hva boer jeg vite naa?» --------------------------------------
+   Rendres BARE naar den har noe aa si - se okonomiblokk.tsx. Derfor
+   ingen tom-tilstand her: det finnes ingen. */
+.sq-vite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-2);
+  margin-bottom: var(--luft-4);
+}
+.sq-vite h3 {
+  margin: 0;
+  font-size: var(--tekst-liten);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tekst-svak);
+}
+
+/* --- Kildemerket ---------------------------------------------------
+   Hvor sikkert ett tall er. Se kilde.tsx for hvorfor fasit er fargeloes:
+   farge er et budsjett, og et avstemt tall er normaltilstanden - ikke en
+   god nyhet. Faerger vi hver avstemt linje groenn, er det ingenting igjen
+   aa bruke den dagen et tall faktisk er usikkert. */
+.sq-kilde {
+  display: inline-block;
+  font-size: var(--tekst-liten);
+  line-height: 1.4;
+  padding: 0 var(--luft-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--kant);
+  color: var(--tekst-svak);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* FASIT: ingen farge. Den staar der bare for at «avstemt» skal kunne
+   skilles fra «ingen merking i det hele tatt». */
+.sq-kilde-fasit { border-color: var(--kant-sterk); }
+
+/* PROGNOSE: noe som kan flytte seg. Samme farge som `Status`-nivaaet
+   «endring» bruker, saa de to leses som samme slags beskjed. */
+.sq-kilde-prognose {
+  border-color: var(--primaer);
+  background: var(--primaer-svak);
+  color: var(--gronn);
+}
+
+/* PLAN: stiplet, fordi den ikke er en OBSERVASJON. Den sier hva noen
+   bestemte skulle skje - og naar spoersmaalet er «hva ble det», er den
+   svakere enn en prognose. Stiplingen baerer den forskjellen uten en
+   farge til. */
+.sq-kilde-plan { border-style: dashed; }
+
+/* MANGLER: et hull. Stiplet som `plan`, men uten fylde og dempet - det
+   er ingenting aa lese her ennaa. */
+.sq-kilde-mangler {
+  border-style: dashed;
+  border-color: var(--kant);
+  color: var(--tekst-svak);
+  opacity: 0.75;
+}
+
+/* SKJULT: IKKE et hull, og skal ikke se ut som ett. Tallet finnes; det
+   er bare ikke ditt. Ser den ut som `mangler`, spoer butikksjefen etter
+   et tall ingen kommer til aa gi henne. Hel kant, ingen stipling. */
+.sq-kilde-skjult {
+  background: var(--bg);
+  border-color: var(--kant-sterk);
+  font-style: italic;
+}
+
 /* --- Signal --------------------------------------------------------
    Rendres bare når det finnes noe å si. Se kommentaren i status.tsx. */
 .sq-signal {
