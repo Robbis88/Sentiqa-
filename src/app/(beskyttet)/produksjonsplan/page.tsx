@@ -10,6 +10,7 @@ import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, fjorHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
 import { TabletPlan, type TabletGruppe } from './tablet-plan'
+import { TabletMorgendag } from './tablet-morgendag'
 import { TabletHode } from '../tablet-hode'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
@@ -65,21 +66,59 @@ export default async function ProduksjonsplanSide({
     const idag = iDag()
     const { data: st } = await supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).limit(1).maybeSingle<{ id: string; navn: string; butikknummer: string }>()
     if (!st) return <section className="tablet-seksjon"><h2>Produksjon</h2><p>Ingen stasjon.</p></section>
-    const { data: hode } = await supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', st.id).eq('dato', idag).maybeSingle<{ notat: string | null; publisert_tid: string | null }>()
-    if (!hode?.publisert_tid) {
-      return <section className="tablet-seksjon"><h2>Produksjon</h2><p>Ingen produksjonsplan publisert i dag.</p></section>
+    // ===============================================================
+    // I MORGEN HENTES VED SIDEN AV I DAG
+    // ===============================================================
+    //
+    // Startpartiet skal vaere ferdig naar doera aapner (`0149`), saa
+    // noe maa tas opp kvelden foer. Fram til naa kunne de ikke se hvor
+    // mye foer dagen det gjaldt.
+    //
+    // BEGGE HENTES FOER NOEN TIDLIG RETUR. Her sto en `return` paa
+    // manglende publisering for i dag - den ville skjult morgendagen
+    // ogsaa, og da ville funksjonen vaert borte noeyaktig de dagene
+    // ingen rakk aa publisere dagens plan.
+    const imorgen = leggTilDager(idag, 1)
+    const [hodeSvar, imorgenHodeSvar] = await Promise.all([
+      supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', st.id).eq('dato', idag).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
+      supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', st.id).eq('dato', imorgen).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
+    ])
+    const hode = hodeSvar.data
+    const imorgenHode = imorgenHodeSvar.data
+
+    // PUBLISERINGEN ER PORTEN, OGSAA FOR I MORGEN. Et upublisert utkast
+    // er tall butikksjefen fortsatt kan endre; aa vise dem ville bedt
+    // noen ta opp et antall som ikke gjelder.
+    const visIdag = Boolean(hode?.publisert_tid)
+    const visImorgen = Boolean(imorgenHode?.publisert_tid)
+
+    if (!visIdag && !visImorgen) {
+      return <section className="tablet-seksjon"><h2>Produksjon</h2><p>Ingen produksjonsplan publisert.</p></section>
     }
-    const { data: linjer } = await supabase
-      .from('produksjonsplan_linjer').select('varenavn, varegruppe_navn, planlagt, start_antall, lagd_hittil')
-      .eq('stasjon_id', st.id).eq('dato', idag).eq('ekskludert', false).gt('planlagt', 0)
-      .order('varegruppe_navn').overrideTypes<{ varenavn: string; varegruppe_navn: string | null; planlagt: number; start_antall: number; lagd_hittil: number }[]>()
-    const gmap = new Map<string, TabletGruppe>()
-    for (const l of linjer ?? []) {
-      const navn = l.varegruppe_navn ?? 'Produksjon'
-      let g = gmap.get(navn)
-      if (!g) { g = { navn, produkter: [] }; gmap.set(navn, g) }
-      g.produkter.push({ varenavn: l.varenavn, planlagt: l.planlagt, start_antall: l.start_antall, lagd_hittil: l.lagd_hittil })
+
+    // Samme spoerring for begge dagene. Var den skrevet to ganger, ville
+    // filtrene - `ekskludert`, `planlagt > 0` - kunnet skille lag, og da
+    // ville de to listene vist ulike produkter uten at noe sa fra.
+    const hentGrupper = async (d: string): Promise<TabletGruppe[]> => {
+      const { data: linjer } = await supabase
+        .from('produksjonsplan_linjer').select('varenavn, varegruppe_navn, planlagt, start_antall, lagd_hittil')
+        .eq('stasjon_id', st.id).eq('dato', d).eq('ekskludert', false).gt('planlagt', 0)
+        .order('varegruppe_navn').overrideTypes<{ varenavn: string; varegruppe_navn: string | null; planlagt: number; start_antall: number; lagd_hittil: number }[]>()
+      const m = new Map<string, TabletGruppe>()
+      for (const l of linjer ?? []) {
+        const navn = l.varegruppe_navn ?? 'Produksjon'
+        let g = m.get(navn)
+        if (!g) { g = { navn, produkter: [] }; m.set(navn, g) }
+        g.produkter.push({ varenavn: l.varenavn, planlagt: l.planlagt, start_antall: l.start_antall, lagd_hittil: l.lagd_hittil })
+      }
+      return [...m.values()]
     }
+
+    const [idagGrupper, imorgenGrupper] = await Promise.all([
+      visIdag ? hentGrupper(idag) : Promise.resolve([]),
+      visImorgen ? hentGrupper(imorgen) : Promise.resolve([]),
+    ])
+    const gmap = new Map(idagGrupper.map((g) => [g.navn, g]))
     // Hodet, og bare hodet. Planen under — stepperen, «lagd hittil»,
     // serverhandlingen som lagrer — er urørt: dette er en UX-bølge.
     const planlagt = [...gmap.values()].reduce((n, g) => n + g.produkter.reduce((m, pr) => m + pr.planlagt, 0), 0)
@@ -90,12 +129,26 @@ export default async function ProduksjonsplanSide({
             var den eneste på nettbrettet uten `.tablet-hode` rundt seg.
             Nettbrettets hode skal bære SVARET, slik /rutiner og /ikmat
             gjør det: hvor mange igjen å lage. Tallene er summer av de
-            samme linjene planen viser — ingen ny beregning. */}
-        <TabletHode
-          tittel={lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage`}
-          undertittel={`${lagd} av ${planlagt} lagd`}
-        />
-        <TabletPlan stasjonId={st.id} dato={idag} notat={hode.notat} grupper={[...gmap.values()]} />
+            samme linjene planen viser — ingen ny beregning.
+
+            HODET GJELDER I DAG. Er dagens plan ikke publisert, staar det
+            ingenting her - morgendagen faar ikke laane et hode som sier
+            «igjen aa lage», for i morgen er ingenting lagd ennaa. */}
+        {visIdag && (
+          <>
+            <TabletHode
+              tittel={lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage`}
+              undertittel={`${lagd} av ${planlagt} lagd`}
+            />
+            <TabletPlan stasjonId={st.id} dato={idag} notat={hode?.notat ?? null} grupper={[...gmap.values()]} />
+          </>
+        )}
+        {/* MORGENDAGEN UNDER, OG LESEVISNING. Se `tablet-morgendag.tsx`:
+            `loggLagd` sjekker aldri datoen, saa fravaeret av knapper er
+            hele vernet. */}
+        {visImorgen && (
+          <TabletMorgendag dato={imorgen} notat={imorgenHode?.notat ?? null} grupper={imorgenGrupper} />
+        )}
       </>
     )
   }
