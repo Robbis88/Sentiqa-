@@ -36,11 +36,35 @@ type Reg = {
 const BONES = 'sss-0000-0000-0000-000000000002'
 const LONE = 'sss-0000-0000-0000-000000000003'
 
-/** Fake som betjener BEGGE tabellene og holder filtrene fra hverandre. */
-function fakeKlient(vakter: Vakt[], register: Reg[]) {
+/**
+ * Fake som betjener begge tabellene OG rpc-en.
+ *
+ * `synlige` er stasjonene en vanlig `select` faar se - altsaa det RLS
+ * ville vist. RPC-en ser forbi den, slik `0221` gjoer. Uten det skillet
+ * ville testene ikke kunne skille «leseren spurte riktig» fra
+ * «funksjonen fikk lov».
+ */
+function fakeKlient(vakter: Vakt[], register: Reg[], synlige?: string[]) {
+  const seesAv = (r: Reg) => !synlige || synlige.includes(r.stasjon_id)
   const klient = {
+    rpc(navn: string, args: { p_maaned: string; p_stasjon_ider: string[] }) {
+      if (navn !== 'a1_registeroppslag') {
+        return Promise.resolve({ data: null, error: { message: `ukjent rpc ${navn}` } })
+      }
+      // Numrene utledes av basisvakt paa de forespurte stasjonene -
+      // aldri av et argument. Samme regel som i 0221.
+      const numre = new Set(vakter
+        .filter((v) => v.kilde_maaned === args.p_maaned
+          && args.p_stasjon_ider.includes(v.stasjon_id))
+        .map((v) => v.ansatt_nr))
+      const rader = register.filter((r) =>
+        r.kilde_maaned === args.p_maaned && numre.has(r.ansatt_nr))
+      return Promise.resolve({ data: rader, error: null })
+    },
     from(tabell: string) {
-      const rader: Record<string, unknown>[] = tabell === 'basisvakt' ? vakter : register
+      const rader: Record<string, unknown>[] = tabell === 'basisvakt'
+        ? vakter
+        : register.filter(seesAv)
       const filtre: { kol: string; verdi: string | readonly string[]; inn: boolean }[] = []
       let felt: string[] = []
       const q = {
@@ -186,17 +210,41 @@ describe('uslaatteNumre — RLS-skjevheten skal være målbar', () => {
     expect(ut.register.uslaatteNumre).toEqual(['9999'])
   })
 
-  it('en butikksjef som ikke ser Lone får Carmen i uslaatteNumre', async () => {
-    // Samme data, to svar: `lonnsregister_les` krever
-    // `stasjon_id in (select mine_stasjoner())`. Her simulert ved at
-    // Lones rad ikke finnes i det klienten kan lese. Forskjellen skal
-    // være SYNLIG til B2c2 fjerner den.
+  it('RPC-en lukker skjevheten: Carmen slås opp selv når RLS skjuler Lone', async () => {
+    // Dette er hele poenget med `0221`. En butikksjef på Bønes ser ikke
+    // Lones registerrad gjennom en vanlig `select` — `lonnsregister_les`
+    // krever `stasjon_id in (select mine_stasjoner())`. Her er det
+    // simulert ved at bare Bønes er synlig for `from('lonnsregister')`.
+    //
+    // Før B2c2 ga dette Carmen i `uslaatteNumre` og en for lav 503 for
+    // butikksjefen, mens eieren så det riktige tallet. Nå slår hun opp.
     const ut = await hentKilder(
-      fakeKlient([vakt(), CARMEN_VAKT], [reg()]), BONES, '2026-08',
+      fakeKlient([vakt(), CARMEN_VAKT], [reg(), CARMEN_REG], [BONES]),
+      BONES, '2026-08',
     )
     if (ut.status !== 'begge') throw new Error('feil status')
-    expect(ut.register.uslaatteNumre).toEqual(['1104265'])
-    expect(ut.register.kryss).toHaveLength(0)
+    expect(ut.register.kryss.map((r) => r.ansattNr)).toEqual(['1104265'])
+    expect(ut.register.uslaatteNumre).toEqual([])
+  })
+
+  it('porten teller fortsatt bare EGNE rader, også med RPC-en på plass', async () => {
+    // RPC-en utvider dekningen. Den skal ikke kunne åpne porten.
+    const ut = await hentKilder(
+      fakeKlient([CARMEN_VAKT], [CARMEN_REG], [BONES]), BONES, '2026-08',
+    )
+    expect(ut.status).toBe('mangler_register')
+  })
+
+  it('en RPC-feil kastes — den blir ALDRI til tomme kandidater', async () => {
+    // En autorisasjonsfeil er en feil, ikke datamangel. Ble den gjort om
+    // til `[]`, ville den blitt til `uslaatteNumre` eller
+    // `mangler_register` — altså til noe som ser ut som gyldige data.
+    const k = fakeKlient([vakt(), CARMEN_VAKT], [reg(), CARMEN_REG]) as unknown as {
+      rpc: (n: string, a: unknown) => Promise<unknown>
+    }
+    k.rpc = () => Promise.resolve({ data: null, error: { message: 'permission denied' } })
+    await expect(hentKilder(k as unknown as SupabaseClient, BONES, '2026-08'))
+      .rejects.toThrow(/a1_registeroppslag feilet/)
   })
 
   it('en som ER slått opp står ikke som uslått', async () => {

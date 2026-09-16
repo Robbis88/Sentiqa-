@@ -180,21 +180,47 @@ async function egneRader(
 }
 
 /**
- * Registerrader for NUMRE SOM FAKTISK ARBEIDET HER.
+ * Registerkandidatene for NUMRE SOM FAKTISK ARBEIDET HER.
  *
- * Avgrenset til numrene, aldri til en hel stasjon: vi henter ikke en
- * annen stasjons register i sin helhet, verken her eller senere.
+ * Gaar gjennom `a1_registeroppslag` (0221), ikke gjennom en vanlig
+ * `select`. Grunnen er ikke bekvemmelighet, den er en maalt skjevhet:
+ *
+ *   `lonnsregister_les` krever `stasjon_id in (select mine_stasjoner())`.
+ *   En butikksjef paa Boenes kan derfor ikke lese Lones registerrad, og
+ *   Carmen - som arbeidet 79,82 timer paa Boenes i juli 2026 - ville
+ *   vaert uslaatt for henne mens eieren slaar henne opp. Samme data, to
+ *   svar, og forskjellen gaar i den farlige retningen: for lite loenn
+ *   er for stort groent rom.
+ *
+ * RPC-en tar INGEN ansattnumre. Den utleder dem selv fra `basisvakt` paa
+ * de autoriserte stasjonene, saa den kan ikke brukes til aa spoerre om
+ * en person som ikke har arbeidet hos kalleren. Se `0221`.
+ *
+ * KASTER paa feil. En autorisasjonsfeil er en FEIL, ikke datamangel -
+ * ble den gjort om til `[]`, ville den blitt til `uslaatteNumre` eller
+ * `mangler_register`, altsaa til noe som ser ut som gyldige data.
  */
 async function kryssRader(
   supabase: Klient, stasjonId: string, maaned: string, numre: readonly string[],
 ): Promise<Registerrad[]> {
+  // Ingen arbeidstid, ingen kandidater. RPC-en ville uansett svart tomt,
+  // men et kall uten hensikt er et kall som kan feile uten grunn.
   if (numre.length === 0) return []
-  const alle = tilRader(await hentAlle<RaaRegister>(() => supabase
-    .from('lonnsregister')
-    .select(VELG)
-    .eq('kilde_maaned', maaned)
-    .in('ansatt_nr', numre)))
-  return alle.filter((r) => r.stasjonId !== stasjonId)
+
+  // `supabase.rpc` KASTER IKKE. Den returnerer feilen i `error`, og en
+  // try/catch rundt kallet fanger ingenting.
+  const { data, error } = await supabase.rpc('a1_registeroppslag', {
+    p_maaned: maaned,
+    p_stasjon_ider: [stasjonId],
+  })
+  if (error) {
+    throw new Error(
+      `a1_registeroppslag feilet for ${maaned}: ${error.message}`,
+    )
+  }
+
+  return tilRader((data ?? []) as RaaRegister[])
+    .filter((r) => r.stasjonId !== stasjonId)
 }
 
 /**
