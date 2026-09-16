@@ -61,11 +61,24 @@
 //             av 8 observasjoner - men 6 av 8 er ikke en regel. Art 97
 //             avhenger av PLANLAGT vakt, som Basis Export ikke har.
 //
-//   1410      Regelen er maalt paa fem helligdager i Dale mai 2026 og
-//             paa pinseaften fra kl. 15. De oevrige seks dagene i lista
-//             foelger norsk lov, ikke en maaling. Paaskeaften, julaften
-//             og nyttaarsaften utloeser IKKE 1410 i dag - er det feil,
-//             er A1 for lav i april og desember.
+//   1410      DIREKTE MAALT mot Easy@Work paa FEM av kalenderens TOLV
+//             helligdager i 2026: 1., 14., 17., 24. og 25. mai.
+//
+//             De oevrige SJU - nyttaarsdag, skjaertorsdag, langfredag,
+//             1. og 2. paaskedag samt 1. og 2. juledag - er MODELLERT
+//             som helligdager, men er ikke direkte maalt mot Easy@Work.
+//
+//             Pinseaften 23. mai er maalt separat: 1410 gjelder fra
+//             kl. 15. Paaskeaften, julaften og nyttaarsaften utloeser
+//             ikke 1410 i dagens modell.
+//
+//             TRE NIVAAER, OG DE ER IKKE DET SAMME: regel implementert,
+//             regel stoettet av ekstern norm, regel empirisk maalt mot
+//             Easy. Teksten her sto tidligere som "seks av elleve
+//             foelger norsk lov" - baade tallene og formuleringen var
+//             feil. "Foelger norsk lov" kan leses som at Easys
+//             1410-behandling paa de dagene er verifisert. Den er ikke
+//             det.
 //
 // `komplett` betyr komplett FOR A1-KONTRAKTEN. Det betyr ikke lik Easys
 // kronefil, og de to skal aldri forveksles.
@@ -193,10 +206,13 @@ const OVERTIDSFORBEHOLD =
   + 'har. Et avvik mot easy@works kronefil kan skyldes dette.'
 
 const HELLIGDAGSFORBEHOLD =
-  'Helligdagstillegget (1410) er målt mot easy@work på fem helligdager i mai '
-  + '2026 og på pinseaften fra kl. 15. De øvrige seks helligdagene følger '
-  + 'norsk lov, ikke en måling. Påskeaften, julaften og nyttårsaften utløser '
-  + 'ikke 1410 i dag — er det feil, er tallet for lavt i april og desember.'
+  'Helligdagstillegget (1410) er direkte målt mot Easy@Work på fem av '
+  + 'kalenderens tolv helligdager i 2026: 1., 14., 17., 24. og 25. mai. De '
+  + 'øvrige sju — nyttårsdag, skjærtorsdag, langfredag, 1. og 2. påskedag samt '
+  + '1. og 2. juledag — er modellert som helligdager, men er ikke direkte målt '
+  + 'mot Easy@Work. Pinseaften 23. mai er målt separat: 1410 gjelder fra '
+  + 'kl. 15. Påskeaften, julaften og nyttårsaften utløser ikke 1410 i dagens '
+  + 'modell; dette skal ikke generaliseres uten nytt målebevis.'
 
 /** Samme avrunding som `arbeidssted.ts`. Se hodet i `beregnA1`. */
 const rund = (n: number): number => Math.round(n * 100) / 100
