@@ -18,6 +18,8 @@ import { ManuelleTall } from './manuelle-tall'
 import { Lonnsformer } from './lonnsformer'
 import { Arbeidsstedsblokk } from './arbeidsstedsblokk'
 import { Fastlonnskandidater } from './fastlonnskandidater'
+import { Kjedestripe } from './kjedestripe'
+import { hentKjede } from '@/lib/lonnskost/a1-kjede'
 import { hentA1Maaneder } from '@/lib/lonnskost/a1-maaneder'
 import { hentKilder } from '@/lib/lonnskost/kilder'
 import { hentAvtaler } from '@/lib/lonnskost/avtale'
@@ -467,6 +469,23 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
     a1Kort.push(tilA1Kort(a1ForStasjonsmaaned(kilder, a1Avtale!)))
   }
 
+  // B2e.2 - LEDEROVERSIKT OVER DE AUTORISERTE STASJONENE.
+  //
+  // Vilkaaret er det samme `antall > 1` som `tillatAlleFor` bruker: en
+  // bruker med EN stasjon skal ikke faa en "oversikt" over en ting.
+  // Butikksjefen med to eksplisitt tildelte stasjoner faar den.
+  //
+  // `stasjonsliste` er serverens RLS-filtrerte liste. Stripa henter
+  // ingen stasjoner selv og utvider aldri settet - den er ikke et
+  // sikkerhetslag, og skal ikke se ut som ett.
+  //
+  // MERK at dette IKKE er et aggregat: `/lonnskost` staar fortsatt
+  // utenfor `TAALER_AGGREGAT`, og `?stasjon=alle` finnes ikke. Valgt
+  // stasjon betyr det samme som foer.
+  const kjede = stasjonsliste.length > 1
+    ? await hentKjede(supabase, stasjonsliste)
+    : null
+
   return (
     <Sideramme>
       <Sidehode
@@ -505,6 +524,10 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
 
       {/* A1: hva arbeidet koster, ved siden av det bokfoerte - aldri
           slaatt sammen med det. Se serverberegningen over. */}
+      {/* Kjeden foerst: hvor staar vi, og hvor ligger problemet. Deretter
+          den valgte stasjonen i detalj. */}
+      {kjede && <Kjedestripe kjede={kjede} />}
+
       <Arbeidsstedsblokk kort={a1Kort} stasjonId={valgtStasjon!} />
 
       {/* REGISTRERINGSVEIEN for dem A1 ikke kunne koble. Staar rett
