@@ -9,6 +9,95 @@ import { SKJUL_OMS_KODER as SKJUL_OMS } from './avdelinger'
 // svinn per varegruppe. Fortegn usynlig: + = manko (tap), − = overskudd (feilslag).
 
 export type VarselNiva = 'rod' | 'gul'
+
+// =====================================================================
+// SAKEN: HVA SLAGS OBSERVASJON DETTE ER
+// =====================================================================
+//
+// Motoren KJENNER `160 Kioskvarer` naar den skriver
+// «160 Kioskvarer: 21 558 kr usynlig manko». Saa kastes koden, og bare
+// teksten overlever.
+//
+// Maalt i produksjon 2026-09-16: fem stasjoner hadde usynlig manko paa
+// nettopp 160 Kioskvarer, og fem paa 120 Mat. Gruppert paa varslenes
+// EGEN identitet - `(gruppe, nivaa, tittel)` - ga alle 59 noekler
+// «1 stasjon», fordi tittelen baerer stasjonens eget kronebeloep.
+// Moensteret er der; noekkelen var kastet.
+//
+// ---------------------------------------------------------------------
+// «SAK», IKKE «ROTAARSAK»
+// ---------------------------------------------------------------------
+//
+// Fem stasjoner med manko i samme varegruppe beviser et KJEDEFENOMEN,
+// ikke en felles aarsak. Sentiqa vet ikke hvorfor. Den vet HVA slags
+// observasjon dette er, og hvor mange stasjoner som har den.
+//
+// ---------------------------------------------------------------------
+// STRUKTUREN GJOER DE FORBUDTE GRUPPERINGENE UMULIGE
+// ---------------------------------------------------------------------
+//
+// `usynlig_manko`, `usynlig_overskudd` og `synlig_kast` er TRE ULIKE
+// `slag`. Samme varegruppe kan derfor aldri sla dem sammen - de maaler
+// ulike ting, og et overskudd er ikke et lite tap.
+//
+// `varegruppe` og `motpostgruppe` er ulike `form`. `130 Varm drikke` som
+// motpostgruppe (kaffe + te + lojalitet, netto) er ikke den samme
+// observasjonen som en enkelt varegruppe med samme navn.
+//
+// ---------------------------------------------------------------------
+// BYGGES FOER TITTELEN, ALDRI AV DEN
+// ---------------------------------------------------------------------
+//
+// Hver `sak` settes av de samme strukturerte verdiene som formaterer
+// teksten. Ingen parsing tilbake, ingen likhet paa ord.
+//
+// MANGLENDE STRUKTUR GJETTES ALDRI. `Svinn.kode` kan vaere `null`. Da er
+// `sak` ogsaa `null`, og varselet forblir et stasjonssignal. `navn` er
+// tekst og kan aldri vaere identitet.
+// =====================================================================
+
+/** Varen eller varegruppen observasjonen gjelder. */
+export type Vareidentitet =
+  /** Én varegruppe, identifisert med St1s kode. */
+  | { form: 'varegruppe'; kode: string; navn: string }
+  /**
+   * En avdeling som motposterer seg selv, vurdert NETTO.
+   *
+   * `130 Varm drikke` og `210 Vask` - se `MOTPOSTER`. Medlemmene
+   * vurderes aldri hver for seg, saa observasjonen hoerer til gruppen.
+   */
+  | { form: 'motpostgruppe'; avdeling: string; navn: string }
+
+export type Signalsak =
+  | { slag: 'omsetning_mot_budsjett' }
+  | { slag: 'brutto_mot_budsjett' }
+  | { slag: 'driftskostnader_over_budsjett' }
+  | { slag: 'driftsresultat' }
+  | { slag: 'lonn_over_budsjett' }
+  | { slag: 'lonn_brukt_brutto_under' }
+  | { slag: 'negativt_resultat' }
+  | { slag: 'usynlig_manko'; vare: Vareidentitet }
+  | { slag: 'usynlig_overskudd'; vare: Vareidentitet }
+  | { slag: 'synlig_kast'; vare: Vareidentitet }
+
+/**
+ * To saker er den samme observasjonen.
+ *
+ * EN REN SAMMENLIGNING, IKKE EN NOEKKELSTRENG. En streng maatte
+ * formateres, og da ville to felt som tilfeldigvis inneholder samme
+ * skilletegn kunne kollidere. Her sammenlignes feltene.
+ */
+export function sammeSak(a: Signalsak | null, b: Signalsak | null): boolean {
+  if (a === null || b === null) return false
+  if (a.slag !== b.slag) return false
+  if (!('vare' in a) || !('vare' in b)) return true
+  if (a.vare.form !== b.vare.form) return false
+  return a.vare.form === 'varegruppe' && b.vare.form === 'varegruppe'
+    ? a.vare.kode === b.vare.kode
+    : a.vare.form === 'motpostgruppe' && b.vare.form === 'motpostgruppe'
+      ? a.vare.avdeling === b.vare.avdeling
+      : false
+}
 // gruppe styrer rekkefølge: 0 selskap, 1 nøkkeltall per stasjon, 2 svinn per vare.
 export type RegnskapVarsel = {
   nivaa: VarselNiva
@@ -17,6 +106,14 @@ export type RegnskapVarsel = {
   detalj: string
   vekt: number // |beløp| for sortering innen gruppe
   gruppe: number
+  /**
+   * Hva slags observasjon dette er, strukturert.
+   *
+   * `null` naar strukturen ikke finnes - se `Signalsak`. Feltet er
+   * ADDITIVT: `/regnskap`, `varsler-liste.tsx` og `admin-dashbord.tsx`
+   * leser det ikke, og er uendret.
+   */
+  sak: Signalsak | null
 }
 
 import { TERSKLER } from './regnskap/terskler'
@@ -60,6 +157,22 @@ const pst1 = (n: number) => `${n.toFixed(1)} %`
 export const MOTPOSTER: Record<string, string> = {
   '130': 'Varm drikke (kaffe, te og lojalitet)',
   '210': 'Vask (maskin og app)',
+}
+
+/**
+ * Saken for en varegruppeobservasjon.
+ *
+ * `kode` ER IDENTITETEN. Mangler den, er `sak` `null` - varselet blir et
+ * stasjonssignal som foer, og kan ikke grupperes. `navn` brukes aldri:
+ * tekst er ikke en noekkel, og to varegrupper kan hete det samme i to
+ * kjeder.
+ */
+function vareSak(
+  slag: 'usynlig_manko' | 'usynlig_overskudd' | 'synlig_kast',
+  s: { kode: string | null; navn: string },
+): Signalsak | null {
+  if (!s.kode) return null
+  return { slag, vare: { form: 'varegruppe', kode: s.kode, navn: s.navn } }
 }
 
 /** Hoerer varegruppen til en avdeling som motposterer seg selv? */
@@ -133,8 +246,14 @@ export async function hentRegnskapVarsler(
   }))
   const cluster = alle.filter((l) => l.stasjon_id == null)
   const v: RegnskapVarsel[] = []
-  const legg = (nivaa: VarselNiva, omfang: string, tittel: string, detalj: string, vekt: number, gruppe: number) =>
-    v.push({ nivaa, omfang, tittel, detalj, vekt, gruppe })
+  // SAKEN ER PAAKREVD, IKKE VALGFRI. Et nytt varsel uten en klassifisering
+  // ville faatt `undefined` i stillhet, og da hadde det vaert usynlig for
+  // enhver gruppering - samme form som en tabell som faller mellom
+  // stolene i dekningssjekken. Her tvinger kompilatoren et standpunkt.
+  const legg = (
+    nivaa: VarselNiva, omfang: string, tittel: string, detalj: string,
+    vekt: number, gruppe: number, sak: Signalsak | null,
+  ) => v.push({ nivaa, omfang, tittel, detalj, vekt, gruppe, sak })
 
   // ── Selskap (cluster-P&L) ───────────────────────────────────────────────
   const finn = (seksjon: string, re: RegExp) => cluster.find((l) => l.seksjon === seksjon && re.test(l.post))
@@ -142,28 +261,28 @@ export async function hentRegnskapVarsler(
   const omsTot = finn('omsetning', /^omsetning totalt/i)
   if (omsTot?.index_pct != null) {
     const i = omsTot.index_pct
-    if (i <= T.omsRod) legg('rod', 'Selskap', `Omsetning ${pst1(i)} mot budsjett`, `Hele kjeden ligger ${kr0(Math.abs(omsTot.avvik ?? 0))} under budsjett.`, Math.abs(omsTot.avvik ?? 0), 0)
-    else if (i <= T.omsGul) legg('gul', 'Selskap', `Omsetning ${pst1(i)} mot budsjett`, `Litt under budsjett (${kr0(Math.abs(omsTot.avvik ?? 0))}).`, Math.abs(omsTot.avvik ?? 0), 0)
+    if (i <= T.omsRod) legg('rod', 'Selskap', `Omsetning ${pst1(i)} mot budsjett`, `Hele kjeden ligger ${kr0(Math.abs(omsTot.avvik ?? 0))} under budsjett.`, Math.abs(omsTot.avvik ?? 0), 0, { slag: 'omsetning_mot_budsjett' })
+    else if (i <= T.omsGul) legg('gul', 'Selskap', `Omsetning ${pst1(i)} mot budsjett`, `Litt under budsjett (${kr0(Math.abs(omsTot.avvik ?? 0))}).`, Math.abs(omsTot.avvik ?? 0), 0, { slag: 'omsetning_mot_budsjett' })
   }
 
   const brfTot = finn('bruttofortjeneste', /^bruttofortjeneste/i)
   if (brfTot?.index_pct != null && brfTot.index_pct <= T.brfGul) {
-    legg('gul', 'Selskap', `Bruttofortjeneste ${pst1(brfTot.index_pct)} mot budsjett`, `BRF ligger ${kr0(Math.abs(brfTot.avvik ?? 0))} under budsjett.`, Math.abs(brfTot.avvik ?? 0), 0)
+    legg('gul', 'Selskap', `Bruttofortjeneste ${pst1(brfTot.index_pct)} mot budsjett`, `BRF ligger ${kr0(Math.abs(brfTot.avvik ?? 0))} under budsjett.`, Math.abs(brfTot.avvik ?? 0), 0, { slag: 'brutto_mot_budsjett' })
   }
 
   const driftTot = finn('driftskostnader', /totalt|^sum|^driftskostnader/i)
   if (driftTot && driftTot.regnskap != null && driftTot.budsjett && driftTot.budsjett > 0) {
     const over = ((driftTot.regnskap - driftTot.budsjett) / driftTot.budsjett) * 100
-    if (over >= T.driftRod) legg('rod', 'Selskap', `Driftskostnader ${pst1(over)} over budsjett`, `${kr0(driftTot.regnskap - driftTot.budsjett)} høyere enn budsjettert.`, driftTot.regnskap - driftTot.budsjett, 0)
-    else if (over >= T.driftGul) legg('gul', 'Selskap', `Driftskostnader ${pst1(over)} over budsjett`, `${kr0(driftTot.regnskap - driftTot.budsjett)} over budsjett.`, driftTot.regnskap - driftTot.budsjett, 0)
+    if (over >= T.driftRod) legg('rod', 'Selskap', `Driftskostnader ${pst1(over)} over budsjett`, `${kr0(driftTot.regnskap - driftTot.budsjett)} høyere enn budsjettert.`, driftTot.regnskap - driftTot.budsjett, 0, { slag: 'driftskostnader_over_budsjett' })
+    else if (over >= T.driftGul) legg('gul', 'Selskap', `Driftskostnader ${pst1(over)} over budsjett`, `${kr0(driftTot.regnskap - driftTot.budsjett)} over budsjett.`, driftTot.regnskap - driftTot.budsjett, 0, { slag: 'driftskostnader_over_budsjett' })
   }
 
   // Driftsresultat: bruk RESULTAT EX 9900 (uten admin-stasjon) — som KPI/AI.
   // Total-RESULTAT inkluderer 9900/finans og kan være negativ strukturelt.
   const resEx = finn('resultat', /resultat ex 9900/i) ?? finn('resultat', /^resultat$/i)
   if (resEx) {
-    if ((resEx.regnskap ?? 0) < 0) legg('rod', 'Selskap', 'Negativt driftsresultat', `Resultat (ex 9900) er ${kr0(resEx.regnskap ?? 0)} hittil i år.`, Math.abs(resEx.regnskap ?? 0), 0)
-    else if ((resEx.avvik ?? 0) <= T.resGul) legg('gul', 'Selskap', 'Driftsresultat under budsjett', `${kr0(Math.abs(resEx.avvik ?? 0))} svakere enn budsjettert.`, Math.abs(resEx.avvik ?? 0), 0)
+    if ((resEx.regnskap ?? 0) < 0) legg('rod', 'Selskap', 'Negativt driftsresultat', `Resultat (ex 9900) er ${kr0(resEx.regnskap ?? 0)} hittil i år.`, Math.abs(resEx.regnskap ?? 0), 0, { slag: 'driftsresultat' })
+    else if ((resEx.avvik ?? 0) <= T.resGul) legg('gul', 'Selskap', 'Driftsresultat under budsjett', `${kr0(Math.abs(resEx.avvik ?? 0))} svakere enn budsjettert.`, Math.abs(resEx.avvik ?? 0), 0, { slag: 'driftsresultat' })
   }
 
   // ── Per stasjon (nøkkeltall) ────────────────────────────────────────────
@@ -190,8 +309,8 @@ export async function hentRegnskapVarsler(
 
     if (omsB > 0) {
       const i = ((omsR - omsB) / omsB) * 100
-      if (i <= T.omsRod) legg('rod', navn, `Omsetning ${pst1(i)} mot budsjett`, `${kr0(Math.abs(omsR - omsB))} under budsjett.`, Math.abs(omsR - omsB), 1)
-      else if (i <= T.omsGul) legg('gul', navn, `Omsetning ${pst1(i)} mot budsjett`, `${kr0(Math.abs(omsR - omsB))} under budsjett.`, Math.abs(omsR - omsB), 1)
+      if (i <= T.omsRod) legg('rod', navn, `Omsetning ${pst1(i)} mot budsjett`, `${kr0(Math.abs(omsR - omsB))} under budsjett.`, Math.abs(omsR - omsB), 1, { slag: 'omsetning_mot_budsjett' })
+      else if (i <= T.omsGul) legg('gul', navn, `Omsetning ${pst1(i)} mot budsjett`, `${kr0(Math.abs(omsR - omsB))} under budsjett.`, Math.abs(omsR - omsB), 1, { slag: 'omsetning_mot_budsjett' })
     }
 
     // Lønn MOT LØNNSBUDSJETT (ikke mot omsetning/BRF). To budskap:
@@ -201,12 +320,12 @@ export async function hentRegnskapVarsler(
       const lonnPst = (avvik / lonnB) * 100
       const brfPst = brfB > 0 ? ((brfR - brfB) / brfB) * 100 : 0
       if (lonnPst >= T.lonnOverRod) {
-        legg('rod', navn, `Lønn ${pst1(lonnPst)} over budsjett`, `Personalkostnad ${kr0(lonnR)} mot lønnsbudsjett ${kr0(lonnB)} — ${kr0(avvik)} over. Skjerp bemanning/vaktplan.`, Math.abs(avvik), 1)
+        legg('rod', navn, `Lønn ${pst1(lonnPst)} over budsjett`, `Personalkostnad ${kr0(lonnR)} mot lønnsbudsjett ${kr0(lonnB)} — ${kr0(avvik)} over. Skjerp bemanning/vaktplan.`, Math.abs(avvik), 1, { slag: 'lonn_over_budsjett' })
       } else if (lonnPst >= T.lonnOverGul) {
-        legg('gul', navn, `Lønn ${pst1(lonnPst)} over budsjett`, `Personalkostnad ${kr0(lonnR)} mot lønnsbudsjett ${kr0(lonnB)} — ${kr0(avvik)} over.`, Math.abs(avvik), 1)
+        legg('gul', navn, `Lønn ${pst1(lonnPst)} over budsjett`, `Personalkostnad ${kr0(lonnR)} mot lønnsbudsjett ${kr0(lonnB)} — ${kr0(avvik)} over.`, Math.abs(avvik), 1, { slag: 'lonn_over_budsjett' })
       } else if (lonnPst >= -10 && brfPst <= T.lonnBruttoMiss && brfB > 0) {
         // Brukte (nær) hele lønnsbudsjettet, men leverer ikke brutto.
-        legg('gul', navn, `Lønn brukt, men brutto ${pst1(brfPst)} under budsjett`, `Bruker lønnsbudsjettet (${kr0(lonnR)} av ${kr0(lonnB)}), men bruttofortjenesten ligger ${kr0(Math.abs(brfR - brfB))} under budsjett — bemanningen leverer ikke nok salg/brutto.`, Math.abs(brfR - brfB), 1)
+        legg('gul', navn, `Lønn brukt, men brutto ${pst1(brfPst)} under budsjett`, `Bruker lønnsbudsjettet (${kr0(lonnR)} av ${kr0(lonnB)}), men bruttofortjenesten ligger ${kr0(Math.abs(brfR - brfB))} under budsjett — bemanningen leverer ikke nok salg/brutto.`, Math.abs(brfR - brfB), 1, { slag: 'lonn_brukt_brutto_under' })
       }
     }
 
@@ -216,7 +335,7 @@ export async function hentRegnskapVarsler(
       ?? liste.find((l) => l.seksjon === 'resultat' && /^resultat$/i.test(l.post))
     if (res && (res.regnskap ?? 0) < 0) {
       const andel = omsR > 0 ? Math.abs((res.regnskap ?? 0) / omsR) * 100 : 0
-      legg('rod', navn, 'Negativt resultat', `${kr0(res.regnskap ?? 0)}${andel ? ` (${andel.toFixed(1)} % av omsetning)` : ''}.`, Math.abs(res.regnskap ?? 0), 1)
+      legg('rod', navn, 'Negativt resultat', `${kr0(res.regnskap ?? 0)}${andel ? ` (${andel.toFixed(1)} % av omsetning)` : ''}.`, Math.abs(res.regnskap ?? 0), 1, { slag: 'negativt_resultat' })
     }
   }
 
@@ -232,7 +351,10 @@ export async function hentRegnskapVarsler(
       const rod = g.kr >= T.mankoRod || (g.pst >= T.mankoPstRod && g.kr >= T.mankoGul)
       legg(rod ? 'rod' : 'gul', navn, `${g.navn}: ${kr0(g.kr)} usynlig manko`,
         `${Math.round(g.pst)} % av salg — samlet for gruppen, etter at `
-        + 'motpostene er trukket fra.', g.kr, 2)
+        + 'motpostene er trukket fra.', g.kr, 2,
+        // AVDELINGEN, IKKE NAVNET. `g.avdeling` er noekkelen i `MOTPOSTER`;
+        // `g.navn` er teksten den slaar opp.
+        { slag: 'usynlig_manko', vare: { form: 'motpostgruppe', avdeling: g.avdeling, navn: g.navn } })
     }
     // Netto overskudd er ikke et funn her. I en gruppe som motposterer
     // seg selv er et minus normaltilstanden naar utdelingen er slaatt
@@ -250,15 +372,15 @@ export async function hentRegnskapVarsler(
     if (krV > 0 && (krV >= T.mankoGul || pstV >= T.mankoPstGul)) {
       // Rød krever reelt beløp: ≥15k, eller ≥10 % AND ≥5k. Smått = gul (flagges, men ikke rødt).
       const rod = krV >= T.mankoRod || (pstV >= T.mankoPstRod && krV >= T.mankoGul)
-      legg(rod ? 'rod' : 'gul', navn, `${s.navn}: ${kr0(krV)} usynlig manko`, `${Math.round(pstV)} % av salg — penger/varer borte etter telling.`, krV, 2)
+      legg(rod ? 'rod' : 'gul', navn, `${s.navn}: ${kr0(krV)} usynlig manko`, `${Math.round(pstV)} % av salg — penger/varer borte etter telling.`, krV, 2, vareSak('usynlig_manko', s))
     } else if (krV < 0 && (-krV >= T.overskudd || -pstV >= T.overskuddPst)) {
-      legg('gul', navn, `${s.navn}: ${kr0(krV)} usynlig overskudd`, `Uforklart overskudd — ofte feilslag/registrering på kassa.`, -krV, 2)
+      legg('gul', navn, `${s.navn}: ${kr0(krV)} usynlig overskudd`, `Uforklart overskudd — ofte feilslag/registrering på kassa.`, -krV, 2, vareSak('usynlig_overskudd', s))
     }
 
     const kast = s.kast ?? 0
     const salg = s.salg ?? 0
     if (kast >= T.kast && salg > 0 && (kast / salg) * 100 >= T.kastPst) {
-      legg('gul', navn, `${s.navn}: ${kr0(kast)} kastet/synlig svinn`, `${((kast / salg) * 100).toFixed(1)} % av salget kastes.`, kast, 2)
+      legg('gul', navn, `${s.navn}: ${kr0(kast)} kastet/synlig svinn`, `${((kast / salg) * 100).toFixed(1)} % av salget kastes.`, kast, 2, vareSak('synlig_kast', s))
     }
   }
 
