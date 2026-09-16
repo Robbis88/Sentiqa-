@@ -88,7 +88,7 @@ import type { Arbeidsrad } from './arbeidstid'
 import type { Kilder, MedBeggeKilder, Registerrad } from './kilder'
 import { avgjorIdentitet, type Identitet } from './identitet'
 import {
-  avgjorPrisbarhet,
+  avgjorPrisbarhet, fastlonnUtenRegister,
   type Avtaleoppslag, type Prisbarhet, type Registerobservasjon,
 } from './prisbarhet'
 import { fordelVakt, TIMEART } from '@/lib/lonn/tilleggsfordeling'
@@ -125,7 +125,7 @@ export type Radutfall =
   }
   | {
     slag: 'forklart'
-    grunn: 'maanedslonn' | 'fastlonn_klassifisert'
+    grunn: 'maanedslonn' | 'fastlonn_klassifisert' | 'fastlonn_uten_register'
     prisbarhet: Prisbarhet
   }
   | { slag: 'upriset'; grunn: Uprisetgrunn; forklaring: string }
@@ -381,6 +381,30 @@ export function beregnA1(
     )
     noter(rad.ansattNr, identitet)
     if (identitet.status === 'ukoblet') {
+      // FASTLØNN UTEN REGISTERRAD — én smal gren, ikke en fallback.
+      //
+      // En fastlønnet leder stempler, men står ikke i lønnsgrunnlaget:
+      // easy@work-eksporten bærer bare timelønnede. Uten dette
+      // oppslaget blir timene hans `upriset('ukjent_nummer')`, og
+      // skjermen sier «mangler satsgrunnlag … det faktiske beløpet er
+      // høyere». Begge deler er usant: timene hører til konto 501, og
+      // 503 vokser aldri med dem.
+      //
+      // STÅR HER, ETTER dublett, ubetalt, flere_lokasjoner og
+      // avvist_rad, og etter at identiteten er avgjort. Rekkefølgen er
+      // selve garantien for at en avtale ikke kan reparere en sterkere
+      // konflikt — se vaktene i `a1-fastlonn.test.ts`.
+      //
+      // KUN `ukoblet`. En `motstrid` faller IKKE hit; den behandles
+      // under, og navn-som-veto står uendret.
+      const fast = fastlonnUtenRegister(stasjonId, rad.ansattNr, maaned, avtale)
+      if (fast) {
+        vurderte.push({
+          rad,
+          utfall: { slag: 'forklart', grunn: 'fastlonn_uten_register', prisbarhet: fast },
+        })
+        continue
+      }
       vurderte.push(upriset('ukjent_nummer')); continue
     }
     if (identitet.status === 'motstrid') {

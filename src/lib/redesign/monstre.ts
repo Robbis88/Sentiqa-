@@ -317,6 +317,7 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // budsjett - og tabellen under forklarer det. Seks kolonner, men de
   // sammenlignes ikke paa tvers av rader; de leses nedover, som en serie.
   '/lonnskost': 'analyse',
+  '/lonnskost/arbeidssted': 'analyse',
   '/analyse': 'analyse',
   '/maaling': 'analyse',
   '/kasserer': 'analyse',
