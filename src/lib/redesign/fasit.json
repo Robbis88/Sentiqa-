@@ -37,6 +37,7 @@
     "/maanedsplan",
     "/meldinger",
     "/merker",
+    "/min-maaned",
     "/min-plan",
     "/mine-opplysninger",
     "/nyheter",
@@ -121,6 +122,7 @@
       "/maanedsplan",
       "/meldinger",
       "/merker",
+      "/min-maaned",
       "/min-plan",
       "/mine-opplysninger",
       "/nyheter",
@@ -164,6 +166,7 @@
       "/maaling",
       "/meldinger",
       "/merker",
+      "/min-maaned",
       "/min-plan",
       "/mine-opplysninger",
       "/nyheter",
@@ -683,6 +686,18 @@
       "Merke for fullført opplæring",
       "Tildel et merke"
     ],
+    "/min-maaned": [
+      "Hva beveger resultatet?",
+      "Hva bør jeg gjøre nå?",
+      "Ingen måned å vise ennå",
+      "Ingen ramme for ${manedAar.format(new Date(tilIso(maaned)))}",
+      "Ingen sluppet månedsplan for denne stasjonen",
+      "Planen kunne ikke hentes",
+      "Stasjonene kunne ikke hentes",
+      "Tallene kunne ikke hentes",
+      "Velg en stasjon",
+      "{stasjon} · {maanedsnavn(maaned)} {maaned.slice(0, 4)}"
+    ],
     "/min-plan": [
       "Ingen månedsplan ennå",
       "Planen kunne ikke hentes",
@@ -1011,6 +1026,9 @@
     ],
     "/lonnskost/arbeidssted": [
       "/lonnskost"
+    ],
+    "/min-maaned": [
+      "/min-plan"
     ],
     "/opplaring": [
       "/opplaring"

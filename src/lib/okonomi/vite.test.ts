@@ -202,3 +202,90 @@ describe('rekkefoelgen er prioritet', () => {
     expect(funn[1].tittel).toContain('Bilvask uke 39')
   })
 })
+
+// =====================================================================
+// EN AVLAGT MAANED TRENGER INGEN LOENNSFIL
+// =====================================================================
+//
+// PRODUKSJONSFUNN 2026-09-16, avdekket av maanedsreisen i «Min maaned».
+// Flaten lot oss for foerste gang aapne en AVLAGT maaned, og da sa
+// skjermen to ting samtidig:
+//
+//     styringskost   391 462  [fasit]
+//     styringsavvik   -1 611  [fasit]
+//     «Uten den finnes det ingen loenn aa maale mot rommet.»
+//
+// Laguneparken juli 2026. easy@work-kronefila finnes bare paa tre av fem
+// stasjoner, saa tilstanden er normal - ikke et kanttilfelle.
+//
+// `byggDekning` hadde alt skrevet regelen ned: en avlagt maaned har
+// ingen mangler som betyr noe for tallet. Punkt 2 fulgte den; punkt 4
+// gjorde det ikke.
+//
+// De fire kontrastene under er hele rettelsen. Den tredje er den som
+// hindrer at rettelsen bytter en usann setning mot en taushet.
+// =====================================================================
+describe('loennsfilbeskjeden og regnskapsfasiten', () => {
+  it('AVLAGT + regnskap + ingen loennsfil: ingen loennsfilbeskjed', () => {
+    const b = BILDE({ dekning: DEKNING({ lonnsfil: false, regnskap: true }) })
+    expect(titler(b).some((t) => /lønnsfila/i.test(t))).toBe(false)
+    // OG TALLENE STAAR. Rettelsen fjerner en setning, ikke et tall.
+    expect(b.styringskost.kilde).toBe('fasit')
+    expect(b.styringsavvik.kilde).toBe('fasit')
+    expect(b.styringsavvik.avvik.mangler).toBeNull()
+    expect(b.sikkerhet).toBe('hoy')
+  })
+
+  it('AAPEN + ingen loennsfil + ingen fasit: beskjeden staar som foer', () => {
+    const b = BILDE({
+      regnskap: null,
+      easyatworkLonnKr: null,
+      easyatworkStyringskostKr: null,
+      dekning: DEKNING({ lonnsfil: false, regnskap: false }),
+    })
+    const funn = hvaBoerJegViteNaa(b)
+    expect(funn.map((f) => f.tittel)).toContain('Lønnsfila er ikke kommet for denne måneden.')
+    // Og den sies ÉN gang: punkt 3 tier fordi dekningen forklarer det.
+    expect(funn.filter((f) => /ikke kommet/i.test(f.tittel))).toHaveLength(1)
+  })
+
+  it('AVLAGT + ingen loennsfil + avviket lar seg IKKE regne: mangelen sies likevel', () => {
+    // =================================================================
+    // RETTELSEN SKAL IKKE GJOERE EN EKTE MANGEL USYNLIG
+    // =================================================================
+    //
+    // Her er fella: strammer man bare punkt 4, tier punkt 3 fortsatt -
+    // fordi det tror mangelen «alt er forklart» av en beskjed som ikke
+    // lenger blir sagt. Da ville en avlagt maaned med ukjente
+    // loennskonti sagt INGENTING om hvorfor avviket mangler.
+    //
+    // En taushet er verre enn en usann setning: tom liste betyr «alt i
+    // orden».
+    const b = BILDE({
+      // `niva.styringskostKr === null` i produksjon - ukjente konti.
+      regnskap: { ...REGNSKAP, styringskostKr: null },
+      easyatworkStyringskostKr: null,
+      dekning: DEKNING({ lonnsfil: false, regnskap: true }),
+    })
+    expect(b.styringsavvik.avvik.mangler).not.toBeNull()
+    const funn = hvaBoerJegViteNaa(b)
+    expect(funn.map((f) => f.tittel)).toContain('Styringsavviket kan ikke regnes.')
+    expect(funn.map((f) => f.tittel).some((t) => /lønnsfila/i.test(t))).toBe(false)
+  })
+
+  it('manglende grunnlag UTEN regnskapsfasit varsles fortsatt', () => {
+    // Salgsdager og bilvaskuker er dekningens egen liste, og den skal
+    // ikke roeres av rettelsen.
+    const b = BILDE({
+      regnskap: null,
+      dekning: DEKNING({
+        lonnsfil: false, regnskap: false,
+        mangler: ['3 salgsdager', '1 bilvaskuke'], retningPaaFeil: 'for_lavt',
+      }),
+    })
+    const funn = hvaBoerJegViteNaa(b)
+    expect(funn.map((f) => f.tittel).join(' ')).toContain('3 salgsdager')
+    expect(funn.map((f) => f.tittel)).toContain('Lønnsfila er ikke kommet for denne måneden.')
+    expect(funn.find((f) => /salgsdager/.test(f.tittel))?.folge).toContain('for lavt')
+  })
+})

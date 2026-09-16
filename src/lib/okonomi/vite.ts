@@ -111,12 +111,52 @@ function anslagsgrunn(bilde: Okonomibilde): string | undefined {
 }
 
 /**
+ * Sier fila selv fra om at den ikke er kommet?
+ *
+ * =====================================================================
+ * EN AVLAGT MÅNED TRENGER INGEN LØNNSFIL
+ * =====================================================================
+ *
+ * Her sto bare `!dekning.lonnsfil`, og den påstanden var beviselig usann
+ * på en avlagt måned. Målt i produksjon 2026-09-16, Laguneparken juli:
+ *
+ *     dekning.regnskap   true          styringskost   391 462  [fasit]
+ *     dekning.lonnsfil   false         styringsavvik   −1 611  [fasit]
+ *     sikkerhet          hoy           avvik.mangler   null
+ *
+ * og ved siden av de tallene sto «Uten den finnes det ingen lønn å måle
+ * mot rommet». Lønna VAR målt mot rommet — svaret sto i samme bilde,
+ * merket `Fasit`. easy@work-kronefila finnes bare på tre av fem
+ * stasjoner, så tilstanden er normal, ikke et kantttilfelle.
+ *
+ * `byggDekning` hadde alt skrevet regelen ned: «EN AVLAGT MÅNED HAR
+ * INGEN MANGLER som betyr noe for tallet. Regnskapet er fasit.» Punkt 2
+ * fulgte den. Punkt 4 gjorde det ikke.
+ *
+ * ---------------------------------------------------------------------
+ * ÉN PREDIKAT, TO BRUKSSTEDER
+ * ---------------------------------------------------------------------
+ *
+ * Funksjonen svarer på om lønnsfilbeskjeden FAKTISK sies. Punkt 4 fyrer
+ * på den, og punkt 3 tier på den — «det er alt forklart».
+ *
+ * De to MÅ være samme betingelse. Ble bare punkt 4 strammet, ville en
+ * avlagt måned uten lønnsfil der avviket likevel ikke lot seg regne
+ * (ukjente lønnskonti) tiet om begge deler: punkt 4 fordi måneden er
+ * avlagt, punkt 3 fordi det «alt var forklart» av en beskjed som ikke
+ * lenger blir sagt. Da ville rettelsen gjort en ekte mangel usynlig —
+ * altså byttet en usann setning mot en taushet, som er verre.
+ */
+const lonnsfilSiesFra = (dekning: Dekning): boolean =>
+  !dekning.lonnsfil && !dekning.regnskap
+
+/**
  * Er denne mangelen allerede forklart av dekningen?
  *
  * Brukes til å la være å si det samme to ganger. Se toppkommentaren.
  */
 function forklartAvDekningen(mangler: string, dekning: Dekning): boolean {
-  if (!dekning.lonnsfil && /lønnstallet|lønnsfila/i.test(mangler)) return true
+  if (lonnsfilSiesFra(dekning) && /lønnstallet|lønnsfila/i.test(mangler)) return true
   return false
 }
 
@@ -200,7 +240,11 @@ export function hvaBoerJegViteNaa(bilde: Okonomibilde): Beskjed[] {
   // Står her og ikke i 3, fordi den har en VEI VIDERE: fila kommer
   // dagen etter måneden. Det er en annen beskjed enn «BP mangler», som
   // krever at noen gjør noe.
-  if (!dekning.lonnsfil) {
+  //
+  // OG BARE NÅR REGNSKAPET IKKE HAR TATT OVER. Se `lonnsfilSiesFra`:
+  // på en avlagt måned er setningen beviselig usann, og den sto ved
+  // siden av et styringsavvik merket `Fasit`.
+  if (lonnsfilSiesFra(dekning)) {
     ut.push({
       tittel: 'Lønnsfila er ikke kommet for denne måneden.',
       folge: 'Uten den finnes det ingen lønn å måle mot rommet.',
