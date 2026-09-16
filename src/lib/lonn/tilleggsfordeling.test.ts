@@ -104,8 +104,18 @@ describe('fordelVakt — helligdag', () => {
 
 describe('helligdagskalenderen', () => {
   it('finner de bevegelige dagene i 2026', () => {
-    // Påskedagen 5. april 2026. Regnestykket er bekreftet av dataene:
-    // easy@work betalte 1410 på nøyaktig disse dagene.
+    // Påskedagen 5. april 2026.
+    //
+    // RETTET: her sto det at «easy@work betalte 1410 på nøyaktig disse
+    // dagene». Det stemmer for Kristi himmelfart og de to pinsedagene,
+    // som ligger i Dale mai 2026 — men IKKE for skjærtorsdag,
+    // langfredag og 2. påskedag. Vi har ingen kronefil fra april, og
+    // påskedagene er derfor modellert, ikke målt.
+    //
+    // Det som ER bekreftet av dataene, er PÅSKEREGNESTYKKET: easy@work
+    // betalte 1410 på påske+39, +49 og +50, altså nøyaktig de dagene
+    // formelen peker ut. Selve datoutregningen er verifisert; Easys
+    // behandling av de fire påskedagene er det ikke.
     expect(erHelligdag('2026-04-02')).toBe(true) // skjærtorsdag
     expect(erHelligdag('2026-04-03')).toBe(true) // langfredag
     expect(erHelligdag('2026-04-06')).toBe(true) // 2. påskedag

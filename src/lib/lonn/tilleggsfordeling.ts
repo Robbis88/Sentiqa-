@@ -99,14 +99,20 @@ const helligCache = new Map<number, Set<string>>()
  *   INGEN andre tillegg. Observert på fem dager i Dale mai 2026, med
  *   mandag 18. mai som kontrast.
  *
- *   LISTEN er norsk lov, ikke en slutning fra dataene. Av dagene her er
- *   1., 14., 17., 24. og 25. mai faktisk observert. Påskedagene,
- *   nyttårsdag og julen er det ikke — vi har ingen kronefil fra de
- *   månedene.
+ *   LISTEN er MODELLERT, ikke en slutning fra dataene. Den har TOLV
+ *   unike dager i 2026. Fem av dem er direkte målt mot Easy@Work:
+ *   1., 14., 17., 24. og 25. mai. De sju andre — nyttårsdag,
+ *   skjærtorsdag, langfredag, 1. og 2. påskedag samt 1. og 2. juledag —
+ *   er ikke direkte målt; vi har ingen kronefil fra de månedene.
  *
- * Å bruke en målt regel på en lovbestemt kalender er noe annet enn å
+ * Å bruke en målt regel på en modellert kalender er noe annet enn å
  * gjette en ny regel. Men skulle en påskemåned vise seg å oppføre seg
  * annerledes, er det HER det står feil — ikke i regelen.
+ *
+ * TRE NIVÅER SOM IKKE ER DET SAMME: regel implementert, regel støttet
+ * av ekstern norm, regel empirisk målt mot Easy. Her sto det tidligere
+ * «LISTEN er norsk lov» — en formulering som kan leses som at Easys
+ * 1410-behandling på de dagene er verifisert. Den er ikke det.
  *
  * Aftenene er en helt annen sak og ligger i `helgaftener`: der er bare
  * den ene målte dagen med.
