@@ -88,6 +88,49 @@ er min kjedes når den ikke lenger kan flyttes.
 
 **Et flagg i en kolonne er ikke en grense før RLS leser det.** `malekort.vis_tablet` sto i basen fra `0073` og ble bare brukt som visningsvilkår i appen; nettbrettet kunne lese kortet direkte over PostgREST. Rettet i `0134`. Legger du til et slikt flagg, hører det hjemme i policyen — ikke bare i spørringen.
 
+# Tilgangsprinsippet
+
+**Retailer ser kjeden. Butikken ser bare sine eksplisitt tildelte stasjoner.
+Nettbrettet er stasjonsbundet og ser bare data det faktisk trenger.**
+
+`mine_stasjoner()` (`0077`) bærer hele stasjonsmodellen, og den skal ikke
+gjenoppfinnes per modul:
+
+| rolle | ser |
+|---|---|
+| `retailer_admin` | alle ikke-slettede stasjoner i egen retailer |
+| `butikksjef` | radene i `butikksjef_stasjoner` for `auth.uid()` — flere er støttet |
+| `butikkbruker_tablet` | samme tildelingstabell, altså sin egen stasjon |
+| `plattform_redaktor` | ingenting; den leser aldri forretningsdata |
+
+## Stasjonstilgang gir ikke datatilgang
+
+Det er **to** vilkår, og det andre er ikke pynt:
+
+```sql
+stasjon_id in (select public.mine_stasjoner())   -- HVILKE stasjoner
+and (select public.gjeldende_rolle()) in (...)   -- HVILKE data
+```
+
+At nettbrettet er bundet til stasjon A1 betyr ikke at det har rett på hver
+datatype som finnes på A1. `basisvakt` (`0219`) er eksempelet: raden bærer
+navngitt ansatt med arbeidstid og skal senere ganges med en sats.
+`mine_stasjoner()` ville gitt nettbrettet sin egen stasjon — det er
+**rollekravet** som stenger det ute.
+
+`stempling` har med vilje en bredere lesepolicy. Den er nettbrettets EGEN
+tabell og må være det. Det er ikke en presedens for andre tabeller.
+
+**En ny modul skal eksplisitt klassifisere retailer-, manager- og
+tablet-tilgang i `supabase/tenant-kontrakt.json`.** Ikke arv tilgang fordi
+brukeren når stasjonen. Smalt er reversibelt; bredt er det ikke — trenger
+nettbrettet noe senere, skal det være et skrevet produktbehov og en smal
+funksjon, ikke en utvidet policy.
+
+**Tenantgrenser håndheves i databasen, ikke bare i UI.** `retailer_admin` er
+bundet av `gjeldende_retailer_id()`, `butikksjef` og nettbrett av
+tildelingsraden.
+
 # Tenant-kontrakten og fixture-kontrakten
 
 `supabase/tenant-kontrakt.json` er eneste håndholdte kilde for hvem som når hva. Dekningskontrollen og atferdsmatrisen genereres derfra — `OPPDATER_KONTRAKT=1 npx vitest run src/lib/tenant`. Rediger aldri de genererte filene.

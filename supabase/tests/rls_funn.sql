@@ -58,7 +58,7 @@ with lister as (
     'retailer_kodeerklaering', 'retailer_koderegel',
       'bemanning_vindu', 'bemanning_krav', 'bemanning_fast_vakt',
       'bemanning_budsjett', 'bemanning_aar', 'bemanning_maned',
-      'bemanning_stasjon', 'stempling', 'stempling_hendelse', 'lonnsart_linje', 'lonnsregister',
+      'bemanning_stasjon', 'stempling', 'stempling_hendelse', 'lonnsart_linje', 'lonnsregister', 'basisvakt',
       'ansatt_avtale', 'bemanning_fravaer',
       'signal_lukket', 'ansatt_kontrakt', 'persondata_logg',
       'kontrolltiltak_bekreftelse',

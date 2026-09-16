@@ -33,6 +33,7 @@ begin
     ('anvisninger', true, false),
     ('arrangementer', true, false),
     ('avvik', true, false),
+    ('basisvakt', true, false),
     ('bemanning_aar', true, false),
     ('bemanning_budsjett', true, false),
     ('bemanning_fast_vakt', true, false),

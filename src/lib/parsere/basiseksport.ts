@@ -63,6 +63,34 @@ const MND = [
 export type Basisstempling = Stempling & { fraDato: string }
 
 /**
+ * En rad slik fila faktisk skrev den.
+ *
+ * `Basisstempling` er det MOTOREN trenger. Denne er det IMPORTEN trenger:
+ * to felt til som skal bevares i `basisvakt`, men som ingen beregning
+ * leser.
+ *
+ * Egen type framfor aa utvide `Basisstempling`, fordi den brukes som
+ * fixture i flere tester. Et nytt paakrevd felt der ville tvunget fram
+ * endringer i vakter som ikke har noe med kilden aa gjoere - og en diff
+ * som roerer en vakt uten grunn er en diff ingen leser noeye.
+ */
+export type Basisrad = Basisstempling & {
+  /**
+   * Easy@Works eget timetall, ubehandlet. `null` naar feltet ikke lot
+   * seg lese som et tall.
+   *
+   * Den er den mer presise av de to - `Fra` og `Til` er kuttet til hele
+   * minutt, mens `Lengde` baerer sekundene - og det er den kronefila
+   * stemmer med. Motoren priser likevel intervallet i dag. HVILKEN som
+   * skal vaere oekonomisk fasit er ikke avgjort her; kilden bevarer
+   * begge, og valget tas naar begge er maalt mot kronefilene.
+   */
+  lengde: number | null
+  /** Raa `Type`: «Betalt tid», «Ubetalt tid», «Pause». `betalt` utledes av den. */
+  type: string
+}
+
+/**
  * En vakt der «Lengde» og klokkeslettene ikke kan forenes.
  *
  * MÅLT: én rad av 7 943 i sju filer. «09:10–11:00» med `Lengde` 25,82 —
@@ -86,9 +114,20 @@ export type Lengdeavvik = {
   ansattNr: string
   ansattNavn: string
   dato: string
+  /**
+   * Datoen arbeidet begynte. Baeres ogsaa her, selv om en avvist rad
+   * aldri prises: den skal LAGRES, og en rad som lagres uten fra_dato
+   * kan ikke skilles fra en doegnkryssende vakt senere.
+   */
+  fraDato: string
   fraTid: string
   tilTid: string
   lokasjon: string
+  /** Raa `Type`, og den utledede boolen. Bevares av samme grunn. */
+  type: string
+  betalt: boolean
+  /** Intervallet i minutter. `intervallTimer` er den avrundede formen. */
+  minutter: number
   /** Det fila oppgir. */
   lengde: number
   /** Det klokkeslettene gir. */
@@ -101,7 +140,7 @@ export type BasiseksportResultat = {
   lokasjoner: string[]
   fraDato: string
   tilDato: string
-  stemplinger: Basisstempling[]
+  stemplinger: Basisrad[]
   /** Vakter som ikke lot seg lese. Tom liste er det normale. */
   avvik: Lengdeavvik[]
 }
@@ -227,7 +266,7 @@ export function lesBasiseksport(tekst: string): BasiseksportResultat {
   const iLengde = k('lengde')
   const iLok = k('lokasjon')
 
-  const stemplinger: Basisstempling[] = []
+  const stemplinger: Basisrad[] = []
   const avvik: Lengdeavvik[] = []
   const lokasjoner = new Set<string>()
   const datoer: string[] = []
@@ -280,9 +319,13 @@ export function lesBasiseksport(tekst: string): BasiseksportResultat {
         ansattNr: (r[iNr] ?? '').trim(),
         ansattNavn: (r[iNavn] ?? '').trim(),
         dato,
+        fraDato,
         fraTid,
         tilTid,
         lokasjon: (r[iLok] ?? '').trim(),
+        type: (r[iType] ?? '').trim(),
+        betalt: (r[iType] ?? '').trim().toLowerCase() === 'betalt tid',
+        minutter,
         lengde,
         intervallTimer: Math.round((minutter / 60) * 100) / 100,
       })
@@ -301,9 +344,13 @@ export function lesBasiseksport(tekst: string): BasiseksportResultat {
         ansattNr: (r[iNr] ?? '').trim(),
         ansattNavn: (r[iNavn] ?? '').trim(),
         dato,
+        fraDato,
         fraTid,
         tilTid,
         lokasjon,
+        type: (r[iType] ?? '').trim(),
+        betalt: (r[iType] ?? '').trim().toLowerCase() === 'betalt tid',
+        minutter,
         lengde,
         intervallTimer: Math.round((minutter / 60) * 100) / 100,
       })
@@ -325,6 +372,9 @@ export function lesBasiseksport(tekst: string): BasiseksportResultat {
       // skal fortsatt kjennes igjen — men de skal ikke prises.
       betalt: (r[iType] ?? '').trim().toLowerCase() === 'betalt tid',
       lokasjon,
+      // BEVARES, IKKE BRUKT HER. Se `Basisrad`.
+      lengde: Number.isFinite(lengde) ? lengde : null,
+      type: (r[iType] ?? '').trim(),
     })
   }
 

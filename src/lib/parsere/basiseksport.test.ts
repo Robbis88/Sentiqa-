@@ -169,3 +169,79 @@ describe('minutterMellom', () => {
     expect(minutterMellom('2026-07-23', '12:00', '18:00')).toBe(360)
   })
 })
+
+// =====================================================================
+// FELTENE `basisvakt` TRENGER, SOM MOTOREN IKKE LESER
+//
+// `0219` bevarer Easy@Works observasjon, ikke vår tolkning av den. To
+// felt bæres derfor ut av parseren uten at noen beregning rører dem:
+// `Lengde` slik fila oppga den, og den rå `Type`.
+//
+// Uten dem kunne basen bare lagre intervallet — og da ville vi ha
+// KASTET Easys eget timetall og beholdt vårt, i en tabell som lover å
+// bevare kilden. Det er nøyaktig formen på `Betalingsfrekvens`-feilen:
+// tallet lagret, enheten borte.
+// =====================================================================
+
+describe('Basisrad bærer det kilden sa', () => {
+  it('bevarer Lengde og rå Type ved siden av intervallet', () => {
+    const [s] = lesBasiseksport(fil(
+      rad('1 juli 2026', '308', 'A B', 'Betalt tid', '12:00', '18:00', '6'),
+    )).stemplinger
+    expect(s.minutter).toBe(360)
+    expect(s.lengde).toBe(6)
+    expect(s.type).toBe('Betalt tid')
+    expect(s.betalt).toBe(true)
+  })
+
+  it('en pause bærer sin egen type, ikke bare betalt=false', () => {
+    const [s] = lesBasiseksport(fil(
+      rad('1 juli 2026', '308', 'A B', 'Pause', '15:00', '15:30', '0.5'),
+    )).stemplinger
+    expect(s.type).toBe('Pause')
+    expect(s.betalt).toBe(false)
+  })
+
+  it('lengde er null når feltet ikke er et tall', () => {
+    // ALDRI 0. En manglende lengde er ikke en vakt på null timer.
+    const [s] = lesBasiseksport(fil(
+      rad('1 juli 2026', '308', 'A B', 'Betalt tid', '12:00', '18:00', ''),
+    )).stemplinger
+    expect(s.lengde).toBeNull()
+    expect(s.minutter).toBe(360)
+  })
+
+  it('en avvist rad bærer nok til å kunne lagres', () => {
+    // EN AVVIST RAD SKAL IKKE FORSVINNE LYDLØST. Lagres den uten
+    // fra_dato, type og minutter, kan den ikke skilles fra en
+    // døgnkryssende vakt senere — og da er den verdiløs som spor.
+    // Den gyldige raden maa vaere med: en fil UTEN brukbare vakter
+    // kaster, og da ville testen maalt feilmeldingen i stedet for avviket.
+    // DEN AVVISTE RADEN KRYSSER MIDNATT MED VILJE. Foerste utgave av
+    // denne testen brukte en vanlig vakt, der `fraDato` og `dato` er
+    // like - og da bestod den ogsaa naar parseren skrev forretningsdatoen
+    // i begge feltene. Injeksjonen som beviste det var groenn.
+    const { avvik } = lesBasiseksport(fil(
+      rad('13 desember 2025', '308', 'A B', 'Betalt tid', '12:00', '18:00', '6'),
+      rad('13 desember 2025', '1009', 'G H', 'Betalt tid',
+          '14 desember 2025 09:10', '11:00', '25.82'),
+    ))
+    expect(avvik).toHaveLength(1)
+    expect(avvik[0].grunn).toBe('lengde')
+    expect(avvik[0].dato).toBe('2025-12-13')
+    expect(avvik[0].fraDato).toBe('2025-12-14')
+    expect(avvik[0].type).toBe('Betalt tid')
+    expect(avvik[0].betalt).toBe(true)
+    expect(avvik[0].lengde).toBe(25.82)
+  })
+
+  it('en døgnkryssende vakt beholder datoen arbeidet begynte', () => {
+    // Målt: 28 slike i 8 069 rader, herav 13 av 193 på Laguneparken
+    // august. Uten fra_dato får vakten feil ukedag, altså feil tillegg.
+    const [s] = lesBasiseksport(fil(
+      rad('31 juli 2026', '308', 'A B', 'Betalt tid', '1 august 2026 00:00', '00:55', '0.92'),
+    )).stemplinger
+    expect(s.dato).toBe('2026-07-31')
+    expect(s.fraDato).toBe('2026-08-01')
+  })
+})
