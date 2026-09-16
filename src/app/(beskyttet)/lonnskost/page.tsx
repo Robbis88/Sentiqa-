@@ -7,13 +7,10 @@ import { Status } from '@/components/ui/status'
 import { Sideramme } from '@/components/ui/sideramme'
 import { husketStasjon } from '@/lib/stasjonskontekst'
 import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
-import { hentLonnskost } from '@/lib/lonnskost/hent'
 import { BP_KONTONAVN } from '@/lib/lonnskost/bp'
 import { MANGLER, SATSER, easyatworkNiva } from '@/lib/lonnskost/easyatwork'
 import { maanedsrader } from '@/lib/lonnskost/rom'
-import { byggOkonomibilde, skjermFor } from '@/lib/okonomi/bilde'
-import { avslutteteUkerIMaaned, byggDekning } from '@/lib/okonomi/dekning'
-import { hentSalgsdager } from '@/lib/okonomi/hent'
+import { byggMaanedsbilde, hentBildegrunnlag, standardmaaned } from '@/lib/okonomi/sammenstill'
 import { ManuelleTall } from './manuelle-tall'
 import { Lonnsformer } from './lonnsformer'
 import { Arbeidsstedsblokk } from './arbeidsstedsblokk'
@@ -25,7 +22,8 @@ import { hentKilder } from '@/lib/lonnskost/kilder'
 import { hentAvtaler } from '@/lib/lonnskost/avtale'
 import { a1ForStasjonsmaaned } from '@/lib/lonnskost/a1'
 import { tilA1Kort, type A1Kort } from '@/lib/lonnskost/a1-kort'
-import { HvaBoerJegVite, Lonnsblokk } from './okonomiblokk'
+import { HvaBoerJegVite } from '@/components/ui/okonomi'
+import { Lonnsblokk } from './okonomiblokk'
 
 // =====================================================================
 // LØNNSKOST PER MÅNED
@@ -151,15 +149,17 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   // Det butikksjefen trenger er om stasjonen ligger innenfor. Det svaret
   // krever ingen kontoer.
   const erAdmin = bruker.rolle === 'retailer_admin'
+  // SAMMENSTILLINGEN ER DELT (`okonomi/sammenstill.ts`).
+  //
+  // Den hentet lønnskosten, salgsdagene og satte sammen `Bildeinput` her
+  // i sida. Det gikk bra så lenge dette var eneste flate; «Min måned» er
+  // den andre, og to sammenstillinger ville vært to meninger om hvilken
+  // måned bildet gjelder og når en kilde er fasit.
+  const grunnlag = await hentBildegrunnlag(supabase, valgtStasjon!, FRA)
   const {
     maaneder, ukjenteKoder, easyatwork, sykelonn, rom, bilvaskUker, fastlonnMaaneder,
     ansatte, ansatteMaaned,
-  } = await hentLonnskost(
-    supabase, valgtStasjon!, FRA,
-  )
-  // Ved siden av, ikke inni: `hentLonnskost` svarer på lønnskost.
-  // Salgsdager er dekningens spørsmål, og hører til økonomibildet.
-  const salgsdagerPer = await hentSalgsdager(supabase, valgtStasjon!, FRA)
+  } = grunnlag.lonnsbilde
   const avlagte = maaneder.filter((m) => m.avlagt)
   const siste = avlagte[0]
 
@@ -316,93 +316,22 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   // ===================================================================
   // ØKONOMIBILDET FOR DEN MÅNEDEN DET ER NOE Å SI OM
   //
-  // IKKE `naa` OVER. Den krever at easy@work-fila finnes
-  // (`eaPerMaaned.has`) — og det er nettopp måneden UTEN lønnsfil som
-  // har mest å fortelle: «lønnsfila er ikke kommet», «tre salgsdager
-  // mangler». Bandt vi bildet til `naa`, ville blokken forsvunnet i den
-  // tilstanden den er bygget for.
+  // De åtti linjene som sto her — måneden, dekningen, bilvaskukene, hvert
+  // felt i `Bildeinput` — er flyttet til `okonomi/sammenstill.ts`. De var
+  // riktige, men de bodde i en sidefil, og «Min måned» måtte enten
+  // kopiere dem eller finne på sine egne. To sammenstillinger er to
+  // meninger om når en kilde er fasit.
   //
-  // Nyeste måned med et rom. `rom` er sortert nyest først.
+  // MÅNEDEN VELGES AV `standardmaaned`, og den er den samme regelen:
+  // nyeste måned med et rom eller en brutto — IKKE nyeste måned med en
+  // lønnsfil. Det er nettopp måneden uten lønnsfil som har mest å
+  // fortelle: «lønnsfila er ikke kommet», «tre salgsdager mangler».
   // ===================================================================
-  const bildeRom = rom.find((r) => r.bruttoKr != null || r.romKr != null)
-  const bildeAvlagt = bildeRom
-    ? maaneder.find((m) => m.maaned === bildeRom.maaned)?.avlagt ?? false
-    : false
-  const bildeMaanedslonn = bildeRom
-    ? maaneder.find((m) => m.maaned === bildeRom.maaned)
-    : undefined
-  const forventedeUker = bildeRom
-    ? avslutteteUkerIMaaned(bildeRom.maaned, new Date())
-    : new Set<string>()
-
-  const bilde = bildeRom
-    ? skjermFor(bruker.rolle, byggOkonomibilde({
-      stasjonId: valgtStasjon!,
-      maaned: bildeRom.maaned,
-      rom: bildeRom,
-      // REGNSKAPET BÆRER BARE LØNNA HER.
-      //
-      // `omsetningKr` er `null` med vilje: /lonnskost henter aldri
-      // regnskapets omsetning — `hentLonnskost` bruker den internt til
-      // marginen og gir den ikke fra seg. Brutto leses uansett av
-      // `rom`, som alt har valgt fasit over anslag, så lønnsblokken er
-      // komplett uten den.
-      //
-      // Royalty og påvirkbar drift står `null` av samme grunn: de er
-      // ikke lønnsblokkens felt. Blir de vist her (E4b), må de HENTES —
-      // ikke antas. Et felt som står `mangler` fordi ingen koblet det,
-      // ser ut som et hull i dataene.
-      regnskap: bildeAvlagt && bildeMaanedslonn
-        ? {
-          omsetningKr: null,
-          bruttoKr: null,
-          lonnKr: bildeMaanedslonn.lonnskostKr,
-          // ROMMET MAALES MOT DENNE, IKKE MOT `lonnKr`. Se
-          // `lonnskost/kostnadsniva.ts`.
-          styringskostKr: bildeMaanedslonn.niva?.styringskostKr ?? null,
-          royaltyKr: null,
-          paavirkbarDriftKr: null,
-        }
-        : null,
-      easyatworkLonnKr: eaPerMaaned.get(bildeRom.maaned)?.lonnskostKr ?? null,
-      easyatworkStyringskostKr: (() => {
-        const ea = eaPerMaaned.get(bildeRom.maaned)
-        return ea ? easyatworkNiva(ea).styringskostKr : null
-      })(),
-      dagligOmsetningKr: bildeRom.omsetningKr,
-      dekning: byggDekning({
-        maaned: bildeRom.maaned,
-        salgsdagerHar: salgsdagerPer.get(bildeRom.maaned) ?? 0,
-        // SAMME SETT SOM NEVNEREN. En egen regel her ville latt en
-        // måned få flere uker registrert enn den ventet.
-        bilvaskUkerHar: bilvaskUker
-          .filter((u) => forventedeUker.has(`${u.ar}-${u.uke}`)).length,
-        // ===============================================================
-        // EN STASJON UTEN BILVASK VENTER INGEN BILVASKUKER
-        // ===============================================================
-        //
-        // Uten dette leddet ville hver stasjon uten vaskehall stått med
-        // «4 bilvaskuker mangler» hver eneste måned, for alltid — et
-        // varsel ingen kan lukke, om en fil som aldri kommer. Og et
-        // varsel som alltid står, lærer folk å se forbi hele blokken.
-        //
-        // Kelsars fem stasjoner har alle bilvask, så feilen ville ikke
-        // vist seg her. Den ville truffet første kjede uten.
-        //
-        // UTLEDET, IKKE KONFIGURERT. Har stasjonen noen gang registrert
-        // en bilvaskuke, har den bilvask. Det krever ingen ny
-        // innstilling i onboarding — og en trygg standardverdi som
-        // virker er forskjellen på et nytt onboardingsteg og ingen.
-        //
-        // Prisen: en ny stasjon MED bilvask varsler ikke før første uke
-        // er lagt inn. Det er riktig vei å ta feil på — heller tie én
-        // gang enn å rope hver måned.
-        bilvaskUkerAv: bilvaskUker.length > 0 ? forventedeUker.size : null,
-        lonnsfil: eaPerMaaned.has(bildeRom.maaned),
-        regnskap: bildeAvlagt,
-        naa: new Date(),
-      }),
-    }))
+  const bildemaaned = standardmaaned(grunnlag)
+  const bilde = bildemaaned
+    ? byggMaanedsbilde(grunnlag, {
+      maaned: bildemaaned, rolle: bruker.rolle, naa: new Date(),
+    })?.bilde ?? null
     : null
 
   const sisteEa = easyatwork[0]

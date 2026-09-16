@@ -2402,6 +2402,117 @@ button.liten { min-height: 40px; }
   font-style: italic;
 }
 
+/* --- Min maaned: reisestripa ---------------------------------------
+   PLAN -> PROGNOSE -> FASIT. Tegner `reisen()` sitt svar; steget vet
+   allerede hvilken tilstand det har (se reise.ts). Ingen farge her sier
+   noe stripa ikke alt har faatt fortalt.
+
+   FASIT FAAR INGEN GROENN HAKE. Samme regel som kildemerket: et avstemt
+   tall er normaltilstanden, ikke en god nyhet. Faerger vi maalstreken,
+   er det ingenting igjen den dagen noe faktisk er galt. */
+.sq-reise {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--luft-2);
+  list-style: none;
+  margin: 0 0 var(--luft-5);
+  padding: 0;
+}
+.sq-reise-steg {
+  flex: 1 1 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--luft-1);
+  padding: var(--luft-4);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius-stor);
+  background: var(--kort);
+}
+.sq-reise-tittel {
+  font-size: var(--tekst-liten);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tekst-svak);
+}
+.sq-reise-forklaring {
+  font-size: var(--tekst-liten);
+  line-height: var(--linje-luftig);
+  color: var(--tekst);
+}
+
+/* STEGET MAANEDEN STAAR PAA. Det eneste som skal trekke blikket. */
+.sq-reise-naa {
+  border-color: var(--primaer);
+  background: var(--primaer-svak);
+  box-shadow: var(--skygge);
+}
+.sq-reise-naa .sq-reise-tittel { color: var(--gronn); }
+
+/* MANGLER: stiplet og dempet, som kildemerket. Det er ingenting aa lese
+   her ennaa - og det er en opplysning, ikke en feil. */
+.sq-reise-mangler {
+  border-style: dashed;
+  background: transparent;
+}
+.sq-reise-mangler .sq-reise-forklaring { color: var(--tekst-svak); }
+
+/* ERSTATTET: hel kant, dempet tekst. IKKE stiplet - prognosen manglet
+   ikke, den gjelder bare ikke lenger. Ser den ut som `mangler`, leser
+   butikksjefen det som at maaneden aldri hadde et anslag. */
+.sq-reise-erstattet .sq-reise-forklaring { color: var(--tekst-svak); }
+
+/* --- Min maaned: hovedtallene --------------------------------------
+   Tre tall stort nok til en projektor. Kildemerket staar UNDER tallet og
+   ikke i en fotnote: den som ser 137 489 kr skal se i samme blikk om det
+   er avstemt eller anslaatt. */
+.sq-mm-hovedtall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--luft-3);
+  margin-bottom: var(--luft-5);
+}
+.sq-mm-tall {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--luft-2);
+  padding: var(--luft-5);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius-stor);
+  background: var(--kort);
+  box-shadow: var(--skygge);
+}
+.sq-mm-tall-navn {
+  font-size: var(--tekst-liten);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tekst-svak);
+}
+.sq-mm-tall-verdi {
+  /* `--tekst-svar`: nivaa 1, ETT tall. Samme stoerrelse som noekkeltallene
+     bruker, saa Min maaned ikke innfoerer en femte tekststoerrelse. */
+  font-size: var(--tekst-svar);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.sq-mm-tall-grunn {
+  font-size: var(--tekst-liten);
+  line-height: var(--linje-luftig);
+  color: var(--tekst-svak);
+}
+
+/* --- Min maaned: handlingsseksjonen --------------------------------
+   Planen slik eieren slapp den, gjennom samme komponent butikksjefen
+   leser den med paa /min-plan. To flater som tegner det samme hver for
+   seg er to sannheter, og forskjellen viser seg foerst i et moete. */
+.sq-mm-handling { margin-top: var(--luft-6); }
+.sq-mm-handling > h2 {
+  margin: 0 0 var(--luft-3);
+  font-size: var(--tekst-tittel);
+}
+
 /* --- Signal --------------------------------------------------------
    Rendres bare når det finnes noe å si. Se kommentaren i status.tsx. */
 .sq-signal {

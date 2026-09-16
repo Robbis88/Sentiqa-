@@ -318,6 +318,18 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // sammenlignes ikke paa tvers av rader; de leses nedover, som en serie.
   '/lonnskost': 'analyse',
   '/lonnskost/arbeidssted': 'analyse',
+  // «Min maaned»: hele maaneden i den rekkefoelgen et menneske spoer -
+  // hvor staar den, hva beveger resultatet, hva boer jeg vite, hva boer
+  // jeg gjoere. ANALYSE og ikke dashbord: nivaa 1 er SVARET (hvor
+  // maaneden staar, og de tre tallene som baerer den), og alt under
+  // forklarer det ene svaret. Et dashbord er mange kort som svarer paa
+  // hver sin ting - her er det ett spoersmaal, fire nivaaer.
+  //
+  // Og ikke 'arbeidsflyt', selv om siste seksjon heter «hva boer jeg
+  // gjoere»: ingenting forlater systemet naar hun leser den. Handlingen
+  // er allerede godkjent av eieren; dette er lesingen av den. Samme
+  // begrunnelse som `/min-plan` rett over.
+  '/min-maaned': 'analyse',
   '/analyse': 'analyse',
   '/maaling': 'analyse',
   '/kasserer': 'analyse',

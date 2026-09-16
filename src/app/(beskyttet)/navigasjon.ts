@@ -188,9 +188,19 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   {
     // Uten tittel med vilje: startpunktet skal alltid være synlig, ikke
     // ligge sammenleggbart bak en gruppe man må åpne.
+    //
+    // TO PUNKTER, OG DE SVARER PÅ HVER SIN TIDSAKSE. «Hjem» er i dag og
+    // de nærmeste dagene. «Min måned» er perioden — hvor den står, hva
+    // som beveger den, og hva som er bestemt gjort med den.
+    //
+    // Den ligger HER og ikke under «Innsikt» med vilje. Innsikt er
+    // rapportene man åpner når man lurer på noe bestemt; Min måned er
+    // spørsmålet de fleste egentlig hadde, og som før krevde at man
+    // åpnet fire av dem og satte svaret sammen selv.
     tittel: '',
     punkter: [
       { sti: '/oversikt', tekst: 'Hjem', roller: [A, B] },
+      { sti: '/min-maaned', tekst: 'Min måned', roller: [A, B] },
     ],
   },
   {
