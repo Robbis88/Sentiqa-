@@ -34,7 +34,7 @@ import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
 import { lesLonnsart, gjenkjennLonnsart } from '@/lib/parsere/lonnsart'
-import { lesLonnsgrunnlag, gjenkjennLonnsgrunnlag } from '@/lib/parsere/lonnsgrunnlag'
+import { lesLonnsgrunnlag, gjenkjennLonnsgrunnlag, ansattregister } from '@/lib/parsere/lonnsgrunnlag'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
 import { after } from 'next/server'
 import { parseUsynligSvinn, avstemGrupper } from '@/lib/parsere/usynligsvinn'
@@ -426,6 +426,24 @@ export async function behandleJobbKjerne(
         const r = lesLonnsgrunnlag(tekst as string)
         dato = r.fraDato
         res = await lagreLonnsart(supabase, jobbId, oppslag.stasjoner, r, true)
+        // SATSEN SKAL OVERLEVE FILA. `lesLonnsgrunnlag` bruker den til aa
+        // regne `belop_kr` og kaster den; uten dette kan motoren aldri
+        // kjoere paa noe annet enn en fil i haanden. Se `0218`.
+        const registernotat = await lagreRegister(
+          supabase, jobbId, oppslag.stasjoner, tekst as string, r,
+        )
+        // EN FORKLARING SKAL IKKE REDDE EN JOBB SOM IKKE GJORDE NOE.
+        // Statusen settes av `antallRader === 0 && !notat`, saa et notat
+        // her ville gjort en fil uten en eneste kjent stasjon til
+        // «parset» - med `umatchet` som eneste spor. Skrev registeret
+        // noe, eller skrev loennsartene noe, er jobben ekte og notatet
+        // hoerer med.
+        if (registernotat.notat && (registernotat.rader > 0 || res.antallRader > 0)) {
+          res = {
+            ...res,
+            notat: [res.notat, registernotat.notat].filter(Boolean).join(' · '),
+          }
+        }
         break
       }
       case 'st1_bp': {
@@ -570,6 +588,112 @@ async function lagreStempling(
 // Koblingen mot kontoplanen ligger i lib/lonnskost/easyatwork.ts - endrer
 // St1 hvilken konto en art hoerer til, skal det ikke kreve at hver fil
 // lastes opp paa nytt.
+/**
+ * Skriver registersnapshotet for fila: hvem den navnga, og hva de kostet.
+ *
+ * =====================================================================
+ * ET SNAPSHOT PER STASJONSMÅNED, ERSTATTET HELT
+ *
+ * `lonnsregister_snapshot` (0218) sletter og skriver i én transaksjon.
+ * To rundturer ville latt en feilet innsetting stå igjen med et TOMT
+ * register — og et tomt register ser ut som «ingen ansatte», ikke som
+ * «importen feilet».
+ *
+ * ---------------------------------------------------------------------
+ * ÉN FIL, ÉN STASJON — MÅLT, IKKE ANTATT
+ *
+ * Alle tolv kontrollfilene som lot seg lese hadde nøyaktig én lokasjon.
+ * Men snapshotet ERSTATTER hele stasjonsmåneden, så en fil som bar to
+ * stasjoner ville latt en import av Lone slette Bønes' register. Derfor
+ * skrives ingenting hvis fila ikke peker på nøyaktig én kjent stasjon —
+ * og notatet sier hvorfor. Å gjette hadde vært den stille varianten.
+ *
+ * ---------------------------------------------------------------------
+ * SATSEN ER FILAS, IKKE MÅNEDENS
+ *
+ * Bønes- og Vardenfilene spenner sju måneder med én sats per person.
+ * Da får alle sju månedene den satsen — det er alt fila påstår. At det
+ * er en grovere kilde enn en månedsfil, sies i notatet i stedet for å
+ * bli skjult: satsen ENDRER seg (Dale, 143,34 → 185,58 mellom mai og
+ * juni 2026), bare sjelden.
+ */
+async function lagreRegister(
+  supabase: Klient,
+  jobbId: string,
+  stasjonsnavn: { id: string; navn: string }[],
+  tekst: string,
+  r: { lokasjoner: string[]; linjer: { dato: string }[] },
+): Promise<{ notat: string | null; rader: number }> {
+  const finnStasjon = lagStasjonsmatcher(stasjonsnavn)
+  const treff = r.lokasjoner.map((l) => ({ navn: l, id: finnStasjon(l) }))
+  const kjente = [...new Set(treff.filter((t) => t.id).map((t) => t.id as string))]
+  if (kjente.length !== 1) {
+    const hva = r.lokasjoner.length === 0
+      ? 'fila oppgir ingen lokasjon'
+      : `fila peker på ${r.lokasjoner.join(', ')}`
+    return {
+      rader: 0,
+      notat: `Lønnsregisteret ble ikke skrevet: ${hva}, og et snapshot `
+        + 'erstatter hele stasjonsmåneden. Uten én entydig stasjon kunne det '
+        + 'slettet en annen stasjons register.',
+    }
+  }
+  const stasjonId = kjente[0]
+
+  const a = ansattregister(tekst)
+  const rader = [
+    ...a.ansatte.map((x) => ({
+      ansatt_nr: x.ansattNr, navn: x.ansattNavn, timesats: x.timesats,
+    })),
+    // UKJENT SATS ER IKKE FRAVÆR. Skrives de ikke, kan ingen skille
+    // «easy@work mangler en sats på denne personen» fra «personen finnes
+    // ikke» — og bare den første kan rettes.
+    ...a.utenSats.map((x) => ({
+      ansatt_nr: x.ansattNr, navn: x.ansattNavn, timesats: null,
+    })),
+  ]
+
+  const maaneder = [...new Set(r.linjer.map((l) => l.dato.slice(0, 7)))].sort()
+  let skrevet = 0
+  for (const maaned of maaneder) {
+    // RPC-EN SVELGER IKKE. `supabase.rpc` kaster ikke — den returnerer
+    // feilen i `error`, og en try/catch rundt den fanger ingenting.
+    const { data, error } = await supabase.rpc('lonnsregister_snapshot', {
+      p_stasjon_id: stasjonId,
+      p_maaned: maaned,
+      p_jobb_id: jobbId,
+      p_rader: rader,
+    })
+    if (error) {
+      throw new Error(`Kunne ikke skrive lønnsregisteret for ${maaned}: ${error.message}`)
+    }
+    skrevet += Number(data ?? 0)
+  }
+
+  const navn = stasjonsnavn.find((x) => x.id === stasjonId)?.navn ?? stasjonId
+  const notat = [
+    `Lønnsregister: ${skrevet} rader for ${navn}, ${maaneder.length === 1
+      ? maaneder[0]
+      : `${maaneder[0]}–${maaneder[maaneder.length - 1]}`}.`,
+    maaneder.length > 1
+      ? `Fila spenner ${maaneder.length} måneder og oppgir én sats per person, `
+        + 'så alle månedene får den. En månedsfil er en mer presis kilde.'
+      : null,
+    a.utenSats.length > 0
+      ? `${a.utenSats.length} uten timesats i easy@work: `
+        + `${a.utenSats.map((x) => x.ansattNavn).sort().join(', ')}. `
+        + 'De er kjent som personer, men kan ikke prises.'
+      : null,
+    // SAMME NUMMER, TO SVAR I SAMME FIL. Aldri observert i de 23
+    // kontrollfilene — og nettopp derfor skal det rope hvis det skjer.
+    a.konflikter.length > 0
+      ? `ADVARSEL: ${a.konflikter.map((k) => k.ansattNr).join(', ')} står med `
+        + 'flere ulike navn eller satser i samme fil. Den første er brukt.'
+      : null,
+  ].filter(Boolean).join(' ')
+  return { notat, rader: skrevet }
+}
+
 async function lagreLonnsart(
   supabase: Klient,
   jobbId: string,

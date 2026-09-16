@@ -362,7 +362,25 @@ export type Ansattregister = {
   /** Foerste og siste dagslinje i fila. */
   fraDato: string
   tilDato: string
+  /** Kjent person, kjent pris. Disse — og bare disse — kan prises. */
   ansatte: Ansattrad[]
+  /**
+   * Kjent person, UKJENT pris.
+   *
+   * Fila nevner dem, men «Lønn»-kolonnen er tom, null eller uleselig.
+   * De ble tidligere kastet i samme `continue` som stasjonssummene, og
+   * da er de umulige å skille fra noen fila aldri nevnte. Det er to
+   * forskjellige ting: den ene er en manglende sats, den andre er en
+   * ukjent person. Den første kan rettes i easy@work.
+   */
+  utenSats: AnsattUtenSats[]
+  /**
+   * Numre fila oppga ULIKE ting om, innenfor samme fil.
+   *
+   * `ansatte` bærer fortsatt den første varianten — motoren er ikke
+   * rørt i denne porten — men tapet er ikke lenger taust.
+   */
+  konflikter: Ansattkonflikt[]
 }
 
 /** En ansatt slik lønnsgrunnlaget kjenner hen: nummer, sats, hjemstasjon. */
@@ -373,6 +391,33 @@ export type Ansattrad = {
   timesats: number
   /** Hovedlokasjon — hjemstasjonen, ikke der hen jobbet. */
   hovedlokasjon: string
+}
+
+/** En ansatt fila navngir uten å oppgi en brukbar timesats. */
+export type AnsattUtenSats = {
+  ansattNr: string
+  ansattNavn: string
+  hovedlokasjon: string
+  /** Hva som faktisk sto i «Lønn»-kolonnen, ubehandlet. */
+  raaSats: string
+}
+
+/**
+ * Samme nummer, to ulike svar i samme fil.
+ *
+ * `ansatt_nr` er en kildereferanse, ikke en personidentitet. Målt i
+ * produksjon juli 2026 peker 1018 på to mennesker på to stasjoner. At
+ * det ikke kan skje INNENFOR én fil er en antakelse, ikke et bevis —
+ * og en antakelse som brytes i stillhet ser ut som ingen feil.
+ */
+export type Ansattkonflikt = {
+  ansattNr: string
+  /** Minst to varianter oppga ulik timesats. Da er prisen ikke kjent. */
+  ulikSats: boolean
+  /** Minst to varianter oppga ulikt navn. Da er personen ikke kjent. */
+  ulikNavn: boolean
+  /** Hver distinkte (navn, sats) fila ga, i den rekkefølgen de kom. */
+  varianter: { ansattNavn: string; timesats: number | null }[]
 }
 
 /**
@@ -422,24 +467,76 @@ export function ansattregister(tekst: string): Ansattregister {
   const iHoved = k('hovedlokasjon')
   const iDato = k('dato')
 
-  const ut = new Map<string, Ansattrad>()
+  // FØRSTE PASS: samle hver rad under sitt nummer. Ingenting forkastes
+  // her — klassifiseringen skjer etterpå, når vi vet hva fila sa TIL
+  // SAMMEN om nummeret. Kaster vi underveis, kan vi ikke se forskjell
+  // på «fila sa det samme fire ganger» og «fila sa to ulike ting».
+  type Raa = { navn: string; sats: number | null; raaSats: string; hoved: string }
+  const sett = new Map<string, Raa[]>()
   const datoer: string[] = []
   for (const r of rader.slice(iTopp + 1)) {
     const dato = (r[iDato] ?? '').trim()
     if (ISO_DATO.test(dato)) datoer.push(dato)
     const ansattNr = (r[iNr] ?? '').trim()
     if (ansattNr === '') continue // stasjonssum
-    if (ut.has(ansattNr)) continue
-    const timesats = tall(r[iSats] ?? '')
+    const raaSats = (r[iSats] ?? '').trim()
+    const n = tall(raaSats)
     // EN SATS PÅ NULL ER IKKE EN SATS. Den ville priset hver time til
     // null kroner, og en gratis ansatt ser ut som en billig måned.
-    if (!Number.isFinite(timesats) || timesats <= 0) continue
-    ut.set(ansattNr, {
-      ansattNr,
-      ansattNavn: (r[iNavn] ?? '').trim(),
-      timesats,
-      hovedlokasjon: (r[iHoved] ?? '').trim(),
-    })
+    // Men den er heller ikke det samme som en ansatt fila aldri nevnte.
+    const sats = Number.isFinite(n) && n > 0 ? n : null
+    const liste = sett.get(ansattNr)
+    const rad: Raa = {
+      navn: (r[iNavn] ?? '').trim(),
+      sats,
+      raaSats,
+      hoved: (r[iHoved] ?? '').trim(),
+    }
+    if (liste) liste.push(rad)
+    else sett.set(ansattNr, [rad])
+  }
+
+  // ANDRE PASS: klassifiser hvert nummer.
+  const ut = new Map<string, Ansattrad>()
+  const utenSats: AnsattUtenSats[] = []
+  const konflikter: Ansattkonflikt[] = []
+  for (const [ansattNr, obs] of sett) {
+    // Distinkte varianter, i den rekkefølgen fila ga dem. To rader som
+    // sier NØYAKTIG det samme er én observasjon gjentatt, ikke to.
+    const varianter: { ansattNavn: string; timesats: number | null }[] = []
+    for (const r of obs) {
+      if (varianter.some((v) => v.ansattNavn === r.navn && v.timesats === r.sats)) continue
+      varianter.push({ ansattNavn: r.navn, timesats: r.sats })
+    }
+    if (varianter.length > 1) {
+      const satser = new Set(varianter.map((v) => v.timesats))
+      const navn = new Set(varianter.map((v) => v.ansattNavn))
+      konflikter.push({
+        ansattNr,
+        ulikSats: satser.size > 1,
+        ulikNavn: navn.size > 1,
+        varianter,
+      })
+    }
+    // Motoren er ikke rørt: den første raden med en brukbar sats vinner,
+    // akkurat som før. Forskjellen er at et tap nå står i `konflikter`.
+    const priset = obs.find((r) => r.sats !== null)
+    if (priset) {
+      ut.set(ansattNr, {
+        ansattNr,
+        ansattNavn: priset.navn,
+        timesats: priset.sats as number,
+        hovedlokasjon: priset.hoved,
+      })
+    } else {
+      const f = obs[0]
+      utenSats.push({
+        ansattNr,
+        ansattNavn: f.navn,
+        hovedlokasjon: f.hoved,
+        raaSats: f.raaSats,
+      })
+    }
   }
   // UTEN DAGSLINJER VET VI IKKE HVILKEN PERIODE FILA GJELDER, og et
   // register uten periode kan ikke kontrolleres mot maaneden det brukes
@@ -453,5 +550,7 @@ export function ansattregister(tekst: string): Ansattregister {
     fraDato: datoer[0],
     tilDato: datoer[datoer.length - 1],
     ansatte: [...ut.values()],
+    utenSats,
+    konflikter,
   }
 }

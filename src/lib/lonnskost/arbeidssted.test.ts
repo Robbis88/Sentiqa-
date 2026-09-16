@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { beregnArbeidssted } from './arbeidssted'
+import { beregnArbeidssted, type Prisregister } from './arbeidssted'
 import { minutterMellom, type Basisstempling } from '@/lib/parsere/basiseksport'
-import type { Ansattrad, Ansattregister } from '@/lib/parsere/lonnsgrunnlag'
+import type { Ansattrad } from '@/lib/parsere/lonnsgrunnlag'
 
 // Navn og numre er byttet ut. Formen er ekte: en ansatt med
 // hovedlokasjon Lone som jobber på Bønes er nøyaktig tilfellet som
@@ -33,12 +33,12 @@ const ansatt = (nr: string, timesats: number, hovedlokasjon: string, navn = 'A B
   ({ ansattNr: nr, ansattNavn: navn, timesats, hovedlokasjon })
 
 /** Et register som dekker juli 2026. */
-const reg = (ansatte: Ansattrad[]): Ansattregister =>
+const reg = (ansatte: Ansattrad[]): Prisregister =>
   ({ fraDato: '2026-07-01', tilDato: '2026-07-31', ansatte })
 
 const kjor = (p: Partial<Parameters<typeof beregnArbeidssted>[0]> & {
   stemplinger: Basisstempling[]
-  registre: Ansattregister[]
+  registre: Prisregister[]
 }) => beregnArbeidssted({ maaned: MND, avvik: [], ...p })
 
 describe('beregnArbeidssted — kryssarbeid', () => {
