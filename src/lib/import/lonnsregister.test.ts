@@ -108,6 +108,33 @@ describe('lønnsregisteret skrives ved import', () => {
     expect(k).toContain('p_stasjon_id: stasjonId')
   })
 
+  it('sender betalingsfrekvens til snapshotet', () => {
+    // TALLET UTEN ENHETEN ER IKKE ET TALL. Uten feltet er 48 736 og 138
+    // samme slags verdi i samme kolonne - og bare den ene er en timesats.
+    const k = kropp('lagreRegister')
+    expect(k).toMatch(/betalingsfrekvens: x\.betalingsfrekvens/)
+    // Ogsaa for dem uten sats: enheten er kjent selv om tallet mangler.
+    expect((k.match(/betalingsfrekvens: x\.betalingsfrekvens/g) ?? []).length)
+      .toBeGreaterThanOrEqual(2)
+  })
+
+  it('sier fra om maanedsloenn i notatet', () => {
+    // En rad med enheten «maaned» kan ikke timeprises. Det er en
+    // opplysning den som laster opp trenger - ikke noe som skal ligge
+    // stille i en kolonne.
+    // `toContain` holdt ikke: strengen staar ogsaa i meldingsteksten
+    // under, saa en injeksjon som slo AV betingelsen lot vakten staa
+    // groenn. Det er selve betingelsen som maa maales.
+    expect(kropp('lagreRegister'))
+      .toMatch(/a\.ansatte\.filter\(\(x\) => x\.betalingsfrekvens === 'maaned'\)\.length > 0/)
+  })
+
+  it('sier fra om en enhet vi ikke kjenner igjen', () => {
+    // Maalt: 0 av 518 ansattmaaneder. Dukker det opp en tredje verdi, er
+    // det et funn - og den skal ikke kunne bli til «time» i stillhet.
+    expect(kropp('lagreRegister')).toContain('betalingsfrekvens === null')
+  })
+
   it('skriver også dem uten timesats', () => {
     // UKJENT SATS ER IKKE FRAVÆR. Skrives de ikke, kan ingen skille
     // «easy@work mangler en sats her» fra «personen finnes ikke» — og

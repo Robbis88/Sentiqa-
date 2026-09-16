@@ -1236,7 +1236,8 @@
     "ansatt_nr": "'{{unik}}'",
     "kilde_maaned": "'2026-07'",
     "navn": "'Sonde Sondesen'",
-    "timesats": "199.50"
+    "timesats": "199.50",
+    "betalingsfrekvens": "'time'"
    },
    "$oppdaterbart_hvorfor": "ansatt_nr og kilde_maaned inngaar i business_unik; timesats gjor det ikke.",
    "oppdaterbart": "timesats = 210.00"

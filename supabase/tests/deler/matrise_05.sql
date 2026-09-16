@@ -310,19 +310,19 @@ insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn,
 insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('6707de45-0000-4000-8000-00006707de45', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'Sonde Sondesen', date '2026-08-01');
 insert into public.opplaering_periode (id, retailer_id, stasjon_id, ansatt_navn, start_dato) values ('6544ee26-0000-4000-8000-00006544ee26', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'Sonde Sondesen', date '2026-08-01');
 -- --- lonnsregister: forutsetninger og proberader ---
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c67-0000-4000-8000-000009184c67', 'a1110000-0000-4000-8000-000000000001', 'fastA1', '2026-07', 'Sonde Sondesen', 199.50);
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c68-0000-4000-8000-000009184c68', 'a1110000-0000-4000-8000-000000000002', 'fastA2', '2026-07', 'Sonde Sondesen', 199.50);
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c69-0000-4000-8000-000009184c69', 'a1110000-0000-4000-8000-000000000003', 'fastA3', '2026-07', 'Sonde Sondesen', 199.50);
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c86-0000-4000-8000-000009184c86', 'b1110000-0000-4000-8000-000000000001', 'fastB1', '2026-07', 'Sonde Sondesen', 199.50);
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c87-0000-4000-8000-000009184c87', 'b1110000-0000-4000-8000-000000000002', 'fastB2', '2026-07', 'Sonde Sondesen', 199.50);
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c67-0000-4000-8000-000009184c67', 'a1110000-0000-4000-8000-000000000001', 'fastA1', '2026-07', 'Sonde Sondesen', 199.50, 'time');
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c68-0000-4000-8000-000009184c68', 'a1110000-0000-4000-8000-000000000002', 'fastA2', '2026-07', 'Sonde Sondesen', 199.50, 'time');
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c69-0000-4000-8000-000009184c69', 'a1110000-0000-4000-8000-000000000003', 'fastA3', '2026-07', 'Sonde Sondesen', 199.50, 'time');
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c86-0000-4000-8000-000009184c86', 'b1110000-0000-4000-8000-000000000001', 'fastB1', '2026-07', 'Sonde Sondesen', 199.50, 'time');
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c87-0000-4000-8000-000009184c87', 'b1110000-0000-4000-8000-000000000002', 'fastB2', '2026-07', 'Sonde Sondesen', 199.50, 'time');
 
 create or replace function pg_temp.nyrad_lonnsregister(p_retailer uuid, p_stasjon uuid, p_merke text)
 returns uuid language plpgsql security definer as $fn$
 declare
   ny uuid;
 begin
-  insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats)
-  values (p_stasjon, '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', '2026-07', 'Sonde Sondesen', 199.50)
+  insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens)
+  values (p_stasjon, '' || p_merke || '-' || nextval('tenant_teller'::regclass) || '', '2026-07', 'Sonde Sondesen', 199.50, 'time')
   returning id into ny;
   return ny;
 end $fn$;
@@ -477,10 +477,10 @@ select pg_temp.paastand('lonnsregister owner_A SELECT A1 -> ser', exists (select
 select pg_temp.paastand('lonnsregister owner_A SELECT A2 -> ser', exists (select 1 from public.lonnsregister where id = '09184c68-0000-4000-8000-000009184c68'), 'positiv');
 select pg_temp.paastand('lonnsregister owner_A SELECT A3 -> ser', exists (select 1 from public.lonnsregister where id = '09184c69-0000-4000-8000-000009184c69'), 'positiv');
 select pg_temp.paastand('lonnsregister owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'negativ');
-select pg_temp.skriv_tillatt('lonnsregister owner_A INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''owner_AA1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_tillatt('lonnsregister owner_A INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000002'', ''owner_AA2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_tillatt('lonnsregister owner_A INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000003'', ''owner_AA3'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister owner_A INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''owner_AB1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_tillatt('lonnsregister owner_A INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''owner_AA1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_tillatt('lonnsregister owner_A INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000002'', ''owner_AA2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_tillatt('lonnsregister owner_A INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000003'', ''owner_AA3'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister owner_A INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''owner_AB1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_A-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
@@ -502,21 +502,21 @@ select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a111
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('lonnsregister owner_A DELETE A1', 'delete from public.lonnsregister where id = ''09184c67-0000-4000-8000-000009184c67''');
 select pg_temp.som_eier();
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c67-0000-4000-8000-000009184c67', 'a1110000-0000-4000-8000-000000000001', 'gjenowner_AA1', '2026-07', 'Sonde Sondesen', 199.50);
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c67-0000-4000-8000-000009184c67', 'a1110000-0000-4000-8000-000000000001', 'gjenowner_AA1', '2026-07', 'Sonde Sondesen', 199.50, 'time');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('lonnsregister owner_A DELETE A2', 'delete from public.lonnsregister where id = ''09184c68-0000-4000-8000-000009184c68''');
 select pg_temp.som_eier();
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c68-0000-4000-8000-000009184c68', 'a1110000-0000-4000-8000-000000000002', 'gjenowner_AA2', '2026-07', 'Sonde Sondesen', 199.50);
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c68-0000-4000-8000-000009184c68', 'a1110000-0000-4000-8000-000000000002', 'gjenowner_AA2', '2026-07', 'Sonde Sondesen', 199.50, 'time');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'owner_A-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.skriv_tillatt('lonnsregister owner_A DELETE A3', 'delete from public.lonnsregister where id = ''09184c69-0000-4000-8000-000009184c69''');
 select pg_temp.som_eier();
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c69-0000-4000-8000-000009184c69', 'a1110000-0000-4000-8000-000000000003', 'gjenowner_AA3', '2026-07', 'Sonde Sondesen', 199.50);
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c69-0000-4000-8000-000009184c69', 'a1110000-0000-4000-8000-000000000003', 'gjenowner_AA3', '2026-07', 'Sonde Sondesen', 199.50, 'time');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_A-delete') as _;
@@ -528,10 +528,10 @@ select pg_temp.paastand('lonnsregister manager_A1 SELECT A1 -> ser', exists (sel
 select pg_temp.paastand('lonnsregister manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c68-0000-4000-8000-000009184c68'), 'negativ');
 select pg_temp.paastand('lonnsregister manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c69-0000-4000-8000-000009184c69'), 'negativ');
 select pg_temp.paastand('lonnsregister manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'negativ');
-select pg_temp.skriv_tillatt('lonnsregister manager_A1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''manager_A1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_A1 INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000002'', ''manager_A1A2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_A1 INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000003'', ''manager_A1A3'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_A1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''manager_A1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_tillatt('lonnsregister manager_A1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''manager_A1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_A1 INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000002'', ''manager_A1A2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_A1 INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000003'', ''manager_A1A3'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_A1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''manager_A1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');
@@ -571,10 +571,10 @@ select pg_temp.paastand('lonnsregister manager_A12 SELECT A1 -> ser', exists (se
 select pg_temp.paastand('lonnsregister manager_A12 SELECT A2 -> ser', exists (select 1 from public.lonnsregister where id = '09184c68-0000-4000-8000-000009184c68'), 'positiv');
 select pg_temp.paastand('lonnsregister manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c69-0000-4000-8000-000009184c69'), 'negativ');
 select pg_temp.paastand('lonnsregister manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'negativ');
-select pg_temp.skriv_tillatt('lonnsregister manager_A12 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''manager_A12A1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_tillatt('lonnsregister manager_A12 INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000002'', ''manager_A12A2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_A12 INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000003'', ''manager_A12A3'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_A12 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''manager_A12B1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_tillatt('lonnsregister manager_A12 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''manager_A12A1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_tillatt('lonnsregister manager_A12 INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000002'', ''manager_A12A2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_A12 INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000003'', ''manager_A12A3'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_A12 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''manager_A12B1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'manager_A12-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');
@@ -614,10 +614,10 @@ select pg_temp.paastand('lonnsregister tablet_A1 SELECT A1 -> ser ikke', not exi
 select pg_temp.paastand('lonnsregister tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c68-0000-4000-8000-000009184c68'), 'negativ');
 select pg_temp.paastand('lonnsregister tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c69-0000-4000-8000-000009184c69'), 'negativ');
 select pg_temp.paastand('lonnsregister tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'negativ');
-select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''tablet_A1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000002'', ''tablet_A1A2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000003'', ''tablet_A1A3'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''tablet_A1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''tablet_A1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT A2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000002'', ''tablet_A1A2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT A3', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000003'', ''tablet_A1A3'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister tablet_A1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''tablet_A1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'tablet_A1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');
@@ -655,9 +655,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_
 select pg_temp.paastand('lonnsregister owner_B SELECT B1 -> ser', exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'positiv');
 select pg_temp.paastand('lonnsregister owner_B SELECT B2 -> ser', exists (select 1 from public.lonnsregister where id = '09184c87-0000-4000-8000-000009184c87'), 'positiv');
 select pg_temp.paastand('lonnsregister owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c67-0000-4000-8000-000009184c67'), 'negativ');
-select pg_temp.skriv_tillatt('lonnsregister owner_B INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''owner_BB1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_tillatt('lonnsregister owner_B INSERT B2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000002'', ''owner_BB2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister owner_B INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''owner_BA1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_tillatt('lonnsregister owner_B INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''owner_BB1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_tillatt('lonnsregister owner_B INSERT B2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000002'', ''owner_BB2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister owner_B INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''owner_BA1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'owner_B-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
@@ -675,14 +675,14 @@ select pg_temp.nyrad_lonnsregister('bbbb0000-0000-4000-8000-000000000000', 'b111
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('lonnsregister owner_B DELETE B1', 'delete from public.lonnsregister where id = ''09184c86-0000-4000-8000-000009184c86''');
 select pg_temp.som_eier();
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c86-0000-4000-8000-000009184c86', 'b1110000-0000-4000-8000-000000000001', 'gjenowner_BB1', '2026-07', 'Sonde Sondesen', 199.50);
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c86-0000-4000-8000-000009184c86', 'b1110000-0000-4000-8000-000000000001', 'gjenowner_BB1', '2026-07', 'Sonde Sondesen', 199.50, 'time');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'owner_B-delete') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.skriv_tillatt('lonnsregister owner_B DELETE B2', 'delete from public.lonnsregister where id = ''09184c87-0000-4000-8000-000009184c87''');
 select pg_temp.som_eier();
-insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values ('09184c87-0000-4000-8000-000009184c87', 'b1110000-0000-4000-8000-000000000002', 'gjenowner_BB2', '2026-07', 'Sonde Sondesen', 199.50);
+insert into public.lonnsregister (id, stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values ('09184c87-0000-4000-8000-000009184c87', 'b1110000-0000-4000-8000-000000000002', 'gjenowner_BB2', '2026-07', 'Sonde Sondesen', 199.50, 'time');
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'owner_B-delete') as _;
@@ -693,9 +693,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manage
 select pg_temp.paastand('lonnsregister manager_B1 SELECT B1 -> ser', exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'positiv');
 select pg_temp.paastand('lonnsregister manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c87-0000-4000-8000-000009184c87'), 'negativ');
 select pg_temp.paastand('lonnsregister manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c67-0000-4000-8000-000009184c67'), 'negativ');
-select pg_temp.skriv_tillatt('lonnsregister manager_B1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''manager_B1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_B1 INSERT B2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000002'', ''manager_B1B2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister manager_B1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''manager_B1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_tillatt('lonnsregister manager_B1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''manager_B1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_B1 INSERT B2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000002'', ''manager_B1B2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister manager_B1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''manager_B1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'manager_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');
@@ -726,9 +726,9 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet
 select pg_temp.paastand('lonnsregister tablet_B1 SELECT B1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c86-0000-4000-8000-000009184c86'), 'negativ');
 select pg_temp.paastand('lonnsregister tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c87-0000-4000-8000-000009184c87'), 'negativ');
 select pg_temp.paastand('lonnsregister tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.lonnsregister where id = '09184c67-0000-4000-8000-000009184c67'), 'negativ');
-select pg_temp.skriv_avvist('lonnsregister tablet_B1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000001'', ''tablet_B1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister tablet_B1 INSERT B2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''b1110000-0000-4000-8000-000000000002'', ''tablet_B1B2'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
-select pg_temp.skriv_avvist('lonnsregister tablet_B1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats) values (''a1110000-0000-4000-8000-000000000001'', ''tablet_B1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50)');
+select pg_temp.skriv_avvist('lonnsregister tablet_B1 INSERT B1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000001'', ''tablet_B1B1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister tablet_B1 INSERT B2', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''b1110000-0000-4000-8000-000000000002'', ''tablet_B1B2'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
+select pg_temp.skriv_avvist('lonnsregister tablet_B1 INSERT A1', 'insert into public.lonnsregister (stasjon_id, ansatt_nr, kilde_maaned, navn, timesats, betalingsfrekvens) values (''a1110000-0000-4000-8000-000000000001'', ''tablet_B1A1'', ''2026-07'', ''Sonde Sondesen'', 199.50, ''time'')');
 select pg_temp.som_eier();
 select pg_temp.nyrad_lonnsregister('bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'tablet_B1-update') as _;
 select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');

@@ -819,12 +819,16 @@ async function lagreRegister(
   const rader = [
     ...a.ansatte.map((x) => ({
       ansatt_nr: x.ansattNr, navn: x.ansattNavn, timesats: x.timesats,
+      // ENHETEN FOELGER TALLET. Uten den er 48736 og 138 samme slags
+      // verdi i samme kolonne, og bare den ene av dem er en timesats.
+      betalingsfrekvens: x.betalingsfrekvens,
     })),
     // UKJENT SATS ER IKKE FRAVÆR. Skrives de ikke, kan ingen skille
     // «easy@work mangler en sats på denne personen» fra «personen finnes
     // ikke» — og bare den første kan rettes.
     ...a.utenSats.map((x) => ({
       ansatt_nr: x.ansattNr, navn: x.ansattNavn, timesats: null,
+      betalingsfrekvens: x.betalingsfrekvens,
     })),
   ]
 
@@ -853,6 +857,24 @@ async function lagreRegister(
     maaneder.length > 1
       ? `Fila spenner ${maaneder.length} måneder og oppgir én sats per person, `
         + 'så alle månedene får den. En månedsfil er en mer presis kilde.'
+      : null,
+    // MAANEDSLOENN SKAL SIES HOEYT. En rad med enheten «maaned» kan
+    // ikke timeprises, og det er en opplysning den som laster opp
+    // trenger - ikke noe som skal ligge stille i en kolonne.
+    a.ansatte.filter((x) => x.betalingsfrekvens === 'maaned').length > 0
+      ? `${a.ansatte.filter((x) => x.betalingsfrekvens === 'maaned').length} `
+        + 'med månedslønn i easy@work: '
+        + `${a.ansatte.filter((x) => x.betalingsfrekvens === 'maaned')
+          .map((x) => x.ansattNavn).sort().join(', ')}. `
+        + 'Tallet i «Lønn» er månedslønn, ikke timesats, og timene deres '
+        + 'kan ikke prises time for time.'
+      : null,
+    // EN UKJENT ENHET ER IKKE TIMER. Maalt: 0 av 518 ansattmaaneder.
+    // Dukker det opp en tredje verdi, er det et funn.
+    [...a.ansatte, ...a.utenSats].filter((x) => x.betalingsfrekvens === null).length > 0
+      ? `${[...a.ansatte, ...a.utenSats].filter((x) => x.betalingsfrekvens === null).length} `
+        + 'rad(er) har en betalingsfrekvens Sentiqa ikke kjenner igjen. '
+        + 'De er lagret uten enhet og kan ikke timeprises.'
       : null,
     a.utenSats.length > 0
       ? `${a.utenSats.length} uten timesats i easy@work: `

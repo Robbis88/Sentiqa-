@@ -29,8 +29,11 @@ const st = (
   minutter: minutterMellom(p.fraDato ?? p.dato, p.fraTid, p.tilTid),
 })
 
+// `betalingsfrekvens: 'time'` er fixturens standard, ikke en antakelse
+// motoren gjoer: `beregnArbeidssted` leser ikke feltet i det hele tatt.
+// Prisbarhetsaksen kommer i B2.
 const ansatt = (nr: string, timesats: number, hovedlokasjon: string, navn = 'A B'): Ansattrad =>
-  ({ ansattNr: nr, ansattNavn: navn, timesats, hovedlokasjon })
+  ({ ansattNr: nr, ansattNavn: navn, timesats, hovedlokasjon, betalingsfrekvens: 'time' })
 
 /** Et register som dekker juli 2026. */
 const reg = (ansatte: Ansattrad[]): Prisregister =>
