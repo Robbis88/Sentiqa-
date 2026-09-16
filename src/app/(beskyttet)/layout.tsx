@@ -29,11 +29,6 @@ export default async function BeskyttetLayout({
     if (handling === 'innruller') redirect('/sikkerhet?paakrevd=1')
   }
 
-  const { count: uleste } = await supabase
-    .from('varsler')
-    .select('*', { count: 'exact', head: true })
-    .eq('lest', false)
-
   // Stasjonskonteksten.
   //
   // URL-EN KOMMER FRA ET FORESPØRSELSHODE, ikke fra searchParams — en
@@ -42,12 +37,48 @@ export default async function BeskyttetLayout({
   //
   // Skallet og siden kaller nå samme funksjon med samme URL og samme
   // informasjonskapsel. Da kan de ikke svare forskjellig.
-  const { headers } = await import('next/headers')
+  const { headers, cookies } = await import('next/headers')
   const urlHode = (await headers()).get(URL_HODE) ?? ''
   const [sti, sokestreng = ''] = urlHode.split('?')
-  const kontekst = await stasjonskontekst(
-    supabase, sti || '/', bruker.rolle, new URLSearchParams(sokestreng),
-  )
+
+  const erTablet = bruker.rolle === 'butikkbruker_tablet'
+  const sprak = erTablet
+    ? (await cookies()).get('sprak')?.value ?? 'no'
+    : 'no'
+
+  // ===================================================================
+  // DE UAVHENGIGE LEDDENE SAMTIDIG
+  // ===================================================================
+  //
+  // MÅLT, ikke antatt. Nettbrettets landingsside gjorde fire
+  // nettverksrundturer på rad i denne layouten — 452–552 ms, der det
+  // tregeste enkeltleddet var 140–179 ms. Rundt 312–372 ms var altså
+  // ren venting, hver eneste render.
+  //
+  // De fire under har INGEN innbyrdes avhengighet: varseltellingen
+  // trenger ikke stasjonene, stasjonene trenger ikke den aktive
+  // ansatte, og oversettelsen trenger bare språkkapselen.
+  //
+  // HVA SOM IKKE ER MED, OG HVORFOR
+  //
+  //   `hentInnloggetBruker` står foran alt. Rollen avgjør både
+  //   MFA-porten og hvilke av leddene under som i det hele tatt skal
+  //   kjøre — den kan ikke gå samtidig med noe som leser den.
+  //
+  //   `mfaHandling` står også foran, med vilje. Den ender i en
+  //   `redirect`, og en bruker som skal tvinges til steg-opp skal ikke
+  //   utløse spørringer på veien ut. Å flytte den hit ville spart
+  //   ingenting for nettbrettet — som hopper over den — og gitt bortkastet
+  //   arbeid for alle andre.
+  const [ulesteSvar, kontekst, aktivAnsatt, ord] = await Promise.all([
+    supabase.from('varsler').select('*', { count: 'exact', head: true }).eq('lest', false),
+    stasjonskontekst(supabase, sti || '/', bruker.rolle, new URLSearchParams(sokestreng)),
+    erTablet ? lesAktivAnsatt(supabase) : Promise.resolve(null),
+    erTablet
+      ? import('@/lib/oversett').then((m) => m.oversettTabletOrd(sprak))
+      : Promise.resolve(null),
+  ])
+  const uleste = ulesteSvar.count
 
   // Innholdsspaltens bredde foelger rutens moenster, ikke siden. Ruta uten
   // moenster finnes ikke - vakthunden krever at hver rute staar i
@@ -63,15 +94,12 @@ export default async function BeskyttetLayout({
 
   // Tableten får sin egen mørke verden — aldri admin-skallet. PIN/vakt gjelder
   // KUN tableten; admin og butikksjef logger inn som seg selv (ingen vakt).
-  if (bruker.rolle === 'butikkbruker_tablet') {
-    const aktivAnsatt = await lesAktivAnsatt(supabase)
-    const { cookies } = await import('next/headers')
-    const sprak = (await cookies()).get('sprak')?.value ?? 'no'
-    const { oversettTabletOrd } = await import('@/lib/oversett')
-    const ord = await oversettTabletOrd(sprak)
+  if (erTablet) {
+    // Hentet parallelt over. `ord` er aldri null for et nettbrett —
+    // `oversettTabletOrd` gir norsk identitet når språket er `no`.
     return (
-      <OversettProvider ord={ord}>
-        <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0} sprak={sprak} ord={ord}>
+      <OversettProvider ord={ord ?? {}}>
+        <TabletSkall aktivAnsatt={aktivAnsatt} uleste={uleste ?? 0} sprak={sprak} ord={ord ?? {}}>
           {children}
         </TabletSkall>
       </OversettProvider>
