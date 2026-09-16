@@ -521,15 +521,27 @@ export default async function MinMaanedSide({ searchParams }: { searchParams: Pr
           =================================================================== */}
       {!avlagt && ikkeKlart.length > 0 && (
         <section className="sq-mm-ikke-klart">
-          <h2>Ikke klart ennå</h2>
-          <dl>
-            {ikkeKlart.map((r) => (
-              <div key={r.navn}>
-                <dt>{r.navn}</dt>
-                <dd>{r.felt.grunn ?? ''}</dd>
-              </div>
-            ))}
-          </dl>
+          {/* ÉN LINJE, IKKE ÅTTE.
+              Sammendraget er ANTALL og FELTNAVN — en telling, ikke en ny
+              forklaring. Hver årsak er feltets egen fra `bilde.ts`,
+              uendret, ett klikk unna. Ingen felles påstand konstrueres:
+              royalty mangler av en annen grunn enn lønna, og de to skal
+              ikke slås sammen til en setning ingen motor eier. */}
+          <details>
+            <summary>
+              {ikkeKlart.length} tall er ikke klare ennå
+              {' — '}
+              {ikkeKlart.map((r) => r.navn.toLowerCase()).join(', ')}
+            </summary>
+            <dl>
+              {ikkeKlart.map((r) => (
+                <div key={r.navn}>
+                  <dt>{r.navn}</dt>
+                  <dd>{r.felt.grunn ?? ''}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
         </section>
       )}
 
@@ -609,16 +621,37 @@ function tiltaket(punkter: Punkt[]): Punkt | undefined {
  * rolig ut på en storskjerm.
  */
 function Hovedtall({ navn, felt, avlagt }: { navn: string; felt: Felt; avlagt: boolean }) {
+  // =====================================================================
+  // «PROGNOSE» ER EN PAASTAND OM SIKKERHET, IKKE OM PERIODE
+  // =====================================================================
+  //
+  // `bilde.ts` merker den løpende omsetningen `prognose` med grunnen
+  // «Daglige salgsfiler, ikke avstemt.» Det handler om AVSTEMMING —
+  // ingenting om hvor måneden ender.
+  //
+  // `Kildemerke` oversetter den til ordet «Prognose», og DET ordet leser
+  // en butikksjef som «anslag på sluttresultatet». Septembers 653 050 kr
+  // er målt salg fra femten dager. Kortet sa altså to riktige ting som
+  // til sammen ble feil.
+  //
+  // Så lenge kortet står med «så langt i måneden», er DET den ærlige
+  // opplysningen, og merket viker. Kilden er urørt i motoren og står
+  // alltid i «Vis grunnlaget».
+  //
+  // MERKET VIKER BARE NAAR «SAA LANGT» FAKTISK STAAR. Er måneden avlagt
+  // og et felt likevel ikke fasit, er det ekte usikkerhet — og da skal
+  // merket stå. `vakt.test.ts` krever at de to alltid er samme
+  // betingelse.
+  const saaLangt = !avlagt && felt.verdi !== null
   return (
     <div className="sq-mm-tall">
       <span className="sq-mm-tall-navn">{navn}</span>
       <span className="sq-mm-tall-verdi">
         {felt.verdi === null ? '—' : kr.format(Math.round(felt.verdi))}
       </span>
-      {felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}
-      {!avlagt && felt.verdi !== null && (
-        <span className="sq-mm-tall-dom">så langt i måneden</span>
-      )}
+      {saaLangt
+        ? <span className="sq-mm-tall-dom">så langt i måneden</span>
+        : felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}
     </div>
   )
 }

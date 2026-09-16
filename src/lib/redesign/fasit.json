@@ -691,7 +691,6 @@
       "Dette bør du vite",
       "Hvert tall, med kilden sin",
       "Hvordan gikk det",
-      "Ikke klart ennå",
       "Ingen måned å vise ennå",
       "Ingen ramme for ${manedAar.format(new Date(tilIso(maaned)))}",
       "Ingen sluppet månedsplan for denne stasjonen",

@@ -233,6 +233,57 @@ describe('ingen krone vises uten kildemerket sitt', () => {
     expect(skjult.some((m) => !/\.kilde$/.test(m[1]))).toBe(true)
   })
 
+  it('«SAA LANGT» OG KILDEMERKET ER SAMME BETINGELSE', () => {
+    // =================================================================
+    // MERKET KAN BARE VIKE NAAR EN ANNEN ÆRLIG OPPLYSNING TAR PLASSEN
+    // =================================================================
+    //
+    // `prognose` sier at tallet ikke er AVSTEMT. Ordet leses som «anslag
+    // på hvor måneden ender» — og septembers omsetning er målt salg fra
+    // femten dager. Derfor viker merket for «så langt i måneden».
+    //
+    // Men bare da. Skjøv vi merket bort uten at «så langt» sto der,
+    // ville et uavstemt tall stått helt umerket — og det er å fjerne
+    // sannhet, ikke å flytte den. De to må derfor deles på NØYAKTIG
+    // samme betingelse, i det samme uttrykket.
+    expect(SIDE).toContain('const saaLangt = !avlagt && felt.verdi !== null')
+    expect(SIDE).toContain('{saaLangt\n        ? <span className="sq-mm-tall-dom">så langt i måneden</span>')
+    expect(SIDE).toContain(": felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}")
+  })
+
+  it('KANARIFUGL: merket som forsvinner UTEN «saa langt» felles', () => {
+    const med = SIDE.replace(
+      '      {saaLangt\n        ? <span className="sq-mm-tall-dom">så langt i måneden</span>\n'
+      + "        : felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}",
+      '      {saaLangt && <span className="sq-mm-tall-dom">så langt i måneden</span>}',
+    )
+    expect(med, 'ankeret bommet').not.toBe(SIDE)
+    expect(med).not.toContain(": felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}")
+  })
+
+  it('KILDEN STAAR ALLTID I GRUNNLAGET, uansett hva kortet gjoer', () => {
+    // Polishen flytter merket bort fra kortet. Den skal ALDRI kunne
+    // flytte det bort fra beviset. `Tallrad` baerer `<Kildemerke>` for
+    // hver eneste rad, og styringsavviket har sitt eget.
+    const i = SIDE.indexOf('sporsmaal="Vis grunnlaget"')
+    expect(SIDE.slice(i)).toContain('<Kildemerke kilde={bilde.styringsavvik.kilde} />')
+    expect(SIDE.slice(i)).toContain('<Tallrad')
+  })
+
+  it('«Ikke klart ennaa» er komprimert, men hver aarsak er beholdt', () => {
+    // Sammendraget er ANTALL og FELTNAVN — en telling, ikke en ny
+    // forklaring. En felles setning ville vaert en paastand ingen motor
+    // eier: royalty mangler av en annen grunn enn loenna.
+    const i = SIDE.indexOf('sq-mm-ikke-klart')
+    const seksjon = SIDE.slice(i, SIDE.indexOf('</section>', i))
+    expect(seksjon, 'ikke sammenleggbar').toContain('<details>')
+    expect(seksjon, 'sammendraget teller ikke').toContain('{ikkeKlart.length} tall er ikke klare ennå')
+    // HVER AARSAK ER FELTETS EGEN, og den staar fortsatt.
+    expect(seksjon).toContain('{r.felt.grunn ?? \'\'}')
+    expect(seksjon, 'en felles forklaring er konstruert')
+      .not.toMatch(/kommer dagen etter|regnskapet kommer midt i/i)
+  })
+
   it('et manglende tall blir en tankestrek, ikke null kroner', () => {
     // `verdi === null ? '—' : kr.format(...)`. Uten det ville et hull i
     // dataene stått som «0 kr» — en rolig, riktig-utseende løgn.
