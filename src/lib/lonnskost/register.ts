@@ -64,10 +64,29 @@ export type Registerrad = {
 /**
  * Samme nummer, to ulike svar — fra to stasjoner, i samme måned.
  *
- * MÅLT I PRODUKSJON, IKKE TENKT UT: nummer 1018 peker i juli 2026 på
- * Andre Fjørstad (Varden) og Marietta Iacovou (Bønes). Begge aktive,
- * med sytten måneders overlapp. `ansatt_nr` er en kildereferanse, ikke
- * en personidentitet.
+ * ---------------------------------------------------------------------
+ * RETTET 2026-09-16: 1018 ER IKKE ET EKSEMPEL PÅ DETTE
+ *
+ * Her sto det at nummer 1018 «MÅLT I PRODUKSJON» pekte på Andre
+ * Fjørstad (Varden) og Marietta Iacovou (Bønes) i juli 2026. Nummeret
+ * peker faktisk på to personer — men ikke på den måten denne typen
+ * fanger, og ikke i denne tabellen.
+ *
+ * Målt mot produksjon 2026-09-16 har `lonnsregister` NULL rader på
+ * 1018; registeret inneholder bare Lone. Målt mot de 27 ekte
+ * lønnsgrunnlagene finnes 1018 på ÉN stasjon — Bønes, Marietta, 239,33.
+ * Det er Basis Export som fører 1018 som «Andre Fjørstad» på Varden i
+ * juli, med 54,50 timer.
+ *
+ * Motsetningen går altså mellom REGISTERET og BASIS, ikke mellom to
+ * registerrader, og `tvetydige` treffer den derfor aldri. Vetoet som
+ * fanger den bor i `lonnskost/identitet.ts` og heter `motstrid('navn')`.
+ *
+ * Fenomenet denne typen beskriver — samme nummer i to stasjoners
+ * register, samme måned — er ALDRI observert i de 27 filene. Den er en
+ * vakt uten kanarifugl, og det skal stå skrevet til den får en.
+ *
+ * `ansatt_nr` er uansett en kildereferanse, ikke en personidentitet.
  */
 export type Tvetydig = {
   ansattNr: string
@@ -167,6 +186,14 @@ export async function hentRegister(
     if (kandidater.length > 1) {
       // Sier stasjonene NØYAKTIG det samme, er det én person som jobber
       // to steder — fenomen D, og helt legitimt. Da er det ikke tvetydig.
+      //
+      // MERK: grenen er aldri utløst av ekte data. Målt over 27
+      // lønnsgrunnlag står ingen nummer i to stasjoners register i samme
+      // måned, og produksjonsregisteret har bare Lone. A1-porten i
+      // `lonnskost/identitet.ts` velger derfor motsatt — der er to
+      // kandidater alltid `motstrid('kollisjon')`. Hvilken av de to som
+      // skal gjelde når motoren kobles, avgjøres i B2d; til da er dette
+      // urørt med vilje.
       const navn = new Set(kandidater.map((k) => k.navn.trim().toLowerCase()))
       const satser = new Set(kandidater.map((k) => k.timesats))
       if (navn.size > 1 || satser.size > 1) {
