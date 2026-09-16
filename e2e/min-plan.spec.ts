@@ -64,8 +64,18 @@ test.use({ storageState: OKTFIL })
 const kort = (side: import('@playwright/test').Page) =>
   side.locator('.sq-plankort').filter({ hasText: 'mai 2026' }).first()
 
+// STASJONEN STAAR I URL-EN.
+//
+// `/min-plan` filtrerer paa valgt stasjon - «Butikken min» er én
+// kontekst, og nabofanen kan ikke vise en annen stasjon enn velgeren
+// sier. Uten `?butikknummer=` viser sida den FOERSTE stasjonen, og
+// Grenseby mai - raden denne fila eier - ligger paa en annen.
+//
+// 5102 er Grenseby i seeden. Samme parameternavn som /regnskap bruker.
+const GRENSEBY = '/min-plan?butikknummer=5102'
+
 test.beforeEach(async ({ page }) => {
-  await page.goto('/min-plan')
+  await page.goto(GRENSEBY)
   await expect(page.getByRole('heading', { name: 'Månedsplanen din' })).toBeVisible()
 })
 

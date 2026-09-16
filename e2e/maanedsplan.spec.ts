@@ -612,7 +612,10 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
 
       // DEN NAADDE MOTTAKEREN. Navigering er riktig her: en ANNEN rute,
       // revalidert paa serveren av `slippPlan`.
-      await page.goto('/min-plan')
+      // STASJONEN MAA STAA I URL-EN. `/min-plan` filtrerer paa valgt
+      // stasjon; uten `?butikknummer=` viser sida den foerste, og
+      // Grensebys nettopp sluppede plan ligger ikke der.
+      await page.goto('/min-plan?butikknummer=5102')
       await expect(page.locator('.sq-plankort').filter({ hasText: 'juli 2026' }))
         .toHaveCount(1)
     })

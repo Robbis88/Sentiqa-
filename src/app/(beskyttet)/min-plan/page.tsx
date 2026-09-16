@@ -89,7 +89,7 @@ type Planrad = {
 // =====================================================================
 
 export default async function MinPlanSide(
-  { searchParams }: { searchParams: Promise<{ stasjon?: string }> },
+  { searchParams }: { searchParams: Promise<{ stasjon?: string; butikknummer?: string }> },
 ) {
   const bruker = await hentInnloggetBruker()
   const erButikksjef = bruker.rolle === 'butikksjef'
@@ -112,8 +112,16 @@ export default async function MinPlanSide(
     .limit(200)
     .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
   const stasjonsliste = stasjonsrader ?? []
+  // BEGGE PARAMETERNAVNENE, som `stasjonFraUrl` alt stoetter.
+  //
+  // `?stasjon=<uuid>` er det skallet skriver. `?butikknummer=5102` er
+  // formen /regnskap, /produksjonsplan og /utsolgt alt bruker, og den
+  // eneste som kan skrives av et menneske - eller en test - uten aa slaa
+  // opp en uuid foerst. Én linje her gjoer planen dyplenkbar paa samme
+  // maate som resten av systemet.
   const sok = new URLSearchParams()
   if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  if (sp.butikknummer) sok.set('butikknummer', sp.butikknummer)
   const valgtStasjon = await husketStasjon(
     stasjonsliste,
     stasjonFraUrl(sok, stasjonsliste),
