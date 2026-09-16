@@ -574,6 +574,58 @@ describe('dubletter — kildens egen identitet', () => {
   })
 })
 
+describe('dubletter — dataintegritet og økonomi er to akser', () => {
+  // K2. Reproduksjonen fra Vercel Agent Review på cb8fdfc.
+  //
+  // Første utgave klassifiserte enhver dublett som `upriset('dublett')`.
+  // En UBETALT dublett ble dermed talt som betalt arbeid, og den
+  // eksterne bevaringsvakten kastet: «kilden ga 480 betalte minutter,
+  // motoren saa 510». Hele stasjonsmåneden ble en exception i stedet for
+  // et resultat.
+  it('K2 — en UBETALT dublett kaster ikke og gjør ikke måneden minimum', () => {
+    const u = rad({ betalt: false, minutter: 30, fraTid: '11:00', tilTid: '11:30' })
+    const k = kilder([rad({ minutter: 480 }), u, { ...u }], [reg()])
+    const ut = beregnA1(k, INGEN_AVTALER)
+
+    expect(k.arbeidstid.betalteMinutter).toBe(480)
+    expect(ut.betalteMinutter).toBe(480)
+    expect(ut.prisedeMinutter).toBe(480)
+    expect(ut.uprisedeMinutter).toBe(0)
+    expect(ut.ubetalteMinutter).toBe(60)
+    expect(ut.dubletter).toBe(1)
+    expect(ut.status).toBe('komplett')
+
+    // Begge ubetalte observasjonene skal stå i revisjonskjeden.
+    expect(ut.rader).toHaveLength(3)
+    expect(ut.rader.map((v) => v.utfall.slag)).toEqual(['priset', 'ubetalt', 'ubetalt'])
+  })
+
+  it('K3 — bare ubetalte dubletter blir ikke minimum av dubletten alene', () => {
+    // Kildekontrakten tillater fixturen: `MedBeggeKilder` krever at
+    // stasjonen HAR arbeidstidsrader og egne registerrader, ikke at noen
+    // av radene er betalte. `hentArbeidstid` returnerer `null` først når
+    // måneden ikke har én eneste rad.
+    const u = rad({ betalt: false, minutter: 30, fraTid: '11:00', tilTid: '11:30' })
+    const ut = beregnA1(kilder([u, { ...u }], [reg()]), INGEN_AVTALER)
+
+    expect(ut.dubletter).toBe(1)
+    expect(ut.betalteMinutter).toBe(0)
+    expect(ut.uprisedeMinutter).toBe(0)
+    expect(ut.ubetalteMinutter).toBe(60)
+    expect(ut.status).toBe('komplett')
+  })
+
+  it('dubletter teller brudd på radidentiteten, uansett betaltstatus', () => {
+    const b = rad({ minutter: 480 })
+    const u = rad({ betalt: false, minutter: 30, fraTid: '11:00', tilTid: '11:30' })
+    const ut = beregnA1(kilder([b, { ...b }, u, { ...u }], [reg()]), INGEN_AVTALER)
+    expect(ut.dubletter).toBe(2)
+    // Men bare den BETALTE gir økonomisk usikkerhet.
+    expect(ut.uprisedeMinutter).toBe(480)
+    expect(ut.status).toBe('minimum')
+  })
+})
+
 describe('source-conservation — kilden eier universet', () => {
   it('motorens betalteMinutter er lik leserens', () => {
     // Motoren faar ikke selv definere mengden den deretter beviser at

@@ -320,9 +320,31 @@ export function beregnA1(
     // Den ORIGINALE raden beholdes. Ingen syntetisk erstatning, ingen
     // reduksjon til bare minutter: revisjonskjeden skal kunne vise
     // foerste observasjon som priset og den andre som dublett.
+    //
+    // ---------------------------------------------------------------
+    // TO AKSER, OG DE BLANDES IKKE
+    //
+    // `dubletter` teller BRUDD PAA KILDENS RADIDENTITET - et
+    // dataintegritetsfunn, uansett om raden er betalt.
+    //
+    // `Radutfall` foelger radens OEKONOMISKE status. En UBETALT dublett
+    // er ingen oekonomisk usikkerhet i 503: det er ikke arbeid vi
+    // skulle priset. Den blir derfor `ubetalt`, ikke `upriset`.
+    //
+    // Foerste utgave av denne rettelsen gjorde den til `upriset`
+    // uansett. Da ble en ubetalt dublett talt som BETALT arbeid, og den
+    // eksterne bevaringsvakten kastet - hele stasjonsmaaneden ble en
+    // exception i stedet for det `minimum`-resultatet hele B2d er
+    // bygget for. Funnet av Vercel Agent Review paa cb8fdfc, og
+    // reprodusert foer det ble rettet.
+    //
+    // Vakten gjorde jobben sin. Feilen laa i klassifiseringen FOER
+    // aggregeringen, og det er der den er rettet.
     if (sett.has(unik)) {
       dubletter++
-      vurderte.push(upriset('dublett'))
+      vurderte.push(rad.betalt
+        ? upriset('dublett')
+        : { rad, utfall: { slag: 'ubetalt' } })
       continue
     }
     sett.add(unik)
