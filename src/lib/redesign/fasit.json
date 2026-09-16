@@ -32,6 +32,7 @@
     "/logg-inn/totp",
     "/lonn",
     "/lonnskost",
+    "/lonnskost/arbeidssted",
     "/maaling",
     "/maanedsplan",
     "/meldinger",
@@ -638,13 +639,21 @@
       "Kontroll før sending",
       "Åpen vakt · ${v.ansattNavn}"
     ],
+    "/lonnskost/arbeidssted": [
+      "${p.ansattNr} · ${p.navn}",
+      "Fant ikke stasjonen eller måneden",
+      "Kan ikke beregnes"
+    ],
     "/lonnskost": [
+      "Arbeidet her, men ikke i lønnsfila",
+      "Arbeidet på denne stasjonen — konto 503",
       "Bilvask · abonnement",
       "Butikksjefens grunnlønn",
       "Ingen lønnstall ennå",
       "Kontoene · ${manedAar.format(new Date(`${siste.maaned}-01`))}",
       "Lønnsform",
       "Per måned",
+      "Uten lønnsgrunnlag",
       "Velg en stasjon",
       "easy@work · anslag for ${manedAar.format(new Date(`${sisteEa.maaned}-01`))}",
       "Året ${aar}"
@@ -997,6 +1006,9 @@
     "/lonn": [
       "/api/lonn/visma",
       "/import"
+    ],
+    "/lonnskost/arbeidssted": [
+      "/lonnskost"
     ],
     "/opplaring": [
       "/opplaring"

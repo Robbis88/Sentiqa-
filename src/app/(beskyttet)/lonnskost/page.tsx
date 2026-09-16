@@ -16,6 +16,13 @@ import { avslutteteUkerIMaaned, byggDekning } from '@/lib/okonomi/dekning'
 import { hentSalgsdager } from '@/lib/okonomi/hent'
 import { ManuelleTall } from './manuelle-tall'
 import { Lonnsformer } from './lonnsformer'
+import { Arbeidsstedsblokk } from './arbeidsstedsblokk'
+import { Fastlonnskandidater } from './fastlonnskandidater'
+import { hentA1Maaneder } from '@/lib/lonnskost/a1-maaneder'
+import { hentKilder } from '@/lib/lonnskost/kilder'
+import { hentAvtaler } from '@/lib/lonnskost/avtale'
+import { a1ForStasjonsmaaned } from '@/lib/lonnskost/a1'
+import { tilA1Kort, type A1Kort } from '@/lib/lonnskost/a1-kort'
 import { HvaBoerJegVite, Lonnsblokk } from './okonomiblokk'
 
 // =====================================================================
@@ -432,6 +439,34 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
   const avvikPst = siste && siste.budsjettKr != null
     ? pst(siste.lonnskostKr, siste.budsjettKr) : null
 
+  // =====================================================================
+  // A1 - HVA ARBEIDET PAA DENNE STASJONEN KOSTER
+  //
+  // Den ANDRE sannheten paa denne siden. Blokka over viser BOKFOERT
+  // loenn; denne viser hva easy@works egne observasjoner av arbeidstid
+  // og satser faktisk koster paa konto 503. De blir aldri ett tall.
+  //
+  // MAANEDENE UTLEDES AV DATAENE. `/lonnskost` har ingen valgt maaned -
+  // den viser en serie - og aa innfoere `?maned=` her ville endret en
+  // sidekontrakt som virker. `hentA1Maaneder` spoer i stedet hvilke
+  // maaneder stasjonen faktisk har en egen kilde i.
+  //
+  // `hentAvtaler` staar UTENFOR loekka med vilje: den tar allerede en
+  // stasjonsliste, og et kall per maaned ville vaert arbeid uten
+  // gevinst. Kalltaket er 2 + 3n for n maaneder.
+  //
+  // `a1ForStasjonsmaaned` er totalinngangen: mangler en kilde, faar vi
+  // `kildemangel` - ikke et nulltall.
+  const a1Maaneder = await hentA1Maaneder(supabase, valgtStasjon!)
+  const a1Avtale = a1Maaneder.length > 0
+    ? await hentAvtaler(supabase, [valgtStasjon!])
+    : null
+  const a1Kort: A1Kort[] = []
+  for (const m of a1Maaneder) {
+    const kilder = await hentKilder(supabase, valgtStasjon!, m)
+    a1Kort.push(tilA1Kort(a1ForStasjonsmaaned(kilder, a1Avtale!)))
+  }
+
   return (
     <Sideramme>
       <Sidehode
@@ -467,6 +502,15 @@ export default async function LonnskostSide({ searchParams }: { searchParams: Pr
           bygger på. Kilden er `byggOkonomibilde` sin; flaten utleder
           den aldri selv. */}
       {bilde && <Lonnsblokk bilde={bilde} />}
+
+      {/* A1: hva arbeidet koster, ved siden av det bokfoerte - aldri
+          slaatt sammen med det. Se serverberegningen over. */}
+      <Arbeidsstedsblokk kort={a1Kort} stasjonId={valgtStasjon!} />
+
+      {/* REGISTRERINGSVEIEN for dem A1 ikke kunne koble. Staar rett
+          under blokka som viser konsekvensen, slik at funnet og
+          handlingen er paa samme skjerm. */}
+      <Fastlonnskandidater kort={a1Kort} stasjonId={valgtStasjon!} />
 
       {/* LOENNSROMMET FOERST. Budsjettet forutsetter en brutto som
           kanskje ikke kom; rommet er den samme andelen av det som

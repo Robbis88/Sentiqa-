@@ -149,6 +149,30 @@ export type Prisbarhet =
   | { status: 'mangler_sats' }
   /** Easy sa hverken `Time` eller `Måned`. Vi vet ikke hva tallet er. */
   | { status: 'ukjent_enhet'; timesats: number | null }
+  /**
+   * Et menneske har klassifisert personen som fastlønnet PÅ
+   * ARBEIDSSTASJONEN, uten at lønnsfila kjenner nummeret.
+   *
+   * EGEN VARIANT, IKKE ET NULLBART FELT PÅ `fastlonn_klassifisert`.
+   * Den eldre bygger på en registerrad og bærer derfor Easys egen
+   * uttalelse om måneden. Her finnes ingen slik rad, og dermed heller
+   * ingen observasjon å bevare. Gjorde vi `easyObservasjon` nullbar,
+   * ville den svakere påstanden lånt den sterkeres bevisform — og
+   * ingenting i typen ville lenger sagt hvilken av dem man leser.
+   *
+   * MERK at `stasjonId` her er ARBEIDSSTASJONEN, ikke registerstasjonen.
+   * Det er en egen, smalere gren, ikke en fallback for avtaleoppslag
+   * generelt: en KOBLET person slås fortsatt opp på registerstasjonen.
+   */
+  | {
+    status: 'fastlonn_uten_register'
+    proveniens: 'ansatt_avtale'
+    /** Stasjonen arbeidet ble utført på. Det finnes ingen registerstasjon. */
+    arbeidsstasjonId: string
+    sistSatt: string
+    /** Ble klassifiseringen sist skrevet ETTER månedens utgang? */
+    anvendtBakover: boolean
+  }
 
 const MAANED = /^\d{4}-\d{2}$/
 
@@ -173,7 +197,13 @@ export function avgjorPrisbarhet(
   identitet: Koblet,
   registeret: (stasjonId: string, ansattNr: string) => Registerobservasjon | null,
   avtale: Avtaleoppslag,
-): Prisbarhet {
+  // DEN KOBLEDE VEIEN KAN IKKE PRODUSERE `fastlonn_uten_register`.
+  // Returtypen sier det, i stedet for at en kommentar ber om det: en
+  // person som HAR en registerrad hører til `fastlonn_klassifisert`,
+  // som bærer Easys observasjon. Uten denne utelukkelsen ville
+  // kallstedet i `a1.ts` måttet håndtere en gren som aldri kan oppstå,
+  // og de to bevisformene ville begynt å gli over i hverandre.
+): Exclude<Prisbarhet, { status: 'fastlonn_uten_register' }> {
   const obs = registeret(identitet.registerStasjonId, identitet.lonnsnr)
   if (!obs) {
     throw new Error(
@@ -230,5 +260,53 @@ export function avgjorPrisbarhet(
     status: 'prisbar',
     timesats: obs.timesats,
     kilde: { stasjonId: obs.stasjonId, maaned: obs.maaned },
+  }
+}
+
+/**
+ * Er et UKOBLET nummer eksplisitt klassifisert som fastlønnet her?
+ *
+ * Denne funksjonen finnes fordi `avgjorPrisbarhet` krever en `Koblet`,
+ * og en fastlønnet som ikke står i lønnsfila får aldri en identitet.
+ * Gren 2 der inne er dermed strukturelt uoppnåelig for nettopp den
+ * personen den er laget for.
+ *
+ * TRE TING DEN IKKE GJØR, OG DET ER HELE POENGET:
+ *
+ *   Den utleder ingenting. Bare en eksplisitt `fastlonn` teller. `null`
+ *   er uavklart, `timelonn` er et nei, og et manglende oppslag er et
+ *   nei. Fravær av registerrad er ALDRI i seg selv fastlønn — det er
+ *   den slutningen som ville gjort hvert datahull til gratis arbeid.
+ *
+ *   Den kobler ikke på navn. Den tar et nummer og en stasjon.
+ *
+ *   Den kan ikke bære kroner. Returtypen har ikke noe beløpsfelt, og
+ *   utfallet den fører til er `forklart`, som heller ikke har det.
+ *
+ * `null` betyr «ikke klassifisert», og kalleren skal da fortsette til
+ * sitt vanlige `upriset`-utfall.
+ */
+export function fastlonnUtenRegister(
+  arbeidsstasjonId: string,
+  ansattNr: string,
+  maaned: string,
+  avtale: Avtaleoppslag,
+): Extract<Prisbarhet, { status: 'fastlonn_uten_register' }> | null {
+  if (!MAANED.test(maaned)) {
+    throw new Error(`Ugyldig måned «${maaned}». Forventet yyyy-mm.`)
+  }
+
+  // ARBEIDSSTASJONEN, fordi det ikke finnes noen registerstasjon. Dette
+  // er en egen gren, ikke en ny hovedregel: en koblet person slås
+  // fortsatt opp på registerstasjonen sin i `avgjorPrisbarhet`.
+  const rad = avtale(arbeidsstasjonId, ansattNr)
+  if (rad?.lonnsform !== 'fastlonn') return null
+
+  return {
+    status: 'fastlonn_uten_register',
+    proveniens: 'ansatt_avtale',
+    arbeidsstasjonId,
+    sistSatt: rad.sistSatt,
+    anvendtBakover: rad.sistSatt > sisteDag(maaned),
   }
 }
