@@ -139,14 +139,28 @@ test('mottakeren har ingen knapper å trykke på', async ({ page }) => {
   await expect(k.locator('.knapperad')).toHaveCount(0)
 })
 
-test('fanerada fører hit fra /regnskap', async ({ page }) => {
-  // VEIEN INN. `/min-plan` ligger i samme fanegruppe som `/regnskap`,
-  // og det er med vilje: butikksjefen åpner tallene sine og finner
-  // planen som en fane ved siden av dem. En rute uten vei inn er en
-  // rute ingen finner — og det var nettopp tilstanden før denne PR-en,
-  // bare uten ruta i tillegg.
-  await page.goto('/regnskap')
-  const fane = page.getByRole('link', { name: 'Månedsplanen din' }).first()
+test('fanerada fører hit fra Butikken min', async ({ page }) => {
+  // =====================================================================
+  // DENNE TESTEN MAALTE MENYEN, IKKE FANERADA
+  // =====================================================================
+  //
+  // Den het «fanerada fører hit fra /regnskap», og kommentaren sa at
+  // `/min-plan` laa i samme fanegruppe som `/regnskap`. DEN GRUPPEN HAR
+  // ALDRI EKSISTERT — maalt mot `FANEGRUPPER`: sju grupper, null treff
+  // paa `/regnskap` eller `/min-plan`.
+  //
+  // Den var groenn fordi `getByRole('link', { name: 'Månedsplanen din' })`
+  // traff SIDEMENYLINJA. Den het én ting, maalte en annen, og kunne
+  // aldri felle det den paastod aa maale. En vakt som er groenn av feil
+  // grunn ser noeyaktig ut som en vakt som virker.
+  //
+  // Den falt foerst da menylinja ble en fane — altsaa da den endelig
+  // maalte noe.
+  //
+  // VEIEN INN ER FORTSATT DET SOM MAALES, og den er viktigere naa: en
+  // rute uten vei inn er en rute ingen finner.
+  await page.goto('/min-maaned')
+  const fane = page.getByRole('link', { name: 'Planen', exact: true })
   await expect(fane).toBeVisible()
   await fane.click()
   await expect(page.getByRole('heading', { name: 'Månedsplanen din' })).toBeVisible()

@@ -7,8 +7,8 @@
 // Begge planflatene sto med `const rader = data ?? []`. Da falt tre
 // forskjellige ting sammen til én visning:
 //
-//   • det finnes ingen plan          → «Ingen månedsplan ennå»
-//   • spørringen feilet              → «Ingen månedsplan ennå»
+//   • det finnes ingen plan          → «Ingen månedsplan for <stasjon>»
+//   • spørringen feilet              → «Ingen månedsplan for <stasjon>»
 //   • svaret traff taket, avkortet   → en kortere liste som ser hel ut
 //
 // Den midterste er den farligste: butikksjefen leser en rolig,
@@ -38,12 +38,26 @@ const tilstand = {
   svar: { data: null as unknown, error: null as unknown },
 }
 
+// `husketStasjon` leser informasjonskapselen, og den finnes ikke utenfor
+// en forespoersel. Stasjonsvalget er ikke det disse testene maaler - de
+// maaler planens TILSTANDER - saa det stubbes til den ene stasjonen
+// `stasjonsbygger` svarer med.
+vi.mock('@/lib/stasjonskontekst', () => ({
+  husketStasjon: async () => 's1',
+}))
+
 vi.mock('@/lib/auth/dal', () => ({
   hentInnloggetBruker: async () => ({ rolle: tilstand.rolle }),
 }))
 
+// SIDA GJOER TO SPOERRINGER NAA: stasjonslista, og planene for den
+// valgte stasjonen. Byggeren svarer derfor PER TABELL - gir vi
+// `tilstand.svar` til begge, ville en feiltest ogsaa felt stasjonslista,
+// og testen hadde maalt noe annet enn den sier.
 vi.mock('@/lib/supabase/server', () => ({
-  lagSupabaseServerKlient: async () => ({ from: () => bygger() }),
+  lagSupabaseServerKlient: async () => ({
+    from: (tabell: string) => (tabell === 'stasjoner' ? stasjonsbygger() : bygger()),
+  }),
 }))
 
 /**
@@ -60,6 +74,24 @@ function bygger() {
   b.then = (ok: (v: unknown) => void) => ok(tilstand.svar)
   return b
 }
+/**
+ * Stasjonslista svarer ALLTID med én stasjon.
+ *
+ * Testene her handler om planens tilstander - feil, tom, avkortet. At
+ * stasjonsoppslaget lykkes er en FORUTSETNING for dem, ikke det de
+ * maaler. Uten dette skillet ville «databasefeil» ogsaa tatt
+ * stasjonslista, og sida hadde falt paa et annet sted enn testen tror.
+ */
+function stasjonsbygger() {
+  const b: Record<string, unknown> = {}
+  for (const ledd of ['select', 'in', 'eq', 'is', 'order', 'limit', 'overrideTypes']) {
+    b[ledd] = () => b
+  }
+  b.then = (ok: (v: unknown) => void) =>
+    ok({ data: [{ id: 's1', navn: 'Stasjonen', butikknummer: '9038' }], error: null })
+  return b
+}
+
 
 /** Første element i treet med denne typen. `null` om den ikke finnes. */
 function finn(node: unknown, type: unknown): ReactElement | null {
@@ -101,7 +133,9 @@ const plan = (i: number) => ({
 
 async function side() {
   const modul = await import('./page')
-  return (await modul.default()) as ReactElement
+  // `searchParams` er en Promise i App Router. Sida leser `?stasjon=` for
+  // aa filtrere planen paa den valgte stasjonen - se toppkommentaren der.
+  return (await modul.default({ searchParams: Promise.resolve({}) })) as ReactElement
 }
 
 beforeEach(() => {
@@ -127,7 +161,7 @@ describe('databasefeil', () => {
     expect(t).toContain('permission denied')
     // Og den som leser får vite at dette ikke er en tom plan.
     expect(t).toContain('ikke det samme som at du ikke har en plan')
-    expect(t).not.toContain('Ingen månedsplan ennå')
+    expect(t).not.toContain('Ingen månedsplan for')
   })
 })
 
@@ -139,7 +173,10 @@ describe('null rader', () => {
 
     expect(finn(el, Tomtilstand)).not.toBeNull()
     expect(finn(el, Feiltilstand)).toBeNull()
-    expect(tekst(el)).toContain('Ingen månedsplan ennå')
+    // TOMTILSTANDEN NAVNGIR STASJONEN. Se begrunnelsen i page.tsx:
+    // «ingen plan» maa aldri kunne leses som «ingen plan noe sted»
+    // for en butikksjef med flere stasjoner.
+    expect(tekst(el)).toContain('Ingen månedsplan for 9038 Stasjonen')
   })
 })
 
