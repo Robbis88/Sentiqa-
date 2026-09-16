@@ -230,7 +230,9 @@ describe('beregnArbeidssted — datagrunnlag', () => {
       registre: [reg([ansatt('308', 200, BONES)])],
       avvik: [{
         grunn: 'lengde', ansattNr: '1009', ansattNavn: 'G H', dato: '2026-07-05',
-        fraTid: '09:10', tilTid: '11:00', lokasjon: BONES, lengde: 25.82, intervallTimer: 1.83,
+        fraDato: '2026-07-05', fraTid: '09:10', tilTid: '11:00', lokasjon: BONES,
+        type: 'Betalt tid', betalt: true, minutter: 110,
+        lengde: 25.82, intervallTimer: 1.83,
       }],
     })
     expect(b.datagrunnlag).toBe('minimum')
@@ -249,7 +251,9 @@ describe('beregnArbeidssted — datagrunnlag', () => {
       registre: [reg([ansatt('308', 200, BONES)])],
       avvik: [{
         grunn: 'lokasjon', ansattNr: '1009', ansattNavn: 'G H', dato: '2026-07-05',
-        fraTid: '09:00', tilTid: '17:00', lokasjon: '', lengde: 8, intervallTimer: 8,
+        fraDato: '2026-07-05', fraTid: '09:00', tilTid: '17:00', lokasjon: '',
+        type: 'Betalt tid', betalt: true, minutter: 480,
+        lengde: 8, intervallTimer: 8,
       }],
     })
     expect(ut).toHaveLength(2)

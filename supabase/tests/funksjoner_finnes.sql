@@ -24,6 +24,7 @@ do $$
 declare
   forventet text[] := array[
     'aktiver_import',
+    'basisvakt_snapshot',
     'beregn_kategori_vaerprofil',
     'beregn_malekort_salg',
     'beregn_stasjon_kunder',
@@ -96,7 +97,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       34                          as forventet_av_migrasjonene
+       35                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

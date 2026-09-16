@@ -94,6 +94,7 @@ declare
     -- Registersnapshotet fra loennsgrunnlaget (0218). En rad per ansatt
     -- per stasjon per maaned - ~90 i maaneden for Kelsar - og leses hver
     -- gang en maaned prises.
+    'basisvakt',
     'lonnsregister',
     -- Ansatte og fravaer (0089). Faa rader, men leses i hver planberegning.
     'ansatt_avtale', 'bemanning_fravaer',

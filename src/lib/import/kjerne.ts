@@ -33,6 +33,7 @@ import {
 import { erPdf, erTekstfil, pdfTilTekst } from '@/lib/parsere/pdf'
 import { lagStasjonsmatcher } from './stasjonsmatch'
 import { parseStempling, gjenkjennStempling, utenDubletter } from '@/lib/parsere/stempling'
+import { erBasiseksportFil, lesBasiseksport } from '@/lib/parsere/basiseksport'
 import { lesLonnsart, gjenkjennLonnsart } from '@/lib/parsere/lonnsart'
 import { lesLonnsgrunnlag, gjenkjennLonnsgrunnlag, ansattregister } from '@/lib/parsere/lonnsgrunnlag'
 import { lagBemanningsvarsler } from '@/lib/bemanningsvarsler'
@@ -414,6 +415,22 @@ export async function behandleJobbKjerne(
         const r = parseStempling(tekst as string)
         dato = r.fraDato
         res = await lagreStempling(supabase, jobbId, oppslag.stasjoner, r)
+        // ARBEIDSTIDEN SKAL OGSAA OVERLEVE SOM EASYS EGEN OBSERVASJON.
+        // `stempling` er Sentiqas modell, med nettbrettets parallellkjoering;
+        // `basisvakt` er hva Easy@Work sa, med fra_dato og Lengde bevart.
+        // Begge skrives fra samme fil, og differansen MAALES - den antas
+        // ikke bort. Se `0219`.
+        const basisnotat = await lagreBasisvakt(
+          supabase, jobbId, oppslag.stasjoner, tekst as string, r,
+        )
+        // Et notat skal ikke redde en jobb som ikke gjorde noe: `status`
+        // settes av `antallRader === 0 && !notat`.
+        if (basisnotat.notat && (basisnotat.rader > 0 || res.antallRader > 0)) {
+          res = {
+            ...res,
+            notat: [res.notat, basisnotat.notat].filter(Boolean).join(' · '),
+          }
+        }
         break
       }
       case 'easyatwork_lonnsart': {
@@ -532,6 +549,164 @@ export async function behandleJobbKjerne(
 // butikknummer, saa matchingen gaar pa navn. Det grupperes PER RAD, ikke
 // per fil: kommer det en gang en samleeksport, skal ikke Laguneparkens
 // timer havne pa Bones fordi den stasjonen sto oeverst.
+/**
+ * Skriver arbeidstidssnapshotet: hva Easy@Work sa om arbeid, per maaned.
+ *
+ * =====================================================================
+ * BARE CSV
+ *
+ * PDF-varianten har ikke `Lokasjon` per rad - `parseStempling` setter
+ * den fra én lokasjon funnet i loepende tekst. Uten arbeidssted per rad
+ * er hele poenget med kilden borte, og da skrives ingenting heller enn
+ * noe halvt. `erBasiseksportFil` er porten: den krever `lokasjon` OG
+ * fravaer av `hovedlokasjon`.
+ *
+ * ---------------------------------------------------------------------
+ * ÉN FIL, ÉN STASJON - MAALT
+ *
+ * Alle aatte kontrollfilene har noeyaktig én lokasjon, og 1-19 maaneder.
+ * Snapshotet erstatter hele stasjonsmaaneden, saa en fil som bar to
+ * stasjoner ville latt en import av den ene slette den andres. Derfor
+ * skrives ingenting uten én entydig kjent stasjon.
+ *
+ * ---------------------------------------------------------------------
+ * AVVISTE RADER LAGRES OGSAA
+ *
+ * En rad `lesBasiseksport` ikke kunne bruke skal ikke forsvinne: uten
+ * den kan datagrunnlaget senere ikke vite at fila inneholdt noe vi ikke
+ * kunne bruke. Den faar `avvik_grunn` og kan aldri prises.
+ */
+async function lagreBasisvakt(
+  supabase: Klient,
+  jobbId: string,
+  stasjonsnavn: { id: string; navn: string }[],
+  tekst: string,
+  stempling: { stemplinger: { minutter: number }[] },
+): Promise<{ notat: string | null; rader: number }> {
+  if (!erBasiseksportFil(tekst)) {
+    return { notat: null, rader: 0 }
+  }
+
+  const r = lesBasiseksport(tekst)
+  const finnStasjon = lagStasjonsmatcher(stasjonsnavn)
+  const kjente = [...new Set(
+    r.lokasjoner.map((l) => finnStasjon(l)).filter(Boolean) as string[],
+  )]
+  if (kjente.length !== 1) {
+    const hva = r.lokasjoner.length === 0
+      ? 'fila oppgir ingen lokasjon'
+      : `fila peker på ${r.lokasjoner.join(', ')}`
+    return {
+      rader: 0,
+      notat: `Arbeidstidssnapshotet ble ikke skrevet: ${hva}, og et snapshot `
+        + 'erstatter hele stasjonsmåneden. Uten én entydig stasjon kunne det '
+        + 'slettet en annen stasjons arbeidstid.',
+    }
+  }
+  const stasjonId = kjente[0]
+
+  type Rad = {
+    ansatt_nr: string; ansatt_navn: string; dato: string; fra_dato: string
+    fra_tid: string; til_tid: string; minutter: number
+    lengde_timer: number | null; type: string; betalt: boolean
+    lokasjon: string; avvik_grunn: string | null
+  }
+  const alle: Rad[] = [
+    ...r.stemplinger.map((s) => ({
+      ansatt_nr: s.ansattNr, ansatt_navn: s.ansattNavn,
+      dato: s.dato, fra_dato: s.fraDato, fra_tid: s.fraTid, til_tid: s.tilTid,
+      minutter: s.minutter, lengde_timer: s.lengde, type: s.type,
+      betalt: s.betalt, lokasjon: s.lokasjon, avvik_grunn: null,
+    })),
+    ...r.avvik.map((a) => ({
+      ansatt_nr: a.ansattNr, ansatt_navn: a.ansattNavn,
+      dato: a.dato, fra_dato: a.fraDato, fra_tid: a.fraTid, til_tid: a.tilTid,
+      minutter: a.minutter, lengde_timer: a.lengde, type: a.type,
+      betalt: a.betalt, lokasjon: a.lokasjon, avvik_grunn: a.grunn,
+    })),
+  ]
+
+  // BYTE-IDENTISKE RADER SLAAS SAMMEN FOER INNSENDING, IKKE AV BASEN.
+  // Maalt: null slike i 8 069 rader. Skulle de dukke opp, ville to like
+  // rader i samme insert brutt den unike noekkelen og feilet HELE
+  // maanedens snapshot - paa noe som egentlig er én observasjon gjentatt.
+  // MERK at dette IKKE er dedupliseringen av ekte dobbeltstemplinger:
+  // de skiller seg paa `til_tid` og bevares begge. Se `0219`.
+  const unike = new Map<string, Rad>()
+  for (const x of alle) {
+    unike.set(
+      `${x.ansatt_nr}|${x.fra_dato}|${x.fra_tid}|${x.til_tid}|${x.betalt}`
+      + `|${x.dato}|${x.minutter}|${x.lengde_timer}|${x.type}|${x.lokasjon}|${x.avvik_grunn}`,
+      x,
+    )
+  }
+  const rader = [...unike.values()]
+  const identiske = alle.length - rader.length
+
+  const perMaaned = new Map<string, Rad[]>()
+  for (const x of rader) {
+    const m = x.dato.slice(0, 7)
+    const l = perMaaned.get(m)
+    if (l) l.push(x)
+    else perMaaned.set(m, [x])
+  }
+
+  const maaneder = [...perMaaned.keys()].sort()
+  let skrevet = 0
+  for (const maaned of maaneder) {
+    // RPC-EN SVELGER IKKE. `supabase.rpc` kaster ikke - den returnerer
+    // feilen i `error`, og en try/catch rundt den fanger ingenting.
+    const { data, error } = await supabase.rpc('basisvakt_snapshot', {
+      p_stasjon_id: stasjonId,
+      p_maaned: maaned,
+      p_jobb_id: jobbId,
+      p_rader: perMaaned.get(maaned),
+    })
+    if (error) {
+      throw new Error(`Kunne ikke skrive arbeidstiden for ${maaned}: ${error.message}`)
+    }
+    skrevet += Number(data ?? 0)
+  }
+
+  // TO LESNINGER AV SAMME FIL SKAL IKKE ANTAS LIKE. `stempling` stoler
+  // paa `Lengde`; denne kontrollerer den mot klokkeslettene. Differansen
+  // er ikke en feil i seg selv - den er nettopp det vi vil kunne se.
+  const minutterStempling = stempling.stemplinger.reduce((a, b) => a + b.minutter, 0)
+  const minutterBasis = r.stemplinger.reduce((a, b) => a + b.minutter, 0)
+  const avstand = Math.round(((minutterBasis - minutterStempling) / 60) * 100) / 100
+
+  const navn = stasjonsnavn.find((x) => x.id === stasjonId)?.navn ?? stasjonId
+  const lengdeavvik = r.avvik.filter((a) => a.grunn === 'lengde')
+  const lokasjonsavvik = r.avvik.filter((a) => a.grunn === 'lokasjon')
+  return {
+    rader: skrevet,
+    notat: [
+      `Arbeidstid: ${skrevet} rader for ${navn}, ${maaneder.length === 1
+        ? maaneder[0]
+        : `${maaneder[0]}–${maaneder[maaneder.length - 1]} (${maaneder.length} måneder)`}.`,
+      lengdeavvik.length > 0
+        ? `${lengdeavvik.length} vakt(er) der «Lengde» og klokkeslettene ikke kan `
+          + `forenes: ${lengdeavvik.map((a) => `${a.ansattNr} ${a.dato} `
+            + `${a.fraTid}–${a.tilTid} (fila sier ${a.lengde} t, intervallet `
+            + `${a.intervallTimer} t)`).join('; ')}. De er lagret, men prises ikke `
+          + 'og skal rettes i easy@work.'
+        : null,
+      lokasjonsavvik.length > 0
+        ? `${lokasjonsavvik.length} vakt(er) mangler arbeidssted og kan ikke føres `
+          + 'på en stasjon. De er lagret og prises ikke.'
+        : null,
+      identiske > 0
+        ? `${identiske} helt like rad(er) slått sammen før lagring.`
+        : null,
+      avstand !== 0
+        ? `Merk: Easy@Works egen «Lengde» og klokkeslettene gir ${avstand > 0 ? '+' : ''}`
+          + `${avstand} timer i forskjell mot det som ble lagret i stempling. `
+          + 'Begge tallene er bevart.'
+        : null,
+    ].filter(Boolean).join(' '),
+  }
+}
+
 async function lagreStempling(
   supabase: Klient,
   jobbId: string,

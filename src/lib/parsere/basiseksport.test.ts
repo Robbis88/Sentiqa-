@@ -169,3 +169,152 @@ describe('minutterMellom', () => {
     expect(minutterMellom('2026-07-23', '12:00', '18:00')).toBe(360)
   })
 })
+
+// =====================================================================
+// FELTENE `basisvakt` TRENGER, SOM MOTOREN IKKE LESER
+//
+// `0219` bevarer Easy@Works observasjon, ikke vår tolkning av den. To
+// felt bæres derfor ut av parseren uten at noen beregning rører dem:
+// `Lengde` slik fila oppga den, og den rå `Type`.
+//
+// Uten dem kunne basen bare lagre intervallet — og da ville vi ha
+// KASTET Easys eget timetall og beholdt vårt, i en tabell som lover å
+// bevare kilden. Det er nøyaktig formen på `Betalingsfrekvens`-feilen:
+// tallet lagret, enheten borte.
+// =====================================================================
+
+describe('Basisrad bærer det kilden sa', () => {
+  it('bevarer Lengde og rå Type ved siden av intervallet', () => {
+    const [s] = lesBasiseksport(fil(
+      rad('1 juli 2026', '308', 'A B', 'Betalt tid', '12:00', '18:00', '6'),
+    )).stemplinger
+    expect(s.minutter).toBe(360)
+    expect(s.lengde).toBe(6)
+    expect(s.type).toBe('Betalt tid')
+    expect(s.betalt).toBe(true)
+  })
+
+  it('en pause bærer sin egen type, ikke bare betalt=false', () => {
+    const [s] = lesBasiseksport(fil(
+      rad('1 juli 2026', '308', 'A B', 'Pause', '15:00', '15:30', '0.5'),
+    )).stemplinger
+    expect(s.type).toBe('Pause')
+    expect(s.betalt).toBe(false)
+  })
+
+  it('lengde er null når feltet ikke er et tall', () => {
+    // ALDRI 0. En manglende lengde er ikke en vakt på null timer.
+    const [s] = lesBasiseksport(fil(
+      rad('1 juli 2026', '308', 'A B', 'Betalt tid', '12:00', '18:00', ''),
+    )).stemplinger
+    expect(s.lengde).toBeNull()
+    expect(s.minutter).toBe(360)
+  })
+
+  it('en avvist rad bærer nok til å kunne lagres', () => {
+    // EN AVVIST RAD SKAL IKKE FORSVINNE LYDLØST. Lagres den uten
+    // fra_dato, type og minutter, kan den ikke skilles fra en
+    // døgnkryssende vakt senere — og da er den verdiløs som spor.
+    // Den gyldige raden maa vaere med: en fil UTEN brukbare vakter
+    // kaster, og da ville testen maalt feilmeldingen i stedet for avviket.
+    // DEN AVVISTE RADEN KRYSSER MIDNATT MED VILJE. Foerste utgave av
+    // denne testen brukte en vanlig vakt, der `fraDato` og `dato` er
+    // like - og da bestod den ogsaa naar parseren skrev forretningsdatoen
+    // i begge feltene. Injeksjonen som beviste det var groenn.
+    const { avvik } = lesBasiseksport(fil(
+      rad('13 desember 2025', '308', 'A B', 'Betalt tid', '12:00', '18:00', '6'),
+      rad('13 desember 2025', '1009', 'G H', 'Betalt tid',
+          '14 desember 2025 09:10', '11:00', '25.82'),
+    ))
+    expect(avvik).toHaveLength(1)
+    expect(avvik[0].grunn).toBe('lengde')
+    expect(avvik[0].dato).toBe('2025-12-13')
+    expect(avvik[0].fraDato).toBe('2025-12-14')
+    expect(avvik[0].type).toBe('Betalt tid')
+    expect(avvik[0].betalt).toBe(true)
+    expect(avvik[0].lengde).toBe(25.82)
+  })
+
+  it('en døgnkryssende vakt beholder datoen arbeidet begynte', () => {
+    // Målt: 28 slike i 8 069 rader, herav 13 av 193 på Laguneparken
+    // august. Uten fra_dato får vakten feil ukedag, altså feil tillegg.
+    const [s] = lesBasiseksport(fil(
+      rad('31 juli 2026', '308', 'A B', 'Betalt tid', '1 august 2026 00:00', '00:55', '0.92'),
+    )).stemplinger
+    expect(s.dato).toBe('2026-07-31')
+    expect(s.fraDato).toBe('2026-08-01')
+  })
+})
+
+// =====================================================================
+// ÉN REGEL FOR HVA ET KLOKKESLETT ER
+//
+// `Fra` kommer i to former: bart klokkeslett («00:00») og med hele
+// datoen foran («1 august 2026 00:00»). De leses av hver sin kodevei.
+//
+// Den DATERTE veien padet tallene og returnerte dem rått. «12:75» slapp
+// gjennom og ble til 13:15 i `Date.UTC`, som regner over av seg selv —
+// nøyaktig feilen `tid()` ble skjerpet for, men på grenen som aldri
+// kalte den. En umulig verdi ble et troverdig tidspunkt én time for
+// sent, uten at noe ble rødt.
+//
+// Testen påstår derfor ikke bare at «12:75» avvises. Den påstår at de to
+// veiene GIR SAMME SVAR — ellers kan de drive fra hverandre igjen.
+// =====================================================================
+
+describe('de to Fra-veiene har samme klokkeslettregel', () => {
+  // `Lengde` er med vilje uleselig ('x'). Da hoppes lengdekontrollen
+  // over, og det ENESTE som kan felle raden er klokkeslettet. Foerste
+  // utgave brukte `Lengde 6` mot et intervall paa 20,83 timer: raden ble
+  // et LENGDEavvik, fila sto uten gyldige vakter og kastet - og testen
+  // rapporterte «avvist» for en helt annen grunn enn den maalte.
+  const medDato = (klokke: string) => fil(
+    rad('31 juli 2026', '308', 'A B', 'Betalt tid', `1 august 2026 ${klokke}`, '06:00', 'x'),
+  )
+  const utenDato = (klokke: string) => fil(
+    rad('1 august 2026', '308', 'A B', 'Betalt tid', klokke, '06:00', 'x'),
+  )
+  const godtas = (bygg: (k: string) => string, klokke: string) => {
+    try {
+      lesBasiseksport(bygg(klokke))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // `24:00` godtas av `tid()` som slutten av døgnet; `24:01` og `25:00`
+  // finnes ikke. Tabellen speiler den kontrakten, den lager ikke en ny.
+  const tilfeller: [string, boolean][] = [
+    ['00:00', true],
+    ['09:10', true],
+    ['23:59', true],
+    ['24:00', true],
+    ['12:75', false],
+    ['09:60', false],
+    ['24:01', false],
+    ['25:00', false],
+  ]
+
+  for (const [klokke, gyldig] of tilfeller) {
+    it(`«${klokke}» ${gyldig ? 'godtas' : 'avvises'} på begge veiene`, () => {
+      expect(godtas(medDato, klokke), `med dato foran: «1 august 2026 ${klokke}»`).toBe(gyldig)
+      expect(godtas(utenDato, klokke), `bart klokkeslett: «${klokke}»`).toBe(gyldig)
+    })
+  }
+
+  it('KANARI: tabellen skiller faktisk mellom gyldig og ugyldig', () => {
+    // Godtok parseren alt, ville hver rad over vært «true» og halve
+    // tabellen målt ingenting. Uten denne kunne testen vært grønn mens
+    // den var blind.
+    expect(tilfeller.filter(([, g]) => g).length).toBeGreaterThan(0)
+    expect(tilfeller.filter(([, g]) => !g).length).toBeGreaterThan(0)
+  })
+
+  it('en avvist tid stopper fila, den blir ikke lest halvveis', () => {
+    // FALLER `datoOgTid` TILBAKE, må `tid()` på hele strengen også gi
+    // null — ellers ville en ugyldig tid blitt til forretningsdatoen med
+    // et gjettet klokkeslett.
+    expect(() => lesBasiseksport(medDato('12:75'))).toThrow(/Ugyldig «Fra»/)
+  })
+})

@@ -1242,6 +1242,58 @@
    "oppdaterbart": "timesats = 210.00"
   },
   {
+   "tabell": "basisvakt",
+   "$hvorfor": "Hva easy@work Basis Export sa om ARBEID paa en stasjon i en maaned (0219). Soesteren til lonnsregister: den bevarer personen og satsen, denne bevarer arbeidstiden og det FAKTISKE arbeidsstedet. KILDEOBSERVASJON, ikke Sentiqas egen stempling - se public.stempling, som er nettbrettets modell og har en bredere lesepolicy fordi den er nettbrettets EGEN tabell. TILGANG: raden baerer navngitt ansatt med arbeidstid, og skal senere ganges med en sats. Stasjonstilgang gir ikke datatilgang: nettbrettet kan vaere bundet til stasjonen uten aa ha rett paa denne datatypen. Derfor tablet=none og rollekrav i policyen, ikke bare mine_stasjoner(). Sletting er eierens alene: en vakt som forsvinner er arbeidstid ingen kan se igjen.",
+   "tenant_scope": "station",
+   "data_class": "warm",
+   "operasjoner": [
+    "select",
+    "insert",
+    "update",
+    "delete"
+   ],
+   "tablet": "none",
+   "manager": {
+    "select": "assigned_stations",
+    "insert": "assigned_stations",
+    "update": "assigned_stations"
+   },
+   "owner": "retailer",
+   "business_unik": [
+    "stasjon_id",
+    "kilde_maaned",
+    "ansatt_nr",
+    "fra_dato",
+    "fra_tid",
+    "til_tid",
+    "betalt"
+   ],
+   "$business_unik_hvorfor": "BRED MED VILJE. Den smale formen (stasjon, nr, fra_dato, fra_tid) er motorens dedupnoekkel, men den ville avvist ekte dobbeltstemplinger: maalt i produksjonsfilene staar Boenes 1009 den 2025-04-03 med BAADE 05:00-05:00 (0 min) og 05:00-13:00 (480 min), og Laguneparken 1104272 tilsvarende. Noen stemplet inn og ut paa samme minutt, og saa inn igjen. Tabellen skal bevare det Easy@Work faktisk sa; sammenslaaingen skjer eksplisitt ved lesing og telles i Arbeidsstedskost.dubletter. Noekkelen bruker fra_dato, ALDRI forretningsdatoen: den gale formen kolliderte paa 10 rader i kontrollfilene, og slettingen fikk avviket for Dale juli til aa se BEDRE ut.",
+   "business_unik_unntak": {
+    "kilde_maaned": "Maaneden er en yyyy-mm-streng med et check-constraint, og kan ikke varieres med {{unik}} uten aa bli ugyldig. Den trenger det heller ikke: ansatt_nr i samme noekkel er {{unik}}, saa to forsoek kolliderer aldri.",
+    "fra_dato": "date-kolonne; kan ikke baere {{unik}}. ansatt_nr varierer i samme noekkel.",
+    "fra_tid": "time-kolonne; kan ikke baere {{unik}}. ansatt_nr varierer i samme noekkel.",
+    "til_tid": "time-kolonne; kan ikke baere {{unik}}. ansatt_nr varierer i samme noekkel.",
+    "betalt": "boolean; har bare to verdier og kan ikke varieres per forsoek. ansatt_nr varierer i samme noekkel."
+   },
+   "proberad": {
+    "ansatt_nr": "'{{unik}}'",
+    "ansatt_navn": "'Sonde Sondesen'",
+    "kilde_maaned": "'2026-07'",
+    "dato": "date '2026-07-15'",
+    "fra_dato": "date '2026-07-15'",
+    "fra_tid": "time '10:00'",
+    "til_tid": "time '16:00'",
+    "minutter": "360",
+    "lengde_timer": "6.00",
+    "type": "'Betalt tid'",
+    "betalt": "true",
+    "lokasjon": "'St1 - Sonde'"
+   },
+   "$oppdaterbart_hvorfor": "lengde_timer inngaar ikke i business_unik, og er dessuten det feltet en retting i easy@work faktisk ville endret.",
+   "oppdaterbart": "lengde_timer = 6.50"
+  },
+  {
    "tabell": "maanedsplan",
    "$hvorfor": "Månedsplanen til butikksjefen (0200), bygget på RETNING og ikke nivå. EIEREN GODKJENNER FØR DEN GÅR, og det gir en grense som må stå i RLS og ikke i en visning: butikksjefens lesepolicy krever status i ('sluppet','sendt'), så hun ser ALDRI et utkast. Et brev som ikke er sluppet er ikke et brev - det er et forslag til eieren, og halvparten kommer aldri til å sendes. Ser hun dem, er godkjenningen meningsløs. Eieren har også UPDATE, som er selve slippet; innholdet låses av en trigger når planen først er sluppet, uansett hvem som skriver. Ingen insert-policy: utkastene skrives av importen gjennom tjenestenøkkelen. Ingen delete: en sendt plan er et dokument over hva vi mente den måneden. NETTBRETTET NÅR DEN IKKE - dette er en samtale mellom eier og butikksjef. SKRIVERETT (0202): importen skriver disse radene, og «Behandle»-knappen kjører importkjernen med BRUKERENS sesjon - ikke tjenesteNøkkelen. 0198/0199/0200 antok tjenesteNøkkelen og lot være å gi skrivepolicy; BP26 feilet da med «new row violates row-level security policy». Skriveretten er `retailer_admin` alene, fordi importruta selv er eierens alene - en policy skal beskrive døra som finnes.",
    "tenant_scope": "stasjon",

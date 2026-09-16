@@ -6,7 +6,7 @@
 -- En haandredigering her ville overlevd til neste generering og saa
 -- forsvunnet i stillhet. Skal noe endres, endre kontrakten.
 --
--- DEL 4 AV 10. Hele matrisen er for stor for Supabase SQL
+-- DEL 4 AV 11. Hele matrisen er for stor for Supabase SQL
 -- Editor. Denne fila er en komplett kjoering av 10 ressurs(er):
 -- egen fasitverden, egne forutsetninger, egen oppsummering, egen
 -- rollback. Delene deler ingen tilstand og kan kjoeres i hvilken som
@@ -2299,9 +2299,9 @@ declare n int;
 begin
   select count(*) into n from pg_temp.funn where status = 'FEIL';
   if n > 0 then
-    raise exception 'TENANT-MATRISEN DEL 4/10: % funn. Se tabellen over.', n;
+    raise exception 'TENANT-MATRISEN DEL 4/11: % funn. Se tabellen over.', n;
   end if;
-  raise notice '--- Tenant-matrisen DEL 4/10: ingen funn. % paastander ---',
+  raise notice '--- Tenant-matrisen DEL 4/11: ingen funn. % paastander ---',
     (select count(*) from pg_temp.funn);
 end $$;
 
