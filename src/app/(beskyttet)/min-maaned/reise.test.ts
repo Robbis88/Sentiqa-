@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { naavaerendeFase, reisen } from './reise'
+import { maanedsstatus, naavaerendeFase, reisen } from './reise'
 import { byggOkonomibilde, type Bildeinput, type Dekning, type Felt } from '@/lib/okonomi/bilde'
 import type { Lonnsrom } from '@/lib/lonnskost/rom'
 
@@ -145,5 +145,51 @@ describe('reisen leser tre felt og finner ikke paa noe', () => {
       dagligOmsetningKr: null,
     })
     expect(naavaerendeFase(reisen(b, felter(b)))).toBeNull()
+  })
+})
+
+// =====================================================================
+// STATUSLINJA — ÉN SETNING I STEDET FOR EN STRIPE MED TRE
+// =====================================================================
+//
+// Reisestripa svarer paa «kan jeg stole paa tallet». Det er ikke
+// spoersmaalet den som aapner sida har, saa den flyttet under «Vis
+// grunnlaget» og denne ene linja baerer det foerste skjerm trenger.
+//
+// TO AVLESNINGER, INGEN NY REGEL. `dekning.regnskap` og
+// `dekning.salgsdager` — og nevneren der er `muligeSalgsdager` sin egen,
+// ikke maanedens lengde.
+// =====================================================================
+describe('maanedsstatus', () => {
+  it('avlagt maaned: ferdig, og INGEN dagsteller', () => {
+    // `byggDekning` melder ingen mangler for en avlagt maaned - regnskapet
+    // er fasit. Da ville en dagsteller vaert en opplysning om noe som
+    // ikke lenger betyr noe.
+    const s = maanedsstatus(bilde({ dekning: DEKNING(true) }))
+    expect(s).toContain('ferdig')
+    expect(s).not.toMatch(/\d+ av \d+/)
+  })
+
+  it('paagaaende maaned: teller dagene som KUNNE hatt tall', () => {
+    const b = bilde({
+      dekning: { ...DEKNING(false), salgsdager: { har: 15, av: 15 } },
+    })
+    expect(maanedsstatus(b)).toBe('Måneden pågår. 15 av 15 mulige dager har tall.')
+  })
+
+  it('en maaned fram i tid paastaar ikke at den paagaar', () => {
+    // `muligeSalgsdager` gir 0 for en maaned som ikke har begynt. «0 av 0
+    // mulige dager har tall» ville vaert sant og ubrukelig.
+    const b = bilde({ dekning: { ...DEKNING(false), salgsdager: { har: 0, av: 0 } } })
+    expect(maanedsstatus(b)).toBe('Måneden har ikke begynt.')
+  })
+
+  it('KANARIFUGL: statusen leser dekningen, ikke en fast tekst', () => {
+    const a = maanedsstatus(bilde({ dekning: DEKNING(true) }))
+    const b = maanedsstatus(bilde({
+      dekning: { ...DEKNING(false), salgsdager: { har: 3, av: 15 } },
+    }))
+    expect(a).not.toBe(b)
+    expect(b).toContain('3 av 15')
   })
 })

@@ -9,7 +9,9 @@ import {
   byggMaanedsbilde, hentBildegrunnlag, maanederMedBilde, standardmaaned,
   type Bildegrunnlag,
 } from '@/lib/okonomi/sammenstill'
-import { reisen, naavaerendeFase } from './reise'
+import { lesMatkast } from '@/lib/kurs/snapshot'
+import { matkastvisning } from '@/lib/kurs/analysevisning'
+import { maanedsstatus, reisen, naavaerendeFase } from './reise'
 
 // =====================================================================
 // PRODUKSJONSKANARIFUGL — MIN MÅNED MOT MOTORENS EGNE TALL
@@ -115,6 +117,7 @@ describe('KANARIFUGL — Min måned mot produksjon', () => {
     let avlagteMaalt = 0
     let medRoyalty = 0
     let medDrift = 0
+    let maalteMatkast = 0
 
     /** Måler én stasjonsmåned: påstander mot motoren, og en matriserad. */
     async function maal(
@@ -231,6 +234,7 @@ describe('KANARIFUGL — Min måned mot produksjon', () => {
       // ---------------------------------------------------------------
       const faser = reisen(bilde, RADER.map((r) => r.les(bilde)))
       L.push(`    ${merkelapp}  ${maaned}  avlagt=${avlagt}`)
+      L.push(`      statuslinje .......... ${maanedsstatus(bilde)}`)
       L.push(`      reise ................ ${faser.map((f) => `${f.tittel}:${f.tilstand}`).join('  ')}`
         + `   staar paa ${naavaerendeFase(faser)?.id ?? 'ingenting'}`
         + `   sikkerhet ${bilde.sikkerhet}`)
@@ -335,20 +339,64 @@ describe('KANARIFUGL — Min måned mot produksjon', () => {
       // MÅNEDSPLANEN: finnes det en handling å vise?
       const { data: planer, error: pfeil } = await supabase
         .from('maanedsplan')
-        .select('maaned, dom, status')
+        .select('maaned, dom, status, punkter, matkast')
         .eq('stasjon_id', st.id)
         .in('status', ['sluppet', 'sendt'])
         .order('maaned', { ascending: false })
         .limit(60)
       if (pfeil) throw new Error(`Maanedsplanene: ${pfeil.message}`)
-      const p = (planer ?? []) as { maaned: string; dom: string; status: string }[]
+      const p = (planer ?? []) as {
+        maaned: string; dom: string; status: string
+        punkter: { slag: string; tittel: string }[]; matkast: unknown
+      }[]
       L.push(`    sluppet plan ........... ${p.length === 0 ? 'INGEN'
         : `${p[0].maaned.slice(0, 7)} ${p[0].dom} (${p[0].status}), ${p.length} totalt`
           + `${p[0].maaned.slice(0, 7) === standard ? '' : '  <- ANNEN MAANED ENN STANDARDMAANEDEN'}`}`)
+
+      // ===============================================================
+      // MATKASTKORTET — HØRER TIL PLANENS MÅNED, IKKE VELGERENS
+      // ===============================================================
+      //
+      // Analysen er et frosset øyeblikksbilde på den sluppede planen
+      // (`0216`). Viste «Måneden» juli-planens matkast på september,
+      // ville et tall fra en ferdig måned stått blant septembers egne.
+      //
+      // Her måles begge sider: at kortet FINNES for planens egen måned,
+      // og at det IKKE finnes for en måned uten plan.
+      for (const plan of p) {
+        const pm = plan.maaned.slice(0, 7)
+        const v = matkastvisning(lesMatkast(plan.matkast))
+        const tiltak = (plan.punkter ?? []).find((x) => x.slag === 'tiltak')
+        L.push(`    plan ${pm} ........ dom=${plan.dom}`
+          + `  tiltak=${tiltak ? `«${tiltak.tittel}»` : 'INGEN'}`)
+        if ('rader' in v) {
+          const rad = (n: string) => v.rader.find((r) => r.navn === n)
+          L.push(`      matkast ............ ${rad('Kastprosent')?.verdi}`
+            + `  mot ${rad('Budsjettert')?.verdi}`
+            + `  avvik ${rad('Avvik')?.verdi} (${rad('Avvik')?.bi})  [${v.slag}]`)
+          // KORTET SKAL HA ET TALL, IKKE EN TOM STRENG.
+          expect(rad('Kastprosent')?.verdi, `${navn} ${pm}: kastprosent mangler`)
+            .toMatch(/\d/)
+          expect(rad('Avvik')?.bi, `${navn} ${pm}: avviket mangler kroner`).toMatch(/\d/)
+        } else {
+          // BLOKKERT ELLER IKKE BEREGNET — begge har en aarsak, aldri 0.
+          L.push(`      matkast ............ ${v.slag}: ${v.tekst}`)
+          expect(v.tekst.length, `${navn} ${pm}: blokkeringen mangler aarsak`)
+            .toBeGreaterThan(5)
+        }
+        maalteMatkast++
+      }
+
+      // SEPTEMBER SKAL IKKE ARVE JULIS MATKAST. Standardmaaneden har
+      // ingen plan paa noen stasjon i dag; da skal kortet vaere borte.
+      const planForStandard = p.find((x) => x.maaned.slice(0, 7) === standard)
+      L.push(`    matkast paa ${standard} .. ${planForStandard ? 'VISES (planen er for denne maaneden)'
+        : 'VISES IKKE (ingen plan for maaneden)'}`)
       L.push('')
     }
 
     L.push(`  bilder ${maalteBilder}  (avlagte ${avlagteMaalt})   felt ${maalteFelt}`)
+    L.push(`  matkastkort maalt ${maalteMatkast}`)
     L.push(`  bilder med royalty ${medRoyalty}   med paavirkbar drift ${medDrift}`)
     L.push('')
     console.log(L.join('\n'))

@@ -16,9 +16,10 @@ import type { Felt } from '@/lib/okonomi/bilde'
 import {
   byggMaanedsbilde, hentBildegrunnlag, maanederMedBilde, standardmaaned,
 } from '@/lib/okonomi/sammenstill'
-import { Planlesing } from '../min-plan/planlesing'
+import { lesMatkast } from '@/lib/kurs/snapshot'
+import { matkastvisning } from '@/lib/kurs/analysevisning'
 import type { Punkt } from '../maanedsplan/plankort'
-import { naavaerendeFase, reisen, type Fase } from './reise'
+import { maanedsstatus, naavaerendeFase, reisen, type Fase } from './reise'
 
 // =====================================================================
 // MIN MÅNED
@@ -290,9 +291,9 @@ export default async function MinMaanedSide({ searchParams }: { searchParams: Pr
   const planErEnAnnenMaaned = plan !== null && plan.maaned.slice(0, 7) !== maaned
 
   // ===================================================================
-  // FELTENE FLATEN VISER
+  // FELTENE «VIS GRUNNLAGET» VISER
   //
-  // Lista bygges ÉN gang og brukes to steder: radene under, og
+  // Lista bygges ÉN gang og brukes to steder: radene i grunnlaget, og
   // `reisen()`, som spør om noen av dem er et anslag. Skrev vi den opp
   // to ganger, kunne stripa sagt «prognose» om et felt tabellen ikke
   // viste — eller tie om ett den viste.
@@ -314,17 +315,44 @@ export default async function MinMaanedSide({ searchParams }: { searchParams: Pr
   const faser = reisen(bilde, rader.map((r) => r.felt))
   const naa = naavaerendeFase(faser)
   const avvik = bilde.styringsavvik.avvik
+  const avlagt = bilde.dekning.regnskap
+
+  // ===================================================================
+  // MATKAST — KUN FOR MÅNEDEN PLANEN FAKTISK GJELDER
+  // ===================================================================
+  //
+  // Analysen er et FROSSET øyeblikksbilde på den sluppede månedsplanen
+  // (`0216`), regnet av `kastvurdering.ts` med sine ni porter. Den hører
+  // til planens måned, ikke til måneden som står i velgeren.
+  //
+  // Viste vi juli-planens matkast på september, ville et tall fra en
+  // ferdig måned stått blant septembers egne — den farligste formen i
+  // dette systemet. Derfor `planForMaaneden`, ikke `plan`.
+  const matkast = planForMaaneden
+    ? matkastvisning(lesMatkast(planForMaaneden.matkast))
+    : null
+  const kastrad = (navn: string) =>
+    (matkast && 'rader' in matkast ? matkast.rader.find((r) => r.navn === navn) : undefined)
+
+  // ===================================================================
+  // «IKKE KLART ENNÅ» — FELTENE SOM MANGLER, MED SIN EGEN GRUNN
+  // ===================================================================
+  //
+  // TEKSTEN ER `bilde.ts` SIN, IKKE SIDAS. Hvert `Felt` bærer `grunn`
+  // når det mangler — «Royalty leses av regnskapet. Ingen tidlig kilde.»
+  // Å skrive en egen setning her, som «lønnsfila kommer dagen etter
+  // måneden», ville vært en påstand ingen kontrakt eier.
+  //
+  // SEKUNDÆRT OG KOMPAKT. En pågående måned skal ikke organiseres rundt
+  // hva Sentiqa mangler. Mangelen er en sannhet, ikke hovedhistorien.
+  const ikkeKlart = rader.filter((r) => r.felt.kilde === 'mangler')
 
   return (
     <Sideramme>
       <Sidehode
-        tittel="Min måned"
+        tittel="Måneden"
         merke={stasjonsnavn}
-        undertittel={
-          naa
-            ? `${manedAar.format(new Date(tilIso(maaned)))} · ${naa.forklaring}`
-            : manedAar.format(new Date(tilIso(maaned)))
-        }
+        undertittel={`${manedAar.format(new Date(tilIso(maaned)))} · ${maanedsstatus(bilde)}`}
         handlinger={
           <Maanedsvelger
             maaneder={tilgjengelige.map(tilIso)}
@@ -335,70 +363,105 @@ export default async function MinMaanedSide({ searchParams }: { searchParams: Pr
         }
       />
 
-      {/* --- 1. HVOR STÅR MÅNEDEN NÅ? ------------------------------- */}
-      <Reisestripe faser={faser} naa={naa} />
+      {/* ===================================================================
+          NIVÅ 1 — HVOR STOR VAR MÅNEDEN
 
+          Omsetning og brutto står UTEN dom. Ingen motor eier en
+          sammenligning for dem: `mot-budsjett.ts` kan regelen, men
+          `bilde.ts` har ikke noe budsjettfelt, og brutto har ingen
+          budsjettkolonne noe sted. En pil uten et budsjett bak ville
+          vært flatens egen mening.
+          =================================================================== */}
+      <h2 className="sq-mm-bolk">{avlagt ? 'Dette ble måneden' : 'Dette vet vi så langt'}</h2>
       <div className="sq-mm-hovedtall">
-        <Hovedtall navn="Bruttofortjeneste" felt={bilde.brutto} />
-        <Hovedtall navn="Lønnsrom" felt={bilde.lonnsrom} />
-        <div className="sq-mm-tall">
-          <span className="sq-mm-tall-navn">Styringsavvik</span>
-          <span className="sq-mm-tall-verdi">
-            {avvik.kroner === null ? '—' : kr.format(Math.round(avvik.kroner))}
-          </span>
-          {/* KILDEN FØLGER MED, OGSÅ HER. `Avviksfelt` bærer sin egen —
-              lov 2: den svakeste av rommets og lønnas. */}
-          <Kildemerke kilde={bilde.styringsavvik.kilde} />
-          <span className="sq-mm-tall-grunn">
-            {avvik.mangler ?? 'Over rommet er positivt. Innenfor er negativt.'}
-          </span>
-        </div>
+        <Hovedtall navn="Omsetning" felt={bilde.omsetning} avlagt={avlagt} />
+        <Hovedtall navn="Bruttofortjeneste" felt={bilde.brutto} avlagt={avlagt} />
+        {!avlagt && (
+          <Hovedtall navn="Lønnsrom så langt" felt={bilde.lonnsrom} avlagt={avlagt} />
+        )}
       </div>
 
-      {/* --- 2. HVA BEVEGER RESULTATET? ------------------------------ */}
-      <Datatabell tittel="Hva beveger resultatet?">
-        <thead>
-          <tr>
-            <th>Post</th>
-            <th className="tall">Kroner</th>
-            <th>Kilde</th>
-            <th>Grunnlag</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rader.map((r) => <Tallrad key={r.navn} navn={r.navn} felt={r.felt} />)}
-        </tbody>
-      </Datatabell>
+      {/* ===================================================================
+          NIVÅ 2 — HVORDAN GIKK DEN
 
-      <Forklaring sporsmaal="Hvorfor står det «Prognose» på noen av tallene?">
-        <p>
-          Et tall er <strong>fasit</strong> når regnskapet har ført det,{' '}
-          <strong>prognose</strong> når det er anslått av tidlige tall som kan
-          flytte seg, og <strong>plan</strong> når det er hva budsjettet sa —
-          ikke et anslag på hva som faktisk skjer. <strong>Mangler</strong>{' '}
-          betyr at tallet ikke finnes ennå; det er aldri det samme som null
-          kroner.
-        </p>
-        <p>
-          Et avledet tall arver den svakeste av kildene det bygger på. Et
-          styringsavvik regnet av et anslått lønnsrom er et anslag, uansett hvor
-          sikkert lønnstallet er.
-        </p>
-        <p>
-          <strong>Skjult</strong> er ikke et hull. Tallet finnes, men hører ikke
-          til din rolle — royalty er en kjedeavtale eieren forhandler.
-        </p>
-      </Forklaring>
+          Bare de to feltene som HAR en dom fra en motor: lønna mot
+          rommet (`styringsavvik`) og matkastet mot det omsetnings-
+          justerte kastbudsjettet (`kastvurdering`). De skal se
+          annerledes ut enn tallene over, fordi de sier noe tallene over
+          ikke sier.
+          =================================================================== */}
+      {(avlagt || matkast !== null) && (
+        <>
+          <h2 className="sq-mm-bolk">Hvordan gikk det</h2>
+          <div className="sq-mm-hovedtall">
+            {avlagt && (
+              <div className={`sq-mm-tall${avvik.kroner === null ? ''
+                : avvik.kroner <= 0 ? ' sq-mm-god' : ' sq-mm-darlig'}`}>
+                <span className="sq-mm-tall-navn">Lønn mot rommet</span>
+                <span className="sq-mm-tall-verdi">
+                  {bilde.styringskost.verdi === null
+                    ? '—' : kr.format(Math.round(bilde.styringskost.verdi))}
+                </span>
+                {/* DOMMEN ER `styringsavvik()` SIN. Ordet «innenfor» og
+                    «over» følger fortegnet den satte; flaten snur det
+                    ikke og finner ikke på en terskel. */}
+                <span className="sq-mm-tall-dom">
+                  {avvik.kroner === null
+                    ? (avvik.mangler ?? '')
+                    : `${kr.format(Math.abs(Math.round(avvik.kroner)))} kr `
+                      + `${avvik.kroner <= 0 ? 'innenfor' : 'over'} lønnsrommet`}
+                </span>
+                {bilde.styringsavvik.kilde !== 'fasit' && (
+                  <Kildemerke kilde={bilde.styringsavvik.kilde} />
+                )}
+              </div>
+            )}
 
-      {/* --- 3. HVA BØR JEG VITE? ------------------------------------
-          Rendres ikke når lista er tom. En overskrift som alltid står
-          lover at noe er galt, og da leses den ikke den dagen det er
-          det. Rekkefølgen er `vite.ts` sin. */}
-      <HvaBoerJegVite bilde={bilde} />
+            {matkast !== null && 'rader' in matkast && (
+              <div className={`sq-mm-tall${
+                matkast.slag === 'tiltak' ? ' sq-mm-darlig'
+                  : matkast.slag === 'bekreftelse' ? ' sq-mm-god' : ''}`}>
+                <span className="sq-mm-tall-navn">Matkast</span>
+                <span className="sq-mm-tall-verdi">{kastrad('Kastprosent')?.verdi ?? '—'}</span>
+                {/* AVVIKET ER `kasttall()` SITT, i prosentpoeng og kroner.
+                    `bi` bærer allerede ordet «bedre enn» eller «over». */}
+                <span className="sq-mm-tall-dom">
+                  {kastrad('Avvik')?.verdi} · {kastrad('Avvik')?.bi}
+                </span>
+              </div>
+            )}
 
-      {/* --- 4. HVA BØR JEG GJØRE NÅ? ------------------------------- */}
+            {matkast !== null && !('rader' in matkast) && (
+              <div className="sq-mm-tall">
+                <span className="sq-mm-tall-navn">Matkast</span>
+                <span className="sq-mm-tall-verdi">—</span>
+                {/* BLOKKERT ER IKKE NULL. `gate()` sier hvorfor, og
+                    årsaken vises i stedet for et tall. */}
+                <span className="sq-mm-tall-dom">{matkast.tekst}</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ===================================================================
+          NIVÅ 3 — HVA KREVER OPPMERKSOMHET
+
+          `vite.ts` eier både hva som sies og rekkefølgen. Rendres ikke
+          når lista er tom: en måned der alt er i orden skal ikke ha en
+          overskrift som lover at noe er galt.
+          =================================================================== */}
+      <HvaBoerJegVite bilde={bilde} tittel="Dette bør du vite" />
+
+      {/* ===================================================================
+          NIVÅ 4 — HVA BØR JEG GJØRE
+
+          KORT OPPSUMMERING, IKKE PLANEN PÅ NYTT. Hele `Planlesing` bor
+          på fanen «Planen». To flater som tegner samme kort er to
+          sannheter, og forskjellen viser seg først i et møte.
+          =================================================================== */}
       <section className="sq-mm-handling">
-        <h2>Hva bør jeg gjøre nå?</h2>
+        <h2>Dette bør du gjøre</h2>
 
         {planfeil !== null ? (
           <Feiltilstand
@@ -419,53 +482,176 @@ export default async function MinMaanedSide({ searchParams }: { searchParams: Pr
               + 'råd.'
             }
           />
+        ) : planErEnAnnenMaaned ? (
+          // ===============================================================
+          // EN PLAN FRA EN ANNEN MÅNED VISES IKKE SOM ET TILTAK HER
+          // ===============================================================
+          //
+          // Bare at den finnes, og veien dit. Sto juli-tiltaket i
+          // klartekst under septembertall, ville det sett ut som et
+          // septembertiltak — og ingenting på skjermen ville sagt at de
+          // to måler ulike perioder.
+          <p className="sq-mm-annen-plan">
+            Siste sluppede plan er fra {manedAar.format(new Date(plan.maaned))}.
+            {' '}
+            <Link href="/min-plan">Se planen</Link>
+          </p>
         ) : (
-          <>
-            {planErEnAnnenMaaned && (
-              <p className="undertittel">
-                Den nyeste sluppede planen gjelder{' '}
-                {manedAar.format(new Date(plan.maaned))}, ikke{' '}
-                {manedAar.format(new Date(tilIso(maaned)))}. Tallene over og
-                tiltaket under måler altså ikke samme periode.
-              </p>
+          <div className="sq-mm-tiltak">
+            <span className={`sq-dom sq-dom-${plan.dom}`}>{DOMORD[plan.dom]}</span>
+            {tiltaket(plan.punkter) ? (
+              <>
+                <p className="sq-mm-tiltak-tittel">{tiltaket(plan.punkter)!.tittel}</p>
+                <p className="sq-mm-tiltak-tekst">{tiltaket(plan.punkter)!.tekst}</p>
+              </>
+            ) : (
+              <p className="sq-mm-tiltak-tekst">{plan.ingress}</p>
             )}
-            <Planlesing
-              stasjon={stasjonsnavn}
-              maaned={plan.maaned}
-              dom={plan.dom}
-              ingress={plan.ingress}
-              punkter={plan.punkter}
-              merknad={plan.merknad}
-              matkast={plan.matkast}
-              usynlig={plan.usynlig}
-              rangering={plan.rangering}
-            />
-            <p className="undertittel">
-              <Link href="/min-plan">Se alle månedsplanene dine</Link>
-            </p>
-          </>
+            <p className="undertittel"><Link href="/min-plan">Se hele planen</Link></p>
+          </div>
         )}
       </section>
+
+      {/* ===================================================================
+          IKKE KLART ENNÅ — SEKUNDÆRT OG KOMPAKT
+
+          Står NEDERST og som én linje. En pågående måned skal ikke
+          organiseres rundt hva Sentiqa mangler; mangelen er en sannhet,
+          ikke hovedhistorien. Hver grunn er feltets egen.
+          =================================================================== */}
+      {!avlagt && ikkeKlart.length > 0 && (
+        <section className="sq-mm-ikke-klart">
+          {/* ÉN LINJE, IKKE ÅTTE.
+              Sammendraget er ANTALL og FELTNAVN — en telling, ikke en ny
+              forklaring. Hver årsak er feltets egen fra `bilde.ts`,
+              uendret, ett klikk unna. Ingen felles påstand konstrueres:
+              royalty mangler av en annen grunn enn lønna, og de to skal
+              ikke slås sammen til en setning ingen motor eier. */}
+          <details>
+            <summary>
+              {ikkeKlart.length} tall er ikke klare ennå
+              {' — '}
+              {ikkeKlart.map((r) => r.navn.toLowerCase()).join(', ')}
+            </summary>
+            <dl>
+              {ikkeKlart.map((r) => (
+                <div key={r.navn}>
+                  <dt>{r.navn}</dt>
+                  <dd>{r.felt.grunn ?? ''}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        </section>
+      )}
+
+      {/* ===================================================================
+          VIS GRUNNLAGET — HELE SPORBARHETEN, ETT NIVÅ NED
+
+          Ingenting av sannheten forsvinner. PLAN → PROGNOSE → FASIT,
+          kilde, grunnlag, royalty, påvirkbare kostnader, BP-lønn og hele
+          lønnskosten står her, for den som ber om beviset.
+          =================================================================== */}
+      <Forklaring sporsmaal="Vis grunnlaget">
+        <Reisestripe faser={faser} naa={naa} />
+
+        <Datatabell tittel="Hvert tall, med kilden sin">
+          <thead>
+            <tr>
+              <th>Post</th>
+              <th className="tall">Kroner</th>
+              <th>Kilde</th>
+              <th>Grunnlag</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rader.map((r) => <Tallrad key={r.navn} navn={r.navn} felt={r.felt} />)}
+            <tr>
+              <th scope="row">Styringsavvik</th>
+              <td className="tall">
+                {avvik.kroner === null ? '—' : kr.format(Math.round(avvik.kroner))}
+              </td>
+              <td><Kildemerke kilde={bilde.styringsavvik.kilde} /></td>
+              <td className="undertittel">{avvik.mangler ?? ''}</td>
+            </tr>
+          </tbody>
+        </Datatabell>
+
+        <p>
+          Et tall er <strong>fasit</strong> når regnskapet har ført det,{' '}
+          <strong>prognose</strong> når det er anslått av tidlige tall som kan
+          flytte seg, og <strong>plan</strong> når det er hva budsjettet sa —
+          ikke et anslag på hva som faktisk skjer. <strong>Mangler</strong>{' '}
+          betyr at tallet ikke finnes ennå; det er aldri det samme som null
+          kroner. <strong>Skjult</strong> er heller ikke et hull: tallet finnes,
+          men hører ikke til din rolle.
+        </p>
+        <p>
+          Et avledet tall arver den svakeste av kildene det bygger på. Et
+          styringsavvik regnet av et anslått lønnsrom er et anslag, uansett hvor
+          sikkert lønnstallet er.
+        </p>
+      </Forklaring>
     </Sideramme>
   )
 }
 
+const DOMORD = { medvind: 'Medvind', motvind: 'Motvind', flat: 'Flatt' } as const
+
 /**
- * Ett stort tall, med kilden ved siden av.
+ * Det ene tiltaket i planen, når det finnes.
+ *
+ * `plan.ts` gir høyst ett — «ÉN ting. Den største.» Bekreftelser er ikke
+ * noe å gjøre, og hører ikke under denne overskriften.
+ */
+function tiltaket(punkter: Punkt[]): Punkt | undefined {
+  return punkter.find((p) => p.slag === 'tiltak')
+}
+
+/**
+ * Ett stort tall.
+ *
+ * KILDEMERKET STÅR BARE NÅR TALLET IKKE ER FASIT. En avlagt måned der
+ * hvert eneste merke sier «Fasit» lærer leseren å se forbi dem alle — og
+ * da er merket borte den dagen et tall faktisk er anslått. Samme regel
+ * som `kilde.tsx` alt skriver om fargen: fasit er normaltilstanden.
  *
  * `null` blir en tankestrek. Et manglende tall og null kroner er ikke det
  * samme, og en null der det egentlig mangler er den slags feil som ser
  * rolig ut på en storskjerm.
  */
-function Hovedtall({ navn, felt }: { navn: string; felt: Felt }) {
+function Hovedtall({ navn, felt, avlagt }: { navn: string; felt: Felt; avlagt: boolean }) {
+  // =====================================================================
+  // «PROGNOSE» ER EN PAASTAND OM SIKKERHET, IKKE OM PERIODE
+  // =====================================================================
+  //
+  // `bilde.ts` merker den løpende omsetningen `prognose` med grunnen
+  // «Daglige salgsfiler, ikke avstemt.» Det handler om AVSTEMMING —
+  // ingenting om hvor måneden ender.
+  //
+  // `Kildemerke` oversetter den til ordet «Prognose», og DET ordet leser
+  // en butikksjef som «anslag på sluttresultatet». Septembers 653 050 kr
+  // er målt salg fra femten dager. Kortet sa altså to riktige ting som
+  // til sammen ble feil.
+  //
+  // Så lenge kortet står med «så langt i måneden», er DET den ærlige
+  // opplysningen, og merket viker. Kilden er urørt i motoren og står
+  // alltid i «Vis grunnlaget».
+  //
+  // MERKET VIKER BARE NAAR «SAA LANGT» FAKTISK STAAR. Er måneden avlagt
+  // og et felt likevel ikke fasit, er det ekte usikkerhet — og da skal
+  // merket stå. `vakt.test.ts` krever at de to alltid er samme
+  // betingelse.
+  const saaLangt = !avlagt && felt.verdi !== null
   return (
     <div className="sq-mm-tall">
       <span className="sq-mm-tall-navn">{navn}</span>
       <span className="sq-mm-tall-verdi">
         {felt.verdi === null ? '—' : kr.format(Math.round(felt.verdi))}
       </span>
-      <Kildemerke kilde={felt.kilde} />
-      <span className="sq-mm-tall-grunn">{felt.grunn ?? ''}</span>
+      {saaLangt
+        ? <span className="sq-mm-tall-dom">så langt i måneden</span>
+        : felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}
     </div>
   )
 }
@@ -475,6 +661,9 @@ function Hovedtall({ navn, felt }: { navn: string; felt: Felt }) {
  *
  * TEGNER `reisen()` SITT SVAR. Den regner ingenting selv; hvert steg har
  * alt fått sin tilstand av en avlesning i `reise.ts`.
+ *
+ * LIGGER UNDER «Vis grunnlaget». Stripa svarer på «kan jeg stole på
+ * tallet», og det er ikke spørsmålet den som åpner siden har.
  */
 function Reisestripe({ faser, naa }: { faser: Fase[]; naa: Fase | null }) {
   return (
