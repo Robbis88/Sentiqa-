@@ -24,10 +24,15 @@
 //
 // Konsekvensen er konkret. `ansatt_avtale` er nøklet
 // `(stasjon_id, ansatt_nr)` og er sparsom — målt i produksjon 2026-09-16
-// finnes 18 rader, bare på to av fem stasjoner, og 8 av dem har
-// `lonnsform = null`. Fikk den avgjøre først, ville en avtalerad kunne
-// gjort en person med MOTSTRIDENDE identitet til «håndtert» før noen
-// hadde spurt om det i det hele tatt.
+// finnes 13 rader, bare på to av fem stasjoner (Bønes 10, Lone 3), og
+// 9 av dem har `lonnsform = null`. Fikk den avgjøre først, ville en
+// avtalerad kunne gjort en person med MOTSTRIDENDE identitet til
+// «håndtert» før noen hadde spurt om det i det hele tatt.
+//
+// RETTET I B2b: her sto «18 rader … 8 med null». Tallet var feil da det
+// ble skrevet; sonden viste 13 og 9. Argumentet er uendret — sparsomheten
+// er om mulig sterkere — men et målt tall som ikke stemmer er samme slags
+// gjeld som den B2a nettopp ryddet i `register.ts`.
 //
 // 1018 skal gjennom navnevetoet FØRST. Prisbarheten kommer i B2b, og
 // bare for en identitet som allerede er sikker.
