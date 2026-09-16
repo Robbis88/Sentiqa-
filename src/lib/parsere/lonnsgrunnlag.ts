@@ -358,6 +358,40 @@ export function lesLonnsgrunnlag(tekst: string): LonnsgrunnlagResultat {
  * `beregnArbeidssted` krever derfor at hvert register dekker maaneden
  * den regner.
  */
+/**
+ * Enheten paa `Loenn`-kolonnen, slik easy@work oppga den for maaneden.
+ *
+ * ===================================================================
+ * TO VERDIER, IKKE FLERE
+ * ===================================================================
+ * MAALT over alle 28 loennsgrunnlagsfilene: 518 ansattmaaneder, 511
+ * «Time» og 7 «Maaned». Ingen andre verdier finnes. Derfor er det ikke
+ * en aapen streng - en tredje frekvens ville vaert et FUNN, ikke et
+ * tilfelle som skal fanges.
+ *
+ * ASCII i domenet, norske tegn i kilden. Konverteringen skjer ÉN gang,
+ * her - ellers flyter «Måned», «Maaned» og tilfeldige varianter rundt
+ * som tre semantikker som ser like ut.
+ */
+export type Betalingsfrekvens = 'time' | 'maaned'
+
+/**
+ * Kildeverdi -> domeneverdi. Alt annet er `null`, ikke «time».
+ *
+ * EN UKJENT ENHET ER IKKE TIMER. Gjettet vi paa «time», ville et tall
+ * som kan vaere maanedsloenn blitt ganget med timene - og 48 736 x 193
+ * ser ikke ut som en feil, det ser ut som en katastrofe ingen kan
+ * forklare.
+ */
+const FREKVENS: Readonly<Record<string, Betalingsfrekvens>> = {
+  time: 'time',
+  'måned': 'maaned',
+  maaned: 'maaned',
+}
+
+const frekvens = (raa: string): Betalingsfrekvens | null =>
+  FREKVENS[raa.trim().toLowerCase()] ?? null
+
 export type Ansattregister = {
   /** Foerste og siste dagslinje i fila. */
   fraDato: string
@@ -391,6 +425,15 @@ export type Ansattrad = {
   timesats: number
   /** Hovedlokasjon — hjemstasjonen, ikke der hen jobbet. */
   hovedlokasjon: string
+  /**
+   * Enheten paa `timesats`. `null` = ukjent, ALDRI det samme som `time`.
+   *
+   * `maaned` betyr at tallet er maanedsloenn og ikke skal timeprises.
+   * Det betyr IKKE at personen koster null - fastloenn er ofte den
+   * stoerste enkeltposten. Det betyr at Sentiqa ikke skal finne paa en
+   * timesats og gange timene med den.
+   */
+  betalingsfrekvens: Betalingsfrekvens | null
 }
 
 /** En ansatt fila navngir uten å oppgi en brukbar timesats. */
@@ -400,6 +443,8 @@ export type AnsattUtenSats = {
   hovedlokasjon: string
   /** Hva som faktisk sto i «Lønn»-kolonnen, ubehandlet. */
   raaSats: string
+  /** Enheten fila oppga, selv om tallet mangler. Se `Ansattrad`. */
+  betalingsfrekvens: Betalingsfrekvens | null
 }
 
 /**
@@ -416,6 +461,16 @@ export type Ansattkonflikt = {
   ulikSats: boolean
   /** Minst to varianter oppga ulikt navn. Da er personen ikke kjent. */
   ulikNavn: boolean
+  /**
+   * Minst to rader oppga ulik ENHET, og begge var utfylt.
+   *
+   * MAALT: `Betalingsfrekvens` staar bare paa ANSATTSUM-raden, ikke paa
+   * dagslinjene. En blank enhet er derfor et FRAVAER, ikke en motstrid -
+   * teller vi den som en variant, blir hver eneste person i hver eneste
+   * fil et funn, og lista slutter aa bety noe. Bare to ULIKE UTFYLTE
+   * verdier er en konflikt.
+   */
+  ulikFrekvens: boolean
   /** Hver distinkte (navn, sats) fila ga, i den rekkefølgen de kom. */
   varianter: { ansattNavn: string; timesats: number | null }[]
 }
@@ -466,12 +521,18 @@ export function ansattregister(tekst: string): Ansattregister {
   const iSats = k('lønn')
   const iHoved = k('hovedlokasjon')
   const iDato = k('dato')
+  // ENHETEN PAA SATSEN. Kolonnen har alltid vaert der - den ble brukt
+  // til aa kjenne igjen filtypen og deretter kastet. Se `Betalingsfrekvens`.
+  const iFrekvens = k('betalingsfrekvens')
 
   // FØRSTE PASS: samle hver rad under sitt nummer. Ingenting forkastes
   // her — klassifiseringen skjer etterpå, når vi vet hva fila sa TIL
   // SAMMEN om nummeret. Kaster vi underveis, kan vi ikke se forskjell
   // på «fila sa det samme fire ganger» og «fila sa to ulike ting».
-  type Raa = { navn: string; sats: number | null; raaSats: string; hoved: string }
+  type Raa = {
+    navn: string; sats: number | null; raaSats: string; hoved: string
+    frekvens: Betalingsfrekvens | null
+  }
   const sett = new Map<string, Raa[]>()
   const datoer: string[] = []
   for (const r of rader.slice(iTopp + 1)) {
@@ -491,6 +552,7 @@ export function ansattregister(tekst: string): Ansattregister {
       sats,
       raaSats,
       hoved: (r[iHoved] ?? '').trim(),
+      frekvens: frekvens(r[iFrekvens] ?? ''),
     }
     if (liste) liste.push(rad)
     else sett.set(ansattNr, [rad])
@@ -503,23 +565,31 @@ export function ansattregister(tekst: string): Ansattregister {
   for (const [ansattNr, obs] of sett) {
     // Distinkte varianter, i den rekkefølgen fila ga dem. To rader som
     // sier NØYAKTIG det samme er én observasjon gjentatt, ikke to.
-    const varianter: { ansattNavn: string; timesats: number | null }[] = []
+    const varianter: Ansattkonflikt['varianter'] = []
     for (const r of obs) {
       if (varianter.some((v) => v.ansattNavn === r.navn && v.timesats === r.sats)) continue
       varianter.push({ ansattNavn: r.navn, timesats: r.sats })
     }
-    if (varianter.length > 1) {
+    // Bare UTFYLTE enheter sammenlignes. Se `ulikFrekvens`.
+    const frekvenser = new Set(obs.map((r) => r.frekvens).filter((x) => x !== null))
+    if (varianter.length > 1 || frekvenser.size > 1) {
       const satser = new Set(varianter.map((v) => v.timesats))
       const navn = new Set(varianter.map((v) => v.ansattNavn))
       konflikter.push({
         ansattNr,
         ulikSats: satser.size > 1,
         ulikNavn: navn.size > 1,
+        ulikFrekvens: frekvenser.size > 1,
         varianter,
       })
     }
     // Motoren er ikke rørt: den første raden med en brukbar sats vinner,
     // akkurat som før. Forskjellen er at et tap nå står i `konflikter`.
+    // Samme form som for satsen: foerste UTFYLTE verdi vinner. Enheten
+    // staar bare paa ansattsum-raden, saa den maa hentes paa tvers av
+    // radene til personen - ikke fra den raden som tilfeldigvis har
+    // satsen.
+    const enhet = obs.find((r) => r.frekvens !== null)?.frekvens ?? null
     const priset = obs.find((r) => r.sats !== null)
     if (priset) {
       ut.set(ansattNr, {
@@ -527,6 +597,7 @@ export function ansattregister(tekst: string): Ansattregister {
         ansattNavn: priset.navn,
         timesats: priset.sats as number,
         hovedlokasjon: priset.hoved,
+        betalingsfrekvens: enhet,
       })
     } else {
       const f = obs[0]
@@ -535,6 +606,7 @@ export function ansattregister(tekst: string): Ansattregister {
         ansattNavn: f.navn,
         hovedlokasjon: f.hoved,
         raaSats: f.raaSats,
+        betalingsfrekvens: enhet,
       })
     }
   }

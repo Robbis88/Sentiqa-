@@ -30,6 +30,7 @@ type Rad = {
   navn: string
   timesats: number | null
   kilde_maaned: string
+  betalingsfrekvens: string | null
 }
 
 const VARDEN = 'sss-0000-0000-0000-000000000001'
@@ -41,14 +42,21 @@ const BONES = 'sss-0000-0000-0000-000000000002'
  * ble filtrert på i basen og ikke etterpå.
  */
 function fakeKlient(rader: Rad[]) {
-  const sett: { maaned?: string; stasjoner?: readonly string[] } = {}
+  const sett: { maaned?: string; stasjoner?: readonly string[]; felt?: string[] } = {}
   const sider: number[][] = []
   const klient = {
     spurte: () => sett,
     sider: () => sider,
     from() {
       const q = {
-        select: () => q,
+        // `select` ER IKKE PYNT. Foerste utgave ignorerte lista og
+        // returnerte hele raden uansett - da kunne leseren slutte aa be
+        // om en kolonne uten at noe ble roedt. Injeksjonen som fjernet
+        // `betalingsfrekvens` fra select-en kom tilbake groenn.
+        select: (felt: string) => {
+          sett.felt = felt.split(',').map((f) => f.trim())
+          return q
+        },
         eq: (kol: string, v: string) => {
           if (kol === 'kilde_maaned') sett.maaned = v
           return q
@@ -65,8 +73,10 @@ function fakeKlient(rader: Rad[]) {
           const treff = rader
             .filter((x) => x.kilde_maaned === sett.maaned)
             .filter((x) => !sett.stasjoner || sett.stasjoner.includes(x.stasjon_id))
-            .map(({ stasjon_id, ansatt_nr, navn, timesats }) =>
-              ({ stasjon_id, ansatt_nr, navn, timesats }))
+            // Bare de kolonnene spoerringen faktisk bad om.
+            .map((x) => Object.fromEntries(
+              (sett.felt ?? []).map((f) => [f, (x as Record<string, unknown>)[f]]),
+            ))
           return Promise.resolve({ data: treff.slice(fra, til + 1), error: null })
         },
       }
@@ -81,7 +91,7 @@ function fakeKlient(rader: Rad[]) {
 }
 
 const rad = (p: Partial<Rad> & { stasjon_id: string; ansatt_nr: string }): Rad => ({
-  navn: 'A B', timesats: 180, kilde_maaned: '2026-07', ...p,
+  navn: 'A B', timesats: 180, kilde_maaned: '2026-07', betalingsfrekvens: 'time', ...p,
 })
 
 describe('hentRegister', () => {
@@ -233,5 +243,71 @@ describe('registeret mater motoren', () => {
       stemplinger: [st({ dato: '2026-04-01' })],
       registre: juli.register ? [juli.register] : [],
     })).toThrow(/kan ikke prise 2026-04/)
+  })
+})
+
+// =====================================================================
+// ROUNDTRIP: enheten overlever basen
+//
+// `timesats` uten `betalingsfrekvens` er et tall uten enhet. Mister
+// leseren feltet, er 48 736 og 138 samme slags verdi igjen — og bare
+// den ene av dem er en timesats.
+// =====================================================================
+
+describe('betalingsfrekvens overlever lesingen', () => {
+  it('baerer maaned og time ut av basen', async () => {
+    const { klient } = fakeKlient([
+      rad({ stasjon_id: BONES, ansatt_nr: '118', navn: 'Sandra S',
+        timesats: 48736, betalingsfrekvens: 'maaned' }),
+      rad({ stasjon_id: BONES, ansatt_nr: '1104265', navn: 'Carmen R',
+        timesats: 138, betalingsfrekvens: 'time' }),
+    ])
+    const r = await hentRegister(klient, '2026-07')
+    const sandra = r.register?.ansatte.find((a) => a.ansattNr === '118')
+    const carmen = r.register?.ansatte.find((a) => a.ansattNr === '1104265')
+    expect(sandra?.betalingsfrekvens).toBe('maaned')
+    expect(sandra?.timesats).toBe(48736)
+    expect(carmen?.betalingsfrekvens).toBe('time')
+  })
+
+  it('en ukjent verdi fra basen blir null, ALDRI time', async () => {
+    // Skranken i 0220 tillater bare de to verdiene, men en senere
+    // migrasjon kan utvide kolonnen. Da skal leseren si «ukjent», ikke
+    // gjette paa timer.
+    const { klient } = fakeKlient([
+      rad({ stasjon_id: BONES, ansatt_nr: '11', betalingsfrekvens: 'uke' }),
+    ])
+    const r = await hentRegister(klient, '2026-07')
+    expect(r.register?.ansatte[0].betalingsfrekvens).toBeNull()
+  })
+
+  it('null i basen forblir null', async () => {
+    // Rader skrevet FOER 0220 har ingen enhet. De skal ikke bli «time».
+    const { klient } = fakeKlient([
+      rad({ stasjon_id: BONES, ansatt_nr: '11', betalingsfrekvens: null }),
+    ])
+    const r = await hentRegister(klient, '2026-07')
+    expect(r.register?.ansatte[0].betalingsfrekvens).toBeNull()
+  })
+
+  it('ogsaa en rad uten sats baerer enheten', async () => {
+    const { klient } = fakeKlient([
+      rad({ stasjon_id: BONES, ansatt_nr: '12', timesats: null,
+        betalingsfrekvens: 'maaned' }),
+    ])
+    const r = await hentRegister(klient, '2026-07')
+    expect(r.register?.utenSats[0].betalingsfrekvens).toBe('maaned')
+  })
+})
+
+describe('den falske klienten maaler select-lista', () => {
+  it('KANARI: en kolonne som ikke bes om, finnes ikke i svaret', async () => {
+    // Uten dette kunne leseren slutte aa hente `betalingsfrekvens` uten
+    // at en eneste test ble roed - faken ville levert feltet likevel.
+    const { klient, spurte } = fakeKlient([
+      rad({ stasjon_id: BONES, ansatt_nr: '11', betalingsfrekvens: 'maaned' }),
+    ])
+    await hentRegister(klient, '2026-07')
+    expect(spurte().felt, 'leseren maa be om enheten').toContain('betalingsfrekvens')
   })
 })

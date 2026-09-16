@@ -1,6 +1,8 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Ansattregister, AnsattUtenSats } from '@/lib/parsere/lonnsgrunnlag'
+import type {
+  Ansattregister, AnsattUtenSats, Betalingsfrekvens,
+} from '@/lib/parsere/lonnsgrunnlag'
 import { hentAlle } from '@/lib/supabase/sider'
 
 // =====================================================================
@@ -49,6 +51,14 @@ export type Registerrad = {
   navn: string
   /** `null` = fila navnga personen, men oppga ingen brukbar sats. */
   timesats: number | null
+  /**
+   * Enheten paa `timesats`, slik easy@work oppga den for maaneden.
+   *
+   * `null` betyr UKJENT - enten en rad skrevet foer `0220`, eller en
+   * verdi kilden ga som vi ikke kjenner igjen. Aldri det samme som
+   * `time`.
+   */
+  betalingsfrekvens: Betalingsfrekvens | null
 }
 
 /**
@@ -114,11 +124,12 @@ export async function hentRegister(
   // stasjoner ganger tjue ansatte er hundre rader i dag; det er nettopp
   // naar det slutter aa vaere sant at dette betyr noe.
   const data = await hentAlle<{
-    stasjon_id: string; ansatt_nr: string; navn: string; timesats: number | string | null
+    stasjon_id: string; ansatt_nr: string; navn: string
+    timesats: number | string | null; betalingsfrekvens: string | null
   }>(() => {
     const q = supabase
       .from('lonnsregister')
-      .select('stasjon_id, ansatt_nr, navn, timesats')
+      .select('stasjon_id, ansatt_nr, navn, timesats, betalingsfrekvens')
       .eq('kilde_maaned', maaned)
     return stasjonIder.length > 0 ? q.in('stasjon_id', stasjonIder) : q
   })
@@ -128,6 +139,12 @@ export async function hentRegister(
     ansattNr: r.ansatt_nr as string,
     navn: r.navn as string,
     timesats: r.timesats === null ? null : Number(r.timesats),
+    // Basen har et check-constraint paa de to verdiene, saa en annen
+    // verdi kan ikke finnes. Sjekken staar likevel: en kolonne kan
+    // utvides i en senere migrasjon uten at denne lesingen blir roed.
+    betalingsfrekvens: r.betalingsfrekvens === 'time' || r.betalingsfrekvens === 'maaned'
+      ? r.betalingsfrekvens
+      : null,
   }))
   if (rader.length === 0) return { register: null, tvetydige: [] }
 
@@ -164,6 +181,7 @@ export async function hentRegister(
         ansattNr,
         ansattNavn: v.navn,
         timesats: v.timesats as number,
+        betalingsfrekvens: v.betalingsfrekvens,
         // Registeret bærer ikke hovedlokasjon — den hører til fila, og
         // motoren bruker den ikke til å prise. Hjemstasjonen er nettopp
         // det trinn 1 sluttet å lytte til.
@@ -176,6 +194,7 @@ export async function hentRegister(
         ansattNavn: v.navn,
         hovedlokasjon: '',
         raaSats: '',
+        betalingsfrekvens: v.betalingsfrekvens,
       })
     }
   }
