@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
@@ -610,6 +610,7 @@ describe('katalogvakt', () => {
     'hent_produksjonsplan', 'hent_malekort', 'hent_fokus_status',
     'sla_opp_kunnskap', 'list_oppgaver', 'list_konkurranser',
     'opprett_oppgave', 'opprett_konkurranse', 'kar_vinner',
+    'hent_lonnskost', 'hent_lonnsrom',
   ]
 
   it('katalogen inneholder nøyaktig de verktøyene den skal', () => {
@@ -667,7 +668,31 @@ describe('katalogvakt', () => {
       const andre = navn.filter((x) => x !== n).join('|')
       const neste = rest.search(new RegExp('\\n  (?:' + andre + '): '))
       const kropp = neste > 0 ? rest.slice(0, neste) : rest
-      if (!/stasjonsverktoy\(|kjorStasjonsverktoy|hentScope\(/.test(kropp)) uten.push(n)
+      if (/stasjonsverktoy\(|kjorStasjonsverktoy|hentScope\(/.test(kropp)) continue
+
+      // KROPPEN ER EN REN REFERANSE? Foelg den ett ledd.
+      //
+      // Et verktoey kan bo i sin egen modul og registreres som
+      // `navn: referanse,`. Da er kroppen ett ord, og vakten kunne
+      // ikke se scopingen. Aa gi slike verktoey et unntak ville
+      // blindet den; her leter den i modulen i stedet. Regelen er
+      // den samme - scoping skal finnes.
+      const ref = kropp.match(/^\s*[a-zA-Z_][\w]*:\s*([A-Za-z_][\w]*)\s*,/)
+      if (ref) {
+        const imp = kilde.match(
+          new RegExp('import\\s*\\{[^}]*\\b' + ref[1] + '\\b[^}]*\\}\\s*from\\s*[\'"]([^\'"]+)'),
+        )
+        if (imp) {
+          const sti = join(process.cwd(), 'src', 'lib', 'ai', imp[1].replace(/^\.\//, '') + '.ts')
+          if (existsSync(sti)) {
+            const modul = readFileSync(sti, 'utf8')
+              .split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n')
+            const j = modul.indexOf('export const ' + ref[1])
+            if (j >= 0 && /hentScope\(/.test(modul)) continue
+          }
+        }
+      }
+      uten.push(n)
     }
 
     expect(uten,

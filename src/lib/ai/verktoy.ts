@@ -14,6 +14,7 @@ import { maalKonkurranse } from '@/lib/konkurranse'
 import { lagVareprognose, utsolgtDatoer } from './vareprognose'
 import { hentSvinnbudsjett } from '@/lib/svinn/hent-budsjett'
 import { leggTilDager, type SalgsPunkt } from '@/lib/produksjonsplan'
+import { hentLonnskostVerktoy, hentLonnsromVerktoy } from './lonnsverktoy'
 
 /**
  * Verktoeynavn -> det brukeren ser i kildelista.
@@ -44,6 +45,8 @@ export const VERKTOY_ETIKETT: Record<string, string> = {
   hent_svinnbudsjett: 'kastbudsjett',
   hent_produksjonsplan: 'produksjonsplan',
   hent_malekort: 'målekort',
+  hent_lonnskost: 'lonnskost (A1)',
+  hent_lonnsrom: 'lonnsrom',
   hent_fokus_status: 'fokus',
   sla_opp_kunnskap: 'kunnskapsbasen',
   list_konkurranser: 'konkurranser',
@@ -1686,6 +1689,9 @@ export const VERKTOY: Record<string, Verktoy> = {
   ),
 
   // --- Fokus og kunnskap ---------------------------------------------
+
+  hent_lonnskost: hentLonnskostVerktoy,
+  hent_lonnsrom: hentLonnsromVerktoy,
 
   hent_fokus_status: {
     schema: {
