@@ -185,11 +185,24 @@ export function norskDato(s: string): string | null {
 
 /** «1 august 2026 00:00» → dato + klokkeslett. Null for et bart klokkeslett. */
 function datoOgTid(s: string): { dato: string; tid: string } | null {
-  const m = s.trim().match(/^(\d{1,2}\.?\s+[A-Za-zÆØÅæøå]+\s+\d{4})\s+(\d{1,2}):(\d{2})$/)
+  const m = s.trim().match(/^(\d{1,2}\.?\s+[A-Za-zÆØÅæøå]+\s+\d{4})\s+(\d{1,2}:\d{2})$/)
   if (!m) return null
   const dato = norskDato(m[1])
   if (!dato) return null
-  return { dato, tid: `${m[2].padStart(2, '0')}:${m[3]}` }
+  // ÉN REGEL FOR HVA ET KLOKKESLETT ER, IKKE TO.
+  //
+  // Denne grenen padet og returnerte tallene raatt. «12:75» slapp da
+  // gjennom og ble til 13:15 i `Date.UTC`, som regner over av seg selv -
+  // nøyaktig den feilen `tid()` ble skjerpet for, men på den DATERTE
+  // veien, som aldri kalte den.
+  //
+  // To kopier av samme regel driver fra hverandre; derfor kalles `tid()`
+  // i stedet for å gjenta grensene her. Returnerer den null, faller
+  // `lesBasiseksport` tilbake til `tid()` på hele strengen - som også
+  // gir null - og fila avvises i stedet for å bli lest halvveis.
+  const klokke = tid(m[2])
+  if (!klokke) return null
+  return { dato, tid: klokke }
 }
 
 const KLOKKE = /^(\d{1,2}):(\d{2})$/

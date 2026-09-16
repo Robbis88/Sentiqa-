@@ -245,3 +245,76 @@ describe('Basisrad bærer det kilden sa', () => {
     expect(s.fraDato).toBe('2026-08-01')
   })
 })
+
+// =====================================================================
+// ÉN REGEL FOR HVA ET KLOKKESLETT ER
+//
+// `Fra` kommer i to former: bart klokkeslett («00:00») og med hele
+// datoen foran («1 august 2026 00:00»). De leses av hver sin kodevei.
+//
+// Den DATERTE veien padet tallene og returnerte dem rått. «12:75» slapp
+// gjennom og ble til 13:15 i `Date.UTC`, som regner over av seg selv —
+// nøyaktig feilen `tid()` ble skjerpet for, men på grenen som aldri
+// kalte den. En umulig verdi ble et troverdig tidspunkt én time for
+// sent, uten at noe ble rødt.
+//
+// Testen påstår derfor ikke bare at «12:75» avvises. Den påstår at de to
+// veiene GIR SAMME SVAR — ellers kan de drive fra hverandre igjen.
+// =====================================================================
+
+describe('de to Fra-veiene har samme klokkeslettregel', () => {
+  // `Lengde` er med vilje uleselig ('x'). Da hoppes lengdekontrollen
+  // over, og det ENESTE som kan felle raden er klokkeslettet. Foerste
+  // utgave brukte `Lengde 6` mot et intervall paa 20,83 timer: raden ble
+  // et LENGDEavvik, fila sto uten gyldige vakter og kastet - og testen
+  // rapporterte «avvist» for en helt annen grunn enn den maalte.
+  const medDato = (klokke: string) => fil(
+    rad('31 juli 2026', '308', 'A B', 'Betalt tid', `1 august 2026 ${klokke}`, '06:00', 'x'),
+  )
+  const utenDato = (klokke: string) => fil(
+    rad('1 august 2026', '308', 'A B', 'Betalt tid', klokke, '06:00', 'x'),
+  )
+  const godtas = (bygg: (k: string) => string, klokke: string) => {
+    try {
+      lesBasiseksport(bygg(klokke))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // `24:00` godtas av `tid()` som slutten av døgnet; `24:01` og `25:00`
+  // finnes ikke. Tabellen speiler den kontrakten, den lager ikke en ny.
+  const tilfeller: [string, boolean][] = [
+    ['00:00', true],
+    ['09:10', true],
+    ['23:59', true],
+    ['24:00', true],
+    ['12:75', false],
+    ['09:60', false],
+    ['24:01', false],
+    ['25:00', false],
+  ]
+
+  for (const [klokke, gyldig] of tilfeller) {
+    it(`«${klokke}» ${gyldig ? 'godtas' : 'avvises'} på begge veiene`, () => {
+      expect(godtas(medDato, klokke), `med dato foran: «1 august 2026 ${klokke}»`).toBe(gyldig)
+      expect(godtas(utenDato, klokke), `bart klokkeslett: «${klokke}»`).toBe(gyldig)
+    })
+  }
+
+  it('KANARI: tabellen skiller faktisk mellom gyldig og ugyldig', () => {
+    // Godtok parseren alt, ville hver rad over vært «true» og halve
+    // tabellen målt ingenting. Uten denne kunne testen vært grønn mens
+    // den var blind.
+    expect(tilfeller.filter(([, g]) => g).length).toBeGreaterThan(0)
+    expect(tilfeller.filter(([, g]) => !g).length).toBeGreaterThan(0)
+  })
+
+  it('en avvist tid stopper fila, den blir ikke lest halvveis', () => {
+    // FALLER `datoOgTid` TILBAKE, må `tid()` på hele strengen også gi
+    // null — ellers ville en ugyldig tid blitt til forretningsdatoen med
+    // et gjettet klokkeslett.
+    expect(() => lesBasiseksport(medDato('12:75'))).toThrow(/Ugyldig «Fra»/)
+  })
+})
