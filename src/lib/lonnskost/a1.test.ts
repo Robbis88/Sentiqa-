@@ -512,6 +512,9 @@ describe('dubletter — kildens egen identitet', () => {
     ], [reg()]), INGEN_AVTALER)
     expect(ut.dubletter).toBe(0)
     expect(ut.betalteMinutter).toBe(720)
+    expect(ut.prisedeMinutter).toBe(720)
+    expect(ut.rader.map((v) => v.utfall.slag)).toEqual(['priset', 'priset'])
+    expect(ut.status).toBe('komplett')
   })
 
   it('betalt og ubetalt på samme klokkeslett er to observasjoner', () => {
@@ -522,23 +525,82 @@ describe('dubletter — kildens egen identitet', () => {
     expect(ut.dubletter).toBe(0)
     expect(ut.betalteMinutter).toBe(240)
     expect(ut.ubetalteMinutter).toBe(240)
+    expect(ut.rader.map((v) => v.utfall.slag)).toEqual(['priset', 'ubetalt'])
+    expect(ut.status).toBe('komplett')
   })
 
-  it('en ekte dublett telles og prises én gang', () => {
+  it('en ekte dublett prises EN gang og gjør måneden minimum', () => {
+    // Funnet som utløste rettelsen: første utgave gjorde `continue`, og
+    // denne testen sjekket aldri `status`. Måneden kunne melde seg som
+    // `komplett` selv om kilden hadde brutt sin egen UNIQUE, og raden
+    // fantes ikke i revisjonskjeden i det hele tatt.
+    const d = rad({ fraTid: '07:00', tilTid: '15:00', minutter: 480 })
+    const ut = beregnA1(kilder([d, { ...d }], [reg({ timesats: 100 })]), INGEN_AVTALER)
+
+    expect(ut.dubletter).toBe(1)
+    expect(ut.status).toBe('minimum')
+    if (ut.status !== 'minimum') return
+
+    // KILDEN eier universet: begge radene er betalt arbeid.
+    expect(ut.betalteMinutter).toBe(960)
+    expect(ut.prisedeMinutter).toBe(480)
+    expect(ut.uprisedeMinutter).toBe(480)
+    expect(ut.forklarteMinutter).toBe(0)
+
+    // Kronene for ÉN rad. Dubletten gir ingen.
+    expect(ut.minimum503Kr).toBeCloseTo(800, 2)   // 480 min = 8 t x 100
+    expect(ut.upriset[0].grunn).toBe('dublett')
+  })
+
+  it('INGEN observasjon forsvinner — begge radene står i revisjonskjeden', () => {
     const d = rad({ fraTid: '07:00', tilTid: '15:00', minutter: 480 })
     const ut = beregnA1(kilder([d, { ...d }], [reg()]), INGEN_AVTALER)
-    expect(ut.dubletter).toBe(1)
-    expect(ut.betalteMinutter).toBe(480)
+    expect(ut.rader).toHaveLength(2)
+    expect(ut.rader[0].utfall.slag).toBe('priset')
+    expect(ut.rader[1].utfall.slag).toBe('upriset')
+    // Den ORIGINALE raden, ikke en syntetisk erstatning.
+    expect(ut.rader[1].rad).toEqual(d)
   })
 
   it('forretningsdatoen deltar IKKE i identiteten', () => {
     // `dato` er ikke i 0219s unique. To rader som bare skiller seg der
-    // er samme kildeobservasjon.
+    // er samme kildeobservasjon - og den andre blir dublett.
     const ut = beregnA1(kilder([
       rad({ dato: '2026-08-03' }),
       rad({ dato: '2026-08-04' }),
     ], [reg()]), INGEN_AVTALER)
     expect(ut.dubletter).toBe(1)
+    expect(ut.status).toBe('minimum')
+  })
+})
+
+describe('source-conservation — kilden eier universet', () => {
+  it('motorens betalteMinutter er lik leserens', () => {
+    // Motoren faar ikke selv definere mengden den deretter beviser at
+    // den har bevart. `arbeidstid.betalteMinutter` er fasiten.
+    const d = rad({ fraTid: '07:00', tilTid: '15:00', minutter: 480 })
+    const k = kilder([
+      d, { ...d },
+      rad({ ansattNr: '9999', ansattNavn: 'Ukjent', minutter: 120 }),
+      rad({ minutter: 30, betalt: false, fraTid: '16:00', tilTid: '16:30' }),
+    ], [reg()])
+    const ut = beregnA1(k, INGEN_AVTALER)
+    expect(ut.betalteMinutter).toBe(k.arbeidstid.betalteMinutter)
+    expect(ut.betalteMinutter).toBe(1080)
+    expect(ut.prisedeMinutter + ut.forklarteMinutter + ut.uprisedeMinutter)
+      .toBe(ut.betalteMinutter)
+  })
+
+  it('kaster hvis leserens tall og motorens ikke stemmer', () => {
+    // Fixturen lyver med vilje: leseren paastaar flere betalte minutter
+    // enn radene faktisk baerer. Da skal motoren rope, ikke regne.
+    const k = kilder([rad({ minutter: 480 })], [reg()])
+    const lognaktig = {
+      ...k,
+      arbeidstid: { ...k.arbeidstid, betalteMinutter: 600 },
+    }
+    expect(() => beregnA1(lognaktig, INGEN_AVTALER))
+      .toThrow(/mistet minutter foer fordelingen/)
   })
 })
 

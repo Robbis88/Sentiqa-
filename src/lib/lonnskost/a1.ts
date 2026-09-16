@@ -93,6 +93,7 @@ export type Uprisetgrunn =
   | 'ukjent_enhet'
   | 'avvist_rad'
   | 'flere_lokasjoner'
+  | 'dublett'
 
 /**
  * Hva som skjedde med ÉN arbeidstidsrad.
@@ -217,6 +218,10 @@ const UPRISET_TEKST: Record<Uprisetgrunn, string> = {
   avvist_rad: 'Vakten lot seg ikke lese av parseren og er ikke prisbar.',
   flere_lokasjoner: 'Stasjonsmåneden oppgir flere arbeidssteder. Kronene kan '
     + 'ikke plasseres sikkert.',
+  dublett: 'Raden har samme identitet som en tidligere rad — samme ansatt, '
+    + 'fra-dato, klokkeslett og betaltstatus. `basisvakt` sin egen UNIQUE '
+    + 'utelukker det, så kilden har brutt sin kontrakt. Timene telles, men '
+    + 'prises ikke på nytt.',
 }
 
 /**
@@ -297,18 +302,35 @@ export function beregnA1(
     const unik = [
       rad.ansattNr, rad.fraDato, rad.fraTid, rad.tilTid, String(rad.betalt),
     ].join('|')
-    if (sett.has(unik)) { dubletter++; continue }
+    const upriset = (grunn: Uprisetgrunn, forklaring?: string): Vurdertrad => ({
+      rad,
+      utfall: { slag: 'upriset', grunn, forklaring: forklaring ?? UPRISET_TEKST[grunn] },
+    })
+
+    // EN DUBLETT ER KJENT ARBEID VI NEKTER AA PRISE, ikke en rad som
+    // forsvinner.
+    //
+    // Foerste utgave gjorde `dubletter++; continue`. Da ble raden aldri
+    // en `Vurdertrad`, revisjonskjeden kunne ikke peke paa den, og
+    // maaneden kunne fortsatt melde seg som `komplett` selv om kilden
+    // hadde brutt sin egen UNIQUE. Bevaringen holdt - men over et
+    // datasett motoren stilltiende hadde krympet. Det er nettopp den
+    // formen vi bygger for aa unngaa.
+    //
+    // Den ORIGINALE raden beholdes. Ingen syntetisk erstatning, ingen
+    // reduksjon til bare minutter: revisjonskjeden skal kunne vise
+    // foerste observasjon som priset og den andre som dublett.
+    if (sett.has(unik)) {
+      dubletter++
+      vurderte.push(upriset('dublett'))
+      continue
+    }
     sett.add(unik)
 
     if (!rad.betalt) {
       vurderte.push({ rad, utfall: { slag: 'ubetalt' } })
       continue
     }
-
-    const upriset = (grunn: Uprisetgrunn, forklaring?: string): Vurdertrad => ({
-      rad,
-      utfall: { slag: 'upriset', grunn, forklaring: forklaring ?? UPRISET_TEKST[grunn] },
-    })
 
     if (flereLokasjoner) { vurderte.push(upriset('flere_lokasjoner')); continue }
     if (rad.avvikGrunn !== null) { vurderte.push(upriset('avvist_rad')); continue }
@@ -446,6 +468,20 @@ export function beregnA1(
   // BEVARINGEN. Kan i teorien ikke feile - og står her fordi det er
   // nettopp den slags som skjer etter en refaktorering. Et tapt minutt
   // pynter tallet.
+  // KILDEN EIER UNIVERSET, IKKE MOTOREN.
+  //
+  // Det interne invariantet under beviser at ingenting forsvant MELLOM
+  // boettene. Denne beviser at boettene til sammen dekker det leseren
+  // faktisk leverte - motoren faar ikke selv definere mengden den
+  // deretter beviser at den har bevart.
+  if (betalteMinutter !== arbeidstid.betalteMinutter) {
+    throw new Error(
+      `A1 mistet minutter foer fordelingen: kilden ga `
+      + `${arbeidstid.betalteMinutter} betalte minutter, motoren saa `
+      + `${betalteMinutter} paa ${stasjonId} ${maaned}.`,
+    )
+  }
+
   const gjortRede = prisedeMinutter + forklarteMinutter + uprisedeMinutter
   if (gjortRede !== betalteMinutter) {
     throw new Error(
