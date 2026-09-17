@@ -131,10 +131,13 @@ async function samle(
         paaStasjon(supabase.from('sjekkpunkter').select('*', { count: 'exact', head: true }).is('slettet_tid', null)),
         paaStasjon(supabase.from('sjekkpunkt_svar').select('*', { count: 'exact', head: true }).eq('dato', idag)),
         paaStasjon(supabase.from('fokuspunkter').select('periode').is('slettet_tid', null)).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>(),
-        paaStasjon(supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv')
-          .gte('periode_slutt', idag).is('slettet_tid', null).limit(5)).overrideTypes<Konk[]>(),
-        paaStasjon(supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
-          .is('slettet_tid', null).order('dato').limit(8)).overrideTypes<Arr[]>(),
+        // Konkurranser har en deltakerliste, ikke én stasjon. Tom liste gjelder alle.
+        supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv')
+          .or(bareStasjon ? `stasjon_ids.cs.{${bareStasjon}},stasjon_ids.eq.{}` : 'stasjon_ids.not.is.null')
+          .gte('periode_slutt', idag).is('slettet_tid', null).limit(5).overrideTypes<Konk[]>(),
+        supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
+          .or(bareStasjon ? `stasjon_id.eq.${bareStasjon},stasjon_id.is.null` : 'stasjon_id.not.is.null,stasjon_id.is.null')
+          .is('slettet_tid', null).order('dato').limit(8).overrideTypes<Arr[]>(),
         // ORDNET. Sto uten `order by`, og `ukerapport` under plukket
         // `r[0]`. Med tre stasjoner var det dermed UDEFINERT hvilken
         // stasjons uketall som havnet under overskriften - basen kan
