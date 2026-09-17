@@ -1788,6 +1788,17 @@ html { scroll-behavior: smooth; }
 }
 a.sq-merkelapp:hover { color: var(--primaer); }
 
+/* Skillet mellom driften og Sentiqas egne dataproblemer.
+   ROLIG MED VILJE: bolken skal kunne oppdages, ikke konkurrere med
+   alvorsstripene i radene under. Samme uttrykk som merkelappen, bare med
+   luft over - blir den en overskrift til, har forsiden faatt enda en
+   ting som roper. */
+.sq-bolk-tittel {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tekst-svak); font-weight: 600;
+  margin: var(--luft-3) 0 var(--luft-1);
+}
+
 /* Ferskheten staar naa til hoyre i sidehodet, som statuser. */
 .sq-ferskhet { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; }
 
@@ -2502,6 +2513,88 @@ button.liten { min-height: 40px; }
   line-height: var(--linje-luftig);
   color: var(--tekst-svak);
 }
+
+/* --- Min maaned: bolkoverskrifter ----------------------------------
+   «Dette ble maaneden» / «Dette vet vi saa langt» / «Hvordan gikk det».
+   Skillet mellom hvor stor maaneden var og hvordan den gikk er hele
+   grepet: tallene over har ingen dom, tallene under har en. */
+.sq-mm-bolk {
+  margin: var(--luft-6) 0 var(--luft-3);
+  font-size: var(--tekst-liten);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tekst-svak);
+  font-weight: 600;
+}
+.sq-mm-bolk:first-of-type { margin-top: 0; }
+
+/* DOMMEN UNDER TALLET. Motorens egne ord - «1 611 kr innenfor
+   loennsrommet», «+3,98 pp / 15 632 over budsjett». Flaten snur ikke
+   fortegnet og finner ikke paa en terskel. */
+.sq-mm-tall-dom {
+  font-size: var(--tekst-liten);
+  line-height: var(--linje-luftig);
+  color: var(--tekst-svak);
+}
+
+/* GROENT OG ROEDT BARE DER EN MOTOR HAR FELT DOMMEN. Omsetning og
+   brutto staar uten farge, fordi ingen motor eier en sammenligning for
+   dem - en pil uten et budsjett bak ville vaert flatens egen mening. */
+.sq-mm-god { border-color: var(--gronn); }
+.sq-mm-god .sq-mm-tall-dom { color: var(--gronn); font-weight: 600; }
+.sq-mm-darlig { border-color: var(--rod); }
+.sq-mm-darlig .sq-mm-tall-dom { color: var(--rod); font-weight: 600; }
+
+/* --- Min maaned: tiltaket ------------------------------------------
+   KORT OPPSUMMERING, IKKE PLANEN PAA NYTT. Hele plankortet bor paa fanen
+   «Planen». To flater som tegner samme kort er to sannheter. */
+.sq-mm-tiltak {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--luft-2);
+  padding: var(--luft-5);
+  border: 1px solid var(--kant);
+  border-radius: var(--radius-stor);
+  background: var(--kort);
+}
+.sq-mm-tiltak-tittel { margin: 0; font-weight: 600; font-size: var(--tekst-tittel); }
+.sq-mm-tiltak-tekst { margin: 0; line-height: var(--linje-luftig); }
+
+/* EN PLAN FRA EN ANNEN MAANED VISES IKKE SOM ET TILTAK. Bare at den
+   finnes, og veien dit - ellers ville et juli-tiltak sett ut som et
+   septembertiltak. */
+.sq-mm-annen-plan {
+  margin: 0;
+  padding: var(--luft-4) var(--luft-5);
+  border: 1px dashed var(--kant-sterk);
+  border-radius: var(--radius);
+  color: var(--tekst-svak);
+}
+
+/* --- Min maaned: «Ikke klart ennaa» ---------------------------------
+   SEKUNDAERT OG KOMPAKT. En paagaaende maaned skal ikke organiseres
+   rundt hva Sentiqa mangler. Mangelen er en sannhet, ikke hovedhistorien
+   - saa den staar nederst, i mindre skrift, med feltets EGEN grunn. */
+.sq-mm-ikke-klart { margin-top: var(--luft-6); }
+.sq-mm-ikke-klart > h2 {
+  margin: 0 0 var(--luft-2);
+  font-size: var(--tekst-liten);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tekst-svak);
+  font-weight: 600;
+}
+.sq-mm-ikke-klart dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--luft-1) var(--luft-4);
+  font-size: var(--tekst-liten);
+  color: var(--tekst-svak);
+}
+.sq-mm-ikke-klart dt { font-weight: 600; }
+.sq-mm-ikke-klart dd { margin: 0; }
 
 /* --- Min maaned: handlingsseksjonen --------------------------------
    Planen slik eieren slapp den, gjennom samme komponent butikksjefen

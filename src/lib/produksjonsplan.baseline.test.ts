@@ -168,9 +168,25 @@ describe('utvalget, etter at det ble konfigurasjon', () => {
     // Kommentarer teller ikke. `produksjonskoder.ts` forklarer hva den
     // erstattet, og `produksjonsplan.ts` eksporterer den — en omtale er
     // ikke et kall, samme skille som `funksjoner.ts` gjør.
+    //
+    // DEN SETNINGEN STO HER FØR KODEN GJORDE DEN SANN. Skillet ble løst
+    // ved å ekskludere de to filene på NAVN, så påstanden holdt bare så
+    // lenge ingen andre nevnte konstanten. `lib/forventet/motor.ts`
+    // forklarer i en blokkkommentar hvorfor den nye motoren finnes — at
+    // produksjonsplanen bare dekker disse åtte kodene — og felte vakten
+    // 2026-09-17. En omtale, ikke et kall.
+    //
+    // Kommentarene strippes derfor nå, slik `bildevakt.test.ts` gjør.
+    // Filfiltrene blir stående: `produksjonsplan.ts` EKSPORTERER
+    // konstanten, og det er kode.
+    const utenKommentarer = (s: string) =>
+      s.replace(/\/\*[\s\S]*?\*\//g, '').split('\n')
+        .filter((l) => !l.trim().startsWith('//'))
+        .map((l) => l.replace(/\s\/\/.*$/, ''))
+        .join('\n')
     const treff = kildefiler(join(process.cwd(), 'src'))
       .filter((f) => !/produksjonsplan\.ts$|produksjonskoder\.ts$/.test(f.replace(/\\/g, '/')))
-      .filter((f) => /PRODUKSJON_KODER/.test(readFileSync(f, 'utf8')))
+      .filter((f) => /PRODUKSJON_KODER/.test(utenKommentarer(readFileSync(f, 'utf8'))))
       .map((f) => f.replace(/\\/g, '/').split('/src/')[1])
     expect(treff, 'PRODUKSJON_KODER brukes igjen i en spørring').toEqual([])
   })

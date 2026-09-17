@@ -566,11 +566,33 @@ test.describe('sjekkpunkt: ett sporsmaal av gangen', () => {
     await paaFlata(page, '/sjekkpunkt')
 
     const foerst = (await page.locator('.tsjekk-sporsmaal').textContent())?.trim()
-    await page.locator('.tsjekk-ja').click()
+    let slipp!: () => void
+    const gate = new Promise<void>((r) => { slipp = r })
+    let kall = 0
+    await page.route('**/*', async (route) => {
+      if (route.request().method() === 'POST' && route.request().headers()['next-action']) {
+        kall++
+        await gate
+      }
+      await route.continue()
+    })
+    const start = await page.evaluate(() => performance.now())
+    let feedbackMs = 0
+    try {
+      await page.locator('.tsjekk-ja').click()
+      await expect(page.getByRole('status')).toContainText('Lagrer')
+      feedbackMs = await page.evaluate(() => performance.now()) - start
+      await expect(page.locator('.tsjekk-ja')).toBeDisabled()
+      await expect(page.locator('.tsjekk-sporsmaal')).toContainText(foerst ?? '')
+      expect(kall).toBeLessThanOrEqual(1)
+    } finally { slipp() }
 
     // Neste tar plassen, og det besvarte staar igjen i lista under.
     await expect(page.locator('.tsjekk-sporsmaal'))
       .not.toContainText(foerst ?? '', { timeout: 15_000 })
     await expect(page.locator('.rutine-liste')).toContainText(foerst ?? '')
+    const lagretMs = await page.evaluate(() => performance.now()) - start
+    expect(kall).toBe(1)
+    console.log(JSON.stringify({ tablet2: 'sjekkpunkt', feedbackMs: Math.round(feedbackMs), lagretMs: Math.round(lagretMs) }))
   })
 })

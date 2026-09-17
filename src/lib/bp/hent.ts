@@ -118,7 +118,7 @@ async function lesAargang(
       .from('bp_linje')
       .select('bp_aar_id, seksjon, kode, post, belop_kr')
       .in('bp_aar_id', aargangene.map((a) => a.id))
-      .order('bp_aar_id'),
+      .order('bp_aar_id').order('id'),
   )
   return { aargangene, linjer }
 }
@@ -198,7 +198,7 @@ export async function maanederPerStasjon(
       .select('bp_aar_id, maned')
       .eq('seksjon', 'omsetning')
       .in('bp_aar_id', [...stasjonFor.keys()])
-      .order('bp_aar_id'),
+      .order('bp_aar_id').order('id'),
   )
 
   const per = new Map<string, Set<number>>()
@@ -276,7 +276,7 @@ export async function matbudsjettPerAar(
       .select('bp_aar_id, kode, post, belop_kr')
       .eq('seksjon', 'omsetning')
       .in('bp_aar_id', [...info.keys()])
-      .order('bp_aar_id'),
+      .order('bp_aar_id').order('id'),
   )
 
   const ut = new Map<number, Map<string, number>>()

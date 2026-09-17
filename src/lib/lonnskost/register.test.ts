@@ -49,6 +49,7 @@ function fakeKlient(rader: Rad[]) {
     sider: () => sider,
     from() {
       const q = {
+        order: () => q,
         // `select` ER IKKE PYNT. Foerste utgave ignorerte lista og
         // returnerte hele raden uansett - da kunne leseren slutte aa be
         // om en kolonne uten at noe ble roedt. Injeksjonen som fjernet
@@ -212,6 +213,7 @@ describe('hentRegister', () => {
 describe('registeret mater motoren', () => {
   const st = (p: Partial<Basisstempling> & { dato: string }): Basisstempling => {
     const q = {
+        order: () => q,
       ansattNr: '11', ansattNavn: 'Ida Nord', lokasjon: 'St1 - Bønes',
       fraTid: '10:00', tilTid: '16:00', betalt: true, fraDato: p.dato, ...p,
     } as Basisstempling

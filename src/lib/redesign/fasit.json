@@ -82,22 +82,6 @@
     "/venter-paa-godkjenning"
   ],
   "naabart": {
-    "butikkbruker_tablet": [
-      "/anvisninger",
-      "/ikmat",
-      "/ikmat/maaling",
-      "/lenker",
-      "/merker",
-      "/mine-opplysninger",
-      "/nyheter",
-      "/oversikt",
-      "/produksjonsplan",
-      "/rutiner",
-      "/sjekkpunkt",
-      "/stempling",
-      "/vaar-stasjon",
-      "/varsler"
-    ],
     "retailer_admin": [
       "/analyse",
       "/ansatte",
@@ -191,6 +175,22 @@
       "/tilbakemeldinger",
       "/timesalg",
       "/utsolgt"
+    ],
+    "butikkbruker_tablet": [
+      "/anvisninger",
+      "/ikmat",
+      "/ikmat/maaling",
+      "/lenker",
+      "/merker",
+      "/mine-opplysninger",
+      "/nyheter",
+      "/oversikt",
+      "/produksjonsplan",
+      "/rutiner",
+      "/sjekkpunkt",
+      "/stempling",
+      "/vaar-stasjon",
+      "/varsler"
     ],
     "plattform_redaktor": [
       "/kampanjer",
@@ -687,8 +687,10 @@
       "Tildel et merke"
     ],
     "/min-maaned": [
-      "Hva beveger resultatet?",
-      "Hva bør jeg gjøre nå?",
+      "Dette bør du gjøre",
+      "Dette bør du vite",
+      "Hvert tall, med kilden sin",
+      "Hvordan gikk det",
       "Ingen måned å vise ennå",
       "Ingen ramme for ${manedAar.format(new Date(tilIso(maaned)))}",
       "Ingen sluppet månedsplan for denne stasjonen",
@@ -696,10 +698,10 @@
       "Stasjonene kunne ikke hentes",
       "Tallene kunne ikke hentes",
       "Velg en stasjon",
-      "{stasjon} · {maanedsnavn(maaned)} {maaned.slice(0, 4)}"
+      "avlagt ? 'Dette ble måneden' : 'Dette vet vi så langt'"
     ],
     "/min-plan": [
-      "Ingen månedsplan ennå",
+      "Ingen månedsplan for ${valgtStasjon ? navnFor.get(valgtStasjon) : 'stasjonen'}",
       "Planen kunne ikke hentes",
       "{stasjon} · {maanedsnavn(maaned)} {maaned.slice(0, 4)}"
     ],

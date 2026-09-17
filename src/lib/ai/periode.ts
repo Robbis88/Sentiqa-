@@ -23,6 +23,7 @@ export type Periode = {
 }
 
 export type Periodeinput = {
+  relativ?: string
   fra?: string
   til?: string
   /** YYYY-MM. Utvides til hele måneden. */
@@ -33,6 +34,27 @@ export type Periodeinput = {
 
 const ISO_DATO = /^\d{4}-\d{2}-\d{2}$/
 const ISO_MAANED = /^\d{4}-\d{2}$/
+
+export function gyldigDato(dato: string): boolean {
+  if (!ISO_DATO.test(dato)) return false
+  const d = new Date(`${dato}T00:00:00Z`)
+  return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === dato
+}
+
+/** Avsluttede kalenderperioder, aldri relativt til siste import. */
+export function relativPeriode(tekst: string, idag: string): Periodeinput | { feil: string } {
+  const s = tekst.trim().toLowerCase()
+  const ukedag = new Date(`${idag}T00:00:00Z`).getUTCDay()
+  if (s === 'forrige uke' || s === 'sist uke') {
+    const mandag = leggTilDager(idag, -((ukedag + 6) % 7))
+    return { fra: leggTilDager(mandag, -7), til: leggTilDager(mandag, -1) }
+  }
+  if (s === 'i går' || s === 'igår') return { fra: leggTilDager(idag, -1) }
+  const dager = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
+  const match = /^(?:sist|siste|forrige) (søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag)$/.exec(s)
+  if (match) return { fra: leggTilDager(idag, -(((ukedag - dager.indexOf(match[1]) + 7) % 7) || 7)) }
+  return { feil: `Ukjent relativ periode: ${tekst}. Oppgi konkrete datoer.` }
+}
 
 /** Dagens dato i Europe/Oslo som YYYY-MM-DD. All tid i Sentiqa er norsk tid. */
 export function idagOslo(naa: Date = new Date()): string {
@@ -62,8 +84,14 @@ export function lagPeriode(
   idag: string,
   standard?: Periodeinput,
 ): Periode | { feil: string } {
-  const kilde =
-    inn.fra || inn.til || inn.maaned || inn.aar != null ? inn : (standard ?? inn)
+  let kilde =
+    inn.relativ || inn.fra || inn.til || inn.maaned || inn.aar != null ? inn : (standard ?? inn)
+  if (kilde.relativ) {
+    if (kilde.fra || kilde.til || kilde.maaned || kilde.aar != null) return { feil: 'Velg relativ periode eller konkrete datoer.' }
+    const relativ = relativPeriode(kilde.relativ, idag)
+    if ('feil' in relativ) return relativ
+    kilde = relativ
+  }
 
   let fra: string
   let til: string
@@ -82,6 +110,7 @@ export function lagPeriode(
       return { feil: `Ugyldig måned: ${kilde.maaned}. Bruk YYYY-MM.` }
     }
     const [a, m] = kilde.maaned.split('-').map(Number)
+    if (a < 2000 || a > 2100) return { feil: `Ugyldig årstall: ${a}.` }
     if (m < 1 || m > 12) return { feil: `Ugyldig måned: ${kilde.maaned}.` }
     fra = `${kilde.maaned}-01`
     til = sisteDagIMaaned(a, m)
@@ -89,8 +118,8 @@ export function lagPeriode(
   } else {
     fra = kilde.fra ?? kilde.til ?? idag
     til = kilde.til ?? kilde.fra ?? idag
-    if (!ISO_DATO.test(fra)) return { feil: `Ugyldig fra-dato: ${fra}. Bruk YYYY-MM-DD.` }
-    if (!ISO_DATO.test(til)) return { feil: `Ugyldig til-dato: ${til}. Bruk YYYY-MM-DD.` }
+    if (!gyldigDato(fra)) return { feil: `Ugyldig fra-dato: ${fra}. Bruk YYYY-MM-DD.` }
+    if (!gyldigDato(til)) return { feil: `Ugyldig til-dato: ${til}. Bruk YYYY-MM-DD.` }
     opplosning = 'dag'
   }
 

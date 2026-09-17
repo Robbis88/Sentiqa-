@@ -6,6 +6,7 @@ import type { InnloggetBruker } from '@/lib/auth/typer'
 import { ROLLE_ETIKETT } from '@/lib/auth/typer'
 import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
 import { idagOslo } from './periode'
+import { erTreffoppfolging, lesPrognose, signerPrognose, type Prognosereferanse } from './prognosereferanse'
 
 // Chatbot kjører på Sonnet (PROSJEKT.md §8/§18 — margin; hev til Opus ved behov).
 const CHATBOT_MODELL = 'claude-sonnet-4-6'
@@ -15,8 +16,8 @@ const CHATBOT_MODELL = 'claude-sonnet-4-6'
 // stopper undersøkelsen.
 const MAKS_ITERASJONER = 14
 
-export type Melding = { rolle: 'bruker' | 'assistent'; tekst: string }
-export type AssistentSvar = { svar: string; kilder: string[] }
+export type Melding = { rolle: 'bruker' | 'assistent'; tekst: string; prognoseRef?: string }
+export type AssistentSvar = { svar: string; kilder: string[]; prognoseRef?: string }
 
 
 function systemprompt(bruker: InnloggetBruker, idag: string): string {
@@ -62,7 +63,7 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     '- lønnsrom, styringsavvik, over/under på lønn   ->  hent_lonnsrom',
     '- status mot businessplan                        ->  hent_bp_status',
     '- timer mot budsjett                             ->  hent_timeregnskap',
-    '- forventet salg per vare                        ->  hent_vareprognose',
+    '- forventet salg per vare i morgen               ->  forventet_salg',
     'Finner du ikke et verktøy for tallet, si at Sentiqa ikke har det — '
     + 'ikke bygg det av noe annet.',
     '',
@@ -155,6 +156,7 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     'Alle beløp er i norske kroner eks. mva. All tid er Europe/Oslo. '
     + 'Drivstoff er holdt utenfor alle salgstall — det betjener seg selv på pumpa.',
     `Dagens dato er ${idag}.`,
+    'For historiske relative datoer som «sist søndag» og «forrige uke», send brukerens ord i relativ-feltet. Verktøyet bestemmer datoene.',
     `Brukerens rolle: ${ROLLE_ETIKETT[bruker.rolle]}.`,
   ].join('\n')
 }
@@ -218,6 +220,37 @@ export async function kjorAssistent(
   const kilder = new Set<string>()
   const tilgjengeligeVerktoy = verktoyForRolle(bruker.rolle === 'retailer_admin')
   let svar = ''
+  async function loggVerktoykall(verktoy: string, argument: Record<string, unknown>) {
+    if (!bruker.retailerId) return
+    try {
+      await supabase.from('ai_tool_log').insert({
+        retailer_id: bruker.retailerId, bruker_id: bruker.id, verktoy, argument,
+      })
+    } catch { /* Logging skal aldri velte svaret. */ }
+  }
+  let sistePrognose: Prognosereferanse | null = null
+  for (const m of historikk) {
+    if (m.rolle !== 'assistent') continue
+    const ref = lesPrognose(m.prognoseRef, bruker.id, env.ANTHROPIC_API_KEY)
+    if (ref) sistePrognose = ref
+  }
+  // En uavklart vare er ikke en prognose. Oppfølgingen gjelder siste
+  // faktisk leverte prognose, og tallene hentes gjennom autorisert verktøy.
+  if (sistePrognose && erTreffoppfolging(nyMelding)) {
+    const input = { vare: sistePrognose.vare, stasjoner: sistePrognose.stasjoner, fra: sistePrognose.fra, til: sistePrognose.til }
+    try {
+      const resultat = await VERKTOY.forventet_salg.kjor(input, { supabase, bruker })
+      await loggVerktoykall('forventet_salg', input)
+      messages.push({ role: 'assistant', content: [{ type: 'tool_use', id: 'siste_prognose', name: 'forventet_salg', input }] })
+      messages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'siste_prognose', content: JSON.stringify({
+        ...resultat as Record<string, unknown>,
+        samtalereferanse: 'Dette oppslaget gjelder siste leverte prognose som ga et tall. En senere uavklart vareforespørsel erstatter ikke den. Besvar oppfølgingen for denne varen, stasjonen og perioden; endrer brukeren dem eksplisitt, må du gjøre et nytt oppslag.',
+      }) }] })
+      kilder.add(VERKTOY_ETIKETT.forventet_salg)
+    } catch {
+      return { svar: 'Jeg fikk ikke kontrollert treffsikkerheten for den siste prognosen. Prøv igjen.', kilder: [] }
+    }
+  }
 
   for (let i = 0; i < MAKS_ITERASJONER; i++) {
     // KALLET MOT MODELLEN VAR IKKE PAKKET INN. Feilet det - for stor
@@ -275,20 +308,17 @@ export async function kjorAssistent(
         utdata = { status: 'feil', feil: `Verktøyfeil: ${String(e)}` }
       }
 
-      // Logg kallet (§8/§15). Argumentene er datoer/butikknummer — ingen PII.
-      // Logging skal aldri velte svaret → svelg ev. feil.
-      if (bruker.retailerId) {
-        try {
-          await supabase.from('ai_tool_log').insert({
-            retailer_id: bruker.retailerId,
-            bruker_id: bruker.id,
-            verktoy: block.name,
-            argument: block.input as Record<string, unknown>,
-          })
-        } catch {
-          // ignorert med vilje
+      if (block.name === 'forventet_salg') {
+        const resultat = utdata as { status?: string; data?: { ean: string; dato: string; fra?: string; til?: string; forventetAntall: number | null }[]; scope?: { besvart?: string[] } }
+        const rader = Array.isArray(resultat.data) ? resultat.data.filter((r) => r.forventetAntall != null) : []
+        if ((resultat.status === 'ok' || resultat.status === 'malt_null') && rader.length && resultat.scope?.besvart?.length) {
+          sistePrognose = { vare: rader[0].ean, stasjoner: resultat.scope.besvart, fra: rader[0].fra ?? rader[0].dato, til: rader[0].til ?? rader[0].dato }
         }
       }
+
+      // Logg kallet (§8/§15). Argumentene er datoer/butikknummer — ingen PII.
+      // Logging skal aldri velte svaret → svelg ev. feil.
+      await loggVerktoykall(block.name, block.input as Record<string, unknown>)
 
       resultater.push({
         type: 'tool_result',
@@ -301,5 +331,5 @@ export async function kjorAssistent(
   }
 
   if (!svar) svar = 'Jeg klarte ikke å fullføre svaret. Prøv å spørre litt enklere.'
-  return { svar, kilder: [...kilder] }
+  return { svar, kilder: [...kilder], ...(sistePrognose ? { prognoseRef: signerPrognose(sistePrognose, bruker.id, env.ANTHROPIC_API_KEY) } : {}) }
 }

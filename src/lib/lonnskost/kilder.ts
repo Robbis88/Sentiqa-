@@ -176,7 +176,7 @@ async function egneRader(
     .from('lonnsregister')
     .select(VELG)
     .eq('kilde_maaned', maaned)
-    .eq('stasjon_id', stasjonId)))
+    .eq('stasjon_id', stasjonId).order('id')))
 }
 
 /**

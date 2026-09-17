@@ -96,7 +96,7 @@ test.describe('/oversikt for butikksjefen', () => {
     // Og merkelappen skal beskrive den sorteringen som finnes.
     // Sida har flere seksjonshoder; det er DETTE som skal maales.
     await expect(page.locator('.sq-seksjon:has(.sq-saker) .sq-seksjon-hode'))
-      .toContainText('Etter alvor, konsekvens og varighet')
+      .toContainText('Etter alvor — og kroner og dager der de finnes')
   })
 
   test('A2 - lista staar OVER tallene, ikke under', async ({ page }) => {

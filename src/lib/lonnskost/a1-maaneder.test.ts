@@ -18,6 +18,7 @@ function fakeKlient(vakter: Rad[], register: Rad[]) {
       const kilde = tabell === 'basisvakt' ? vakter : register
       let stasjon: string | null = null
       const q = {
+        order: () => q,
         select: (f: string) => { sett.felt.push(f); return q },
         eq: (kol: string, v: string) => {
           if (kol === 'stasjon_id') { stasjon = v; sett.stasjoner.push(v) }

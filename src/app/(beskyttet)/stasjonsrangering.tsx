@@ -10,7 +10,10 @@ export type RangRad = {
   brf: Record<string, AvdVerdi>
   kost: Record<string, AvdVerdi>
   kast: number
+  /** RAATOTALEN, alle varegrupper. Vises som grunnlag, rangeres ikke paa. */
   usynlig: number
+  /** Uten vaskavdelingene. Se `erVask` i `svinn/aggreger.ts`. */
+  usynligUtenVask: number
 }
 
 // Butikksjef-påvirkbare kostnadskonti (for kostnad-fanens kilde-velger).
@@ -32,7 +35,7 @@ const FANER = [
   { id: 'brf', navn: 'Bruttofortjeneste', velger: true },
   { id: 'lonn', navn: 'Lønn %', velger: false },
   { id: 'synlig', navn: 'Synlig svinn', velger: false },
-  { id: 'usynlig', navn: 'Usynlig svinn', velger: false },
+  { id: 'usynlig', navn: 'Usynlig svinn, uten vask', velger: false },
   { id: 'kostnad', navn: 'Kostnader', velger: true },
 ]
 // Personalkostnad-konti (St1) — for lønn%-fanen.
@@ -71,7 +74,19 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
   } else if (fane === 'synlig') {
     linjer = rader.map((r) => ({ navn: r.navn, verdi: Math.round(r.kast), budsjett: null })).sort((a, b) => b.verdi - a.verdi) // verst (mest kast) øverst
   } else {
-    linjer = rader.map((r) => ({ navn: r.navn, verdi: Math.round(r.usynlig), budsjett: null })).sort((a, b) => a.verdi - b.verdi) // lavest manko = best øverst
+    // VASK RANGERES IKKE MED. Paa vask betyr negativt `usynlig_kr` at
+    // det er funnet MER brutto enn kassa tilsier - gunstig, og lite
+    // paavirkbart av daglig drift. Laa den i summen, trakk den ned et
+    // reelt svinn i varegruppene lederen faktisk styrer.
+    //
+    // Maalt juli 2026: Varden sto `−13 926` her mens oevrig drift hadde
+    // `+14 696`, og Boenes `−2 516` mot `+12 196`. Begge saa ut som
+    // overskudd. Og en stasjon uten vaskehall - Dale - kunne aldri komme
+    // oeverst, uansett hvordan den styrte svinnet sitt.
+    //
+    // `r.usynlig` staar urort ved siden av; skillet er lagt i
+    // `svinnPerStasjon`, ikke her. Flaten filtrerer ingen rader.
+    linjer = rader.map((r) => ({ navn: r.navn, verdi: Math.round(r.usynligUtenVask), budsjett: null })).sort((a, b) => a.verdi - b.verdi) // lavest manko = best øverst
   }
   const vist = visAlle ? linjer : linjer.slice(0, 3)
 

@@ -10,6 +10,7 @@ import {
   avdelingsSignaler, pulsOverskrift, rangerSignaler, type RaaSignal, type Signal,
 } from '@/lib/signaler'
 import { filtrerLukkede, treffSignaler, utsolgtSignaler } from '@/lib/signalkilder'
+import { importsaker, importtekst, type Importsak, type Jobbrad } from '@/lib/attention/importsak'
 import { Sidehode } from '@/components/ui/side'
 import { Ferskhetsstatus } from './ferskhet-status'
 import { Oppmerksomhet } from './oppmerksomhet'
@@ -55,6 +56,11 @@ type Data = {
   avvik: Avvik[]
   varsler: Varsel[]
   /**
+   * Importforsoek samlet til saker. TILSTANDEN LESES AV JOBBEN,
+   * ikke av varselet - se `lib/attention/importsak.ts`.
+   */
+  importsaker: Importsak[]
+  /**
    * Satt naar innhentingen feilet. Null naar alt gikk bra.
    *
    * ET TOMT DASHBORD OG ET DASHBORD SOM IKKE KUNNE LASTES SAA LIKE UT.
@@ -72,7 +78,7 @@ type Data = {
 const TOM: Data = {
   stasjonsnavn: 'Stasjonen', stasjoner: [], apneOppgaver: 0, forsinkede: [], uleste: 0, harKrenkelse: false,
   premieIgjen: 0, sisteDato: null, rutTot: 0, rutGjort: 0, sjekkTot: 0, sjekkSvart: 0,
-  fokus: [], ukerapport: null, konk: [], arr: [], avvik: [], varsler: [], feil: null,
+  fokus: [], ukerapport: null, konk: [], arr: [], avvik: [], varsler: [], importsaker: [], feil: null,
 }
 
 const dagerSiden = (iso: string, idag: string) =>
@@ -110,7 +116,7 @@ async function samle(
       return d.toISOString().slice(0, 10)
     })()
 
-    const [oppgRes, tilb, prem, bruk, salgDag, rutT, rutG, sjT, sjS, fokusSiste, konk, arr, stasjoner, avvikRes, varslerRes] =
+    const [oppgRes, tilb, prem, bruk, salgDag, rutT, rutG, sjT, sjS, fokusSiste, konk, arr, stasjoner, avvikRes, varslerRes, jobbRes] =
       await Promise.all([
         paaStasjon(supabase.from('oppgaver').select('id, tittel, frist, status').eq('status', 'apen').is('slettet_tid', null))
           .overrideTypes<{ id: string; tittel: string; frist: string | null; status: string }[]>(),
@@ -142,6 +148,18 @@ async function samle(
           .order('frist', { nullsFirst: false }).limit(10)).overrideTypes<Avvik[]>(),
         supabase.from('varsler').select('id, tittel, tekst, type, lenke').eq('lest', false).is('slettet_tid', null)
           .order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<Varsel[]>(),
+        // IMPORTJOBBENE, IKKE VARSLENE, EIER TILSTANDEN. Et varsel
+        // skrives én gang og lukker seg aldri; en jobb som gaar gjennom
+        // senere endrer status. Maalt 2026-09-17: 4 feilede jobber mot
+        // 25 uleste varsler.
+        //
+        // RLS avgrenser selv: `import_jobber_sjef_les` gir butikksjefen
+        // bare sine stasjoners jobber, `import_jobber_admin_les` gir
+        // eieren kjeden. Ingen filtrering her er en sikkerhetsmekanisme.
+        supabase.from('import_jobber')
+          .select('id, raa_fil_id, status, stasjon_id, feilmelding, opprettet_tid, raa_filer(filnavn)')
+          .order('opprettet_tid', { ascending: false }).limit(200)
+          .overrideTypes<Jobbrad[]>(),
       ])
 
     let fokus: FokusPunkt[] = []
@@ -196,6 +214,7 @@ async function samle(
       arr: arr.data ?? [],
       avvik: avvikRes.data ?? [],
       varsler: varslerRes.data ?? [],
+      importsaker: importsaker(jobbRes.data ?? []),
       feil: null,
     }
   } catch (e) {
@@ -262,6 +281,13 @@ function byggSignaler(d: Data, idag: string, ekstra: RaaSignal[] = []): Signal[]
 
   // Varsler fra andre motorer — bemanning i dag, flere senere.
   for (const v of d.varsler) {
+    // IMPORTVARSLER BLIR IKKE KORT LENGER.
+    //
+    // Ett varsel = ett kort var grunnen til at samme fil kunne staa fem
+    // ganger paa forsiden. Varselet er en HENDELSE; saken og tilstanden
+    // kommer fra jobbene rett under. De gamle radene blir staaende i
+    // `/varsler` som historikk - ingenting slettes.
+    if (v.type.startsWith('import_')) continue
     raa.push({
       id: `varsel-${v.id}`,
       merke: v.type.startsWith('bemanning') ? 'Bemanning' : 'Varsel',
@@ -269,6 +295,27 @@ function byggSignaler(d: Data, idag: string, ekstra: RaaSignal[] = []): Signal[]
       detalj: v.tekst ?? '',
       niva: v.type === 'bemanning_ok' ? 'info' : 'folg',
       lenke: v.lenke ?? '/varsler',
+    })
+  }
+
+  // ÉN SAK, UANSETT HVOR MANGE FORSOEK.
+  //
+  // `importtekst` er null naar ingen sak er aktiv - da staar det
+  // ingenting, og det er hele poenget. En import som gikk gjennom skal
+  // ikke ligge igjen som et roedt kort.
+  //
+  // `folg`, ikke `kritisk`: en feilet import er noe Sentiqa maa ordne,
+  // ikke noe butikksjefen skal slippe alt for. Alvoret staar ikke i
+  // forhold til «produksjonsplanen bommer 6 dager paa rad».
+  const impTekst = importtekst(d.importsaker)
+  if (impTekst) {
+    raa.push({
+      id: 'import-aktiv',
+      merke: 'Import',
+      tittel: 'Sentiqa fikk ikke lest en fil',
+      detalj: impTekst,
+      niva: 'folg',
+      lenke: '/import',
     })
   }
 

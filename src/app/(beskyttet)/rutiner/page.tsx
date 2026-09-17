@@ -12,6 +12,7 @@ import { maaVaereHele } from '@/lib/supabase/datobolker'
 import { Konfetti } from '../konfetti'
 import { Vaktvelger, type Vakt } from './vaktvelger'
 import { BildeRad } from './bilderad'
+import { RutineTrykk } from './rutinetrykk'
 import { kryssAv, kryssAvMedBilde, fjernKryss, lagreNotat } from './handlinger'
 
 type Skjema = { id: string; stasjon_id: string; vakttype: string; navn: string | null; tid_start: string; tid_slutt: string; ukedager: number[] }
@@ -407,15 +408,12 @@ export default async function RutinerSide() {
                         lagreOrd={o('Lagre bilde') ?? 'Lagre bilde'}
                       />
                     ) : (
-                      <form action={gjort ? fjernKryss : kryssAv} className="tr-form">
-                        {felt}
-                        <button
-                          type="submit" className="tr-trykk"
-                          aria-label={gjort ? 'Fjern kryss' : 'Kryss av'}
-                        >
-                          {kropp}
-                        </button>
-                      </form>
+                      <RutineTrykk
+                        handling={gjort ? fjernKryss : kryssAv}
+                        felt={felt} kropp={kropp} gjort={gjort}
+                        lagrerOrd={o('Lagrer …') ?? 'Lagrer …'}
+                        feilOrd={o('Kunne ikke lagre. Prøv igjen.') ?? 'Kunne ikke lagre. Prøv igjen.'}
+                      />
                     )}
                     {/* AA LESE OG AA SKRIVE ER TO AERENDER. Beskrivelsen
                         staar paa raden; kommentaren blir igjen her. */}

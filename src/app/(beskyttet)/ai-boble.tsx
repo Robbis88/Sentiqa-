@@ -114,8 +114,8 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
     return () => window.removeEventListener('sentiqa-ai-open', aapne)
   }, [])
 
-  function strømUt(full: string, kilder?: string[]) {
-    setMeldinger((f) => [...f, { rolle: 'assistent', tekst: '', kilder }])
+  function strømUt(full: string, kilder?: string[], prognoseRef?: string) {
+    setMeldinger((f) => [...f, { rolle: 'assistent', tekst: '', kilder, prognoseRef }])
     setStrommer(true)
     let i = 0
     const steg = Math.max(2, Math.ceil(full.length / 140)) // ferdig på ~2 sek uansett lengde
@@ -142,14 +142,14 @@ export function AiBoble({ navn, brukerId }: { navn?: string; brukerId: string })
   async function send(melding: string) {
     const m = melding.trim()
     if (!m || venter || strommer) return
-    const historikk = meldinger.map(({ rolle, tekst }) => ({ rolle, tekst }))
+    const historikk = meldinger.map(({ rolle, tekst, prognoseRef }) => ({ rolle, tekst, prognoseRef }))
     setMeldinger((f) => [...f, { rolle: 'bruker', tekst: m }])
     setTekst('')
     setVenter(true)
     try {
       const svar = await spørAssistent(historikk, m)
       setVenter(false)
-      strømUt(svar.svar, svar.kilder)
+      strømUt(svar.svar, svar.kilder, svar.prognoseRef)
     } catch (e) {
       // En utloept sesjon gir `redirect('/logg-inn')`, som kaster. Uten
       // denne linja ble innlogging til «Noe gikk galt», og brukeren satt

@@ -1,5 +1,6 @@
-import { expect, test, type Page, type Request } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { OKTFIL } from './eier'
+import { lytt, type Kall } from './oppfriskningslogg'
 
 // =====================================================================
 // KVITTERINGEN ER HANDLINGENS SVAR, IKKE OPPFRISKNINGENS
@@ -46,17 +47,6 @@ import { OKTFIL } from './eier'
 
 test.use({ storageState: OKTFIL })
 
-type Kall = {
-  url: string
-  sendt: number
-  /** Responsheaderne mottatt. */
-  svar: number | null
-  status: number | null
-  /** Kroppen mottatt. */
-  ferdig: number | null
-  feilet: number | null
-}
-
 // =====================================================================
 // FIRE HENDELSER, HOLDT FRA HVERANDRE
 // =====================================================================
@@ -89,54 +79,6 @@ type Kall = {
 // hverandre - den gamle bokfoeringen ville vist `ferdig null` og ikke
 // mer.
 // =====================================================================
-function lytt(side: Page, t0: () => number) {
-  const handling: Kall[] = []
-  const rsc: Kall[] = []
-  const revalidert: (string | null)[] = []
-
-  const erHandling = (r: Request) =>
-    r.method() === 'POST' && !!r.headers()['next-action']
-  const listeFor = (r: Request) =>
-    erHandling(r) ? handling : r.url().includes('_rsc=') ? rsc : null
-  const finn = (liste: Kall[], r: Request, felt: 'svar' | 'ferdig' | 'feilet') =>
-    [...liste].reverse().find((k) => k.url === r.url() && k[felt] === null)
-
-  side.on('request', (r) => {
-    const liste = listeFor(r)
-    if (!liste) return
-    liste.push({
-      url: r.url(),
-      sendt: Date.now() - t0(),
-      svar: null,
-      status: null,
-      ferdig: null,
-      feilet: null,
-    })
-  })
-  side.on('response', (r) => {
-    const req = r.request()
-    const liste = listeFor(req)
-    if (!liste) return
-    if (erHandling(req)) revalidert.push(r.headers()['x-action-revalidated'] ?? null)
-    const k = finn(liste, req, 'svar')
-    if (!k) return
-    k.svar = Date.now() - t0()
-    k.status = r.status()
-  })
-  side.on('requestfinished', (r) => {
-    const liste = listeFor(r)
-    const k = liste && finn(liste, r, 'ferdig')
-    if (k) k.ferdig = Date.now() - t0()
-  })
-  side.on('requestfailed', (r) => {
-    const liste = listeFor(r)
-    const k = liste && finn(liste, r, 'feilet')
-    if (k) k.feilet = Date.now() - t0()
-  })
-
-  return { handling, rsc, revalidert }
-}
-
 /** Ett oppslag av alt som er synlig i knappens eget skjema. */
 async function blikk(side: Page) {
   return side.evaluate(() => {

@@ -11,17 +11,16 @@ import { les, lesAlle, erLesefeil, type Leseresultat } from './les'
 import { returerPerKasserer, type Dagsrad } from '@/lib/kasserer/returer'
 import { finnUtsolgt, type Kandidatrad, type UtsolgtHendelse } from '@/lib/utsolgt'
 import { maalKonkurranse } from '@/lib/konkurranse'
-import { lagVareprognose, utsolgtDatoer } from './vareprognose'
 import { hentSvinnbudsjett } from '@/lib/svinn/hent-budsjett'
-import { leggTilDager, type SalgsPunkt } from '@/lib/produksjonsplan'
 import { hentLonnskostVerktoy, hentLonnsromVerktoy } from './lonnsverktoy'
+import { forventetSalgVerktoy } from './forventetverktoy'
 
 /**
  * Verktoeynavn -> det brukeren ser i kildelista.
  *
  * Eksportert for aa kunne voktes: uten etikett faller `kilder.add()`
  * tilbake paa det raa navnet, saa et nytt verktoey ville sagt
- * «hent_vareprognose» til en butikksjef. Det er ikke feil nok til aa
+ * «forventet_salg» til en butikksjef. Det er ikke feil nok til aa
  * kraesje, og derfor akkurat den slags som blir staaende.
  */
 export const VERKTOY_ETIKETT: Record<string, string> = {
@@ -41,7 +40,7 @@ export const VERKTOY_ETIKETT: Record<string, string> = {
   hent_rutiner: 'rutiner',
   hent_avvik: 'avvik og varsler',
   hent_utsolgt: 'mulig utsolgt',
-  hent_vareprognose: 'vareprognose',
+  forventet_salg: 'forventet salg',
   hent_svinnbudsjett: 'kastbudsjett',
   hent_produksjonsplan: 'produksjonsplan',
   hent_malekort: 'målekort',
@@ -94,6 +93,7 @@ const STASJON_FELT = {
 }
 
 const PERIODE_FELT = {
+  relativ: { type: 'string' as const, description: 'Historisk periode med brukerens egne ord: sist søndag, forrige uke, i går. Ikke regn om til datoer selv.' },
   fra: { type: 'string' as const, description: 'YYYY-MM-DD' },
   til: { type: 'string' as const, description: 'YYYY-MM-DD' },
   maaned: { type: 'string' as const, description: 'YYYY-MM — hele måneden' },
@@ -102,6 +102,7 @@ const PERIODE_FELT = {
 
 function periodeInput(input: Record<string, unknown>): Periodeinput {
   return {
+    relativ: typeof input.relativ === 'string' ? input.relativ : undefined,
     fra: typeof input.fra === 'string' ? input.fra : undefined,
     til: typeof input.til === 'string' ? input.til : undefined,
     maaned: typeof input.maaned === 'string' ? input.maaned : undefined,
@@ -357,6 +358,10 @@ export const VERKTOY: Record<string, Verktoy> = {
     },
   },
 
+  // Forventet salg eier `src/lib/forventet/motor.ts`. Verktoeyet er et
+  // rent grensesnitt - se blokkkommentaren i `forventetverktoy.ts`.
+  forventet_salg: forventetSalgVerktoy,
+
   hent_datadekning: stasjonsverktoy(
     'hent_datadekning',
     'Hvilke datakilder som faktisk har data per stasjon, og til hvilken dato. '
@@ -399,7 +404,12 @@ export const VERKTOY: Record<string, Verktoy> = {
     + 'trenger ingen avlagt maaned. Med grupper="vare" gaar den helt ned paa '
     + 'ENKELTVARE (f.eks. «hvor mye hvit Monster selger vi») - bruk `sok` for aa '
     + 'finne varen paa navn. Drivstoff er holdt utenfor. fra/til '
-    + 'dekker perioder som «hittil i aar» og «denne uka».',
+    + 'dekker perioder som «hittil i aar» og «denne uka». '
+    + 'DETTE ER HVA SOM ER SOLGT - fortid. Skal du si noe om hva vi '
+    + 'FORVENTER aa selge, bruk `forventet_salg`. Bygg aldri en '
+    + 'forventning av disse tallene selv, heller ikke som et snitt eller '
+    + 'en trend: da har Sentiqa to prognoser som ligner paa hverandre, og '
+    + 'ingen eier den ene.',
     {
       sok: {
         type: 'string',
@@ -464,7 +474,25 @@ export const VERKTOY: Record<string, Verktoy> = {
         // fem stasjoner er langt over `limit`, saa et filter i minnet ville
         // soekt i den vilkaarlige delen som kom med.
         const sok = typeof input.sok === 'string' ? input.sok.trim() : ''
-        if (grupper === 'vare' && sok) q = q.ilike('varenavn', `%${sok}%`)
+        // ET MENNESKE SKRIVER IKKE SOM KASSA.
+        //
+        // `ilike('%Coca Cola%')` traff ikke «COCA-COLA 0.5L»: bindestreken
+        // bryter treffet. Malt paa preview 2026-09-17 - modellen soekte
+        // «Coca Cola», fikk null rader, og konkluderte at varen «ikke er i
+        // sortimentet». Varen har 432 salgsdager paa Dale.
+        //
+        // Soeket deles derfor i ORD paa alt som ikke er bokstav/siffer, og
+        // hvert ord kreves for seg. «Coca-Cola 0,5L» blir `coca`, `cola`,
+        // `0`, `5l` - og alle fire finnes i «COCA-COLA 0.5L». Samme
+        // OG-semantikk som `forventet/varesok.ts`, uttrykt som ILIKE.
+        //
+        // IKKE FUZZY. Hvert ord maa fortsatt finnes; vi har bare sluttet aa
+        // kreve at skilletegnene staar likt. En vare blir ikke gjettet.
+        if (grupper === 'vare' && sok) {
+          for (const ord of sok.split(/[^\p{L}\p{N}]+/u).filter(Boolean)) {
+            q = q.ilike('varenavn', `%${ord}%`)
+          }
+        }
         return les<Salgsrad>(
           q.limit(50000).overrideTypes<Salgsrad[]>(),
           'v_butikksalg',
@@ -1326,7 +1354,7 @@ export const VERKTOY: Record<string, Verktoy> = {
   // «prognose per produkt», bare aldri koblet til assistenten.
   //
   // REKKEFOELGEN MELLOM DEM ER IKKE TILFELDIG. `hent_utsolgt` maa finnes
-  // foer `hent_vareprognose` kan stoles paa: en vare som var tom i fire
+  // foer en prognose kan stoles paa: en vare som var tom i fire
   // dager staar med null salg, og en prognose som leser det som lav
   // etterspoersel bestiller for lite - som gir en ny tom uke.
 
@@ -1347,7 +1375,7 @@ export const VERKTOY: Record<string, Verktoy> = {
       domene: 'utsolgt',
       kilder: ['v_butikksalg'],
       periodisert: false,
-      neste: ['hent_salg', 'hent_svinn', 'hent_vareprognose'],
+      neste: ['hent_salg', 'hent_svinn', 'forventet_salg'],
       merknad: [
         'Anslaget bygger paa at varen normalt selger jevnt. En vare som selger '
         + 'sjelden gir ingen hendelse, selv om den er tom.',
@@ -1389,135 +1417,37 @@ export const VERKTOY: Record<string, Verktoy> = {
     },
   ),
 
-  hent_vareprognose: stasjonsverktoy(
-    'hent_vareprognose',
-    'FORVENTET SALG FRAMOVER for én vare, per dag i inntil 14 dager. Bruk denne '
-    + 'paa «hvor mye X selger vi neste uke», «hvor mange boer jeg bestille», '
-    + '«hvor mange boer vi lage paa loerdag». Bygger paa fjoraarets samme ukedag '
-    + '(median +/- 2 uker) og nylig trend. Dager varen kan ha vaert utsolgt er '
-    + 'regnet som normalsalg, ellers ville tomme hyller sett ut som lav '
-    + 'etterspoersel. Svarer med forbehold naar grunnlaget er tynt - LES DEM OPP.',
-    {
-      vare: {
-        type: 'string',
-        description:
-          'Varenavn eller del av det, f.eks. «monster white». Paakrevd. '
-          + 'Treffer flere varer, spaas den som selger mest.',
-      },
-      dager: {
-        type: 'number',
-        description: 'Hvor mange dager fram. Standard 7, maks 14.',
-      },
-    },
-    {
-      domene: 'vareprognose',
-      kilder: ['v_butikksalg'],
-      periodisert: false,
-      neste: ['hent_salg', 'hent_utsolgt'],
-      merknad: [
-        'Prognosen kjenner ikke kampanjer som ikke er kjoert foer, og heller '
-        + 'ikke vaeret - den bruker fjoraarets moenster og nylig trend.',
-      ],
-      hent: async ({ supabase, stasjoner, input, idag }) => {
-        const sok = typeof input.vare === 'string' ? input.vare.trim() : ''
-        if (!sok) return { feil: 'Oppgi hvilken vare det gjelder.', manglerKilde: false, avbrutt: false }
-        const antallDager = Math.min(14, Math.max(1, Number(input.dager) || 7))
-
-        // Fjoraarsvinduet OG de siste 28 dagene, i ett kall. Motoren
-        // trenger begge: fjoraaret gir ukedagsmedianen, de ferske dagene
-        // gir trenden.
-        const fra = leggTilDager(idag, -400)
-        const { data, error } = await supabase
-          .from('v_butikksalg')
-          .select('stasjon_id, dato, ean, varenavn, varegruppe_kode, varegruppe_navn, antall')
-          .in('stasjon_id', stasjoner.map((st) => st.id))
-          .ilike('varenavn', `%${sok}%`)
-          .gte('dato', fra)
-          .lte('dato', idag)
-          .limit(50000)
-          .overrideTypes<{
-            stasjon_id: string; dato: string; ean: string | null; varenavn: string | null
-            varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null
-          }[]>()
-        if (error) return { feil: `v_butikksalg: ${error.message}`, manglerKilde: false, avbrutt: false }
-        const rader = data ?? []
-        if (rader.length === 0) return { rader: [] }
-
-        // Treffer soeket flere varer, velges den som selger mest. Aa spaa
-        // summen av «alt som heter monster» ville vaert et tall ingen kan
-        // bestille etter.
-        const perVare = new Map<string, number>()
-        for (const r of rader) {
-          const n = r.varenavn ?? '?'
-          perVare.set(n, (perVare.get(n) ?? 0) + (r.antall ?? 0))
-        }
-        const valgt = [...perVare.entries()].sort((a, b) => b[1] - a[1])[0][0]
-        const andreTreff = [...perVare.keys()].filter((n) => n !== valgt)
-
-        const sisteSalgsdato = rader.map((r) => r.dato).sort().at(-1) ?? idag
-        const ut = []
-        for (const st of stasjoner.slice(0, 8)) {
-          const mine = rader.filter((r) => r.stasjon_id === st.id && r.varenavn === valgt)
-          if (mine.length === 0) continue
-          const salg: SalgsPunkt[] = mine.map((r) => ({
-            dato: r.dato,
-            varenavn: valgt,
-            varegruppeKode: r.varegruppe_kode,
-            varegruppeNavn: r.varegruppe_navn,
-            antall: r.antall ?? 0,
-          }))
-          // FEILEN SVELGES IKKE. Uten utsolgtkorreksjonen spaar motoren paa
-          // dager der hylla var tom, og bestillingen blir for liten - som gir
-          // en ny tom uke. Aa gaa videre stille her ville vaert aa levere
-          // nettopp den feilen dette verktoeyet finnes for aa hindre.
-          const { data: kand, error: kandFeil } = await supabase.rpc('utsolgt_kandidater', {
-            p_stasjon: st.id, p_dager: 90,
-          })
-          if (kandFeil) {
-            return {
-              feil: `Kunne ikke sjekke om varen har vaert utsolgt: ${kandFeil.message}. `
-                + 'Prognosen ville da regnet tomme hyller som lav ettersporsel.',
-              manglerKilde: false,
-              avbrutt: false,
-            }
-          }
-          const utsolgt = utsolgtDatoer(
-            finnUtsolgt((kand ?? []) as Kandidatrad[], idag, 90).filter((h) => h.varenavn === valgt),
-          )
-          ut.push({
-            stasjon_id: st.id,
-            ...lagVareprognose({
-              varenavn: valgt,
-              salg,
-              utsolgt,
-              sisteSalgsdato,
-              fraDato: leggTilDager(idag, 1),
-              antallDager,
-            }),
-            andre_treff: andreTreff,
-          })
-        }
-        return { rader: ut }
-      },
-      stasjonAv: (r) => r.stasjon_id,
-      erMaltNull: (rader) => rader.length === 0,
-      form: (rader, kart) =>
-        rader.map((r) => ({
-          stasjon: kart.get(r.stasjon_id) ?? r.stasjon_id,
-          vare: r.varenavn,
-          forventet_totalt: r.sum,
-          per_dag: r.dager.map((d) => ({
-            dato: d.dato,
-            ukedag: ['søn', 'man', 'tir', 'ons', 'tor', 'fre', 'lør'][d.ukedag],
-            forventet: d.forventet,
-          })),
-          // Forbeholdene staar SIST men er ikke minst viktige - de er det
-          // eneste som skiller et tall du kan bestille etter fra en gjetning.
-          forbehold: r.forbehold,
-          andre_varer_som_traff_soeket: r.andre_treff.slice(0, 5),
-        })),
-    },
-  ),
+  // =====================================================================
+  // `hent_vareprognose` ER PENSJONERT — `forventet_salg` EIER SPOERSMAALET
+  // =====================================================================
+  //
+  // Den lovte «FORVENTET SALG FRAMOVER for én vare, per dag i inntil 14
+  // dager», og brooet dermed tre laaste kontrakter samtidig:
+  //
+  //   1  KONKURRERENDE SANNHETSEIER. To verktoey svarte paa «hvor mye
+  //      selger vi av X». `lagVareprognose` var en egen prognoseformel
+  //      inne i AI-laget - noeyaktig der en prognose ikke skal bo.
+  //   2  +14 DAGER uten backtest. Bare +1 er maalt og godkjent.
+  //   3  «Treffer flere varer, spaas den som selger mest» - det stille
+  //      valget ved tvetydighet. Fire ulike EAN er «Coca-Cola uten
+  //      sukker»; den mest solgte gir riktig svar fire av fem ganger og
+  //      feil svar usett.
+  //
+  // MAALT PAA PREVIEW 2026-09-17 (SHA 576e46d, anthropic ok): modellen
+  // valgte denne framfor `forventet_salg` og svarte at Coca-Cola 0,5L
+  // ikke var registrert paa Dale - en vare med 432 salgsdager der.
+  // `assistent.ts` rutet spoersmaalet hit, saa valget var ikke modellens.
+  //
+  // DEN GAMLE FORMELEN ER IKKE FLYTTET. Én egenskap gikk tapt og er
+  // skrevet ned i `forventet/motor.ts`: utsolgt-kompensasjon, der dager
+  // varen kan ha vaert tom lukes ut av grunnlaget. Den skal bygges paa
+  // nytt i motoren naar den skal bygges, ikke kopieres fra et
+  // pensjonert verktoey.
+  //
+  // `src/lib/ai/vareprognose.ts` hadde ingen annen konsument og er
+  // fjernet i samme slengen. Doed kode som «kanskje er nyttig» er
+  // nettopp slik to sannheter kommer tilbake.
+  // =====================================================================
 
   hent_svinnbudsjett: stasjonsverktoy(
     'hent_svinnbudsjett',

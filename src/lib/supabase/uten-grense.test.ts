@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import ts from 'typescript'
 import { maaVaereHele, TAK } from './datobolker'
 
 // =====================================================================
@@ -64,7 +65,26 @@ export function vurderte(kilde: string): number {
 /** `.from('x').select(...)`-kjeder uten en grense i samme kjede. */
 export function utenGrense(kilde: string): string[] {
   const ut: string[] = []
+  // Callbackene får range hos hjelperen. Les syntaks, ikke kommentarer
+  // eller bare ordet «hentAlle» et annet sted i samme fil.
+  const sidede = new Set<number>()
+  if (/\bhent(?:Alle|Alt)\b/.test(kilde)) {
+    const ast = ts.createSourceFile('sporring.ts', kilde, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    function fromI(n: ts.Node) {
+      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'from') sidede.add(n.expression.name.getStart() - 1)
+      ts.forEachChild(n, fromI)
+    }
+    function les(n: ts.Node) {
+      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && ['hentAlle', 'hentAlt'].includes(n.expression.text)) {
+        const callback = n.arguments[0]
+        if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) fromI(callback)
+      }
+      ts.forEachChild(n, les)
+    }
+    les(ast)
+  }
   for (const m of kilde.matchAll(KJEDE)) {
+    if (sidede.has(m.index)) continue
     const kjede = m[3]
     if (!/\.select\(/.test(kjede)) continue
     // `.single<T>()` og `.maybeSingle<T>()` har en typeparameter mellom
@@ -81,6 +101,11 @@ const filer = tsFiler(join(ROT, 'src'))
 const naa = filer.reduce((s, { kilde }) => s + utenGrense(kilde).length, 0)
 
 describe('målingen forstår det den teller', () => {
+  it('callback pagineres, men et importert hjelpernavn frikjenner ikke andre spørringer', () => {
+    expect(utenGrense("hentAlle(() => sb.from('rutiner').select('id'))\n")).toEqual([])
+    expect(utenGrense("import { hentAlle } from './sider'\nawait sb.from('rutiner').select('id')\n")).toEqual(['rutiner'])
+    expect(utenGrense("// hentAlle(() =>\nawait sb.from('rutiner').select('id')\n")).toEqual(['rutiner'])
+  })
   it('teller en select uten grense', () => {
     expect(utenGrense("await sb.from('rutiner').select('id')\n")).toEqual(['rutiner'])
   })

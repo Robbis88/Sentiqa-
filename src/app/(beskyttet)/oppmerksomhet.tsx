@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Signal } from '@/lib/signaler'
 import { Status } from '@/components/ui/status'
 import { SignalKnapper } from './signal-knapper'
+import { erSystem } from '@/lib/attention/importsak'
 
 // =====================================================================
 // Den rangerte lista — hovedinnholdet på forsiden for begge lederroller.
@@ -82,8 +83,16 @@ function grunnlag(s: Signal): string[] {
 // uleste meldinger. Da må sjefen lese alle sju for å finne de to som betyr
 // noe — nøyaktig jobben denne lista skulle spare hen for.
 function overskrift(signaler: Signal[]): string {
-  const haster = signaler.filter((s) => s.niva === 'kritisk').length
-  const resten = signaler.length - haster
+  // SYSTEMSAKER TELLES IKKE MED I OVERSKRIFTEN.
+  //
+  // «12 ting aa se paa» der syv var importfeil er ikke en overskrift -
+  // det er et tall som gjoer at man slutter aa lese. Tallet skal svare
+  // paa hvor mye BUTIKKEN trenger; systemsakene staar i sin egen bolk
+  // med sin egen tittel og forsvinner ikke av det.
+  const drift = signaler.filter((s) => !erSystem(s.merke))
+  const haster = drift.filter((s) => s.niva === 'kritisk').length
+  const resten = drift.length - haster
+  if (drift.length === 0) return 'Ingenting i driften trenger oppmerksomhet'
   if (haster === 0) return `${resten} ${resten === 1 ? 'ting' : 'ting'} å se på`
   if (resten === 0) return `${haster} ting haster`
   return `${haster} ting haster · ${resten} til orientering`
@@ -115,20 +124,58 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
             dager naar 650, et nakent folg-funn ligger paa 300.
 
             Det er ikke en feil aa rette. Det er hele grunnen til at
-            konsekvens og varighet teller: en orientering som har kostet
+            kroner og dager teller: en orientering som har kostet
             90 000 kroner i fire dager ER viktigere enn en «folg med»
-            det ikke staar noe bak. Merkelappen er derfor endret til aa
-            si hva som faktisk avgjor - de tre tingene `signaler.ts`
-            selv navngir, i den rekkefolgen den bruker dem.
+            det ikke staar noe bak.
+
+            MEN «KONSEKVENS OG VARIGHET» LOVTE OGSAA FOR MYE, og paa en
+            annen maate: det leses som at hver rad ER veid paa de tre.
+            Begge leddene er BETINGET i `poengFor` -
+
+              let p = GRUNNPOENG[s.niva]              // alltid
+              if (s.konsekvensKr) p += ...            // bare naar satt
+              if (s.dager)        p += ...            // bare naar satt
+
+            - og Regnskap-signalene (`admin-dashbord.tsx`) setter ingen
+            av dem. For dem er poenget noeyaktig 1000 eller 300, altsaa
+            alvoret alene. Maalt i produksjon 2026-09-17: 22 fenomener
+            fordelte seg paa to distinkte poengverdier.
+
+            Setningen navngir derfor de samme tre leddene som koden, med
+            betingelsen paa: alvoret alltid, kroner og dager der de
+            finnes. Den beskriver ingen ny algoritme.
 
             Grensene er maalt i `signaler.test.ts` > «hva rekkefolgen
             lover». Snur noen kontrakten, feiler de testene, og da skal
-            denne setningen endres tilbake i samme slengen. */}
-        <span className="sq-merkelapp">Etter alvor, konsekvens og varighet</span>
+            denne setningen endres i samme slengen. */}
+        <span className="sq-merkelapp">Etter alvor — og kroner og dager der de finnes</span>
       </div>
 
+      {/* =============================================================
+          TO BOLKER, ÉN KONTRAKT
+          =============================================================
+
+          Robert saa «12 ting aa se paa» der halve lista var importfeil.
+          Butikkdriften og Sentiqas egne dataproblemer laa om hverandre,
+          rangert etter samme poengsum - og en butikksjef maa vite paa
+          ett blikk om det er BUTIKKEN eller SYSTEMET som trenger noe.
+
+          Delingen er VISUELL. Begge bolker er rangert av
+          `rangerSignaler`, har samme alvorsbegrep og samme rad. Vi lager
+          ingen ny sortering og ingen ny score her.
+
+          `erSystem` leser MERKET, ikke teksten. Et merke er en
+          klassifisering satt av kallstedet; en tittel er en setning som
+          endrer seg. */}
+      {[
+        { nokkel: 'drift', rader: signaler.filter((x) => !erSystem(x.merke)), tittel: null },
+        { nokkel: 'system', rader: signaler.filter((x) => erSystem(x.merke)),
+          tittel: 'Sentiqa trenger noe' },
+      ].filter((b) => b.rader.length > 0).map((bolk) => (
+      <div key={bolk.nokkel}>
+      {bolk.tittel && <h3 className="sq-bolk-tittel">{bolk.tittel}</h3>}
       <ul className="sq-saker">
-        {signaler.map((s) => {
+        {bolk.rader.map((s) => {
           const bevis = grunnlag(s)
           return (
             <li className="sq-sak" data-niva={s.niva} key={s.id}>
@@ -171,6 +218,8 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
           )
         })}
       </ul>
+      </div>
+      ))}
     </section>
   )
 }

@@ -68,7 +68,7 @@ export async function hentAvtaler(
   const data = await hentAlle<Raa>(() => {
     const q = supabase
       .from('ansatt_avtale')
-      .select('stasjon_id, ansatt_nr, lonnsform, oppdatert_tid')
+      .select('stasjon_id, ansatt_nr, lonnsform, oppdatert_tid').order('stasjon_id').order('ansatt_nr')
     return stasjonIder.length > 0 ? q.in('stasjon_id', stasjonIder) : q
   })
 

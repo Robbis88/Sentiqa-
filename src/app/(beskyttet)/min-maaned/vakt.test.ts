@@ -147,25 +147,42 @@ describe('siden regner ingen kroner selv', () => {
     expect(kroneformateringer(SIDE).length).toBeGreaterThan(0)
   })
 
+  // ET MOTORFELT, EVENTUELT MED FORTEGNET TATT AV.
+  //
+  // `Math.round` er avrunding for VISNING: tallet er det samme, det
+  // skrives bare uten ører. `Math.abs` er heller ingen beregning HER —
+  // fortegnet bæres av ordet ved siden av («innenfor»/«over»), akkurat
+  // som `analysevisning.ts` gjør med `kr(Math.abs(n.avvikKr))` og «bedre
+  // enn»/«over». Testen under krever at ordparet faktisk står der.
+  //
+  // Alt annet — en sum, en differanse, en andel — ville vært flaten som
+  // fant på et tall.
+  const LOVLIG = /^Math\.(?:abs\(Math\.)?round\((?:felt\.verdi|avvik\.kroner|bilde\.[a-zA-Z]+\.verdi)\)\)?$/
+
   it('hvert kronetall kommer rett fra et motorfelt', () => {
-    // `Math.round` er avrunding for VISNING, ikke en beregning: tallet er
-    // det samme, det skrives bare uten ører. Alt annet — en sum, en
-    // differanse, en andel — ville vært flaten som fant på et tall.
-    const lovlig = /^Math\.round\((?:felt\.verdi|avvik\.kroner)\)$/
     for (const arg of kroneformateringer(SIDE)) {
       expect(arg.trim(), `kr.format(${arg}) regner noe siden ikke skal regne`)
-        .toMatch(lovlig)
+        .toMatch(LOVLIG)
     }
+  })
+
+  it('`Math.abs` er bare lovlig fordi ORDET bærer fortegnet', () => {
+    // Uten ordparet ville «1 611 kr lønnsrommet» vært like sant for et
+    // overforbruk som for et underforbruk. Fortegnet er ikke borte — det
+    // er flyttet fra tallet til setningen, og da må setningen finnes.
+    if (!SIDE.includes('Math.abs(')) return
+    expect(SIDE).toContain('avvik.kroner <= 0')
+    expect(SIDE).toContain("'innenfor'")
+    expect(SIDE).toContain("'over'")
   })
 
   it('KANARIFUGL: leseren ser en utregning som blir lagt inn', () => {
     const med = SIDE.replace(
-      'kr.format(Math.round(avvik.kroner))',
-      'kr.format(Math.round(bilde.lonnsrom.verdi - bilde.styringskost.verdi))',
+      'kr.format(Math.round(bilde.styringskost.verdi))',
+      'kr.format(Math.round(bilde.lonnsrom.verdi! - bilde.styringskost.verdi!))',
     )
     expect(med).not.toBe(SIDE)
-    const lovlig = /^Math\.round\((?:felt\.verdi|avvik\.kroner)\)$/
-    expect(kroneformateringer(med).some((a) => !lovlig.test(a.trim()))).toBe(true)
+    expect(kroneformateringer(med).some((a) => !LOVLIG.test(a.trim()))).toBe(true)
   })
 
   it('reise.ts inneholder ingen aritmetikk i det hele tatt', () => {
@@ -184,21 +201,87 @@ describe('siden regner ingen kroner selv', () => {
 // 2, 3, 4. HVERT TALL BÆRER KILDEN SIN UT
 // =====================================================================
 describe('ingen krone vises uten kildemerket sitt', () => {
-  it('siden har like mange kildemerker som kroneformateringer', () => {
+  it('et tall uten kildemerke er bare lovlig når det ER fasit', () => {
     // =================================================================
-    // LOV 3: KILDEN FØLGER MED UT
+    // LOV 3 MED ÉN PRESISERING: FASIT ER NORMALTILSTANDEN
     // =================================================================
     //
-    // Et tall uten merke leses som et tall man kan stole på. Det er
-    // nøyaktig feilen kildemerkingen ble bygget for: en anslått
-    // bruttofortjeneste og en avlagt ser like ut på skjermen.
+    // Her sto «like mange kildemerker som kroneformateringer». Den var
+    // riktig så lenge hvert tall bar et merke — men en avlagt måned der
+    // åtte merker alle sier «Fasit» lærer leseren å se forbi dem alle,
+    // og da er merket borte den dagen et tall faktisk er anslått. Samme
+    // begrunnelse som `kilde.tsx` alt gir for at fasit er fargeløs.
     //
-    // Tabellradene bærer merket gjennom `Tallrad` (én `kr.format`, ett
-    // `<Kildemerke`). Hovedtallene og styringsavviket er skrevet her, og
-    // må holde samme forhold.
-    const kroner = [...SIDE.matchAll(/kr\.format\(/g)].length
-    const merker = [...SIDE.matchAll(/<Kildemerke\s/g)].length
-    expect(merker, 'et kronetall paa siden mangler kildemerket sitt').toBe(kroner)
+    // Regelen er derfor: merket vises MED MINDRE kilden er fasit. Da må
+    // hvert sted som skjuler det gjøre det på nøyaktig den betingelsen —
+    // ikke på «er avlagt», ikke på «har verdi».
+    const skjult = [...SIDE.matchAll(/([a-zA-Z.]+)\s*!==\s*'fasit'\s*&&\s*\n?\s*<?Kildemerke/g)]
+    expect(skjult.length, 'ingen steder skjuler kildemerket - er regelen borte?')
+      .toBeGreaterThan(0)
+    for (const m of skjult) {
+      expect(m[1], 'kildemerket skjules paa noe annet enn kilden').toMatch(/\.kilde$/)
+    }
+    // Og drilldownen viser ALLTID merket, uansett kilde — det er der
+    // beviset bor. `Tallrad` bærer det for hver rad.
+    expect(SIDE).toContain('<Kildemerke kilde={bilde.styringsavvik.kilde} />')
+  })
+
+  it('KANARIFUGL: et merke som skjules paa feil betingelse felles', () => {
+    const med = SIDE.replace("felt.kilde !== 'fasit' && <Kildemerke", "avlagt !== 'fasit' && <Kildemerke")
+    expect(med).not.toBe(SIDE)
+    const skjult = [...med.matchAll(/([a-zA-Z.]+)\s*!==\s*'fasit'\s*&&\s*\n?\s*<?Kildemerke/g)]
+    expect(skjult.some((m) => !/\.kilde$/.test(m[1]))).toBe(true)
+  })
+
+  it('«SAA LANGT» OG KILDEMERKET ER SAMME BETINGELSE', () => {
+    // =================================================================
+    // MERKET KAN BARE VIKE NAAR EN ANNEN ÆRLIG OPPLYSNING TAR PLASSEN
+    // =================================================================
+    //
+    // `prognose` sier at tallet ikke er AVSTEMT. Ordet leses som «anslag
+    // på hvor måneden ender» — og septembers omsetning er målt salg fra
+    // femten dager. Derfor viker merket for «så langt i måneden».
+    //
+    // Men bare da. Skjøv vi merket bort uten at «så langt» sto der,
+    // ville et uavstemt tall stått helt umerket — og det er å fjerne
+    // sannhet, ikke å flytte den. De to må derfor deles på NØYAKTIG
+    // samme betingelse, i det samme uttrykket.
+    expect(SIDE).toContain('const saaLangt = !avlagt && felt.verdi !== null')
+    expect(SIDE).toContain('{saaLangt\n        ? <span className="sq-mm-tall-dom">så langt i måneden</span>')
+    expect(SIDE).toContain(": felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}")
+  })
+
+  it('KANARIFUGL: merket som forsvinner UTEN «saa langt» felles', () => {
+    const med = SIDE.replace(
+      '      {saaLangt\n        ? <span className="sq-mm-tall-dom">så langt i måneden</span>\n'
+      + "        : felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}",
+      '      {saaLangt && <span className="sq-mm-tall-dom">så langt i måneden</span>}',
+    )
+    expect(med, 'ankeret bommet').not.toBe(SIDE)
+    expect(med).not.toContain(": felt.kilde !== 'fasit' && <Kildemerke kilde={felt.kilde} />}")
+  })
+
+  it('KILDEN STAAR ALLTID I GRUNNLAGET, uansett hva kortet gjoer', () => {
+    // Polishen flytter merket bort fra kortet. Den skal ALDRI kunne
+    // flytte det bort fra beviset. `Tallrad` baerer `<Kildemerke>` for
+    // hver eneste rad, og styringsavviket har sitt eget.
+    const i = SIDE.indexOf('sporsmaal="Vis grunnlaget"')
+    expect(SIDE.slice(i)).toContain('<Kildemerke kilde={bilde.styringsavvik.kilde} />')
+    expect(SIDE.slice(i)).toContain('<Tallrad')
+  })
+
+  it('«Ikke klart ennaa» er komprimert, men hver aarsak er beholdt', () => {
+    // Sammendraget er ANTALL og FELTNAVN — en telling, ikke en ny
+    // forklaring. En felles setning ville vaert en paastand ingen motor
+    // eier: royalty mangler av en annen grunn enn loenna.
+    const i = SIDE.indexOf('sq-mm-ikke-klart')
+    const seksjon = SIDE.slice(i, SIDE.indexOf('</section>', i))
+    expect(seksjon, 'ikke sammenleggbar').toContain('<details>')
+    expect(seksjon, 'sammendraget teller ikke').toContain('{ikkeKlart.length} tall er ikke klare ennå')
+    // HVER AARSAK ER FELTETS EGEN, og den staar fortsatt.
+    expect(seksjon).toContain('{r.felt.grunn ?? \'\'}')
+    expect(seksjon, 'en felles forklaring er konstruert')
+      .not.toMatch(/kommer dagen etter|regnskapet kommer midt i/i)
   })
 
   it('et manglende tall blir en tankestrek, ikke null kroner', () => {
@@ -232,26 +315,114 @@ describe('innsiktene er vite.ts sine', () => {
     // direkte, kunne den filtrert, sortert eller lagt til en beskjed —
     // og da hadde vi to meninger om hva som haster.
     expect(bareKode(SIDE)).not.toContain('hvaBoerJegViteNaa')
-    expect(SIDE).toContain('<HvaBoerJegVite bilde={bilde} />')
+    expect(SIDE).toContain('<HvaBoerJegVite bilde={bilde}')
   })
 
   it('siden importerer ikke vite.ts', () => {
     expect(SIDE).not.toContain("from '@/lib/okonomi/vite'")
   })
 
-  it('handlingene er månedsplanens, ikke sidas egne', () => {
-    // `Planlesing` er komponenten butikksjefen leser planen med paa
-    // /min-plan. To flater som tegner det samme hver for seg er to
-    // sannheter, og forskjellen viser seg foerst i et moete.
-    expect(SIDE).toContain('<Planlesing')
-    // BARE SLUPPET OG SENDT. Et utkast er eierens forslag til seg selv;
-    // ser butikksjefen det, er godkjenningen meningsloes.
+  it('PLANEN TEGNES IKKE TO GANGER', () => {
+    // =================================================================
+    // `Planlesing` HØRER PÅ FANEN «Planen», IKKE HER
+    // =================================================================
+    //
+    // Den sto her, og var da den samme spørringen og den samme
+    // komponenten som `/min-plan` — én kodevei to steder. Måneden viser
+    // nå en KORT oppsummering og lenker videre.
+    //
+    // To flater som tegner samme kort er to sannheter, og forskjellen
+    // viser seg først i et møte.
+    expect(bareKode(SIDE), 'planen tegnes to ganger igjen')
+      .not.toContain('Planlesing')
+    expect(SIDE, 'veien til hele planen mangler').toContain('href="/min-plan"')
+  })
+
+  it('oppsummeringen viser det ENE tiltaket, ikke hele planen', () => {
+    // `plan.ts` gir høyst ett tiltak — «ÉN ting. Den største.»
+    // Bekreftelser er ikke noe å gjøre, og hører ikke under
+    // overskriften «Dette bør du gjøre».
+    expect(SIDE).toContain("p.slag === 'tiltak'")
+  })
+
+  it('en plan fra EN ANNEN MÅNED vises ikke som et tiltak', () => {
+    // Sto juli-tiltaket i klartekst under septembertall, ville det sett
+    // ut som et septembertiltak — og ingenting på skjermen ville sagt at
+    // de to måler ulike perioder.
+    expect(SIDE).toContain('planErEnAnnenMaaned ? (')
+    const i = SIDE.indexOf('planErEnAnnenMaaned ? (')
+    const gren = SIDE.slice(i, SIDE.indexOf(') : (', i))
+    expect(gren, 'tiltaket lekker inn i annen-maaned-grenen').not.toContain('tiltaket(')
+    expect(gren).toContain('Siste sluppede plan er fra')
+  })
+
+  it('matkastet hører til PLANENS måned, ikke velgerens', () => {
+    // Analysen er et frosset øyeblikksbilde paa den sluppede planen, og
+    // den gjelder planens maaned. `planForMaaneden` er null naar de to
+    // ikke er den samme — da vises ingen matkast, ikke juli sitt.
+    expect(SIDE).toContain('const matkast = planForMaaneden')
+    expect(SIDE).not.toMatch(/matkastvisning\(lesMatkast\(plan\.matkast\)\)/)
+  })
+
+  it('bare sluppet og sendt', () => {
+    // Et utkast er eierens forslag til seg selv; ser butikksjefen det,
+    // er godkjenningen meningsloes.
     //
     // HELE KALLET, IKKE DELSTRENGEN. Her sto `toContain("'sluppet',
     // 'sendt'")`, og en injeksjon som la til `'utkast'` kom GROENN
-    // tilbake - delstrengen sto der fortsatt. Samme form som en
-    // komponentsjekk paa `<TabletSkall` som ogsaa matchet `<TabletSkallX`.
+    // tilbake - delstrengen sto der fortsatt.
     expect(SIDE).toContain(".in('status', ['sluppet', 'sendt'])")
+  })
+
+  it('MANGLER STÅR NEDERST OG KOMPAKT, med feltets egen grunn', () => {
+    // En paagaaende maaned skal ikke organiseres rundt hva Sentiqa
+    // mangler. Og teksten er `bilde.ts` sin: hvert felt baerer `grunn`
+    // naar det mangler. En egen setning her — «loennsfila kommer dagen
+    // etter maaneden» — ville vaert en paastand ingen kontrakt eier.
+    expect(SIDE).toContain("r.felt.kilde === 'mangler'")
+    expect(SIDE).toContain('{r.felt.grunn ?? \'\'}')
+
+    // =================================================================
+    // ANKERET MAA VAERE MARKUP, IKKE PROSA
+    // =================================================================
+    //
+    // Her sto `indexOf('Dette bør du gjøre')`. Den setningen staar ogsaa
+    // i filhodets forklaring, paa posisjon 1439 - altsaa foer ALT annet.
+    // Rekkefoelgevakten maalte derfor mot et anker som aldri flytter
+    // seg, og en injeksjon som la mangelseksjonen oeverst kom groenn
+    // tilbake.
+    //
+    // Klassenavnene finnes bare i markupen, og `sq-mm-ikke-klart` skal
+    // dessuten finnes NOEYAKTIG én gang - to seksjoner ville gjort
+    // «etter» meningsloest.
+    const treff = [...SIDE.matchAll(/sq-mm-ikke-klart/g)]
+    expect(treff, 'mangelseksjonen staar flere steder').toHaveLength(1)
+    expect(treff[0].index, 'mangelseksjonen staar foer handlingen')
+      .toBeGreaterThan(SIDE.indexOf('sq-mm-handling'))
+  })
+
+  it('KANARIFUGL: rekkefoelgevakten ser en seksjon som flyttes opp', () => {
+    const med = SIDE.replace(
+      '      <section className="sq-mm-handling">',
+      '      <section className="sq-mm-ikke-klart" />\n      <section className="sq-mm-handling">',
+    )
+    expect(med).not.toBe(SIDE)
+    const treff = [...med.matchAll(/sq-mm-ikke-klart/g)]
+    expect(treff.length > 1 || treff[0].index! < med.indexOf('sq-mm-handling')).toBe(true)
+  })
+
+  it('SPORBARHETEN ER FLYTTET, IKKE FJERNET', () => {
+    // Progressive disclosure: enkelt foerst, bevis naar man ber om det.
+    // Alt som sto paa foerste skjerm skal fortsatt finnes - reisestripa,
+    // hele tabellen med kilde og grunnlag, og ordforklaringen.
+    const i = SIDE.indexOf('sporsmaal="Vis grunnlaget"')
+    expect(i, '«Vis grunnlaget» mangler').toBeGreaterThan(0)
+    const under = SIDE.slice(i)
+    expect(under, 'reisestripa er borte').toContain('<Reisestripe')
+    expect(under, 'tallgrunnlaget er borte').toContain('<Tallrad')
+    expect(under, 'kildekolonnen er borte').toContain('<th>Kilde</th>')
+    expect(under, 'grunnlagskolonnen er borte').toContain('<th>Grunnlag</th>')
+    expect(under, 'ordforklaringen er borte').toContain('<strong>prognose</strong>')
   })
 })
 

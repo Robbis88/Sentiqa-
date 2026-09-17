@@ -39,6 +39,7 @@ function fakeKlient(rader: Rad[]) {
     sider: () => sider,
     from() {
       const q = {
+        order: () => q,
         select: (felt: string) => {
           sett.felt = felt.split(',').map((f) => f.trim())
           return q

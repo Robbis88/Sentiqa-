@@ -149,7 +149,7 @@ export async function hentRegister(
     const q = supabase
       .from('lonnsregister')
       .select('stasjon_id, ansatt_nr, navn, timesats, betalingsfrekvens')
-      .eq('kilde_maaned', maaned)
+      .eq('kilde_maaned', maaned).order('id')
     return stasjonIder.length > 0 ? q.in('stasjon_id', stasjonIder) : q
   })
 
