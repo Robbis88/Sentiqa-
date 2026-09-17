@@ -1844,7 +1844,7 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-endring { font-weight: 700; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
 .sq-sak[data-niva='kritisk'] .sq-endring { color: var(--rod); }
 .sq-sak[data-niva='folg'] .sq-endring { color: var(--gul); }
-.sq-sak-under { color: var(--tekst-svak); font-size: 0.86rem; }
+.sq-sak-under { color: var(--tekst-svak); font-size: 0.86rem; overflow-wrap: anywhere; }
 .sq-sak-hoyre {
   display: flex; align-items: center; gap: 0.8rem; color: var(--tekst-svak);
 }
