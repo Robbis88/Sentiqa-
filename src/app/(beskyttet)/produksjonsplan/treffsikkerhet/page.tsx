@@ -12,6 +12,7 @@ import { OppdaterKnapp } from './oppdater-knapp'
 import { hentTreff, type TreffRad } from './hent-treff'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sideramme } from '@/components/ui/sideramme'
+import { maaVaereHele } from '@/lib/supabase/datobolker'
 
 // Backtesten kan ta litt når den kjøres fra knappen (motorene × ~60 dager × stasjoner).
 export const maxDuration = 120
@@ -20,13 +21,8 @@ type Type = 'produksjonsplan' | 'salgsprognose'
 
 
 const AVD_NAVN = new Map(AVDELINGER.map((a) => [a.kode, a.navn]))
-const PROD_NAVN = new Map<string, string>([
-  ['1201', 'Boller'], ['1202', 'Brød/bakst'], ['1203', 'Smørbrød'],
-  ['1216', 'Varmmat'], ['1217', 'Pølser'], ['1218', 'Kylling'],
-  ['1219', 'Søtt'], ['1221', 'Salat'],
-])
-function katNavn(type: Type, kode: string): string {
-  return (type === 'salgsprognose' ? AVD_NAVN.get(kode) : PROD_NAVN.get(kode)) ?? `Kode ${kode}`
+function katNavn(type: Type, kode: string, produksjonsNavn: Map<string, string>): string {
+  return (type === 'salgsprognose' ? AVD_NAVN.get(kode) : produksjonsNavn.get(kode)) ?? `Kode ${kode}`
 }
 
 /**
@@ -49,6 +45,12 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
   if (!erLeder(bruker.rolle)) return <p>Du har ikke tilgang.</p>
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
+  const navnSvar = await supabase.from('retailer_koderegel').select('kode, navn')
+    .eq('retailer_id', bruker.retailerId!).eq('rolle', 'produksjon').eq('nivaa', 'varegruppe')
+    .limit(1000).overrideTypes<{ kode: string | null; navn: string | null }[]>()
+  if (!navnSvar.error && !navnSvar.data) throw new Error('Mangler svar om produksjonskategorier.')
+  const produksjonsNavn = new Map(maaVaereHele(navnSvar, 'produksjonskategorier')
+    .filter((r) => r.kode && r.navn).map((r) => [r.kode!, r.navn!] as const))
 
   const { data: alleStasjoner } = await supabase
     .from('stasjoner').select('id, butikknummer, navn').is('slettet_tid', null).order('butikknummer')
@@ -134,7 +136,7 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
           <tbody>
             {t.kategorier.map((k) => (
               <tr key={k.kode}>
-                <td>{katNavn(type, k.kode)}</td>
+                <td>{katNavn(type, k.kode, produksjonsNavn)}</td>
                 <td><Status nivaa={nivaaFor(k.treff)}>{k.treff} % · {ordFor(k.treff)}</Status></td>
                 <td>{fmt(Math.round(k.forventet))}</td>
                 <td>{fmt(Math.round(k.faktisk))}</td>
@@ -169,7 +171,7 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
   const svar = snittDeler.length === 0
     ? null
     : `Treffer ${snittDeler.join(' og ')}${maalteDager ? ` over ${maalteDager} målte dager` : ''}`
-      + (svakest ? `. Svakest på ${katNavn(svakest.type, svakest.kode)} (${svakest.treff} %)` : '')
+      + (svakest ? `. Svakest på ${katNavn(svakest.type, svakest.kode, produksjonsNavn)} (${svakest.treff} %)` : '')
 
   return (
     <Sideramme>
@@ -269,8 +271,9 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
             <p>
               Faktoren er klemt mellom 0,6 og 1,6 og krever minst 8 målte dager bak
               seg. Begge deler for å hindre at noen få rare dager får lov til å dra
-              prognosen langt av gårde. Den oppdateres hver natt, så treffsikkerheten
-              skal stige over tid.
+              prognosen langt av gårde. Den oppdateres hver natt. Målingen over
+              vurderer råprognosen med dagens lærte værprofil og historisk faktisk
+              vær; den beviser ikke at kalibreringen forbedrer framtidige forslag.
             </p>
             <p>
               Kategoriene står med svakeste treff øverst — det er der det er mest å

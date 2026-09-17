@@ -41,13 +41,15 @@ export type Produksjonsoppsett =
  */
 export async function hentProduksjonskoder(
   supabase: SupabaseClient,
+  retailerId?: string,
 ): Promise<Produksjonsoppsett> {
-  const { data, error } = await supabase
+  let sporring = supabase
     .from('retailer_koderegel')
     .select('kode')
     .eq('rolle', 'produksjon')
     .eq('nivaa', 'varegruppe')
-    .overrideTypes<{ kode: string | null }[]>()
+  if (retailerId) sporring = sporring.eq('retailer_id', retailerId)
+  const { data, error } = await sporring.overrideTypes<{ kode: string | null }[]>()
 
   if (error) throw new Error(`retailer_koderegel: ${error.message}`)
 

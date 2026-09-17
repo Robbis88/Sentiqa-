@@ -31,6 +31,7 @@ declare
     'beregn_stasjon_kunder',
     'beregn_vaerprofil',
     'bp_maaned_for_mine_stasjoner',
+    'erstatt_prognosehistorikk',
     'gjeldende_retailer_id',
     'gjeldende_rolle',
     'har_stasjonstilgang',
@@ -46,6 +47,7 @@ declare
     'malekort_stasjoner',
     'matsalg_vindu_sum',
     'mine_stasjoner',
+    'publiser_produksjonsplan',
     'regnskap_sum',
     'sett_avvik_lopenr',
     'sett_oppdatert_tid',
@@ -98,7 +100,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       36                          as forventet_av_migrasjonene
+       38                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

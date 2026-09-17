@@ -1,5 +1,7 @@
 // Backtest + selvlæring for prognosene. For hver historiske dag «spoler vi
-// tilbake» (bruker KUN data fra før den dagen) og kjører nøyaktig samme motorer
+// tilbake» med salg fra før den dagen. Vær og konfigurasjon er dagens
+// historiske scenario, ikke et arkiv over hva som faktisk var kjent da.
+// Den kjører de samme motorene
 // som skjermen — lagProduksjonsplan + lagSalgsprognose — og sammenligner med
 // faktisk salg. Resultatet lagres i prognose_treff (treffsikkerhet) og
 // destilleres til prognose_kalibrering (korreksjonsfaktor pr stasjon/kategori),
@@ -7,13 +9,15 @@
 // regningen er de rene motorene. Kjøres med service-role (natt/knapp) → omgår
 // RLS og slipper 1000-rad-fella via paginert henting.
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { lagProduksjonsplan, leggTilDager, type SalgsPunkt, type Vaerdag } from './produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, produksjonsreferanse, type SalgsPunkt, type Vaerdag } from './produksjonsplan'
 import { hentProduksjonskoder } from './produksjonskoder'
 import { lagSalgsprognose, type AvdSalg } from './salgsprognose'
 import { hentVaerKoeff } from './vaerprofil'
 import { erHelligdag } from './helligdager'
 import { hentAlt } from './paginer'
 import { idagOslo } from './ai/periode'
+import { fjorHelligdag } from './helligdager'
+import { maaVaereHele } from './supabase/datobolker'
 
 type Klient = SupabaseClient
 const UTELAT = new Set(['250', '40']) // pant/CR; drivstoff er allerede fjernet i v_butikksalg
@@ -49,7 +53,7 @@ export async function kjorBacktestForStasjon(
   // AA KJOERE VIDERE MED TOM KODELISTE VILLE GITT treff=0 PAA ALT - en
   // treffsikkerhet paa null prosent som ser ut som en elendig prognose,
   // ikke som en manglende konfigurasjon. Tomme lister er verre enn ingen.
-  const oppsett = await hentProduksjonskoder(supabase)
+  const oppsett = await hentProduksjonskoder(supabase, st.retailer_id)
   if (oppsett.status === 'ikke_konfigurert') return { treff: [], kalibrering: [] }
   const KODER = oppsett.koder
 
@@ -57,6 +61,13 @@ export async function kjorBacktestForStasjon(
   const vinduStart = leggTilDager(idag, -antallDager)
   const hentFra = leggTilDager(vinduStart, -400) // dekker fjor-vindu for tidligste mål-dag
   const folsomhet = st.vaerfolsomhet_laert ?? st.vaerfolsomhet ?? 0.5
+  const arrangementSvar = await supabase.from('arrangementer')
+    .select('dato, stasjon_id, faktor').eq('retailer_id', st.retailer_id)
+    .neq('status', 'forslag').is('slettet_tid', null)
+    .gte('dato', vinduStart).lt('dato', idag).limit(1000)
+    .overrideTypes<{ dato: string; stasjon_id: string | null; faktor: number }[]>()
+  if (!arrangementSvar.error && !arrangementSvar.data) throw new Error('Mangler svar om arrangementer.')
+  const arrangementer = maaVaereHele(arrangementSvar, 'backtestens arrangementer')
 
   // Produksjonssalg (antall pr produkt) + avdelingssalg (omsetning) + vær — alt for stasjonen, én gang.
   const [prodRaa, avdRaa, vaerRaa] = await Promise.all([
@@ -82,11 +93,21 @@ export async function kjorBacktestForStasjon(
   ])
 
   const prodPunkter: SalgsPunkt[] = prodRaa
-    .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
+    .map((r) => {
+      if (r.antall == null || !Number.isFinite(r.antall)) {
+        throw new Error(`Backtest mangler gyldig salgsantall for ${r.dato}. Ingen ny kalibrering lagres.`)
+      }
+      return { dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall }
+    })
     .filter((p) => p.varenavn)
   const avdPunkter: AvdSalg[] = avdRaa
     .filter((r) => r.avdeling_kode && !UTELAT.has(r.avdeling_kode))
-    .map((r) => ({ dato: r.dato, avdelingKode: r.avdeling_kode!, avdelingNavn: r.avdeling_navn ?? r.avdeling_kode!, omsetning: r.omsetning ?? 0 }))
+    .map((r) => {
+      if (r.omsetning == null || !Number.isFinite(r.omsetning)) {
+        throw new Error(`Backtest mangler gyldig omsetning for ${r.dato}. Ingen ny kalibrering lagres.`)
+      }
+      return { dato: r.dato, avdelingKode: r.avdeling_kode!, avdelingNavn: r.avdeling_navn ?? r.avdeling_kode!, omsetning: r.omsetning }
+    })
 
   // Faktisk salg pr dag (fasit): produksjon pr varegruppe, avd pr avdeling.
   const faktiskProd = new Map<string, Map<string, number>>() // dato -> varegruppe -> antall
@@ -109,14 +130,19 @@ export async function kjorBacktestForStasjon(
   for (const D of dagerMellom(vinduStart, idag)) {
     const helligdag = erHelligdag(D)
     const vMaal = vaer.get(D) ?? null
-    const vFjor = vaer.get(leggTilDager(D, -364)) ?? null
+    const referanse = produksjonsreferanse(D, leggTilDager(D, -1))
+    const fjorDato = referanse.fjorDato
+    const vFjor = vaer.get(fjorDato) ?? null
+    const arrangementFaktor = arrangementer
+      .filter((a) => a.dato === D && (a.stasjon_id === null || a.stasjon_id === st.id))
+      .reduce((f, a) => f * a.faktor, 1)
 
     // ── Produksjonsplan ──
-    const prodFor = prodPunkter.filter((p) => p.dato < D && p.dato >= leggTilDager(D, -392))
+    const prodFor = prodPunkter.filter((p) => p.dato <= referanse.til && p.dato >= referanse.fra)
     const faktiskProdDag = faktiskProd.get(D)
     if (prodFor.length > 0 && faktiskProdDag && faktiskProdDag.size > 0) {
       const sisteSalgsdato = prodFor.reduce((m, p) => (p.dato > m ? p.dato : m), prodFor[0].dato)
-      const plan = lagProduksjonsplan({ maalDato: D, sisteSalgsdato, salg: prodFor, vaerMaal: vMaal, vaerFjor: vFjor, vaerfolsomhet: folsomhet, vaerKoeff: koeffVg, helligdag })
+      const plan = lagProduksjonsplan({ maalDato: D, sisteSalgsdato, salg: prodFor, vaerMaal: vMaal, vaerFjor: vFjor, vaerfolsomhet: folsomhet, vaerKoeff: koeffVg, helligdag, fjorHelligdag: fjorHelligdag(D), arrangementFaktor })
       const forventet = new Map<string, number>()
       for (const f of plan.forslag) {
         if (!f.varegruppeKode) continue
@@ -137,7 +163,7 @@ export async function kjorBacktestForStasjon(
     const faktiskAvdDag = faktiskAvd.get(D)
     if (avdFor.length > 0 && faktiskAvdDag && faktiskAvdDag.size > 0) {
       const sisteSalgsdato = avdFor.reduce((m, p) => (p.dato > m ? p.dato : m), avdFor[0].dato)
-      const prognose = lagSalgsprognose({ maalDato: D, sisteSalgsdato, salg: avdFor, vaerMaal: vMaal, vaerFjor: vFjor, vaerfolsomhet: folsomhet, vaerKoeff: koeffAvd, stasjonstype: st.stasjonstype, helligdag })
+      const prognose = lagSalgsprognose({ maalDato: D, sisteSalgsdato, salg: avdFor, vaerMaal: vMaal, vaerFjor: vaer.get(leggTilDager(D, -364)) ?? null, vaerfolsomhet: folsomhet, vaerKoeff: koeffAvd, stasjonstype: st.stasjonstype, helligdag })
       const forventet = new Map<string, number>()
       for (const f of prognose.forslag) forventet.set(f.kode, f.forventet)
       const koder = new Set([...forventet.keys(), ...faktiskAvdDag.keys()])
@@ -172,18 +198,11 @@ export async function kjorBacktestForStasjon(
   return { treff, kalibrering }
 }
 
-async function skrivTreff(supabase: Klient, stasjonId: string, treff: TreffRad[], kalibrering: KalRad[]): Promise<void> {
-  // Erstatt forrige backtest for stasjonen (ren tavle, ingen utdaterte rader).
-  await supabase.from('prognose_treff').delete().eq('stasjon_id', stasjonId)
-  await supabase.from('prognose_kalibrering').delete().eq('stasjon_id', stasjonId)
-  for (let i = 0; i < treff.length; i += 500) {
-    const { error } = await supabase.from('prognose_treff').insert(treff.slice(i, i + 500))
-    if (error) throw new Error(`prognose_treff: ${error.message}`)
-  }
-  if (kalibrering.length > 0) {
-    const { error } = await supabase.from('prognose_kalibrering').insert(kalibrering)
-    if (error) throw new Error(`prognose_kalibrering: ${error.message}`)
-  }
+export async function skrivTreff(supabase: Klient, stasjonId: string, treff: TreffRad[], kalibrering: KalRad[]): Promise<void> {
+  const { error } = await supabase.rpc('erstatt_prognosehistorikk', {
+    p_stasjon: stasjonId, p_treff: treff, p_kalibrering: kalibrering,
+  })
+  if (error) throw new Error(`Kunne ikke erstatte prognosehistorikk: ${error.message}. Tidligere gyldig historikk er beholdt.`)
 }
 
 // ── Alle stasjoner (nattjobb) ───────────────────────────────────────────────
@@ -194,6 +213,7 @@ export async function kjorBacktestAlle(supabase: Klient, antallDager = 60): Prom
   for (const st of (data ?? []) as StasjonRad[]) {
     try {
       const { treff, kalibrering } = await kjorBacktestForStasjon(supabase, st, antallDager)
+      if (treff.length === 0) continue
       await skrivTreff(supabase, st.id, treff, kalibrering)
       n++
     } catch {
@@ -211,6 +231,7 @@ export async function kjorBacktestForRetailer(supabase: Klient, retailerId: stri
   let n = 0
   for (const st of (data ?? []) as StasjonRad[]) {
     const { treff, kalibrering } = await kjorBacktestForStasjon(supabase, st, antallDager)
+    if (treff.length === 0) continue
     await skrivTreff(supabase, st.id, treff, kalibrering)
     n++
   }
@@ -219,9 +240,10 @@ export async function kjorBacktestForRetailer(supabase: Klient, retailerId: stri
 
 // ── Hjelper: hent kalibrering for en stasjon (brukt av live-motorene) ────────
 export async function hentKalibrering(supabase: Klient, stasjonId: string, type: 'produksjonsplan' | 'salgsprognose'): Promise<Map<string, number>> {
-  const { data } = await supabase
-    .from('prognose_kalibrering').select('kategori, korreksjon').eq('stasjon_id', stasjonId).eq('type', type)
+  const svar = await supabase
+    .from('prognose_kalibrering').select('kategori, korreksjon').eq('stasjon_id', stasjonId).eq('type', type).limit(1000)
+  if (!svar.error && !svar.data) throw new Error('Mangler svar om kalibrering.')
   const m = new Map<string, number>()
-  for (const r of (data ?? []) as { kategori: string; korreksjon: number }[]) m.set(r.kategori, r.korreksjon)
+  for (const r of maaVaereHele(svar, 'kalibrering') as { kategori: string; korreksjon: number }[]) m.set(r.kategori, r.korreksjon)
   return m
 }

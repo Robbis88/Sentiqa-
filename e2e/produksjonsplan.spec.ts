@@ -67,7 +67,9 @@ test.describe('/produksjonsplan uten salgsdata', () => {
     await expect(page.locator('.sq-tom')).toBeVisible()
     // Ikke «ingen data», men hvilken FIL som mangler og hvor den legges inn.
     await expect(page.locator('.sq-tom')).toContainText(/Salgsstatistikk/i)
-    await expect(page.getByRole('link', { name: /Import/i })).toBeVisible()
+    // Butikksjefen har ikke tilgang til Import; forklar hvem som kan hjelpe.
+    await expect(page.locator('.sq-tom')).toContainText(/kjedeansvarlig/i)
+    await expect(page.locator('.sq-tom').getByRole('link', { name: /Import/i })).toHaveCount(0)
   })
 
   test('dagen kan velges selv uten data - og bare dagen', async ({ page }) => {

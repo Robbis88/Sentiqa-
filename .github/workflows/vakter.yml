@@ -247,6 +247,12 @@ jobs:
       - name: Maanedsplanens laas
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/maanedsplan_laas.sql
 
+      - name: Atomisk produksjonspublisering
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/produksjonsplan_publisering.sql
+
+      - name: Atomisk prognosehistorikk
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/prognosehistorikk_atomisk.sql
+
       # DEN EKTE TO-SESJONS-TESTEN.
       #
       # Racet `0217` lukker kan ikke maales med én sesjon: sesjon B

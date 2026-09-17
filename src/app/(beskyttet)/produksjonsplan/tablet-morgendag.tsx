@@ -21,8 +21,8 @@ import type { TabletGruppe } from './tablet-plan'
 // `loggLagd(stasjon, dato, varenavn, lagd)` tar datoen som ARGUMENT og
 // sjekker aldri at den er i dag. `logg_lagd` i basen vokter stasjon og
 // at linja finnes, ikke datoen. Fantes det en knapp her, ville et trykk
-// skrevet produksjon på en dag som ikke har begynt — og det tallet er
-// nettopp det `/produksjonsplan/treffsikkerhet` måler mot.
+// skrevet produksjon på en dag som ikke har begynt. Registrert produksjon
+// er driftsdata; dagens treffsikkerhet måler råprognosen mot salg.
 //
 // Skal morgendagen noen gang bli klikkbar, må datovernet ligge i
 // `logg_lagd` FØRST. Ikke i denne fila.

@@ -43,6 +43,7 @@ import { Signal } from '@/components/ui/status'
 // =====================================================================
 
 type Sok = { stasjon?: string; maned?: string }
+const returMengde = new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 2 })
 
 /** Rate, eller «for lite grunnlag». Aldri et tall systemet ikke kan stå inne for. */
 function Rate({ v, bonger }: { v: number | null; bonger: number }) {
@@ -159,10 +160,10 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
         <h2>Returer som bør undersøkes</h2>
         <p className="undertittel">Foreløpig regelbasert vurdering av returer alene. Et utslag er ikke bevis på juks. Grensene er ikke kalibrert mot butikkens historiske avklaringer ennå.</p>
         {utslag.map(v => (
-          <Signal key={`${v.rad.stasjon_id}:${v.rad.kasserer_nr}`} nivaa="oppmerksomhet" tittel={`${navnFor.get(v.rad.stasjon_id) ?? 'Butikk'} · kassenummer ${v.rad.kasserer_nr}: økning i returer`}>
-            {v.rad.retur_antall} returer, {kr.format(v.rad.retur_kr)}. {(v.rate ?? 0).toFixed(1).replace('.', ',')} returer per 100 bonger,
+          <Signal key={`${v.rad.stasjon_id}:${v.rad.kasserer_nr}`} nivaa="oppmerksomhet" tittel={`${navnFor.get(v.rad.stasjon_id) ?? 'Butikk'} · ${v.rad.navn?.trim() ? `${v.rad.navn.trim()} (kassenummer ${v.rad.kasserer_nr})` : `kassenummer ${v.rad.kasserer_nr}`}: økning i returer`}>
+            Registrert returantall: {returMengde.format(v.rad.retur_antall)}, {kr.format(v.rad.retur_kr)}. {(v.rate ?? 0).toFixed(1).replace('.', ',')} i returantall fra import per 100 bonger,
             mot {(v.normal ?? 0).toFixed(1).replace('.', ',')} i egen historikk. Grunnlag: {v.rad.bonger} bonger nå og {v.historiskeBonger} over {v.maaneder} tidligere måneder.
-            Undersøk kvitteringene i kassesystemet for valgt måned og avklar hvem som brukte nummeret.
+            Undersøk returkvitteringene i kassesystemet for valgt måned og bekreft at registreringene stemmer.
           </Signal>
         ))}
         {utslag.length === 0 && <p>Ingen utslag etter denne returregelen. Dette bekrefter ikke at alle kassehendelser er normale.</p>}
