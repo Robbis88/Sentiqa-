@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Merke } from '@/components/ui/merke'
 import { Meny } from './ikoner'
+import { aktivtMenypunkt } from './navigasjon'
 
 type Seksjon = { tittel: string; punkter: { sti: string; tekst: string }[] }
 
@@ -16,6 +17,7 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
   const [apen, setApen] = useState(false)
   const [overstyrt, setOverstyrt] = useState<Record<string, boolean>>({})
   const sti = usePathname()
+  const aktiv = aktivtMenypunkt(sti, seksjoner)
 
   // ESCAPE LUKKER MENYEN.
   //
@@ -30,7 +32,7 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
   }, [apen])
 
   const inneholderAktiv = (s: Seksjon) =>
-    s.punkter.some((p) => sti === p.sti || sti.startsWith(`${p.sti}/`))
+    s.punkter.some((p) => aktiv === p.sti)
   const erApen = (s: Seksjon) => overstyrt[s.tittel] ?? inneholderAktiv(s)
 
   return (
@@ -56,7 +58,7 @@ export function Sidemeny({ seksjoner }: { seksjoner: Seksjon[] }) {
               <Link
                 key={p.sti}
                 href={p.sti}
-                aria-current={sti === p.sti ? 'page' : undefined}
+                aria-current={sti === p.sti ? 'page' : aktiv === p.sti ? 'location' : undefined}
                 onClick={() => setApen(false)}
               >
                 {p.tekst}

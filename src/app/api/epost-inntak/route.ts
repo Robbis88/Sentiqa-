@@ -4,6 +4,7 @@ import PostalMime from 'postal-mime'
 import { env } from '@/lib/env'
 import { lagSupabaseAdminKlient } from '@/lib/supabase/admin'
 import { behandleJobbKjerne } from '@/lib/import/kjerne'
+import { sikreImportjobb, finnRaaFil } from '@/lib/import/importjobb'
 import { trygtFilnavn } from '@/lib/storage-noekkel'
 
 // E-post-inntak (§6). Tar imot videresendte e-poster fra en innboks-tjeneste
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
   // Fila kommer aldri igjen: St1 sender én gang. «Rapporten kom ikke»
   // ville blitt lett etter i importkøen, der den aldri var.
   const hoppet: string[] = []
+  const feilet: string[] = []
   let antall = 0
   for (const v of vedlegg) {
     if (!v.Content || !v.Name) { hoppet.push(v.Name || '(uten navn)'); continue }
@@ -150,7 +152,7 @@ export async function POST(req: NextRequest) {
     const opp = await supabase.storage
       .from('raa-filer')
       .upload(sti, buffer, { contentType: v.ContentType || 'application/octet-stream' })
-    if (opp.error) { hoppet.push(`${v.Name}: ${opp.error.message}`); continue }
+    if (opp.error) { hoppet.push(`${v.Name}: ${opp.error.message}`); feilet.push(v.Name); continue }
 
     const { data: raaFil, error } = await supabase
       .from('raa_filer')
@@ -166,33 +168,42 @@ export async function POST(req: NextRequest) {
       })
       .select('id')
       .single()
+    let filId = raaFil?.id as string | undefined
     if (error) {
-      await supabase.storage.from('raa-filer').remove([sti]) // dedup el. feil → rydd opp
-      // Dedup er en LEGITIM grunn til aa hoppe over - samme fil sendt to
-      // ganger skal ikke bli to jobber. Den staar likevel i svaret, for
-      // «vi har den fra foer» og «vi mistet den» skal ikke se like ut.
-      hoppet.push(`${v.Name}: ${error.message}`)
-      continue
-    }
-    const { data: jobb } = await supabase
-      .from('import_jobber')
-      .insert({ raa_fil_id: raaFil.id, retailer_id: retailer.id })
-      .select('id')
-      .single<{ id: string }>()
-    antall++
-    // Auto-behandling (§6): parse med en gang, så natt-flyten er ferdig uten klikk.
-    if (jobb) {
-      try {
-        await behandleJobbKjerne(supabase, retailer.id, jobb.id)
-      } catch {
-        // jobben er allerede markert feilet inne i kjernen; ikke velt webhooken
+      await supabase.storage.from('raa-filer').remove([sti])
+      if (error.code !== '23505') {
+        hoppet.push(`${v.Name}: ${error.message}`); feilet.push(v.Name); continue
       }
+      try {
+        filId = await finnRaaFil(supabase, retailer.id, sha256)
+      } catch (e) {
+        hoppet.push(`${v.Name}: ${e instanceof Error ? e.message : String(e)}`)
+        feilet.push(v.Name); continue
+      }
+    }
+    try {
+      if (!filId) throw new Error('Ingen råfil ble registrert.')
+      const jobb = await sikreImportjobb(supabase, retailer.id, filId)
+      if (jobb.opprettet) {
+        antall++
+        try {
+          await behandleJobbKjerne(supabase, retailer.id, jobb.jobbId)
+        } catch {
+          // Jobben er lagret og kan behandles fra importoversikten.
+        }
+      } else {
+        hoppet.push(`${v.Name}: allerede mottatt`)
+      }
+    } catch (e) {
+      hoppet.push(`${v.Name}: ${e instanceof Error ? e.message : String(e)}`)
+      feilet.push(v.Name)
     }
   }
 
-  // `hoppet` er med i svaret, ikke bare i loggen: workeren ser det, og
-  // det gjoer den som feilsoeker med curl.
+  // Workeren ser HTTP-feilen ved mistet mottak. Duplikater gir fortsatt 200;
+  // detaljene finnes i svaret for den som feilsøker.
   return NextResponse.json(
-    hoppet.length > 0 ? { ok: true, mottatt: antall, hoppet } : { ok: true, mottatt: antall },
+    hoppet.length > 0 ? { ok: feilet.length === 0, mottatt: antall, hoppet } : { ok: true, mottatt: antall },
+    { status: feilet.length > 0 ? 503 : 200 },
   )
 }

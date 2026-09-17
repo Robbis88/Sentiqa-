@@ -97,12 +97,13 @@ describe('en fil som alt er lastet opp er ikke en blindvei', () => {
     // Robert satt igjen med «Hoppet over» og ingen vei videre, to ganger.
     const h = les('handlinger.ts')
     const blokk = h.slice(h.indexOf('23505'), h.indexOf('23505') + 2400)
-    // Hvert oppslag i duplikatgrenen skal hente ut feilen OG bruke den.
-    const uttrekk = [...blokk.matchAll(/const \{ data[^}]*\} = await supabase/g)]
-    expect(uttrekk.length).toBeGreaterThan(0)
-    for (const m of uttrekk) {
-      expect(m[0], `oppslag uten errorsjekk: ${m[0]}`).toContain('error:')
-    }
+    // Oppslag og reparasjon er nå delt av webhook og opplaster. De direkte
+    // testene i importjobb.test.ts beviser at lesefeil aldri blir ny jobb.
+    expect(blokk).toContain('await finnRaaFil(')
+    expect(blokk).toContain('await sikreImportjobb(')
+    const helper = readFileSync(join(process.cwd(), 'src', 'lib', 'import', 'importjobb.ts'), 'utf8')
+    expect([...helper.matchAll(/if \(svar\.error \|\| !svar\.data\) throw new Error/g)]).toHaveLength(2)
+    expect(helper).toMatch(/if \(ny\.error \|\| !ny\.data\) throw new Error/)
   })
 
   it('KANARIFUGL: opplasteren tilbyr handlingen der brukeren staar', () => {

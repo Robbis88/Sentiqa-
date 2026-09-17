@@ -447,7 +447,7 @@ button.logg-ut:hover { color: var(--tekst); }
   transition: background 0.12s, color 0.12s;
 }
 .sidemeny nav a:hover { background: var(--bg); color: var(--tekst); }
-.sidemeny nav a[aria-current="page"] { background: var(--primaer-svak); color: var(--gronn); font-weight: 600; }
+.sidemeny nav a[aria-current] { background: var(--primaer-svak); color: var(--gronn); font-weight: 600; }
 .meny-bunn { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.75rem 0.6rem 0; border-top: 1px solid var(--kant); font-size: 0.7rem; color: var(--tekst-svak); }
 /* Mobil-meny: skjult på desktop */
 .meny-hamburger, .meny-overlay { display: none; }
@@ -1844,7 +1844,7 @@ a.sq-merkelapp:hover { color: var(--primaer); }
 .sq-endring { font-weight: 700; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
 .sq-sak[data-niva='kritisk'] .sq-endring { color: var(--rod); }
 .sq-sak[data-niva='folg'] .sq-endring { color: var(--gul); }
-.sq-sak-under { color: var(--tekst-svak); font-size: 0.86rem; }
+.sq-sak-under { color: var(--tekst-svak); font-size: 0.86rem; overflow-wrap: anywhere; }
 .sq-sak-hoyre {
   display: flex; align-items: center; gap: 0.8rem; color: var(--tekst-svak);
 }
