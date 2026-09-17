@@ -8,6 +8,9 @@ const NOEKLER: Record<string, string[]> = {
   v_butikksalg: ['stasjon_id', 'dato', 'ean'],
   v_salg_per_avdeling_dag: ['stasjon_id', 'dato', 'avdeling_kode', 'avdeling_navn'],
   v_salg_per_stasjon_dag: ['stasjon_id', 'dato'],
+  // 0131 grupperer på retailer, stasjon, kasserernummer og måned.
+  // Stasjonens globale UUID binder også retailer.
+  v_kasserer_maaned: ['stasjon_id', 'kasserer_nr', 'maned'],
   vaer: ['stasjon_id', 'dato'],
   prognose_treff: ['stasjon_id', 'type', 'dato', 'kategori'],
   basisvakt: ['id'], lonnsregister: ['id'], bp_linje: ['id'],
@@ -99,6 +102,6 @@ describe('stabil paginering — vakten ser også kommentarer og callbacks', () =
     const resultat = filer('src').map((fil) => analyser(readFileSync(fil, 'utf8'), fil))
     expect(resultat.flatMap((r) => r.funn)).toEqual([])
     // Dekningskanari: en vakt som slutter å se hele repoet skal bli rød.
-    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(28)
+    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(29)
   })
 })

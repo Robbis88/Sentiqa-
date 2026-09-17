@@ -187,9 +187,11 @@ export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }
            Alt under er HITTIL I AAR. To tidsrom paa samme kort, uten et
            ord om hvilket som er hvilket, var grunnen til at kortet ikke
            lot seg lese. Overskriften paa marginlinja sier det naa. */
+        <>
+        <p className="bp-grunnlag">Margin hittil i år fra tilgjengelig regnskap. Tallene under gjelder ikke bare salgsmåneden over. Margin er andelen av salget som er igjen etter varekostnaden.</p>
         <dl className="bp-brutto">
           <div>
-            <dt>Kassen, perfekt dag</dt>
+            <dt>Beregnet margin fra kassasalget</dt>
             <dd>{prosent(rad.teoretisk_brutto_pst)}</dd>
           </div>
           <div>
@@ -246,7 +248,7 @@ export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }
               <dt>Margin mot planen · hittil i år</dt>
               <dd>
                 <Status nivaa={bruttoAlvor(rad.brutto_mot_bp_indeks)}>
-                  {`${Math.abs(rad.brutto_mot_bp_pp).toFixed(1).replace('.', ',')} pp `}
+                  {`${Math.abs(rad.brutto_mot_bp_pp).toFixed(1).replace('.', ',')} prosentpoeng `}
                   {rad.brutto_mot_bp_pp < 0 ? 'under' : 'over'}
                   {rad.brutto_mot_bp_kr != null && (
                     <>
@@ -261,6 +263,7 @@ export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }
             </div>
           )}
         </dl>
+        </>
       )}
 
       {/* REGELEN GJELDER ALLE AVDELINGER, ikke bare varm drikke.
@@ -317,7 +320,7 @@ export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }
           <strong>{kr.format(abo.abonnement_kr)}</strong> fra abonnement
           {abo.abonnement_pst != null
             && ` (${abo.abonnement_pst.toFixed(0)} %)`}, til sammen{' '}
-          {kr.format(abo.regnskap_kr)}. «Kassen, perfekt dag» ser bare den
+          {kr.format(abo.regnskap_kr)}. Beregnet margin fra kassasalget ser bare den
           første, så regnskapet kan ligge over den uten at noe er galt.
           Abonnementet for inneværende måned kommer når måneden avlegges.
         </p>

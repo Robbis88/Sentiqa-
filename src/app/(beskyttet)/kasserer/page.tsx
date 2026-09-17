@@ -15,6 +15,9 @@ import {
   type Kassererrad, type Kassererbilde,
 } from '@/lib/kasserer/rate'
 import { Sideramme } from '@/components/ui/sideramme'
+import { hentAlt } from '@/lib/paginer'
+import { returOppfolging, RETURGRENSER } from '@/lib/kasserer/oppfolging'
+import { Signal } from '@/components/ui/status'
 
 // =====================================================================
 // Kasserer: hva kassa gjorde, ikke hvem som er mistenkt.
@@ -66,14 +69,15 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
   // RLS ER AUTORITETEN. Lista kommer fra `stasjoner`, som gir
   // butikksjefen sine egne og eieren hele kjeden. Stasjonsvalget er en
   // innsnevring, aldri en utvidelse.
-  const { data: stasjoner } = await supabase
+  const { data: stasjoner, error: stasjonsfeil } = await supabase
     .from('stasjoner')
     .select('id, navn, butikknummer')
     .is('slettet_tid', null)
     .order('butikknummer')
     .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
 
-  const stasjonsliste = stasjoner ?? []
+  if (stasjonsfeil || !stasjoner) throw new Error('Kunne ikke hente stasjoner for kassererstatistikken')
+  const stasjonsliste = stasjoner
   const sok = new URLSearchParams()
   if (sp.stasjon) sok.set('stasjon', sp.stasjon)
   const valgtStasjon = await husketStasjon(
@@ -86,13 +90,14 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
   const fra = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 12, 1))
     .toISOString().slice(0, 10)
 
+  const rader = await hentAlt<Kassererrad>((fraRad, tilRad) => {
   let q = supabase.from('v_kasserer_maaned')
     .select('stasjon_id, kasserer_nr, maned, dager, bonger, omsetning_kr, retur_kr, retur_antall, makulert_kr, makulert_antall, slettet_kr, slettet_antall, navn, ulike_navn')
     .gte('maned', fra)
   if (erStasjon) q = q.eq('stasjon_id', valgtStasjon!)
 
-  const { data: raa } = await q.limit(20000).overrideTypes<Kassererrad[]>()
-  const rader = raa ?? []
+  return q.order('stasjon_id').order('kasserer_nr').order('maned').range(fraRad, tilRad).overrideTypes<Kassererrad[]>()
+  })
   const maaneder = maanederI(rader)
 
   if (maaneder.length === 0) {
@@ -120,6 +125,9 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
   // Bare de som faktisk var på jobb i måneden. En kasserer uten rader
   // skal ikke stå med tomme kolonner - det ser ut som null avvik.
   const iJobb = folk.filter((k) => k.denne != null)
+  const vurderinger = returOppfolging(rader, valgtMaaned)
+  const utslag = vurderinger.filter(v => v.utslag)
+  const uavklart = vurderinger.filter(v => !v.nok || v.tvetydig).length
 
   const sumType = (t: 'retur' | 'makulert' | 'slettet') =>
     iJobb.reduce((n, k) => n + (k.denne?.perType[t].kr ?? 0), 0)
@@ -146,6 +154,25 @@ export default async function KassererSide({ searchParams }: { searchParams: Pro
       {/* KILDEN BESTEMMER UTVALGET: bare maaneder det finnes kassetall
           i. En dag er for lite til at en rate betyr noe. */}
       <Maanedsvelger maaneder={maaneder} valgt={valgtMaaned} skjulte={{ stasjon: sp.stasjon }} />
+
+      <section className="kort">
+        <h2>Returer som bør undersøkes</h2>
+        <p className="undertittel">Foreløpig regelbasert vurdering av returer alene. Et utslag er ikke bevis på juks. Grensene er ikke kalibrert mot butikkens historiske avklaringer ennå.</p>
+        {utslag.map(v => (
+          <Signal key={`${v.rad.stasjon_id}:${v.rad.kasserer_nr}`} nivaa="oppmerksomhet" tittel={`${navnFor.get(v.rad.stasjon_id) ?? 'Butikk'} · kassenummer ${v.rad.kasserer_nr}: økning i returer`}>
+            {v.rad.retur_antall} returer, {kr.format(v.rad.retur_kr)}. {(v.rate ?? 0).toFixed(1).replace('.', ',')} returer per 100 bonger,
+            mot {(v.normal ?? 0).toFixed(1).replace('.', ',')} i egen historikk. Grunnlag: {v.rad.bonger} bonger nå og {v.historiskeBonger} over {v.maaneder} tidligere måneder.
+            Undersøk kvitteringene i kassesystemet for valgt måned og avklar hvem som brukte nummeret.
+          </Signal>
+        ))}
+        {utslag.length === 0 && <p>Ingen utslag etter denne returregelen. Dette bekrefter ikke at alle kassehendelser er normale.</p>}
+        {uavklart > 0 && <p>{uavklart} kassenumre er ikke vurdert på grunn av lite grunnlag eller flere navn i historikken.</p>}
+        <Forklaring sporsmaal="Hvordan velges returavvikene?">
+          <p>Minst {RETURGRENSER.bonger} bonger nå, {RETURGRENSER.historiskeBonger} historiske bonger over minst {RETURGRENSER.maaneder} tidligere måneder og {RETURGRENSER.returer} returer.
+          Returraten må være minst {RETURGRENSER.faktor} ganger egen historikk og øke minst {RETURGRENSER.prosentpoeng} retur per 100 bonger. Historikken vektes etter antall bonger. Systemnumre og numre med flere navn vurderes ikke som personer.</p>
+          <p>Dataene er summer, ikke enkeltkvitteringer. En uavklart retur, en opplæringssituasjon og misbruk kan gi samme utslag. Denne listen har ikke lagret oppfølgingsstatus.</p>
+        </Forklaring>
+      </section>
 
       {/* MAKULERT FØRST, fordi det ER først: 71–83 % av avvikskronene.
           Sto de tre summert i ett tall, ville det store skjult at de to

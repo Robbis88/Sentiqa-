@@ -37,8 +37,17 @@ function skillsTekst(p: number): string {
   return 'Her er det rom for å løfte seg'
 }
 
-export async function hentHjemData(supabase: Klient, stasjonId: string): Promise<HjemData> {
+export async function hentDagensProduksjon(supabase: Klient, stasjonId: string): Promise<HjemData['produksjon']> {
   const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
+  const { data: hode, error: hodeFeil } = await supabase.from('produksjonsplan_hode').select('publisert_tid').eq('stasjon_id', stasjonId).eq('dato', idag).maybeSingle<{ publisert_tid: string | null }>()
+  if (hodeFeil) throw new Error(`Fikk ikke dagens produksjonsplan: ${hodeFeil.message}`)
+  if (!hode?.publisert_tid) return null
+  const { data: linjer, error: linjeFeil } = await supabase.from('produksjonsplan_linjer').select('planlagt, lagd_hittil').eq('stasjon_id', stasjonId).eq('dato', idag).eq('ekskludert', false).gt('planlagt', 0).limit(1000).overrideTypes<{ planlagt: number; lagd_hittil: number }[]>()
+  if (linjeFeil || !linjer || linjer.length >= 1000) throw new Error(`Fikk ikke hele dagens produksjonsplan: ${linjeFeil?.message ?? 'manglende eller avkortet svar'}`)
+  return { antall: linjer.length, plan: linjer.reduce((a, l) => a + l.planlagt, 0), lagd: linjer.reduce((a, l) => a + l.lagd_hittil, 0) }
+}
+
+export async function hentHjemData(supabase: Klient, stasjonId: string): Promise<HjemData> {
   // TO TALL, IKKE TO RADER (0165).
   //
   // Foer leste denne `skills_score` og `pengepremie_bruk` direkte, og med
@@ -60,13 +69,7 @@ export async function hentHjemData(supabase: Klient, stasjonId: string): Promise
     supabase.from('pengepremie').select('belop_kr').eq('stasjon_id', stasjonId),
     supabase.from('v_salg_per_stasjon_dag').select('dato, mat_omsetning, kald_drikke_omsetning').eq('stasjon_id', stasjonId).order('dato', { ascending: false }).limit(760).overrideTypes<{ dato: string; mat_omsetning: number | null; kald_drikke_omsetning: number | null }[]>(),
     // Dagens publiserte produksjonsplan (kun hvis publisert) — fremdrift til tableten.
-    (async (): Promise<HjemData['produksjon']> => {
-      const { data: hode } = await supabase.from('produksjonsplan_hode').select('publisert_tid').eq('stasjon_id', stasjonId).eq('dato', idag).maybeSingle<{ publisert_tid: string | null }>()
-      if (!hode?.publisert_tid) return null
-      const { data: linjer } = await supabase.from('produksjonsplan_linjer').select('planlagt, lagd_hittil').eq('stasjon_id', stasjonId).eq('dato', idag).eq('ekskludert', false).gt('planlagt', 0).overrideTypes<{ planlagt: number; lagd_hittil: number }[]>()
-      const ls = linjer ?? []
-      return { antall: ls.length, plan: ls.reduce((a, l) => a + l.planlagt, 0), lagd: ls.reduce((a, l) => a + l.lagd_hittil, 0) }
-    })(),
+    hentDagensProduksjon(supabase, stasjonId),
   ])
 
   // Kaster, framfor aa vise en stasjon uten tall som om den var tom.

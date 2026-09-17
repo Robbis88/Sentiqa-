@@ -373,6 +373,11 @@ export default async function MinMaanedSide({ searchParams }: { searchParams: Pr
           vært flatens egen mening.
           =================================================================== */}
       <h2 className="sq-mm-bolk">{avlagt ? 'Dette ble måneden' : 'Dette vet vi så langt'}</h2>
+      <p className="undertittel">
+        Omsetning er salget. Bruttofortjeneste er det som er igjen etter varekostnaden,
+        før lønn og andre kostnader. Lønnsrommet er rammen salget gir for lønn,
+        ikke penger som er til overs.
+      </p>
       <div className="sq-mm-hovedtall">
         <Hovedtall navn="Omsetning" felt={bilde.omsetning} avlagt={avlagt} />
         <Hovedtall navn="Bruttofortjeneste" felt={bilde.brutto} avlagt={avlagt} />

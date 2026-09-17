@@ -44,7 +44,7 @@ import { describe, expect, test } from 'vitest'
 // ---------------------------------------------------------------------
 // HVA DENNE MÅLER
 //
-// At nettbrettets kø leser VAKTAS felt. Både periodetallene og dagens
+// At nettbrettets kø leser den smale skiftkoeen. Både periodetallene og dagens
 // skal fortsatt finnes — dashbordet bruker de første — så regelen kan
 // ikke være «ikke bruk forventet». Den må være «køen bruker vakt*».
 // =====================================================================
@@ -70,7 +70,7 @@ const stat = readFileSync(STAT, 'utf8')
  */
 function koen(kilde: string): string {
   const ren = kilde.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*/g, '')
-  const m = /const rutinerIgjen = [\s\S]{0,200}?\)\r?\n/.exec(ren)
+  const m = /const rutinerIgjen = [^\r\n]{1,200}\r?\n/.exec(ren)
   return m ? m[0] : ''
 }
 
@@ -88,15 +88,17 @@ describe('målingen ser køen', () => {
     // Den gamle brukte HVERKEN vaktas eller dagens felt. Slutter det å
     // være sant, har noen skrevet om historien, og assertionen over
     // måler ikke lenger den feilen den ble skrevet for.
-    expect(/vaktForventet|vaktUtfort|idagForventet/.test(gammel)).toBe(false)
+    expect(koen(gammel)).not.toMatch(/koe\?\.igjen/)
+    expect(koen(gammel)).toContain('rutinestat?.forventet')
   })
 })
 
 describe('nettbrettets kø teller vakta, ikke døgnet og ikke måneden', () => {
-  test('rutinerIgjen bygges på vaktForventet/vaktUtfort', () => {
+  test('rutinerIgjen bygges paa den delte skiftkoeen uten historisk statistikk', () => {
     const uttrykk = koen(oversikt)
-    expect(uttrykk, 'køen leser ikke vaktas felt').toMatch(/vaktForventet/)
-    expect(uttrykk, 'køen leser ikke vaktas felt').toMatch(/vaktUtfort/)
+    expect(uttrykk, 'køen leser ikke vaktas felt').toMatch(/koe\?\.igjen/)
+    expect(oversikt).toMatch(/hentSkiftkoe\(supabase, st.id, naa\)/)
+    expect(oversikt).not.toMatch(/beregnRutinestat/)
   })
 
   test('og IKKE på periodetallene', () => {

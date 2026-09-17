@@ -1,0 +1,348 @@
+﻿{
+    "beforeCommit":  "605853e",
+    "latencyMs":  150,
+    "before":  [
+                   {
+                       "path":  "/oversikt",
+                       "sample":  0,
+                       "ms":  1879,
+                       "calls":  27,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/sjekkpunkt_svar":  1,
+                                       "/rest/v1/tablet_meldinger":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/varsler":  1,
+                                       "/rest/v1/puls_runde":  1,
+                                       "/rest/v1/sjekkpunkter":  1,
+                                       "/rest/v1/opplaering_oppgave":  1,
+                                       "/rest/v1/opplaering_periode":  1,
+                                       "/rest/v1/opplaering_skift":  1,
+                                       "/rest/v1/rutine_utforinger":  5,
+                                       "/rest/v1/rutiner":  1,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/ansatte":  1,
+                                       "/rest/v1/produksjonsplan_hode":  1,
+                                       "/rest/v1/pengepremie":  1,
+                                       "/rest/v1/rpc/hjem_stasjonstall":  1,
+                                       "/rest/v1/v_salg_per_stasjon_dag":  1,
+                                       "/rest/v1/oppgaver":  1
+                                   }
+                   },
+                   {
+                       "path":  "/oversikt",
+                       "sample":  1,
+                       "ms":  1625,
+                       "calls":  27,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/puls_runde":  1,
+                                       "/rest/v1/sjekkpunkt_svar":  1,
+                                       "/rest/v1/tablet_meldinger":  1,
+                                       "/rest/v1/sjekkpunkter":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/varsler":  1,
+                                       "/rest/v1/opplaering_oppgave":  1,
+                                       "/rest/v1/opplaering_skift":  1,
+                                       "/rest/v1/opplaering_periode":  1,
+                                       "/rest/v1/rutine_utforinger":  5,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/rutiner":  1,
+                                       "/rest/v1/ansatte":  1,
+                                       "/rest/v1/pengepremie":  1,
+                                       "/rest/v1/produksjonsplan_hode":  1,
+                                       "/rest/v1/rpc/hjem_stasjonstall":  1,
+                                       "/rest/v1/v_salg_per_stasjon_dag":  1,
+                                       "/rest/v1/oppgaver":  1
+                                   }
+                   },
+                   {
+                       "path":  "/oversikt",
+                       "sample":  2,
+                       "ms":  1621,
+                       "calls":  27,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/sjekkpunkt_svar":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/varsler":  1,
+                                       "/rest/v1/sjekkpunkter":  1,
+                                       "/rest/v1/puls_runde":  1,
+                                       "/rest/v1/tablet_meldinger":  1,
+                                       "/rest/v1/opplaering_skift":  1,
+                                       "/rest/v1/opplaering_oppgave":  1,
+                                       "/rest/v1/opplaering_periode":  1,
+                                       "/rest/v1/rutine_utforinger":  5,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/rutiner":  1,
+                                       "/rest/v1/ansatte":  1,
+                                       "/rest/v1/produksjonsplan_hode":  1,
+                                       "/rest/v1/pengepremie":  1,
+                                       "/rest/v1/rpc/hjem_stasjonstall":  1,
+                                       "/rest/v1/v_salg_per_stasjon_dag":  1,
+                                       "/rest/v1/oppgaver":  1
+                                   }
+                   },
+                   {
+                       "path":  "/oversikt",
+                       "sample":  3,
+                       "ms":  1667,
+                       "calls":  27,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/tablet_meldinger":  1,
+                                       "/rest/v1/varsler":  1,
+                                       "/rest/v1/puls_runde":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/sjekkpunkter":  1,
+                                       "/rest/v1/sjekkpunkt_svar":  1,
+                                       "/rest/v1/opplaering_skift":  1,
+                                       "/rest/v1/opplaering_periode":  1,
+                                       "/rest/v1/opplaering_oppgave":  1,
+                                       "/rest/v1/rutine_utforinger":  5,
+                                       "/rest/v1/rutiner":  1,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/ansatte":  1,
+                                       "/rest/v1/produksjonsplan_hode":  1,
+                                       "/rest/v1/rpc/hjem_stasjonstall":  1,
+                                       "/rest/v1/pengepremie":  1,
+                                       "/rest/v1/v_salg_per_stasjon_dag":  1,
+                                       "/rest/v1/oppgaver":  1
+                                   }
+                   },
+                   {
+                       "path":  "/rutiner",
+                       "sample":  0,
+                       "ms":  973,
+                       "calls":  10,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/varsler":  1,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/ik_kontrollpunkter":  1,
+                                       "/rest/v1/ik_avlesninger":  1
+                                   }
+                   },
+                   {
+                       "path":  "/rutiner",
+                       "sample":  1,
+                       "ms":  967,
+                       "calls":  10,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/ik_avlesninger":  1,
+                                       "/rest/v1/ik_kontrollpunkter":  1,
+                                       "/rest/v1/varsler":  1
+                                   }
+                   },
+                   {
+                       "path":  "/rutiner",
+                       "sample":  2,
+                       "ms":  932,
+                       "calls":  10,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/ik_avlesninger":  1,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/varsler":  1,
+                                       "/rest/v1/ik_kontrollpunkter":  1
+                                   }
+                   },
+                   {
+                       "path":  "/rutiner",
+                       "sample":  3,
+                       "ms":  961,
+                       "calls":  10,
+                       "perPath":  {
+                                       "/auth/v1/user":  2,
+                                       "/rest/v1/profiler":  1,
+                                       "/rest/v1/retailers":  1,
+                                       "/rest/v1/stasjoner":  2,
+                                       "/rest/v1/rutineskjemaer":  1,
+                                       "/rest/v1/ik_avlesninger":  1,
+                                       "/rest/v1/ik_kontrollpunkter":  1,
+                                       "/rest/v1/varsler":  1
+                                   }
+                   }
+               ],
+    "after":  [
+                  {
+                      "path":  "/oversikt",
+                      "sample":  0,
+                      "ms":  1383,
+                      "calls":  17,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/sjekkpunkt_svar":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/tablet_meldinger":  1,
+                                      "/rest/v1/stasjoner":  1,
+                                      "/rest/v1/sjekkpunkter":  1,
+                                      "/rest/v1/opplaering_periode":  1,
+                                      "/rest/v1/opplaering_oppgave":  1,
+                                      "/rest/v1/opplaering_skift":  1,
+                                      "/rest/v1/puls_runde":  1,
+                                      "/rest/v1/produksjonsplan_hode":  1,
+                                      "/rest/v1/rutiner":  1,
+                                      "/rest/v1/rutineskjemaer":  1,
+                                      "/rest/v1/oppgaver":  1
+                                  }
+                  },
+                  {
+                      "path":  "/oversikt",
+                      "sample":  1,
+                      "ms":  1160,
+                      "calls":  17,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/sjekkpunkt_svar":  1,
+                                      "/rest/v1/puls_runde":  1,
+                                      "/rest/v1/sjekkpunkter":  1,
+                                      "/rest/v1/opplaering_oppgave":  1,
+                                      "/rest/v1/opplaering_skift":  1,
+                                      "/rest/v1/tablet_meldinger":  1,
+                                      "/rest/v1/opplaering_periode":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/stasjoner":  1,
+                                      "/rest/v1/produksjonsplan_hode":  1,
+                                      "/rest/v1/rutiner":  1,
+                                      "/rest/v1/rutineskjemaer":  1,
+                                      "/rest/v1/oppgaver":  1
+                                  }
+                  },
+                  {
+                      "path":  "/oversikt",
+                      "sample":  2,
+                      "ms":  1155,
+                      "calls":  17,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/opplaering_periode":  1,
+                                      "/rest/v1/sjekkpunkt_svar":  1,
+                                      "/rest/v1/tablet_meldinger":  1,
+                                      "/rest/v1/sjekkpunkter":  1,
+                                      "/rest/v1/opplaering_oppgave":  1,
+                                      "/rest/v1/stasjoner":  1,
+                                      "/rest/v1/puls_runde":  1,
+                                      "/rest/v1/opplaering_skift":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/produksjonsplan_hode":  1,
+                                      "/rest/v1/rutiner":  1,
+                                      "/rest/v1/oppgaver":  1,
+                                      "/rest/v1/rutineskjemaer":  1
+                                  }
+                  },
+                  {
+                      "path":  "/oversikt",
+                      "sample":  3,
+                      "ms":  1122,
+                      "calls":  17,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/puls_runde":  1,
+                                      "/rest/v1/stasjoner":  1,
+                                      "/rest/v1/tablet_meldinger":  1,
+                                      "/rest/v1/opplaering_skift":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/sjekkpunkt_svar":  1,
+                                      "/rest/v1/opplaering_oppgave":  1,
+                                      "/rest/v1/sjekkpunkter":  1,
+                                      "/rest/v1/opplaering_periode":  1,
+                                      "/rest/v1/produksjonsplan_hode":  1,
+                                      "/rest/v1/rutineskjemaer":  1,
+                                      "/rest/v1/rutiner":  1,
+                                      "/rest/v1/oppgaver":  1
+                                  }
+                  },
+                  {
+                      "path":  "/rutiner",
+                      "sample":  0,
+                      "ms":  980,
+                      "calls":  9,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/ik_kontrollpunkter":  1,
+                                      "/rest/v1/ik_avlesninger":  1,
+                                      "/rest/v1/rutineskjemaer":  1,
+                                      "/rest/v1/stasjoner":  1
+                                  }
+                  },
+                  {
+                      "path":  "/rutiner",
+                      "sample":  1,
+                      "ms":  949,
+                      "calls":  9,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/ik_avlesninger":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/ik_kontrollpunkter":  1,
+                                      "/rest/v1/stasjoner":  1,
+                                      "/rest/v1/rutineskjemaer":  1
+                                  }
+                  },
+                  {
+                      "path":  "/rutiner",
+                      "sample":  2,
+                      "ms":  979,
+                      "calls":  9,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/ik_kontrollpunkter":  1,
+                                      "/rest/v1/ik_avlesninger":  1,
+                                      "/rest/v1/varsler":  1,
+                                      "/rest/v1/rutineskjemaer":  1,
+                                      "/rest/v1/stasjoner":  1
+                                  }
+                  },
+                  {
+                      "path":  "/rutiner",
+                      "sample":  3,
+                      "ms":  992,
+                      "calls":  9,
+                      "perPath":  {
+                                      "/auth/v1/user":  2,
+                                      "/rest/v1/profiler":  1,
+                                      "/rest/v1/retailers":  1,
+                                      "/rest/v1/stasjoner":  1,
+                                      "/rest/v1/ik_avlesninger":  1,
+                                      "/rest/v1/rutineskjemaer":  1,
+                                      "/rest/v1/ik_kontrollpunkter":  1,
+                                      "/rest/v1/varsler":  1
+                                  }
+                  }
+              ]
+}
