@@ -1,4 +1,4 @@
-<!-- BEGIN:nextjs-agent-rules -->
+﻿<!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -6,12 +6,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Arbeidsstatus 2026-09-17
 
-- PR #313, #314 og #315 er merget. Produksjon er kontrollert frisk på commit `d332cf4` (PR #315), 2026-09-17 kl. 21:53 norsk tid. Innlogging svarte HTTP 200.
+- PR #313, #314, #315 og #316 er merget. Produksjon er kontrollert frisk på commit `e217d8c` (PR #316), 2026-09-17 kl. 22:44 norsk tid. Databasekontrollen består.
 - Vercel stoppet prosjektet ved kostnadsgrensen. Brukeren godkjente uttrykkelig gjenopptak av Sentiqa; prosjektet er gjenopptatt og domenet svarte frisk. Andre prosjekter er ikke gjenopptatt.
 - Aktiv gren: `produksjonsplan-korrekt`. Brukeren har godkjent retting og publisering av produksjonsfunnene, deretter vurdering av ukesbriefen.
-- Produksjonsretting: 4214 produkttester består, 18 hoppes over. Typer og lint uten feil. Lokale SQL-regresjoner og RLS-vakthund består. Produksjonsbygget og PR/CI kontrolleres før merge. Navngitt returvarsel er også rettet etter brukerens skjermbilder; returreglene er ikke endret.
-- Produksjonsfunnene er nå implementert i arbeidsgrenen: komplett atomisk plansnapshot, bekreftet lederlagring, dagssummer, komplette referansevinduer, historisk cutoff/Oslo/helligdag, kjedebundet mapping, atomisk prognosehistorikk og eksplisitt ukjent data. Nytt oppsett kreves ikke. Migrasjon 0222 og 0223 er testet lokalt og brukeren bekreftet at SQL gikk OK i produksjon. CI/PR og ny livekontroll gjenstår før dette omtales som publisert. Ukesbriefen undersøkes kun, uten e-postutsending eller kodeendring.
-- Ingen nye migrasjoner eller konfigurasjonskrav. Onboardingpåvirkning: NEI.
+- Produksjonsretting: 4214 produkttester består, 18 hoppes over. Typer og lint uten feil. Lokale SQL-regresjoner og RLS-vakthund består. PR #316 hadde grønne vakter, nettlesertester og automatisk gjennomgang før merge. Navngitt returvarsel er også publisert etter brukerens skjermbilder; returreglene er ikke endret.
+- Produksjonsfunnene er nå implementert i arbeidsgrenen: komplett atomisk plansnapshot, bekreftet lederlagring, dagssummer, komplette referansevinduer, historisk cutoff/Oslo/helligdag, kjedebundet mapping, atomisk prognosehistorikk og eksplisitt ukjent data. Nytt oppsett kreves ikke. Migrasjon 0222 og 0223 er testet lokalt og brukeren bekreftet at SQL gikk OK i produksjon. PR #316 er merget og livekontroll bekrefter versjon e217d8c; innlogging svarte HTTP 200. Ukesbriefen er vurdert, uten e-postutsending eller kodeendring.
+- Migrasjon 0222 og 0223 er bekreftet kjørt av brukeren før deploy. Ingen nye retailer-konfigurasjonskrav. Onboardingpåvirkning: NEI.
+- Ukesbriefgjennomgangen ligger i `docs/ukesbrief-vurdering-2026-09-17.md`. Målefeil i BP-dato, ukjent timeforbruk, salgsdekning og blandet prognosetreff er dokumentert, ikke rettet ennå. Brukeren er enig i ferske uketall og tre prioriterte tiltak, full månedsøkonomi bare ved en ny bekreftet avsluttet måned; ellers datert lenke. Ikke anta at siste importerte måned er bekreftet avsluttet. Ingen e-post er sendt.
 - Returvarsler er foreløpige regler, ikke ferdig kalibrert mot bekreftede hendelser.
 - Lokale kartlegginger `test-a-503.test.ts`, `dale-kontroll.test.ts`, rå lønnsdata, SQL-sonder, logger og kanari-rapporter holdes lokalt. Ikke endre parseren for å få lokale uavklarte etterbetalingsmålinger grønne.
 - Docker Desktop og lokal Supabase fungerer. `main` er beskyttet; PR med begge obligatoriske jobber grønne kreves før merge. Brukerens tidligere godkjenning av merge og publisering gjelder fortsatt.
@@ -396,3 +397,4 @@ Driften har alt begynt: `KILDER` i `src/lib/onboarding.ts` er håndholdt og
 kjenner fem kilder. Kartleggingen 2026-08-28 fant ni, og fant samtidig at
 `hentDagskunder` går to kalenderår tilbake mens `KILDER` lover 365 dager for
 timesalg. Ingen av delene var feil da de ble skrevet.
+

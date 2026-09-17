@@ -331,7 +331,7 @@ describe('byggUkebrief', () => {
   it('foreslår ingenting i en uke uten funn', () => {
     const b = byggUkebrief(ukedata())
     expect(b.handlinger).toHaveLength(0)
-    expect(b.ingress).toContain('Ingenting krever oppmerksomhet')
+    expect(b.ingress).toContain('datagrunnlag mangler')
   })
 
   // Meldingene kan gjelde krenkelse eller uhell. Briefen skal kunne bli en

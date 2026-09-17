@@ -401,7 +401,10 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                 <Nokkeltall
                   merkelapp="Totalt svinn"
                   verdi={kr.format(Math.round(budsjettbilde.usynlig.totaltKr))}
-                  sammenlignet={budsjettbilde.usynlig.tillattSvinnKr == null
+                  sammenlignet={budsjettbilde.usynlig.totaltPstAvSalg != null
+                    ? `${budsjettbilde.usynlig.totaltPstAvSalg.toLocaleString('nb-NO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % av omsetningen · `
+                      + (budsjettbilde.usynlig.tillattSvinnKr == null ? 'kast + usynlig, samme måneder' : `BP tåler ${kr.format(Math.round(budsjettbilde.usynlig.tillattSvinnKr))}`)
+                    : budsjettbilde.usynlig.tillattSvinnKr == null
                     ? 'kast + usynlig, samme måneder'
                     : `BP tåler ${kr.format(Math.round(budsjettbilde.usynlig.tillattSvinnKr))}`}
                   retning={budsjettbilde.usynlig.avvikMotBpKr == null
@@ -425,7 +428,7 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
                     + 'forventet, og det trekker ned totalen. '
                   : 'Usynlig svinn er maten som er borte uten å være ført som kast — '
                     + 'for mat som regel overproduksjon: laget, ikke solgt, og aldri '
-                    + 'slått inn. Tallet kommer av månedstellingen, så det finnes '
+                    + 'slått inn. Det kan skyldes overproduksjon, manglende registrering, tyveri eller lagerkontroll — tallet alene beviser ikke årsaken. Tallet kommer av månedstellingen, så det finnes '
                     + 'først når måneden er avlagt. '}
                 {budsjettbilde.usynlig.tillattSvinnKr != null
                   ? 'Grensen er BP-en, ikke et eget svinnbudsjett: teoretisk brutto '
