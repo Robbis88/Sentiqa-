@@ -6,10 +6,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Arbeidsstatus 2026-09-17
 
-- PR #313 og #314 er merget. Produksjon er kontrollert frisk på commit `d62ecc2` (PR #314).
+- PR #313, #314 og #315 er merget. Produksjon er kontrollert frisk på commit `d332cf4` (PR #315), 2026-09-17 kl. 21:53 norsk tid. Innlogging svarte HTTP 200.
 - Vercel stoppet prosjektet ved kostnadsgrensen. Brukeren godkjente uttrykkelig gjenopptak av Sentiqa; prosjektet er gjenopptatt og domenet svarte frisk. Andre prosjekter er ikke gjenopptatt.
-- Aktiv gren: `drift-oppfolging`. Brukeren har godkjent fire oppfølgingsrettelser og publisering etter grønne kontroller: valgt stasjon og dagens rutiner på dashboard, fullstendig rollebasert søk/meny, robust import og datadekning, samtidige trykk på produksjonsplan.
-- 4170 produkttester består, 18 hoppes over. Typesjekk består; lint har ingen feil. Produksjonsbygg og PR/CI må fullføres før merge og ny kontroll av liveversjon.
+- Aktiv gren: `produksjonsplan-korrekt`. Brukeren har godkjent retting og publisering av produksjonsfunnene, deretter vurdering av ukesbriefen.
+- Produksjonsretting: 4214 produkttester består, 18 hoppes over. Typer og lint uten feil. Lokale SQL-regresjoner og RLS-vakthund består. Produksjonsbygget og PR/CI kontrolleres før merge. Navngitt returvarsel er også rettet etter brukerens skjermbilder; returreglene er ikke endret.
+- Produksjonsfunnene er nå implementert i arbeidsgrenen: komplett atomisk plansnapshot, bekreftet lederlagring, dagssummer, komplette referansevinduer, historisk cutoff/Oslo/helligdag, kjedebundet mapping, atomisk prognosehistorikk og eksplisitt ukjent data. Nytt oppsett kreves ikke. Migrasjon 0222 og 0223 er testet lokalt og brukeren bekreftet at SQL gikk OK i produksjon. CI/PR og ny livekontroll gjenstår før dette omtales som publisert. Ukesbriefen undersøkes kun, uten e-postutsending eller kodeendring.
 - Ingen nye migrasjoner eller konfigurasjonskrav. Onboardingpåvirkning: NEI.
 - Returvarsler er foreløpige regler, ikke ferdig kalibrert mot bekreftede hendelser.
 - Lokale kartlegginger `test-a-503.test.ts`, `dale-kontroll.test.ts`, rå lønnsdata, SQL-sonder, logger og kanari-rapporter holdes lokalt. Ikke endre parseren for å få lokale uavklarte etterbetalingsmålinger grønne.

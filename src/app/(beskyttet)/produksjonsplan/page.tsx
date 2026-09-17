@@ -3,7 +3,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
-import { lagProduksjonsplan, leggTilDager, medMargin, startAntall, effektivProsent, STANDARD_KODE, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, produksjonsdag, produksjonsreferanse, medMargin, startAntall, effektivProsent, STANDARD_KODE, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { hentProduksjonskoder, IKKE_KONFIGURERT_TEKST } from '@/lib/produksjonskoder'
 import { hentKalibrering } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
@@ -14,7 +14,7 @@ import { TabletMorgendag } from './tablet-morgendag'
 import { TabletHode } from '../tablet-hode'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { husketStasjon } from '@/lib/stasjonskontekst'
-import { hentPerDato } from '@/lib/supabase/datobolker'
+import { hentPerDato, maaVaereHele } from '@/lib/supabase/datobolker'
 import { stasjonFraUrl } from '@/lib/stasjonsvalg'
 import { Signal } from '@/components/ui/status'
 import { Felt } from '@/components/ui/felt'
@@ -137,7 +137,7 @@ export default async function ProduksjonsplanSide({
         {visIdag && (
           <>
             <TabletHode
-              tittel={lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage`}
+              tittel={planlagt === 0 ? 'Ingen varer i dagens plan' : lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage`}
               undertittel={`${lagd} av ${planlagt} lagd`}
             />
             <TabletPlan stasjonId={st.id} dato={idag} notat={hode?.notat ?? null} grupper={[...gmap.values()]} />
@@ -158,18 +158,19 @@ export default async function ProduksjonsplanSide({
   }
   const sp = await searchParams
 
-  const { data: alleStasjoner } = await supabase
+  const { data: alleStasjoner, error: stasjonFeil } = await supabase
     .from('stasjoner')
     .select('id, butikknummer, navn, stasjonstype, vaerfolsomhet, vaerfolsomhet_laert')
     .is('slettet_tid', null)
     .order('butikknummer')
+    .limit(1000)
     .overrideTypes<{ id: string; butikknummer: string; navn: string; stasjonstype: string; vaerfolsomhet: number | null; vaerfolsomhet_laert: number | null }[]>()
 
   // Butikksjef låses til egne stasjoner (admin ser alle).
-  let stasjoner = alleStasjoner ?? []
+  let stasjoner = maaVaereHele({ data: alleStasjoner, error: stasjonFeil }, 'produksjonsstasjonene')
   if (bruker.rolle === 'butikksjef') {
-    const { data: tilgang } = await supabase.from('butikksjef_stasjoner').select('stasjon_id').eq('profil_id', bruker.id)
-    const ids = new Set((tilgang ?? []).map((t) => t.stasjon_id))
+    const tilgangSvar = await supabase.from('butikksjef_stasjoner').select('stasjon_id').eq('profil_id', bruker.id).limit(1000)
+    const ids = new Set(maaVaereHele(tilgangSvar, 'produksjonstilgangen').map((t) => t.stasjon_id))
     stasjoner = stasjoner.filter((s) => ids.has(s.id))
   }
 
@@ -195,9 +196,7 @@ export default async function ProduksjonsplanSide({
   const stasjon = stasjoner.find((s) => s.id === valgtId) ?? stasjoner[0]
   const valgtNr = stasjon?.butikknummer ?? ''
 
-  const imorgen = new Date()
-  imorgen.setDate(imorgen.getDate() + 1)
-  const dato = sp.dato && /^\d{4}-\d{2}-\d{2}$/.test(sp.dato) ? sp.dato : imorgen.toISOString().slice(0, 10)
+  const dato = produksjonsdag(sp.dato)
   const ukedag = new Date(dato).getUTCDay()
 
   let grupper: Gruppe[] = []
@@ -219,24 +218,32 @@ export default async function ProduksjonsplanSide({
   const KODER = oppsett.status === 'mappet' ? oppsett.koder : []
 
   if (stasjon && !ikkeKonfigurert) {
-    const fjorBase = leggTilDager(dato, -364)
     // Siste dag med faktisk salg (ikke «i dag») — så manglende dager bakerst
     // ikke trekker snittet ned.
-    const { data: sisteRad } = await supabase
+    const { data: sisteRad, error: sisteFeil } = await supabase
       .from('v_butikksalg').select('dato').eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER).is('slettet_tid', null)
+      .lt('dato', dato)
       .order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+    if (sisteFeil) throw new Error(`Siste salgsdag kunne ikke hentes: ${sisteFeil.message}`)
     const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
-    const fra = leggTilDager(dato, -392) // dekker fjor-vindu + nylig + fjor-trend
+    const referanse = produksjonsreferanse(dato, sisteSalgsdato)
 
-    const [{ data: vMaal }, { data: vFjor }, { data: lagrede }, { data: hode }, { data: avvik }, { data: arr }] = await Promise.all([
+    const [maalSvar, fjorSvar, linjeSvar, hodeSvar, innstillingSvar, arrangementSvar] = await Promise.all([
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
-      supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', fjorBase).maybeSingle<Vaerdag>(),
-      supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
+      supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', referanse.fjorDato).maybeSingle<Vaerdag>(),
+      supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).limit(1000).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
       supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
-      supabase.from('stasjon_produksjon_innstilling').select('varegruppe_kode, start_prosent, margin_prosent').eq('stasjon_id', stasjon.id).overrideTypes<{ varegruppe_kode: string; start_prosent: number | null; margin_prosent: number | null }[]>(),
+      supabase.from('stasjon_produksjon_innstilling').select('varegruppe_kode, start_prosent, margin_prosent').eq('stasjon_id', stasjon.id).limit(1000).overrideTypes<{ varegruppe_kode: string; start_prosent: number | null; margin_prosent: number | null }[]>(),
       // Kun BEKREFTEDE arrangementer løfter planen (forslag styres på /arrangementer).
-      supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).neq('status', 'forslag').is('slettet_tid', null).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
+      supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).neq('status', 'forslag').is('slettet_tid', null).limit(1000).overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
     ])
+    for (const [navn, svar] of [['værvarselet', maalSvar], ['referanseværet', fjorSvar], ['planhodet', hodeSvar]] as const) {
+      if (svar.error) throw new Error(`Kunne ikke hente ${navn}: ${svar.error.message}`)
+    }
+    const vMaal = maalSvar.data, vFjor = fjorSvar.data, hode = hodeSvar.data
+    const lagrede = maaVaereHele(linjeSvar, 'lagrede produksjonslinjer')
+    const avvik = maaVaereHele(innstillingSvar, 'produksjonsinnstillingene')
+    const arr = maaVaereHele(arrangementSvar, 'arrangementene')
 
     // ===================================================================
     // ET HELT AAR MED SALG, I DATOBOLKER - IKKE I DYPE OFFSETS
@@ -266,8 +273,8 @@ export default async function ProduksjonsplanSide({
         .eq('stasjon_id', stasjon.id).in('varegruppe_kode', KODER)
         .gte('dato', fraBolk).lte('dato', tilBolk).is('slettet_tid', null)
         .order('dato').order('ean').limit(1000).overrideTypes<SalgRad[]>(),
-      fra,
-      sisteSalgsdato,
+      referanse.fra,
+      referanse.til,
     )
 
     vaer = vMaal ?? null
@@ -275,7 +282,10 @@ export default async function ProduksjonsplanSide({
     arrangementer = (arr ?? []).filter((a) => a.stasjon_id === null || a.stasjon_id === stasjon.id).map((a) => ({ id: a.id, navn: a.navn, faktor: a.faktor }))
     const arrangementFaktor = arrangementer.reduce((f, a) => f * a.faktor, 1)
     const punkter: SalgsPunkt[] = salg
-      .map((r) => ({ dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall ?? 0 }))
+      .map((r) => {
+        if (r.antall === null || !Number.isFinite(r.antall)) throw new Error('Salgsantallet er ukjent. Produksjonsforslaget kan ikke beregnes.')
+        return { dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall }
+      })
       .filter((p) => p.varenavn)
     datadybde = new Set(punkter.map((p) => p.dato)).size
 
@@ -415,8 +425,8 @@ export default async function ProduksjonsplanSide({
       {grupper.length === 0 ? (
         <Tomtilstand
           tittel="Ingen produksjonssalg registrert"
-          forklaring="Planen bygger på hva stasjonen faktisk har solgt av bakevarer og varmmat (varegruppe 1201–1221). Behandle en Salgsstatistikk-fil under Import, så regnes forslaget ut."
-          handling={<Link href="/import" className="sq-knapp primar">Gå til Import</Link>}
+          forklaring={`Planen bygger på salget i varegruppene som er valgt som produksjonsvarer for kjeden. En Salgsstatistikk-fil må importeres før forslaget kan regnes ut.${bruker.rolle === 'retailer_admin' ? '' : ' Be kjedeansvarlig om å importere salgshistorikken.'}`}
+          handling={bruker.rolle === 'retailer_admin' ? <Link href="/import" className="sq-knapp primar">Gå til Import</Link> : undefined}
         />
       ) : (
         <>
@@ -430,16 +440,18 @@ export default async function ProduksjonsplanSide({
               halv pris på boller ikke blir til en permanent forventning.
             </p>
             <p>
-              Baseline er regnet på <strong>{datadybde} salgsdag{datadybde === 1 ? '' : 'er'}</strong>.
+              Historikken inneholder <strong>{datadybde} salgsdag{datadybde === 1 ? '' : 'er'}</strong> totalt.
               {datadybde < 14
                 ? ' Det er tynt — forslaget blir merkbart mer presist med mer historikk, og bør leses som en pekepinn inntil videre.'
-                : ' Det er nok til at medianen står imot enkeltdager som skiller seg ut.'}
-              {' '}Stasjonen er av type {stasjon?.stasjonstype}, som avgjør hvor hardt været slår inn.
+                : ' Antall relevante observasjoner varierer per produkt; varer med lite grunnlag er merket.'}
+              {' '}Værutslaget følger stasjonens værfølsomhet og tilgjengelige kategoriprofiler.
             </p>
             <p>
               Treffsikkerheten måles i etterkant ved å kjøre motoren bakover på stasjonens
               egen historikk, og der forslaget bommer systematisk læres en korreksjon per
-              varegruppe. Den er i så fall nevnt blant meldingene over.
+              varegruppe. Den er i så fall nevnt blant meldingene over. Treffvisningen gjelder
+              råmodellen med historisk vær og dagens profiler; den dokumenterer ikke alene
+              at kalibreringen forbedrer fremtidige forslag.
             </p>
           </Forklaring>
         </>

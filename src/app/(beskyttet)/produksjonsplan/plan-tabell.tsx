@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { tall } from '@/lib/format'
 import { setLinje, setNotat, publiser, setProsent } from './handlinger'
 import { medMargin, startAntall, effektivProsent, STANDARD_KODE } from '@/lib/produksjonsplan'
@@ -48,32 +48,64 @@ export function PlanTabell({
   const [start, setStart] = useState<Record<string, number>>(lag('start_antall'))
   const [ekskl, setEkskl] = useState<Set<string>>(() => new Set(alle.filter((p) => p.ekskludert).map((p) => p.varenavn)))
   const [notat, setNotatTekst] = useState(notatInit ?? '')
+  const lagretNotat = useRef(notatInit ?? '')
   const [publisert, setPublisert] = useState<boolean>(!!publisertTid)
   const [melding, setMelding] = useState<string | null>(null)
   const [std, setStd] = useState(prosentInit)
   const [avvik, setAvvik] = useState<Record<string, Prosentpar>>(avvikInit)
+  const [lagrer, setLagrer] = useState(false)
+  const [feil, setFeil] = useState<string | null>(null)
+  const [inputVersjon, setInputVersjon] = useState(0)
+  const sender = useRef(false)
   const [, overgang] = useTransition()
 
+  function bekreftet(skriv: () => Promise<void>) {
+    if (sender.current) return
+    sender.current = true
+    setLagrer(true)
+    setFeil(null)
+    setMelding(null)
+    overgang(async () => {
+      try { await skriv() }
+      catch { setFeil('Endringen ble ikke lagret. Prøv igjen.'); setMelding(null) }
+      finally { sender.current = false; setLagrer(false); setInputVersjon((v) => v + 1) }
+    })
+  }
+
   function lagre(g: Gruppe, p: Produkt, over: { planlagt?: number; start_antall?: number; ekskludert?: boolean }) {
-    overgang(() => {
-      void setLinje({
+    const nyPlan = over.planlagt ?? planlagt[p.varenavn] ?? p.foreslatt
+    const nyStart = over.start_antall ?? start[p.varenavn] ?? 0
+    if (nyStart > nyPlan) {
+      setFeil('Startpartiet kan ikke være større enn dagsplanen.')
+      setInputVersjon((v) => v + 1)
+      return
+    }
+    bekreftet(async () => {
+      await setLinje({
         stasjon_id: stasjonId, dato, varenavn: p.varenavn, varegruppe_kode: g.kode, varegruppe_navn: g.navn,
         foreslatt: p.foreslatt,
-        planlagt: over.planlagt ?? planlagt[p.varenavn] ?? p.foreslatt,
-        start_antall: over.start_antall ?? start[p.varenavn] ?? 0,
+        planlagt: nyPlan,
+        start_antall: nyStart,
         ekskludert: over.ekskludert ?? ekskl.has(p.varenavn),
       })
+      setPlanlagt((s) => ({ ...s, [p.varenavn]: nyPlan }))
+      setStart((s) => ({ ...s, [p.varenavn]: nyStart }))
+      if (over.ekskludert !== undefined) setEkskl((s) => {
+        const c = new Set(s)
+        if (over.ekskludert) c.add(p.varenavn); else c.delete(p.varenavn)
+        return c
+      })
+      setMelding('Endringen er lagret')
     })
   }
   function endrePlan(g: Gruppe, p: Produkt, ny: number) {
-    const v = Math.max(0, Math.round(ny || 0)); setPlanlagt((s) => ({ ...s, [p.varenavn]: v })); lagre(g, p, { planlagt: v })
+    const v = Math.max(0, Math.round(ny || 0)); lagre(g, p, { planlagt: v })
   }
   function endreStart(g: Gruppe, p: Produkt, ny: number) {
-    const v = Math.max(0, Math.round(ny || 0)); setStart((s) => ({ ...s, [p.varenavn]: v })); lagre(g, p, { start_antall: v })
+    const v = Math.max(0, Math.round(ny || 0)); lagre(g, p, { start_antall: v })
   }
   function toggleEkskl(g: Gruppe, p: Produkt) {
     const ny = !ekskl.has(p.varenavn)
-    setEkskl((s) => { const c = new Set(s); if (ny) c.add(p.varenavn); else c.delete(p.varenavn); return c })
     lagre(g, p, { ekskludert: ny })
   }
   // Prosentene per gruppe, med arv loest. Brukes baade til visningen og
@@ -86,15 +118,14 @@ export function PlanTabell({
     }
   }
 
-  function lagreProsent(kode: string, verdi: Prosentpar) {
-    overgang(() => { void setProsent(stasjonId, kode, verdi) })
-  }
-
   function endreStandard(felt: 'start' | 'margin', ny: number) {
     const v = Math.max(0, Math.min(felt === 'start' ? 99 : 100, Math.round(ny || 0)))
     const neste = { ...std, [felt]: v }
-    setStd(neste)
-    lagreProsent(STANDARD_KODE, neste)
+    bekreftet(async () => {
+      await setProsent(stasjonId, STANDARD_KODE, neste)
+      setStd(neste)
+      setMelding('Driftsregelen er lagret')
+    })
   }
 
   function endreGruppe(kode: string | null, felt: 'start' | 'margin', raa: string) {
@@ -106,8 +137,11 @@ export function PlanTabell({
       : Math.max(0, Math.min(felt === 'start' ? 99 : 100, Math.round(Number(raa.replace(/\D/g, '')) || 0)))
     const forrige = avvik[kode] ?? { start: null, margin: null }
     const neste = { ...forrige, [felt]: v }
-    setAvvik((a) => ({ ...a, [kode]: neste }))
-    lagreProsent(kode, neste)
+    bekreftet(async () => {
+      await setProsent(stasjonId, kode, neste)
+      setAvvik((a) => ({ ...a, [kode]: neste }))
+      setMelding('Driftsregelen er lagret')
+    })
   }
 
   // BRUKER PROSENTENE PAA DAGENS PLAN, én gang, paa knappetrykk.
@@ -117,7 +151,7 @@ export function PlanTabell({
   // noen justerer en innstilling — da ville et lite dytt paa «planlagt»
   // flyttet «start» ogsaa, uten at noen ba om det.
   function brukPaaPlanen() {
-    overgang(() => {
+    bekreftet(async () => {
       let rort = 0
       for (const g of grupper) {
         const { start: sPst, margin: mPst } = forGruppe(g.kode)
@@ -125,14 +159,14 @@ export function PlanTabell({
           if (ekskl.has(p.varenavn)) continue
           const nyPlan = medMargin(p.foreslatt, mPst)
           const nyStart = startAntall(nyPlan, sPst)
-          setPlanlagt((s) => ({ ...s, [p.varenavn]: nyPlan }))
-          setStart((s) => ({ ...s, [p.varenavn]: nyStart }))
-          void setLinje({
+          await setLinje({
             stasjon_id: stasjonId, dato, varenavn: p.varenavn,
             varegruppe_kode: g.kode, varegruppe_navn: g.navn,
             foreslatt: p.foreslatt, planlagt: nyPlan, start_antall: nyStart,
             ekskludert: false,
           })
+          setPlanlagt((s) => ({ ...s, [p.varenavn]: nyPlan }))
+          setStart((s) => ({ ...s, [p.varenavn]: nyStart }))
           rort++
         }
       }
@@ -141,9 +175,16 @@ export function PlanTabell({
   }
 
   function publiserNa() {
-    overgang(async () => {
-      const r = await publiser(stasjonId, dato)
-      setPublisert(r.ok); setMelding(r.ok ? 'Publisert ✓' : 'Kunne ikke publisere')
+    bekreftet(async () => {
+      const linjer = grupper.flatMap((g) => g.produkter.map((p) => ({
+        varenavn: p.varenavn, varegruppe_kode: g.kode, varegruppe_navn: g.navn,
+        foreslatt: p.foreslatt, planlagt: planlagt[p.varenavn] ?? p.planlagt,
+        start_antall: start[p.varenavn] ?? p.start_antall, ekskludert: ekskl.has(p.varenavn),
+      })))
+      const r = await publiser(stasjonId, dato, linjer, notat)
+      if (!r.ok) { setFeil(r.feil ?? 'Planen ble ikke publisert. Prøv igjen.'); return }
+      lagretNotat.current = notat
+      setPublisert(true); setMelding('Publisert ✓')
     })
   }
 
@@ -154,6 +195,8 @@ export function PlanTabell({
 
   return (
     <>
+      {feil && <p className="feil" role="alert">{feil}</p>}
+      {lagrer && <p className="undertittel" role="status">Lagrer …</p>}
       {/* TO TALL, IKKE TRE. «AI-forslag» stod som et eget nokkeltall ved
           siden av «Planlagt», og den eneste jobben det hadde var aa vaere
           noe aa sammenligne med. Naa ER det sammenligningen - tallet er
@@ -187,8 +230,8 @@ export function PlanTabell({
             <span>Klart til morgenskift</span>
             <span className="pp-regel-inn">
               <input
-                inputMode="numeric" value={std.start}
-                onChange={(e) => endreStandard('start', Number(e.target.value.replace(/\D/g, '')))}
+                key={`std-start:${inputVersjon}`} inputMode="numeric" defaultValue={std.start} disabled={lagrer}
+                onBlur={(e) => { if (Number(e.target.value) !== std.start) endreStandard('start', Number(e.target.value.replace(/\D/g, ''))) }}
                 aria-label="Andel klart til morgenskift, i prosent"
               />
               <span className="pp-regel-enhet">%</span>
@@ -199,8 +242,8 @@ export function PlanTabell({
             <span>Margin over forslaget</span>
             <span className="pp-regel-inn">
               <input
-                inputMode="numeric" value={std.margin}
-                onChange={(e) => endreStandard('margin', Number(e.target.value.replace(/\D/g, '')))}
+                key={`std-margin:${inputVersjon}`} inputMode="numeric" defaultValue={std.margin} disabled={lagrer}
+                onBlur={(e) => { if (Number(e.target.value) !== std.margin) endreStandard('margin', Number(e.target.value.replace(/\D/g, ''))) }}
                 aria-label="Margin over forslaget, i prosent"
               />
               <span className="pp-regel-enhet">%</span>
@@ -232,7 +275,7 @@ export function PlanTabell({
               Merk hva 0 % gjør: planlagt settes til forslaget på alle
               linjer, og `startAntall` returnerer 0 — hele morgenskiftet
               nulles. Derfor «skriv over», ikke «bruk». */}
-          <Knapp onClick={brukPaaPlanen}>Skriv over dagens tall</Knapp>
+          <Knapp onClick={brukPaaPlanen} disabled={lagrer}>Skriv over dagens tall</Knapp>
           <span className="undertittel">Også linjer du har justert selv</span>
         </div>
       </section>
@@ -250,8 +293,8 @@ export function PlanTabell({
                   <span>Start</span>
                   <input
                     inputMode="numeric" placeholder={`${std.start}`}
-                    value={avvik[g.kode]?.start ?? ''}
-                    onChange={(e) => endreGruppe(g.kode, 'start', e.target.value)}
+                    key={`gruppe-start:${inputVersjon}`} disabled={lagrer} defaultValue={avvik[g.kode]?.start ?? ''}
+                    onBlur={(e) => { if (e.target.value !== String(avvik[g.kode!]?.start ?? '')) endreGruppe(g.kode, 'start', e.target.value) }}
                     aria-label={`Startprosent for ${g.navn}`}
                   />
                   <span className="pp-regel-enhet">%</span>
@@ -260,8 +303,8 @@ export function PlanTabell({
                   <span>Margin</span>
                   <input
                     inputMode="numeric" placeholder={`${std.margin}`}
-                    value={avvik[g.kode]?.margin ?? ''}
-                    onChange={(e) => endreGruppe(g.kode, 'margin', e.target.value)}
+                    key={`gruppe-margin:${inputVersjon}`} disabled={lagrer} defaultValue={avvik[g.kode]?.margin ?? ''}
+                    onBlur={(e) => { if (e.target.value !== String(avvik[g.kode!]?.margin ?? '')) endreGruppe(g.kode, 'margin', e.target.value) }}
                     aria-label={`Marginprosent for ${g.navn}`}
                   />
                   <span className="pp-regel-enhet">%</span>
@@ -271,7 +314,7 @@ export function PlanTabell({
             )}
             <table className="tabell pp-tabell">
               <thead>
-                <tr><th>Produkt</th><th className="mob-skjul">Snitt</th><th className="mob-skjul">×</th><th>Forslag</th><th>Start</th><th>Planlagt</th><th></th></tr>
+                <tr><th>Produkt</th><th className="mob-skjul">Grunnlag</th><th className="mob-skjul">×</th><th>Forslag</th><th>Start</th><th>Planlagt</th><th></th></tr>
               </thead>
               <tbody>
                 {g.produkter.map((p) => {
@@ -287,20 +330,20 @@ export function PlanTabell({
                       <td>{tall.format(p.foreslatt)}</td>
                       <td>
                         <div className="stepper liten">
-                          <button type="button" disabled={ute} onClick={() => endreStart(g, p, (start[p.varenavn] ?? 0) - 1)} aria-label="Mindre start">−</button>
-                          <input inputMode="numeric" disabled={ute} value={start[p.varenavn] ?? 0} onChange={(e) => endreStart(g, p, Number(e.target.value.replace(/\D/g, '')))} aria-label={`Start ${p.varenavn}`} />
-                          <button type="button" disabled={ute} onClick={() => endreStart(g, p, (start[p.varenavn] ?? 0) + 1)} aria-label="Mer start">+</button>
+                          <button type="button" disabled={ute || lagrer} onClick={() => endreStart(g, p, (start[p.varenavn] ?? 0) - 1)} aria-label="Mindre start">−</button>
+                          <input key={`start:${inputVersjon}`} inputMode="numeric" disabled={ute || lagrer} defaultValue={start[p.varenavn] ?? 0} onBlur={(e) => { if (Number(e.target.value) !== start[p.varenavn]) endreStart(g, p, Number(e.target.value.replace(/\D/g, ''))) }} aria-label={`Start ${p.varenavn}`} />
+                          <button type="button" disabled={ute || lagrer} onClick={() => endreStart(g, p, (start[p.varenavn] ?? 0) + 1)} aria-label="Mer start">+</button>
                         </div>
                       </td>
                       <td>
                         <div className="stepper">
-                          <button type="button" disabled={ute} onClick={() => endrePlan(g, p, (planlagt[p.varenavn] ?? 0) - 1)} aria-label="Mindre">−</button>
-                          <input inputMode="numeric" disabled={ute} value={planlagt[p.varenavn] ?? 0} onChange={(e) => endrePlan(g, p, Number(e.target.value.replace(/\D/g, '')))} aria-label={`Planlagt ${p.varenavn}`} />
-                          <button type="button" disabled={ute} onClick={() => endrePlan(g, p, (planlagt[p.varenavn] ?? 0) + 1)} aria-label="Mer">+</button>
+                          <button type="button" disabled={ute || lagrer} onClick={() => endrePlan(g, p, (planlagt[p.varenavn] ?? 0) - 1)} aria-label="Mindre">−</button>
+                          <input key={`plan:${inputVersjon}`} inputMode="numeric" disabled={ute || lagrer} defaultValue={planlagt[p.varenavn] ?? 0} onBlur={(e) => { if (Number(e.target.value) !== planlagt[p.varenavn]) endrePlan(g, p, Number(e.target.value.replace(/\D/g, ''))) }} aria-label={`Planlagt ${p.varenavn}`} />
+                          <button type="button" disabled={ute || lagrer} onClick={() => endrePlan(g, p, (planlagt[p.varenavn] ?? 0) + 1)} aria-label="Mer">+</button>
                         </div>
                       </td>
                       <td>
-                        <button type="button" className="pp-ekskl" onClick={() => toggleEkskl(g, p)} title={ute ? 'Ta med igjen' : 'Ekskluder fra planen'}>{ute ? '↩' : '✕'}</button>
+                        <button type="button" disabled={lagrer} className="pp-ekskl" onClick={() => toggleEkskl(g, p)} title={ute ? 'Ta med igjen' : 'Ekskluder fra planen'}>{ute ? '↩' : '✕'}</button>
                       </td>
                     </tr>
                   )
@@ -327,13 +370,21 @@ export function PlanTabell({
           <span className="sq-skjult">Notat til de ansatte</span>
           <textarea
             id="pp-notat"
-            className="pp-notat" rows={2} value={notat} placeholder="F.eks. «Ekstra fokus på baguetter til lunsj»"
+            className="pp-notat" rows={2} value={notat} disabled={lagrer} placeholder="F.eks. «Ekstra fokus på baguetter til lunsj»"
             onChange={(e) => setNotatTekst(e.target.value)}
-            onBlur={() => overgang(() => { void setNotat(stasjonId, dato, notat) })}
+            onBlur={(e) => {
+              // Publisering tar med notatet i samme atomiske snapshot.
+              if (lagretNotat.current === notat || e.relatedTarget?.closest('.pp-publiser')) return
+              bekreftet(async () => {
+                await setNotat(stasjonId, dato, notat)
+                lagretNotat.current = notat
+                setMelding('Notatet er lagret')
+              })
+            }}
           />
         </label>
         <div className="pp-publiser">
-          <Knapp variant="primar" onClick={publiserNa}>
+          <Knapp variant="primar" onClick={publiserNa} disabled={lagrer}>
             {publisert ? 'Publiser på nytt' : 'Publiser til nettbrettet'}
           </Knapp>
           <Status nivaa={publisert ? 'normal' : 'handling'}>

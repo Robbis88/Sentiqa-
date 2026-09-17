@@ -2,6 +2,30 @@
 // mål-dato basert på fjorårets samme ukedag (median ±2 uker) + nylig trend +
 // værvarsel, med automatisk kampanje-deteksjon. Ren, testbar logikk — all
 // datahenting skjer i kall-laget (page/handler), motoren regner.
+import { erHelligdag, fjorHelligdag } from './helligdager'
+
+/** Dagen i Oslo, uavhengig av serverens tidssone. */
+export function produksjonsdag(onsket?: string, naa = new Date()): string {
+  if (onsket) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(onsket)
+      || !Number.isFinite(new Date(`${onsket}T12:00:00Z`).getTime())
+      || new Date(`${onsket}T12:00:00Z`).toISOString().slice(0, 10) !== onsket) {
+      throw new Error('Produksjonsdatoen er ugyldig.')
+    }
+    return onsket
+  }
+  return leggTilDager(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Oslo' }).format(naa), 1)
+}
+
+/** Hele referansegrunnlaget, inkludert trend ved forsinket import. */
+export function produksjonsreferanse(maalDato: string, sisteSalgsdato: string) {
+  const cutoff = leggTilDager(maalDato, -1)
+  const til = sisteSalgsdato < cutoff ? sisteSalgsdato : cutoff
+  const fjorDato = fjorHelligdag(maalDato) ?? leggTilDager(maalDato, -364)
+  const fraTrend = leggTilDager(til, -391)
+  const fraMedian = leggTilDager(fjorDato, -14)
+  return { fjorDato, fra: fraTrend < fraMedian ? fraTrend : fraMedian, til }
+}
 
 export type Vaerdag = { temp_maks: number | null; nedbor_mm: number | null }
 
@@ -108,7 +132,10 @@ export function lagProduksjonsplan(opts: {
    */
   fjorHelligdag?: string | null
 }): PlanForslag {
-  const { maalDato, sisteSalgsdato, salg, vaerMaal, vaerFjor, vaerfolsomhet } = opts
+  const { maalDato, vaerMaal, vaerFjor, vaerfolsomhet } = opts
+  const referanse = produksjonsreferanse(maalDato, opts.sisteSalgsdato)
+  const sisteSalgsdato = referanse.til
+  const salg = opts.salg.filter(p => p.dato <= sisteSalgsdato)
   const arrangementFaktor = opts.arrangementFaktor ?? 1
   const ekskluderte = opts.ekskluderte ?? new Set<string>()
   const advarsler: string[] = []
@@ -117,26 +144,28 @@ export function lagProduksjonsplan(opts: {
   // Fjor-match: samme ukedag for 52 uker siden (364 dager).
   // Er måldagen en helligdag, er fjorårets SAMME helligdag riktig base.
   // Ukedagsregelen gjelder alle andre dager.
-  const fjorBase = opts.fjorHelligdag ?? leggTilDager(maalDato, -364)
-  const fjorDatoer = opts.helligdag ? [fjorBase] : [-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d))
+  const helligdag = opts.helligdag ?? erHelligdag(maalDato)
+  const fjorBase = opts.fjorHelligdag ?? referanse.fjorDato
+  const fjorDatoer = helligdag ? [fjorBase] : [-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d))
   const fjorSett = new Set(fjorDatoer)
   // Nylig: siste 28 dager fram til siste salgsdag.
   const nyligStart = leggTilDager(sisteSalgsdato, -27)
 
   // Indekser salget per produkt.
-  type Agg = { kode: string | null; gruppe: string | null; fjor: Map<string, number>; nylig: { dato: string; antall: number }[] }
+  type Agg = { kode: string | null; gruppe: string | null; fjor: Map<string, number>; nylig: Map<string, number> }
   const per = new Map<string, Agg>()
   let trendNaa = 0
   let trendFjor = 0
   for (const r of salg) {
+    if (!Number.isFinite(r.antall)) throw new Error('Salgsantallet er ukjent eller ugyldig.')
     const navn = (r.varenavn ?? '').trim()
     if (!navn) continue
     let a = per.get(navn)
-    if (!a) { a = { kode: r.varegruppeKode, gruppe: r.varegruppeNavn, fjor: new Map(), nylig: [] }; per.set(navn, a) }
+    if (!a) { a = { kode: r.varegruppeKode, gruppe: r.varegruppeNavn, fjor: new Map(), nylig: new Map() }; per.set(navn, a) }
     if (!a.kode && r.varegruppeKode) a.kode = r.varegruppeKode
     if (!a.gruppe && r.varegruppeNavn) a.gruppe = r.varegruppeNavn
     if (fjorSett.has(r.dato)) a.fjor.set(r.dato, (a.fjor.get(r.dato) ?? 0) + r.antall)
-    if (r.dato >= nyligStart && r.dato <= sisteSalgsdato) a.nylig.push({ dato: r.dato, antall: r.antall })
+    if (r.dato >= nyligStart && r.dato <= sisteSalgsdato) a.nylig.set(r.dato, (a.nylig.get(r.dato) ?? 0) + r.antall)
     // Trend: total siste 28 dager vs samme 28-dagers vindu i fjor.
     if (r.dato >= nyligStart && r.dato <= sisteSalgsdato) trendNaa += r.antall
     if (r.dato >= leggTilDager(nyligStart, -364) && r.dato <= leggTilDager(sisteSalgsdato, -364)) trendFjor += r.antall
@@ -156,7 +185,7 @@ export function lagProduksjonsplan(opts: {
     let fjorMedian: number | null = fjorVerdier.length ? median(fjorVerdier) : null
 
     // Kampanje i fjor: match-dagen unormalt høy mot naboukene → bruk nabo-median.
-    if (!opts.helligdag && fjorMedian != null) {
+    if (!helligdag && fjorMedian != null) {
       const matchDag = a.fjor.get(fjorBase) ?? 0
       const naboer = [-14, -7, 7, 14].map((d) => a.fjor.get(leggTilDager(fjorBase, d)) ?? 0).filter((v) => v > 0)
       const naboMed = naboer.length ? median(naboer) : matchDag
@@ -167,8 +196,8 @@ export function lagProduksjonsplan(opts: {
     }
 
     // Nylig snitt: samme ukedag siste 28 dager; for få → alle dager.
-    const sammeUkedag = a.nylig.filter((p) => ukedag(p.dato) === malUkedag).map((p) => p.antall)
-    const alleNylig = a.nylig.map((p) => p.antall)
+    const sammeUkedag = [...a.nylig].filter(([dato]) => ukedag(dato) === malUkedag).map(([, antall]) => antall)
+    const alleNylig = [...a.nylig.values()]
     const nyligSnitt = sammeUkedag.length >= 2 ? snitt(sammeUkedag) : (alleNylig.length ? snitt(alleNylig) : null)
 
     // Basis: fjor-median (hvis fortsatt i salg) ellers nylig (nytt produkt).

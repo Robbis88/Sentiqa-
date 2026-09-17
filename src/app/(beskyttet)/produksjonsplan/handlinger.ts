@@ -1,7 +1,8 @@
 'use server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { maaLykkes } from '@/lib/skriv-svar'
+import { erLeder } from '@/lib/auth/roller'
+import { traffEnRad } from '@/lib/skriv-svar'
 
 export type LinjeData = {
   stasjon_id: string
@@ -15,13 +16,26 @@ export type LinjeData = {
   ekskludert?: boolean
 }
 
+export type PlansnapshotLinje = Omit<LinjeData, 'stasjon_id' | 'dato'>
+
+function validerLinje(data: PlansnapshotLinje) {
+  if (!data.varenavn?.trim() || !Number.isInteger(data.foreslatt) || data.foreslatt < 0
+    || !Number.isInteger(data.planlagt) || data.planlagt < 0
+    || !Number.isInteger(data.start_antall ?? 0) || (data.start_antall ?? 0) < 0
+    || (data.start_antall ?? 0) > data.planlagt) {
+    throw new Error('Kontroller antallene. Startpartiet kan ikke være større enn dagsplanen.')
+  }
+}
+
 // Lagrer/overstyrer en plan-linje (planlagt, startAntall, ekskluder). Bevarer
 // lagd_hittil (settes ikke her — kun fra tableten).
 export async function setLinje(data: LinjeData): Promise<void> {
   const bruker = await hentInnloggetBruker()
-  if (!bruker.retailerId || !data.stasjon_id || !data.dato || !data.varenavn) return
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) throw new Error('Kun leder kan endre planen.')
+  if (!data.stasjon_id || !data.dato) throw new Error('Velg stasjon og dato.')
+  validerLinje(data)
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('produksjonsplan_linjer').upsert(
+  traffEnRad(await supabase.from('produksjonsplan_linjer').upsert(
     {
       retailer_id: bruker.retailerId,
       stasjon_id: data.stasjon_id,
@@ -35,31 +49,45 @@ export async function setLinje(data: LinjeData): Promise<void> {
       ekskludert: data.ekskludert ?? false,
       oppdatert_tid: new Date().toISOString(),
     },
-    { onConflict: 'stasjon_id,dato,varenavn' },
+    { onConflict: 'stasjon_id,dato,varenavn', count: 'exact' },
   ), 'lagre produksjonsplan linjer')
 }
 
 // Notat til de ansatte (per stasjon/dag).
 export async function setNotat(stasjon_id: string, dato: string, notat: string): Promise<void> {
   const bruker = await hentInnloggetBruker()
-  if (!bruker.retailerId || !stasjon_id || !dato) return
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) throw new Error('Kun leder kan endre notatet.')
+  if (!stasjon_id || !dato) throw new Error('Velg stasjon og dato.')
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('produksjonsplan_hode').upsert(
+  traffEnRad(await supabase.from('produksjonsplan_hode').upsert(
     { retailer_id: bruker.retailerId, stasjon_id, dato, notat: notat.trim() || null, oppdatert_tid: new Date().toISOString() },
-    { onConflict: 'stasjon_id,dato' },
+    { onConflict: 'stasjon_id,dato', count: 'exact' },
   ), 'lagre produksjonsplan hode')
 }
 
 // Publiser planen til tableten (bevarer «lagd hittil»). Setter publisert_tid.
-export async function publiser(stasjon_id: string, dato: string): Promise<{ ok: boolean }> {
+export async function publiser(stasjon_id: string, dato: string, linjer: PlansnapshotLinje[], notat: string): Promise<{ ok: boolean; feil?: string }> {
   const bruker = await hentInnloggetBruker()
-  if (!bruker.retailerId || !stasjon_id || !dato) return { ok: false }
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) return { ok: false, feil: 'Kun leder kan publisere.' }
+  if (!stasjon_id || !/^\d{4}-\d{2}-\d{2}$/.test(dato) || !Array.isArray(linjer) || linjer.length === 0 || linjer.length > 1000) {
+    return { ok: false, feil: 'Velg en gyldig stasjon, dato og komplett plan.' }
+  }
+  try {
+    linjer.forEach(validerLinje)
+    if (new Set(linjer.map((l) => l.varenavn.trim())).size !== linjer.length) throw new Error('Planen inneholder dupliserte produkter.')
+  } catch (e) {
+    return { ok: false, feil: e instanceof Error ? e.message : 'Kontroller planen.' }
+  }
   const supabase = await lagSupabaseServerKlient()
-  const { error } = await supabase.from('produksjonsplan_hode').upsert(
-    { retailer_id: bruker.retailerId, stasjon_id, dato, publisert_tid: new Date().toISOString(), oppdatert_tid: new Date().toISOString() },
-    { onConflict: 'stasjon_id,dato' },
-  )
-  return { ok: !error }
+  // Hele snapshotet og publiseringshodet skrives i én databasetransaksjon.
+  const { error } = await supabase.rpc('publiser_produksjonsplan', {
+    p_stasjon: stasjon_id, p_dato: dato,
+    p_linjer: linjer.map((l) => ({ varenavn: l.varenavn.trim(), varegruppe_kode: l.varegruppe_kode,
+      varegruppe_navn: l.varegruppe_navn, foreslatt: l.foreslatt, planlagt: l.planlagt,
+      start_antall: l.start_antall ?? 0, ekskludert: l.ekskludert ?? false })),
+    p_notat: notat.trim() || null,
+  })
+  return error ? { ok: false, feil: 'Planen ble ikke publisert. Prøv igjen.' } : { ok: true }
 }
 
 // Tablet: ansatte logger hvor mange som er lagd hittil (absolutt verdi).
@@ -116,11 +144,12 @@ export async function setProsent(
   verdi: { start: number | null; margin: number | null },
 ): Promise<void> {
   const bruker = await hentInnloggetBruker()
-  if (!bruker.retailerId || !stasjon_id || !varegruppe_kode) return
+  if (!erLeder(bruker.rolle) || !bruker.retailerId) throw new Error('Kun leder kan endre driftsreglene.')
+  if (!stasjon_id || !varegruppe_kode) throw new Error('Velg stasjon og varegruppe.')
   const klem = (v: number | null, maks: number) =>
     v == null || !Number.isFinite(v) ? null : Math.min(maks, Math.max(0, Math.round(v)))
   const supabase = await lagSupabaseServerKlient()
-  maaLykkes(await supabase.from('stasjon_produksjon_innstilling').upsert(
+  traffEnRad(await supabase.from('stasjon_produksjon_innstilling').upsert(
     {
       retailer_id: bruker.retailerId,
       stasjon_id,
@@ -129,6 +158,6 @@ export async function setProsent(
       margin_prosent: klem(verdi.margin, 100),
       oppdatert_tid: new Date().toISOString(),
     },
-    { onConflict: 'stasjon_id,varegruppe_kode' },
+    { onConflict: 'stasjon_id,varegruppe_kode', count: 'exact' },
   ), 'lagre produksjonsprosent')
 }

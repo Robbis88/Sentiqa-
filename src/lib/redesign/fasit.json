@@ -600,10 +600,12 @@
       "{k.navn} <span className=\"undertittel\">· {kjedeNavn.get(k.retailer_id)}</span>"
     ],
     "/kasserer": [
+      "${navnFor.get(v.rad.stasjon_id) ?? 'Butikk'} · ${v.rad.navn?.trim() ? `${v.rad.navn.trim()} (kassenummer ${v.rad.kasserer_nr})` : `kassenummer ${v.rad.kasserer_nr}`}: økning i returer",
       "${s.butikknummer} ${s.navn}",
       "Ingen kassererdata ennå",
       "Kassa selv",
-      "Måned for måned"
+      "Måned for måned",
+      "Returer som bør undersøkes"
     ],
     "/konkurranser": [
       "Ingen konkurranser ennå",
@@ -656,6 +658,7 @@
       "Ingen lønnstall ennå",
       "Kontoene · ${manedAar.format(new Date(`${siste.maaned}-01`))}",
       "Lønnsform",
+      "Lønnsrommet · ${periode(bilde)} · sikkerhet ${ORD_SIKKERHET[sikkerhet]}",
       "Per måned",
       "Per stasjon",
       "Uten lønnsgrunnlag",
@@ -672,6 +675,7 @@
       "Avgjort",
       "Bygg {mnd} på nytt",
       "Ingen månedsplaner ennå",
+      "Ingenting venter i ${tekstFor(valgt!)}",
       "Køen kunne ikke hentes",
       "Venter på deg",
       "dynamisk:stasjon"
@@ -748,6 +752,7 @@
       "Sterkest vekst",
       "Svakest",
       "Venter på en komplett uke",
+      "dynamisk:bolk.tittel",
       "dynamisk:g.navn",
       "dynamisk:k.navn",
       "dynamisk:overskrift(signaler)",
@@ -788,8 +793,9 @@
       "Produksjon",
       "dynamisk:g.navn",
       "dynamisk:tittel",
-      "lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage",
-      "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>"
+      "planlagt === 0 ? 'Ingen varer i dagens plan' : lagd >= planlagt ? 'Alt er lagd' : `${planlagt - lagd} igjen å lage",
+      "{g.navn} <span className=\"undertittel\">· {g.kode}</span> <span className=\"gruppe-sum\">{tall.format(sum)} stk</span>",
+      "{t('I morgen')} · {datoLang.format(new Date(`${dato}T00:00:00Z`))}"
     ],
     "/produksjonsplan/treffsikkerhet": [
       "Dag for dag (siste ${trendDager.length})",
