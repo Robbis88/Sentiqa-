@@ -115,16 +115,31 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
             dager naar 650, et nakent folg-funn ligger paa 300.
 
             Det er ikke en feil aa rette. Det er hele grunnen til at
-            konsekvens og varighet teller: en orientering som har kostet
+            kroner og dager teller: en orientering som har kostet
             90 000 kroner i fire dager ER viktigere enn en «folg med»
-            det ikke staar noe bak. Merkelappen er derfor endret til aa
-            si hva som faktisk avgjor - de tre tingene `signaler.ts`
-            selv navngir, i den rekkefolgen den bruker dem.
+            det ikke staar noe bak.
+
+            MEN «KONSEKVENS OG VARIGHET» LOVTE OGSAA FOR MYE, og paa en
+            annen maate: det leses som at hver rad ER veid paa de tre.
+            Begge leddene er BETINGET i `poengFor` -
+
+              let p = GRUNNPOENG[s.niva]              // alltid
+              if (s.konsekvensKr) p += ...            // bare naar satt
+              if (s.dager)        p += ...            // bare naar satt
+
+            - og Regnskap-signalene (`admin-dashbord.tsx`) setter ingen
+            av dem. For dem er poenget noeyaktig 1000 eller 300, altsaa
+            alvoret alene. Maalt i produksjon 2026-09-17: 22 fenomener
+            fordelte seg paa to distinkte poengverdier.
+
+            Setningen navngir derfor de samme tre leddene som koden, med
+            betingelsen paa: alvoret alltid, kroner og dager der de
+            finnes. Den beskriver ingen ny algoritme.
 
             Grensene er maalt i `signaler.test.ts` > «hva rekkefolgen
             lover». Snur noen kontrakten, feiler de testene, og da skal
-            denne setningen endres tilbake i samme slengen. */}
-        <span className="sq-merkelapp">Etter alvor, konsekvens og varighet</span>
+            denne setningen endres i samme slengen. */}
+        <span className="sq-merkelapp">Etter alvor — og kroner og dager der de finnes</span>
       </div>
 
       <ul className="sq-saker">

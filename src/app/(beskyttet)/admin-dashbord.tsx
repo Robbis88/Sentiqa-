@@ -246,7 +246,20 @@ function byggSignaler(d: DashData, idag: string, klynge: ReturnType<typeof klyng
   for (const s of d.driftsstatus) {
     if (s.status === 'gronn') continue
     raa.push({
-      id: `drift-${s.navn}`, merke: 'Regnskap', tittel: s.navn, detalj: s.grunn,
+      // HITTIL I AAR, IKKE MAANEDEN. `hentRegnskapVarsler` leser
+      // `regnskap_sum(<aar>-01-01, periode)` og maaler summen mot
+      // absolutte kronegrenser. «21 558 kr usynlig manko» er altsaa
+      // aarssummen t.o.m. perioden - ikke det som skjedde i den.
+      //
+      // Maalt 2026-09-17 (`maanedsbevegelse.test.ts`): Boenes gikk
+      // 14 677 -> 18 341 og skiftet gul -> rod paa en juli som flyttet
+      // 3 663 kr, nest minst av fem. Uten disse tre ordene leses kortet
+      // som en hendelse i juli.
+      //
+      // Teksten er alt vi retter naa. Grensen, nivaaet og rekkefolgen
+      // staar uroert - maanedsverdien er en annen sannhet og skal ikke
+      // presses inn i en motor som svarer paa aaret.
+      id: `drift-${s.navn}`, merke: 'Regnskap', tittel: s.navn, detalj: `${s.grunn} · hittil i år`,
       niva: s.status === 'rod' ? 'kritisk' : 'folg', lenke: '/regnskap',
     })
   }
@@ -316,8 +329,12 @@ export async function AdminDashbord({ bruker, idag }: { bruker: InnloggetBruker;
         handlinger={(
           <div className="sq-ferskhet">
             {d.sisteSalg && <Ferskhetsstatus dato={d.sisteSalg.dato} idag={idag} />}
+            {/* «Regnskap juli 2026» var sant om KILDEN og usant om
+                TALLENE: hvert regnskapstall under er hittil i aar.
+                Overskriften er det foerste oeyet fester seg ved, og
+                den satte perioden for alt som fulgte. */}
             {d.sistePeriode && (
-              <Status>Regnskap {manedAar.format(new Date(d.sistePeriode))}</Status>
+              <Status>Regnskap · hittil i år t.o.m. {manedAar.format(new Date(d.sistePeriode))}</Status>
             )}
           </div>
         )}
