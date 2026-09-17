@@ -130,6 +130,41 @@ describe('navn finner, EAN identifiserer', () => {
     expect(kandidater(PROD, 'pepsi')).toHaveLength(0)
   })
 
+  it('TO KANDIDATER MED SAMME NAVN FAAR EAN MED', () => {
+    // Malt i produksjon: `5000112651881` og `5000112691719` heter begge
+    // «0,5 L COCA-COLA ZERO» i samme varegruppe. Uten EAN-en ville
+    // spoersmaalet vist to identiske alternativer - en blindvei.
+    const like: Varerad[] = [
+      r('5000112651881', '0,5 L COCA-COLA ZERO', '2026-09-01', 278),
+      r('5000112691719', '0,5 L COCA-COLA ZERO', '2026-09-01', 399),
+    ]
+    const o = slaaOpp(like, 'cola zero')
+    if (o.slag !== 'flere') throw new Error('ventet flere')
+    const s = spoersmaal(o.kandidater)
+    expect(s).toContain('5000112651881')
+    expect(s).toContain('5000112691719')
+    const valg = s.slice(s.indexOf(':') + 1).replace(/\?.*$/, '').split(', ').map((x) => x.trim())
+    expect(new Set(valg).size).toBe(valg.length)
+  })
+
+  it('EAN legges IKKE ved naar merkelappene er ulike', () => {
+    // Stoey naar den ikke trengs.
+    //
+    // FIKSTUREN ER EGEN MED VILJE. Foerste utgave brukte «coca cola uten
+    // sukker» mot PROD og ventet ingen EAN - men `5000112636840` og
+    // `5000112651881` rendrer BEGGE «COCA-COLA UTEN SUKKE» i samme
+    // varegruppe, saa kollisjonen var ekte og testen tok feil. (Den
+    // siste heter «ZERO» i dag, men soeket traff den gamle raden, og da
+    // er det det navnet som vises.)
+    const ulike: Varerad[] = [
+      r('1111111111111', 'COLA VANLIG 0.5L', '2026-09-01', 100),
+      r('2222222222222', 'COLA ZERO 0.5L', '2026-09-01', 50),
+    ]
+    const o = slaaOpp(ulike, 'cola')
+    if (o.slag !== 'flere') throw new Error('ventet flere')
+    expect(spoersmaal(o.kandidater)).not.toMatch(/\[\d{8,14}\]/)
+  })
+
   it('spoersmaalet nevner varegruppen — den skiller like navn', () => {
     const o = slaaOpp(PROD, 'coca cola uten sukker')
     if (o.slag !== 'flere') throw new Error('ventet flere')

@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { leggTilDager } from '@/lib/produksjonsplan'
 import { forventetSalg, MODELLER, type Salgsrad } from './motor'
 import { maalTreff, tillit } from './treffsikkerhet'
-import { slaaOpp, type Varerad } from './varesok'
+import { slaaOpp, spoersmaal, type Varerad } from './varesok'
 
 // =====================================================================
 // PRODUKSJONSFASIT FOR AI-2 — READ ONLY
@@ -44,7 +44,12 @@ function env(navn: string): string {
 
 const KANARI = '5000112636833'
 const STASJONER = ['4185', '9467'] // Dale og Bønes
-const SOEK = 'Coca-Cola 0,5L'
+/**
+ * Det naturlige spørreordet. MÅLT TVETYDIG i produksjon 2026-09-17:
+ * fire ulike EAN er alle «0,5 L Coca-Cola» i en eller annen variant, og
+ * to av dem heter til og med nøyaktig det samme. Resolveren skal spørre.
+ */
+const NATURLIG_SOEK = 'Coca-Cola 0,5L'
 
 const MODELL = MODELLER.find((m) => m.navn === 'basis+trend')!
 const MINST_DAGER = 60
@@ -99,17 +104,44 @@ describe('AI-2 PRODUKSJONSFASIT', () => {
       .gte('dato', leggTilDager(idag, -SOEK_DAGER)).lte('dato', idag)
       .limit(20_000).overrideTypes<Varerad[]>()
 
-    const oppslag = slaaOpp(sokRader ?? [], SOEK)
+    // ── 1 DET NATURLIGE SØKET SKAL VÆRE TVETYDIG ────────────────────────
+    //
+    // Ikke en feil i resolveren — beviset på at den virker. Fire ulike
+    // varer er alle «0,5 L Coca-Cola», og å ta den mest solgte ville gitt
+    // riktig svar fire av fem ganger og feil svar usett.
+    const naturlig = slaaOpp(sokRader ?? [], NATURLIG_SOEK)
     L.push('')
-    L.push(`  RESOLVER  «${SOEK}»  ->  ${oppslag.slag}`)
-    if (oppslag.slag !== 'entydig') {
-      if (oppslag.slag === 'flere') {
-        for (const k of oppslag.kandidater.slice(0, 8)) {
-          L.push(`    ${k.ean}  «${k.navn}»  ${k.varegruppeNavn ?? ''}`)
-        }
+    L.push(`  RESOLVER  «${NATURLIG_SOEK}»  ->  ${naturlig.slag}`)
+    if (naturlig.slag === 'flere') {
+      for (const k of naturlig.kandidater.slice(0, 8)) {
+        L.push(`    ${k.ean}  «${k.navn}»  ${k.varegruppeNavn ?? ''}`)
       }
+      L.push('    spoersmaalet brukeren faar:')
+      L.push(`      ${spoersmaal(naturlig.kandidater)}`)
+    }
+    expect(
+      naturlig.slag,
+      'det naturlige soeket er ikke lenger tvetydig — velger resolveren stille?',
+    ).toBe('flere')
+    if (naturlig.slag === 'flere') {
+      // TO KANDIDATER MÅ IKKE SE LIKE UT. `5000112651881` og
+      // `5000112691719` heter begge «0,5 L COCA-COLA ZERO» i samme
+      // varegruppe. Et spørsmål med to identiske alternativer er ikke et
+      // spørsmål — det er en blindvei.
+      const sp = spoersmaal(naturlig.kandidater)
+      const valg = sp.slice(sp.indexOf(':') + 1).replace(/\?.*$/, '')
+        .split(', ').map((x) => x.trim())
+      expect(new Set(valg).size, `to like alternativer i spoersmaalet: ${sp}`)
+        .toBe(valg.length)
+    }
+
+    // ── 2 EAN GÅR RETT GJENNOM — DER FASITEN HENTES ─────────────────────
+    const oppslag = slaaOpp(sokRader ?? [], KANARI)
+    L.push('')
+    L.push(`  RESOLVER  «${KANARI}» (EAN direkte)  ->  ${oppslag.slag}`)
+    if (oppslag.slag !== 'entydig') {
       console.log(L.join('\n'))
-      throw new Error(`resolveren ga «${oppslag.slag}» for «${SOEK}» — forventet entydig`)
+      throw new Error(`EAN ${KANARI} ga «${oppslag.slag}» — forventet entydig`)
     }
     const vare = oppslag.vare
     L.push(`    EAN ${vare.ean}   «${vare.navn}»   ${vare.varegruppeKode} ${vare.varegruppeNavn}`)

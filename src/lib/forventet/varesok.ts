@@ -220,9 +220,24 @@ export function slaaOpp(rader: readonly Varerad[], soek: string): Oppslag {
  */
 export function spoersmaal(k: readonly Varekandidat[], maks = 6): string {
   const vist = k.slice(0, maks)
+  const merkelapp = (v: Varekandidat) =>
+    `«${v.navn}»${v.varegruppeNavn ? ` (${v.varegruppeNavn.trim()})` : ''}`
+
+  // TO KANDIDATER KAN SE HELT LIKE UT.
+  //
+  // Målt i produksjon 2026-09-17: `5000112651881` og `5000112691719`
+  // heter BEGGE «0,5 L COCA-COLA ZERO» og ligger begge i «BRUS MEDIUM
+  // =0,4 - 0,6l». Et spørsmål med to identiske alternativer er ikke et
+  // spørsmål — det er en blindvei.
+  //
+  // Kolliderer merkelappen, følger EAN med. Den er stygg å lese, og det
+  // er bedre enn å be noen velge mellom to like ting.
+  const antall = new Map<string, number>()
+  for (const v of vist) antall.set(merkelapp(v), (antall.get(merkelapp(v)) ?? 0) + 1)
+
   const linjer = vist.map((v) => {
-    const gruppe = v.varegruppeNavn ? ` (${v.varegruppeNavn.trim()})` : ''
-    return `«${v.navn}»${gruppe}`
+    const m = merkelapp(v)
+    return (antall.get(m) ?? 0) > 1 ? `${m} [${v.ean}]` : m
   })
   const mer = k.length > vist.length ? ` — og ${k.length - vist.length} til` : ''
   return `Hvilken mener du: ${linjer.join(', ')}?${mer}`
