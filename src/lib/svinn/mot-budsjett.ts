@@ -324,6 +324,8 @@ export type Usynligstatus = {
   kastAvlagtKr: number
   /** `usynligKr + kastAvlagtKr`. Hele svinnet, avlagte måneder. */
   totaltKr: number
+  /** Samlet svinn som andel av salg i de samme avlagte månedene. */
+  totaltPstAvSalg: number | null
   /** Kassas margin uten svinn, samme måneder. Null når den mangler. */
   teoretiskBruttoKr: number | null
   /** Brutto slik BP-en faktisk budsjetterer den, samme måneder. */
@@ -379,6 +381,7 @@ export function usynligstatus(
     bpBruttoPerMaaned: Map<string, number>
     bpSalgPerMaaned?: Map<string, number>
     faktiskSalgPerMaaned?: Map<string, number>
+    salgPerMaaned?: Map<string, number>
   },
 ): Usynligstatus | null {
   // SNITTET, ikke unionen. En måned med usynlig men uten kast — eller
@@ -390,6 +393,9 @@ export function usynligstatus(
   const usynligKr = maaneder.reduce((a, m) => a + (usynligPerMaaned.get(m) ?? 0), 0)
   const kastAvlagtKr = maaneder.reduce((a, m) => a + (kastPerMaaned.get(m) ?? 0), 0)
   const totaltKr = usynligKr + kastAvlagtKr
+  const salgPerMaaned = bp?.salgPerMaaned
+  const salg = salgPerMaaned && maaneder.every((m) => salgPerMaaned.has(m))
+    ? maaneder.reduce((a, m) => a + (salgPerMaaned.get(m) ?? 0), 0) : null
 
   // BP-SIDEN MÅ DEKKE DE SAMME MÅNEDENE, ellers sammenlignes to
   // perioder. Mangler BP-en én av dem, er sammenligningen ikke gyldig og
@@ -418,6 +424,7 @@ export function usynligstatus(
     usynligKr,
     kastAvlagtKr,
     totaltKr,
+    totaltPstAvSalg: salg != null && salg > 0 ? totaltKr / salg * 100 : null,
     teoretiskBruttoKr,
     bpBruttoKr,
     tillattSvinnKr,
@@ -498,6 +505,10 @@ export function svinnbilde(opts: {
   for (const per of opts.kastRegnskap.values()) {
     for (const [m, kr] of per) kastAvlagtPerMaaned.set(m, (kastAvlagtPerMaaned.get(m) ?? 0) + kr)
   }
+  const salgPerMaaned = new Map<string, number>()
+  for (const per of opts.salg.values()) {
+    for (const [m, kr] of per) salgPerMaaned.set(m, (salgPerMaaned.get(m) ?? 0) + kr)
+  }
 
   return {
     linjer: [...linjer].sort((a, b) => b.avvikKr - a.avvikKr),
@@ -506,14 +517,13 @@ export function svinnbilde(opts: {
       ? usynligstatus(
         opts.usynligPerMaaned,
         kastAvlagtPerMaaned,
-        opts.teoretiskPerMaaned && opts.bpBruttoPerMaaned
-          ? {
-            teoretiskPerMaaned: opts.teoretiskPerMaaned,
-            bpBruttoPerMaaned: opts.bpBruttoPerMaaned,
-            bpSalgPerMaaned: opts.bpSalgPerMaaned,
-            faktiskSalgPerMaaned: opts.faktiskSalgPerMaaned,
-          }
-          : undefined,
+        {
+          teoretiskPerMaaned: opts.teoretiskPerMaaned ?? new Map(),
+          bpBruttoPerMaaned: opts.bpBruttoPerMaaned ?? new Map(),
+          bpSalgPerMaaned: opts.bpSalgPerMaaned,
+          faktiskSalgPerMaaned: opts.faktiskSalgPerMaaned,
+          salgPerMaaned,
+        },
       )
       : null,
     notat: total ? kildenotat(total) : 'Ingen kastbudsjett for dette året.',
