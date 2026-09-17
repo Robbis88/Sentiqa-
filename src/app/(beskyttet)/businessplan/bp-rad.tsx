@@ -134,7 +134,7 @@ export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }
 
       <p className="bp-forklaring">
         {rad.mot_bp_pst != null && (
-          <span className="bp-mot-plan">{pst(rad.mot_bp_pst)} mot forventet</span>
+          <span className="bp-mot-plan">{pst(rad.mot_bp_pst)} mot omsetningsplanen</span>
         )}
         {rad.mot_ifjor_pst != null && (
           // KONTEKST, IKKE DOM. Staar etter planen, i dempet skrift.
@@ -155,7 +155,7 @@ export function BpAvdeling({ rad, abo }: { rad: BpRad; abo?: Abonnement | null }
           alene. */}
       {rad.bp_vekst_pst != null && (
         <p className="bp-krav">
-          Planen krever {pst(rad.bp_vekst_pst)} mot i fjor
+          Planen krever {pst(rad.bp_vekst_pst)} høyere omsetning enn i fjor
           {rad.ifjor_omsetning_kr != null && (
             <span className="bp-krav-grunnlag">
               {' '}({kr.format(rad.ifjor_omsetning_kr)} i fjor)
