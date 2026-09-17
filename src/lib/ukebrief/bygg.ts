@@ -257,7 +257,7 @@ function treffsignal(d: Ukedata): Briefsignal[] {
     lenke: '/produksjonsplan/treffsikkerhet',
     grunnlag: 'fakta',
     retning: god ? 'bra' : 'darlig',
-    handling: god ? undefined : 'Se hvilke kategorier som bommer mest, og om startprosenten bør justeres.',
+    handling: god ? undefined : 'Se hvilke kategorier som avviker mest, og kontroller datadekning eller utsolgte dager før planen endres.',
   }]
 }
 
@@ -426,7 +426,9 @@ function ingressFor(d: Ukedata, vekst: number, kjent: Rangert[]): string {
     ? `${kr(d.omsetning)} omsatt.`
     : `${kr(d.omsetning)} omsatt, ${pst(vekst)} ${vekst >= 0 ? 'over' : 'under'} samme uke i fjor.`
   const antall = kjent.filter((s) => s.retning === 'darlig').length
-  if (antall === 0) return `${retning} Ingenting krever oppmerksomhet denne uken.`
+  const mangler = d.hull.length > 0 || d.bpUke === null || d.timer.ukesramme === null || d.treff === null
+  if (antall === 0 && !mangler) return `${retning} Ingenting krever oppmerksomhet denne uken.`
+  if (antall === 0) return `${retning} Ingen kjente avvik i det målte grunnlaget. Noe datagrunnlag mangler, så uken er foreløpig.`
   return `${retning} ${antall} ${antall === 1 ? 'ting' : 'ting'} å se på.`
 }
 

@@ -100,7 +100,8 @@ async function bpForUken(supabase: Klient, stasjonId: string, mandag: string): P
     const { data: linjer } = await supabase
       .from('regnskapslinjer')
       .select('kode, seksjon, budsjett')
-      .eq('periode', maaned)
+      // `periode` er en dato (første dag i måneden), ikke YYYY-MM-tekst.
+      .eq('periode', `${maaned}-01`)
       .eq('stasjon_id', stasjonId)
       .is('slettet_tid', null)
       .in('seksjon', ['omsetning', 'bp_omsetning'])
@@ -173,7 +174,7 @@ async function timerForUken(
   supabase: Klient, stasjonId: string, mandag: string,
 ): Promise<{ brukt: number; ukesramme: number | null }> {
   const sondag = leggTil(mandag, 6)
-  const { data: stempler } = await supabase
+  const { data: stempler, error: stemplerError } = await supabase
     .from('v_stempling_aktiv')
     .select('dato, fra_tid, til_tid, pause_fra, pause_til')
     .eq('stasjon_id', stasjonId)
@@ -184,6 +185,7 @@ async function timerForUken(
       pause_fra: string | null; pause_til: string | null
     }[]>()
 
+  if (stemplerError) throw new Error(`v_stempling_aktiv feilet: ${stemplerError.message}`)
   let minutter = 0
   for (const r of stempler ?? []) {
     minutter += delVakt({
@@ -199,11 +201,12 @@ async function timerForUken(
   let mangler = false
   for (const maaned of maanedeneI(mandag)) {
     const [ar, mnd] = maaned.split('-').map(Number)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bemanning_maned')
       .select('disponible_timer')
       .eq('stasjon_id', stasjonId).eq('ar', ar).eq('maned', mnd)
       .maybeSingle<{ disponible_timer: number }>()
+    if (error) throw new Error(`bemanning_maned feilet: ${error.message}`)
     if (!data) { mangler = true; continue }
     const dagerIMnd = new Date(Date.UTC(ar, mnd, 0)).getUTCDate()
     const dagerAvUken = dageneIUken(mandag).filter((d) => d.startsWith(maaned)).length
@@ -339,6 +342,7 @@ export async function hentUkedata(
     utsolgtKandidater(supabase, stasjon.id),
     supabase.from('prognose_treff').select('treff')
       .eq('stasjon_id', stasjon.id).gte('dato', mandag).lte('dato', sondag)
+      .eq('type', 'produksjonsplan').eq('kategori', '*')
       .overrideTypes<{ treff: number | null }[]>(),
     supabase.from('tilbakemelding').select('alvorlighet, lest_tid')
       .eq('stasjon_id', stasjon.id)
@@ -362,7 +366,8 @@ export async function hentUkedata(
     .filter((u) => u.til >= mandag && u.fra <= sondag)
     .map((u) => ({ navn: u.varenavn, taptKr: u.tapt_kr, dager: u.dager }))
 
-  const treffTall = (treffRader.data ?? []).map((r) => r.treff).filter((t): t is number => t !== null)
+  if (treffRader.error) throw new Error(`prognose_treff feilet: ${treffRader.error.message}`)
+  const treffTall = (treffRader.data ?? []).map((r) => r.treff).filter((t): t is number => t !== null && Number.isFinite(t))
   const treff = treffTall.length === 0 ? null : {
     antall: treffTall.length,
     snittTreffPst: treffTall.reduce((a, b) => a + b, 0) / treffTall.length,
