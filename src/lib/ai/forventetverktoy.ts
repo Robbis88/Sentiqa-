@@ -98,7 +98,7 @@ export type Forventetsvar = {
   historiskTreffsikkerhet: (Treffmaal & { tillit: string }) | null
 }
 
-async function hentSalg(
+export async function hentSalg(
   supabase: Klient, stasjonIder: string[], ean: string, fra: string, til: string,
 ): Promise<Salgsrad[]> {
   const ut: Salgsrad[] = []
@@ -109,7 +109,13 @@ async function hentSalg(
       .select('stasjon_id, dato, ean, antall, varegruppe_kode, varegruppe_navn')
       .eq('ean', ean).in('stasjon_id', stasjonIder)
       .gte('dato', fra).lte('dato', til)
-      .order('dato', { ascending: true }).range(f, f + SIDE - 1)
+      // `dato` alene er ikke unik naar flere stasjoner spoerres samtidig,
+      // og `.range()` over en ustabil ordning mister rader i stillhet.
+      // `ean` er laast med .eq(), saa (dato, stasjon_id) er minste unike
+      // noekkel. Se `hentsalg-paginering.test.ts`.
+      .order('dato', { ascending: true })
+      .order('stasjon_id', { ascending: true })
+      .range(f, f + SIDE - 1)
       .overrideTypes<{
         stasjon_id: string; dato: string; ean: string; antall: number | null
         varegruppe_kode: string | null; varegruppe_navn: string | null
