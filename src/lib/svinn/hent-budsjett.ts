@@ -51,6 +51,66 @@ type Klient = SupabaseClient
 /** `2026-08-01` → `2026-08`. */
 const tilMaaned = (d: string) => d.slice(0, 7)
 
+// ---------------------------------------------------------------------
+// SOEMMEN MELLOM NIVAAVALGET OG AVDELINGSFILTERET
+// ---------------------------------------------------------------------
+//
+// Denne loekken laa inne i `hentSvinnbudsjett` og kunne bare naas med en
+// database. Den er flyttet ut UENDRET - ingen ny oppfoersel - fordi det
+// var nettopp her regresjonen bodde, og den var ikke testbar.
+//
+// `velgGrunnlag` ble oppdatert for reimporten og foretrekker grupperader.
+// `avdelingAv` ble ikke, og krevde fem siffer. Hver av dem var riktig for
+// seg; sammen ga de 91 rader inn og 0 ut, maalt paa alle fem stasjoner
+// 2026-09-17. Fravaeret saa ut som manglende data.
+//
+// `src/lib/svinn/avdeling.test.ts` binder kjeden her, og feller baade en
+// `avdelingAv` som glemmer gruppenivaaet og en vask som sniker seg inn i
+// MAT.
+// ---------------------------------------------------------------------
+
+export type Svinnfordeling = {
+  /** `kode → maaned → kast`. Noekkelen matcher `kastbudsjett.kode`. */
+  kastRegnskap: Map<string, Map<string, number>>
+  /** `maaned → usynlig`. Fortegnet staar som det staar. */
+  usynligPerMaaned: Map<string, number>
+}
+
+export type Svinnrad = {
+  periode: string
+  kode: string | null
+  kast: number | null
+  usynlig_kr: number | null
+}
+
+export function fordelRegnskapssvinn(
+  rader: readonly Svinnrad[],
+  opts: { avdeling: string | null; paaVareomrade: boolean },
+): Svinnfordeling {
+  const { avdeling, paaVareomrade } = opts
+  // AVDELINGEN, LEST UT AV BUDSJETTET. Mangler avdelingsraden, gjoeres
+  // ingen avgrensning, og oppfoerselen er som foer.
+  const iAvdelingen = (kode: string | null) =>
+    avdeling == null || avdelingAv(kode) === avdeling
+
+  const kastRegnskap = new Map<string, Map<string, number>>()
+  const usynligPerMaaned = new Map<string, number>()
+  for (const r of rader) {
+    if (!iAvdelingen(r.kode)) continue
+    const maaned = tilMaaned(r.periode)
+    // FORTEGNET STÅR SOM DET STÅR: + er manko, − er overskudd. En
+    // telling kan finne mer enn forventet, og da skal summen gå ned.
+    if (r.usynlig_kr != null) {
+      usynligPerMaaned.set(maaned, (usynligPerMaaned.get(maaned) ?? 0) + r.usynlig_kr)
+    }
+    if (r.kast == null) continue
+    const kode = paaVareomrade ? vareomradeAv(r.kode) : avdelingAv(r.kode)
+    if (!kode) continue
+    leggTil(kastRegnskap, kode, maaned, r.kast)
+  }
+  return { kastRegnskap, usynligPerMaaned }
+}
+
 /** Legger `kr` inn i `kode → måned → sum`. */
 function leggTil(kart: Map<string, Map<string, number>>, kode: string, maaned: string, kr: number) {
   const per = kart.get(kode) ?? new Map<string, number>()
@@ -138,8 +198,6 @@ export async function hentSvinnbudsjett(
   // og oppførselen er som før.
   const avdelingsrad = rader.find((b) => b.nivaa === 'avdeling')
   const avdeling = avdelingsrad?.kode ?? null
-  const iAvdelingen = (kode: string | null) =>
-    avdeling == null || avdelingAv(kode) === avdeling
 
   // GRUNNLAGET VELGES FOERST, PER PERIODE. Stasjonen er alt gitt av
   // spoerringen, saa noekkelen er maaneden alene.
@@ -151,21 +209,8 @@ export async function hentSvinnbudsjett(
   // radene som foer, og fasiten er identisk til oeret.
   const grunnlag = velgGrunnlagPerNoekkel(regnskap.data ?? [], (r) => r.periode)
 
-  const kastRegnskap = new Map<string, Map<string, number>>()
-  const usynligPerMaaned = new Map<string, number>()
-  for (const r of grunnlag.alleRader) {
-    if (!iAvdelingen(r.kode)) continue
-    const maaned = tilMaaned(r.periode)
-    // FORTEGNET STÅR SOM DET STÅR: + er manko, − er overskudd. En
-    // telling kan finne mer enn forventet, og da skal summen gå ned.
-    if (r.usynlig_kr != null) {
-      usynligPerMaaned.set(maaned, (usynligPerMaaned.get(maaned) ?? 0) + r.usynlig_kr)
-    }
-    if (r.kast == null) continue
-    const kode = paaVareomrade ? vareomradeAv(r.kode) : avdelingAv(r.kode)
-    if (!kode) continue
-    leggTil(kastRegnskap, kode, maaned, r.kast)
-  }
+  const { kastRegnskap, usynligPerMaaned } =
+    fordelRegnskapssvinn(grunnlag.alleRader, { avdeling, paaVareomrade })
 
   // ÉN LØKKE FOR BEGGE SIDENE AV BRØKEN. De kommer fra samme rad, så de
   // kan ikke lenger komme fra hvert sitt utvalg — det var nettopp det

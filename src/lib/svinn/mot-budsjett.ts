@@ -203,11 +203,51 @@ export function vareomradeAv(regnskapskode: string | null): string | null {
   return k.length === 5 && /^\d{5}$/.test(k) ? k.slice(3) : null
 }
 
-/** Avdelingen i regnskapskoden: `12010` -> `120`. */
+/**
+ * Avdelingen i regnskapskoden. `12010` -> `120`, og `120` -> `120`.
+ *
+ * =====================================================================
+ * TO NIVÅER, FORDI TABELLEN HAR TO NIVÅER
+ * =====================================================================
+ *
+ * Funksjonen ble skrevet da `regnskap_usynlig_svinn` bare hadde
+ * produktrader. Etter reimporten ligger grupperaden `120` i samme
+ * tabell, og `velgGrunnlag` foretrekker nettopp den — så i praksis er
+ * tresifret kode det eneste som når hit.
+ *
+ * Den forrige utgaven krevde nøyaktig fem siffer og ga `null` for `120`.
+ * Målt i produksjon 2026-09-17, alle fem stasjoner:
+ *
+ *   rader: spoerring 422   etter velgGrunnlag 91   etter iAvdelingen 0
+ *
+ * `/svinn` sitt «hele svinnet» og AI-ens `hele_svinnet` har vært tomme
+ * for hele 2026 — med full regnskapsdata i basen — og motorens eget
+ * notat sa «Ingen er avlagt ennå», fordi filteret hadde tømt grunnlaget.
+ *
+ * DETTE ER IKKE EN UTVIDELSE AV KONTRAKTEN. Returverdien brukes på
+ * `hent-budsjett.ts:165` som nøkkel mot `kastbudsjett.kode`, og for en
+ * avdelingsrad er den koden `'120'` (`parsere/delingsfil.ts:109`).
+ * Grupperaden skulle gi `'120'` hele tiden.
+ *
+ * ---------------------------------------------------------------------
+ * OG DET ER FORTSATT TO NIVÅER, IKKE «HVA SOM HELST»
+ * ---------------------------------------------------------------------
+ *
+ * `slice(0, 3)` på enhver streng ville gjort `1200` til `'120'` og lagt
+ * en fremmed kodeform inn i MAT i stillhet. Fire og seks siffer avvises
+ * derfor eksplisitt: en ukjent form skal stoppe raden, ikke gjettes på.
+ *
+ * `src/lib/svinn/avdeling.test.ts` binder begge nivåene, og en
+ * integrasjonsvakt binder hele kjeden `velgGrunnlag → avdelingsfilter →
+ * usynligstatus` — regresjonen oppsto fordi to hver for seg fornuftige
+ * komponenter sluttet å passe sammen, og det kan ikke ses her.
+ */
 export function avdelingAv(regnskapskode: string | null): string | null {
   if (!regnskapskode) return null
   const k = regnskapskode.trim()
-  return k.length === 5 && /^\d{5}$/.test(k) ? k.slice(0, 3) : null
+  if (/^\d{5}$/.test(k)) return k.slice(0, 3) // produktnivå
+  if (/^\d{3}$/.test(k)) return k // gruppenivå — koden ER avdelingen
+  return null
 }
 
 // ---------------------------------------------------------------------
