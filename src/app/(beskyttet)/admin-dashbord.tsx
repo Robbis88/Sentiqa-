@@ -92,7 +92,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
         ? supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('periode', sistePeriode).in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>()
         : Promise.resolve({ data: [] as { stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[] }),
       sistePeriode
-        ? supabase.from('regnskap_usynlig_svinn').select('stasjon_id, periode, nivaa, analyseomraade, kast, usynlig_kr').eq('periode', sistePeriode).is('slettet_tid', null).overrideTypes<Stasjonsrad[]>()
+        ? supabase.from('regnskap_usynlig_svinn').select('stasjon_id, periode, nivaa, analyseomraade, kode, kast, usynlig_kr').eq('periode', sistePeriode).is('slettet_tid', null).overrideTypes<Stasjonsrad[]>()
         : Promise.resolve({ data: [] as Stasjonsrad[] }),
       supabase.from('tilbakemelding').select('id, stasjon_id, alvorlighet, tekst, opprettet_tid').is('lest_tid', null).order('opprettet_tid', { ascending: false }).limit(12)
         .overrideTypes<{ id: string; stasjon_id: string; alvorlighet: string; tekst: string; opprettet_tid: string }[]>(),
@@ -111,7 +111,7 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     const avdMedData = new Set<string>()
     const sikre = (id: string) => {
       let r = rangMap.get(id)
-      if (!r) { r = { navn: navnFor.get(id) ?? '—', oms: {}, brf: {}, kost: {}, kast: 0, usynlig: 0 }; rangMap.set(id, r) }
+      if (!r) { r = { navn: navnFor.get(id) ?? '—', oms: {}, brf: {}, kost: {}, kast: 0, usynlig: 0, usynligUtenVask: 0 }; rangMap.set(id, r) }
       return r
     }
     for (const l of rangLinjeRes.data ?? []) {
@@ -152,7 +152,12 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
       if (!navnFor.has(s.stasjonId)) continue
       const r = sikre(s.stasjonId)
       r.kast += s.kastKr
+      // RAATOTALEN OG STYRINGSTALLET, SIDE OM SIDE. `usynlig` er
+      // uendret; `usynligUtenVask` er det rangeringen sorterer paa.
+      // Se `erVask` i `svinn/aggreger.ts` for hvorfor vask ikke faar
+      // motregne oevrige varegrupper her.
       r.usynlig += s.usynligKr
+      r.usynligUtenVask += s.utenVaskKr
     }
     const summer = (m: Record<string, { regnskap: number; budsjett: number }>) =>
       Object.values(m).reduce((a, v) => ({ regnskap: a.regnskap + v.regnskap, budsjett: a.budsjett + v.budsjett }), { regnskap: 0, budsjett: 0 })

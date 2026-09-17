@@ -31,9 +31,64 @@ export function stasjonsmaaned(
 // 1) KAST OG USYNLIG PER STASJON  (admin-dashbord)
 // ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
+// VASK ER EN EGEN SANNHET, OG DET ER MÅLT
+// ---------------------------------------------------------------------
+//
+// På vask betyr negativt `usynlig_kr` at vi finner MER brutto enn kassa
+// tilsier (Robert, 2026-09-17). Det er gunstig — og det er nettopp derfor
+// det er farlig i en sum: et gunstig vaskavvik trekker ned et reelt
+// positivt svinn i varegruppene lederen faktisk styrer.
+//
+// Målt i produksjon, juli 2026 (`src/lib/vaskneting.test.ts`):
+//
+//   Varden   øvrig +14 696   vask −28 622   total −13 926
+//   Bønes    øvrig +12 196   vask −14 713   total  −2 516
+//
+// Begge står med MINUS i eierens rangering — altså «usynlig overskudd»,
+// gode nyheter — mens øvrig drift har over 12 000 kr i manko.
+//
+// ---------------------------------------------------------------------
+// `erVask` BRUKER IKKE `avdelingAv`, OG DET ER MED VILJE
+// ---------------------------------------------------------------------
+//
+// `mot-budsjett.ts` sin `avdelingAv` krever NØYAKTIG fem siffer og gir
+// `null` for gruppekoden `210`. Etter reimporten er det nettopp
+// grupperadene `velgGrunnlag` velger — målt 2026-09-17: 91 rader inn,
+// 0 igjen etter det filteret. Gjenbrukte vi den her, ville vasken falt
+// tilbake i «øvrig» i stillhet, og porten hatt null virkning.
+//
+// Derfor leses avdelingen som de tre første sifrene på begge nivåene:
+// `210` og `21010` gir begge `210`.
+//
+// IKKE EN GENERELL TAKSONOMI. Settet sier at vask holdes utenfor ÉN
+// styringsflate. Det klassifiserer ikke de øvrige varegruppene etter
+// påvirkbarhet — den vurderingen er ikke gjort, og navnene her later
+// ikke som den er det.
+// ---------------------------------------------------------------------
+
+/** Avdelingene som er vask. Strukturell kode, aldri navn. */
+export const VASKAVDELINGER: ReadonlySet<string> = new Set(['210', '211'])
+
+/**
+ * Hører varegruppen til en vaskavdeling?
+ *
+ * Tar både gruppenivå (`210`) og produktnivå (`21014`). `200 Bil` og
+ * `130 Varm drikke` treffer ikke — det første ligner i navn, det andre
+ * står i `MOTPOSTER`, og ingen av delene gjør dem til vask.
+ */
+export function erVask(kode: string | null): boolean {
+  const k = (kode ?? '').trim()
+  if (!/^\d{3}/.test(k)) return false
+  return VASKAVDELINGER.has(k.slice(0, 3))
+}
+
 export type Stasjonsrad = Grunnlagsrad & {
   stasjon_id: string | null
   periode?: string | null
+  /** Varegruppekoden. PÅKREVD: uten den kan vask ikke skilles ut, og et
+   *  manglende felt ville gjort hele vasken til «øvrig» i stillhet. */
+  kode: string | null
   kast: number | null
   usynlig_kr: number | null
 }
@@ -41,7 +96,12 @@ export type Stasjonsrad = Grunnlagsrad & {
 export type Stasjonssum = {
   stasjonId: string
   kastKr: number
+  /** RÅTOTALEN, uendret. Alle varegrupper, vask inkludert. */
   usynligKr: number
+  /** Bare vaskavdelingene. */
+  vaskKr: number
+  /** `usynligKr − vaskKr`. Styringstallet for eierens svinnrangering. */
+  utenVaskKr: number
   datastatus: Datastatus
   aarsak: string
 }
@@ -54,11 +114,18 @@ export function svinnPerStasjon(rader: readonly Stasjonsrad[]): Stasjonssum[] {
     const stasjonId = noekkel.split('|')[0]
     if (stasjonId === 'uten') continue // kjederader hører ikke i en stasjonsliste
     const rad = ut.get(stasjonId) ?? {
-      stasjonId, kastKr: 0, usynligKr: 0, datastatus: valg.datastatus, aarsak: valg.aarsak,
+      stasjonId, kastKr: 0, usynligKr: 0, vaskKr: 0, utenVaskKr: 0,
+      datastatus: valg.datastatus, aarsak: valg.aarsak,
     }
     for (const r of valg.rader) {
       rad.kastKr += r.kast ?? 0
-      rad.usynligKr += r.usynlig_kr ?? 0
+      const v = r.usynlig_kr ?? 0
+      // RÅTOTALEN FØRST, OG DEN ER UENDRET. Splitten legges ved siden
+      // av — den trekker ingenting fra `usynligKr`, så hver eksisterende
+      // leser ser nøyaktig samme tall som før.
+      rad.usynligKr += v
+      if (erVask(r.kode)) rad.vaskKr += v
+      else rad.utenVaskKr += v
     }
     // Den svakeste statusen vinner: er én måned på eldre grunnlag, er
     // stasjonens sum det.
