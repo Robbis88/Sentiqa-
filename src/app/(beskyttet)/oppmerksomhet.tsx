@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Signal } from '@/lib/signaler'
 import { Status } from '@/components/ui/status'
 import { SignalKnapper } from './signal-knapper'
+import { erSystem } from '@/lib/attention/importsak'
 
 // =====================================================================
 // Den rangerte lista — hovedinnholdet på forsiden for begge lederroller.
@@ -82,8 +83,16 @@ function grunnlag(s: Signal): string[] {
 // uleste meldinger. Da må sjefen lese alle sju for å finne de to som betyr
 // noe — nøyaktig jobben denne lista skulle spare hen for.
 function overskrift(signaler: Signal[]): string {
-  const haster = signaler.filter((s) => s.niva === 'kritisk').length
-  const resten = signaler.length - haster
+  // SYSTEMSAKER TELLES IKKE MED I OVERSKRIFTEN.
+  //
+  // «12 ting aa se paa» der syv var importfeil er ikke en overskrift -
+  // det er et tall som gjoer at man slutter aa lese. Tallet skal svare
+  // paa hvor mye BUTIKKEN trenger; systemsakene staar i sin egen bolk
+  // med sin egen tittel og forsvinner ikke av det.
+  const drift = signaler.filter((s) => !erSystem(s.merke))
+  const haster = drift.filter((s) => s.niva === 'kritisk').length
+  const resten = drift.length - haster
+  if (drift.length === 0) return 'Ingenting i driften trenger oppmerksomhet'
   if (haster === 0) return `${resten} ${resten === 1 ? 'ting' : 'ting'} å se på`
   if (resten === 0) return `${haster} ting haster`
   return `${haster} ting haster · ${resten} til orientering`
@@ -142,8 +151,31 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
         <span className="sq-merkelapp">Etter alvor — og kroner og dager der de finnes</span>
       </div>
 
+      {/* =============================================================
+          TO BOLKER, ÉN KONTRAKT
+          =============================================================
+
+          Robert saa «12 ting aa se paa» der halve lista var importfeil.
+          Butikkdriften og Sentiqas egne dataproblemer laa om hverandre,
+          rangert etter samme poengsum - og en butikksjef maa vite paa
+          ett blikk om det er BUTIKKEN eller SYSTEMET som trenger noe.
+
+          Delingen er VISUELL. Begge bolker er rangert av
+          `rangerSignaler`, har samme alvorsbegrep og samme rad. Vi lager
+          ingen ny sortering og ingen ny score her.
+
+          `erSystem` leser MERKET, ikke teksten. Et merke er en
+          klassifisering satt av kallstedet; en tittel er en setning som
+          endrer seg. */}
+      {[
+        { nokkel: 'drift', rader: signaler.filter((x) => !erSystem(x.merke)), tittel: null },
+        { nokkel: 'system', rader: signaler.filter((x) => erSystem(x.merke)),
+          tittel: 'Sentiqa trenger noe' },
+      ].filter((b) => b.rader.length > 0).map((bolk) => (
+      <div key={bolk.nokkel}>
+      {bolk.tittel && <h3 className="sq-bolk-tittel">{bolk.tittel}</h3>}
       <ul className="sq-saker">
-        {signaler.map((s) => {
+        {bolk.rader.map((s) => {
           const bevis = grunnlag(s)
           return (
             <li className="sq-sak" data-niva={s.niva} key={s.id}>
@@ -186,6 +218,8 @@ export function Oppmerksomhet({ signaler }: { signaler: Signal[] }) {
           )
         })}
       </ul>
+      </div>
+      ))}
     </section>
   )
 }

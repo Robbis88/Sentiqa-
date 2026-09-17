@@ -1788,6 +1788,17 @@ html { scroll-behavior: smooth; }
 }
 a.sq-merkelapp:hover { color: var(--primaer); }
 
+/* Skillet mellom driften og Sentiqas egne dataproblemer.
+   ROLIG MED VILJE: bolken skal kunne oppdages, ikke konkurrere med
+   alvorsstripene i radene under. Samme uttrykk som merkelappen, bare med
+   luft over - blir den en overskrift til, har forsiden faatt enda en
+   ting som roper. */
+.sq-bolk-tittel {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tekst-svak); font-weight: 600;
+  margin: var(--luft-3) 0 var(--luft-1);
+}
+
 /* Ferskheten staar naa til hoyre i sidehodet, som statuser. */
 .sq-ferskhet { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; }
 

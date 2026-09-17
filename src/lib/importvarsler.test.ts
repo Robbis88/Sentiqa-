@@ -94,18 +94,39 @@ describe('IMPORTVARSLER — hvor mange rader, hvor mange saker', () => {
     // =================================================================
     // 1 import_feil — STRUKTURELL SAK VIA import_jobber
     // =================================================================
-    const { data: jdata } = await supabase
-      .from('import_jobber')
-      .select('id, raa_fil_id, status, feilmelding, opprettet_tid, raa_filer(filnavn)')
-      .order('opprettet_tid', { ascending: false })
-      .limit(1000)
-      .overrideTypes<{
-        id: string; raa_fil_id: string; status: string; feilmelding: string | null
-        opprettet_tid: string; raa_filer: { filnavn: string } | null
-      }[]>()
-    const jobber = jdata ?? []
+    // =================================================================
+    // HELE JOBBTABELLEN, SIDE FOR SIDE
+    // =================================================================
+    //
+    // Foerste utgave leste `.limit(1000)` og traff noeyaktig 1000. Da er
+    // `filerMedNavn` bygget paa et avkortet sett, og «kan knyttes
+    // entydig» blir en paastand om data vi ikke har sett: et filnavn som
+    // ser unikt ut blant de nyeste tusen, kan dekke flere filer lenger
+    // bak. Tallene saa riktige ut og var provisoriske.
+    //
+    // Se `sentiqa-avkortet-nevner`: PostgREST kutter uten aa feile.
+    type Jobb = {
+      id: string; raa_fil_id: string; status: string; feilmelding: string | null
+      opprettet_tid: string; raa_filer: { filnavn: string } | null
+    }
+    const SIDE = 1000
+    const jobber: Jobb[] = []
+    for (let fra = 0; ; fra += SIDE) {
+      const { data, error: jfeil } = await supabase
+        .from('import_jobber')
+        .select('id, raa_fil_id, status, feilmelding, opprettet_tid, raa_filer(filnavn)')
+        .order('opprettet_tid', { ascending: false })
+        .range(fra, fra + SIDE - 1)
+        .overrideTypes<Jobb[]>()
+      if (jfeil) throw new Error(`import_jobber: ${jfeil.message}`)
+      const side = data ?? []
+      jobber.push(...side)
+      if (side.length < SIDE) break
+      // Rimelighetsgrense, saa en feil i pagineringen ikke loeper evig.
+      if (jobber.length > 100_000) throw new Error('import_jobber: uventet mange rader')
+    }
     L.push('')
-    L.push(`  import_jobber lest: ${jobber.length}   `
+    L.push(`  import_jobber lest: ${jobber.length} (HELE tabellen, paginert)   `
       + `feilet ${jobber.filter((j) => j.status === 'feilet').length}`)
 
     // Filnavn -> hvilke raa_filer det finnes. FLERE er det interessante
@@ -151,6 +172,44 @@ describe('IMPORTVARSLER — hvor mange rader, hvor mange saker', () => {
     if (storst) {
       L.push(`    stoerste sak: ${storst[1].length} rader — «${storst[1][0].tittel}»`)
     }
+
+    // =================================================================
+    // 1b ER SAKEN FORTSATT ET PROBLEM?
+    // =================================================================
+    //
+    // 4 jobber staar som `feilet`, men 25 varsler ligger der fra 12
+    // filer. Varselet overlever jobbstatusen: `settFeil` skriver
+    // varselet ÉN gang og setter status, men en senere vellykket kjoering
+    // paa samme fil endrer bare statusen - varselet blir liggende ulest.
+    //
+    // DET BETYR AT EN SAK KAN VAERE LOEST UTEN AT FLATEN VET DET, og en
+    // Attention-flate som melder «12 importsaker» ville ropt om
+    // problemer som ikke finnes lenger.
+    //
+    // Her maales det: for hver sak, STATUSEN PAA SISTE JOBB for den
+    // fila. Det er en observasjon om jobben, ikke en paastand om at
+    // dataene kom inn - se «MISTENKT» nederst for forskjellen.
+    const sisteJobb = new Map<string, Jobb>()
+    for (const j of jobber) {
+      // `jobber` er sortert nyest foerst, saa foerste treff er siste jobb.
+      if (!sisteJobb.has(j.raa_fil_id)) sisteJobb.set(j.raa_fil_id, j)
+    }
+    const perStatus = new Map<string, number>()
+    const radersPerStatus = new Map<string, number>()
+    for (const [filId, rader] of knyttet) {
+      const st = sisteJobb.get(filId)?.status ?? '(ingen jobb funnet)'
+      perStatus.set(st, (perStatus.get(st) ?? 0) + 1)
+      radersPerStatus.set(st, (radersPerStatus.get(st) ?? 0) + rader.length)
+    }
+    L.push('')
+    L.push('  SAKENS TILSTAND — status paa SISTE jobb for samme fil')
+    for (const [st, n] of [...perStatus].sort((a2, b2) => b2[1] - a2[1])) {
+      L.push(`    ${st.padEnd(14)} ${String(n).padStart(3)} saker   `
+        + `${String(radersPerStatus.get(st) ?? 0).padStart(3)} varselrader`)
+    }
+    const fortsattFeilet = perStatus.get('feilet') ?? 0
+    L.push(`    -> ${knyttet.size - fortsattFeilet} av ${knyttet.size} saker har en siste jobb`)
+    L.push('       som IKKE staar som feilet. Varslene deres ligger der likevel.')
 
     // =================================================================
     // 2 import_avvik — SAKEN ER STASJON + DATO
