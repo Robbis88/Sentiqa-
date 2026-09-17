@@ -67,7 +67,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
 
   const sok = tekst.trim().toLowerCase()
   const treff = sok
-    ? punkter.filter((p) => p.tekst.toLowerCase().includes(sok) || p.gruppe.toLowerCase().includes(sok)).slice(0, 6)
+    ? punkter.filter((p) => p.tekst.toLowerCase().includes(sok) || p.gruppe.toLowerCase().includes(sok) || p.sti.toLowerCase().includes(sok)).slice(0, 6)
     : punkter.slice(0, 6)
   // Et spørsmål har som regel flere ord enn et sidenavn, eller et spørsmålstegn.
   const kanSpørre = sok.length > 0 && (sok.includes('?') || sok.split(/\s+/).length >= 3)

@@ -15,6 +15,7 @@ import { Sidehode } from '@/components/ui/side'
 import { Ferskhetsstatus } from './ferskhet-status'
 import { Oppmerksomhet } from './oppmerksomhet'
 import { Maal } from './sq-maal'
+import { hentDagRutiner } from '@/lib/rutiner-dag'
 
 // =====================================================================
 // Butikksjefens forside.
@@ -103,11 +104,10 @@ async function samle(
     // 5102: skallet sa en stasjon, og det forste oyet moette gjaldt en
     // annen.
     //
-    // `varsler` staar med vilje UTENFOR. Kolonnen er nullbar, og null
-    // betyr «hele kjeden». Et `.eq()` ville ikke avgrenset dem - det
-    // ville skjult dem.
+    // Varsler filtreres separat: valgt stasjon pluss kjedefelles varsler.
+    // Null stasjon betyr hele kjeden og skal fortsatt vises.
     //
-    // `pengepremie` og `fokuspunkter` avgrenses av RLS som for.
+    // RLS bestemmer tilgang; stasjonsfilteret bestemmer skjermens kontekst.
     const paaStasjon = <T,>(q: T): T =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (bareStasjon ? (q as any).eq('stasjon_id', bareStasjon) : q)
@@ -116,22 +116,21 @@ async function samle(
       return d.toISOString().slice(0, 10)
     })()
 
-    const [oppgRes, tilb, prem, bruk, salgDag, rutT, rutG, sjT, sjS, fokusSiste, konk, arr, stasjoner, avvikRes, varslerRes, jobbRes] =
+    const [oppgRes, tilb, prem, bruk, salgDag, rutinerIdag, sjT, sjS, fokusSiste, konk, arr, stasjoner, avvikRes, varslerRes, jobbRes] =
       await Promise.all([
         paaStasjon(supabase.from('oppgaver').select('id, tittel, frist, status').eq('status', 'apen').is('slettet_tid', null))
           .overrideTypes<{ id: string; tittel: string; frist: string | null; status: string }[]>(),
         paaStasjon(supabase.from('tilbakemelding').select('alvorlighet, lest_tid')
           .is('lest_tid', null).limit(200))
           .overrideTypes<{ alvorlighet: string; lest_tid: string | null }[]>(),
-        supabase.from('pengepremie').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
-        supabase.from('pengepremie_bruk').select('belop_kr').overrideTypes<{ belop_kr: number | null }[]>(),
-        supabase.from('v_salg_per_stasjon_dag').select('dato').order('dato', { ascending: false }).limit(1)
+        paaStasjon(supabase.from('pengepremie').select('belop_kr')).overrideTypes<{ belop_kr: number | null }[]>(),
+        paaStasjon(supabase.from('pengepremie_bruk').select('belop_kr')).overrideTypes<{ belop_kr: number | null }[]>(),
+        paaStasjon(supabase.from('v_salg_per_stasjon_dag').select('dato')).order('dato', { ascending: false }).limit(1)
           .overrideTypes<{ dato: string }[]>(),
-        paaStasjon(supabase.from('rutiner').select('*', { count: 'exact', head: true }).is('slettet_tid', null)),
-        paaStasjon(supabase.from('rutine_utforinger').select('*', { count: 'exact', head: true }).eq('dato', idag)),
+        hentDagRutiner(supabase, idag, bareStasjon),
         paaStasjon(supabase.from('sjekkpunkter').select('*', { count: 'exact', head: true }).is('slettet_tid', null)),
         paaStasjon(supabase.from('sjekkpunkt_svar').select('*', { count: 'exact', head: true }).eq('dato', idag)),
-        supabase.from('fokuspunkter').select('periode').order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>(),
+        paaStasjon(supabase.from('fokuspunkter').select('periode').is('slettet_tid', null)).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string }>(),
         paaStasjon(supabase.from('konkurranser').select('id, navn, premie_kr, periode_slutt').eq('status', 'aktiv')
           .gte('periode_slutt', idag).is('slettet_tid', null).limit(5)).overrideTypes<Konk[]>(),
         paaStasjon(supabase.from('arrangementer').select('id, navn, dato').gte('dato', idag).lte('dato', om30)
@@ -147,6 +146,7 @@ async function samle(
         paaStasjon(supabase.from('avvik').select('id, beskrivelse, frist').eq('gjennomfort', false).is('slettet_tid', null)
           .order('frist', { nullsFirst: false }).limit(10)).overrideTypes<Avvik[]>(),
         supabase.from('varsler').select('id, tittel, tekst, type, lenke').eq('lest', false).is('slettet_tid', null)
+          .or(bareStasjon ? `stasjon_id.eq.${bareStasjon},stasjon_id.is.null` : 'stasjon_id.not.is.null,stasjon_id.is.null')
           .order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<Varsel[]>(),
         // IMPORTJOBBENE, IKKE VARSLENE, EIER TILSTANDEN. Et varsel
         // skrives én gang og lukker seg aldri; en jobb som gaar gjennom
@@ -158,14 +158,20 @@ async function samle(
         // eieren kjeden. Ingen filtrering her er en sikkerhetsmekanisme.
         supabase.from('import_jobber')
           .select('id, raa_fil_id, status, stasjon_id, feilmelding, opprettet_tid, raa_filer(filnavn)')
+          .or(bareStasjon ? `stasjon_id.eq.${bareStasjon},stasjon_id.is.null` : 'stasjon_id.not.is.null,stasjon_id.is.null')
           .order('opprettet_tid', { ascending: false }).limit(200)
           .overrideTypes<Jobbrad[]>(),
       ])
 
+    for (const svar of [oppgRes, tilb, prem, bruk, salgDag, sjT, sjS, fokusSiste, konk, arr, stasjoner, avvikRes, varslerRes, jobbRes]) {
+      if (svar.error) throw new Error(`Dashboardgrunnlaget kunne ikke hentes: ${svar.error.message}`)
+    }
+
     let fokus: FokusPunkt[] = []
     if (fokusSiste.data?.periode) {
-      const { data } = await supabase.from('fokuspunkter').select('type, tekst, tittel')
+      const { data, error } = await paaStasjon(supabase.from('fokuspunkter').select('type, tekst, tittel').is('slettet_tid', null))
         .eq('periode', fokusSiste.data.periode).limit(6).overrideTypes<FokusPunkt[]>()
+      if (error) throw new Error(`Fokus kunne ikke hentes: ${error.message}`)
       fokus = data ?? []
     }
 
@@ -204,8 +210,8 @@ async function samle(
       harKrenkelse: ulesteTilb.some((m) => m.alvorlighet === 'krenkelse'),
       premieIgjen: vunnet - brukt,
       sisteDato: salgDag.data?.[0]?.dato ?? null,
-      rutTot: rutT.count ?? 0,
-      rutGjort: rutG.count ?? 0,
+      rutTot: rutinerIdag.totalt,
+      rutGjort: rutinerIdag.utfort,
       sjekkTot: sjT.count ?? 0,
       sjekkSvart: sjS.count ?? 0,
       fokus,
@@ -439,7 +445,7 @@ export async function ButikksjefDashbord(
           <ul className="sq-liste">
             {d.rutTot > 0 && (
               <li>
-                <span>Rutiner</span>
+                <span>Rutiner · dagens startdato</span>
                 <Link href="/rutiner/oversikt" className="sq-h">{d.rutGjort} / {d.rutTot}</Link>
               </li>
             )}

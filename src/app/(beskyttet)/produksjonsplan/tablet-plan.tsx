@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { loggLagd } from './handlinger'
 import { useT } from '../oversett-kontekst'
 
@@ -13,6 +13,7 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
   )
   const [feil, setFeil] = useState<string | null>(null)
   const [, start] = useTransition()
+  const skriving = useRef(new Map<string, { verdi: number; bekreftet: number; versjon: number; aktiv: boolean }>())
 
   // =================================================================
   // `void` KASTET HELE SVARET
@@ -29,17 +30,45 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
   // TALLET RULLES TILBAKE PÅ SKJERMEN. Å bare vise en feilmelding ved
   // siden av et tall som fortsatt står, ville latt to sannheter stå
   // samtidig — og den hun ser er den hun tror på.
-  function endre(p: TabletProdukt, ny: number) {
-    const v = Math.max(0, Math.round(ny))
-    const forrige = lagd[p.varenavn] ?? p.lagd_hittil
+  function endre(p: TabletProdukt, ny: number | ((forrige: number) => number)) {
+    let rad = skriving.current.get(p.varenavn)
+    if (!rad) {
+      const verdi = lagd[p.varenavn] ?? p.lagd_hittil
+      rad = { verdi, bekreftet: verdi, versjon: 0, aktiv: false }
+      skriving.current.set(p.varenavn, rad)
+    }
+    const v = Math.max(0, Math.round(typeof ny === 'function' ? ny(rad.verdi) : ny))
+    if (!Number.isFinite(v)) return
+    rad.verdi = v
+    rad.versjon++
     setLagd((s) => ({ ...s, [p.varenavn]: v }))
     setFeil(null)
+    // Ref-en oppdateres før React rendrer: raske trykk beholder hvert
+    // steg. Én skriver per vare; neste kall sender siste ønskede tall.
+    if (rad.aktiv) return
+    rad.aktiv = true
+    const skriver = rad
     start(async () => {
       try {
-        await loggLagd(stasjonId, dato, p.varenavn, v)
-      } catch {
-        setLagd((s) => ({ ...s, [p.varenavn]: forrige }))
-        setFeil(t('Tallet ble ikke lagret. Prøv en gang til.'))
+        while (true) {
+          const versjon = skriver.versjon
+          const verdi = skriver.verdi
+          try {
+            await loggLagd(stasjonId, dato, p.varenavn, verdi)
+            skriver.bekreftet = verdi
+          } catch {
+            // Et eldre svar skal ikke angre et nyere trykk. Feiler den
+            // siste endringen, angres til siste faktisk bekreftede tall.
+            if (skriver.versjon === versjon) {
+              skriver.verdi = skriver.bekreftet
+              setLagd((s) => ({ ...s, [p.varenavn]: skriver.bekreftet }))
+              setFeil(t('Tallet ble ikke lagret. Prøv en gang til.'))
+            }
+          }
+          if (skriver.versjon === versjon) break
+        }
+      } finally {
+        skriver.aktiv = false
       }
     })
   }
@@ -99,9 +128,9 @@ export function TabletPlan({ stasjonId, dato, notat, grupper }: { stasjonId: str
                       </button>
                     )}
                     <div className="stepper">
-                      <button type="button" onClick={() => endre(p, x - 1)} aria-label="−">−</button>
+                      <button type="button" onClick={() => endre(p, (forrige) => forrige - 1)} aria-label="−">−</button>
                       <input inputMode="numeric" value={x} onChange={(e) => endre(p, Number(e.target.value.replace(/\D/g, '')))} aria-label={`${t('Lagd')} ${p.varenavn}`} />
-                      <button type="button" onClick={() => endre(p, x + 1)} aria-label="+">+</button>
+                      <button type="button" onClick={() => endre(p, (forrige) => forrige + 1)} aria-label="+">+</button>
                     </div>
                   </div>
                 </div>

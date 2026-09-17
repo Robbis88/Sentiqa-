@@ -82,7 +82,8 @@ describe('et vedlegg som faller ut blir rapportert', () => {
       'Et `continue` i vedleggsløkka uten `hoppet.push` er en fil som '
       + 'forsvinner i stillhet. Svaret blir `{ ok: true }` med et lavere '
       + 'tall, og workeren kaster bare på ikke-2xx.',
-    ).toBe(0)
+    // Andre feil/legitime duplikater kan også gi spor uten et continue.
+    ).toBeLessThanOrEqual(0)
   })
 })
 

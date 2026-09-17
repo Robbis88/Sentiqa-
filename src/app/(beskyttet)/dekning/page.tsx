@@ -2,6 +2,7 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { iDag, manedAar, ramsOpp } from '@/lib/format'
 import { Sidehode, Forklaring, Nokkeltall, Datatabell } from '@/components/ui/side'
+import { hentDatadekning } from '@/lib/datadekning'
 import { Status } from '@/components/ui/status'
 import { Sideramme } from '@/components/ui/sideramme'
 
@@ -17,17 +18,6 @@ const DATASETT = [
   { key: 'synlig_svinn', navn: 'Svinn' },
 ] as const
 
-type Hullrad = {
-  datasett: string
-  datasett_navn: string
-  butikknummer: string
-  stasjon_navn: string
-  hull: number
-  hull_hverdag: number
-  forste: string
-  siste: string
-  datoer: string[]
-}
 
 /**
  * Datasettene som kommer EN FIL PER DAG.
@@ -71,14 +61,16 @@ export default async function DekningSide() {
   }
   const start = `${maaneder[maaneder.length - 1]}-01`
 
-  // Distinkte datoer pr datasett (≤ ~430 rader hver → under 1000-grensen).
-  const settPer = new Map<string, Set<string>>()
-  await Promise.all(
-    DATASETT.map(async (d) => {
-      const { data } = await supabase.from('v_datodekning').select('dato').eq('datasett', d.key).gte('dato', start).overrideTypes<{ dato: string }[]>()
-      settPer.set(d.key, new Set((data ?? []).map((r) => r.dato)))
-    }),
-  )
+  let maaling: Awaited<ReturnType<typeof hentDatadekning>>
+  try {
+    maaling = await hentDatadekning(supabase, start, DATASETT.map((d) => d.key))
+  } catch {
+    return <Sideramme>
+      <Sidehode tittel="Datadekning" undertittel="Datadekning kunne ikke kontrolleres. Prøv å laste siden på nytt." />
+      <Status nivaa="handling">Ingen konklusjon om datohull kan gis før målingen lykkes.</Status>
+    </Sideramme>
+  }
+  const { settPer, hull } = maaling
 
   // Per datasett: eldste dato + antall manglende dager over hele vinduet.
   const alleDager = maaneder.flatMap((ym) => dagerIMaaned(ym, idag))
@@ -120,12 +112,6 @@ export default async function DekningSide() {
   // sprengt PostgREST sin 1000-radsgrense og vist FÆRRE hull enn det
   // finnes.
   // ============================================================
-  const { data: hullRader } = await supabase
-    .from('v_datohull')
-    .select('datasett, datasett_navn, butikknummer, stasjon_navn, hull, hull_hverdag, forste, siste, datoer')
-    .order('hull_hverdag', { ascending: false })
-    .overrideTypes<Hullrad[]>()
-  const hull = hullRader ?? []
 
   const stasjonsdager = hull.reduce((t, h) => t + Number(h.hull), 0)
   const hverdager = hull.reduce((t, h) => t + Number(h.hull_hverdag), 0)

@@ -1,9 +1,5 @@
 {
   "par": {
-    "/butikksjef-dashbord.tsx::fokuspunkter": "Bevisst unntak, skrevet i fila ved siden av paaStasjon(): fokuspunktene avgrenses av RLS. De er TEKST, ikke tall - et punkt fra nabostasjonen er ikke et misvisende tall, og hvert punkt bærer stasjonen sin videre til /fokus.",
-    "/butikksjef-dashbord.tsx::pengepremie": "Samme bevisste unntak som fokuspunkter, samme kommentar i fila. Premien er kjedens, ikke stasjonens.",
-    "/butikksjef-dashbord.tsx::pengepremie_bruk": "Følger pengepremie. Bruken hører til premien, og premien er kjedens.",
-    "/butikksjef-dashbord.tsx::varsler": "KAN IKKE filtreres. `varsler.stasjon_id` er nullbar, og null betyr «hele kjeden» - et .eq() ville ikke avgrenset dem, det ville SKJULT dem. Står skrevet i fila.",
     "/ikmat::ik_avlesninger": "Avlesningene kobles til kontrollpunktet, og punktet bærer stasjonen. Sida grupperer per stasjon (punkterPerStasjon), så ingen tall blandes.",
     "/import::import_jobber": "Importkøen er kjedens, og /import er låst til retailer_admin i appen. En kø per stasjon ville vært feil bilde av en fil som dekker alle fem.",
     "/layout.tsx::varsler": "Bjella i toppstripa, samme som dashbordet: null stasjon betyr hele kjeden, og et filter ville skjult dem.",

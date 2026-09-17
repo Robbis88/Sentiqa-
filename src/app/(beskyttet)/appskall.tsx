@@ -6,6 +6,7 @@ import { Toppstripe } from './toppstripe'
 import { Fanerad } from './fanerad'
 import { AiBoble } from './ai-boble'
 import type { Bredde } from '@/lib/redesign/monstre'
+import { sokepunkter } from './navigasjon'
 
 // =====================================================================
 // Desktop-skallet.
@@ -39,8 +40,7 @@ type Props = {
 export function Appskall({
   brukerId, rolle, navn, uleste, kontekst, seksjoner, bredde, children,
 }: Props) {
-  const menypunkter = seksjoner.flatMap((s) =>
-    s.punkter.map((p) => ({ ...p, gruppe: s.tittel })))
+  const menypunkter = sokepunkter(rolle, seksjoner)
 
   return (
     <div className="skall">

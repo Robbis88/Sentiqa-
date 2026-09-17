@@ -371,3 +371,33 @@ export function naabart(rolle: Brukerrolle): string[] {
   for (const p of NETTBRETTFLATER) if (p.roller.includes(rolle)) ut.add(p.sti)
   return [...ut].sort()
 }
+
+export type Menyseksjon = { tittel: string; punkter: { sti: string; tekst: string }[] }
+
+/** Søk og hovedmeny bruker samme rollefiltrerte ruter, også fanene. */
+export function sokepunkter(rolle: Brukerrolle, seksjoner: Menyseksjon[]) {
+  const punkter = new Map<string, { sti: string; tekst: string; gruppe: string }>()
+  for (const s of seksjoner) {
+    for (const p of s.punkter) punkter.set(p.sti, { ...p, gruppe: s.tittel })
+  }
+  for (const g of FANEGRUPPER) {
+    for (const f of g.faner) {
+      if (f.roller.includes(rolle) && !punkter.has(f.sti)) {
+        punkter.set(f.sti, { sti: f.sti, tekst: f.tekst, gruppe: g.tittel })
+      }
+    }
+  }
+  return [...punkter.values()]
+}
+
+/** Lengste direkte treff først; ellers menypunktet for sidens fanegruppe. */
+export function aktivtMenypunkt(sti: string, seksjoner: Menyseksjon[]): string | null {
+  const punkter = seksjoner.flatMap((s) => s.punkter)
+  const direkte = punkter
+    .filter((p) => sti === p.sti || sti.startsWith(`${p.sti}/`))
+    .sort((a, b) => b.sti.length - a.sti.length)[0]
+  if (direkte) return direkte.sti
+  const gruppe = gruppeFor(sti)
+  if (!gruppe) return null
+  return punkter.find((p) => gruppe.faner.some((f) => f.sti === p.sti))?.sti ?? null
+}
