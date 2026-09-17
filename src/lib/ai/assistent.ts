@@ -62,7 +62,7 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     '- lønnsrom, styringsavvik, over/under på lønn   ->  hent_lonnsrom',
     '- status mot businessplan                        ->  hent_bp_status',
     '- timer mot budsjett                             ->  hent_timeregnskap',
-    '- forventet salg per vare                        ->  hent_vareprognose',
+    '- forventet salg per vare i morgen               ->  forventet_salg',
     'Finner du ikke et verktøy for tallet, si at Sentiqa ikke har det — '
     + 'ikke bygg det av noe annet.',
     '',

@@ -606,7 +606,7 @@ describe('katalogvakt', () => {
     'hent_kassererstatistikk', 'hent_bp_status', 'hent_regnskap',
     'hent_timeregnskap', 'hent_bemanning', 'hent_stempling', 'hent_svinn',
     'hent_kaffesvinn', 'hent_ikmat', 'hent_rutiner', 'hent_avvik',
-    'hent_utsolgt', 'hent_vareprognose', 'forventet_salg', 'hent_svinnbudsjett',
+    'hent_utsolgt', 'forventet_salg', 'hent_svinnbudsjett',
     'hent_produksjonsplan', 'hent_malekort', 'hent_fokus_status',
     'sla_opp_kunnskap', 'list_oppgaver', 'list_konkurranser',
     'opprett_oppgave', 'opprett_konkurranse', 'kar_vinner',
@@ -708,7 +708,7 @@ describe('katalogvakt', () => {
   })
 
   it('katalogen har minst ett verktoey som ser framover', () => {
-    expect(VERKTOY['hent_vareprognose'], 'assistenten kan ikke lenger spaa').toBeDefined()
+    expect(VERKTOY['forventet_salg'], 'assistenten kan ikke lenger spaa').toBeDefined()
     expect(VERKTOY['hent_utsolgt'], 'uten denne kan prognosen ikke stoles paa').toBeDefined()
   })
 
@@ -717,7 +717,7 @@ describe('katalogvakt', () => {
       'hent_datadekning', 'hent_bp_status', 'hent_timeregnskap',
       'hent_bemanning', 'hent_produksjonsplan', 'hent_ikmat',
       'hent_rutiner', 'hent_avvik', 'hent_kassererstatistikk',
-      'hent_malekort', 'hent_stempling', 'hent_utsolgt', 'hent_vareprognose',
+      'hent_malekort', 'hent_stempling', 'hent_utsolgt', 'forventet_salg',
       'hent_svinnbudsjett',
     ]) {
       expect(VERKTOY[v], `mangler verktøy: ${v}`).toBeDefined()

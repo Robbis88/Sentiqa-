@@ -56,6 +56,21 @@ import { leggTilDager, ukedag, vaerfaktor, type Vaerdag, type VaerKoeff } from '
 // mangler. `0` er et svar; `ikke_dekning` er ærlighet.
 //
 // ---------------------------------------------------------------------
+// KJENT MANGEL: UTSOLGT-KOMPENSASJON
+// ---------------------------------------------------------------------
+//
+// `ai/vareprognose.ts` (pensjonert 2026-09-17) luket ut dager varen kan
+// ha vaert TOM, med begrunnelsen: ellers ser tomme hyller ut som lav
+// ettersporsel, og motoren laerer aa foreslaa for lite av det som
+// faktisk gaar unna.
+//
+// Den egenskapen finnes ikke her. Den er IKKE kopiert inn - en formel
+// flyttet uten backtest er en tredje sannhet. Skal den bygges, skal den
+// bygges her, maales med `backtest.test.ts` og forsvares paa tall.
+//
+// `finnUtsolgt` i `lib/utsolgt.ts` eier hendelsene og lever videre.
+//
+// ---------------------------------------------------------------------
 // MODELLEN ER IKKE AVGJORT
 // ---------------------------------------------------------------------
 //

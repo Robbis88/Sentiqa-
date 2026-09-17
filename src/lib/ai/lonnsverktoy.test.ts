@@ -115,7 +115,7 @@ describe('systemprompten', () => {
     expect(kilde).toContain('EIER SENTIQA SVARET')
     for (const verktoy of [
       'hent_lonnskost', 'hent_lonnsrom', 'hent_bp_status',
-      'hent_timeregnskap', 'hent_vareprognose',
+      'hent_timeregnskap', 'forventet_salg',
     ]) expect(kilde, verktoy).toContain(verktoy)
   })
 

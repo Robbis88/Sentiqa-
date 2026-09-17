@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { VERKTOY } from './verktoy'
 
 // =====================================================================
 // AI-VERKTØYET SKAL IKKE KUNNE LYVE PÅ FIRE MÅTER
@@ -29,6 +30,9 @@ const KODE = utenKommentarer(RAA)
 const MOTOR = utenKommentarer(readFileSync('src/lib/forventet/motor.ts', 'utf8'))
 const TREFF = utenKommentarer(readFileSync('src/lib/forventet/treffsikkerhet.ts', 'utf8'))
 const KATALOG = utenKommentarer(readFileSync('src/lib/ai/verktoy.ts', 'utf8'))
+// Systemprompten bygges av en funksjon som tar en innlogget bruker; kilden
+// leses derfor som tekst, slik `lonnsverktoy.test.ts` alt gjoer.
+const SYSTEM = utenKommentarer(readFileSync('src/lib/ai/assistent.ts', 'utf8'))
 
 describe('AI regner ikke', () => {
   it('forventningen kommer fra motoren', () => {
@@ -165,6 +169,85 @@ describe('resolveren velger ikke stille', () => {
 
   it('ingen treff gir ingen vare, ikke naermeste', () => {
     expect(KODE).toContain("oppslag.slag === 'ingen'")
+  })
+})
+
+// =====================================================================
+// ÉN SANNHETSEIER FOR FREMTIDIG VARESALG — MÅLT PÅ INVENTARET
+// =====================================================================
+//
+// AI-2 E2E på preview 2026-09-17 (SHA 576e46d, anthropic ok): modellen
+// valgte `hent_vareprognose` framfor `forventet_salg` og svarte at
+// Coca-Cola 0,5L ikke var registrert på Dale — en vare med 432
+// salgsdager der.
+//
+// Grunnen var ikke modellens. `assistent.ts` rutet «forventet salg per
+// vare» dit, og `hent_vareprognose` lovte «FORVENTET SALG FRAMOVER …
+// inntil 14 dager» med «treffer flere varer, spås den som selger mest».
+//
+// 4 097 grønne tester og grønn build fanget det ikke, fordi hver
+// komponent isolert var riktig. Først da en språkmodell fikk se hele
+// verktøykassen, ble de to sannhetene synlige.
+//
+// ---------------------------------------------------------------------
+// VAKTA LESER INVENTARET, IKKE KILDETEKSTEN
+// ---------------------------------------------------------------------
+//
+// Preflighten min bommet fordi den grep'et etter `name: '` og ikke
+// fanget verktøy bygget med `stasjonsverktoy(...)`. Et regex over
+// kildekoden kan bomme igjen på neste byggemåte.
+//
+// Derfor importeres `VERKTOY` og `SYSTEM`, og påstanden stilles mot det
+// modellen FAKTISK får se.
+// =====================================================================
+
+describe('bare ett verktoey lover fremtidig varesalg', () => {
+  it('forventet_salg er eksponert', () => {
+    expect(VERKTOY.forventet_salg, 'sannhetseieren er ikke i katalogen').toBeDefined()
+  })
+
+  it('hent_vareprognose er pensjonert og ikke eksponert', () => {
+    expect(VERKTOY.hent_vareprognose, 'det pensjonerte verktoeyet er tilbake').toBeUndefined()
+  })
+
+  it('INGEN ANNEN BESKRIVELSE LOVER EN FREMTIDIG FORVENTNING', () => {
+    // REGELEN: snakker en beskrivelse om framtidig salg, MAA den peke
+    // videre til sannhetseieren. Gjoer den ikke det, lover den selv.
+    //
+    // Foerste utgave forboed ordene og felte sin egen advarsel:
+    // `hent_salg` sier «Bygg aldri en forventning ... da har Sentiqa to
+    // prognoser», og ordet «prognoser» staar der nettopp for aa forby
+    // dem. En vakt som ikke skiller et LOEFTE fra en ADVARSEL, tvinger
+    // fram vagere tekst - og vag tekst var hele problemet.
+    const framtid = /(forventet salt?|forventer|prognose|spaa|framover|kommer til aa selge)/i
+    const brudd = Object.entries(VERKTOY)
+      .filter(([navn]) => navn !== 'forventet_salg')
+      .filter(([, v]) => {
+        const d = String(v.schema.description ?? '')
+        if (!framtid.test(d) || !/salg|vare|selge/i.test(d)) return false
+        return !d.includes('forventet_salg')
+      })
+      .map(([navn]) => navn)
+    expect(brudd, `disse snakker om framtidig salg uten aa peke paa `
+      + `forventet_salg: ${brudd.join(', ')}`).toEqual([])
+  })
+
+  it('systemprompten ruter spoersmaalet til sannhetseieren', () => {
+    // Den konkrete aarsaken til at E2E ikke var groenn.
+    expect(SYSTEM).toContain('forventet_salg')
+    expect(SYSTEM, 'systemprompten peker fortsatt paa det pensjonerte verktoeyet')
+      .not.toContain('hent_vareprognose')
+  })
+
+  it('KANARIFUGL — den gamle teksten ville blitt felt', () => {
+    // Slutter moensteret aa kjenne igjen et framtidsloefte, er vakta
+    // blind og testene over sier ingenting. Teksten under er den
+    // faktiske beskrivelsen `hent_vareprognose` hadde.
+    const gammel = 'FORVENTET SALG FRAMOVER for én vare, per dag i inntil 14 dager. '
+      + 'Bruk denne paa «hvor mye X selger vi neste uke».'
+    const framtid = /(forventet salt?|forventer|prognose|spaa|framover|kommer til aa selge)/i
+    expect(framtid.test(gammel), 'moensteret ser ikke et framtidsloefte').toBe(true)
+    expect(gammel.includes('forventet_salg'), 'den pekte aldri videre').toBe(false)
   })
 })
 
