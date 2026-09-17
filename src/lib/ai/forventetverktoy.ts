@@ -212,7 +212,32 @@ export const forventetSalgVerktoy: {
       return byggSvar({
         domene: 'forventet_salg', kilder: ['v_butikksalg'],
         scope: { forespurt: valgte.map((s) => s.butikknummer), utenfor_tilgang: utenfor },
-        merknad: [`Fant ingen vare som passer «${soek}» i salget de siste 90 dagene.`],
+        // =============================================================
+        // INGEN KANDIDAT ER IKKE INGEN SALGSHISTORIKK
+        // =============================================================
+        //
+        // Målt på preview 2026-09-17: modellen søkte «Coca Cola», fikk
+        // null rader, og svarte at varen «er enten registrert under et
+        // annet navn … eller den er ikke i sortimentet».
+        //
+        // Den siste halvdelen er ikke bevist av noe. Varen har 432
+        // salgsdager på Dale. Et oppslag som ikke fant en sikker match
+        // er et utsagn om SØKET — ikke om butikken.
+        //
+        // Merknaden sier derfor hva som skjedde, og forbyr eksplisitt de
+        // slutningene modellen tok. Vakta ligger på denne teksten, ikke
+        // bare på `Oppslag`-unionen: unionen var riktig hele tiden, og
+        // det var formuleringen som løy.
+        merknad: [
+          `Oppslaget fant ingen sikker varematch på «${soek}» i salget de `
+          + 'siste 90 dagene på de stasjonene brukeren har tilgang til.',
+          'DETTE SIER INGENTING OM SORTIMENTET. Du vet ikke om varen '
+          + 'selges, om den finnes, eller om den har salgshistorikk — bare '
+          + 'at søket ikke traff. Si aldri «ikke i sortimentet», «selges '
+          + 'ikke», «ingen salgshistorikk», «ikke registrert» eller «finnes '
+          + 'ikke». Spekuler heller ikke i hvorfor.',
+          'Si at du ikke finner en sikker varematch, og be om et annet navn.',
+        ],
       })
     }
     if (oppslag.slag === 'flere') {

@@ -124,6 +124,25 @@ describe('navn finner, EAN identifiserer', () => {
     expect(kandidater(PROD, 'muffins chocolat')).toHaveLength(1)
   })
 
+  it('MENNESKELIG SKRIVEMAATE FINNER KASSAS SKRIVEMAATE', () => {
+    // Kassa skriver «COCA-COLA 0.5L». En norsk butikksjef skriver
+    // «Coca-Cola 0,5L». Malt paa preview 2026-09-17 ble den forskjellen
+    // til «varen er ikke i sortimentet» - om en vare med 432 salgsdager.
+    //
+    // `varesok` taalte dette hele tiden; det var `hent_salg` sin
+    // `ilike('%Coca Cola%')` som broet paa bindestreken. Testen staar
+    // her fordi kontrakten er felles: skilletegn skiller ikke.
+    for (const s of [
+      'Coca-Cola 0,5L', 'Coca Cola 0,5L', 'coca cola 0.5l',
+      'COCA-COLA', 'coca-cola 0,5 l', 'Coca Cola',
+    ]) {
+      expect(kandidater(PROD, s).map((k) => k.ean), `«${s}»`)
+        .toContain('5000112636833')
+    }
+    // Og et ord som ikke staar i navnet treffer fortsatt ingenting.
+    expect(kandidater(PROD, 'Coke')).toHaveLength(0)
+  })
+
   it('KANARIFUGL — soeket filtrerer faktisk', () => {
     // Slutter `treffer` aa filtrere, blir hvert soek «flere» med alt i
     // seg, og testene over ville fortsatt sett fornuftige ut.

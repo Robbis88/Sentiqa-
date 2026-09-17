@@ -472,7 +472,25 @@ export const VERKTOY: Record<string, Verktoy> = {
         // fem stasjoner er langt over `limit`, saa et filter i minnet ville
         // soekt i den vilkaarlige delen som kom med.
         const sok = typeof input.sok === 'string' ? input.sok.trim() : ''
-        if (grupper === 'vare' && sok) q = q.ilike('varenavn', `%${sok}%`)
+        // ET MENNESKE SKRIVER IKKE SOM KASSA.
+        //
+        // `ilike('%Coca Cola%')` traff ikke «COCA-COLA 0.5L»: bindestreken
+        // bryter treffet. Malt paa preview 2026-09-17 - modellen soekte
+        // «Coca Cola», fikk null rader, og konkluderte at varen «ikke er i
+        // sortimentet». Varen har 432 salgsdager paa Dale.
+        //
+        // Soeket deles derfor i ORD paa alt som ikke er bokstav/siffer, og
+        // hvert ord kreves for seg. «Coca-Cola 0,5L» blir `coca`, `cola`,
+        // `0`, `5l` - og alle fire finnes i «COCA-COLA 0.5L». Samme
+        // OG-semantikk som `forventet/varesok.ts`, uttrykt som ILIKE.
+        //
+        // IKKE FUZZY. Hvert ord maa fortsatt finnes; vi har bare sluttet aa
+        // kreve at skilletegnene staar likt. En vare blir ikke gjettet.
+        if (grupper === 'vare' && sok) {
+          for (const ord of sok.split(/[^\p{L}\p{N}]+/u).filter(Boolean)) {
+            q = q.ilike('varenavn', `%${ord}%`)
+          }
+        }
         return les<Salgsrad>(
           q.limit(50000).overrideTypes<Salgsrad[]>(),
           'v_butikksalg',

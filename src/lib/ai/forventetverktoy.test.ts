@@ -170,6 +170,33 @@ describe('resolveren velger ikke stille', () => {
   it('ingen treff gir ingen vare, ikke naermeste', () => {
     expect(KODE).toContain("oppslag.slag === 'ingen'")
   })
+
+  it('INGEN KANDIDAT BLIR IKKE EN PAASTAND OM SORTIMENTET', () => {
+    // Malt paa preview 2026-09-17: «varen er ... ikke i sortimentet» om
+    // en vare med 432 salgsdager paa Dale. Et oppslag som ikke traff er
+    // et utsagn om SOEKET, ikke om butikken.
+    //
+    // Vakta ligger paa BRUKERRESULTATET. `Oppslag`-unionen var riktig
+    // hele tiden; det var formuleringen som loey.
+    // STRENGENE SETTES SAMMEN FOERST. Kildekoden brekker dem over
+    // linjer (`'selges ' + 'ikke'`), og modellen ser den sammensatte
+    // teksten. Foerste utgave lette i kildeformateringen og fant ikke
+    // «selges ikke» - samme feil som vakta selv advarer mot.
+    const sydd = (s: string) => s.replace(/'\s*\+\s*'/g, '')
+    const ingen = sydd(KODE.slice(
+      KODE.indexOf("oppslag.slag === 'ingen'"),
+      KODE.indexOf("oppslag.slag === 'flere'"),
+    ))
+    expect(ingen, 'merknaden forbyr ikke slutningene').toContain('SIER INGENTING OM SORTIMENTET')
+    for (const forbudt of [
+      'ikke i sortimentet', 'selges ikke', 'ingen salgshistorikk',
+      'ikke registrert', 'finnes ikke',
+    ]) {
+      expect(ingen, `«${forbudt}» er ikke naevnt som forbudt`).toContain(forbudt)
+    }
+    // Og teksten skal ikke SELV paastaa noe om salget.
+    expect(ingen).not.toMatch(/Fant ingen vare som (selges|finnes)/i)
+  })
 })
 
 // =====================================================================
@@ -230,6 +257,20 @@ describe('bare ett verktoey lover fremtidig varesalg', () => {
       .map(([navn]) => navn)
     expect(brudd, `disse snakker om framtidig salg uten aa peke paa `
       + `forventet_salg: ${brudd.join(', ')}`).toEqual([])
+  })
+
+  it('HENT_SALG KREVER IKKE AT SKILLETEGNENE STAAR LIKT', () => {
+    // Malt paa preview 2026-09-17: modellen soekte «Coca Cola»,
+    // `ilike('%Coca Cola%')` traff ikke «COCA-COLA 0.5L», og svaret ble
+    // at varen «ikke er i sortimentet». Varen har 432 salgsdager paa
+    // Dale.
+    //
+    // Kontrakten er felles med `forventet/varesok.ts`: skilletegn
+    // skiller ikke. Soeket deles i ord, og hvert ord kreves for seg.
+    const sydd = KATALOG.replace(/'\s*\+\s*'/g, '')
+    expect(sydd, 'soeket krever eksakt skrivemaate igjen')
+      .not.toMatch(/ilike\('varenavn', `%\$\{sok\}%`\)/)
+    expect(sydd, 'soeket deles ikke i ord').toMatch(/sok\.split\(/)
   })
 
   it('systemprompten ruter spoersmaalet til sannhetseieren', () => {
