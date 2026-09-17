@@ -160,6 +160,7 @@ export default async function BusinessplanSide(
   // BARE DE NEGATIVE. Nettosummen ville sagt «vi er i rute» fordi
   // Tobakk gaar bra, mens Mat mangler 28 400.
   const sumBak = sumBakPlan(sortert)
+  const nettoAvvik = medDom.reduce((sum, rad) => sum + (rad.mot_bp_kr ?? 0), 0)
   const bakPlan = sortert.filter((r) => (r.mot_bp_kr ?? 0) < 0)
   const verst = bakPlan[0]
 
@@ -167,7 +168,7 @@ export default async function BusinessplanSide(
     <Sideramme>
       <Sidehode
         tittel={sumBak < 0
-          ? `${kr.format(Math.abs(Math.round(sumBak)))} bak plan hittil i ${manedAar.format(new Date(maned)).toLowerCase()}`
+          ? `Avdelinger bak plan: ${kr.format(Math.abs(Math.round(sumBak)))}`
           : `I rute mot planen i ${manedAar.format(new Date(maned)).toLowerCase()}`}
         merke={merke}
         undertittel={verst
@@ -175,6 +176,19 @@ export default async function BusinessplanSide(
           : 'Businessplanen avgjør om vi er i rute — fjoråret forklarer utviklingen.'}
       />
 
+      <p className="undertittel">
+        Samlet salgsavvik for avdelingene som kan måles: {kr.format(Math.abs(Math.round(nettoAvvik)))}
+        {' '}{nettoAvvik === 0 ? '– på planen' : nettoAvvik < 0 ? 'bak planen' : 'foran planen'}.
+      </p>
+      <p className="undertittel">
+        Salg i {manedAar.format(new Date(maned)).toLowerCase()} måles mot planen
+        for dagene vi har salgsdata for. Beløpet over summerer bare avdelingene
+        som ligger bak. Avdelinger foran planen trekkes ikke fra.
+      </p>
+      <p className="undertittel">
+        Bruttofortjeneste er salget minus varekostnaden, før lønn og andre
+        kostnader. Det er ikke butikkens overskudd.
+      </p>
       <section className="bp-liste">
         {sortert.map((r) => (
           <BpAvdeling key={r.gruppe_kode} rad={r} abo={aboRad ?? null} />

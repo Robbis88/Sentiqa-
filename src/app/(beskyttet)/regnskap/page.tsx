@@ -267,6 +267,11 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         />
       </div>
 
+      <p className="undertittel">
+        Omsetning er salget. Bruttofortjeneste er salget minus varekostnaden,
+        før lønn og øvrige kostnader. Resultatet viser hva som er igjen etter
+        kostnadene som inngår i regnskapet. Budsjettet er målet for samme periode.
+      </p>
       <div className="sq-nokkelrad">
         {kpi.map(({ merke, l }) => {
           // Budsjettet sto her fra før, men bare som et tall ved siden av.

@@ -6,9 +6,11 @@ import { useEffect } from 'react'
 export function AutoRefresh({ sekunder = 30 }: { sekunder?: number }) {
   const router = useRouter()
   useEffect(() => {
-    const id = setInterval(() => router.refresh(), sekunder * 1000)
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) router.refresh()
+    }, sekunder * 1000)
     const naarSynlig = () => {
-      if (document.visibilityState === 'visible') router.refresh()
+      if (document.visibilityState === 'visible' && navigator.onLine) router.refresh()
     }
     document.addEventListener('visibilitychange', naarSynlig)
     return () => {

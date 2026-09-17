@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { lesAktivAnsatt } from '@/lib/ansatt'
-import { beregnRutinestat } from '@/lib/rutinestat'
-import { hentHjemData } from '@/lib/tablethjem'
+import { hentSkiftkoe } from '@/lib/tablet/hent-skiftkoe'
+import { hentDagensProduksjon } from '@/lib/tablethjem'
 import { nesteRetning } from '@/lib/stempling/tilstand'
 import type { Stemplingstilstand } from '../stempling-rad'
 import { oversettMange, oversettTabletOrd } from '@/lib/oversett'
@@ -31,17 +31,27 @@ export default async function OversiktSide(
   // Nettbrettets «I dag» (egen verden). Se tablet-hjem.tsx for hvorfor
   // flisene og okonomien ikke lenger staar her.
   if (bruker.rolle === 'butikkbruker_tablet') {
-    const aktiv = await lesAktivAnsatt(supabase)
     const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
     const { cookies } = await import('next/headers')
     const sprak = (await cookies()).get('sprak')?.value ?? 'no'
     const naaTid = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
-    const [{ data: st }, { data: meldinger }, { data: runde }, { data: sjekkAlle }, { data: sjekkSvar }] = await Promise.all([
+    const [{ data: st }, { data: meldinger }, { data: runde }, { data: sjekkAlle }, { data: sjekkSvar }, aktiv,
+      { data: oplSkift }, { data: oplPerioder }, { data: oplOppgaver }] = await Promise.all([
       supabase.from('stasjoner').select('id').is('slettet_tid', null).limit(1).maybeSingle<{ id: string }>(),
       supabase.from('tablet_meldinger').select('id, tekst, viktig').is('slettet_tid', null).order('viktig', { ascending: false }).order('opprettet_tid', { ascending: false }).limit(10).overrideTypes<{ id: string; tekst: string; viktig: boolean }[]>(),
       supabase.from('puls_runde').select('id, puls_sporsmal(tekst)').eq('status', 'aktiv').lte('start_dato', idag).gte('slutt_dato', idag).is('slettet_tid', null).order('opprettet_tid', { ascending: false }).limit(1).maybeSingle<{ id: string; puls_sporsmal: { tekst: string } | null }>(),
       supabase.from('sjekkpunkter').select('id, stasjon_id, sporsmaal, klokkeslett, kritisk').is('slettet_tid', null).overrideTypes<{ id: string; stasjon_id: string; sporsmaal: string; klokkeslett: string | null; kritisk: boolean }[]>(),
       supabase.from('sjekkpunkt_svar').select('sjekkpunkt_id').eq('dato', idag).overrideTypes<{ sjekkpunkt_id: string }[]>(),
+      lesAktivAnsatt(supabase),
+      supabase.from('opplaering_skift')
+        .select('id, periode_id, dato, start_tid, slutt_tid').eq('dato', idag)
+        .overrideTypes<{ id: string; periode_id: string; dato: string; start_tid: string | null; slutt_tid: string | null }[]>(),
+      supabase.from('opplaering_periode')
+        .select('id, stasjon_id, ansatt_navn, ansatt_id, start_dato, fullfort_tid').is('fullfort_tid', null)
+        .overrideTypes<{ id: string; stasjon_id: string; ansatt_navn: string; ansatt_id: string | null; start_dato: string; fullfort_tid: string | null }[]>(),
+      supabase.from('opplaering_oppgave')
+        .select('id, kategori, tittel').eq('aktiv', true).is('slettet_tid', null).order('rekkefolge')
+        .overrideTypes<{ id: string; kategori: string; tittel: string }[]>(),
     ])
     const besvart = new Set((sjekkSvar ?? []).map((s) => s.sjekkpunkt_id))
     const sjekkpunkter = (sjekkAlle ?? [])
@@ -53,17 +63,6 @@ export default async function OversiktSide(
     // «finnes det et skift i dag, paa min stasjon, i en periode som
     // ikke er fullfoert?». RLS har alt snevret radene til egen stasjon;
     // `dagensOpplaering` gjor de tre siste leddene og er testet for seg.
-    const [{ data: oplSkift }, { data: oplPerioder }, { data: oplOppgaver }] = await Promise.all([
-      supabase.from('opplaering_skift')
-        .select('id, periode_id, dato, start_tid, slutt_tid').eq('dato', idag)
-        .overrideTypes<{ id: string; periode_id: string; dato: string; start_tid: string | null; slutt_tid: string | null }[]>(),
-      supabase.from('opplaering_periode')
-        .select('id, stasjon_id, ansatt_navn, ansatt_id, start_dato, fullfort_tid').is('fullfort_tid', null)
-        .overrideTypes<{ id: string; stasjon_id: string; ansatt_navn: string; ansatt_id: string | null; start_dato: string; fullfort_tid: string | null }[]>(),
-      supabase.from('opplaering_oppgave')
-        .select('id, kategori, tittel').eq('aktiv', true).is('slettet_tid', null).order('rekkefolge')
-        .overrideTypes<{ id: string; kategori: string; tittel: string }[]>(),
-    ])
     // HVEM STAAR DER, OG HVA ER KLOKKA. Nettbrettet har én delt
     // paalogging, saa identiteten kommer fra PIN-en. Uten dette ser hele
     // vaktlaget sjekklista til den nyansatte.
@@ -106,80 +105,43 @@ export default async function OversiktSide(
       }))
     }
 
-    const rutinestat = st ? await beregnRutinestat(supabase, st.id, idag, 30, naa) : null
-    // VAKTA, IKKE DOEGNET OG IKKE MAANEDEN.
-    //
-    // Her sto `forventet - utfort`, som er PERIODENS tall - tretti dager.
-    // Kommentaren sa «i dag». Boenes har 55 rutiner i doegnet, saa koen
-    // meldte «123 rutiner igjen» klokka sju om morgenen: et etterslep paa
-    // under 6 % over en maaned, lest som dagens jobb.
-    //
-    // Doegnet var rettelsen, men ikke svaret: 36 av de 55 er morgen og 19
-    // er kveld, og den som staar paa morgenvakt kan ikke gjoere kveldens.
-    //
-    // Riktig svar paa feil spoersmaal er dyrere enn et galt tall, for det
-    // ser troverdig ut. Regelen bor i `tablet/skiftkoe.ts`, samme sted
-    // `/rutiner` bruker - ellers sier kortet og sida to ulike tall om
-    // samme jobb.
-    const rutinerIgjen = Math.max(
-      0, (rutinestat?.vaktForventet ?? 0) - (rutinestat?.vaktUtfort ?? 0))
-    const hjem = st ? await hentHjemData(supabase, st.id) : { skills: null, premie: { vunnet: 0, brukt: 0, igjen: 0 }, produksjon: null, vekst: null }
-
-    // ER HUN STEMPLET INN? Raden paa «I dag» skal si hva et trykk
-    // FOERER TIL, ikke hva den heter — «Stemple ut» naar hun staar inne.
-    //
-    // KOBLET PAA ID, ALDRI PAA NAVN. Samme ansatt finnes under tre
-    // identiteter i denne basen: `ansatt_nr`, `ansatte.id` og et
-    // fritekstnavn. Vakt-kapselen baerer id-en; stemplingen foeres paa
-    // nummeret. Broa mellom dem gaar gjennom raden, ikke gjennom navnet
-    // — to som heter det samme ville ellers delt arbeidsdag.
-    //
-    // `nesteRetning()` er den samme funksjonen `stemple()` bruker.
-    // Delt, saa raden og handlinga ikke kan si hver sin ting.
-    let stempling: Stemplingstilstand = { slag: 'ukjent' }
-    if (aktiv && st) {
-      const { data: ansattRad } = await supabase
-        .from('ansatte').select('ansatt_nr').is('slettet_tid', null).eq('id', aktiv.id)
-        .maybeSingle<{ ansatt_nr: string | null }>()
-      if (ansattRad?.ansatt_nr) {
-        const { data: siste } = await supabase
-          .from('stempling_hendelse')
-          .select('type, tidspunkt')
-          .eq('stasjon_id', st.id)
-          .eq('ansatt_nr', ansattRad.ansatt_nr)
-          .is('annullert_tid', null)
-          .order('tidspunkt', { ascending: false })
-          .limit(1)
+    // Arbeidskoe, publisert produksjon, beskjeder og stempling er uavhengige.
+    // Hjemskjermen trenger ikke premie, skills eller salgshistorikk.
+    const [koe, produksjon, oppSvar, stempling] = await Promise.all([
+      st ? hentSkiftkoe(supabase, st.id, naa) : Promise.resolve(null),
+      st ? hentDagensProduksjon(supabase, st.id) : Promise.resolve(null),
+      st ? supabase.from('oppgaver')
+        .select('id, tittel, beskrivelse, bilde_url, frist, status, fullfort_tid')
+        .eq('stasjon_id', st.id).eq('vis_paa_tablet', true).is('slettet_tid', null)
+        .overrideTypes<{ id: string; tittel: string; beskrivelse: string | null; bilde_url: string | null; frist: string | null; status: string; fullfort_tid: string | null }[]>()
+        : Promise.resolve({ data: [] }),
+      (async (): Promise<Stemplingstilstand> => {
+        if (!aktiv || !st) return { slag: 'ukjent' }
+        // ID kobles til ansattnummeret; navn gir aldri stemplingsidentitet.
+        const { data: ansattRad } = await supabase.from('ansatte')
+          .select('ansatt_nr').is('slettet_tid', null).eq('id', aktiv.id)
+          .maybeSingle<{ ansatt_nr: string | null }>()
+        if (!ansattRad?.ansatt_nr) return { slag: 'ukjent' }
+        const { data: siste } = await supabase.from('stempling_hendelse')
+          .select('type, tidspunkt').eq('stasjon_id', st.id).eq('ansatt_nr', ansattRad.ansatt_nr)
+          .is('annullert_tid', null).order('tidspunkt', { ascending: false }).limit(1)
           .maybeSingle<{ type: 'inn' | 'ut'; tidspunkt: string }>()
-        stempling = siste && nesteRetning(siste) === 'ut'
-          ? {
-              slag: 'inne',
-              siden: new Intl.DateTimeFormat('nb-NO', {
-                timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hour12: false,
-              }).format(new Date(siste.tidspunkt)),
-            }
+        return siste && nesteRetning(siste) === 'ut'
+          ? { slag: 'inne', siden: new Intl.DateTimeFormat('nb-NO', {
+              timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hour12: false,
+            }).format(new Date(siste.tidspunkt)) }
           : { slag: 'ute' }
-      }
-    }
-
-    // «Meldinger fra butikksjef» = oppgaver merket vis_paa_tablet for stasjonen.
-    // Åpne vises alltid; ferdige henger med i 24 t (kollapset) og forsvinner så.
+      })(),
+    ])
+    const rutinerIgjen = koe?.igjen ?? 0
+    const hjem = { produksjon }
+    // Fullfoerte sjefbeskjeder beholdes i 24 timer, som foer.
     const doegnSidenDato = new Date()
     doegnSidenDato.setHours(doegnSidenDato.getHours() - 24)
     const doegnSiden = doegnSidenDato.toISOString()
-    let sjefMeldinger: { id: string; tittel: string; beskrivelse: string | null; bilde_url: string | null; frist: string | null; fullfort: boolean }[] = []
-    if (st) {
-      const { data: opp } = await supabase
-        .from('oppgaver')
-        .select('id, tittel, beskrivelse, bilde_url, frist, status, fullfort_tid').is('slettet_tid', null)
-        .eq('stasjon_id', st.id)
-        .eq('vis_paa_tablet', true)
-        .is('slettet_tid', null)
-        .overrideTypes<{ id: string; tittel: string; beskrivelse: string | null; bilde_url: string | null; frist: string | null; status: string; fullfort_tid: string | null }[]>()
-      sjefMeldinger = (opp ?? [])
-        .filter((o) => o.status !== 'fullfort' || (o.fullfort_tid != null && o.fullfort_tid >= doegnSiden))
-        .map((o) => ({ id: o.id, tittel: o.tittel, beskrivelse: o.beskrivelse, bilde_url: o.bilde_url, frist: o.frist, fullfort: o.status === 'fullfort' }))
-    }
+    const sjefMeldinger = (oppSvar.data ?? [])
+      .filter((o) => o.status !== 'fullfort' || (o.fullfort_tid != null && o.fullfort_tid >= doegnSiden))
+      .map((o) => ({ id: o.id, tittel: o.tittel, beskrivelse: o.beskrivelse, bilde_url: o.bilde_url, frist: o.frist, fullfort: o.status === 'fullfort' }))
 
     // Oversett: faste UI-ord + dynamisk innhold (puls, meldinger, sjekkpunkt)
     const pulsTekst = runde?.puls_sporsmal?.tekst ?? null

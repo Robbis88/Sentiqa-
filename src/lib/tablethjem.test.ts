@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hentHjemData } from './tablethjem'
+import { hentHjemData, hentDagensProduksjon } from './tablethjem'
 
 // =====================================================================
 // «Mat og drikke» skal vaere mat og drikke.
@@ -24,13 +24,13 @@ type Rad = { dato: string; mat_omsetning: number; kald_drikke_omsetning: number 
  * til paa kjoepet. De to tallene kommer fra `hjem_stasjonstall`, og
  * `rpc` under er derfor en del av fasiten, ikke pynt.
  */
-function fakeKlient(salg: Rad[]) {
+function fakeKlient(salg: Rad[], plan?: { publisert: boolean; linjer: { planlagt: number; lagd_hittil: number }[] }) {
   const sett = new Set<string>()
   const svar: Record<string, unknown> = {
     pengepremie: [],
     v_salg_per_stasjon_dag: salg,
-    produksjonsplan_hode: null,
-    produksjonsplan_linjer: [],
+    produksjonsplan_hode: plan ? { publisert_tid: plan.publisert ? '2026-09-17T10:00:00Z' : null } : null,
+    produksjonsplan_linjer: plan?.linjer ?? [],
   }
   const bygg = (tabell: string, valgt: { felt?: string }) =>
     new Proxy({} as Record<string, unknown>, {
@@ -76,6 +76,19 @@ const rad = (dato: string, mat: number, drikke: number): Rad => ({
   dato,
   mat_omsetning: mat,
   kald_drikke_omsetning: drikke,
+})
+
+describe('I dag trenger bare publisert produksjon', () => {
+  it('henter fremdriften uten salgshistorikk, skills eller penger', async () => {
+    const { klient, sett } = fakeKlient([], { publisert: true, linjer: [{ planlagt: 20, lagd_hittil: 7 }, { planlagt: 10, lagd_hittil: 3 }] })
+    await expect(hentDagensProduksjon(klient as never, 'stasjon-1')).resolves.toEqual({ antall: 2, plan: 30, lagd: 10 })
+    expect([...sett]).toEqual(['produksjonsplan_hode', 'produksjonsplan_linjer'])
+  })
+  it('en upublisert plan kan ikke havne i arbeidskoeen', async () => {
+    const { klient, sett } = fakeKlient([], { publisert: false, linjer: [{ planlagt: 20, lagd_hittil: 7 }] })
+    await expect(hentDagensProduksjon(klient as never, 'stasjon-1')).resolves.toBeNull()
+    expect([...sett]).toEqual(['produksjonsplan_hode'])
+  })
 })
 
 async function vekst(salg: Rad[]) {

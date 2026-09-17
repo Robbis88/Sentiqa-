@@ -77,7 +77,7 @@ export function TabletHjem({
   idag: string
   pulsRunde?: PulsRunde
   sjekkpunkter?: Sjekk[]
-  hjem: HjemData
+  hjem: Pick<HjemData, 'produksjon'>
   rutinerIgjen?: number
   stempling?: Stemplingstilstand
   ord?: Record<string, string>

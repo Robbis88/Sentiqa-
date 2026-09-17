@@ -110,7 +110,8 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   const brfBudsjett = seksjon('bruttofortjeneste').reduce((a, l) => a + (l.budsjett ?? 0), 0)
   const motBrf = motBudsjett(brfTot, brfBudsjett)
   const driver = storsteAvvik(kostnader.map((k) => ({ post: k.navn, regnskap: k.regnskap, budsjett: k.budsjett })), true)
-  const svar = svaret('Bruttofortjeneste', motBrf, driver)
+  // Driftskostnader forklarer ikke bruttofortjenestens avvik.
+  const svar = svaret('Bruttofortjeneste', motBrf, null)
   const periodeTekst = hittil ? `Hittil i år ${ytdAar}` : manedAar.format(new Date(aktivPeriode))
 
   return (
@@ -155,6 +156,16 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
         })}
       </section>
 
+      <p className="undertittel">
+        Omsetning er salget. Bruttofortjeneste er salget minus varekostnaden,
+        før lønn og andre kostnader. Bruttofortjeneste er ikke overskudd.
+      </p>
+      {driver && (
+        <p className="undertittel">
+          Separat fra bruttofortjenesten: {driver.post} har det største avviket
+          blant kostnadene du følger opp, {kr.format(Math.abs(driver.avvik))} over budsjett.
+        </p>
+      )}
       <Forklaring sporsmaal="Hvorfor ser jeg ikke hele regnskapet?">
         <p>
           Du ser omsetning, bruttofortjeneste og kostnadene du selv styrer. Royalty,
@@ -166,8 +177,8 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
           {hittil
             ? `Hittil i år summerer månedene januar til og med ${manedAar.format(new Date(aktivPeriode))}.`
             : `Tallene gjelder ${manedAar.format(new Date(aktivPeriode))} alene.`}{' '}
-          «Drar mest» er det største avviket målt i kroner blant de påvirkbare
-          kostnadene. Avvik under 2 % regnes som truffet budsjett.
+          Kostnadsavvik vises separat fra bruttofortjenesten.
+          Avvik under 2 % regnes som truffet budsjett på hovedtallene.
         </p>
       </Forklaring>
 
@@ -175,14 +186,14 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
         <section className="kort" key={navn}>
           <h2>{navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'}</h2>
           <table className="tabell">
-            <thead><tr><th>Avdeling</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th>Mot budsjett</th></tr></thead>
+            <thead><tr><th>Avdeling</th><th>Faktisk</th><th>Budsjett</th><th>Forskjell</th></tr></thead>
             <tbody>
               {seksjon(navn).map((l, i) => (
                 <tr key={i}>
                   <td>{l.post}</td>
                   <td>{kr.format(l.regnskap ?? 0)}</td>
-                  <td className="mob-skjul">{kr.format(l.budsjett ?? 0)}</td>
-                  <td>{l.index_pct != null ? <span className={`status-pip ${avviksKlasse(l.index_pct)}`}>{prosent.format(l.index_pct / 100)}</span> : '—'}</td>
+                  <td>{l.budsjett == null ? '—' : kr.format(l.budsjett)}</td>
+                  <td>{l.index_pct != null ? <span className={`status-pip ${avviksKlasse(l.index_pct)}`}>{kr.format(Math.abs(l.avvik ?? 0))} {(l.avvik ?? 0) < 0 ? 'under' : 'over'} · {prosent.format(l.index_pct / 100)}</span> : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -192,9 +203,9 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
 
       <section className="kort">
         <h2>Påvirkbare kostnader</h2>
-        <p className="undertittel">Kostnadene du selv styrer. Resten (royalty, husleie, finans …) ligger på admin-nivå.</p>
+        <p className="undertittel">Kostnadene du følger opp. Grønt betyr innenfor budsjettet, ikke automatisk god bemanning eller drift. Resten (royalty, husleie, finans …) ligger på admin-nivå.</p>
         <table className="tabell">
-          <thead><tr><th>Kostnad</th><th>Regnskap</th><th className="mob-skjul">Budsjett</th><th>Mot budsjett</th></tr></thead>
+          <thead><tr><th>Kostnad</th><th>Faktisk</th><th>Budsjett</th><th>Forskjell</th></tr></thead>
           <tbody>
             {kostnader.map((k) => {
               const avvik = k.regnskap - k.budsjett
@@ -203,7 +214,7 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
                 <tr key={k.navn}>
                   <td>{k.navn}</td>
                   <td>{kr.format(k.regnskap)}</td>
-                  <td className="mob-skjul">{kr.format(k.budsjett)}</td>
+                  <td>{kr.format(k.budsjett)}</td>
                   <td><span className={`status-pip ${overBudsjett ? 'rod' : 'gronn'}`}>{avvik >= 0 ? '+' : '−'}{kr.format(Math.abs(avvik))}</span></td>
                 </tr>
               )

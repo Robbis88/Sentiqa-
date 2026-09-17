@@ -72,7 +72,7 @@ export default async function BeskyttetLayout({
   //   arbeid for alle andre.
   const [ulesteSvar, kontekst, aktivAnsatt, ord] = await Promise.all([
     supabase.from('varsler').select('*', { count: 'exact', head: true }).eq('lest', false),
-    stasjonskontekst(supabase, sti || '/', bruker.rolle, new URLSearchParams(sokestreng)),
+    erTablet ? Promise.resolve(null) : stasjonskontekst(supabase, sti || '/', bruker.rolle, new URLSearchParams(sokestreng)),
     erTablet ? lesAktivAnsatt(supabase) : Promise.resolve(null),
     erTablet
       ? import('@/lib/oversett').then((m) => m.oversettTabletOrd(sprak))
@@ -112,7 +112,7 @@ export default async function BeskyttetLayout({
       rolle={bruker.rolle}
       navn={bruker.fulltNavn ?? bruker.epost ?? ''}
       uleste={uleste ?? 0}
-      kontekst={kontekst}
+      kontekst={kontekst!}
       bredde={bredde}
       seksjoner={seksjoner.map((s) => ({
         tittel: s.tittel,
