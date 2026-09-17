@@ -9,13 +9,13 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, tall, kr } from '@/lib/format'
 import { AVDELINGER } from '@/lib/avdelinger'
 import { OppdaterKnapp } from './oppdater-knapp'
+import { hentTreff, type TreffRad } from './hent-treff'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { Sideramme } from '@/components/ui/sideramme'
 
 // Backtesten kan ta litt når den kjøres fra knappen (motorene × ~60 dager × stasjoner).
 export const maxDuration = 120
 
-type TreffRad = { type: 'produksjonsplan' | 'salgsprognose'; dato: string; kategori: string; forventet: number; faktisk: number; treff: number }
 type Type = 'produksjonsplan' | 'salgsprognose'
 
 
@@ -70,18 +70,7 @@ export default async function TreffsikkerhetSide({ searchParams }: { searchParam
   const stasjon = stasjoner.find((s) => s.id === valgtId) ?? stasjoner[0]
 
   // Alle treff-rader for stasjonen (paginert — kan være >1000).
-  const rader: TreffRad[] = []
-  if (stasjon) {
-    for (let side = 0; side < 20; side++) {
-      const { data, error } = await supabase
-        .from('prognose_treff').select('type, dato, kategori, forventet, faktisk, treff')
-        .eq('stasjon_id', stasjon.id).order('dato').range(side * 1000, side * 1000 + 999)
-        .overrideTypes<TreffRad[]>()
-      if (error || !data || data.length === 0) break
-      rader.push(...data)
-      if (data.length < 1000) break
-    }
-  }
+  const rader: TreffRad[] = stasjon ? await hentTreff(supabase, stasjon.id) : []
   const { data: kalRader } = stasjon
     ? await supabase.from('prognose_kalibrering').select('type, kategori, korreksjon, n').eq('stasjon_id', stasjon.id)
     : { data: [] }
