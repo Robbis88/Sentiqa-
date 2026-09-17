@@ -104,15 +104,19 @@ export async function hentSalg(
   const ut: Salgsrad[] = []
   const SIDE = 1000
   for (let f = 0; ; f += SIDE) {
+    // `dato` alene er ikke unik naar flere stasjoner spoerres samtidig,
+    // og `.range()` over en ustabil ordning mister rader i stillhet.
+    // `ean` er laast med .eq(), saa (dato, stasjon_id) er minste unike
+    // noekkel. Se `hentsalg-paginering.test.ts`.
+    //
+    // Kommentaren staar OVER kjeden med vilje: grensevakten i
+    // `supabase/uten-grense.test.ts` slutter aa lese kjeden ved en
+    // kommentarlinje, og ville ellers ikke sett `.range()` under her.
     const { data } = await supabase
       .from('v_butikksalg')
       .select('stasjon_id, dato, ean, antall, varegruppe_kode, varegruppe_navn')
       .eq('ean', ean).in('stasjon_id', stasjonIder)
       .gte('dato', fra).lte('dato', til)
-      // `dato` alene er ikke unik naar flere stasjoner spoerres samtidig,
-      // og `.range()` over en ustabil ordning mister rader i stillhet.
-      // `ean` er laast med .eq(), saa (dato, stasjon_id) er minste unike
-      // noekkel. Se `hentsalg-paginering.test.ts`.
       .order('dato', { ascending: true })
       .order('stasjon_id', { ascending: true })
       .range(f, f + SIDE - 1)
