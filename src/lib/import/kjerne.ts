@@ -194,10 +194,14 @@ export async function behandleJobbKjerne(
 ): Promise<void> {
   const { data: jobb } = await supabase
     .from('import_jobber')
-    .select('id, raa_filer(filnavn, storage_bucket, storage_sti)')
+    // `raa_fil_id` ER IDENTITETEN, IKKE FILNAVNET. To opplastinger som
+    // heter det samme er to `raa_filer`-rader og skal forbli to saker;
+    // fem forsoek paa SAMME rad er én sak. Se noekkelen under.
+    .select('id, raa_fil_id, raa_filer(filnavn, storage_bucket, storage_sti)')
     .eq('id', jobbId)
     .single<{
       id: string
+      raa_fil_id: string
       raa_filer: { filnavn: string; storage_bucket: string; storage_sti: string } | null
     }>()
   if (!jobb?.raa_filer) return
@@ -210,6 +214,28 @@ export async function behandleJobbKjerne(
       tittel: `Import feilet: ${jobb.raa_filer?.filnavn ?? 'fil'}`,
       tekst: melding,
       lenke: '/import',
+      // =================================================================
+      // SAK, IKKE HENDELSE
+      // =================================================================
+      //
+      // Uten noekkel skrev hvert mislykkede forsoek en ny rad, og
+      // `butikksjef-dashbord.tsx:264` gjoer én rad om til ett kort paa
+      // oppmerksomhetsflaten. Fem forsoek paa samme fil ble fem kort -
+      // og drukner «produksjonsplanen bommer 6 dager paa rad».
+      //
+      // `0201` skrev ned hvorfor det er verre enn stoey: «et
+      // varselsystem man laerer seg aa avfeie, er et varselsystem som
+      // ikke finnes.» Bemanningsvarslene fikk noekkel da. Importen ble
+      // staaende igjen.
+      //
+      // IDENTITETEN ER FILA, IKKE NAVNET. `raa_fil_id` er en fremmednoekkel
+      // til `raa_filer`; to opplastinger med samme synlige filnavn er to
+      // rader og forblir to saker. Et filnavn er presentasjon.
+      //
+      // HENDELSENE FORSVINNER IKKE. Hvert forsoek staar i `import_jobber`
+      // med egen id, `forsok` og `feilmelding`. Det er historikken;
+      // varselet er saken.
+      noekkel: varselnoekkel({ slag: 'import_feil', detalj: jobb.raa_fil_id }),
     })
   }
 
@@ -1453,6 +1479,14 @@ async function varsleOmUrimeligDag(
       tittel: `${st?.navn ?? 'Stasjonen'}: uvanlig salgsdag ${dato}`,
       tekst: funn.tekst,
       lenke: '/dekning',
+      // SAKEN ER DAGEN, IKKE IMPORTEN. En reimport av samme doegn er
+      // ikke et nytt avvik - det er det samme doegnet lest om igjen.
+      // Fila hoerer ikke i noekkelen: samme dag kan komme inn i flere
+      // filer, og da er det fortsatt én dag aa se paa.
+      //
+      // Tittelen baerer tallene og kan endre seg mellom to importer.
+      // Derfor noekles det paa stasjon og dato, aldri paa teksten.
+      noekkel: varselnoekkel({ slag: 'import_avvik', stasjonId, periode: dato }),
     })
   } catch {
     // Med vilje stille. Se blokkkommentaren over.
