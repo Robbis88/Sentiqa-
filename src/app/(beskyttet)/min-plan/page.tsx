@@ -4,6 +4,8 @@ import { maanedsnavn } from '@/lib/kurs/plan'
 import { Sidehode, Tomtilstand, Feiltilstand, Forklaring } from '@/components/ui/side'
 import { maaVaereHele } from '@/lib/supabase/datobolker'
 import { Sideramme } from '@/components/ui/sideramme'
+import { husketStasjon } from '@/lib/stasjonskontekst'
+import { stasjonFraUrl, tillatAlleFor } from '@/lib/stasjonsvalg'
 import { Planlesing } from './planlesing'
 import type { Punkt } from '../maanedsplan/plankort'
 
@@ -55,18 +57,77 @@ type Planrad = {
   stasjoner: { navn: string } | null
 }
 
-export default async function MinPlanSide() {
+// =====================================================================
+// PLANEN GJELDER DEN VALGTE STASJONEN
+// =====================================================================
+//
+// MAALT I PRODUKSJON 2026-09-16. Toppvelgeren sto paa «9038 St1
+// Laguneparken» mens denne fanen viste «St1 Dale · juli 2026» oeverst.
+//
+// Aarsaken var ikke en feil i et tall: spoerringen hadde INGEN
+// `stasjon_id`-filter i det hele tatt, og sorterte bare paa `maaned
+// desc`. Rekkefoelgen innenfor juli var den Postgres tilfeldigvis ga.
+//
+// Det var en bevisst avgjoerelse - «RLS gir henne hele kjeden her, men
+// hvert kort baerer stasjonsnavnet sitt» - og den var usynlig saa lenge
+// `/min-plan` laa som en egen menylinje langt nede. Naa ligger den som
+// fane ved siden av «Maaneden», som RESPEKTERER velgeren. To naboer som
+// svarer ulikt paa «hvilken stasjon ser jeg paa» er ikke en akseptabel
+// brukerreise.
+//
+// «Butikken min» er ÉN kontekst: staar du paa Laguneparken, handler alle
+// tre fanene om Laguneparken.
+//
+// EIERENS KJEDEBEHOV ER IKKE FJERNET. `/maanedsplan` er
+// godkjenningskoeen paa tvers av stasjoner, og den er uendret. Det er to
+// spoersmaal: «hva skal DENNE butikken gjoere» og «hvilke utkast venter
+// paa meg». De hoerer ikke paa samme flate.
+//
+// RLS ER FORTSATT SIKKERHETEN. Filteret her er en INNSNEVRING av det
+// policyen alt tillater (`0200`), aldri en utvidelse - butikksjefen naar
+// bare `mine_stasjoner()` uansett hva URL-en sier.
+// =====================================================================
+
+export default async function MinPlanSide(
+  { searchParams }: { searchParams: Promise<{ stasjon?: string; butikknummer?: string }> },
+) {
   const bruker = await hentInnloggetBruker()
-  // Eieren slipper inn med vilje: hun skal kunne se NOEYAKTIG det
-  // butikksjefen ser, uten aa be om en skjerm. RLS gir henne hele kjeden
-  // her, men hvert kort baerer stasjonsnavnet sitt.
   const erButikksjef = bruker.rolle === 'butikksjef'
   const erEier = bruker.rolle === 'retailer_admin'
   if (!erButikksjef && !erEier) {
     return <p>Du har ikke tilgang.</p>
   }
 
+  const sp = await searchParams
   const supabase = await lagSupabaseServerKlient()
+
+  // SAMME STASJONSVALG SOM «Maaneden». Skallet husker valget; sida leser
+  // det paa noeyaktig samme maate, ellers kan de to fanene skille lag
+  // igjen uten at noe sier fra.
+  const { data: stasjonsrader } = await supabase
+    .from('stasjoner')
+    .select('id, navn, butikknummer')
+    .is('slettet_tid', null)
+    .order('butikknummer')
+    .limit(200)
+    .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
+  const stasjonsliste = stasjonsrader ?? []
+  // BEGGE PARAMETERNAVNENE, som `stasjonFraUrl` alt stoetter.
+  //
+  // `?stasjon=<uuid>` er det skallet skriver. `?butikknummer=5102` er
+  // formen /regnskap, /produksjonsplan og /utsolgt alt bruker, og den
+  // eneste som kan skrives av et menneske - eller en test - uten aa slaa
+  // opp en uuid foerst. Én linje her gjoer planen dyplenkbar paa samme
+  // maate som resten av systemet.
+  const sok = new URLSearchParams()
+  if (sp.stasjon) sok.set('stasjon', sp.stasjon)
+  if (sp.butikknummer) sok.set('butikknummer', sp.butikknummer)
+  const valgtStasjon = await husketStasjon(
+    stasjonsliste,
+    stasjonFraUrl(sok, stasjonsliste),
+    tillatAlleFor('/min-plan', bruker.rolle, stasjonsliste.length),
+  )
+  const navnFor = new Map(stasjonsliste.map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
   // =====================================================================
   // GRENSEN SKAL KUNNE BEVISE AT SVARET ER HELT
   // =====================================================================
@@ -87,6 +148,7 @@ export default async function MinPlanSide() {
     .from('maanedsplan')
     .select('id, maaned, dom, ingress, punkter, merknad, status, matkast, usynlig, rangering, stasjoner(navn)')
     .in('status', ['sluppet', 'sendt'])
+    .eq('stasjon_id', valgtStasjon ?? '')   // innsnevring, aldri utvidelse
     .order('maaned', { ascending: false })
     .limit(TAK_PLANER)
     .overrideTypes<Planrad[]>()
@@ -118,6 +180,7 @@ export default async function MinPlanSide() {
     <Sideramme>
       <Sidehode
         tittel="Månedsplanen din"
+        merke={valgtStasjon ? navnFor.get(valgtStasjon) : undefined}
         undertittel={
           nyeste
             ? `Siste: ${maanedsnavn(nyeste.maaned)} ${nyeste.maaned.slice(0, 4)}`
@@ -127,11 +190,25 @@ export default async function MinPlanSide() {
 
       {planer.length === 0 && (
         <Tomtilstand
-          tittel="Ingen månedsplan ennå"
+          // STASJONEN STAAR I OVERSKRIFTEN, OG DET ER IKKE PYNT.
+          //
+          // `omfangsfasit.json` bar en skrevet begrunnelse for at
+          // spoerringen IKKE filtrerte paa stasjon: «et filter i UI-et
+          // ville skjult den ene planen hun faktisk hadde, og en
+          // manglende plan ser likedan ut som en plan som ikke er
+          // sluppet».
+          //
+          // Den innvendingen er ekte for en butikksjef med FLERE
+          // stasjoner. Den er besvart her, ikke ignorert: tomtilstanden
+          // navngir stasjonen, saa «ingen plan» aldri kan leses som
+          // «ingen plan noe sted». Velgeren i toppen er veien til de
+          // andre.
+          tittel={`Ingen månedsplan for ${valgtStasjon ? navnFor.get(valgtStasjon) : 'stasjonen'}`}
           forklaring={
             'Planen skrives når regnskapet importeres, og blir synlig her '
             + 'når eier har lest den og sluppet den. Den trenger minst tre '
-            + 'måneder med tall før retningen betyr noe.'
+            + 'måneder med tall før retningen betyr noe. Har du flere '
+            + 'stasjoner, bytt stasjon i toppen for å se deres planer.'
           }
         />
       )}

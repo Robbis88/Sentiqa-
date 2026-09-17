@@ -104,6 +104,37 @@ export function reisen(bilde: Okonomibilde, felter: readonly Felt[]): Fase[] {
 }
 
 /**
+ * Månedens tilstand, i klartekst under stasjonsnavnet.
+ *
+ * =====================================================================
+ * ÉN SETNING I STEDET FOR EN STRIPE MED TRE
+ * =====================================================================
+ *
+ * Reisestripa er riktig, men den svarer på «kan jeg stole på tallet» —
+ * og det er ikke spørsmålet den som åpner siden har. Hun spør hvordan
+ * måneden går. Stripa flyttes derfor under «Vis grunnlaget», og denne
+ * ene linja bærer det leseren trenger på første skjerm.
+ *
+ * TO AVLESNINGER, INGEN NY REGEL:
+ *
+ *   `dekning.regnskap`   avlagt eller ikke
+ *   `dekning.salgsdager` hvor mange av dagene som KUNNE hatt tall som
+ *                        faktisk har det — `muligeSalgsdager` sin egen
+ *                        nevner, ikke månedens lengde
+ *
+ * DEKNINGEN NEVNES BARE FOR EN MÅNED SOM PÅGÅR. En avlagt måned har
+ * regnskapet som fasit, og `byggDekning` melder derfor ingen mangler for
+ * den — å vise en dagsteller der ville vært en opplysning om noe som
+ * ikke lenger betyr noe.
+ */
+export function maanedsstatus(bilde: Okonomibilde): string {
+  if (bilde.dekning.regnskap) return 'Måneden er ferdig. Regnskapet er avlagt.'
+  const { har, av } = bilde.dekning.salgsdager
+  if (av === 0) return 'Måneden har ikke begynt.'
+  return `Måneden pågår. ${har} av ${av} mulige dager har tall.`
+}
+
+/**
  * Steget måneden STÅR på, til overskriften.
  *
  * Det seneste som er nådd. `null` når ingen er det — en måned uten BP,

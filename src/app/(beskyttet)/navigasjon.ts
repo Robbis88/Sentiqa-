@@ -39,6 +39,43 @@ export type Fanegruppe = { tittel: string; faner: Punkt[] }
 
 export const FANEGRUPPER: Fanegruppe[] = [
   {
+    // =================================================================
+    // BUTIKKEN MIN — SAMME SPØRSMÅL, TRE TIDSHORISONTER
+    // =================================================================
+    //
+    // `/oversikt`, `/min-maaned` og `/min-plan` sto som tre menylinjer.
+    // De svarer på ÉN ting — «hvordan går butikken, og hva skal jeg
+    // gjøre» — på hver sin tidsakse:
+    //
+    //   I dag      det som haster nå. `signaler.ts` rangerer.
+    //   Måneden    perioden. `okonomi/sammenstill.ts` bærer den.
+    //   Planen     tiltaket eieren slapp, som gjelder til neste kommer.
+    //
+    // MÅLT OVERLAPP, IKKE ANTATT. `/min-plan` og seksjon 4 i
+    // `/min-maaned` gjør samme spørring mot `maanedsplan` med samme
+    // statusfilter, og tegner den med samme `Planlesing`-komponent. Det
+    // er ikke to flater som ligner — det er én kodevei to steder.
+    //
+    // Tre menylinjer for ett spørsmål betyr at butikksjefen må vite
+    // hvilken av dem som har svaret hennes. Det er den kunnskapen
+    // produktet skal spare henne for.
+    //
+    // ---------------------------------------------------------------
+    // INGEN RUTE MISTER TILGANG, OG DET ER BEVIST
+    // ---------------------------------------------------------------
+    //
+    // `naabarhet()` i `redesign/fasit.ts` leser HELE denne fila —
+    // SEKSJONER og FANEGRUPPER med samme uttrykk. En rute som flyttes
+    // hit blir stående i `naabart`, og vakthundens «ingen mistet
+    // tilgang» holder uten at fasiten regenereres.
+    tittel: 'Butikken min',
+    faner: [
+      { sti: '/oversikt', tekst: 'I dag', roller: [A, B] },
+      { sti: '/min-maaned', tekst: 'Måneden', roller: [A, B] },
+      { sti: '/min-plan', tekst: 'Planen', roller: [A, B] },
+    ],
+  },
+  {
     tittel: 'Rutiner',
     faner: [
       { sti: '/rutiner', tekst: 'På vakt', roller: [T] },
@@ -189,18 +226,20 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
     // Uten tittel med vilje: startpunktet skal alltid være synlig, ikke
     // ligge sammenleggbart bak en gruppe man må åpne.
     //
-    // TO PUNKTER, OG DE SVARER PÅ HVER SIN TIDSAKSE. «Hjem» er i dag og
-    // de nærmeste dagene. «Min måned» er perioden — hvor den står, hva
-    // som beveger den, og hva som er bestemt gjort med den.
+    // ÉN LINJE, TRE FANER. «Min måned» og «Månedsplanen din» sto her og
+    // under «Innsikt» som egne linjer. De er nå faner i gruppen
+    // «Butikken min» — se FANEGRUPPER for det målte overlappet.
     //
-    // Den ligger HER og ikke under «Innsikt» med vilje. Innsikt er
-    // rapportene man åpner når man lurer på noe bestemt; Min måned er
-    // spørsmålet de fleste egentlig hadde, og som før krevde at man
-    // åpnet fire av dem og satte svaret sammen selv.
+    // TO NAVN FOR SAMME RUTE, OG DET ER MED VILJE. `/oversikt` tegner
+    // butikksjefens egen stasjon og eierens PORTEFØLJE — to sider bak
+    // samme URL, slik `TAALER_AGGREGAT` alt sier. «Butikken min» ville
+    // vært løgn for eieren, og «Hjem» sier ingenting til butikksjefen om
+    // hva hun finner der. Rollen velger ordet; ruta er den samme, og
+    // `naabarhet()` teller den for begge.
     tittel: '',
     punkter: [
-      { sti: '/oversikt', tekst: 'Hjem', roller: [A, B] },
-      { sti: '/min-maaned', tekst: 'Min måned', roller: [A, B] },
+      { sti: '/oversikt', tekst: 'Butikken min', roller: [B] },
+      { sti: '/oversikt', tekst: 'Hjem', roller: [A] },
     ],
   },
   {
@@ -222,11 +261,16 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
   },
   {
     // Pengene inn. Tre vinkler på samme tall: dag, time, framover.
+    //
+    // ÉN LINJE, IKKE TRE. De tre sto som egne menylinjer OG som faner i
+    // gruppen «Salg» — altså seks innganger til tre sider. Koden var sitt
+    // eget bevis: de var alt erklært som én gruppe i FANEGRUPPER.
+    //
+    // `/timesalg` og `/salgsprognose` nås som faner. Ingen rute mistet
+    // tilgang; `naabarhet()` teller fanene.
     tittel: 'Salg',
     punkter: [
       { sti: '/salg', tekst: 'Salg', roller: [A, B] },
-      { sti: '/timesalg', tekst: 'Timesalg', roller: [A, B] },
-      { sti: '/salgsprognose', tekst: 'Prognose', roller: [A, B] },
     ],
   },
   {
@@ -270,11 +314,10 @@ export const SEKSJONER: { tittel: string; punkter: Punkt[] }[] = [
       // skal hverken se koeen eller de andre stasjonenes utkast.
       // RLS-policyen i 0200 haandhever det samme.
       { sti: '/maanedsplan', tekst: 'Månedsplaner', roller: [A] },
-      // MOTTAKERFLATEN. Kommentaren over sa at butikksjefen «leser sin
-      // egen plan naar den er sluppet» - men det fantes ingen rute som
-      // viste den. RLS ga henne lesetilgang; en tilgang er ikke en flate,
-      // og planen naadde henne aldri.
-      { sti: '/min-plan', tekst: 'Månedsplanen din', roller: [A, B] },
+      // `/min-plan` STO HER. Den er ikke borte - den er fane «Planen» i
+      // gruppen «Butikken min». Mottakerflaten finnes fortsatt, og
+      // `naabarhet()` teller den; den er bare ikke lenger en av tre
+      // menylinjer som alle fører til den samme planen.
       // Loenn over tid, mot budsjett. Butikksjefen ser sin egen stasjon -
       // loennsrammen er stasjonens ansvar, og /regnskap svarer bare paa
       // én maaned om gangen.

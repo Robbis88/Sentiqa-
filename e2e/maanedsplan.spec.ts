@@ -612,7 +612,10 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
 
       // DEN NAADDE MOTTAKEREN. Navigering er riktig her: en ANNEN rute,
       // revalidert paa serveren av `slippPlan`.
-      await page.goto('/min-plan')
+      // STASJONEN MAA STAA I URL-EN. `/min-plan` filtrerer paa valgt
+      // stasjon; uten `?butikknummer=` viser sida den foerste, og
+      // Grensebys nettopp sluppede plan ligger ikke der.
+      await page.goto('/min-plan?butikknummer=5102')
       await expect(page.locator('.sq-plankort').filter({ hasText: 'juli 2026' }))
         .toHaveCount(1)
     })
@@ -677,8 +680,20 @@ test.describe.serial('månedsplanflyten — muterer ekte rader', () => {
       // En avvist plan naar aldri mottakeren. `textContent` — en
       // negativ paastand paa `innerText` ville bestaatt mens kortet var
       // skjult.
-      await page.goto('/min-plan')
-      await expect(page.locator('.sq-plankort-liste')).not.toContainText('juni')
+      // STASJONEN MAA STAA I URL-EN, OG PAASTANDEN MAA TAALE EN TOM SIDE.
+      //
+      // `/min-plan` filtrerer paa valgt stasjon. Underby (5101) har ingen
+      // SLUPPET plan, saa `.sq-plankort-liste` rendres ikke i det hele
+      // tatt - og `not.toContainText` feiler paa «element(s) not found»
+      // naar det den leter etter mangler helt. Det ser ut som en feil i
+      // sida, men er en test som krever at et element finnes for aa
+      // bevise at et annet ikke gjoer det.
+      //
+      // `toHaveCount(0)` paa selve kortet er den samme paastanden, og den
+      // holder baade naar lista er tom og naar den har andre kort.
+      await page.goto('/min-plan?butikknummer=5101')
+      await expect(page.locator('.sq-plankort').filter({ hasText: 'juni' }))
+        .toHaveCount(0)
     })
 
   // ===================================================================
