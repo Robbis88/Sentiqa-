@@ -606,7 +606,7 @@ describe('katalogvakt', () => {
     'hent_kassererstatistikk', 'hent_bp_status', 'hent_regnskap',
     'hent_timeregnskap', 'hent_bemanning', 'hent_stempling', 'hent_svinn',
     'hent_kaffesvinn', 'hent_ikmat', 'hent_rutiner', 'hent_avvik',
-    'hent_utsolgt', 'hent_vareprognose', 'hent_svinnbudsjett',
+    'hent_utsolgt', 'hent_vareprognose', 'forventet_salg', 'hent_svinnbudsjett',
     'hent_produksjonsplan', 'hent_malekort', 'hent_fokus_status',
     'sla_opp_kunnskap', 'list_oppgaver', 'list_konkurranser',
     'opprett_oppgave', 'opprett_konkurranse', 'kar_vinner',

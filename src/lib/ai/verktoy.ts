@@ -15,6 +15,7 @@ import { lagVareprognose, utsolgtDatoer } from './vareprognose'
 import { hentSvinnbudsjett } from '@/lib/svinn/hent-budsjett'
 import { leggTilDager, type SalgsPunkt } from '@/lib/produksjonsplan'
 import { hentLonnskostVerktoy, hentLonnsromVerktoy } from './lonnsverktoy'
+import { forventetSalgVerktoy } from './forventetverktoy'
 
 /**
  * Verktoeynavn -> det brukeren ser i kildelista.
@@ -42,6 +43,7 @@ export const VERKTOY_ETIKETT: Record<string, string> = {
   hent_avvik: 'avvik og varsler',
   hent_utsolgt: 'mulig utsolgt',
   hent_vareprognose: 'vareprognose',
+  forventet_salg: 'forventet salg',
   hent_svinnbudsjett: 'kastbudsjett',
   hent_produksjonsplan: 'produksjonsplan',
   hent_malekort: 'målekort',
@@ -356,6 +358,10 @@ export const VERKTOY: Record<string, Verktoy> = {
       })
     },
   },
+
+  // Forventet salg eier `src/lib/forventet/motor.ts`. Verktoeyet er et
+  // rent grensesnitt - se blokkkommentaren i `forventetverktoy.ts`.
+  forventet_salg: forventetSalgVerktoy,
 
   hent_datadekning: stasjonsverktoy(
     'hent_datadekning',
