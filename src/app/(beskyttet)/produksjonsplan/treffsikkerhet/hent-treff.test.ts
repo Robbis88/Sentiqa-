@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hentTreff, SIDE, type TreffRad } from './hent-treff'
+import { hentTreff, SIDE, MAKS_SIDER, type TreffRad } from './hent-treff'
 
 // =====================================================================
 // `prognose_treff` HAR FLERE RADER PER DATO — ALLTID
@@ -63,7 +63,7 @@ function sorterSomPostgres(rader: TreffRad[], kolonner: string[], fro: number): 
   return ut
 }
 
-function lagKlient(alle: TreffRad[]) {
+function lagKlient(alle: TreffRad[], svar?: (side: number, data: TreffRad[]) => { data: TreffRad[] | null; error: { message: string } | null }) {
   let sider = 0
   let ordrer: string[] = []
   const omraader: [number, number][] = []
@@ -79,7 +79,7 @@ function lagKlient(alle: TreffRad[]) {
         ordrer = [...mine]
         omraader.push([fra, til])
         const data = sorterSomPostgres(alle, mine, sider).slice(fra, til + 1)
-        return { overrideTypes: () => Promise.resolve({ data, error: null }) }
+        return { overrideTypes: () => Promise.resolve(svar ? svar(sider, data) : { data, error: null }) }
       },
     }
     return q
@@ -91,6 +91,25 @@ function lagKlient(alle: TreffRad[]) {
 }
 
 describe('hentTreff — stabil paginering over flere typer og kategorier', () => {
+  it('avviser databasefeil etter en full side i stedet for aa levere delvise treffmaal', async () => {
+    const { klient } = lagKlient(lagRader(), (side, data) => side === 2
+      ? { data: null, error: { message: 'statement timeout' } } : { data, error: null })
+    await expect(hentTreff(klient, STASJON)).rejects.toThrow('statement timeout')
+  })
+
+  it('skiller manglende svar fra en bekreftet tom historikk', async () => {
+    const { klient } = lagKlient([], () => ({ data: null, error: null }))
+    await expect(hentTreff(klient, STASJON)).rejects.toThrow('mangler data')
+    await expect(hentTreff(lagKlient([]).klient, STASJON)).resolves.toEqual([])
+  })
+
+  it('avviser full radgrense i stedet for aa skjule avkorting', async () => {
+    const fullSide = lagRader().slice(0, SIDE)
+    const { klient, tall } = lagKlient([], () => ({ data: fullSide, error: null }))
+    await expect(hentTreff(klient, STASJON)).rejects.toThrow(`over ${MAKS_SIDER * SIDE} rader`)
+    expect(tall().sider).toBe(MAKS_SIDER)
+  })
+
   it('henter alle sidene uten tap og uten duplikater', async () => {
     const alle = lagRader()
     const { klient, tall } = lagKlient(alle)

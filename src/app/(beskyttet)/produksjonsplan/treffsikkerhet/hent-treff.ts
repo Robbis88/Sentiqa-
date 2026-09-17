@@ -4,8 +4,8 @@ import type { lagSupabaseServerKlient } from '@/lib/supabase/server'
 // ALLE TREFF-RADENE FOR ÉN STASJON
 // =====================================================================
 //
-// Trukket ut av `page.tsx` for å kunne måles. Løkka, sidestørrelsen og
-// stoppvilkåret er de samme som sto der.
+// Trukket ut av `page.tsx` for å kunne måles. Ufullstendig historikk
+// skal aldri bli til treffsikkerhet: databasefeil og radgrensen kaster.
 // =====================================================================
 
 export type TreffRad = {
@@ -41,9 +41,11 @@ export async function hentTreff(supabase: Klient, stasjonId: string): Promise<Tr
       .order('kategori')
       .range(side * SIDE, side * SIDE + SIDE - 1)
       .overrideTypes<TreffRad[]>()
-    if (error || !data || data.length === 0) break
+    if (error) throw new Error(`hentTreff: ${error.message}`)
+    if (!data) throw new Error('hentTreff: mangler data uten databasefeil')
+    if (data.length === 0) return rader
     rader.push(...data)
-    if (data.length < SIDE) break
+    if (data.length < SIDE) return rader
   }
-  return rader
+  throw new Error(`hentTreff: over ${MAKS_SIDER * SIDE} rader — avgrens spørringen`)
 }

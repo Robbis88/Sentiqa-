@@ -8,12 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - Aktiv gren: `kombinasjon-p1-p3`, eksisterende utkast-PR #313.
 - Docker Desktop er installert, og Linux-motoren svarer.
-- Neste leveranse: push produktendringene til PR #313 og kontroller GitHub/Vercel-preview. PR-en skal ikke automatisk merges.
+- Produktendringene er pushet som `3c7eeec` til PR #313. Vercel-preview og GitHub-jobben `vakter` er groenne. `nettleser` kjoerer fortsatt; neste steg er aa hente sluttstatus med `gh pr checks 313`. Brukeren har naa eksplisitt godkjent merge naar alle sjekker er groenne, og kontroll av produksjonsdeployen etterpaa.
 - Endringene omfatter AI-prognoser for opptil sju dager/h13, signert samtalereferanse, vareegnethet, stabil paginering og bekreftet lagring paa tablet.
 - Typesjekk bestaar; lint har ingen feil. Produkttestene: 4121 bestaar, 18 hoppes over.
 - Lokale kartlegginger `test-a-503.test.ts`, `dale-kontroll.test.ts`, raa loennsdata, SQL-sonder og kanari-rapporter holdes lokalt. Test A har to kjente feil paa uavklart etterbetalingskolonne i Laguneparken mai; ikke endre parseren for aa faa denne maalingen groenn.
-- Lokal Supabase laster Docker-images ved foerste oppstart. Bygg og nettlesertester kontrolleres foer levering der oppstarten lykkes; CI er endelig kontroll.
+- Lokal Supabase er startet med alle migrasjoner og seed. Produksjonsbygget og alle 60 tablet-nettlesertester bestaar. RLS-vakthunden rapporterer ingen funn. CI sin komplette nettleserjobb er siste kontroll.
 - Onboardingpaavirkning: NEI. Ingen nye konfigurasjonskrav; ukjent vareenhet avvises trygt.
+- Alle CI-sjekker paa `3c7eeec` besto. Vercel-review fant delvis datalevering i `hentTreff`; dette rettes med direkte tester foer godkjent merge og produksjonskontroll.
 
 
 # Salgstall: les `v_butikksalg`, aldri `daglig_salg`
