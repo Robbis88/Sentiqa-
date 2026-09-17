@@ -15,6 +15,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Lokal Supabase er startet med alle migrasjoner og seed. Produksjonsbygget og alle 60 tablet-nettlesertester bestaar. RLS-vakthunden rapporterer ingen funn. CI sin komplette nettleserjobb er siste kontroll.
 - Onboardingpaavirkning: NEI. Ingen nye konfigurasjonskrav; ukjent vareenhet avvises trygt.
 - Alle CI-sjekker paa `3c7eeec` besto. Vercel-review fant delvis datalevering i `hentTreff`; dette rettes med direkte tester foer godkjent merge og produksjonskontroll.
+- `605853e` retter dette. CI fant deretter en feil i nettverksloggen for oppfriskning: samtidige Request-objekter til samme URL ble blandet. Loggen er naa identitetsbundet og har direkte regresjonstest; ny push til #313 skal testes foer merge.
+- Tablet-gjennomgang paa egen gren `tablet-ytelse`: I dag er maalt til 27 -> 17 kall og median 1625 -> 1155 ms ved 150 ms simulert Supabase-latens. Rapport og reproduksjon ligger i `docs/tablet-arkitektur-2026-09-17.md` og `scripts/tablet-ytelse/`. Dette arbeidet er separat fra produksjons-PR #313.
 
 
 # Salgstall: les `v_butikksalg`, aldri `daglig_salg`
