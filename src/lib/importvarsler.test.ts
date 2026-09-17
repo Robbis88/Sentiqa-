@@ -115,7 +115,7 @@ describe('IMPORTVARSLER — hvor mange rader, hvor mange saker', () => {
       const { data, error: jfeil } = await supabase
         .from('import_jobber')
         .select('id, raa_fil_id, status, feilmelding, opprettet_tid, raa_filer(filnavn)')
-        .order('opprettet_tid', { ascending: false })
+        .order('opprettet_tid', { ascending: false }).order('id')
         .range(fra, fra + SIDE - 1)
         .overrideTypes<Jobb[]>()
       if (jfeil) throw new Error(`import_jobber: ${jfeil.message}`)

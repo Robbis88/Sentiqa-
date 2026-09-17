@@ -93,6 +93,7 @@ const STASJON_FELT = {
 }
 
 const PERIODE_FELT = {
+  relativ: { type: 'string' as const, description: 'Historisk periode med brukerens egne ord: sist søndag, forrige uke, i går. Ikke regn om til datoer selv.' },
   fra: { type: 'string' as const, description: 'YYYY-MM-DD' },
   til: { type: 'string' as const, description: 'YYYY-MM-DD' },
   maaned: { type: 'string' as const, description: 'YYYY-MM — hele måneden' },
@@ -101,6 +102,7 @@ const PERIODE_FELT = {
 
 function periodeInput(input: Record<string, unknown>): Periodeinput {
   return {
+    relativ: typeof input.relativ === 'string' ? input.relativ : undefined,
     fra: typeof input.fra === 'string' ? input.fra : undefined,
     til: typeof input.til === 'string' ? input.til : undefined,
     maaned: typeof input.maaned === 'string' ? input.maaned : undefined,

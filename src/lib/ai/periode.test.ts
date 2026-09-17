@@ -4,6 +4,17 @@ import { lagPeriode, manederIPeriode, hittilIAar, leggTilDager, idagOslo } from 
 const IDAG = '2026-08-24'
 
 describe('lagPeriode', () => {
+  it('sist søndag er siste avsluttede søndag, også på søndag', () => {
+    expect(lagPeriode({ relativ: 'sist søndag' }, '2026-09-17')).toMatchObject({ fra: '2026-09-13', til: '2026-09-13', komplett: true })
+    expect(lagPeriode({ relativ: 'sist søndag' }, '2026-09-13')).toMatchObject({ fra: '2026-09-06' })
+  })
+  it('forrige uke følger mandag–søndag over årsskiftet', () => {
+    expect(lagPeriode({ relativ: 'forrige uke' }, '2026-01-01')).toMatchObject({ fra: '2025-12-22', til: '2025-12-28', komplett: true })
+  })
+  it('avviser umulige kalenderdatoer og motstridende perioder', () => {
+    expect(lagPeriode({ fra: '2026-02-30' }, IDAG)).toHaveProperty('feil')
+    expect(lagPeriode({ relativ: 'forrige uke', fra: '2026-01-01' }, IDAG)).toHaveProperty('feil')
+  })
   it('utvider en måned til hele måneden', () => {
     const p = lagPeriode({ maaned: '2026-02' }, IDAG)
     expect(p).toMatchObject({ fra: '2026-02-01', til: '2026-02-28', opplosning: 'maaned' })

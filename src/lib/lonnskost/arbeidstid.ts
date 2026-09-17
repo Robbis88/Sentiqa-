@@ -130,7 +130,7 @@ export async function hentArbeidstid(
     const q = supabase
       .from('basisvakt')
       .select(VELG)
-      .eq('kilde_maaned', maaned)
+      .eq('kilde_maaned', maaned).order('id')
     return stasjonIder.length > 0 ? q.in('stasjon_id', stasjonIder) : q
   })
 

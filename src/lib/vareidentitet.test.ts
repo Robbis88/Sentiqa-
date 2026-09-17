@@ -125,7 +125,7 @@ describe('VAREIDENTITET — grunnlaget for en forventet-salg-motor', () => {
       const { data, error: rf } = await supabase
         .from('v_butikksalg').select(KOLONNER)
         .gte('dato', fra).lte('dato', til)
-        .order('dato', { ascending: true }).order('ean', { ascending: true })
+        .order('dato', { ascending: true }).order('stasjon_id').order('ean', { ascending: true }).order('retailer_id')
         .range(f, f + SIDE - 1).overrideTypes<Rad[]>()
       if (rf) throw new Error(`v_butikksalg: ${rf.message}`)
       const side = data ?? []

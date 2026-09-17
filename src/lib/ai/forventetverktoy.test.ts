@@ -28,6 +28,7 @@ const utenKommentarer = (s: string) =>
 const RAA = readFileSync('src/lib/ai/forventetverktoy.ts', 'utf8')
 const KODE = utenKommentarer(RAA)
 const MOTOR = utenKommentarer(readFileSync('src/lib/forventet/motor.ts', 'utf8'))
+const PERIODMOTOR = utenKommentarer(readFileSync('src/lib/forventet/periode.ts', 'utf8'))
 const TREFF = utenKommentarer(readFileSync('src/lib/forventet/treffsikkerhet.ts', 'utf8'))
 const KATALOG = utenKommentarer(readFileSync('src/lib/ai/verktoy.ts', 'utf8'))
 // Systemprompten bygges av en funksjon som tar en innlogget bruker; kilden
@@ -37,7 +38,8 @@ const SYSTEM = utenKommentarer(readFileSync('src/lib/ai/assistent.ts', 'utf8'))
 describe('AI regner ikke', () => {
   it('forventningen kommer fra motoren', () => {
     expect(KODE).toContain("from '@/lib/forventet/motor'")
-    expect(KODE).toContain('forventetSalg(')
+    expect(KODE).toContain('forventetPeriode(')
+    expect(PERIODMOTOR).toContain('forventetSalg(')
   })
 
   it('verktoeyet inneholder ingen egen prognoseformel', () => {
@@ -110,39 +112,35 @@ describe('treffsikkerhet er ikke et intervall', () => {
   })
 })
 
-describe('horisonten er +1', () => {
-  it('maaldatoen er dagen etter i dag', () => {
-    expect(KODE).toContain('leggTilDager(idag, 1)')
+describe('horisonten er maalingens h1–h13, maksimalt sju dager sammen', () => {
+  it('perioden valideres server-side', () => {
+    expect(KODE).toContain('prognosePeriode(input, idag)')
   })
 
-  it('verktoeyet tar ingen dato fra modellen', () => {
-    // Et `dato`-felt i skjemaet ville invitert til «neste fredag», og da
-    // maatte noe annet enn kontrakten stoppe det.
-    //
-    // FELTNAVNENE, IKKE BESKRIVELSENE. Foerste utgave leste hele
-    // skjemablokken og felte ordet «til» i «har tilgang til» - en
-    // setning til brukeren, ikke et felt modellen kan fylle.
+  it('skjemaet gir perioder, men ingen maanedsprognose', () => {
+    // Utvidet med samme kunnskapstidspunkt og separat periodemaaling.
     const skjema = KODE.slice(KODE.indexOf('properties: {'), KODE.indexOf('required:'))
     const felt = [...skjema.matchAll(/^\s{8}([a-zA-Z_]+):\s*\{/gm)].map((m) => m[1])
-    expect(felt.sort()).toEqual(['stasjoner', 'vare'])
+    expect(felt.sort()).toEqual(['fra', 'periode', 'stasjoner', 'til', 'vare'])
   })
 
   it('modellen faar beskjed om aa si fra i stedet for aa gjette', () => {
-    expect(RAA).toMatch(/bare.*godkjent prognose for neste dag/i)
+    expect(RAA).toContain('Månedsprognose er ikke godkjent')
   })
 })
 
 describe('tilgang haandheves server-side', () => {
   it('scopet hentes foer noe annet skjer', () => {
     const kjor = KODE.slice(KODE.indexOf('async kjor'))
-    expect(kjor.indexOf('hentScope(')).toBeLessThan(kjor.indexOf("from('v_butikksalg')"))
+    expect(kjor.indexOf('hentScope(')).toBeLessThan(kjor.indexOf('hentVaresok('))
+    expect(kjor.indexOf('hentScope(')).toBeLessThan(kjor.indexOf('hentSalg('))
   })
 
   it('spoerringene avgrenses til de autoriserte stasjonene', () => {
     // BEGGE. Soekespoerringen og salgshistorikken. Glipper den ene, kan
     // en vare fra en fremmed stasjon bli funnet og faa et tall.
     const treff = KODE.match(/\.in\('stasjon_id', (valgte\.map\(\(s\) => s\.id\)|stasjonIder)\)/g)
-    expect(treff, 'en spoerring mangler stasjonsavgrensning').toHaveLength(2)
+    expect(treff, 'en spoerring mangler stasjonsavgrensning').toHaveLength(3)
   })
 
   it('ingen autorisert stasjon gir ingenTilgang, ikke tomt svar', () => {

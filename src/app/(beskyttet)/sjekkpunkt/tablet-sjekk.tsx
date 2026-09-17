@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { svarSjekkpunktTablet } from './handlinger'
 import { useT } from '../oversett-kontekst'
+import { slippStyringssignal } from '@/lib/styringssignal'
 
 // =====================================================================
 // NIVAA 3 — utfor. Ett spoersmaal av gangen.
@@ -43,12 +44,15 @@ export function TabletSjekk({ punkter }: { punkter: Punkt[] }) {
   )
   const [venter, setVenter] = useState<string | null>(null)
   const [feil, setFeil] = useState<string | null>(null)
+  const sender = useRef(false)
 
   const ubesvart = punkter.filter((p) => svarene[p.id] === undefined)
   const besvart = punkter.filter((p) => svarene[p.id] !== undefined)
   const naa = ubesvart[0]
 
   function svarPaa(p: Punkt, ja: boolean) {
+    if (sender.current) return
+    sender.current = true
     setVenter(p.id)
     setFeil(null)
     svarSjekkpunktTablet(p.id, p.stasjonId, ja)
@@ -59,8 +63,8 @@ export function TabletSjekk({ punkter }: { punkter: Punkt[] }) {
         if (r?.ok) setSvarene((s) => ({ ...s, [p.id]: ja }))
         else setFeil(t('Svaret ble ikke lagret. Prøv en gang til.'))
       })
-      .catch(() => setFeil(t('Svaret ble ikke lagret. Prøv en gang til.')))
-      .finally(() => setVenter(null))
+      .catch((e) => { slippStyringssignal(e); setFeil(t('Svaret ble ikke lagret. Prøv en gang til.')) })
+      .finally(() => { sender.current = false; setVenter(null) })
   }
 
   if (punkter.length === 0) {
@@ -95,6 +99,7 @@ export function TabletSjekk({ punkter }: { punkter: Punkt[] }) {
               onClick={() => svarPaa(naa, false)}
             >{t('Nei')}</button>
           </div>
+          {venter === naa.id && <p className="undertittel" role="status">{t('Lagrer …')}</p>}
           {feil && <p className="feil" role="alert">{feil}</p>}
         </section>
       ) : (

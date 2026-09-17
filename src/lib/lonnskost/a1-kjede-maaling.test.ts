@@ -52,6 +52,7 @@ function fakeKlient(vakter: Noekkel[], register: Noekkel[], kall: Kall[]) {
           : tabell === 'lonnsregister' ? heleRegister(register)
             : []
       const q = {
+        order: () => q,
         select: () => q,
         eq: (kol: string, v: string) => {
           rader = rader.filter((r) => r[kol] === v)

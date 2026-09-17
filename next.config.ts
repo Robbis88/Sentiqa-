@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Ikke la en package-lock.json i foreldremappen flytte byggeroten.
+  outputFileTracingRoot: __dirname,
   experimental: {
     serverActions: {
       // Regnskapsrapporter/Excel kan være flere MB (Azets-fila er ~1,2 MB),

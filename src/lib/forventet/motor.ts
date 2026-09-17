@@ -122,6 +122,8 @@ export type Manglergrunn =
   | 'ingen_historikk'
   | 'for_fa_dager'
   | 'ingen_basis'
+  | 'ukjent_enhet'
+  | 'ugyldig_antall'
 
 export type Forventning =
   | {
@@ -190,6 +192,10 @@ export function forventetSalg(inn: Forventetinput): Forventning {
   const dagerMedSalg = new Set(egne.filter((r) => r.antall > 0).map((r) => r.dato)).size
 
   if (egne.length === 0) return { slag: 'ikke_dekning', grunn: 'ingen_historikk', dagerMedSalg }
+  // Uten enhetskolonne kan et desimaltall ikke rundes til «stykker».
+  // Null/NaN er heller ikke en observert null. Ingen gjetting i motoren.
+  if (egne.some((r) => !Number.isFinite(r.antall))) return { slag: 'ikke_dekning', grunn: 'ugyldig_antall', dagerMedSalg }
+  if (egne.some((r) => !Number.isInteger(r.antall))) return { slag: 'ikke_dekning', grunn: 'ukjent_enhet', dagerMedSalg }
   if (dagerMedSalg < inn.minstDagerMedSalg) {
     return { slag: 'ikke_dekning', grunn: 'for_fa_dager', dagerMedSalg }
   }

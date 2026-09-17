@@ -190,14 +190,14 @@ export default async function SalgSide({
       () => {
         const q = supabase.from('v_salg_per_avdeling_dag')
           .select('dato, avdeling_kode, omsetning')
-          .gte('dato', mpVindu.fra).lte('dato', mpVindu.til).order('dato')
+          .gte('dato', mpVindu.fra).lte('dato', mpVindu.til).order('dato').order('stasjon_id').order('avdeling_kode').order('avdeling_navn').order('retailer_id')
         return erStasjon ? q.eq('stasjon_id', valgtStasjon!) : q
       }),
     hentAlle<{ dato: string; omsetning: number | null }>(
       () => {
         const q = supabase.from('v_salg_per_stasjon_dag')
           .select('dato, omsetning')
-          .gte('dato', maaned).lte('dato', maanedSlutt).order('dato')
+          .gte('dato', maaned).lte('dato', maanedSlutt).order('dato').order('stasjon_id').order('retailer_id')
         return erStasjon ? q.eq('stasjon_id', valgtStasjon!) : q
       }),
   ])

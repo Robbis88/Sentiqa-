@@ -151,7 +151,7 @@ describe('BACKTEST — forventet salg mot fasit', () => {
       const { data, error: uf } = await supabase
         .from('v_butikksalg').select('ean, varenavn, varegruppe_kode, varegruppe_navn, antall')
         .gte('dato', minus(60)).lte('dato', til)
-        .order('dato', { ascending: true }).order('ean', { ascending: true })
+        .order('dato', { ascending: true }).order('stasjon_id').order('ean', { ascending: true }).order('retailer_id')
         .range(f, f + SIDE - 1).overrideTypes<Rad[]>()
       if (uf) throw new Error(`v_butikksalg (univers): ${uf.message}`)
       const side = data ?? []
@@ -204,7 +204,7 @@ describe('BACKTEST — forventet salg mot fasit', () => {
         .from('v_butikksalg')
         .select('stasjon_id, dato, ean, varenavn, varegruppe_kode, varegruppe_navn, antall')
         .in('ean', eanListe).gte('dato', fra).lte('dato', til)
-        .order('dato', { ascending: true }).range(f, f + SIDE - 1)
+        .order('dato', { ascending: true }).order('stasjon_id').order('ean').order('retailer_id').range(f, f + SIDE - 1)
         .overrideTypes<Rad[]>()
       if (rf) throw new Error(`v_butikksalg: ${rf.message}`)
       const side = data ?? []
@@ -227,7 +227,7 @@ describe('BACKTEST — forventet salg mot fasit', () => {
       const { data, error: vf } = await supabase
         .from('vaer').select('stasjon_id, dato, temp_maks, nedbor_mm')
         .gte('dato', fra).lte('dato', til)
-        .order('dato', { ascending: true }).range(f, f + SIDE - 1)
+        .order('dato', { ascending: true }).order('stasjon_id').range(f, f + SIDE - 1)
         .overrideTypes<{ stasjon_id: string; dato: string; temp_maks: number | null; nedbor_mm: number | null }[]>()
       if (vf) throw new Error(`vaer: ${vf.message}`)
       const side = data ?? []

@@ -63,11 +63,11 @@ export async function hentA1Maaneder(
     hentAlle<Rad>(() => supabase
       .from('basisvakt')
       .select('kilde_maaned')
-      .eq('stasjon_id', stasjonId)),
+      .eq('stasjon_id', stasjonId).order('id')),
     hentAlle<Rad>(() => supabase
       .from('lonnsregister')
       .select('kilde_maaned')
-      .eq('stasjon_id', stasjonId)),
+      .eq('stasjon_id', stasjonId).order('id')),
   ])
 
   const funnet = new Set<string>()

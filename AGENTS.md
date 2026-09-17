@@ -4,6 +4,18 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Arbeidsstatus 2026-09-17 etter Docker-installasjon
+
+- Aktiv gren: `kombinasjon-p1-p3`, eksisterende utkast-PR #313.
+- Docker Desktop er installert, og Linux-motoren svarer.
+- Neste leveranse: push produktendringene til PR #313 og kontroller GitHub/Vercel-preview. PR-en skal ikke automatisk merges.
+- Endringene omfatter AI-prognoser for opptil sju dager/h13, signert samtalereferanse, vareegnethet, stabil paginering og bekreftet lagring paa tablet.
+- Typesjekk bestaar; lint har ingen feil. Produkttestene: 4121 bestaar, 18 hoppes over.
+- Lokale kartlegginger `test-a-503.test.ts`, `dale-kontroll.test.ts`, raa loennsdata, SQL-sonder og kanari-rapporter holdes lokalt. Test A har to kjente feil paa uavklart etterbetalingskolonne i Laguneparken mai; ikke endre parseren for aa faa denne maalingen groenn.
+- Lokal Supabase laster Docker-images ved foerste oppstart. Bygg og nettlesertester kontrolleres foer levering der oppstarten lykkes; CI er endelig kontroll.
+- Onboardingpaavirkning: NEI. Ingen nye konfigurasjonskrav; ukjent vareenhet avvises trygt.
+
+
 # Salgstall: les `v_butikksalg`, aldri `daglig_salg`
 
 Drivstoff ligger i `daglig_salg` og er **~68 % av omsetningen**. Det betjener

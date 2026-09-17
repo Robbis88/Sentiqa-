@@ -6,9 +6,11 @@ export async function hentAlt<T>(
   const ut: T[] = []
   for (let side = 0; side < 200; side++) {
     const { data, error } = await lag(side * 1000, side * 1000 + 999)
-    if (error || !data || data.length === 0) break
+    if (error) throw new Error(`hentAlt: ${String(typeof error === 'object' && 'message' in error ? error.message : error)}`)
+    if (!data) throw new Error('hentAlt: mangler data uten databasefeil')
+    if (data.length === 0) return ut
     ut.push(...data)
-    if (data.length < 1000) break
+    if (data.length < 1000) return ut
   }
-  return ut
+  throw new Error('hentAlt: over 200 000 rader — avgrens spørringen')
 }

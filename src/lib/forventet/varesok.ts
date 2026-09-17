@@ -70,6 +70,18 @@ const norm = (s: string): string =>
     .replace(/[^a-z0-9æøå]+/g, '')
     .replace(/aa/g, 'å')
 
+/** Bredt databasefilter. Resolveren gjør fortsatt det endelige valget.
+ * Fire første tegn tåler kildekuttet, og % mellom tegn tåler tegnsetting.
+ * å erstattes av % fordi søkenormaliseringen også godtar aa.
+ */
+export function sokefilter(soek: string): { ean: string } | { navn: string } | null {
+  const s = soek.trim()
+  if (/^\d{1,14}$/.test(s)) return { ean: s }
+  const ord = s.split(/\s+/).map(norm).find(Boolean)
+  if (!ord) return null
+  return { navn: `%${[...ord.slice(0, 4)].map((t) => t === 'å' ? '%' : t).join('%')}%` }
+}
+
 /**
  * Alle ordene i søket må finnes i navnet.
  *
@@ -173,7 +185,7 @@ export type Oppslag =
  */
 export function slaaOpp(rader: readonly Varerad[], soek: string): Oppslag {
   const reneSifre = soek.trim()
-  if (/^\d{6,14}$/.test(reneSifre)) {
+  if (/^\d{1,14}$/.test(reneSifre)) {
     const egne = rader.filter((r) => r.ean === reneSifre)
     if (egne.length === 0) return { slag: 'ingen' }
     // Bygget direkte, ikke gjennom navnesøket: identiteten er alt gitt,

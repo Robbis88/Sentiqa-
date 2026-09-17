@@ -158,7 +158,7 @@ describe('AI-2 PRODUKSJONSFASIT', () => {
         .select('stasjon_id, dato, ean, antall, varegruppe_kode, varegruppe_navn')
         .eq('ean', vare.ean).in('stasjon_id', valgte.map((s) => s.id))
         .gte('dato', leggTilDager(idag, -HISTORIKK_DAGER)).lte('dato', idag)
-        .order('dato', { ascending: true }).range(f, f + SIDE - 1)
+        .order('dato', { ascending: true }).order('stasjon_id').order('ean').order('retailer_id').range(f, f + SIDE - 1)
         .overrideTypes<{
           stasjon_id: string; dato: string; ean: string; antall: number | null
           varegruppe_kode: string | null; varegruppe_navn: string | null

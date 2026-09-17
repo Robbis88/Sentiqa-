@@ -143,7 +143,7 @@ describe('HORISONT — hvor langt fram holder motoren', () => {
       const { data, error: uf } = await supabase
         .from('v_butikksalg').select('stasjon_id, dato, ean, antall, varegruppe_kode, varegruppe_navn')
         .gte('dato', minus(60)).lte('dato', til)
-        .order('dato', { ascending: true }).order('ean', { ascending: true })
+        .order('dato', { ascending: true }).order('stasjon_id').order('ean', { ascending: true }).order('retailer_id')
         .range(f, f + SIDE - 1).overrideTypes<Rad[]>()
       if (uf) throw new Error(`v_butikksalg (univers): ${uf.message}`)
       const side = data ?? []
@@ -165,7 +165,7 @@ describe('HORISONT — hvor langt fram holder motoren', () => {
       const { data, error: rf } = await supabase
         .from('v_butikksalg').select('stasjon_id, dato, ean, antall, varegruppe_kode, varegruppe_navn')
         .in('ean', eanListe).gte('dato', fra).lte('dato', til)
-        .order('dato', { ascending: true }).range(f, f + SIDE - 1)
+        .order('dato', { ascending: true }).order('stasjon_id').order('ean').order('retailer_id').range(f, f + SIDE - 1)
         .overrideTypes<Rad[]>()
       if (rf) throw new Error(`v_butikksalg: ${rf.message}`)
       const side = data ?? []

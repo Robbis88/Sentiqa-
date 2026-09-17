@@ -6,9 +6,13 @@ import { byggSvar } from './svar'
 import { hentScope, velgStasjoner, etikett } from './scope'
 import { idagOslo } from './periode'
 import { leggTilDager } from '@/lib/produksjonsplan'
-import { forventetSalg, MODELLER, type Salgsrad } from '@/lib/forventet/motor'
+import { MODELLER, type Salgsrad } from '@/lib/forventet/motor'
 import { maalTreff, tillit, type Treffmaal } from '@/lib/forventet/treffsikkerhet'
-import { slaaOpp, spoersmaal, type Varerad } from '@/lib/forventet/varesok'
+import { slaaOpp, sokefilter, spoersmaal, type Varerad } from '@/lib/forventet/varesok'
+import { hentAlle } from '@/lib/supabase/sider'
+import { varegrunn } from '@/lib/forventet/egnethet'
+import { forventetPeriode, maalPeriodetreff } from '@/lib/forventet/periode'
+import { prognosePeriode } from './prognoseperiode'
 
 // =====================================================================
 // AI SPØR MOTOREN. AI REGNER IKKE.
@@ -48,12 +52,12 @@ import { slaaOpp, spoersmaal, type Varerad } from '@/lib/forventet/varesok'
 // Det som ikke kan uttrykkes i typen, kan ikke lekke ut i et svar.
 //
 // ---------------------------------------------------------------------
-// HORISONTEN ER +1, OG DET ER LÅST
+// HORISONTEN ER h1–h13, MAKSIMALT SJU DAGER SAMMEN
 // ---------------------------------------------------------------------
 //
-// Backtesten har bare godkjent dagen etter. Spør noen om neste uke, sier
-// verktøyet det — det faller ikke tilbake på et historisk snitt og
-// kaller det en prognose.
+// horisontbred.test.ts måler h1–h13 og komplette uker. Alle dager bruker
+// samme kunnskapstidspunkt; kvaliteten måles for samme horisont/periode.
+// Måned er utenfor målingen og blir avvist server-side.
 //
 // ---------------------------------------------------------------------
 // TILGANG HÅNDHEVES SERVER-SIDE
@@ -89,6 +93,8 @@ export type Forventetsvar = {
   varenavn: string
   varegruppe: string | null
   dato: string
+  fra: string
+  til: string
   horisont: string
   forventetAntall: number | null
   dekning: 'beregnet' | 'ikke_dekning'
@@ -96,6 +102,8 @@ export type Forventetsvar = {
   grunn?: string
   grunnlag?: { basis: number; trendfaktor: number; dagerMedSalg: number }
   historiskTreffsikkerhet: (Treffmaal & { tillit: string }) | null
+  maalenhet: 'dager' | 'komplette perioder'
+  dagsprognoser: { dato: string; forventetAntall: number | null; grunn?: string }[]
 }
 
 export async function hentSalg(
@@ -103,7 +111,7 @@ export async function hentSalg(
 ): Promise<Salgsrad[]> {
   const ut: Salgsrad[] = []
   const SIDE = 1000
-  for (let f = 0; ; f += SIDE) {
+  for (let f = 0; f < 200 * SIDE; f += SIDE) {
     // `dato` alene er ikke unik naar flere stasjoner spoerres samtidig,
     // og `.range()` over en ustabil ordning mister rader i stillhet.
     // `ean` er laast med .eq(), saa (dato, stasjon_id) er minste unike
@@ -112,7 +120,7 @@ export async function hentSalg(
     // Kommentaren staar OVER kjeden med vilje: grensevakten i
     // `supabase/uten-grense.test.ts` slutter aa lese kjeden ved en
     // kommentarlinje, og ville ellers ikke sett `.range()` under her.
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('v_butikksalg')
       .select('stasjon_id, dato, ean, antall, varegruppe_kode, varegruppe_navn')
       .eq('ean', ean).in('stasjon_id', stasjonIder)
@@ -124,16 +132,39 @@ export async function hentSalg(
         stasjon_id: string; dato: string; ean: string; antall: number | null
         varegruppe_kode: string | null; varegruppe_navn: string | null
       }[]>()
-    const side = data ?? []
+    if (error) throw new Error(`Salgshistorikken kunne ikke hentes: ${error.message}`)
+    if (!data) throw new Error('Salgshistorikken mangler et databasesvar')
+    const side = data
     for (const r of side) {
       ut.push({
-        stasjonId: r.stasjon_id, ean: r.ean, dato: r.dato, antall: r.antall ?? 0,
+        stasjonId: r.stasjon_id, ean: r.ean, dato: r.dato, antall: r.antall ?? NaN,
         varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn,
       })
     }
-    if (side.length < SIDE) break
+    if (side.length < SIDE) return ut
   }
-  return ut
+  throw new Error('Salgshistorikken overstiger 200 000 rader — avgrens stasjonene')
+}
+
+export async function hentVaresok(supabase: Klient, stasjonIder: string[], soek: string, idag: string): Promise<Varerad[]> {
+  const filter = sokefilter(soek)
+  if (!filter) return []
+  return hentAlle<Varerad>(() => {
+    const q = supabase.from('v_butikksalg')
+      .select('ean, varenavn, varegruppe_kode, varegruppe_navn, avdeling_navn, antall, dato, stasjon_id')
+      .in('stasjon_id', stasjonIder)
+      .gte('dato', leggTilDager(idag, -90)).lte('dato', idag)
+      .order('dato').order('stasjon_id').order('ean').order('retailer_id')
+    return 'ean' in filter ? q.eq('ean', filter.ean) : q.ilike('varenavn', filter.navn)
+  }, 200)
+}
+
+async function hentSalgsdager(supabase: Klient, stasjonIder: string[], idag: string): Promise<{ stasjon_id: string; dato: string }[]> {
+  return hentAlle<{ stasjon_id: string; dato: string }>(() => supabase
+    .from('v_salg_per_stasjon_dag').select('stasjon_id, dato')
+    .in('stasjon_id', stasjonIder)
+    .gte('dato', leggTilDager(idag, -TREFF_DAGER)).lte('dato', leggTilDager(idag, -1))
+    .order('dato').order('stasjon_id'))
 }
 
 export const forventetSalgVerktoy: {
@@ -143,12 +174,13 @@ export const forventetSalgVerktoy: {
   schema: {
     name: 'forventet_salg',
     description:
-      'Hva Sentiqa forventer at en vare selger PÅ EN STASJON I MORGEN. '
+      'Hva Sentiqa forventer at en vare selger på autoriserte stasjoner '
+      + 'i morgen, neste uke eller en periode på maksimalt 7 dager. '
       + 'Bruk denne når noen spør hvor mye vi kommer til å selge av noe. '
       + 'Du skal ALDRI regne ut en forventning selv fra historiske tall — '
-      + 'dette verktøyet eier svaret. Prognosen finnes bare for dagen '
-      + 'etter i dag; spør noen om neste uke eller en annen dag, si at '
-      + 'Sentiqa foreløpig bare har godkjent prognose for neste dag. '
+      + 'dette verktøyet eier svaret. Siste måldag er 13 dager fram. '
+      + 'Månedsprognose er ikke godkjent. Send relative framtidsperioder '
+      + 'som «neste uke» i periode, ikke regn om til datoer selv. '
       + 'Verktøyet gir også hvor godt modellen HAR truffet historisk på '
       + 'nettopp denne varen og stasjonen. Det er en observasjon om '
       + 'modellen — ikke et usikkerhetsintervall. Si aldri «38 ± 22 %» '
@@ -156,6 +188,9 @@ export const forventetSalgVerktoy: {
     input_schema: {
       type: 'object',
       properties: {
+        fra: { type: 'string', description: 'YYYY-MM-DD, tidligst i morgen. Utelat for i morgen.' },
+        til: { type: 'string', description: 'YYYY-MM-DD, maksimalt 7 dager fra fra og senest 13 dager fram.' },
+        periode: { type: 'string', description: 'neste uke eller neste 1–7 dager. Ikke måned, og ikke sammen med fra/til.' },
         vare: {
           type: 'string',
           description:
@@ -196,7 +231,9 @@ export const forventetSalgVerktoy: {
     }
 
     const idag = idagOslo()
-    const maalDato = leggTilDager(idag, 1)
+    const periode = prognosePeriode(input, idag)
+    if ('feil' in periode) return byggSvar({ domene: 'forventet_salg', kilder: ['v_butikksalg'], feil: periode.feil })
+    const maalDato = periode.fra
     const fra = leggTilDager(idag, -HISTORIKK_DAGER)
     const soek = typeof input.vare === 'string' ? input.vare.trim() : ''
     if (!soek) {
@@ -210,12 +247,7 @@ export const forventetSalgVerktoy: {
     //
     // Søkevinduet er kort med vilje (90 dager): en vare som ikke har vært
     // solgt på tre måneder er ikke den brukeren spør om i morgen.
-    const { data: sokRader } = await supabase
-      .from('v_butikksalg')
-      .select('ean, varenavn, varegruppe_kode, varegruppe_navn, avdeling_navn, antall, dato, stasjon_id')
-      .in('stasjon_id', valgte.map((s) => s.id))
-      .gte('dato', leggTilDager(idag, -90)).lte('dato', idag)
-      .limit(20_000).overrideTypes<Varerad[]>()
+    const sokRader = await hentVaresok(supabase, valgte.map((s) => s.id), soek, idag)
 
     const oppslag = slaaOpp(sokRader ?? [], soek)
     if (oppslag.slag === 'ingen') {
@@ -269,20 +301,43 @@ export const forventetSalgVerktoy: {
     }
 
     const vare = oppslag.vare
-    const salg = await hentSalg(supabase, valgte.map((s) => s.id), vare.ean, fra, idag)
+    const grunn = varegrunn(vare)
+    if (grunn) {
+      return byggSvar({
+        domene: 'forventet_salg', kilder: ['v_butikksalg'],
+        scope: { forespurt: valgte.map((s) => s.butikknummer), utenfor_tilgang: utenfor },
+        data: [{ ean: vare.ean, varenavn: vare.navn, forventetAntall: null, dekning: 'ikke_dekning', grunn }],
+        merknad: [grunn === 'ikke_vare'
+          ? 'Dette er en kassepost, ikke en vareprognose. Gi ikke et antall.'
+          : 'Dette er merket som vektvare i kilden, men Sentiqa mangler enhetsmapping. Gi ikke stykker eller kilo.'],
+      })
+    }
+    const [salg, salgsdager] = await Promise.all([
+      hentSalg(supabase, valgte.map((s) => s.id), vare.ean, fra, idag),
+      hentSalgsdager(supabase, valgte.map((s) => s.id), idag),
+    ])
 
     const maaldatoer: string[] = []
     for (let i = TREFF_DAGER; i >= 1; i--) maaldatoer.push(leggTilDager(idag, -i))
 
     const svar: Forventetsvar[] = valgte.map((s) => {
       const enhet = { stasjonId: s.id, ean: vare.ean }
-      const f = forventetSalg({
-        enhet, maalDato, salg, modell: MODELL, minstDagerMedSalg: MINST_DAGER,
+      const p = forventetPeriode({
+        enhet, prognoseDato: idag, maaldatoer: periode.datoer, salg, modell: MODELL, minstDagerMedSalg: MINST_DAGER,
       })
+      const f = p.dager[0].forventning
+      const manglende = p.dager.map((d) => d.forventning).find((d) => d.slag === 'ikke_dekning')
+      const dagerMedData = new Set(salgsdager.filter((d) => d.stasjon_id === s.id).map((d) => d.dato))
       // MÅLINGEN KJØRES UANSETT. Svak treffsikkerhet stopper ikke svaret;
       // den endrer hvordan det sies.
-      const m = maalTreff({
+      const treffInput = {
         enhet, salg, maaldatoer, modell: MODELL, minstDagerMedSalg: MINST_DAGER,
+        horisontDager: periode.horisontDager, salgsdager: dagerMedData,
+      }
+      const m = periode.datoer.length === 1 ? maalTreff(treffInput) : maalPeriodetreff({
+        ...treffInput, antallDager: periode.datoer.length,
+        // Ikke-overlappende perioder. Fire hele uker er ikke 28 uavhengige uker.
+        maaldatoer: [...maaldatoer].reverse().filter((_, i) => i % periode.datoer.length === 0).reverse(),
       })
       return {
         stasjon: etikett(s),
@@ -290,11 +345,13 @@ export const forventetSalgVerktoy: {
         varenavn: vare.navn,
         varegruppe: vare.varegruppeNavn,
         dato: maalDato,
-        horisont: 'i morgen',
-        forventetAntall: f.slag === 'beregnet' ? f.antall : null,
-        dekning: f.slag === 'beregnet' ? 'beregnet' : 'ikke_dekning',
-        ...(f.slag === 'ikke_dekning' ? { grunn: f.grunn } : {}),
-        ...(f.slag === 'beregnet'
+        fra: periode.fra, til: periode.til,
+        horisont: periode.horisontDager === 1 && periode.datoer.length === 1 ? 'i morgen'
+          : `${periode.horisontDager}–${periode.horisontDager + periode.datoer.length - 1} dager fram`,
+        forventetAntall: p.antall,
+        dekning: p.antall !== null ? 'beregnet' : 'ikke_dekning',
+        ...(manglende?.slag === 'ikke_dekning' ? { grunn: manglende.grunn } : {}),
+        ...(f.slag === 'beregnet' && periode.datoer.length === 1
           ? {
             grunnlag: {
               basis: f.grunnlag.basis,
@@ -304,6 +361,11 @@ export const forventetSalgVerktoy: {
           }
           : {}),
         historiskTreffsikkerhet: m ? { ...m, tillit: tillit(m) } : null,
+        maalenhet: periode.datoer.length === 1 ? 'dager' : 'komplette perioder',
+        dagsprognoser: p.dager.map(({ dato, forventning: f }) => ({ dato,
+          forventetAntall: f.slag === 'beregnet' ? f.antall : null,
+          ...(f.slag === 'ikke_dekning' ? { grunn: f.grunn } : {}),
+        })),
       }
     })
 
@@ -317,9 +379,14 @@ export const forventetSalgVerktoy: {
         utenfor_tilgang: utenfor,
       },
       merknad: [
-        `Prognosen gjelder ${maalDato} — dagen etter i dag. Sentiqa har `
-        + 'foreløpig ingen godkjent prognose for andre dager. Blir du spurt '
-        + 'om neste uke eller en annen dato, si det i stedet for å svare.',
+        `Prognosen gjelder ${periode.fra} til ${periode.til}, basert på `
+        + `informasjon til og med ${idag}. Alle dagsprognoser bruker samme `
+        + 'kunnskapstidspunkt. Måned er ikke godkjent.',
+        'En periodesum gis bare når ALLE dagene har dekning. Null betyr '
+        + 'manglende prognose, aldri null salg. maalenhet viser om kvaliteten '
+        + 'måler enkeltdager eller komplette, ikke-overlappende perioder. '
+        + 'Ikke beskriv dagskvalitet som ukekvalitet. Få perioder gir '
+        + 'ukjent tillit, selv om den målte feilen er lav.',
         'historiskTreffsikkerhet beskriver hvordan modellen HAR truffet på '
         + 'denne varen og stasjonen. Det er IKKE et usikkerhetsintervall — '
         + 'gjør det aldri om til et spenn rundt tallet.',
@@ -327,6 +394,10 @@ export const forventetSalgVerktoy: {
         + 'aldri til forventningen.',
         'Svar i butikkspråk. Ikke gjengi wMAPE, MAE eller n som tall '
         + 'brukeren må tolke — si hvor godt prognosen pleier å treffe.',
+        'Antall er registrerte salgsenheter fra kilden. Korte interne '
+        + 'varekoder er gyldige identiteter. Ikke gjett måleenhet fra '
+        + 'EAN-formatet. ukjent_enhet betyr at du ikke kan gi stykker '
+        + 'eller kilo; en manglende enhet er ikke null salg.',
         ...(svar.some((s) => s.dekning === 'ikke_dekning')
           ? ['For noen stasjoner finnes ingen forsvarlig forventning. Da gir '
             + 'du ikke noe tall for dem — heller ikke et anslag fra historikk.']

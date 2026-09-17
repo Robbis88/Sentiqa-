@@ -13,9 +13,10 @@ import { lagSalgsprognose, type AvdSalg } from './salgsprognose'
 import { hentVaerKoeff } from './vaerprofil'
 import { erHelligdag } from './helligdager'
 import { hentAlt } from './paginer'
+import { idagOslo } from './ai/periode'
 
 type Klient = SupabaseClient
-const UTELAT = new Set(['10', '250', '40']) // drivstoff/pant/CR — ikke butikkdrift
+const UTELAT = new Set(['250', '40']) // pant/CR; drivstoff er allerede fjernet i v_butikksalg
 const TOTAL = '*'
 const MIN_N = 8 // minst så mange backtest-dager bak en kalibreringsfaktor
 
@@ -52,7 +53,7 @@ export async function kjorBacktestForStasjon(
   if (oppsett.status === 'ikke_konfigurert') return { treff: [], kalibrering: [] }
   const KODER = oppsett.koder
 
-  const idag = new Date().toISOString().slice(0, 10)
+  const idag = idagOslo()
   const vinduStart = leggTilDager(idag, -antallDager)
   const hentFra = leggTilDager(vinduStart, -400) // dekker fjor-vindu for tidligste mål-dag
   const folsomhet = st.vaerfolsomhet_laert ?? st.vaerfolsomhet ?? 0.5
@@ -66,7 +67,7 @@ export async function kjorBacktestForStasjon(
     hentAlt<{ dato: string; avdeling_kode: string | null; avdeling_navn: string | null; omsetning: number | null }>((f, t) =>
       supabase.from('v_salg_per_avdeling_dag').select('dato, avdeling_kode, avdeling_navn, omsetning')
         .eq('stasjon_id', st.id).gte('dato', hentFra).lte('dato', idag)
-        .order('dato').order('avdeling_kode').range(f, t)),
+        .order('dato').order('avdeling_kode').order('avdeling_navn').range(f, t)),
     hentAlt<{ dato: string; temp_maks: number | null; nedbor_mm: number | null }>((f, t) =>
       supabase.from('vaer').select('dato, temp_maks, nedbor_mm').eq('stasjon_id', st.id).gte('dato', hentFra).lte('dato', idag).order('dato').range(f, t)),
   ])

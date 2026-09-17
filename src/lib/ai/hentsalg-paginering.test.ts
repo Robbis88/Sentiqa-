@@ -122,6 +122,16 @@ function lagKlient(alle: Rad[]) {
 }
 
 describe('hentSalg — stabil paginering over flere stasjoner', () => {
+  it('feil på side to gir aldri en prognose basert bare på side én', async () => {
+    let offset = 0
+    const q = {
+      select: () => q, eq: () => q, in: () => q, gte: () => q, lte: () => q, order: () => q,
+      range: (fra: number) => { offset = fra; return q },
+      overrideTypes: async () => offset === 0 ? { data: lagRader().slice(0, 1000), error: null }
+        : { data: null, error: { message: 'statement timeout' } },
+    }
+    await expect(hentSalg({ from: () => q } as unknown as Parameters<typeof hentSalg>[0], STASJONER, EAN, '2026-01-01', '2027-12-31')).rejects.toThrow('statement timeout')
+  })
   it('henter alle sidene uten tap og uten duplikater', async () => {
     const alle = lagRader()
     const { klient, tall } = lagKlient(alle)

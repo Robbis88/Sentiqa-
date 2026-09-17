@@ -1,4 +1,5 @@
 import { forventetSalg, type Modell, type Salgsenhet, type Salgsrad } from './motor'
+import { leggTilDager } from '@/lib/produksjonsplan'
 
 // =====================================================================
 // HVOR GODT HAR MOTOREN TRUFFET PÅ AKKURAT DENNE VAREN, HER?
@@ -67,6 +68,9 @@ export type Treffmaal = {
 }
 
 export type Treffinput = {
+  horisontDager?: number
+  /** Bekreftede salgsdager på akkurat denne stasjonen. Fravær av varerad er da null. */
+  salgsdager?: ReadonlySet<string>
   enhet: Salgsenhet
   /** Historikken. Motoren kaster selv alt fra og med hver måldato. */
   salg: readonly Salgsrad[]
@@ -83,10 +87,7 @@ export type Treffinput = {
  * ærlig svar, ikke en feil. Da vet vi ikke hvor godt den treffer.
  */
 export function maalTreff(inn: Treffinput): Treffmaal | null {
-  // FASIT PER DAG. En dag uten rad hoppes over: vi vet ikke om varen
-  // ikke ble solgt eller ikke ble registrert (206 av 223 708 rader har
-  // `antall = 0`), og en måling som gjetter null ville belønnet en
-  // motor som alltid sier lite.
+  // FASIT PER DAG. Fravær kan bare bli null når stasjonens import er bevist.
   const fasit = new Map<string, number>()
   for (const r of inn.salg) {
     if (r.stasjonId !== inn.enhet.stasjonId || r.ean !== inn.enhet.ean) continue
@@ -95,15 +96,21 @@ export function maalTreff(inn: Treffinput): Treffmaal | null {
 
   const par: { forventet: number; faktisk: number }[] = []
   for (const d of inn.maaldatoer) {
-    const f = fasit.get(d)
-    if (f === undefined) continue
+    const f = fasit.get(d) ?? (inn.salgsdager?.has(d) ? 0 : undefined)
+    if (f === undefined || !Number.isFinite(f) || !Number.isInteger(f)) continue
     const sv = forventetSalg({
-      enhet: inn.enhet, maalDato: d, salg: inn.salg,
+      enhet: inn.enhet, maalDato: d,
+      salg: inn.salg.filter((r) => r.dato <= leggTilDager(d, -(inn.horisontDager ?? 1))),
       modell: inn.modell, minstDagerMedSalg: inn.minstDagerMedSalg,
     })
     if (sv.slag !== 'beregnet') continue
     par.push({ forventet: sv.antall, faktisk: f })
   }
+  return oppsummerTreff(par)
+}
+
+/** Samme feildefinisjon for dager og komplette perioder. Ingen ny modell. */
+export function oppsummerTreff(par: readonly { forventet: number; faktisk: number }[]): Treffmaal | null {
   if (par.length === 0) return null
 
   const feil = par.map((p) => Math.abs(p.forventet - p.faktisk))

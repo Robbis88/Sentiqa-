@@ -523,6 +523,9 @@ describe('HORISONT OG KVALITET — representativt utvalg av kvalifiserte par', (
         enhet: { stasjonId, ean },
         salg: (perEnhet.get(par) ?? []).filter((r) => r.dato <= T),
         maaldatoer: dager, modell: MODELL, minstDagerMedSalg: MINST_DAGER,
+        // Samme null/manglende-kontrakt som AI-verktøyet. Bare dager
+        // før prognosetidspunktet inngår i kvalitetsklassifiseringen.
+        salgsdager: new Set(dager.filter((d) => harDag.has(`${stasjonId}|${d}`))),
       }))
       nivaaCache.set(noekkel, t)
       return t

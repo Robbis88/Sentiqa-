@@ -74,6 +74,7 @@ function tellendeKlient(v: ReturnType<typeof bonesformet>) {
           : tabell === 'lonnsregister' ? v.egne
             : []
       const q = {
+        order: () => q,
         select: () => q,
         eq: (kol: string, val: string) => {
           rader = rader.filter((r) => r[kol] === val)

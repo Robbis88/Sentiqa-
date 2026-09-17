@@ -68,6 +68,7 @@ function fakeKlient(vakter: Vakt[], register: Reg[], synlige?: string[]) {
       const filtre: { kol: string; verdi: string | readonly string[]; inn: boolean }[] = []
       let felt: string[] = []
       const q = {
+        order: () => q,
         select: (f: string) => { felt = f.split(',').map((x) => x.trim()); return q },
         eq: (kol: string, v: string) => { filtre.push({ kol, verdi: v, inn: false }); return q },
         in: (kol: string, v: readonly string[]) => { filtre.push({ kol, verdi: v, inn: true }); return q },
