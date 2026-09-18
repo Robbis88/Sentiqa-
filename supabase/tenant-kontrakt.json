@@ -2936,51 +2936,45 @@
    "tabell": "tilbudsforesporsler",
    "$hvorfor": "Offentlig tilbudsinnsending lagres av server-endpointet. Kun plattformadministrator leser eller endrer forespørsler.",
    "tenant_scope": "global",
-   "data_class": "warm",
-   "operasjoner": ["select", "insert", "update", "delete"],
+   "data_class": "cold",
+   "operasjoner": [],
    "tablet": "none",
    "manager": "none",
-   "owner": "retailer",
-   "proberad": { "virksomhet": "'Sondekunde {{unik}}'", "kontaktperson": "'Sonde'", "epost": "'sonde-{{unik}}@example.invalid'", "telefon": "'00000000'", "antall_stasjoner": "1", "samtykke": "true" }
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
   },
   {
    "tabell": "tilbud",
    "$hvorfor": "Interne pristilbud og akseptdata. Kun plattformadministrator får innsyn.",
    "tenant_scope": "global",
-   "data_class": "warm",
-   "operasjoner": ["select", "insert", "update", "delete"],
+   "data_class": "cold",
+   "operasjoner": [],
    "tablet": "none",
    "manager": "none",
-   "owner": "retailer",
-   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:tilbud_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)"],
-   "proberad": { "foresporsel_id": "'{{seed:tilbud_foresporsel}}'" },
-   "oppdaterbart": "status = 'sendt'"
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
   },
   {
    "tabell": "avtale_revisjon",
    "$hvorfor": "Revisjonsspor for tilbud og avtaler. Kun plattformadministrator får innsyn.",
    "tenant_scope": "global",
-   "data_class": "warm",
-   "operasjoner": ["select", "insert", "update", "delete"],
+   "data_class": "cold",
+   "operasjoner": [],
    "tablet": "none",
    "manager": "none",
-   "owner": "retailer",
-   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:avtale_revisjon_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)", "insert into public.tilbud (id, foresporsel_id) values ('{{seed:avtale_revisjon_tilbud}}', '{{seed:avtale_revisjon_foresporsel}}')"],
-   "proberad": { "tilbud_id": "'{{seed:avtale_revisjon_tilbud}}'", "handling": "'sonde'" },
-   "oppdaterbart": "endringer = '{}'::jsonb"
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
   },
   {
    "tabell": "tilbudsforesporsel_revisjon",
    "$hvorfor": "Revisjonsspor for statusendringer på tilbudsforespørsler. Kun plattformadministrator får innsyn.",
    "tenant_scope": "global",
-   "data_class": "warm",
-   "operasjoner": ["select", "insert", "update", "delete"],
+   "data_class": "cold",
+   "operasjoner": [],
    "tablet": "none",
    "manager": "none",
-   "owner": "retailer",
-   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:foresporsel_revisjon_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)"],
-   "proberad": { "foresporsel_id": "'{{seed:foresporsel_revisjon_foresporsel}}'", "handling": "'sonde'" },
-   "oppdaterbart": "endringer = '{}'::jsonb"
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
   }
  ]
 }
