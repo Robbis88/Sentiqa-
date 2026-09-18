@@ -14,9 +14,9 @@ describe('rutineoversikt', () => {
     ], new Map(), ansatte, new Date('2026-09-19T07:00:00Z'))
     expect(o.forventet).toBe(2); expect(o.utfort).toBe(1); expect(o.prosent).toBe(50); expect(o.topputforere).toEqual([{ id: 'a1', navn: 'Ada', antall: 1 }])
   })
-  it('viser ukjent medarbeider uten å dikte navn', () => {
+  it('viser gjennomført oppgave og ukjent medarbeider separat', () => {
     const r = klassifiser(base, { rutine_id: 'x', stasjon_id: 's', dato: base.dato, utfort_tid: '2026-09-19T04:00:00Z', ansatt_id: null }, new Date('2026-09-19T07:00:00Z'), ansatte)
-    expect(r.status).toBe('Ikke registrert'); expect(r.ansatt_navn).toBe('Ikke registrert')
+    expect(r.status).toBe('Gjennomført'); expect(r.ansatt_navn).toBe('Ikke identifisert')
   })
   it('skiller manglende og for sen utførelse', () => {
     const sen = klassifiser(base, { rutine_id: 'x', stasjon_id: 's', dato: base.dato, utfort_tid: '2026-09-19T06:01:00Z', ansatt_id: 'a1' }, new Date('2026-09-20T07:00:00Z'), ansatte)
