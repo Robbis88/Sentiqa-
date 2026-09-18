@@ -74,20 +74,40 @@ alter table public.tilbud enable row level security;
 alter table public.avtale_revisjon enable row level security;
 alter table public.tilbudsforesporsel_revisjon enable row level security;
 drop policy if exists tilbudsforesporsler_plattform on public.tilbudsforesporsler;
-create policy tilbudsforesporsler_plattform on public.tilbudsforesporsler for all to authenticated
-  using ((select public.gjeldende_rolle()) = 'plattform_redaktor')
-  with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+drop policy if exists tilbudsforesporsler_plattform_select on public.tilbudsforesporsler;
+drop policy if exists tilbudsforesporsler_plattform_insert on public.tilbudsforesporsler;
+drop policy if exists tilbudsforesporsler_plattform_update on public.tilbudsforesporsler;
+drop policy if exists tilbudsforesporsler_plattform_delete on public.tilbudsforesporsler;
+create policy tilbudsforesporsler_plattform_select on public.tilbudsforesporsler for select to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbudsforesporsler_plattform_insert on public.tilbudsforesporsler for insert to authenticated with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbudsforesporsler_plattform_update on public.tilbudsforesporsler for update to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor') with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbudsforesporsler_plattform_delete on public.tilbudsforesporsler for delete to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
 drop policy if exists tilbud_plattform on public.tilbud;
-create policy tilbud_plattform on public.tilbud for all to authenticated
-  using ((select public.gjeldende_rolle()) = 'plattform_redaktor')
-  with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+drop policy if exists tilbud_plattform_select on public.tilbud;
+drop policy if exists tilbud_plattform_insert on public.tilbud;
+drop policy if exists tilbud_plattform_update on public.tilbud;
+drop policy if exists tilbud_plattform_delete on public.tilbud;
+create policy tilbud_plattform_select on public.tilbud for select to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbud_plattform_insert on public.tilbud for insert to authenticated with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbud_plattform_update on public.tilbud for update to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor') with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbud_plattform_delete on public.tilbud for delete to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
 drop policy if exists avtale_revisjon_plattform on public.avtale_revisjon;
-create policy avtale_revisjon_plattform on public.avtale_revisjon for all to authenticated
-  using ((select public.gjeldende_rolle()) = 'plattform_redaktor')
-  with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+drop policy if exists avtale_revisjon_plattform_select on public.avtale_revisjon;
+drop policy if exists avtale_revisjon_plattform_insert on public.avtale_revisjon;
+drop policy if exists avtale_revisjon_plattform_update on public.avtale_revisjon;
+drop policy if exists avtale_revisjon_plattform_delete on public.avtale_revisjon;
+create policy avtale_revisjon_plattform_select on public.avtale_revisjon for select to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy avtale_revisjon_plattform_insert on public.avtale_revisjon for insert to authenticated with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy avtale_revisjon_plattform_update on public.avtale_revisjon for update to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor') with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy avtale_revisjon_plattform_delete on public.avtale_revisjon for delete to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
 drop policy if exists tilbudsforesporsel_revisjon_plattform on public.tilbudsforesporsel_revisjon;
-create policy tilbudsforesporsel_revisjon_plattform on public.tilbudsforesporsel_revisjon for all to authenticated
-  using ((select public.gjeldende_rolle()) = 'plattform_redaktor')
-  with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+drop policy if exists tilbudsforesporsel_revisjon_plattform_select on public.tilbudsforesporsel_revisjon;
+drop policy if exists tilbudsforesporsel_revisjon_plattform_insert on public.tilbudsforesporsel_revisjon;
+drop policy if exists tilbudsforesporsel_revisjon_plattform_update on public.tilbudsforesporsel_revisjon;
+drop policy if exists tilbudsforesporsel_revisjon_plattform_delete on public.tilbudsforesporsel_revisjon;
+create policy tilbudsforesporsel_revisjon_plattform_select on public.tilbudsforesporsel_revisjon for select to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbudsforesporsel_revisjon_plattform_insert on public.tilbudsforesporsel_revisjon for insert to authenticated with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbudsforesporsel_revisjon_plattform_update on public.tilbudsforesporsel_revisjon for update to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor') with check ((select public.gjeldende_rolle()) = 'plattform_redaktor');
+create policy tilbudsforesporsel_revisjon_plattform_delete on public.tilbudsforesporsel_revisjon for delete to authenticated using ((select public.gjeldende_rolle()) = 'plattform_redaktor');
 grant select, insert, update, delete on public.tilbudsforesporsler, public.tilbud, public.avtale_revisjon, public.tilbudsforesporsel_revisjon to authenticated;
 revoke all on public.tilbudsforesporsler, public.tilbud, public.avtale_revisjon, public.tilbudsforesporsel_revisjon from anon;
