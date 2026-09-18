@@ -7,7 +7,7 @@
 -- forsvunnet i stillhet. Skal noe endres, endre kontrakten.
 --
 -- DEL 11 AV 11. Hele matrisen er for stor for Supabase SQL
--- Editor. Denne fila er en komplett kjoering av 1 ressurs(er):
+-- Editor. Denne fila er en komplett kjoering av 2 ressurs(er):
 -- egen fasitverden, egne forutsetninger, egen oppsummering, egen
 -- rollback. Delene deler ingen tilstand og kan kjoeres i hvilken som
 -- helst rekkefoelge. Rekkefoelgen i tallet er bare lesbarhet.
@@ -267,6 +267,12 @@ begin
   returning id into ny;
   return ny;
 end $fn$;
+-- --- rutine_forventninger: forutsetninger og proberader ---
+insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841c3-0000-4000-8000-0000db4841c3', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000001', 'fastA1', gen_random_uuid(), date '2026-01-01' + 7, 'morgen', 'Sonderutine', '06:00', '14:00');
+insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841c4-0000-4000-8000-0000db4841c4', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000002', 'fastA2', gen_random_uuid(), date '2026-01-01' + 8, 'morgen', 'Sonderutine', '06:00', '14:00');
+insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841c5-0000-4000-8000-0000db4841c5', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'fastA3', gen_random_uuid(), date '2026-01-01' + 9, 'morgen', 'Sonderutine', '06:00', '14:00');
+insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841e2-0000-4000-8000-0000db4841e2', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', 'fastB1', gen_random_uuid(), date '2026-01-01' + 10, 'morgen', 'Sonderutine', '06:00', '14:00');
+insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841e3-0000-4000-8000-0000db4841e3', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'fastB2', gen_random_uuid(), date '2026-01-01' + 11, 'morgen', 'Sonderutine', '06:00', '14:00');
 
 -- =====================================================================
 -- varsler  (retailer_or_station, warm)
@@ -455,6 +461,50 @@ select pg_temp.skriv_avvist('varsler tablet_B1 UPDATE A1', 'update public.varsle
 select pg_temp.paastand('varsler tablet_B1 ser IKKE kjedens null-stasjonsrad', not exists (select 1 from public.varsler where id = 'aef22629-0000-4000-8000-0000aef22629'), 'negativ');
 select pg_temp.paastand('varsler tablet_B1 ser IKKE den andre kjedens null-rad', not exists (select 1 from public.varsler where id = 'aef22628-0000-4000-8000-0000aef22628'), 'negativ');
 select pg_temp.skriv_avvist('varsler tablet_B1 FLYTTER egen rad B1 -> B2', 'update public.varsler set stasjon_id = ''b1110000-0000-4000-8000-000000000002'' where id = ''2c110e00-0000-4000-8000-00002c110e00''', 'varsler', '2c110e00-0000-4000-8000-00002c110e00', 'id');
+
+-- =====================================================================
+-- rutine_forventninger  (retailer_and_station, warm)
+-- =====================================================================
+select pg_temp.sett_gruppe('rutine_forventninger');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
+select pg_temp.paastand('rutine_forventninger owner_A SELECT A1 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'positiv');
+select pg_temp.paastand('rutine_forventninger owner_A SELECT A2 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841c4-0000-4000-8000-0000db4841c4'), 'positiv');
+select pg_temp.paastand('rutine_forventninger owner_A SELECT A3 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841c5-0000-4000-8000-0000db4841c5'), 'positiv');
+select pg_temp.paastand('rutine_forventninger owner_A SELECT B1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'negativ');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
+select pg_temp.paastand('rutine_forventninger manager_A1 SELECT A1 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'positiv');
+select pg_temp.paastand('rutine_forventninger manager_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c4-0000-4000-8000-0000db4841c4'), 'negativ');
+select pg_temp.paastand('rutine_forventninger manager_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c5-0000-4000-8000-0000db4841c5'), 'negativ');
+select pg_temp.paastand('rutine_forventninger manager_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'negativ');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
+select pg_temp.paastand('rutine_forventninger manager_A12 SELECT A1 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'positiv');
+select pg_temp.paastand('rutine_forventninger manager_A12 SELECT A2 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841c4-0000-4000-8000-0000db4841c4'), 'positiv');
+select pg_temp.paastand('rutine_forventninger manager_A12 SELECT A3 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c5-0000-4000-8000-0000db4841c5'), 'negativ');
+select pg_temp.paastand('rutine_forventninger manager_A12 SELECT B1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'negativ');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
+select pg_temp.paastand('rutine_forventninger tablet_A1 SELECT A1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'negativ');
+select pg_temp.paastand('rutine_forventninger tablet_A1 SELECT A2 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c4-0000-4000-8000-0000db4841c4'), 'negativ');
+select pg_temp.paastand('rutine_forventninger tablet_A1 SELECT A3 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c5-0000-4000-8000-0000db4841c5'), 'negativ');
+select pg_temp.paastand('rutine_forventninger tablet_A1 SELECT B1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'negativ');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
+select pg_temp.paastand('rutine_forventninger owner_B SELECT B1 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'positiv');
+select pg_temp.paastand('rutine_forventninger owner_B SELECT B2 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841e3-0000-4000-8000-0000db4841e3'), 'positiv');
+select pg_temp.paastand('rutine_forventninger owner_B SELECT A1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'negativ');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
+select pg_temp.paastand('rutine_forventninger manager_B1 SELECT B1 -> ser', exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'positiv');
+select pg_temp.paastand('rutine_forventninger manager_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e3-0000-4000-8000-0000db4841e3'), 'negativ');
+select pg_temp.paastand('rutine_forventninger manager_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'negativ');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
+select pg_temp.paastand('rutine_forventninger tablet_B1 SELECT B1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'negativ');
+select pg_temp.paastand('rutine_forventninger tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e3-0000-4000-8000-0000db4841e3'), 'negativ');
+select pg_temp.paastand('rutine_forventninger tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'negativ');
 
 select pg_temp.som_eier();
 

@@ -2907,6 +2907,26 @@
     "tekst": "'Sonde'"
    },
    "oppdaterbart": "lest = true"
+  },
+  {
+   "tabell": "rutine_forventninger",
+   "$hvorfor": "Uforanderlige snapshots av forventet rutine per stasjon og dato. Lederoversikten trenger historikk etter at rutiner eller skjemaer er endret. Nettbrettet skal ikke lese lederdata.",
+   "tenant_scope": "retailer_and_station",
+   "data_class": "warm",
+   "operasjoner": ["select"],
+   "tablet": "none",
+   "manager": "assigned_stations",
+   "owner": "retailer",
+   "business_unik": ["rutine_id", "dato"],
+   "proberad": {
+   "rutine_id": "'{{unik}}'",
+   "skjema_id": "gen_random_uuid()",
+    "dato": "{{unik_dato}}",
+    "vakttype": "'morgen'",
+    "rutine_tittel": "'Sonderutine'",
+    "forventet_start": "'06:00'",
+    "forventet_slutt": "'14:00'"
+   }
   }
  ]
 }

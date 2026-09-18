@@ -46,6 +46,7 @@ declare
     'malekort_salgsdatoer',
     'malekort_salgsdekning',
     'malekort_stasjoner',
+    'materialiser_rutine_forventninger',
     'matsalg_vindu_sum',
     'mine_stasjoner',
     'publiser_produksjonsplan',
@@ -102,7 +103,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       40                          as forventet_av_migrasjonene
+       41                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';

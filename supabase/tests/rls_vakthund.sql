@@ -43,6 +43,7 @@ do $$
 declare
   -- Tabeller som vokser med drift. Nye transaksjonstabeller SKAL inn her.
   varme text[] := array[
+    'rutine_forventninger',
     -- Bilagssummene (0199). Vokser med drift: en rad per butikk,
     -- maaned, konto og leverandoer - Kelsar alene lager ~315 i
     -- maaneden.
