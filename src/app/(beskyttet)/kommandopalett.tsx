@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { spørAssistent } from './assistent/handlinger'
 
@@ -104,6 +104,21 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
     router.push(p.sti)
   }
 
+  function holdFokus(e: KeyboardEvent<HTMLDialogElement>) {
+    if (e.key !== 'Tab') return
+    const mål = e.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    )
+    if (mål.length === 0) return
+    const første = mål[0]
+    const siste = mål[mål.length - 1]
+    if (e.shiftKey && document.activeElement === første) {
+      e.preventDefault(); siste.focus()
+    } else if (!e.shiftKey && document.activeElement === siste) {
+      e.preventDefault(); første.focus()
+    }
+  }
+
   return (
     <>
       <button className="sq-sokknapp" aria-label="Spør Sentiqa eller finn noe" onClick={() => setApen(true)} type="button">
@@ -116,7 +131,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
       </button>
 
       {apen && (
-        <dialog ref={dialog} className="sq-dim" aria-label="Spør Sentiqa eller finn noe" onCancel={lukk} onClose={lukk} onClick={(e) => { if (e.target === e.currentTarget) lukk() }}>
+        <dialog ref={dialog} role="dialog" className="sq-dim" aria-label="Spør Sentiqa eller finn noe" onKeyDown={holdFokus} onCancel={lukk} onClose={lukk} onClick={(e) => { if (e.target === e.currentTarget) lukk() }}>
           <div className="sq-palett">
             <div className="sq-palett-felt">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
