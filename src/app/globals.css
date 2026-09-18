@@ -1168,6 +1168,14 @@ button.liten.slett:hover { background: #fdecea; }
 .pp-ekskl:hover { color: var(--rod); }
 .pp-notat { width: 100%; box-sizing: border-box; }
 .pp-publiser { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; flex-wrap: wrap; }
+.pp-forklaring { margin: 0 0 var(--luft-3); }
+.pp-forklaring-innhold { display: grid; gap: 0.35rem; margin-top: 0.6rem; line-height: 1.5; }
+.pp-forklaring-innhold p { margin: 0; }
+.pp-produkt-forklaring { display: inline-block; }
+.pp-produkt-forklaring > summary { cursor: pointer; color: var(--primaer); font-weight: 600; list-style: none; }
+.pp-produkt-forklaring > summary::-webkit-details-marker { display: none; }
+.pp-produkt-forklaring-innhold { position: absolute; z-index: 2; padding: 0.8rem; margin-top: 0.3rem; background: var(--kort); border: 1px solid var(--kant); border-radius: 8px; box-shadow: var(--skygge); line-height: 1.45; }
+.pp-produkt-forklaring-innhold p { margin: 0.25rem 0; }
 
 .kunnskap-liste { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .kunnskap-liste summary { cursor: pointer; font-weight: 600; }

@@ -2,7 +2,7 @@
 import { useRef, useState, useTransition } from 'react'
 import { tall } from '@/lib/format'
 import { setLinje, setNotat, publiser, setProsent } from './handlinger'
-import { medMargin, startAntall, effektivProsent, STANDARD_KODE } from '@/lib/produksjonsplan'
+import { medMargin, startAntall, effektivProsent, STANDARD_KODE, type PlanForklaring, type ProduksjonsForklaring } from '@/lib/produksjonsplan'
 import { Nokkeltall } from '@/components/ui/side'
 import { Knapp } from '@/components/ui/knapp'
 import { Status } from '@/components/ui/status'
@@ -10,18 +10,33 @@ import { Status } from '@/components/ui/status'
 export type Produkt = {
   varenavn: string
   baseline: number
+  fjorMedian?: number | null
+  nyligSnitt?: number | null
   faktor: number
   foreslatt: number
   planlagt: number
   start_antall: number
   ekskludert: boolean
   flagg?: string[]
+  forklaring?: ProduksjonsForklaring & {
+    selvlaertKorreksjon: number
+    selvlaertAntall: number | null
+    marginProsent: number
+    startProsent: number
+    automatiskForslag: number
+    automatiskPlanlagt: number
+    automatiskStart: number
+    avvikerFraAutomatisk: boolean
+    vaerfaktor: number
+    trendfaktor: number
+    arrangementFaktor: number
+  }
 }
 export type Gruppe = { kode: string | null; navn: string; produkter: Produkt[] }
 
 const FLAGG_MERKE: Record<string, { ikon: string; tekst: string }> = {
-  fjor_kampanje: { ikon: '🚩', tekst: 'Kampanje i fjor — justert ned' },
-  paagaaende_kampanje: { ikon: '🎯', tekst: 'Mulig pågående kampanje — vektet 50/50' },
+  fjor_kampanje: { ikon: '🚩', tekst: 'Mulig kampanjepåvirkning — uvanlig salgsutslag i fjoråret' },
+  paagaaende_kampanje: { ikon: '🎯', tekst: 'Mulig kampanjepåvirkning — uvanlig nylig salgsutslag' },
   ny: { ikon: '✨', tekst: 'Nytt produkt — basert på nylig salg' },
   fa_data: { ikon: '⚠️', tekst: 'Lite historikk' },
 }
@@ -31,6 +46,7 @@ export type Prosentpar = { start: number | null; margin: number | null }
 export function PlanTabell({
   grupper, stasjonId, dato, notat: notatInit, publisertTid,
   prosent: prosentInit, gruppeAvvik: avvikInit,
+  planForklaring,
 }: {
   grupper: Gruppe[]
   stasjonId: string
@@ -41,6 +57,7 @@ export function PlanTabell({
   prosent: { start: number; margin: number }
   /** Avvik per varegruppekode. null i et felt = arv fra standarden. */
   gruppeAvvik: Record<string, Prosentpar>
+  planForklaring?: PlanForklaring
 }) {
   const alle = grupper.flatMap((g) => g.produkter)
   const lag = (felt: 'planlagt' | 'start_antall') => Object.fromEntries(alle.map((p) => [p.varenavn, p[felt]]))
@@ -192,6 +209,13 @@ export function PlanTabell({
   const total = alle.filter(aktive).reduce((a, p) => a + (planlagt[p.varenavn] ?? 0), 0)
   const totalForeslatt = alle.filter(aktive).reduce((a, p) => a + p.foreslatt, 0)
   const totalStart = alle.filter(aktive).reduce((a, p) => a + (start[p.varenavn] ?? 0), 0)
+  const medDato = (iso: string) => new Intl.DateTimeFormat('nb-NO', { day: 'numeric', month: 'short' }).format(new Date(`${iso}T12:00:00Z`))
+  const medAntall = (n: number) => tall.format(Math.round(n))
+  const medFaktor = (n: number) => `×${n.toFixed(2)}`
+  const forklarbare = alle.filter((p) => p.forklaring)
+  const vaerPaavirkede = forklarbare.filter((p) => p.forklaring?.vaerfaktor !== 1).length
+  const muligeKampanjer = forklarbare.filter((p) => p.forklaring?.muligKampanjepavirkning).length
+  const selvlaerte = forklarbare.filter((p) => p.forklaring && p.forklaring.selvlaertKorreksjon !== 1)
 
   return (
     <>
@@ -219,6 +243,24 @@ export function PlanTabell({
           sammenlignet={`av ${tall.format(total)} planlagt`}
         />
       </div>
+
+      {planForklaring && (
+        <details className="sq-forklaring pp-forklaring">
+          <summary>Hvorfor ser planen slik ut i dag?</summary>
+          <div className="pp-forklaring-innhold">
+            <p>
+              Planen bruker historikk fra {planForklaring.fjorDatoer.length} sammenlignbare dag{planForklaring.fjorDatoer.length === 1 ? '' : 'er'}.
+              {planForklaring.helligdag ? ` Måldagen sammenlignes med samme helligdag (${medDato(planForklaring.fjorDato)}).` : ' På vanlige dager brukes samme ukedag rundt fjorårsdatoen.'}
+            </p>
+            {planForklaring.trendfaktor !== 1 && <p>Det samlede produksjonssalget gir en trendjustering på {medFaktor(planForklaring.trendfaktor)}.</p>}
+            {vaerPaavirkede > 0 && <p>Værforholdene påvirker {vaerPaavirkede} produkt{vaerPaavirkede === 1 ? '' : 'er'}.</p>}
+            {planForklaring.arrangementFaktor !== 1 && <p>Bekreftede arrangementer påvirker planen med {medFaktor(planForklaring.arrangementFaktor)}.</p>}
+            {muligeKampanjer > 0 && <p>Mulig kampanjepåvirkning: {muligeKampanjer} produkt{muligeKampanjer === 1 ? '' : 'er'} har et uvanlig salgsutslag i historikken.</p>}
+            {selvlaerte.length > 0 && <p>Selvlært korreksjon er aktiv for {selvlaerte.length} produkt{selvlaerte.length === 1 ? '' : 'er'} basert på stasjonens egne treffmålinger.</p>}
+            {forklarbare.length === 0 && <p>Forklaringsgrunnlag mangler for denne planen.</p>}
+          </div>
+        </details>
+      )}
 
       {/* DRIFTSREGLENE. To tall et menneske setter, over hele planen.
           De seeder nye plandager av seg selv; knappen finnes for planen
@@ -343,6 +385,29 @@ export function PlanTabell({
                         </div>
                       </td>
                       <td>
+                        {p.forklaring && (
+                          <details className="pp-produkt-forklaring">
+                            <summary aria-label={`Hvorfor ${p.varenavn}?`}>Hvorfor?</summary>
+                            <div className="pp-produkt-forklaring-innhold">
+                              <p><strong>Automatisk forslag:</strong> {medAntall(p.forklaring.automatiskForslag)} stk</p>
+                              {p.forklaring.fjor.some((r) => r.antall > 0)
+                                ? <p><strong>Fjorårsdager:</strong> {p.forklaring.fjor.filter((r) => r.antall > 0).map((r) => `${medDato(r.dato)} ${medAntall(r.antall)}`).join(', ')}. Median: {p.fjorMedian != null ? medAntall(p.fjorMedian) : 'mangler'}.</p>
+                                : <p><strong>Fjorår:</strong> Mangler salg for sammenlignbare dager.</p>}
+                              {p.forklaring.nylig.length > 0
+                                ? <p><strong>Nylig salg:</strong> {p.forklaring.nylig.filter((r) => r.sammeUkedag).length >= 2 ? 'samme ukedag siste 28 dager' : 'siste 28 dager'}: {p.forklaring.nylig.map((r) => `${medDato(r.dato)} ${medAntall(r.antall)}`).join(', ')}{p.nyligSnitt != null ? `. Snitt: ${medAntall(p.nyligSnitt)}.` : '.'}</p>
+                                : <p><strong>Nylig salg:</strong> Mangler historikk.</p>}
+                              {p.forklaring.trendfaktor !== 1 && <p><strong>Trendjustering:</strong> {medFaktor(p.forklaring.trendfaktor)}.</p>}
+                              {p.forklaring.vaerfaktor !== 1 && <p><strong>Værjustering:</strong> {medFaktor(p.forklaring.vaerfaktor)}.</p>}
+                              {p.forklaring.arrangementFaktor !== 1 && <p><strong>Arrangement:</strong> {medFaktor(p.forklaring.arrangementFaktor)}.</p>}
+                              {p.forklaring.muligKampanjepavirkning && <p><strong>Mulig kampanjepåvirkning:</strong> uvanlig salgsutslag oppdaget i {p.forklaring.muligKampanjepavirkning === 'fjor' ? 'fjoråret' : 'nylig salg'}.</p>}
+                              {p.forklaring.selvlaertKorreksjon !== 1 && <p><strong>Selvlært korreksjon:</strong> {medFaktor(p.forklaring.selvlaertKorreksjon)}{p.forklaring.selvlaertAntall != null ? `, basert på ${p.forklaring.selvlaertAntall} målinger` : ''}.</p>}
+                              {p.forklaring.marginProsent > 0 && <p><strong>Margin:</strong> {p.forklaring.marginProsent} % → {medAntall(p.forklaring.automatiskPlanlagt)} stk planlagt.</p>}
+                              {(p.forklaring.startProsent > 0 || (start[p.varenavn] ?? p.start_antall) !== p.forklaring.automatiskStart) && <p><strong>Klart til morgenskift:</strong> {p.forklaring.startProsent} % → {medAntall(p.forklaring.automatiskStart)} stk automatisk, {medAntall(start[p.varenavn] ?? p.start_antall)} stk i planen.</p>}
+                              {p.forklaring.avvikerFraAutomatisk && <p>Planlagt antall avviker fra dagens automatiske forslag.</p>}
+                              <p><strong>Endelig planlagt:</strong> {medAntall(planlagt[p.varenavn] ?? p.planlagt)} stk.</p>
+                            </div>
+                          </details>
+                        )}
                         <button type="button" disabled={lagrer} className="pp-ekskl" onClick={() => toggleEkskl(g, p)} title={ute ? 'Ta med igjen' : 'Ekskluder fra planen'}>{ute ? '↩' : '✕'}</button>
                       </td>
                     </tr>

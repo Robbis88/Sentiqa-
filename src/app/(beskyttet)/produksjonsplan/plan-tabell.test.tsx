@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 const mock = vi.hoisted(() => ({ publiser: vi.fn(), setLinje: vi.fn(), setNotat: vi.fn(), setProsent: vi.fn() }))
 vi.mock('./handlinger', () => mock)
 import { PlanTabell } from './plan-tabell'
+import { erLeder } from '@/lib/auth/roller'
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 let root: Root
 let host: HTMLDivElement
@@ -17,9 +18,9 @@ beforeEach(() => {
   mock.setProsent.mockResolvedValue(undefined)
 })
 afterEach(() => { act(() => root?.unmount()); document.body.replaceChildren() })
-function monter(publisertTid: string | null = null) {
+function monter(publisertTid: string | null = null, produktliste = produkter, planForklaring?: { fjorDato: string; fjorDatoer: string[]; helligdag: boolean; trendNaa: number; trendFjor: number; trendfaktor: number; arrangementFaktor: number }) {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
-  act(() => root.render(h(PlanTabell, { grupper: [{ kode: '1201', navn: 'Bakevarer', produkter }], stasjonId: 'station-a', dato: '2026-09-19', notat: null, publisertTid, prosent: { start: 40, margin: 0 }, gruppeAvvik: {} })))
+  act(() => root.render(h(PlanTabell, { grupper: [{ kode: '1201', navn: 'Bakevarer', produkter: produktliste }], stasjonId: 'station-a', dato: '2026-09-19', notat: null, publisertTid, prosent: { start: 40, margin: 0 }, gruppeAvvik: {}, planForklaring })))
 }
 function knapp(tekst: string) { return [...host.querySelectorAll('button')].find((b) => b.textContent === tekst)! }
 describe('publisert betyr et bekreftet komplett plansnapshot', () => {
@@ -76,5 +77,41 @@ describe('publisert betyr et bekreftet komplett plansnapshot', () => {
     expect(mock.setLinje).toHaveBeenCalledTimes(1)
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('Startpartiet')
     expect(host.querySelector<HTMLInputElement>('input[aria-label="Start Baguett"]')?.value).toBe('2')
+  })
+})
+
+describe('forklaringssporet', () => {
+  test('lederrollen er avgrenset til eier og butikksjef', () => {
+    expect(erLeder('retailer_admin')).toBe(true)
+    expect(erLeder('butikksjef')).toBe(true)
+    expect(erLeder('butikkbruker_tablet')).toBe(false)
+  })
+
+  test('viser bare faktorer som påvirket forslaget og nøytral avvikstekst', async () => {
+    const produkt = {
+      varenavn: 'Bolle', baseline: 5, faktor: 1.1, foreslatt: 6, planlagt: 8, start_antall: 4, ekskludert: false,
+      trendfaktor: 1.1, vaerfaktor: 1, flagg: ['fjor_kampanje'],
+      forklaring: {
+        fjor: [{ dato: '2025-09-13', antall: 5 }], nylig: [{ dato: '2026-09-12', antall: 6, sammeUkedag: true }],
+        muligKampanjepavirkning: 'fjor' as const, vaer: { maal: null, fjor: null },
+        selvlaertKorreksjon: 1, selvlaertAntall: null, marginProsent: 0, startProsent: 50,
+        automatiskForslag: 6, automatiskPlanlagt: 6, automatiskStart: 3, avvikerFraAutomatisk: true,
+        vaerfaktor: 1, trendfaktor: 1.1, arrangementFaktor: 1,
+      },
+    }
+    monter(null, [produkt], { fjorDato: '2025-09-13', fjorDatoer: ['2025-09-13'], helligdag: false, trendNaa: 11, trendFjor: 10, trendfaktor: 1.1, arrangementFaktor: 1 })
+    const hvorfor = host.querySelector('button[aria-label="Hvorfor Bolle?"]')
+    expect(hvorfor).toBeNull()
+    const summary = host.querySelector('summary[aria-label="Hvorfor Bolle?"]') as HTMLElement
+    expect(summary).not.toBeNull()
+    const details = summary.parentElement as HTMLDetailsElement
+    details.open = true
+    expect(details.textContent).toContain('Mulig kampanjepåvirkning')
+    expect(details.textContent).not.toContain('Værjustering')
+    expect(details.textContent).not.toContain('Arrangement')
+    expect(details.textContent).not.toContain('Selvlært korreksjon')
+    expect(details.textContent).not.toContain('Margin:')
+    expect(details.textContent).toContain('Planlagt antall avviker fra dagens automatiske forslag.')
+    expect(host.textContent).not.toContain('bekreftet kampanje')
   })
 })

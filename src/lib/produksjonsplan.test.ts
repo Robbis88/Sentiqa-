@@ -42,6 +42,35 @@ describe('lagProduksjonsplan', () => {
     expect(p.foreslatt).toBeLessThanOrEqual(15)
   })
 
+  it('forklaringssporet endrer ikke motorens eksisterende forslag', () => {
+    const salg = [...fjorSalg(maalDato, 'Baguette skinke', [10, 12, 11, 9, 13]), ...nyligSalg('Baguette skinke', 11)]
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
+    const p = r.forslag[0]
+    expect({
+      varenavn: p.varenavn,
+      baseline: p.basis,
+      faktor: p.vaerfaktor,
+      trendfaktor: p.trendfaktor,
+      samletfaktor: p.samletfaktor,
+      foreslatt: p.foreslatt,
+      flagg: p.flagg,
+    }).toEqual({
+      varenavn: 'Baguette skinke', baseline: 11, faktor: 1,
+      trendfaktor: 1, samletfaktor: 1, foreslatt: 11, flagg: [],
+    })
+    expect(p.forklaring.fjor.map((x) => x.antall)).toEqual([10, 12, 11, 9, 13])
+    expect(p.forklaring.nylig.every((x) => x.sammeUkedag)).toBe(true)
+    expect(p.forklaring.muligKampanjepavirkning).toBeNull()
+    expect(r.forklaring.trendfaktor).toBe(1)
+  })
+
+  it('markerer uvanlig utslag som mulig kampanjepåvirkning, ikke bekreftet kampanje', () => {
+    const salg = [...fjorSalg(maalDato, 'Pølse', [8, 9, 30, 10, 8]), ...nyligSalg('Pølse', 9)]
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
+    expect(r.forslag.find((p) => p.varenavn === 'Pølse')?.forklaring.muligKampanjepavirkning).toBe('fjor')
+    expect(r.advarsler.join(' ')).not.toContain('bekreftet')
+  })
+
   it('flagger fjor-kampanje og bruker nabo-median', () => {
     const salg = [...fjorSalg(maalDato, 'Pølse', [8, 9, 30, 10, 8]), ...nyligSalg('Pølse', 9)]
     const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
@@ -56,6 +85,8 @@ describe('lagProduksjonsplan', () => {
     expect(p.flagg).toContain('ny')
     expect(p.fjorMedian).toBeNull()
     expect(p.foreslatt).toBe(6)
+    expect(p.forklaring.fjor.every((r) => r.antall === 0)).toBe(true)
+    expect(p.forklaring.nylig.length).toBeGreaterThan(0)
   })
 
   it('ekskluderte produkter utelates', () => {

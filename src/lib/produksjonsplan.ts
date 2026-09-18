@@ -92,6 +92,21 @@ export type SalgsPunkt = {
   antall: number
 }
 export type Flagg = 'fjor_kampanje' | 'paagaaende_kampanje' | 'ny' | 'fa_data'
+export type ProduksjonsForklaring = {
+  fjor: { dato: string; antall: number }[]
+  nylig: { dato: string; antall: number; sammeUkedag: boolean }[]
+  muligKampanjepavirkning: 'fjor' | 'paagaaende' | null
+  vaer: { maal: Vaerdag | null; fjor: Vaerdag | null }
+}
+export type PlanForklaring = {
+  fjorDato: string
+  fjorDatoer: string[]
+  helligdag: boolean
+  trendNaa: number
+  trendFjor: number
+  trendfaktor: number
+  arrangementFaktor: number
+}
 export type ProduktForslag = {
   varenavn: string
   varegruppeKode: string | null
@@ -104,8 +119,9 @@ export type ProduktForslag = {
   samletfaktor: number
   foreslatt: number
   flagg: Flagg[]
+  forklaring: ProduksjonsForklaring
 }
-export type PlanForslag = { forslag: ProduktForslag[]; advarsler: string[] }
+export type PlanForslag = { forslag: ProduktForslag[]; advarsler: string[]; forklaring: PlanForklaring }
 
 const KAMPANJE_HOY = 1.7
 const KAMPANJE_LAV = 0.5
@@ -183,6 +199,7 @@ export function lagProduksjonsplan(opts: {
     // Fjor-median (kun dager produktet faktisk solgte i vinduet).
     const fjorVerdier = [...a.fjor.values()].filter((v) => v > 0)
     let fjorMedian: number | null = fjorVerdier.length ? median(fjorVerdier) : null
+    let muligKampanjepavirkning: ProduksjonsForklaring['muligKampanjepavirkning'] = null
 
     // Kampanje i fjor: match-dagen unormalt høy mot naboukene → bruk nabo-median.
     if (!helligdag && fjorMedian != null) {
@@ -191,6 +208,7 @@ export function lagProduksjonsplan(opts: {
       const naboMed = naboer.length ? median(naboer) : matchDag
       if (matchDag > 0 && naboMed > 0 && matchDag > KAMPANJE_HOY * naboMed) {
         fjorMedian = naboMed
+        muligKampanjepavirkning = 'fjor'
         flagg.push('fjor_kampanje')
       }
     }
@@ -207,6 +225,7 @@ export function lagProduksjonsplan(opts: {
       // Pågående kampanje: nylig avviker mye fra fjor → vekt 50/50.
       if (nyligSnitt > KAMPANJE_HOY * fjorMedian || nyligSnitt < KAMPANJE_LAV * fjorMedian) {
         basis = 0.5 * fjorMedian + 0.5 * nyligSnitt
+        muligKampanjepavirkning = 'paagaaende'
         flagg.push('paagaaende_kampanje')
       }
     } else if (nyligSnitt != null) {
@@ -229,15 +248,25 @@ export function lagProduksjonsplan(opts: {
       basis: Math.round(basis * 10) / 10, vaerfaktor: Math.round(vf * 100) / 100,
       trendfaktor: Math.round(trendfaktor * 100) / 100, samletfaktor: Math.round(samletfaktor * 100) / 100,
       foreslatt, flagg,
+      forklaring: {
+        fjor: fjorDatoer.map((dato) => ({ dato, antall: a.fjor.get(dato) ?? 0 })),
+        nylig: [...a.nylig.entries()].map(([dato, antall]) => ({ dato, antall, sammeUkedag: ukedag(dato) === malUkedag })),
+        muligKampanjepavirkning,
+        vaer: { maal: vaerMaal, fjor: vaerFjor },
+      },
     })
   }
 
-  if (forslag.some((f) => f.flagg.includes('fjor_kampanje'))) advarsler.push('Noen produkter hadde kampanje på match-dagen i fjor (🚩) — justert ned mot normalnivå.')
-  if (forslag.some((f) => f.flagg.includes('paagaaende_kampanje'))) advarsler.push('Mulig pågående kampanje (🎯) — forslaget vekter nåsalg og fjorår 50/50.')
+  if (forslag.some((f) => f.flagg.includes('fjor_kampanje'))) advarsler.push('Mulig kampanjepåvirkning (🚩) — uvanlig høyt salg på fjorårets sammenligningsdag ble justert mot normalnivå.')
+  if (forslag.some((f) => f.flagg.includes('paagaaende_kampanje'))) advarsler.push('Mulig kampanjepåvirkning (🎯) — uvanlig nylig salgsutslag gjør at forslaget vekter nåsalg og fjorår 50/50.')
   if (ekskluderte.size > 0) advarsler.push(`${ekskluderte.size} produkt(er) er ekskludert fra planen.`)
 
   forslag.sort((x, y) => y.foreslatt - x.foreslatt)
-  return { forslag, advarsler }
+  return {
+    forslag,
+    advarsler,
+    forklaring: { fjorDato: fjorBase, fjorDatoer, helligdag, trendNaa, trendFjor, trendfaktor, arrangementFaktor },
+  }
 }
 
 // =====================================================================
