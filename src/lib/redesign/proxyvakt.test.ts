@@ -99,6 +99,10 @@ describe('proxyen holder seg innenfor sitt ansvar', () => {
     expect(kilde).toMatch(/if\s*\(\s*sok\.has\('stasjon'\)\s*\|\|\s*sok\.has\('butikknummer'\)\s*\)/)
   })
 
+  test('tilbudsforesporselen er offentlig', () => {
+    expect(kilde).toMatch(/OFFENTLIGE_PREFIX\s*=\s*\[[^\]]*['"]\/tilbud['"]/)
+  })
+
   // KANARIFUGL. Slutter maalingen aa se, ser den ut som en proxy uten
   // problemer. Disse tre viser at den fortsatt leser noe.
   test('KANARIFUGL - maalingen ser faktisk innholdet', () => {
