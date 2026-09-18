@@ -99,7 +99,11 @@
   "uke_rapport",
   "ukebrief_utsending",
   "vaer",
-  "varsler"
+  "varsler",
+  "tilbudsforesporsler",
+  "tilbud",
+  "avtale_revisjon",
+  "tilbudsforesporsel_revisjon"
  ],
  "views": [
   "v_bilvask_abonnement",

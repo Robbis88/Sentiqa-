@@ -11,7 +11,19 @@ export default function RegistrerSide() {
       <div className="kort">
         <Merke />
         <h1>Kom i gang</h1>
-        <p className="undertittel">Opprett kjeden din og legg til stasjonene. Faktura sendes på EHF.</p>
+        <p className="undertittel">
+          Send inn kjeden din og kontaktpersonen. Vi godkjenner oppstarten før du får tilgang.
+          Faktura sendes på EHF.
+        </p>
+        <div className="oppstart-info">
+          <strong>Ha dette klart til oppstart</strong>
+          <ul>
+            <li>Navn og organisasjonsnummer for kjeden</li>
+            <li>Stasjonene som skal inn i Sentiqa</li>
+            <li>Salgsstatistikk, timesalg og årets forretningsplan</li>
+          </ul>
+          <p>Flere rapporter kan legges til etterpå. Systemet viser hva som mangler per stasjon.</p>
+        </div>
         <RegistrerSkjema />
         <p className="undertittel" style={{ marginTop: '1rem' }}>
           Har du allerede konto? <Link href="/logg-inn">Logg inn</Link>

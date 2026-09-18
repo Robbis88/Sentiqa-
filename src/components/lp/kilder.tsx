@@ -25,10 +25,11 @@ export function Kilder() {
     <section className="lp-seksjon" id="data">
       <div className="lp-ramme">
         <p className="lp-eyebrow">Hvordan Sentiqa får dataene</p>
-        <h2 className="lp-h2">{KILDER.length} filer du allerede får tilsendt.</h2>
+        <h2 className="lp-h2">Datakildene Sentiqa bruker.</h2>
         <p className="lp-ingress">
           Ingenting skal legges inn på nytt. Sentiqa leser rapportene kjeden, regnskapsføreren
-          og stemplingssystemet sender fra seg — og hver av dem låser opp noe bestemt.
+          og stemplingssystemet sender fra seg — og hver av dem låser opp noe bestemt. Noen
+          kilder er egne rapporter, mens andre følger med i en BP- eller delingsfil.
         </p>
 
         <div className="lp-kilder">
@@ -37,6 +38,9 @@ export function Kilder() {
               <h3 className="lp-kilde-navn">{k.navn}</h3>
               <p className="lp-kilde-fra">{k.hentesFra}</p>
               <p className="lp-kilde-laser">{k.laserOpp}</p>
+              {k.anbefaltDager > 0 && (
+                <p className="lp-kilde-fra">Anbefalt historikk: {k.anbefaltDager} dager</p>
+              )}
               {k.kritisk && <span className="lp-kilde-krit">Kritisk</span>}
             </article>
           ))}
@@ -50,10 +54,11 @@ export function Kilder() {
               faar sin egen» leste som om den bare var der, og en ny kunde
               som videresendte rapporter dit ville faatt ingenting. */}
           <div className="lp-inntak-tekst">
-            <strong>Eller la det gå av seg selv.</strong>
+            <strong>Etter oppstart kan det gå av seg selv.</strong>
             <p>
-              Vi setter opp en inntaksadresse for kjeden din. Videresend rapportene dit,
-              så havner vedleggene rett i importkøen — bare fra avsendere du har godkjent.
+              Vi setter opp en egen inntaksadresse for kjeden din. Når den er klar, videresender
+              du rapportene dit, så havner vedleggene rett i importkøen — bare fra avsendere du
+              har godkjent.
             </p>
           </div>
           <span className="lp-inntak-adr">kjedenavn@inntak.sentiqa.ai</span>

@@ -10,6 +10,7 @@ import { Status } from '@/components/ui/status'
 import { Sidepanel } from '@/components/ui/sidepanel'
 import { ApneStottevindu, LukkStottevindu } from './stottevindu'
 import { Sideramme } from '@/components/ui/sideramme'
+import Link from 'next/link'
 
 // Plattform-eierens tverr-tenant-oversikt: hvem bruker systemet, omfang og hva
 // du skal fakturere — pluss onboarding og avslutning. Service-role (leser på
@@ -124,6 +125,7 @@ export default async function PlattformSide() {
           </Sidepanel>
         }
       />
+      <p><Link className="sq-knapp" href="/plattform/tilbudsforesporsler">Tilbudsforespørsler</Link></p>
 
       <div className="sq-nokkelrad">
         {/* FIRE TALL BLE TO PAR. «Stasjoner totalt» og «samlet pr aar»

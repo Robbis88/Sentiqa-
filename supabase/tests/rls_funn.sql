@@ -68,7 +68,8 @@ with lister as (
       'personlig_kryss', 'personlig_punkt', 'puls_svar', 'varsler',
       'import_jobber', 'raa_filer', 'ai_tool_log',
       'opplaering_periode', 'pengepremie_bruk',
-      'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter'
+      'tilbakemelding', 'regnskapsanalyser', 'lederstotte_rapporter',
+      'tilbudsforesporsler', 'tilbudsforesporsel_revisjon', 'tilbud', 'avtale_revisjon'
     ]::text[] as varme,
     array[
       'retailers', 'stasjoner', 'profiler', 'butikksjef_stasjoner',

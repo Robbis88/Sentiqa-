@@ -63,6 +63,17 @@ describe('lagProduksjonsplan', () => {
     const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5, ekskluderte: new Set(['Baguette ost']) })
     expect(r.forslag.find((f) => f.varenavn === 'Baguette ost')).toBeUndefined()
   })
+
+  it('returnerer forklaringsspor fra samme kjøring uten å endre forslaget', () => {
+    const salg = [...fjorSalg(maalDato, 'Forklarbar vare', [10, 12, 11, 9, 13]), ...nyligSalg('Forklarbar vare', 11)]
+    const r = lagProduksjonsplan({ maalDato, sisteSalgsdato, salg, vaerMaal: null, vaerFjor: null, vaerfolsomhet: 0.5 })
+    const p = r.forslag.find((f) => f.varenavn === 'Forklarbar vare')!
+    expect(p.forklaring.avrundetForslag).toBe(p.foreslatt)
+    expect(Math.round(p.forklaring.raattForslag)).toBe(p.foreslatt)
+    expect(p.forklaring.fjorDatoer.length).toBe(5)
+    expect(p.forklaring.nyligeDatoer.length).toBe(2)
+    expect(p.forklaring.observasjoner).toBeGreaterThan(0)
+  })
 })
 
 describe('helligdager treffer fjorårets samme helligdag', () => {

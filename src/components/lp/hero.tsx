@@ -61,7 +61,7 @@ export function Hero() {
             kjeden aapnes av et menneske - saa ordet ville lovet en
             umiddelbar innlogging som ikke finnes. */}
         <p className="lp-fot">
-          Registrer deg selv · ingen systemer må byttes ut · faktura på EHF
+          Send en registrering · kjeden åpnes etter godkjenning · ingen systemer må byttes ut
         </p>
 
         <div className="lp-flate-ramme" ref={ref}>

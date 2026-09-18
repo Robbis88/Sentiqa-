@@ -108,6 +108,7 @@ describe('stabil paginering — vakten ser også kommentarer og callbacks', () =
     const resultat = filer('src').map((fil) => analyser(readFileSync(fil, 'utf8'), fil))
     expect(resultat.flatMap((r) => r.funn)).toEqual([])
     // Dekningskanari: en vakt som slutter å se hele repoet skal bli rød.
-    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(36)
+    // Gruppeprognosen leser også hele varehierarkiet paginert.
+    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(37)
   })
 })

@@ -101,6 +101,30 @@ describe('INGEN FREMTIDSLEKKASJE', () => {
   })
 })
 
+describe('bevegelige helligdager', () => {
+  it('bruker samme helligdagsrolle i fjor, ikke kalenderdato', () => {
+    const svar = forventetSalg({
+      enhet: { stasjonId: S, ean: E }, maalDato: '2026-04-02',
+      salg: [r('2025-04-17', 40), r('2025-04-03', 5), ...serie('2026-03-30', 10, 10)],
+      modell: M.basis, minstDagerMedSalg: 1,
+    })
+    expect(svar.slag).toBe('beregnet')
+    if (svar.slag === 'beregnet') expect(svar.grunnlag.fjorMedian).toBe(40)
+  })
+
+  it('fortsetter riktig når neste påske flyttes igjen', () => {
+    const svar = forventetSalg({
+      enhet: { stasjonId: S, ean: E }, maalDato: '2027-03-25',
+      // Skjærtorsdag 2027 mot skjærtorsdag 2026. 26. mars 2026 er en
+      // vanlig fredag og skal ikke brukes som helligdagsgrunnlag.
+      salg: [r('2026-04-02', 52), r('2026-03-26', 7), ...serie('2027-03-22', 10, 10)],
+      modell: M.basis, minstDagerMedSalg: 1,
+    })
+    expect(svar.slag).toBe('beregnet')
+    if (svar.slag === 'beregnet') expect(svar.grunnlag.fjorMedian).toBe(52)
+  })
+})
+
 describe('IKKE DEKNING ER IKKE NULL', () => {
   it('ingen historikk gir ikke_dekning, ikke 0', () => {
     const s = forventetSalg({

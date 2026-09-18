@@ -117,11 +117,17 @@ describe('horisonten er maalingens h1–h13, maksimalt sju dager sammen', () => 
     expect(KODE).toContain('prognosePeriode(input, idag)')
   })
 
+  it('gruppeoppslag leser hierarkiet uten varenavnfilter', () => {
+    expect(KODE).toContain('hentHierarki(supabase')
+    expect(KODE).toContain('vareomrade_navn')
+    expect(KODE).toContain("finnGruppe(hierarkiRader")
+  })
+
   it('skjemaet gir perioder, men ingen maanedsprognose', () => {
     // Utvidet med samme kunnskapstidspunkt og separat periodemaaling.
     const skjema = KODE.slice(KODE.indexOf('properties: {'), KODE.indexOf('required:'))
     const felt = [...skjema.matchAll(/^\s{8}([a-zA-Z_]+):\s*\{/gm)].map((m) => m[1])
-    expect(felt.sort()).toEqual(['fra', 'periode', 'stasjoner', 'til', 'vare'])
+    expect(felt.sort()).toEqual(['fra', 'nivaa', 'periode', 'stasjoner', 'til', 'vare'])
   })
 
   it('modellen faar beskjed om aa si fra i stedet for aa gjette', () => {
@@ -137,10 +143,10 @@ describe('tilgang haandheves server-side', () => {
   })
 
   it('spoerringene avgrenses til de autoriserte stasjonene', () => {
-    // BEGGE. Soekespoerringen og salgshistorikken. Glipper den ene, kan
+    // Alle. Produktoppslaget, hierarkiet og salgshistorikken. Glipper den ene, kan
     // en vare fra en fremmed stasjon bli funnet og faa et tall.
     const treff = KODE.match(/\.in\('stasjon_id', (valgte\.map\(\(s\) => s\.id\)|stasjonIder)\)/g)
-    expect(treff, 'en spoerring mangler stasjonsavgrensning').toHaveLength(3)
+    expect(treff, 'en spoerring mangler stasjonsavgrensning').toHaveLength(4)
   })
 
   it('ingen autorisert stasjon gir ingenTilgang, ikke tomt svar', () => {

@@ -231,7 +231,7 @@ export default async function ProduksjonsplanSide({
     const [maalSvar, fjorSvar, linjeSvar, hodeSvar, innstillingSvar, arrangementSvar] = await Promise.all([
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<Vaerdag>(),
       supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjon.id).eq('dato', referanse.fjorDato).maybeSingle<Vaerdag>(),
-      supabase.from('produksjonsplan_linjer').select('varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).limit(1000).overrideTypes<{ varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
+      supabase.from('produksjonsplan_linjer').select('id, varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjon.id).eq('dato', dato).limit(1000).overrideTypes<{ id: string; varenavn: string; planlagt: number; start_antall: number; ekskludert: boolean }[]>(),
       supabase.from('produksjonsplan_hode').select('notat, publisert_tid').eq('stasjon_id', stasjon.id).eq('dato', dato).maybeSingle<{ notat: string | null; publisert_tid: string | null }>(),
       supabase.from('stasjon_produksjon_innstilling').select('varegruppe_kode, start_prosent, margin_prosent').eq('stasjon_id', stasjon.id).limit(1000).overrideTypes<{ varegruppe_kode: string; start_prosent: number | null; margin_prosent: number | null }[]>(),
       // Kun BEKREFTEDE arrangementer løfter planen (forslag styres på /arrangementer).
@@ -322,12 +322,20 @@ export default async function ProduksjonsplanSide({
       const planlagt = l?.planlagt ?? medMargin(justert, marginPst)
 
       const produkt: Produkt = {
+        id: l?.id,
         varenavn: f.varenavn, baseline: f.basis,
         faktor: korr !== 1 ? Math.round(f.samletfaktor * korr * 100) / 100 : f.samletfaktor,
         foreslatt: justert,
         planlagt,
         start_antall: l?.start_antall ?? startAntall(planlagt, startPst),
         ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
+        forklaring: {
+          ...f.forklaring,
+          kalibreringFaktor: korr,
+          modellForslag: justert,
+          manueltAvvik: l?.planlagt != null && l.planlagt !== justert,
+          startAntall: l?.start_antall ?? startAntall(planlagt, startPst),
+        },
       }
       const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)

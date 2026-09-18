@@ -1,4 +1,5 @@
 import { leggTilDager, ukedag, vaerfaktor, type Vaerdag, type VaerKoeff } from '@/lib/produksjonsplan'
+import { erHelligdag, fjorHelligdag } from '@/lib/helligdager'
 
 // =====================================================================
 // FORVENTET SALG — SANNHETSEIEREN
@@ -201,8 +202,11 @@ export function forventetSalg(inn: Forventetinput): Forventning {
   }
 
   // ── FJORÅRSMEDIAN: samme ukedag, fem uker rundt −364 ────────────────
-  const fjorBase = leggTilDager(maalDato, -364)
-  const fjorSett = new Set([-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d)))
+  // Bevegelige helligdager sammenlignes med samme helligdagsrolle, ikke
+  // kalenderdatoen året før. Vanlige dager beholder ±2-ukersvinduet.
+  const helligdag = erHelligdag(maalDato)
+  const fjorBase = fjorHelligdag(maalDato) ?? leggTilDager(maalDato, -364)
+  const fjorSett = new Set(helligdag ? [fjorBase] : [-14, -7, 0, 7, 14].map((d) => leggTilDager(fjorBase, d)))
   const fjorPerDag = new Map<string, number>()
   for (const r of egne) {
     if (fjorSett.has(r.dato)) fjorPerDag.set(r.dato, (fjorPerDag.get(r.dato) ?? 0) + r.antall)

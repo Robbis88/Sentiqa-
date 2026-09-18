@@ -181,6 +181,9 @@ h3 { letter-spacing: -0.01em; }
 
 .lp-sporsmal { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
 .lp-sporsmal-kort { background: var(--kort); border: 1px solid var(--kant); border-radius: 12px; padding: 1.5rem; box-shadow: var(--skygge); position: relative; }
+.tilbud-side { padding-block: 4rem; }
+.tilbud-kort { max-width: 720px; margin-inline: auto; }
+.tilbud-honeypot { position: absolute; left: -10000px; }
 .lp-sporsmal-kort p { margin: 0; font-size: 1.05rem; font-weight: 500; line-height: 1.4; }
 .lp-q { font-size: 3rem; line-height: 0; color: var(--primaer); opacity: 0.3; position: absolute; top: 1.5rem; left: 1rem; }
 .lp-sporsmal-kort p { padding-left: 0.5rem; }
@@ -241,6 +244,10 @@ h3 { letter-spacing: -0.01em; }
 }
 .logg-inn .kort { width: 100%; max-width: 360px; }
 .logg-inn .merke { display: block; margin-bottom: 1rem; }
+.oppstart-info { margin: 1rem 0 1.15rem; padding: 0.85rem 1rem; border: 1px solid var(--kant); border-radius: 10px; background: var(--bg); color: var(--tekst); font-size: 0.85rem; line-height: 1.5; }
+.oppstart-info strong { display: block; margin-bottom: 0.25rem; }
+.oppstart-info ul { margin: 0.25rem 0 0.35rem; padding-left: 1.15rem; }
+.oppstart-info p { margin: 0; color: var(--tekst-svak); }
 
 /* Innloggingsknappen var 40px hoy - under iOS-minimum paa 44 for bar
    finger. Funnet av nettlesertesten (e2e/tilgjengelighet.spec.ts), som

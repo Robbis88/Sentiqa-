@@ -64,6 +64,22 @@ export async function opprettBruker(_t: BrukerTilstand, formData: FormData): Pro
   const stasjonIds = (egne ?? []).map((s: { id: string }) => s.id)
   if (stasjonIds.length === 0) return { feil: 'Ugyldige stasjoner.' }
 
+  // Ny lisenshåndheving gjelder bare kunder med en eksplisitt avtale. Gamle
+  // kunder uten tilbud beholder dagens oppførsel.
+  const { data: avtale } = await admin.from('tilbud').select('retailer_limit, butikksjef_limit, tablet_station_limit, status').eq('retailer_id', bruker.retailerId).in('status', ['akseptert', 'aktivert', 'pauset']).maybeSingle<{ retailer_limit: number; butikksjef_limit: number; tablet_station_limit: number; status: string }>()
+  if (avtale) {
+    const { data: eksisterende } = await admin.from('profiler').select('id, rolle').eq('retailer_id', bruker.retailerId).is('slettet_tid', null).in('rolle', ['butikksjef', 'butikkbruker_tablet']).limit(2000)
+    const antallLedere = (eksisterende ?? []).filter((p: { rolle: string }) => p.rolle === 'butikksjef').length
+    const tabletProfilIds = (eksisterende ?? []).filter((p: { id: string; rolle: string }) => p.rolle === 'butikkbruker_tablet').map((p: { id: string }) => p.id)
+    const { data: tabletTilganger } = tabletProfilIds.length ? await admin.from('butikksjef_stasjoner').select('stasjon_id').in('profil_id', tabletProfilIds).limit(2000) : { data: [] as { stasjon_id: string }[] }
+    const aktiveTabletStasjoner = new Set((tabletTilganger ?? []).map((r: { stasjon_id: string }) => r.stasjon_id))
+    if (rolle === 'butikksjef' && antallLedere >= avtale.butikksjef_limit) return { feil: `Avtalen har nådd grensen på ${avtale.butikksjef_limit} butikksjeflisenser.` }
+    if (rolle === 'butikkbruker_tablet') {
+      const nyeStasjoner = new Set([...aktiveTabletStasjoner, ...stasjonIds])
+      if (nyeStasjoner.size > avtale.tablet_station_limit) return { feil: `Avtalen har nådd grensen på ${avtale.tablet_station_limit} aktive tabletstasjoner.` }
+    }
+  }
+
   const opprettet = await admin.auth.admin.createUser({ email: epost, password: passord, email_confirm: true })
   if (opprettet.error || !opprettet.data.user) {
     return { feil: /already|registered|exist/i.test(opprettet.error?.message ?? '') ? 'E-posten er allerede i bruk.' : 'Kunne ikke opprette bruker.' }

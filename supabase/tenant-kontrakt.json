@@ -2931,6 +2931,50 @@
     "forventet_start": "'06:00'",
     "forventet_slutt": "'14:00'"
    }
+  },
+  {
+   "tabell": "tilbudsforesporsler",
+   "$hvorfor": "Offentlig tilbudsinnsending lagres av server-endpointet. Kun plattformadministrator leser eller endrer forespørsler.",
+   "tenant_scope": "global",
+   "data_class": "cold",
+   "operasjoner": [],
+   "tablet": "none",
+   "manager": "none",
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
+  },
+  {
+   "tabell": "tilbud",
+   "$hvorfor": "Interne pristilbud og akseptdata. Kun plattformadministrator får innsyn.",
+   "tenant_scope": "global",
+   "data_class": "cold",
+   "operasjoner": [],
+   "tablet": "none",
+   "manager": "none",
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
+  },
+  {
+   "tabell": "avtale_revisjon",
+   "$hvorfor": "Revisjonsspor for tilbud og avtaler. Kun plattformadministrator får innsyn.",
+   "tenant_scope": "global",
+   "data_class": "cold",
+   "operasjoner": [],
+   "tablet": "none",
+   "manager": "none",
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
+  },
+  {
+   "tabell": "tilbudsforesporsel_revisjon",
+   "$hvorfor": "Revisjonsspor for statusendringer på tilbudsforespørsler. Kun plattformadministrator får innsyn.",
+   "tenant_scope": "global",
+   "data_class": "cold",
+   "operasjoner": [],
+   "tablet": "none",
+   "manager": "none",
+   "owner": "none",
+   "proberad": { "$ikke_relevant": "Plattformadministrator-tabell; testes ikke i tenant-matrisen." }
   }
  ]
 }

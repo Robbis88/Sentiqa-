@@ -25,8 +25,9 @@ import { Signaler } from './signaler'
 //   hvorfor skal jeg tro  signaler
 //   hvordan starter jeg   slutt
 //
-// ÉN CTA HELE VEIEN. «Kom i gang» går til `/registrer`, som finnes og
-// er selvbetjent. Sekundæren peker innover i sida, ikke ut av den.
+// ÉN CTA HELE VEIEN. «Kom i gang» går til `/registrer`. Registreringen
+// sender en forespørsel som åpnes etter godkjenning; siden skal ikke love
+// umiddelbar tilgang. Sekundæren peker innover i sida, ikke ut av den.
 //
 // Denne fila komponerer bare. Seksjonene ligger hver for seg, og bare
 // de som trenger interaksjon er klientkomponenter — kildene og
@@ -48,7 +49,7 @@ export function Landing() {
           </nav>
           <div className="lp-nav-hoyre">
             <Link className="lp-logginn" href="/logg-inn">Logg inn</Link>
-            <Link className="lp-knapp" href="/registrer">Kom i gang</Link>
+            <Link className="lp-knapp" href="/tilbud">Be om tilbud</Link>
           </div>
         </div>
       </header>
@@ -76,13 +77,14 @@ export function Landing() {
               <span className="lp-dim">Sentiqa gjør noe med dem.</span>
             </h2>
             <div className="lp-cta lp-cta-midt">
-              <Link className="lp-knapp lp-knapp-stor" href="/registrer">Kom i gang</Link>
+              <Link className="lp-knapp lp-knapp-stor" href="/tilbud">Be om tilbud</Link>
+              <Link className="lp-knapp lp-knapp-stor lp-knapp-stille" href="/registrer">Har du allerede fått tilgang?</Link>
               <a className="lp-knapp lp-knapp-stor lp-knapp-stille" href="#produkt">
                 Se hvordan det virker
               </a>
             </div>
             <p className="lp-fot">
-              Opprett kjeden, legg til stasjonene, last opp første rapport. Faktura på EHF.
+              Send registreringen, få kjeden godkjent, legg til stasjonene og last opp første rapport.
             </p>
           </div>
         </section>

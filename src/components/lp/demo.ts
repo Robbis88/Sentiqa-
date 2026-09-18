@@ -110,9 +110,13 @@ export const OPPSTART: Obsteg[] = [
   { navn: 'Salgsstatistikk', beskjed: '5 av 5 stasjoner · 412 dager', status: 'ok', merke: 'Klar' },
   { navn: 'Timesalg', beskjed: '5 av 5 stasjoner · 604 dager', status: 'ok', merke: 'Klar' },
   { navn: 'Forretningsplan', beskjed: 'Alle stasjoner har årgang 2026', status: 'ok', merke: 'Klar' },
+  { navn: 'Timebudsjett', beskjed: 'Følger BP eller delingsfil', status: 'ok', merke: 'Klar' },
+  { navn: 'Kastbudsjett', beskjed: 'Delingsfil per varegruppe', status: 'tynt', merke: 'Tynt' },
   { navn: 'Stemplinger', beskjed: '3 av 5 stasjoner · 88 dager av 365', status: 'tynt', merke: 'Tynt' },
-  { navn: 'Varetransaksjoner', beskjed: 'Mangler på to stasjoner', status: 'tynt', merke: 'Ufullstendig' },
+  { navn: 'Kassererstatistikk', beskjed: 'Mangler på to stasjoner', status: 'mangler', merke: 'Mangler' },
+  { navn: 'Lønnsarter', beskjed: 'Ikke lastet opp ennå', status: 'mangler', merke: 'Mangler' },
   { navn: 'Regnskapsrapport', beskjed: 'Ikke lastet opp ennå', status: 'mangler', merke: 'Mangler' },
+  { navn: 'Bilvask', beskjed: 'Bare der stasjonen har bilvask', status: 'ok', merke: 'Ved behov' },
   { navn: 'Butikksjef på hver stasjon', beskjed: 'Mangler på 2 stasjoner', status: 'mangler', merke: 'Mangler' },
 ]
 

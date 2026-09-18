@@ -47,6 +47,7 @@
     "/persondata",
     "/personvern",
     "/plattform",
+    "/plattform/tilbudsforesporsler",
     "/premier",
     "/produksjonsplan",
     "/produksjonsplan/treffsikkerhet",
@@ -72,6 +73,7 @@
     "/stempling",
     "/svinn",
     "/tilbakemeldinger",
+    "/tilbud",
     "/timeregnskap",
     "/timesalg",
     "/trafikk",
@@ -366,6 +368,12 @@
       "reaktiverKunde",
       "sendInvitasjonPaaNytt",
       "slettKundePermanent"
+    ],
+    "/plattform/tilbudsforesporsler": [
+      "endreForesporsel",
+      "opprettKundeFraTilbud",
+      "opprettTilbud",
+      "registrerAksept"
     ],
     "/premier": [
       "registrerBruk",
@@ -778,6 +786,10 @@
       "Støttetilgang — ${r.navn}",
       "Venter på godkjenning"
     ],
+    "/plattform/tilbudsforesporsler": [
+      "Ingen forespørsler ennå",
+      "dynamisk:f.virksomhet"
+    ],
     "/premier": [
       "Premiepotten per stasjon",
       "Registrer bruk",
@@ -826,6 +838,7 @@
       "Kostnader per konto · hele kjeden",
       "Per stasjon",
       "Påvirkbare kostnader",
+      "Svinn i {periodeetikett}",
       "dynamisk:SEKSJON_TITTEL[navn]",
       "navn === 'omsetning' ? 'Omsetning' : 'Bruttofortjeneste'"
     ],
@@ -853,7 +866,11 @@
       "Rutiner i dette skjemaet <span className=\"undertittel\">· {rutiner.length}</span>"
     ],
     "/rutiner/oversikt": [
-      "Ingen stasjoner ennå"
+      "Ingen stasjoner ennå",
+      "Lederinnsikt",
+      "Per vakt",
+      "Utvikling per dag",
+      "Vanligste mangler"
     ],
     "/rutiner": [
       "dynamisk:svaret",
@@ -1043,6 +1060,9 @@
     ],
     "/persondata": [
       "/api/personvern/innsyn"
+    ],
+    "/plattform": [
+      "/plattform/tilbudsforesporsler"
     ],
     "/produksjonsplan": [
       "/import",

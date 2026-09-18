@@ -26,7 +26,7 @@ export type Utforing = {
   bilde_sti?: string | null
 }
 
-export type RutineStatus = 'Gjennomført' | 'Mangler' | 'For sent' | 'Ikke registrert'
+export type RutineStatus = 'Gjennomført' | 'Mangler' | 'For sent'
 
 export type Detaljrad = Forventning & {
   status: RutineStatus
@@ -68,9 +68,9 @@ export function klassifiser(f: Forventning, u: Utforing | null, naa: Date, ansat
   if (!u && !fremtidig) status = 'Mangler'
   else if (!u) status = 'Mangler'
   else if (utfort! > frist) status = 'For sent'
-  else if (!u.ansatt_id || !ansatte.has(u.ansatt_id)) status = 'Ikke registrert'
   else status = 'Gjennomført'
-  return { ...f, status, frist_iso: frist.toISOString(), gjennomfort_tid: u?.utfort_tid ?? null, ansatt_id: u?.ansatt_id ?? null, ansatt_navn: u?.ansatt_id ? (ansatte.get(u.ansatt_id) ?? 'Ikke registrert') : 'Ikke registrert', bilde_sti: u?.bilde_sti ?? null, kommentar: null }
+  const ansattNavn = u?.ansatt_id ? (ansatte.get(u.ansatt_id) ?? 'Ikke identifisert') : 'Ikke identifisert'
+  return { ...f, status, frist_iso: frist.toISOString(), gjennomfort_tid: u?.utfort_tid ?? null, ansatt_id: u?.ansatt_id ?? null, ansatt_navn: ansattNavn, bilde_sti: u?.bilde_sti ?? null, kommentar: null }
 }
 
 export type Oversikt = {
@@ -93,7 +93,7 @@ export function byggOversikt(forventninger: Forventning[], utforinger: Utforing[
 
 export function summerRader(rader: Detaljrad[], ansatte: Map<string, string>, naa = new Date()): Oversikt {
   const tellForventet = (r: Detaljrad) => r.status !== 'Mangler' || new Date(r.frist_iso) <= naa
-  const tellMed = (r: Detaljrad) => tellForventet(r) && (r.status === 'Gjennomført' || r.status === 'Ikke registrert' || r.status === 'For sent')
+  const tellMed = (r: Detaljrad) => tellForventet(r) && (r.status === 'Gjennomført' || r.status === 'For sent')
   const tellRader = rader.filter(tellForventet)
   const utfort = rader.filter(tellMed).length
   const tellere = new Map<string, number>()

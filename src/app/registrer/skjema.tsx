@@ -67,11 +67,11 @@ export function RegistrerSkjema() {
 
       <p className="dempet">
         Vi sender en lenke til e-posten din for å bekrefte adressen. Passordet
-        setter du der.
+        setter du der. Etterpå åpner vi kjeden når registreringen er godkjent.
       </p>
 
       <button type="submit" disabled={venter} className="primar">
-        {venter ? 'Oppretter …' : 'Opprett konto'}
+        {venter ? 'Sender registrering …' : 'Send registrering'}
       </button>
     </form>
   )
