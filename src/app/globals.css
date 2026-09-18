@@ -3153,6 +3153,7 @@ a.sq-rad-lenke:hover { background: var(--bg); }
 
 .rutine-stasjon > summary { display: flex; justify-content: space-between; gap: var(--luft-3); cursor: pointer; padding: var(--luft-4); }
 .rutine-stasjon > summary span { color: var(--natt-tekst-svak); }
+.rutine-stasjon > summary .rangering-plass { color: var(--tekst); }
 .rutine-innsikt { margin: var(--luft-4) 0; }
 .rutine-innsikt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--luft-4); }
 .rutine-innsikt-grid h3 { font-size: var(--tekst-liten); }
