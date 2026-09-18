@@ -1,20 +1,20 @@
-'use client'
+﻿'use client'
 import Link from 'next/link'
 import { useSynlig, useTeller } from './bevegelse'
 
 // =====================================================================
-// HERO — PRODUKTET ER BILDET
+// HERO â€” PRODUKTET ER BILDET
 //
 // Flata under overskriften er `/oversikt` sin faktiske form: hilsen,
-// «krever oppmerksomhet», og nøkkeltallsraden. Ikke en tegning av et
-// dashbord, men den samme oppbygningen en eier møter om morgenen.
+// Â«krever oppmerksomhetÂ», og nÃ¸kkeltallsraden. Ikke en tegning av et
+// dashbord, men den samme oppbygningen en eier mÃ¸ter om morgenen.
 //
-// LYS FLATE PÅ MØRK GRUNN. Appen er lys. Å vise den mørk for at den
-// skal passe til sida ville vært å vise fram noe som ikke finnes.
+// LYS FLATE PÃ… MÃ˜RK GRUNN. Appen er lys. Ã… vise den mÃ¸rk for at den
+// skal passe til sida ville vÃ¦rt Ã¥ vise fram noe som ikke finnes.
 //
-// TALLENE STÅR FERDIG VED LAST og teller opp når flata er sett. Et
-// nøkkeltall parkert på null til noen scroller, er et tall som mangler
-// i thumbnailen og for den som leser raskt — se `useTeller`.
+// TALLENE STÃ…R FERDIG VED LAST og teller opp nÃ¥r flata er sett. Et
+// nÃ¸kkeltall parkert pÃ¥ null til noen scroller, er et tall som mangler
+// i thumbnailen og for den som leser raskt â€” se `useTeller`.
 // =====================================================================
 
 function Nokkeltall(
@@ -51,17 +51,17 @@ export function Hero() {
           dine. Sentiqa leser dem sammen og sier hva som krever oppmerksomhet i dag.
         </p>
         <div className="lp-cta">
-          <Link className="lp-knapp lp-knapp-stor" href="/registrer">Kom i gang</Link>
+          <Link className="lp-knapp lp-knapp-stor" href="/tilbud">Be om tilbud</Link>
           <a className="lp-knapp lp-knapp-stor lp-knapp-stille" href="#produkt">
             Se hvordan det virker
           </a>
         </div>
-        {/* «SELVBETJENT OPPSTART» STO HER, og var sant helt til
+        {/* Â«SELVBETJENT OPPSTARTÂ» STO HER, og var sant helt til
             registreringen fikk en port (0190). Naa bekreftes e-posten og
             kjeden aapnes av et menneske - saa ordet ville lovet en
             umiddelbar innlogging som ikke finnes. */}
         <p className="lp-fot">
-          Send en registrering · kjeden åpnes etter godkjenning · ingen systemer må byttes ut
+          Be om et tilpasset tilbud Â· vi tar kontakt Â· ingen systemer mÃ¥ byttes ut
         </p>
 
         <div className="lp-flate-ramme" ref={ref}>
@@ -76,7 +76,7 @@ export function Hero() {
               <div className="lp-flate-hode">
                 <div>
                   <p className="lp-hilsen">God morgen, Robert.</p>
-                  <p className="lp-hilsen-under">Her er det du trenger å vite.</p>
+                  <p className="lp-hilsen-under">Her er det du trenger Ã¥ vite.</p>
                 </div>
                 <span className="lp-demo">Demodata</span>
               </div>
@@ -88,7 +88,7 @@ export function Hero() {
                   <span className="lp-pip lp-pip-rod" />
                   <span className="lp-signal-tekst">
                     <span className="lp-signal-tittel">Nordbyen kaster mer enn kravet</span>
-                    <span className="lp-signal-under">15,2 % av omsetning · kravet er 13,6 %</span>
+                    <span className="lp-signal-under">15,2 % av omsetning Â· kravet er 13,6 %</span>
                   </span>
                   <span className="lp-signal-verdi lp-v-rod">{svinn} kr</span>
                 </div>
@@ -97,7 +97,7 @@ export function Hero() {
                   <span className="lp-pip lp-pip-gul" />
                   <span className="lp-signal-tekst">
                     <span className="lp-signal-tittel">Storhaug over bemanningsplanen</span>
-                    <span className="lp-signal-under">Uke 36 · flest timer torsdag og fredag</span>
+                    <span className="lp-signal-under">Uke 36 Â· flest timer torsdag og fredag</span>
                   </span>
                   <span className="lp-signal-verdi">{timer} t</span>
                 </div>
@@ -105,21 +105,21 @@ export function Hero() {
                 <div className="lp-signal">
                   <span className="lp-pip lp-pip-gul" />
                   <span className="lp-signal-tekst">
-                    <span className="lp-signal-tittel">Regnskapet for august mangler på Vestre</span>
+                    <span className="lp-signal-tittel">Regnskapet for august mangler pÃ¥ Vestre</span>
                     <span className="lp-signal-under">
-                      Lønn kan ikke måles mot ramme før det er inne
+                      LÃ¸nn kan ikke mÃ¥les mot ramme fÃ¸r det er inne
                     </span>
                   </span>
-                  <span className="lp-signal-verdi">—</span>
+                  <span className="lp-signal-verdi">â€”</span>
                 </div>
 
                 <div className="lp-signal">
                   <span className="lp-pip lp-pip-gronn" />
                   <span className="lp-signal-tekst">
                     <span className="lp-signal-tittel">
-                      Åsheim traff produksjonsplanen fem dager på rad
+                      Ã…sheim traff produksjonsplanen fem dager pÃ¥ rad
                     </span>
-                    <span className="lp-signal-under">Bakeri innenfor på alle fem</span>
+                    <span className="lp-signal-under">Bakeri innenfor pÃ¥ alle fem</span>
                   </span>
                   <span className="lp-signal-verdi lp-v-gronn">+5</span>
                 </div>
@@ -127,7 +127,7 @@ export function Hero() {
 
               <div className="lp-nokkelrad">
                 <Nokkeltall
-                  merke="Salg i går" til={184302} suff=" kr" start={synlig}
+                  merke="Salg i gÃ¥r" til={184302} suff=" kr" start={synlig}
                   under="+6,4 % mot samme dag i fjor" opp
                 />
                 <Nokkeltall
@@ -135,11 +135,11 @@ export function Hero() {
                   start={synlig} under="hittil i september"
                 />
                 {/* LOENNSANDELEN ER TALLET EN EIER STYRER ETTER, og det
-                    sto ikke paa sida i det hele tatt. «Timer denne uken»
+                    sto ikke paa sida i det hele tatt. Â«Timer denne ukenÂ»
                     er en maaling; dette er en GRENSE, og forskjellen er
                     hele poenget med loennsrommet. */}
                 <Nokkeltall
-                  merke="Lønn av brutto" til={52.4} des={1} suff=" %" start={synlig}
+                  merke="LÃ¸nn av brutto" til={52.4} des={1} suff=" %" start={synlig}
                   under="budsjettet sier 51,0 %"
                 />
               </div>

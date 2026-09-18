@@ -5,7 +5,7 @@ import { stasjonFraUrl, STASJONSKAPSEL, type Stasjon } from '@/lib/stasjonsvalg'
 
 // Offentlige ruter (ingen innlogging kreves). Alt annet krever sesjon.
 // '/' (landingssiden) matches eksakt; resten som prefiks.
-const OFFENTLIGE_PREFIX = ['/logg-inn', '/registrer', '/auth/bekreft', '/sett-passord', '/personvern', '/databehandleravtale']
+const OFFENTLIGE_PREFIX = ['/logg-inn', '/registrer', '/tilbud', '/auth/bekreft', '/sett-passord', '/personvern', '/databehandleravtale']
 function erOffentligSti(sti: string): boolean {
   return sti === '/' || OFFENTLIGE_PREFIX.some((r) => sti.startsWith(r))
 }
