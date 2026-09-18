@@ -55,8 +55,11 @@ export type Varekandidat = {
 export type Varerad = {
   ean: string
   varenavn: string | null
+  avdeling_kode?: string | null
   varegruppe_kode: string | null
   varegruppe_navn: string | null
+  vareomrade_kode?: string | null
+  vareomrade_navn?: string | null
   avdeling_navn: string | null
   antall: number | null
   dato: string

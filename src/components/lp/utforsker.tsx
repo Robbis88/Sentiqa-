@@ -247,8 +247,9 @@ export function Utforsker() {
           <div>
             <h3>Kastet er én halvdel. Resten så ingen.</h3>
             <p className="lp-panel-p">
-              Det som føres som kast er registrert svinn. Differansen mellom teoretisk og
-              faktisk bruttofortjeneste er resten — for mat er det som regel overproduksjon.
+              Det som føres som kast er registrert svinn. Et annet avvik kan komme av forskjell
+              mellom teoretisk og faktisk bruttofortjeneste. Det kan skyldes overproduksjon,
+              feilregistrering eller andre forhold og må undersøkes.
             </p>
             <ul className="lp-punkter">
               <Punkt navn="Registrert kast" verdi="164 735" />
@@ -370,7 +371,7 @@ export function Utforsker() {
           role="tabpanel" id="panel-ledelse" aria-labelledby="fane-ledelse"
         >
           <div>
-            <h3>Fire roller, fire flater.</h3>
+            <h3>Roller med hver sin flate.</h3>
             <p className="lp-panel-p">
               Eieren ser kjeden. Butikksjefen ser sine stasjoner. Nettbrettet på gulvet ser
               dagen sin. Hver rolle ser bare det den skal — det er håndhevet i databasen,

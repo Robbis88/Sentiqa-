@@ -227,6 +227,9 @@
 
 /* --------------------------------------------------------- onboarding */
 .lp-ob { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 4vw, 56px); align-items: start; margin-top: var(--luft-7); }
+.lp-ob-forberedelse { margin-top: var(--luft-5); padding: 14px 16px; border: 1px solid var(--kant); border-radius: 10px; background: var(--kort); color: var(--tekst); }
+.lp-ob-forberedelse strong { font-size: 14px; font-weight: 600; }
+.lp-ob-forberedelse p { margin: 5px 0 0; color: var(--tekst-svak); font-size: 13.5px; line-height: 1.55; }
 .lp-ob-liste {
   border: 1px solid var(--kant); border-radius: var(--lp-r);
   background: var(--kort); color: var(--tekst); overflow: hidden;

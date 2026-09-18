@@ -25,8 +25,9 @@ import { Signaler } from './signaler'
 //   hvorfor skal jeg tro  signaler
 //   hvordan starter jeg   slutt
 //
-// ÉN CTA HELE VEIEN. «Kom i gang» går til `/registrer`, som finnes og
-// er selvbetjent. Sekundæren peker innover i sida, ikke ut av den.
+// ÉN CTA HELE VEIEN. «Kom i gang» går til `/registrer`. Registreringen
+// sender en forespørsel som åpnes etter godkjenning; siden skal ikke love
+// umiddelbar tilgang. Sekundæren peker innover i sida, ikke ut av den.
 //
 // Denne fila komponerer bare. Seksjonene ligger hver for seg, og bare
 // de som trenger interaksjon er klientkomponenter — kildene og
@@ -82,7 +83,7 @@ export function Landing() {
               </a>
             </div>
             <p className="lp-fot">
-              Opprett kjeden, legg til stasjonene, last opp første rapport. Faktura på EHF.
+              Send registreringen, få kjeden godkjent, legg til stasjonene og last opp første rapport.
             </p>
           </div>
         </section>

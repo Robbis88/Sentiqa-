@@ -13,6 +13,7 @@ import { hentAlle } from '@/lib/supabase/sider'
 import { varegrunn } from '@/lib/forventet/egnethet'
 import { forventetPeriode, maalPeriodetreff } from '@/lib/forventet/periode'
 import { prognosePeriode } from './prognoseperiode'
+import { AVDELINGER } from '@/lib/avdelinger'
 
 // =====================================================================
 // AI SPØR MOTOREN. AI REGNER IKKE.
@@ -106,6 +107,53 @@ export type Forventetsvar = {
   dagsprognoser: { dato: string; forventetAntall: number | null; grunn?: string }[]
 }
 
+type GruppeNivaa = 'avdeling' | 'vareomrade' | 'varegruppe'
+type GruppeTreff = { nivaa: GruppeNivaa; kode: string | null; navn: string; ean: string[] }
+
+const normaliserGruppe = (s: string): string => s.trim().toLocaleLowerCase('nb-NO').replace(/[^a-z0-9æøå]+/g, '')
+
+export function finnGruppe(rader: Varerad[], soek: string, ønsket?: GruppeNivaa): GruppeTreff | null | 'flere' {
+  const q = normaliserGruppe(soek)
+  if (!q) return null
+  const kandidater = new Map<string, GruppeTreff>()
+  for (const r of rader) {
+    const nivåer: { nivaa: GruppeNivaa; kode: string | null; navn: string | null }[] = [
+      { nivaa: 'avdeling', kode: r.avdeling_kode ?? null, navn: r.avdeling_navn },
+      { nivaa: 'vareomrade', kode: r.vareomrade_kode ?? null, navn: r.vareomrade_navn ?? null },
+      { nivaa: 'varegruppe', kode: r.varegruppe_kode, navn: r.varegruppe_navn },
+    ]
+    for (const n of nivåer) {
+      if (ønsket && n.nivaa !== ønsket) continue
+      const navn = n.navn?.trim() ?? ''
+      const kode = n.kode?.trim() ?? null
+      if (!navn || (normaliserGruppe(navn) !== q && kode !== soek.trim())) continue
+      const key = `${n.nivaa}:${kode ?? normaliserGruppe(navn)}`
+      const treff = kandidater.get(key) ?? { nivaa: n.nivaa, kode, navn, ean: [] }
+      if (!treff.ean.includes(r.ean)) treff.ean.push(r.ean)
+      kandidater.set(key, treff)
+    }
+  }
+  // «Mat» er en stabil avdeling selv om navnet i salgsdata varierer litt.
+  for (const a of AVDELINGER) {
+    if (normaliserGruppe(a.navn) !== q && a.kode !== soek.trim()) continue
+    const ean = [...new Set(rader.filter((r) => r.avdeling_kode === a.kode).map((r) => r.ean))]
+    if (ean.length) kandidater.set(`avdeling:${a.kode}`, { nivaa: 'avdeling', kode: a.kode, navn: a.navn, ean })
+  }
+  const ut = [...kandidater.values()]
+  if (ut.length > 1) {
+    // Samme navn kan ligge både som vareområde og varegruppe. Velg det
+    // mest spesifikke registrerte nivået; bare ulike treff på samme nivå
+    // skal utløse et oppklaringsspørsmål.
+    const rang: Record<GruppeNivaa, number> = { avdeling: 1, vareomrade: 2, varegruppe: 3 }
+    const høyeste = Math.max(...ut.map((x) => rang[x.nivaa]))
+    const spesifikke = ut.filter((x) => rang[x.nivaa] === høyeste)
+    if (spesifikke.length === 1) return spesifikke[0]
+    return 'flere'
+  }
+  if (ut.length === 1) return ut[0]
+  return null
+}
+
 export async function hentSalg(
   supabase: Klient, stasjonIder: string[], ean: string, fra: string, til: string,
 ): Promise<Salgsrad[]> {
@@ -151,7 +199,7 @@ export async function hentVaresok(supabase: Klient, stasjonIder: string[], soek:
   if (!filter) return []
   return hentAlle<Varerad>(() => {
     const q = supabase.from('v_butikksalg')
-      .select('ean, varenavn, varegruppe_kode, varegruppe_navn, avdeling_navn, antall, dato, stasjon_id')
+      .select('ean, varenavn, avdeling_kode, avdeling_navn, vareomrade_kode, vareomrade_navn, varegruppe_kode, varegruppe_navn, antall, dato, stasjon_id')
       .in('stasjon_id', stasjonIder)
       .gte('dato', leggTilDager(idag, -90)).lte('dato', idag)
       .order('dato').order('stasjon_id').order('ean').order('retailer_id')
@@ -198,6 +246,11 @@ export const forventetSalgVerktoy: {
             + 'Zero», «cola 0,5». Eller en EAN hvis du alt har den fra et '
             + 'tidligere svar i samtalen.',
         },
+        nivaa: {
+          type: 'string',
+          enum: ['avdeling', 'vareomrade', 'varegruppe', 'vare'],
+          description: 'Valgfritt nivå. Bruk avdeling for Mat, vareomrade for Bakeri/Påsmurt eller varegruppe for en registrert varegruppe. Utelat for automatisk oppslag.',
+        },
         // HUSETS KONTRAKT ER EN LISTE. `katalogvakt` krever at hvert
         // leseverktoey tar `stasjoner`, saa modellen kan velge scope paa
         // samme maate overalt - og saa «Hva med Boenes?» kan endre ÉN
@@ -227,8 +280,17 @@ export const forventetSalgVerktoy: {
         domene: 'forventet_salg', kilder: ['v_butikksalg'],
         scope: { forespurt: [], utenfor_tilgang: utenfor },
         ingenTilgang: true,
-      })
-    }
+  })
+}
+
+/** Hierarkiet må leses uten varenavnfilter. «Mat» står sjelden i varenavnet. */
+async function hentHierarki(supabase: Klient, stasjonIder: string[], idag: string): Promise<Varerad[]> {
+  return hentAlle<Varerad>(() => supabase.from('v_butikksalg')
+    .select('ean, varenavn, avdeling_kode, avdeling_navn, vareomrade_kode, vareomrade_navn, varegruppe_kode, varegruppe_navn, antall, dato, stasjon_id')
+    .in('stasjon_id', stasjonIder)
+    .gte('dato', leggTilDager(idag, -90)).lte('dato', idag)
+    .order('dato').order('stasjon_id').order('ean').order('retailer_id'), 200)
+}
 
     const idag = idagOslo()
     const periode = prognosePeriode(input, idag)
@@ -247,7 +309,66 @@ export const forventetSalgVerktoy: {
     //
     // Søkevinduet er kort med vilje (90 dager): en vare som ikke har vært
     // solgt på tre måneder er ikke den brukeren spør om i morgen.
-    const sokRader = await hentVaresok(supabase, valgte.map((s) => s.id), soek, idag)
+    const [sokRader, hierarkiRader] = await Promise.all([
+      hentVaresok(supabase, valgte.map((s) => s.id), soek, idag),
+      hentHierarki(supabase, valgte.map((s) => s.id), idag),
+    ])
+
+    const gruppe = finnGruppe(hierarkiRader, soek, typeof input.nivaa === 'string' && input.nivaa !== 'vare'
+      ? input.nivaa as GruppeNivaa : undefined)
+    if (gruppe === 'flere') {
+      return byggSvar({
+        domene: 'forventet_salg', kilder: ['v_butikksalg'],
+        scope: { forespurt: valgte.map((s) => s.butikknummer), utenfor_tilgang: utenfor },
+        merknad: ['Flere registrerte områder passer. Be brukeren presisere om det gjelder avdeling, vareområde eller varegruppe.'],
+      })
+    }
+    if (gruppe) {
+      const gruppePeriode = prognosePeriode(input, idag)
+      if ('feil' in gruppePeriode) return byggSvar({ domene: 'forventet_salg', kilder: ['v_butikksalg'], feil: gruppePeriode.feil })
+      const eanListe = gruppe.ean
+      const perProdukt = await Promise.all(eanListe.map(async (ean) => {
+        const produkt = hierarkiRader.find((r) => r.ean === ean)
+        if (!produkt) return null
+        const salg = await hentSalg(supabase, valgte.map((s) => s.id), ean, fra, idag)
+        const perStasjon = valgte.map((stasjon) => {
+          const f = forventetPeriode({ enhet: { stasjonId: stasjon.id, ean }, prognoseDato: idag,
+            maaldatoer: gruppePeriode.datoer, salg, modell: MODELL, minstDagerMedSalg: MINST_DAGER })
+          const første = f.dager[0]?.forventning
+          return { stasjonId: stasjon.id, antall: f.antall,
+            grunnlag: første?.slag === 'beregnet' ? {
+              basis: første.grunnlag.basis, trendfaktor: første.grunnlag.trendfaktor,
+              dagerMedSalg: første.grunnlag.dagerMedSalg,
+            } : null }
+        })
+        return { produkt, perStasjon }
+      }))
+      const data = valgte.map((stasjon) => {
+        const produkter = perProdukt.filter((x): x is NonNullable<typeof x> => x !== null).map((x) => {
+          const per = x.perStasjon.find((p) => p.stasjonId === stasjon.id)
+          const antall = per?.antall ?? null
+          return { ean: x.produkt.ean, varenavn: x.produkt.varenavn, forventetAntall: antall,
+            dekning: antall === null ? 'ikke_dekning' : 'beregnet' as const,
+            ...(per?.grunnlag ? { grunnlag: per.grunnlag } : {}) }
+        })
+        const beregnede = produkter.filter((p) => p.forventetAntall !== null)
+        return { stasjon: etikett(stasjon), nivaa: gruppe.nivaa, gruppe: gruppe.navn,
+          dato: gruppePeriode.fra, fra: gruppePeriode.fra, til: gruppePeriode.til,
+          forventetAntall: beregnede.length === produkter.length
+            ? beregnede.reduce((sum, p) => sum + (p.forventetAntall ?? 0), 0) : null,
+          produkter, manglerPrognose: produkter.filter((p) => p.forventetAntall === null).map((p) => p.varenavn),
+        }
+      })
+      return byggSvar({
+        domene: 'forventet_salg', kilder: ['v_butikksalg'], data,
+        scope: { forespurt: valgte.map((s) => s.butikknummer), besvart: valgte.map((s) => s.butikknummer), utenfor_tilgang: utenfor },
+        merknad: [
+          `Dette er en deterministisk sum av ${eanListe.length} aktive produkter i ${gruppe.nivaa} «${gruppe.navn}».`,
+          'Totalsummen gis bare når alle produktene har forsvarlig prognose. Manglende prognose er ikke null salg.',
+          `Prognosen gjelder ${gruppePeriode.fra} til ${gruppePeriode.til} og bruker modellen «${MODELL.navn}» med historisk grunnlag og trend. Vær og arrangement er ikke lagt til i dette svaret.`,
+        ],
+      })
+    }
 
     const oppslag = slaaOpp(sokRader ?? [], soek)
     if (oppslag.slag === 'ingen') {

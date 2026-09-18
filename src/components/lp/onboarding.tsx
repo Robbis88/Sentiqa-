@@ -35,6 +35,15 @@ export function Onboarding() {
           som mangler, for hvem, og hva du får når det er på plass. Modulene åpner seg
           etter hvert som grunnlaget kommer.
         </p>
+        <div className="lp-ob-forberedelse">
+          <strong>Dette bør være klart først</strong>
+          <p>
+            For å komme i gang trenger du salgsstatistikk, timesalg og årets forretningsplan.
+            Deretter kan du fylle på med stemplinger, regnskap, kassererstatistikk, lønnsarter
+            og andre rapporter. Sentiqa viser status per stasjon og sier tydelig når historikken
+            er for kort til at en analyse kan stoles på.
+          </p>
+        </div>
 
         <div className="lp-ob">
           <div className="lp-ob-liste" ref={ref}>
