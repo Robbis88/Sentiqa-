@@ -13,7 +13,7 @@ const NOEKLER: Record<string, string[]> = {
   v_kasserer_maaned: ['stasjon_id', 'kasserer_nr', 'maned'],
   vaer: ['stasjon_id', 'dato'],
   prognose_treff: ['stasjon_id', 'type', 'dato', 'kategori'],
-  basisvakt: ['id'], lonnsregister: ['id'], bp_linje: ['id'],
+  retailers: ['id'], stasjoner: ['id'], basisvakt: ['id'], lonnsregister: ['id'], bp_linje: ['id'],
   ansatt_avtale: ['stasjon_id', 'ansatt_nr'], import_jobber: ['id'],
 }
 
@@ -102,6 +102,6 @@ describe('stabil paginering — vakten ser også kommentarer og callbacks', () =
     const resultat = filer('src').map((fil) => analyser(readFileSync(fil, 'utf8'), fil))
     expect(resultat.flatMap((r) => r.funn)).toEqual([])
     // Dekningskanari: en vakt som slutter å se hele repoet skal bli rød.
-    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(29)
+    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(31)
   })
 })

@@ -2795,7 +2795,7 @@
   },
   {
    "tabell": "uke_rapport",
-   "$hvorfor": "Den ferdige ukerapporten per stasjon. Alle fire operasjonene har samme predikat: eieren paa hele kjeden, eller hvem som helst med stasjonstilgang. Ingen rollesjekk i stasjonsgrenen.",
+   "$hvorfor": "Den ferdige ukerapporten per stasjon. Lesing og INS/UPD beholdes; DELETE krever lederrolle, kjede og stasjon fra 0224.",
    "tenant_scope": "retailer_and_station",
    "data_class": "warm",
    "operasjoner": [
@@ -2804,10 +2804,14 @@
     "update",
     "delete"
    ],
-   "tablet": "read_write",
+   "tablet": {
+    "select": "own_station",
+    "insert": "own_station",
+    "update": "own_station"
+   },
    "manager": "assigned_stations",
    "owner": "retailer",
-   "avvik_fra_intensjon": "Nettbrettet kan SLETTE ukerapporten for sin egen stasjon. Stasjonsgrenen i uke_rapport_del har ingen rollesjekk, saa den delte kontoen i butikken har samme rett som butikksjefen. Rapporten kan riktignok genereres paa nytt, men den som ser at tallene er borte vet ikke det. Utvei: legg rollen til i ins/upd/del slik resten av tabellene gjor, og la lesingen staa som den er.",
+   "avvik_fra_intensjon": "Tablet INS/UPD paa egen stasjon beholdes; DELETE er leder-only fra 0224. INS/UPD trenger separat produktavklaring.",
    "proberad": {
     "uke_mandag": "{{unik_dato}}"
    },
@@ -2887,16 +2891,16 @@
    ],
    "tablet": {
     "select": "own_station",
-    "insert": "retailer",
+    "insert": "own_station",
     "update": "own_station"
    },
    "manager": {
     "select": "assigned_stations",
-    "insert": "retailer",
+    "insert": "assigned_stations",
     "update": "assigned_stations"
    },
    "owner": "retailer",
-   "avvik_fra_intensjon": "Innsettingspolicyen sjekker BARE retailer_id - ingen stasjon, ingen rolle. Enhver innlogget i kjeden kan lage et varsel til en hvilken som helst stasjon, med hvilken som helst tekst og lenke. Samme form som kontrolltiltak_bekreftelse. For en feed som skal styre oppmerksomhet er det verdt en beslutning: et varsel ingen kan spore opphavet til, er lettere aa se bort fra.",
+   "avvik_fra_intensjon": "Fra 0224 bindes INSERT til faktisk kjede og tildelt stasjon; kjedevarsel kun eier. Tablet kan fortsatt lage egne stasjonsvarsler for IK-mat og sjekkpunkt, men ikke velge personlig mottaker. Vilkaarlig tekst paa egen stasjon er fortsatt mulig; smal hendelses-RPC er eventuell videre innstramming.",
    "proberad": {
     "type": "'sonde'",
     "tittel": "'Sondevarsel {{unik}}'",
