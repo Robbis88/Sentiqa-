@@ -1,5 +1,4 @@
 'use server'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
@@ -94,7 +93,6 @@ export async function opprettMalekort(
     }
   }
 
-  revalidatePath('/maaling')
   return { ok: true }
 }
 
@@ -108,7 +106,6 @@ export async function slettMalekort(_t: Kvittering, fd: FormData,
   return kvitter(supabase.from('malekort').update({ slettet_tid: new Date().toISOString() }, { count: 'exact' }).eq('id', id), {
     hva: 'slette malekort',
     ok: 'Malekort slettet',
-    oppfrisk: ['/maaling'],
   })
 }
 

@@ -239,9 +239,12 @@ export type TabletKort = {
   antall?: number
   vekstPst?: number | null
   topp?: number
+  status?: 'venter' | 'feil'
+  perKunde?: boolean
+  metrikk?: Malekort['metrikk']
 }
 
-export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjonId: string): TabletKort {
+export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjonId: string, kort?: Pick<Malekort, 'normalisering' | 'metrikk'>): TabletKort {
   if (!resultat.klar) return { navn, klar: false, grunn: resultat.grunn }
   const idx = resultat.rader.findIndex((r) => r.stasjonId === egenStasjonId)
   if (idx < 0) return { navn, klar: false, grunn: 'Ingen tall for din butikk i perioden.' }
@@ -256,5 +259,6 @@ export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjon
     antall: resultat.rader.length,
     vekstPst: egen.vekstPst,
     topp: resultat.rader[0].verdi,
+    ...(kort ? { metrikk: kort.metrikk, perKunde: kort.normalisering === 'per_kunde' && ['omsetning', 'antall', 'brutto', 'snittpris_kunde'].includes(kort.metrikk) } : {}),
   }
 }
