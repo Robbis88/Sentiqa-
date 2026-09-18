@@ -105,13 +105,14 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
   // RLS ER AUTORITETEN. Lista kommer fra `stasjoner`, som gir
   // butikksjefen sine egne og eieren sin kjede. Ingenting her utvider
   // det - stasjonsvalget er en innsnevring, aldri en utvidelse.
-  const { data: stasjoner } = await supabase
+  const { data: stasjoner, error: stasjonsfeil } = await supabase
     .from('stasjoner')
     .select('id, navn, butikknummer')
     .is('slettet_tid', null)
     .order('butikknummer')
     .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()
 
+  if (stasjonsfeil) throw new Error(`Svinnstasjonene kunne ikke hentes: ${stasjonsfeil.message}`)
   const stasjonsliste = stasjoner ?? []
   const sok = new URLSearchParams()
   if (sp.stasjon) sok.set('stasjon', sp.stasjon)
@@ -137,11 +138,13 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     qd = qd.eq('stasjon_id', valgtStasjon!)
   }
 
-  const [{ data: raa }, { data: raaDekning }] = await Promise.all([
+  const [{ data: raa, error: svinnfeil }, { data: raaDekning, error: dekningsfeil }] = await Promise.all([
     q.limit(20000).overrideTypes<Svinnrad[]>(),
     qd.limit(2000).overrideTypes<Dekningsrad[]>(),
   ])
 
+  if (svinnfeil) throw new Error(`Svinntallene kunne ikke hentes: ${svinnfeil.message}`)
+  if (dekningsfeil) throw new Error(`Svinndekningen kunne ikke hentes: ${dekningsfeil.message}`)
   const rader = raa ?? []
   const dekningsrader = raaDekning ?? []
   const maaneder = maanederI(rader)
@@ -208,7 +211,8 @@ export default async function SvinnSide({ searchParams }: { searchParams: Promis
     if (valgtGruppe === 'ikke-koblet') qv = qv.is('gruppe_kode', null)
     else if (valgtGruppe) qv = qv.eq('gruppe_kode', valgtGruppe)
     if (erStasjon) qv = qv.eq('stasjon_id', valgtStasjon!)
-    const { data } = await qv.limit(5000).overrideTypes<Vare[]>()
+    const { data, error: varefeil } = await qv.limit(5000).overrideTypes<Vare[]>()
+    if (varefeil) throw new Error(`Svinnvarene kunne ikke hentes: ${varefeil.message}`)
     const per = new Map<string, Vare & { kr: number; ant: number }>()
     for (const v of data ?? []) {
       const n = v.ean ?? v.varenavn ?? '?'
