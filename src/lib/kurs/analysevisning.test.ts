@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  ingenFeilVei, matkastvisning, medFortegn, RANGERING_UKJENT,
+  ingenFeilVei, matkastvisning, medFortegn, RANGERING_UKJENT, samletAvvikvisning,
   rangeringstekst, usynligvisning,
   USYNLIG_AARSAKER, UTEN_KRONEVERDI,
 } from './analysevisning'
@@ -107,6 +107,12 @@ describe('Dale juli på flaten', () => {
     expect(alt.toLowerCase()).not.toContain('manko')
     expect(alt.toLowerCase()).not.toContain('gevinst')
     expect(alt.toLowerCase()).not.toContain('tyveri i juli')
+  })
+
+  it('summerer registrert og uforklart avvik uten dobbelttelling', () => {
+    const samlet = samletAvvikvisning(s.matkast, s.usynlig)
+    expect(samlet?.kr).toBeCloseTo(63921.21, 2)
+    expect(samlet?.prosent).toBeCloseTo(7.63, 2)
   })
 })
 

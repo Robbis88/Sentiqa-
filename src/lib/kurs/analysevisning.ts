@@ -196,6 +196,34 @@ export function usynligvisning(s: Usynligsnapshot | null): Usynligvisning {
   return { ...felles, slag: 'retning', merke: 'retning tilgjengelig', utvikling }
 }
 
+// Samlet avvik er en visning av de to separate, lagrede komponentene.
+// `usynligMatKr` er allerede beregnet etter at registrert kast er trukket
+// fra, så de kan summeres én gang her uten dobbelttelling.
+export type SamletAvvikvisning = {
+  kr: number
+  prosent: number | null
+  tekst: string
+}
+
+export function samletAvvikvisning(
+  matkast: Matkastsnapshot | null,
+  usynlig: Usynligsnapshot | null,
+): SamletAvvikvisning | null {
+  if (!matkast?.dom || usynlig?.naaKr === null || usynlig?.naaKr === undefined) return null
+  if (matkast.beregnetForMaaned !== usynlig.beregnetForMaaned) return null
+  const synlig = matkast.dom.naa.synligKastKr
+  const kr = synlig + usynlig.naaKr
+  const salg = matkast.dom.naa.matsalgKr
+  const prosent = salg > 0 ? (kr / salg) * 100 : null
+  return {
+    kr,
+    prosent,
+    tekst: prosent === null
+      ? 'Prosent kan ikke beregnes mot matomsetningen.'
+      : `${pst(prosent)} av matomsetningen`,
+  }
+}
+
 // =====================================================================
 // RANGERING
 // =====================================================================

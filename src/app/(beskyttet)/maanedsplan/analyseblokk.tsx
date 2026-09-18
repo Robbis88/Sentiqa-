@@ -22,12 +22,13 @@
 // INGEN BEREGNING HER. Alt kommer fra `analysevisning.ts`, som leser det
 // lagrede øyeblikksbildet. Komponenten formaterer ikke engang tallene.
 
-import { matkastvisning, usynligvisning } from '@/lib/kurs/analysevisning'
+import { kr, matkastvisning, samletAvvikvisning, usynligvisning } from '@/lib/kurs/analysevisning'
 import { lesMatkast, lesUsynlig } from '@/lib/kurs/snapshot'
 
 export function Analyseblokk({ matkast, usynlig }: { matkast: unknown; usynlig: unknown }) {
   const m = matkastvisning(lesMatkast(matkast))
   const u = usynligvisning(lesUsynlig(usynlig))
+  const samlet = samletAvvikvisning(lesMatkast(matkast), lesUsynlig(usynlig))
 
   return (
     <div className="sq-analyser">
@@ -90,6 +91,19 @@ export function Analyseblokk({ matkast, usynlig }: { matkast: unknown; usynlig: 
           </>
         )}
       </section>
+
+      {samlet && (
+        <section className="sq-analyse sq-analyse-samlet" aria-label="Samlet svinn og uforklart avvik">
+          <header className="sq-analyse-hode">
+            <h4 className="sq-analyse-tittel">Samlet svinn og uforklart avvik</h4>
+          </header>
+          <p className="sq-analyse-tall">{kr(samlet.kr)} kr</p>
+          <p className="sq-analyse-retning">{samlet.tekst}</p>
+          <p className="sq-analyse-forklaring">
+            Registrert kast og uforklart avvik for samme måned, vist samlet én gang.
+          </p>
+        </section>
+      )}
     </div>
   )
 }
