@@ -1,109 +1,28 @@
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
-import { beregnRutinestat, type Rutinestat } from '@/lib/rutinestat'
-import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
-import { Status, type Statusnivaa } from '@/components/ui/status'
 import { Sideramme } from '@/components/ui/sideramme'
+import { Sidehode, Tomtilstand } from '@/components/ui/side'
+import { byggOversikt, summerRader, type Forventning, type Utforing } from '@/lib/rutiner-oversikt'
+import { Stasjon } from './stasjon'
 
-/**
- * Samme tre trinn som for - gronn/gul/rod - men uttrykt i systemets
- * semantiske spraak, og med et ORD som staar der uansett om man ser
- * fargen. Grensene 90 og 70 er uendret.
- */
-function nivaaFor(p: number): Statusnivaa {
-  return p >= 90 ? 'normal' : p >= 70 ? 'endring' : 'handling'
-}
-function ordFor(p: number): string {
-  return p >= 90 ? 'i rute' : p >= 70 ? 'noe gjenstår' : 'henger etter'
-}
+type Param = string | string[] | undefined
+type Search = Record<string, Param>
+const tekst = (v: Param) => Array.isArray(v) ? v[0] ?? '' : v ?? ''
+const iso = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(d)
+const minus = (dato: string, dager: number) => { const d = new Date(`${dato}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - dager); return d.toISOString().slice(0, 10) }
+const gyldigDato = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d)
 
-export default async function RutineOversikt() {
-  const bruker = await hentInnloggetBruker()
-  if (!erLeder(bruker.rolle)) {
-    return <Sideramme><p>Kun eier/butikksjef har tilgang til oversikten.</p></Sideramme>
-  }
-  const supabase = await lagSupabaseServerKlient()
-  const idag = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
-
-  const { data: stasjoner } = await supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer')
-
-  const rader: { navn: string; stat: Rutinestat }[] = await Promise.all(
-    (stasjoner ?? []).map(async (s) => ({
-      navn: `${s.butikknummer} ${s.navn}`,
-      stat: await beregnRutinestat(supabase, s.id, idag),
-    })),
-  )
-  rader.sort((a, b) => b.stat.prosent - a.stat.prosent)
-
-  // NIVÅ 1 — svaret. Kjedetallet regnes på SUMMENE, ikke som snittet av
-  // stasjonenes prosenter: en liten stasjon med tre rutiner skal ikke telle
-  // like mye som en stor med tretti når man spør hvordan kjeden ligger an.
-  const sumUtfort = rader.reduce((s, r) => s + r.stat.utfort, 0)
-  const sumForventet = rader.reduce((s, r) => s + r.stat.forventet, 0)
-  const kjedePst = sumForventet > 0 ? Math.round((sumUtfort / sumForventet) * 100) : null
-  const verst = rader.length > 0 ? rader[rader.length - 1] : null
-
-  const svar = kjedePst == null
-    ? 'Ingen forventede rutiner de siste 30 dagene'
-    : `Kjeden gjennomfører ${kjedePst} % av rutinene siste 30 dager`
-      + (verst && rader.length > 1 ? `. Svakest: ${verst.navn} (${verst.stat.prosent} %)` : '')
-
-  return (
-    <Sideramme>
-      <Sidehode tittel="Rutiner — oversikt" undertittel={svar} />
-
-      {rader.length === 0 ? (
-        <Tomtilstand
-          tittel="Ingen stasjoner ennå"
-          forklaring="Oversikten rangerer stasjonene på hvor mye av rutinene som faktisk blir gjort. Så snart det finnes stasjoner, står de her."
-        />
-      ) : (
-        rader.map((r, i) => (
-          <section className="kort rangering-kort" key={r.navn}>
-            <div className="rangering-topp">
-              {/* Sto med medaljeemoji på topp tre. Plasseringen er allerede
-                  et tall, og prosentpipen ved siden av bærer dommen. */}
-              <span className="rangering-plass">#{i + 1}</span>
-              <strong>{r.navn}</strong>
-              {/* Prosenten er tallet; nivaaet er dommen. For laa dommen
-                  bare i fargen paa pipen - «84 %» og «97 %» saa like ut
-                  for den som ikke ser farge. Naa staar ordet der ogsaa. */}
-              <Status nivaa={nivaaFor(r.stat.prosent)}>
-                {r.stat.prosent}% · {ordFor(r.stat.prosent)}
-              </Status>
-              {r.stat.streak > 0 && <span className="streak">{r.stat.streak} dager på rad</span>}
-            </div>
-            <p className="undertittel">
-              {r.stat.utfort} av {r.stat.forventet} forventede rutiner gjennomført
-            </p>
-            {r.stat.toppUtforere.length > 0 && (
-              <p className="undertittel">
-                Topputførere: {r.stat.toppUtforere.map((t) => `${t.navn} (${t.antall})`).join(' · ')}
-              </p>
-            )}
-          </section>
-        ))
-      )}
-
-      <Forklaring sporsmaal="Hva teller som gjennomført?">
-        <p>
-          Prosenten er utførte rutiner delt på forventede, over de siste 30 dagene.
-          Forventet følger skjemaet stasjonen er satt opp med — en rutine som ikke var
-          planlagt den dagen, teller verken opp eller ned.
-        </p>
-        <p>
-          Kjedetallet i toppen regnes på summene, ikke som snittet av stasjonenes
-          prosenter. En liten stasjon med tre daglige rutiner skal ikke veie like tungt
-          som en stor med tretti når spørsmålet er hvordan kjeden ligger an.
-        </p>
-        <p>
-          «Dager på rad» er sammenhengende dager der <em>alt</em> som var forventet ble
-          gjort. En dag uten forventede rutiner bryter den ikke — da var det ingenting
-          å ryke på. Dagen i dag teller først når den er ferdig, men river ikke rekka
-          mens den pågår.
-        </p>
-      </Forklaring>
-    </Sideramme>
-  )
+export default async function RutineOversikt({ searchParams }: { searchParams?: Promise<Search> }) {
+  const bruker = await hentInnloggetBruker(); if (!erLeder(bruker.rolle)) return <Sideramme><p>Kun eier/butikksjef har tilgang til oversikten.</p></Sideramme>
+  const p = await searchParams ?? {}; const naa = iso(new Date()); const periode = tekst(p.periode) || '7'; const fra = periode === 'i dag' ? naa : periode === '30' ? minus(naa, 29) : periode === 'custom' && gyldigDato(tekst(p.fra)) ? tekst(p.fra) : minus(naa, 6); const til = periode === 'custom' && gyldigDato(tekst(p.til)) ? tekst(p.til) : naa; const vakt = tekst(p.vakt), status = tekst(p.status), medarbeider = tekst(p.medarbeider)
+  const supabase = await lagSupabaseServerKlient(); const { data: stasjoner, error } = await supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null).order('butikknummer'); if (error) return <Sideramme><p className="feil">Kunne ikke hente stasjoner: {error.message}</p></Sideramme>
+  // Snapshot-tabellen kom etter den genererte databasetypen; den valideres av
+  // migrasjonen og holdes isolert til dette serverkallet.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+  const svar = await Promise.all((stasjoner ?? []).map(async (s) => { const [f, u, n, a] = await Promise.all([db.from('rutine_forventninger').select('*').eq('stasjon_id', s.id).gte('dato', fra).lte('dato', til), db.from('rutine_utforinger').select('rutine_id, stasjon_id, dato, utfort_tid, ansatt_id, bilde_sti').eq('stasjon_id', s.id).gte('dato', fra).lte('dato', til), db.from('rutine_notat').select('rutine_id, dato, tekst').eq('stasjon_id', s.id).gte('dato', fra).lte('dato', til), db.from('ansatte').select('id, navn').eq('stasjon_id', s.id).is('slettet_tid', null)]); const fs = (f.data ?? []) as Forventning[]; const kommentarer = new Map<string, string>((n.data ?? []).map((x: { rutine_id: string; dato: string; tekst: string }) => [`${x.rutine_id}|${x.dato}`, x.tekst])); const ansatte = new Map<string, string>((a.data ?? []).map((x: { id: string; navn: string }) => [x.id, x.navn])); const full = byggOversikt(fs, (u.data ?? []) as Utforing[], kommentarer, ansatte); const søk = medarbeider.toLocaleLowerCase('nb-NO'); const rader = full.rader.filter((r) => (!vakt || r.vakttype === vakt) && (!status || r.status === status) && (!medarbeider || r.ansatt_id === medarbeider || r.ansatt_navn.toLocaleLowerCase('nb-NO') === søk)); return { stasjon: s, o: summerRader(rader, ansatte), bilder: full.rader.flatMap((r) => r.bilde_sti ? [r.bilde_sti] : []) } }))
+  const stier = [...new Set(svar.flatMap((x) => x.bilder))]; const bildeUrl = new Map<string, string>(); if (stier.length) { const { data } = await supabase.storage.from('rutinebilder').createSignedUrls(stier, 60 * 30); for (const x of data ?? []) if (x.path && x.signedUrl) bildeUrl.set(x.path, x.signedUrl) }
+  const filter = <form className="rutine-filtre" method="get"><label>Periode<select name="periode" defaultValue={periode}><option value="i dag">I dag</option><option value="7">Siste 7 dager</option><option value="30">Siste 30 dager</option><option value="custom">Egendefinert</option></select></label><label>Vakt<input name="vakt" defaultValue={vakt} /></label><label>Status<select name="status" defaultValue={status}><option value="">Alle statuser</option><option>Gjennomført</option><option>Mangler</option><option>For sent</option><option>Ikke registrert</option></select></label><label>Medarbeider<input name="medarbeider" defaultValue={medarbeider} placeholder="Navn eller ID" /></label><label>Fra<input type="date" name="fra" defaultValue={tekst(p.fra)} /></label><label>Til<input type="date" name="til" defaultValue={tekst(p.til)} /></label><button type="submit">Vis</button></form>
+  return <Sideramme><Sidehode tittel="Rutiner — oversikt" undertittel={`${fra} til ${til}. For sent betyr etter planlagt slutt + 60 minutter.`} />{filter}{svar.length ? svar.map((x) => <Stasjon key={x.stasjon.id} navn={`${x.stasjon.butikknummer} ${x.stasjon.navn}`} o={x.o} bildeUrl={bildeUrl} />) : <Tomtilstand tittel="Ingen stasjoner ennå" forklaring="Du har ingen tildelte stasjoner å vise." />}</Sideramme>
 }

@@ -33,7 +33,7 @@ with lister as (
       -- maaneden.
       'bilagssum',
       'daglig_salg', 'timesalg', 'kassererstatistikk', 'synlig_svinn',
-      'regnskapslinjer', 'regnskap_usynlig_svinn', 'rutine_utforinger',
+      'regnskapslinjer', 'regnskap_usynlig_svinn', 'rutine_forventninger', 'rutine_utforinger',
       'sjekkpunkt_svar', 'ik_avlesninger', 'ansatte', 'oppgaver',
       'tablet_meldinger', 'skills_score', 'tildelte_merker',
       'opplaering_skift', 'opplaering_utfort', 'avvik', 'malekort',

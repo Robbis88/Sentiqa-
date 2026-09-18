@@ -101,6 +101,7 @@ begin
     ('retailer_koderegel', true, false),
     ('retailers', true, false),
     ('royaltysats', true, false),
+    ('rutine_forventninger', true, false),
     ('rutine_notat', true, false),
     ('rutine_utforinger', true, false),
     ('rutiner', true, false),

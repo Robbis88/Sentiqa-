@@ -3150,3 +3150,17 @@ a.sq-rad-lenke:hover { background: var(--bg); }
    aerender. Det som flyttet ut paa raden er lesingen. */
 .tr-mer { margin: var(--luft-4) var(--luft-4) var(--luft-4) 0; align-self: flex-start; }
 .tr-mer > summary { width: 3rem; height: 3rem; font-size: 1.2rem; }
+
+.rutine-stasjon > summary { display: flex; justify-content: space-between; gap: var(--luft-3); cursor: pointer; padding: var(--luft-4); }
+.rutine-stasjon > summary span { color: var(--natt-tekst-svak); }
+.rutine-stasjon > summary .rangering-plass { color: var(--tekst); }
+.rutine-innsikt { margin: var(--luft-4) 0; }
+.rutine-innsikt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--luft-4); }
+.rutine-innsikt-grid h3 { font-size: var(--tekst-liten); }
+.rutine-filtre { display: flex; flex-wrap: wrap; align-items: end; gap: var(--luft-3); margin-bottom: var(--luft-4); }
+.rutine-filtre label { display: grid; gap: .25rem; font-size: var(--tekst-liten); }
+.rutine-filtre select, .rutine-filtre input, .rutine-filtre button { min-height: 44px; }
+.rutine-filtre select { min-width: 10rem; }
+.rutine-status { font-weight: 600; }
+.rutine-tabellrad { display: grid; grid-template-columns: repeat(9, minmax(7rem, 1fr)); gap: var(--luft-2); padding: var(--luft-2) 0; border-bottom: 1px solid var(--natt-kant); }
+@media (max-width: 760px) { .rutine-innsikt-grid { grid-template-columns: 1fr; } }
