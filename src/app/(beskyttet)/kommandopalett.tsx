@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { spørAssistent } from './assistent/handlinger'
 
@@ -48,7 +48,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
   }
 
   useEffect(() => {
-    const ned = (e: KeyboardEvent) => {
+    const ned = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setApen((a) => {
@@ -104,7 +104,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
     router.push(p.sti)
   }
 
-  function holdFokus(e: KeyboardEvent<HTMLDialogElement>) {
+  function holdFokus(e: ReactKeyboardEvent<HTMLDialogElement>) {
     if (e.key !== 'Tab') return
     const mål = e.currentTarget.querySelectorAll<HTMLElement>(
       'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
