@@ -44,6 +44,7 @@ const skjema = z.object({
   // Lenkene i brevet maa peke paa produksjon, ikke paa den previewen
   // jobben tilfeldigvis kjoerte fra. Derfor eksplisitt, ikke VERCEL_URL.
   UKEBRIEF_BASIS_URL: z.string().url().default('https://sentiqa.ai'),
+  SENTIQA_QUOTE_NOTIFICATION_EMAIL: z.email().optional(),
 })
 
 const resultat = skjema.safeParse(process.env)

@@ -7,7 +7,7 @@
 -- forsvunnet i stillhet. Skal noe endres, endre kontrakten.
 --
 -- DEL 11 AV 11. Hele matrisen er for stor for Supabase SQL
--- Editor. Denne fila er en komplett kjoering av 2 ressurs(er):
+-- Editor. Denne fila er en komplett kjoering av 6 ressurs(er):
 -- egen fasitverden, egne forutsetninger, egen oppsummering, egen
 -- rollback. Delene deler ingen tilstand og kan kjoeres i hvilken som
 -- helst rekkefoelge. Rekkefoelgen i tallet er bare lesbarhet.
@@ -259,6 +259,102 @@ insert into public.rutineskjemaer (id, retailer_id, stasjon_id, vakttype, navn, 
 insert into public.rutiner (id, retailer_id, stasjon_id, skjema_id, tittel) values ('5a36090a-0000-4000-8000-00005a36090a', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', '798e71c2-0000-4000-8000-0000798e71c2', 'Sonderutine 10');
 insert into public.rutineskjemaer (id, retailer_id, stasjon_id, vakttype, navn, tid_start, tid_slutt) values ('798ee622-0000-4000-8000-0000798ee622', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', 'morgen', 'Sondeskjema 11', '06:00', '14:00');
 insert into public.rutiner (id, retailer_id, stasjon_id, skjema_id, tittel) values ('5a367d6a-0000-4000-8000-00005a367d6a', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', '798ee622-0000-4000-8000-0000798ee622', 'Sonderutine 11');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bceb-0000-4000-8000-0000ce85bceb', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cb48-0000-4000-8000-00003a90cb48', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e532507-0000-4000-8000-00001e532507', '3a90cb48-0000-4000-8000-00003a90cb48');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('4c84d033-0000-4000-8000-00004c84d033', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bd87-0000-4000-8000-0000ce85bd87', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bd88-0000-4000-8000-0000ce85bd88', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bd89-0000-4000-8000-0000ce85bd89', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bd8a-0000-4000-8000-0000ce85bd8a', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bd8b-0000-4000-8000-0000ce85bd8b', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bd8c-0000-4000-8000-0000ce85bd8c', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda2-0000-4000-8000-0000ce85bda2', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda3-0000-4000-8000-0000ce85bda3', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda4-0000-4000-8000-0000ce85bda4', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda5-0000-4000-8000-0000ce85bda5', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda6-0000-4000-8000-0000ce85bda6', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda7-0000-4000-8000-0000ce85bda7', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce85bda8-0000-4000-8000-0000ce85bda8', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d52a-0000-4000-8000-0000ce93d52a', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d52b-0000-4000-8000-0000ce93d52b', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d52c-0000-4000-8000-0000ce93d52c', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d542-0000-4000-8000-0000ce93d542', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d543-0000-4000-8000-0000ce93d543', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d544-0000-4000-8000-0000ce93d544', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d545-0000-4000-8000-0000ce93d545', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d546-0000-4000-8000-0000ce93d546', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d547-0000-4000-8000-0000ce93d547', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('ce93d548-0000-4000-8000-0000ce93d548', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc24-0000-4000-8000-00003a90cc24', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325e3-0000-4000-8000-00001e5325e3', '3a90cc24-0000-4000-8000-00003a90cc24');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc25-0000-4000-8000-00003a90cc25', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325e4-0000-4000-8000-00001e5325e4', '3a90cc25-0000-4000-8000-00003a90cc25');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc26-0000-4000-8000-00003a90cc26', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325e5-0000-4000-8000-00001e5325e5', '3a90cc26-0000-4000-8000-00003a90cc26');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc3c-0000-4000-8000-00003a90cc3c', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325fb-0000-4000-8000-00001e5325fb', '3a90cc3c-0000-4000-8000-00003a90cc3c');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc3d-0000-4000-8000-00003a90cc3d', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325fc-0000-4000-8000-00001e5325fc', '3a90cc3d-0000-4000-8000-00003a90cc3d');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc3e-0000-4000-8000-00003a90cc3e', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325fd-0000-4000-8000-00001e5325fd', '3a90cc3e-0000-4000-8000-00003a90cc3e');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc3f-0000-4000-8000-00003a90cc3f', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325fe-0000-4000-8000-00001e5325fe', '3a90cc3f-0000-4000-8000-00003a90cc3f');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc40-0000-4000-8000-00003a90cc40', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e5325ff-0000-4000-8000-00001e5325ff', '3a90cc40-0000-4000-8000-00003a90cc40');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc41-0000-4000-8000-00003a90cc41', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e532600-0000-4000-8000-00001e532600', '3a90cc41-0000-4000-8000-00003a90cc41');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc42-0000-4000-8000-00003a90cc42', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e532601-0000-4000-8000-00001e532601', '3a90cc42-0000-4000-8000-00003a90cc42');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc43-0000-4000-8000-00003a90cc43', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e532602-0000-4000-8000-00001e532602', '3a90cc43-0000-4000-8000-00003a90cc43');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc44-0000-4000-8000-00003a90cc44', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e532603-0000-4000-8000-00001e532603', '3a90cc44-0000-4000-8000-00003a90cc44');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('3a90cc45-0000-4000-8000-00003a90cc45', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('1e532604-0000-4000-8000-00001e532604', '3a90cc45-0000-4000-8000-00003a90cc45');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d760b-0000-4000-8000-0000193d760b', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc6542c-0000-4000-8000-0000adc6542c', '193d760b-0000-4000-8000-0000193d760b');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d760c-0000-4000-8000-0000193d760c', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc6542d-0000-4000-8000-0000adc6542d', '193d760c-0000-4000-8000-0000193d760c');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d760d-0000-4000-8000-0000193d760d', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc6542e-0000-4000-8000-0000adc6542e', '193d760d-0000-4000-8000-0000193d760d');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d760e-0000-4000-8000-0000193d760e', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc6542f-0000-4000-8000-0000adc6542f', '193d760e-0000-4000-8000-0000193d760e');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d760f-0000-4000-8000-0000193d760f', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc65430-0000-4000-8000-0000adc65430', '193d760f-0000-4000-8000-0000193d760f');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d7610-0000-4000-8000-0000193d7610', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc65431-0000-4000-8000-0000adc65431', '193d7610-0000-4000-8000-0000193d7610');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d7611-0000-4000-8000-0000193d7611', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc65432-0000-4000-8000-0000adc65432', '193d7611-0000-4000-8000-0000193d7611');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d7612-0000-4000-8000-0000193d7612', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc65433-0000-4000-8000-0000adc65433', '193d7612-0000-4000-8000-0000193d7612');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d7613-0000-4000-8000-0000193d7613', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc65434-0000-4000-8000-0000adc65434', '193d7613-0000-4000-8000-0000193d7613');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('193d7614-0000-4000-8000-0000193d7614', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbud (id, foresporsel_id) values ('adc65435-0000-4000-8000-0000adc65435', '193d7614-0000-4000-8000-0000193d7614');
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e1-0000-4000-8000-0000441535e1', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e2-0000-4000-8000-0000441535e2', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e3-0000-4000-8000-0000441535e3', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e4-0000-4000-8000-0000441535e4', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e5-0000-4000-8000-0000441535e5', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e6-0000-4000-8000-0000441535e6', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e7-0000-4000-8000-0000441535e7', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e8-0000-4000-8000-0000441535e8', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535e9-0000-4000-8000-0000441535e9', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('441535ea-0000-4000-8000-0000441535ea', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('44153600-0000-4000-8000-000044153600', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('44153601-0000-4000-8000-000044153601', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('44153602-0000-4000-8000-000044153602', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea2-0000-4000-8000-000045ca0ea2', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea3-0000-4000-8000-000045ca0ea3', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea4-0000-4000-8000-000045ca0ea4', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea5-0000-4000-8000-000045ca0ea5', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea6-0000-4000-8000-000045ca0ea6', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea7-0000-4000-8000-000045ca0ea7', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ea8-0000-4000-8000-000045ca0ea8', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ebe-0000-4000-8000-000045ca0ebe', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ebf-0000-4000-8000-000045ca0ebf', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('45ca0ec0-0000-4000-8000-000045ca0ec0', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true);
 -- --- varsler: forutsetninger og proberader ---
 insert into public.varsler (id, retailer_id, stasjon_id, type, tittel, tekst) values ('aef22628-0000-4000-8000-0000aef22628', 'aaaa0000-0000-4000-8000-000000000000', null, 'sonde', 'Sondevarsel nullA', 'Sonde');
 insert into public.varsler (id, retailer_id, stasjon_id, type, tittel, tekst) values ('aef22629-0000-4000-8000-0000aef22629', 'bbbb0000-0000-4000-8000-000000000000', null, 'sonde', 'Sondevarsel nullB', 'Sonde');
@@ -284,6 +380,14 @@ insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id,
 insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841c5-0000-4000-8000-0000db4841c5', 'aaaa0000-0000-4000-8000-000000000000', 'a1110000-0000-4000-8000-000000000003', 'c0d80711-0000-4000-8000-0000c0d80711', gen_random_uuid(), date '2026-01-01' + 9, 'morgen', 'Sonderutine', '06:00', '14:00');
 insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841e2-0000-4000-8000-0000db4841e2', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000001', '5a36090a-0000-4000-8000-00005a36090a', gen_random_uuid(), date '2026-01-01' + 10, 'morgen', 'Sonderutine', '06:00', '14:00');
 insert into public.rutine_forventninger (id, retailer_id, stasjon_id, rutine_id, skjema_id, dato, vakttype, rutine_tittel, forventet_start, forventet_slutt) values ('db4841e3-0000-4000-8000-0000db4841e3', 'bbbb0000-0000-4000-8000-000000000000', 'b1110000-0000-4000-8000-000000000002', '5a367d6a-0000-4000-8000-00005a367d6a', gen_random_uuid(), date '2026-01-01' + 11, 'morgen', 'Sonderutine', '06:00', '14:00');
+-- --- tilbudsforesporsler: forutsetninger og proberader ---
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('bd69b5c2-0000-4000-8000-0000bd69b5c2', 'Sondekunde global', 'Sonde', 'sonde-global@example.invalid', '00000000', 1, true);
+-- --- tilbud: forutsetninger og proberader ---
+insert into public.tilbud (id, foresporsel_id) values ('992330a3-0000-4000-8000-0000992330a3', 'ce85bceb-0000-4000-8000-0000ce85bceb');
+-- --- avtale_revisjon: forutsetninger og proberader ---
+insert into public.avtale_revisjon (id, tilbud_id, handling) values ('ffdf0b5d-0000-4000-8000-0000ffdf0b5d', '1e532507-0000-4000-8000-00001e532507', 'sonde');
+-- --- tilbudsforesporsel_revisjon: forutsetninger og proberader ---
+insert into public.tilbudsforesporsel_revisjon (id, foresporsel_id, handling) values ('ac332947-0000-4000-8000-0000ac332947', '4c84d033-0000-4000-8000-00004c84d033', 'sonde');
 
 -- =====================================================================
 -- varsler  (retailer_or_station, warm)
@@ -516,6 +620,218 @@ select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet
 select pg_temp.paastand('rutine_forventninger tablet_B1 SELECT B1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e2-0000-4000-8000-0000db4841e2'), 'negativ');
 select pg_temp.paastand('rutine_forventninger tablet_B1 SELECT B2 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841e3-0000-4000-8000-0000db4841e3'), 'negativ');
 select pg_temp.paastand('rutine_forventninger tablet_B1 SELECT A1 -> ser ikke', not exists (select 1 from public.rutine_forventninger where id = 'db4841c3-0000-4000-8000-0000db4841c3'), 'negativ');
+
+-- =====================================================================
+-- tilbudsforesporsler  (global, warm)
+-- =====================================================================
+select pg_temp.sett_gruppe('tilbudsforesporsler');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
+select pg_temp.paastand('tilbudsforesporsler owner_A SELECT den globale raden -> ser', exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'positiv');
+select pg_temp.skriv_tillatt('tilbudsforesporsler owner_A INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gowner_Ainsert'', ''Sonde'', ''sonde-gowner_Ainsert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_tillatt('tilbudsforesporsler owner_A UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''');
+select pg_temp.skriv_tillatt('tilbudsforesporsler owner_A DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''');
+select pg_temp.som_eier();
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('bd69b5c2-0000-4000-8000-0000bd69b5c2', 'Sondekunde ggjenowner_A', 'Sonde', 'sonde-ggjenowner_A@example.invalid', '00000000', 1, true);
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
+select pg_temp.paastand('tilbudsforesporsler manager_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_A1 INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gmanager_A1insert'', ''Sonde'', ''sonde-gmanager_A1insert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_A1 UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_A1 DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
+select pg_temp.paastand('tilbudsforesporsler manager_A12 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_A12 INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gmanager_A12insert'', ''Sonde'', ''sonde-gmanager_A12insert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_A12 UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_A12 DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
+select pg_temp.paastand('tilbudsforesporsler tablet_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsler tablet_A1 INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gtablet_A1insert'', ''Sonde'', ''sonde-gtablet_A1insert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_avvist('tilbudsforesporsler tablet_A1 UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsler tablet_A1 DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
+select pg_temp.paastand('tilbudsforesporsler owner_B SELECT den globale raden -> ser', exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'positiv');
+select pg_temp.skriv_tillatt('tilbudsforesporsler owner_B INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gowner_Binsert'', ''Sonde'', ''sonde-gowner_Binsert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_tillatt('tilbudsforesporsler owner_B UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''');
+select pg_temp.skriv_tillatt('tilbudsforesporsler owner_B DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''');
+select pg_temp.som_eier();
+insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('bd69b5c2-0000-4000-8000-0000bd69b5c2', 'Sondekunde ggjenowner_B', 'Sonde', 'sonde-ggjenowner_B@example.invalid', '00000000', 1, true);
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
+select pg_temp.paastand('tilbudsforesporsler manager_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_B1 INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gmanager_B1insert'', ''Sonde'', ''sonde-gmanager_B1insert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_B1 UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsler manager_B1 DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
+select pg_temp.paastand('tilbudsforesporsler tablet_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsler where id = 'bd69b5c2-0000-4000-8000-0000bd69b5c2'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsler tablet_B1 INSERT den globale raden', 'insert into public.tilbudsforesporsler (virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values (''Sondekunde gtablet_B1insert'', ''Sonde'', ''sonde-gtablet_B1insert@example.invalid'', ''00000000'', 1, true)');
+select pg_temp.skriv_avvist('tilbudsforesporsler tablet_B1 UPDATE den globale raden', 'update public.tilbudsforesporsler set virksomhet = ''Sondekunde endret'' where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsler tablet_B1 DELETE den globale raden', 'delete from public.tilbudsforesporsler where id = ''bd69b5c2-0000-4000-8000-0000bd69b5c2''', 'tilbudsforesporsler', 'bd69b5c2-0000-4000-8000-0000bd69b5c2', 'id');
+
+-- =====================================================================
+-- tilbud  (global, warm)
+-- =====================================================================
+select pg_temp.sett_gruppe('tilbud');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
+select pg_temp.paastand('tilbud owner_A SELECT den globale raden -> ser', exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'positiv');
+select pg_temp.skriv_tillatt('tilbud owner_A INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce85bd87-0000-4000-8000-0000ce85bd87'')');
+select pg_temp.skriv_tillatt('tilbud owner_A UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''');
+select pg_temp.skriv_tillatt('tilbud owner_A DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''');
+select pg_temp.som_eier();
+insert into public.tilbud (id, foresporsel_id) values ('992330a3-0000-4000-8000-0000992330a3', 'ce85bd8a-0000-4000-8000-0000ce85bd8a');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
+select pg_temp.paastand('tilbud manager_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'negativ');
+select pg_temp.skriv_avvist('tilbud manager_A1 INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce85bd8b-0000-4000-8000-0000ce85bd8b'')');
+select pg_temp.skriv_avvist('tilbud manager_A1 UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+select pg_temp.skriv_avvist('tilbud manager_A1 DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
+select pg_temp.paastand('tilbud manager_A12 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'negativ');
+select pg_temp.skriv_avvist('tilbud manager_A12 INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce85bda3-0000-4000-8000-0000ce85bda3'')');
+select pg_temp.skriv_avvist('tilbud manager_A12 UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+select pg_temp.skriv_avvist('tilbud manager_A12 DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
+select pg_temp.paastand('tilbud tablet_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'negativ');
+select pg_temp.skriv_avvist('tilbud tablet_A1 INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce85bda6-0000-4000-8000-0000ce85bda6'')');
+select pg_temp.skriv_avvist('tilbud tablet_A1 UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+select pg_temp.skriv_avvist('tilbud tablet_A1 DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
+select pg_temp.paastand('tilbud owner_B SELECT den globale raden -> ser', exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'positiv');
+select pg_temp.skriv_tillatt('tilbud owner_B INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce93d52a-0000-4000-8000-0000ce93d52a'')');
+select pg_temp.skriv_tillatt('tilbud owner_B UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''');
+select pg_temp.skriv_tillatt('tilbud owner_B DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''');
+select pg_temp.som_eier();
+insert into public.tilbud (id, foresporsel_id) values ('992330a3-0000-4000-8000-0000992330a3', 'ce93d542-0000-4000-8000-0000ce93d542');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
+select pg_temp.paastand('tilbud manager_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'negativ');
+select pg_temp.skriv_avvist('tilbud manager_B1 INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce93d543-0000-4000-8000-0000ce93d543'')');
+select pg_temp.skriv_avvist('tilbud manager_B1 UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+select pg_temp.skriv_avvist('tilbud manager_B1 DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
+select pg_temp.paastand('tilbud tablet_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbud where id = '992330a3-0000-4000-8000-0000992330a3'), 'negativ');
+select pg_temp.skriv_avvist('tilbud tablet_B1 INSERT den globale raden', 'insert into public.tilbud (foresporsel_id) values (''ce93d546-0000-4000-8000-0000ce93d546'')');
+select pg_temp.skriv_avvist('tilbud tablet_B1 UPDATE den globale raden', 'update public.tilbud set status = ''sendt'' where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+select pg_temp.skriv_avvist('tilbud tablet_B1 DELETE den globale raden', 'delete from public.tilbud where id = ''992330a3-0000-4000-8000-0000992330a3''', 'tilbud', '992330a3-0000-4000-8000-0000992330a3', 'id');
+
+-- =====================================================================
+-- avtale_revisjon  (global, warm)
+-- =====================================================================
+select pg_temp.sett_gruppe('avtale_revisjon');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
+select pg_temp.paastand('avtale_revisjon owner_A SELECT den globale raden -> ser', exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'positiv');
+select pg_temp.skriv_tillatt('avtale_revisjon owner_A INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''1e5325e3-0000-4000-8000-00001e5325e3'', ''sonde'')');
+select pg_temp.skriv_tillatt('avtale_revisjon owner_A UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''');
+select pg_temp.skriv_tillatt('avtale_revisjon owner_A DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''');
+select pg_temp.som_eier();
+insert into public.avtale_revisjon (id, tilbud_id, handling) values ('ffdf0b5d-0000-4000-8000-0000ffdf0b5d', '1e5325fb-0000-4000-8000-00001e5325fb', 'sonde');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
+select pg_temp.paastand('avtale_revisjon manager_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'negativ');
+select pg_temp.skriv_avvist('avtale_revisjon manager_A1 INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''1e5325fc-0000-4000-8000-00001e5325fc'', ''sonde'')');
+select pg_temp.skriv_avvist('avtale_revisjon manager_A1 UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+select pg_temp.skriv_avvist('avtale_revisjon manager_A1 DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
+select pg_temp.paastand('avtale_revisjon manager_A12 SELECT den globale raden -> ser ikke', not exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'negativ');
+select pg_temp.skriv_avvist('avtale_revisjon manager_A12 INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''1e5325ff-0000-4000-8000-00001e5325ff'', ''sonde'')');
+select pg_temp.skriv_avvist('avtale_revisjon manager_A12 UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+select pg_temp.skriv_avvist('avtale_revisjon manager_A12 DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
+select pg_temp.paastand('avtale_revisjon tablet_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'negativ');
+select pg_temp.skriv_avvist('avtale_revisjon tablet_A1 INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''1e532602-0000-4000-8000-00001e532602'', ''sonde'')');
+select pg_temp.skriv_avvist('avtale_revisjon tablet_A1 UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+select pg_temp.skriv_avvist('avtale_revisjon tablet_A1 DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
+select pg_temp.paastand('avtale_revisjon owner_B SELECT den globale raden -> ser', exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'positiv');
+select pg_temp.skriv_tillatt('avtale_revisjon owner_B INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''adc6542c-0000-4000-8000-0000adc6542c'', ''sonde'')');
+select pg_temp.skriv_tillatt('avtale_revisjon owner_B UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''');
+select pg_temp.skriv_tillatt('avtale_revisjon owner_B DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''');
+select pg_temp.som_eier();
+insert into public.avtale_revisjon (id, tilbud_id, handling) values ('ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'adc6542f-0000-4000-8000-0000adc6542f', 'sonde');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
+select pg_temp.paastand('avtale_revisjon manager_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'negativ');
+select pg_temp.skriv_avvist('avtale_revisjon manager_B1 INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''adc65430-0000-4000-8000-0000adc65430'', ''sonde'')');
+select pg_temp.skriv_avvist('avtale_revisjon manager_B1 UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+select pg_temp.skriv_avvist('avtale_revisjon manager_B1 DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
+select pg_temp.paastand('avtale_revisjon tablet_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.avtale_revisjon where id = 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d'), 'negativ');
+select pg_temp.skriv_avvist('avtale_revisjon tablet_B1 INSERT den globale raden', 'insert into public.avtale_revisjon (tilbud_id, handling) values (''adc65433-0000-4000-8000-0000adc65433'', ''sonde'')');
+select pg_temp.skriv_avvist('avtale_revisjon tablet_B1 UPDATE den globale raden', 'update public.avtale_revisjon set endringer = ''{}''::jsonb where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+select pg_temp.skriv_avvist('avtale_revisjon tablet_B1 DELETE den globale raden', 'delete from public.avtale_revisjon where id = ''ffdf0b5d-0000-4000-8000-0000ffdf0b5d''', 'avtale_revisjon', 'ffdf0b5d-0000-4000-8000-0000ffdf0b5d', 'id');
+
+-- =====================================================================
+-- tilbudsforesporsel_revisjon  (global, warm)
+-- =====================================================================
+select pg_temp.sett_gruppe('tilbudsforesporsel_revisjon');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');   -- owner_A
+select pg_temp.paastand('tilbudsforesporsel_revisjon owner_A SELECT den globale raden -> ser', exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'positiv');
+select pg_temp.skriv_tillatt('tilbudsforesporsel_revisjon owner_A INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''441535e1-0000-4000-8000-0000441535e1'', ''sonde'')');
+select pg_temp.skriv_tillatt('tilbudsforesporsel_revisjon owner_A UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''');
+select pg_temp.skriv_tillatt('tilbudsforesporsel_revisjon owner_A DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''');
+select pg_temp.som_eier();
+insert into public.tilbudsforesporsel_revisjon (id, foresporsel_id, handling) values ('ac332947-0000-4000-8000-0000ac332947', '441535e4-0000-4000-8000-0000441535e4', 'sonde');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a001');   -- manager_A1
+select pg_temp.paastand('tilbudsforesporsel_revisjon manager_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_A1 INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''441535e5-0000-4000-8000-0000441535e5'', ''sonde'')');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_A1 UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_A1 DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a012');   -- manager_A12
+select pg_temp.paastand('tilbudsforesporsel_revisjon manager_A12 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_A12 INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''441535e8-0000-4000-8000-0000441535e8'', ''sonde'')');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_A12 UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_A12 DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000a101');   -- tablet_A1
+select pg_temp.paastand('tilbudsforesporsel_revisjon tablet_A1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon tablet_A1 INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''44153600-0000-4000-8000-000044153600'', ''sonde'')');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon tablet_A1 UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon tablet_A1 DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');   -- owner_B
+select pg_temp.paastand('tilbudsforesporsel_revisjon owner_B SELECT den globale raden -> ser', exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'positiv');
+select pg_temp.skriv_tillatt('tilbudsforesporsel_revisjon owner_B INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''45ca0ea2-0000-4000-8000-000045ca0ea2'', ''sonde'')');
+select pg_temp.skriv_tillatt('tilbudsforesporsel_revisjon owner_B UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''');
+select pg_temp.skriv_tillatt('tilbudsforesporsel_revisjon owner_B DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''');
+select pg_temp.som_eier();
+insert into public.tilbudsforesporsel_revisjon (id, foresporsel_id, handling) values ('ac332947-0000-4000-8000-0000ac332947', '45ca0ea5-0000-4000-8000-000045ca0ea5', 'sonde');
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b000');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b001');   -- manager_B1
+select pg_temp.paastand('tilbudsforesporsel_revisjon manager_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_B1 INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''45ca0ea6-0000-4000-8000-000045ca0ea6'', ''sonde'')');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_B1 UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon manager_B1 DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+
+select pg_temp.logg_inn_som('00000000-0000-0000-0000-00000000b101');   -- tablet_B1
+select pg_temp.paastand('tilbudsforesporsel_revisjon tablet_B1 SELECT den globale raden -> ser ikke', not exists (select 1 from public.tilbudsforesporsel_revisjon where id = 'ac332947-0000-4000-8000-0000ac332947'), 'negativ');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon tablet_B1 INSERT den globale raden', 'insert into public.tilbudsforesporsel_revisjon (foresporsel_id, handling) values (''45ca0ebe-0000-4000-8000-000045ca0ebe'', ''sonde'')');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon tablet_B1 UPDATE den globale raden', 'update public.tilbudsforesporsel_revisjon set endringer = ''{}''::jsonb where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
+select pg_temp.skriv_avvist('tilbudsforesporsel_revisjon tablet_B1 DELETE den globale raden', 'delete from public.tilbudsforesporsel_revisjon where id = ''ac332947-0000-4000-8000-0000ac332947''', 'tilbudsforesporsel_revisjon', 'ac332947-0000-4000-8000-0000ac332947', 'id');
 
 select pg_temp.som_eier();
 

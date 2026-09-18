@@ -49,7 +49,7 @@ export function Landing() {
           </nav>
           <div className="lp-nav-hoyre">
             <Link className="lp-logginn" href="/logg-inn">Logg inn</Link>
-            <Link className="lp-knapp" href="/registrer">Kom i gang</Link>
+            <Link className="lp-knapp" href="/tilbud">Be om tilbud</Link>
           </div>
         </div>
       </header>
@@ -77,7 +77,8 @@ export function Landing() {
               <span className="lp-dim">Sentiqa gjør noe med dem.</span>
             </h2>
             <div className="lp-cta lp-cta-midt">
-              <Link className="lp-knapp lp-knapp-stor" href="/registrer">Kom i gang</Link>
+              <Link className="lp-knapp lp-knapp-stor" href="/tilbud">Be om tilbud</Link>
+              <Link className="lp-knapp lp-knapp-stor lp-knapp-stille" href="/registrer">Har du allerede fått tilgang?</Link>
               <a className="lp-knapp lp-knapp-stor lp-knapp-stille" href="#produkt">
                 Se hvordan det virker
               </a>
