@@ -1023,6 +1023,7 @@ button.liten.slett:hover { background: #fdecea; }
 
 /* Rutine-rangering */
 .rangering-topp { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.rangering-plass { font-size: 1.3rem; min-width: 2rem; }
 .streak { font-weight: 700; color: #d9480f; font-size: 0.9rem; }
 
 /* Rutineoppsett */
