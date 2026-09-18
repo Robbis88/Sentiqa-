@@ -9,6 +9,8 @@ import { SKJUL_OMS_KODER as SKJUL_OMS } from '@/lib/avdelinger'
 import { PeriodeVelger } from '../periode-velger'
 import { Sidehode, Tomtilstand, Forklaring } from '@/components/ui/side'
 import { motBudsjett, storsteAvvik, svaret } from '@/lib/regnskap/mot-budsjett'
+import { lagRapportKontekst } from '@/lib/regnskap/rapport-kontekst'
+import { SvinnSeksjon } from './svinn-seksjon'
 
 type Linje = { seksjon: string; kode: string | null; begrep: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null; regnskap_hittil?: number | null; budsjett_hittil?: number | null }
 type Kost = { navn: string; regnskap: number; budsjett: number }
@@ -69,12 +71,17 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   // Summer månedene jan→valgt (hittil) eller den ene måneden — RLS gir kun egne
   // stasjoner; vi filtrerer til valgt stasjon. (Per-stasjon-hittil i basen er 0.)
   const fra = hittil ? `${ytdAar}-01-01` : aktivPeriode
+  const kontekst = lagRapportKontekst({ stasjonId: stasjon.id, periode: aktivPeriode, modus: hittil ? 'hittil' : 'maaned' })
   // `regnskap_sum` er den samme funksjonen som `0065` skrev bare
   // halvparten av. Svelges feilen, viser sida et tomt regnskap i stedet
   // for å si at oppslaget ikke gikk — og et tomt regnskap ser ut som en
   // måned uten tall.
   const { data: alle, error } = await supabase.rpc('regnskap_sum', { p_fra: fra, p_til: aktivPeriode })
   if (error) throw new Error(`regnskap_sum feilet: ${error.message}`)
+  const [{ data: svinnData }, { data: dekning }] = await Promise.all([
+    supabase.rpc('regnskap_svinn_rapport', { p_fra: kontekst.fra, p_til: kontekst.til, p_stasjon_id: stasjon.id }),
+    supabase.from('v_datadekning').select('kilde, siste_dato').eq('stasjon_id', stasjon.id),
+  ])
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; begrep: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
   const linjer: Linje[] = ((alle ?? []) as SumRad[])
     .filter((r) => r.stasjon_id === stasjon.id)
@@ -181,6 +188,8 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
           Avvik under 2 % regnes som truffet budsjett på hovedtallene.
         </p>
       </Forklaring>
+
+      <SvinnSeksjon rader={(svinnData ?? []) as Parameters<typeof SvinnSeksjon>[0]['rader']} dekning={(dekning ?? []) as Parameters<typeof SvinnSeksjon>[0]['dekning']} periodeetikett={kontekst.etikett} komplett={Boolean(svinnData && svinnData.length > 0)} />
 
       {(['omsetning', 'bruttofortjeneste'] as const).map((navn) => (
         <section className="kort" key={navn}>

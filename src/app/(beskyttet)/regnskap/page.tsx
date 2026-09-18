@@ -14,6 +14,8 @@ import { Sidehode, Tomtilstand, Forklaring, Nokkeltall, Datatabell } from '@/com
 import { Status, type Statusnivaa } from '@/components/ui/status'
 import { motBudsjett, storsteAvvik, driverne, svaret, type Driver } from '@/lib/regnskap/mot-budsjett'
 import { Sideramme } from '@/components/ui/sideramme'
+import { lagRapportKontekst } from '@/lib/regnskap/rapport-kontekst'
+import { SvinnSeksjon } from './svinn-seksjon'
 
 type Linje = {
   seksjon: string
@@ -112,10 +114,9 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   // cluster vs. per-stasjon i JS. Summerer månedene selv — så måned/år henger
   // sammen og per-stasjon-hittil ikke blir null (Azets fyller hittil kun cluster).
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
-  const [{ data: alle, error: sumfeil }, { data: stasjoner }, varsler] = await Promise.all([
+  const [{ data: alle, error: sumfeil }, { data: stasjoner }] = await Promise.all([
     supabase.rpc('regnskap_sum', { p_fra: fra, p_til: til }),
     supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
-    bruker.retailerId ? hentRegnskapVarsler(supabase, bruker.retailerId, aktivPeriode).catch(() => []) : Promise.resolve([]),
   ])
   // ET TOMT REGNSKAP SER UT SOM EN MÅNED UTEN TALL.
   // `0065` ble kjørt halvveis en gang; da fantes `regnskap_sum` ikke,
@@ -137,6 +138,16 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
     stasjonsliste, stasjonFraUrl(sok, stasjonsliste),
     tillatAlleFor('/regnskap', bruker.rolle, stasjonsliste.length),
   )
+  const kontekst = lagRapportKontekst({ stasjonId: valgtStasjon, periode: aktivPeriode, modus: hittil ? 'hittil' : 'maaned' })
+  const forrigePeriode = !hittil ? liste.find((p) => p < aktivPeriode) : null
+  const fjorPeriode = !hittil ? liste.find((p) => p === `${String(Number(aktivPeriode.slice(0, 4)) - 1)}-${aktivPeriode.slice(5, 7)}-01`) : null
+  const [{ data: svinnData }, { data: dekning }, { data: forrigeData }, { data: fjorData }, varsler] = await Promise.all([
+    supabase.rpc('svinn_sum', { p_fra: kontekst.fra, p_til: kontekst.til }),
+    supabase.from('v_datadekning').select('kilde, siste_dato').eq('stasjon_id', valgtStasjon ?? ''),
+    forrigePeriode ? supabase.rpc('svinn_sum', { p_fra: forrigePeriode, p_til: forrigePeriode }) : Promise.resolve({ data: null }),
+    fjorPeriode ? supabase.rpc('svinn_sum', { p_fra: fjorPeriode, p_til: fjorPeriode }) : Promise.resolve({ data: null }),
+    bruker.retailerId ? hentRegnskapVarsler(supabase, bruker.retailerId, kontekst.til, { fra: kontekst.fra, stasjonId: valgtStasjon }) : Promise.resolve([]),
+  ])
 
   const medAvvik = <T extends { regnskap: number | null; budsjett: number | null }>(r: T) => ({
     ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0),
@@ -211,7 +222,7 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   ]
 
   // Varsler: stasjonsvisning viser kun valgt stasjons varsler; ellers alle.
-  const visVarsler = erStasjon ? varsler.filter((v) => v.omfang === valgtNavn) : varsler
+  const visVarsler = varsler
 
   // NIVÅ 1 — svaret. Bunnlinja er hovedtallet når den finnes. Per stasjon
   // gjør den ikke det (resultatlinjene er kun på cluster-nivå), og da er
@@ -316,7 +327,8 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
         </section>
       )}
 
-      <RegnskapVarsler varsler={visVarsler} aar={aktivPeriode.slice(0, 4)} />
+      <RegnskapVarsler varsler={visVarsler} periode={kontekst.etikett} />
+      <SvinnSeksjon rader={((svinnData ?? []).filter((r: { stasjon_id?: string | null }) => !valgtStasjon || r.stasjon_id === valgtStasjon)) as Parameters<typeof SvinnSeksjon>[0]['rader']} forrige={((forrigeData ?? []).filter((r: { stasjon_id?: string | null }) => !valgtStasjon || r.stasjon_id === valgtStasjon)) as Parameters<typeof SvinnSeksjon>[0]['forrige']} fjor={((fjorData ?? []).filter((r: { stasjon_id?: string | null }) => !valgtStasjon || r.stasjon_id === valgtStasjon)) as Parameters<typeof SvinnSeksjon>[0]['fjor']} dekning={(dekning ?? []) as Parameters<typeof SvinnSeksjon>[0]['dekning']} periodeetikett={kontekst.etikett} komplett={Boolean(svinnData && svinnData.length > 0)} />
 
       {/* FORTEGNET I ORD. «−14 628 kr usynlig svinn» krever at leseren
           kan regelen; uten den leses et minus som noe negativt. */}

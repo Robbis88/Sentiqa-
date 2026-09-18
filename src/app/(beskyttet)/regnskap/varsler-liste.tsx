@@ -2,12 +2,12 @@ import type { RegnskapVarsel } from '@/lib/regnskap-varsler'
 
 // Admin-varsler etter opplastet regnskap: «alt som ikke er bra», sortert rød→gul.
 export function RegnskapVarsler(
-  { varsler, aar }: { varsler: RegnskapVarsel[]; aar: string },
+  { varsler, periode }: { varsler: RegnskapVarsel[]; periode: string },
 ) {
   if (varsler.length === 0) {
     return (
       <section className="kort varsler-tom">
-        <p>✅ Alt ser bra ut — ingen varsler hittil i {aar}.</p>
+        <p>✅ Alt ser bra ut — ingen varsler for {periode}.</p>
       </section>
     )
   }
@@ -36,7 +36,7 @@ export function RegnskapVarsler(
           <h2>
             ⚠️ Varsler ({varsler.length})
             {' '}
-            <span className="undertittel">hittil i {aar}</span>
+            <span className="undertittel">{periode}</span>
             <span className="varsler-teller">
               {rod > 0 && <span className="status-pip rod">{rod} krever tiltak</span>}
               {gul > 0 && <span className="status-pip gul">{gul} følg med</span>}

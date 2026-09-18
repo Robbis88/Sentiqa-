@@ -114,6 +114,9 @@ export type RegnskapVarsel = {
    * leser det ikke, og er uendret.
    */
   sak: Signalsak | null
+  stasjonId?: string | null
+  fra?: string
+  til?: string
 }
 
 import { TERSKLER } from './regnskap/terskler'
@@ -213,8 +216,9 @@ export async function hentRegnskapVarsler(
   supabase: SupabaseClient,
   retailerId: string,
   periode: string,
+  options: { fra?: string; stasjonId?: string | null; modus?: 'maaned' | 'hittil' } = {},
 ): Promise<RegnskapVarsel[]> {
-  const fra = `${periode.slice(0, 4)}-01-01` // ny start hvert år
+  const fra = options.fra ?? `${periode.slice(0, 4)}-01-01`
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
   type SvinnRad = { stasjon_id: string | null; kode: string | null; navn: string; salg: number | null; usynlig_kr: number | null; kast: number | null }
   // SJEKKER `error`. `svinn_sum` manglet i produksjon fordi `0065` var
@@ -242,7 +246,7 @@ export async function hentRegnskapVarsler(
     index_pct: r.budsjett ? (((r.regnskap ?? 0) - r.budsjett) / r.budsjett) * 100 : null,
   }))
   const svinn: Svinn[] = ((sumSvinn ?? []) as SvinnRad[]).map((s) => ({
-    ...s, usynlig_pst: s.salg ? ((s.usynlig_kr ?? 0) / s.salg) * 100 : 0,
+    ...s, usynlig_pst: s.salg && s.salg > 1000 ? ((s.usynlig_kr ?? 0) / s.salg) * 100 : null,
   }))
   const cluster = alle.filter((l) => l.stasjon_id == null)
   const v: RegnskapVarsel[] = []
@@ -372,7 +376,7 @@ export async function hentRegnskapVarsler(
     if (krV > 0 && (krV >= T.mankoGul || pstV >= T.mankoPstGul)) {
       // Rød krever reelt beløp: ≥15k, eller ≥10 % AND ≥5k. Smått = gul (flagges, men ikke rødt).
       const rod = krV >= T.mankoRod || (pstV >= T.mankoPstRod && krV >= T.mankoGul)
-      legg(rod ? 'rod' : 'gul', navn, `${s.navn}: ${kr0(krV)} usynlig manko`, `${Math.round(pstV)} % av salg — penger/varer borte etter telling.`, krV, 2, vareSak('usynlig_manko', s))
+      legg(rod ? 'rod' : 'gul', navn, `${s.navn}: ${kr0(krV)} usynlig manko`, `${s.usynlig_pst == null ? 'Prosent kan ikke beregnes mot salg' : `${Math.round(pstV)} % av salg`} — mulig avvik etter telling, må undersøkes.`, krV, 2, vareSak('usynlig_manko', s))
     } else if (krV < 0 && (-krV >= T.overskudd || -pstV >= T.overskuddPst)) {
       legg('gul', navn, `${s.navn}: ${kr0(krV)} usynlig overskudd`, `Uforklart overskudd — ofte feilslag/registrering på kassa.`, -krV, 2, vareSak('usynlig_overskudd', s))
     }
@@ -386,5 +390,8 @@ export async function hentRegnskapVarsler(
 
   // Rød først, så gruppe (selskap → nøkkeltall → svinn), så størst beløp øverst.
   const niv = (x: RegnskapVarsel) => (x.nivaa === 'rod' ? 0 : 1)
-  return v.sort((a, b) => niv(a) - niv(b) || a.gruppe - b.gruppe || b.vekt - a.vekt)
+  const sortert = v.sort((a, b) => niv(a) - niv(b) || a.gruppe - b.gruppe || b.vekt - a.vekt)
+  const navnTilId = new Map((stasjoner ?? []).map((s) => [`${s.butikknummer} ${s.navn}`, s.id]))
+  const medKontekst = sortert.map((x) => ({ ...x, stasjonId: x.omfang === 'Selskap' ? null : (navnTilId.get(x.omfang) ?? null), fra, til: periode }))
+  return options.stasjonId ? medKontekst.filter((x) => x.stasjonId === options.stasjonId) : medKontekst
 }
