@@ -246,6 +246,13 @@ export const forventetSalgVerktoy: {
             + 'Zero», «cola 0,5». Eller en EAN hvis du alt har den fra et '
             + 'tidligere svar i samtalen.',
         },
+        gruppe: {
+          type: 'string',
+          description:
+            'En avdeling, et vareområde eller en varegruppe brukeren spør om, '
+            + 'for eksempel «Mat», «Bakeri» eller «Påsmurt». Bruk dette når '
+            + 'spørsmålet gjelder flere varer; da trenger du ikke sende vare.',
+        },
         nivaa: {
           type: 'string',
           enum: ['avdeling', 'vareomrade', 'varegruppe', 'vare'],
@@ -263,7 +270,7 @@ export const forventetSalgVerktoy: {
             + 'brukeren har tilgang til.',
         },
       },
-      required: ['vare'],
+      required: [],
     },
   },
 
@@ -297,11 +304,16 @@ async function hentHierarki(supabase: Klient, stasjonIder: string[], idag: strin
     if ('feil' in periode) return byggSvar({ domene: 'forventet_salg', kilder: ['v_butikksalg'], feil: periode.feil })
     const maalDato = periode.fra
     const fra = leggTilDager(idag, -HISTORIKK_DAGER)
-    const soek = typeof input.vare === 'string' ? input.vare.trim() : ''
+    // En vare er valgfri når brukeren spør om en registrert gruppe. Gruppen
+    // løses mot det samme hierarkiet som vareoppslagene bruker; modellen skal
+    // ikke måtte kjenne interne varenavn eller EAN-er.
+    const vareSoek = typeof input.vare === 'string' ? input.vare.trim() : ''
+    const gruppeSoek = typeof input.gruppe === 'string' ? input.gruppe.trim() : ''
+    const soek = vareSoek || gruppeSoek
     if (!soek) {
       return byggSvar({
         domene: 'forventet_salg', kilder: ['v_butikksalg'],
-        feil: 'Ingen vare oppgitt.',
+        feil: 'Oppgi en vare eller en avdeling, et vareområde eller en varegruppe.',
       })
     }
 

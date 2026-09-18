@@ -71,7 +71,7 @@ function systemprompt(bruker: InnloggetBruker, idag: string, scope?: Scope): str
     '- lønnsrom, styringsavvik, over/under på lønn   ->  hent_lonnsrom',
     '- status mot businessplan                        ->  hent_bp_status',
     '- timer mot budsjett                             ->  hent_timeregnskap',
-    '- forventet salg per vare, avdeling eller varegruppe -> forventet_salg (bruk vare med brukerens ord; verktøyet løser nivået)',
+    '- forventet salg per vare, avdeling eller varegruppe -> forventet_salg (bruk vare for én vare; bruk gruppe for Mat, Påsmurt, Bakeri eller annet registrert område)',
     'Finner du ikke et verktøy for tallet, si at Sentiqa ikke har det — '
     + 'ikke bygg det av noe annet.',
     '',
