@@ -14,6 +14,7 @@ export type LinjeData = {
   planlagt: number
   start_antall?: number
   ekskludert?: boolean
+  forklaringsspor?: Record<string, unknown> | null
 }
 
 export type PlansnapshotLinje = Omit<LinjeData, 'stasjon_id' | 'dato'>
@@ -47,6 +48,7 @@ export async function setLinje(data: LinjeData): Promise<void> {
       planlagt: Math.max(0, Math.round(data.planlagt)),
       start_antall: Math.max(0, Math.round(data.start_antall ?? 0)),
       ekskludert: data.ekskludert ?? false,
+      forklaringsspor: data.forklaringsspor ?? null,
       oppdatert_tid: new Date().toISOString(),
     },
     { onConflict: 'stasjon_id,dato,varenavn', count: 'exact' },

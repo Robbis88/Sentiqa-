@@ -1556,7 +1556,7 @@ export const VERKTOY: Record<string, Verktoy> = {
         les<Produksjonsrad>(
           supabase
             .from('produksjonsplan_linjer')
-            .select('stasjon_id, dato, varenavn, varegruppe_kode, varegruppe_navn, foreslatt, planlagt')
+            .select('id, stasjon_id, dato, varenavn, varegruppe_kode, varegruppe_navn, foreslatt, planlagt, start_antall, forklaringsspor')
             .in('stasjon_id', stasjoner.map((s) => s.id))
             .gte('dato', periode!.fra)
             .lte('dato', periode!.til)
@@ -1566,10 +1566,10 @@ export const VERKTOY: Record<string, Verktoy> = {
       stasjonAv: (r) => r.stasjon_id,
       erMaltNull: (rader) => sum(rader, 'planlagt') === 0,
       form: (rader, kart) => {
-        const per = new Map<string, { foreslatt: number; planlagt: number; navn: string }>()
+        const per = new Map<string, { foreslatt: number; planlagt: number; navn: string; forklaringsspor: Record<string, unknown> | null }>()
         for (const r of rader) {
           const k = `${r.stasjon_id}|${r.varenavn}`
-          const e = per.get(k) ?? { foreslatt: 0, planlagt: 0, navn: r.varenavn }
+          const e = per.get(k) ?? { foreslatt: 0, planlagt: 0, navn: r.varenavn, forklaringsspor: r.forklaringsspor ?? null }
           e.foreslatt += Number(r.foreslatt) || 0
           e.planlagt += Number(r.planlagt) || 0
           per.set(k, e)
@@ -1580,6 +1580,7 @@ export const VERKTOY: Record<string, Verktoy> = {
             vare: v.navn,
             foreslatt: rund(v.foreslatt),
             planlagt: rund(v.planlagt),
+            forklaring: v.forklaringsspor ?? 'Beregningsgrunnlaget ble ikke lagret for denne kjøringen.',
           }))
           .sort((a, b) => b.planlagt - a.planlagt)
       },
@@ -2183,6 +2184,7 @@ type Varselrad = {
   opprettet_tid: string
 }
 type Produksjonsrad = {
+  id?: string
   stasjon_id: string
   dato: string
   varenavn: string
@@ -2190,6 +2192,8 @@ type Produksjonsrad = {
   varegruppe_navn: string | null
   foreslatt: number | null
   planlagt: number | null
+  start_antall?: number | null
+  forklaringsspor?: Record<string, unknown> | null
 }
 type Fokusrad = {
   stasjon_id: string

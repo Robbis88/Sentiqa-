@@ -8,6 +8,7 @@ import { Knapp } from '@/components/ui/knapp'
 import { Status } from '@/components/ui/status'
 
 export type Produkt = {
+  id?: string
   varenavn: string
   baseline: number
   faktor: number
@@ -16,6 +17,25 @@ export type Produkt = {
   start_antall: number
   ekskludert: boolean
   flagg?: string[]
+  forklaring?: {
+    fjorDatoer: { dato: string; antall: number }[]
+    nyligeDatoer: { dato: string; antall: number }[]
+    historiskMedian: number | null
+    nyligGjennomsnitt: number | null
+    vaerfaktor: number
+    trendfaktor: number
+    trendProsent: number | null
+    arrangementFaktor: number
+    vaerBrukt: boolean
+    observasjoner: number
+    raattForslag: number
+    avrundetForslag: number
+    sikkerhet: 'lav' | 'middels' | 'hoy'
+    kalibreringFaktor?: number
+    modellForslag?: number
+    manueltAvvik?: boolean
+    startAntall?: number
+  }
 }
 export type Gruppe = { kode: string | null; navn: string; produkter: Produkt[] }
 
@@ -24,6 +44,34 @@ const FLAGG_MERKE: Record<string, { ikon: string; tekst: string }> = {
   paagaaende_kampanje: { ikon: '🎯', tekst: 'Mulig pågående kampanje — vektet 50/50' },
   ny: { ikon: '✨', tekst: 'Nytt produkt — basert på nylig salg' },
   fa_data: { ikon: '⚠️', tekst: 'Lite historikk' },
+}
+
+function HvorforProdukt({ p, planlagt, start }: { p: Produkt; planlagt: number; start: number }) {
+  const f = p.forklaring
+  if (!f) return null
+  const faktorer: string[] = []
+  if (f.fjorDatoer.length) faktorer.push(`historikk fra ${f.fjorDatoer.length} tilsvarende dag${f.fjorDatoer.length === 1 ? '' : 'er'}`)
+  if (f.nyligeDatoer.length) faktorer.push(`siste ${f.nyligeDatoer.length} salgsdag${f.nyligeDatoer.length === 1 ? '' : 'er'}`)
+  if (f.trendProsent != null && f.trendProsent !== 0) faktorer.push(`trend ${f.trendProsent > 0 ? '+' : ''}${f.trendProsent.toFixed(1)} %`)
+  if (f.vaerBrukt) faktorer.push('vær')
+  if (f.arrangementFaktor !== 1) faktorer.push('arrangement/helligdag')
+  return (
+    <details className="pp-hvorfor">
+      <summary>Hvorfor {p.foreslatt} stk?</summary>
+      <div className="pp-hvorfor-innhold">
+        {faktorer.length > 0 && <p>Påvirket av {faktorer.join(', ')}.</p>}
+        {f.fjorDatoer.length > 0 && <p>Historisk grunnlag: {f.fjorDatoer.map((x) => `${x.dato}: ${x.antall} stk`).join(', ')}.</p>}
+        {f.nyligGjennomsnitt != null && <p>Nylig gjennomsnitt: {f.nyligGjennomsnitt.toFixed(1)} stk. {f.nyligeDatoer.length > 0 && `Datagrunnlag: ${f.nyligeDatoer.map((x) => x.antall).join(', ')}.`}</p>}
+        {f.historiskMedian != null && <p>Median på tilsvarende dager: {f.historiskMedian.toFixed(1)} stk.</p>}
+        {f.vaerfaktor !== 1 && <p>Værjustering: ×{f.vaerfaktor.toFixed(2)}.</p>}
+        <p>Rått forslag: {f.raattForslag.toFixed(2)} stk. Avrundet modellforslag: {f.avrundetForslag} stk.</p>
+        {f.kalibreringFaktor != null && f.kalibreringFaktor !== 1 && <p>Selvlært korreksjon: ×{f.kalibreringFaktor.toFixed(2)} (etter korreksjon: {f.modellForslag} stk).</p>}
+        {f.manueltAvvik && <p>Planlagt antall avviker fra dagens automatiske forslag.</p>}
+        <p>Planlagt: {planlagt} stk. Klart til morgenskift: {start} stk.</p>
+        <p>{f.sikkerhet === 'lav' ? `Lav sikkerhet: bare ${f.observasjoner} relevante observasjoner.` : `${f.sikkerhet === 'hoy' ? 'Høy' : 'Middels'} sikkerhet med ${f.observasjoner} relevante observasjoner.`}</p>
+      </div>
+    </details>
+  )
 }
 
 export type Prosentpar = { start: number | null; margin: number | null }
@@ -87,6 +135,7 @@ export function PlanTabell({
         planlagt: nyPlan,
         start_antall: nyStart,
         ekskludert: over.ekskludert ?? ekskl.has(p.varenavn),
+        forklaringsspor: p.forklaring ?? null,
       })
       setPlanlagt((s) => ({ ...s, [p.varenavn]: nyPlan }))
       setStart((s) => ({ ...s, [p.varenavn]: nyStart }))
@@ -179,7 +228,7 @@ export function PlanTabell({
       const linjer = grupper.flatMap((g) => g.produkter.map((p) => ({
         varenavn: p.varenavn, varegruppe_kode: g.kode, varegruppe_navn: g.navn,
         foreslatt: p.foreslatt, planlagt: planlagt[p.varenavn] ?? p.planlagt,
-        start_antall: start[p.varenavn] ?? p.start_antall, ekskludert: ekskl.has(p.varenavn),
+        start_antall: start[p.varenavn] ?? p.start_antall, ekskludert: ekskl.has(p.varenavn), forklaringsspor: p.forklaring ?? null,
       })))
       const r = await publiser(stasjonId, dato, linjer, notat)
       if (!r.ok) { setFeil(r.feil ?? 'Planen ble ikke publisert. Prøv igjen.'); return }
@@ -324,6 +373,7 @@ export function PlanTabell({
                       <td>
                         {p.varenavn}
                         {(p.flagg ?? []).map((fl) => FLAGG_MERKE[fl] ? <span key={fl} className="pp-flagg" title={FLAGG_MERKE[fl].tekst}> {FLAGG_MERKE[fl].ikon}</span> : null)}
+                        <HvorforProdukt p={p} planlagt={planlagt[p.varenavn] ?? p.planlagt} start={start[p.varenavn] ?? p.start_antall} />
                       </td>
                       <td className="mob-skjul">{tall.format(Math.round(p.baseline))}</td>
                       <td className="mob-skjul">{p.faktor.toFixed(2)}</td>

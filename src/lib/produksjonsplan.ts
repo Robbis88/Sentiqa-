@@ -102,6 +102,23 @@ export type ProduktForslag = {
   vaerfaktor: number
   trendfaktor: number
   samletfaktor: number
+  /** Passivt spor fra samme beregningskjøring. Viser rådata og mellomverdier,
+   * men brukes aldri som input til selve beregningen. */
+  forklaring: {
+    fjorDatoer: { dato: string; antall: number }[]
+    nyligeDatoer: { dato: string; antall: number }[]
+    historiskMedian: number | null
+    nyligGjennomsnitt: number | null
+    vaerfaktor: number
+    trendfaktor: number
+    trendProsent: number | null
+    arrangementFaktor: number
+    vaerBrukt: boolean
+    observasjoner: number
+    raattForslag: number
+    avrundetForslag: number
+    sikkerhet: 'lav' | 'middels' | 'hoy'
+  }
   foreslatt: number
   flagg: Flagg[]
 }
@@ -220,7 +237,14 @@ export function lagProduksjonsplan(opts: {
 
     const vf = vaerfaktor(vaerMaal, vaerFjor, vaerfolsomhet, a.gruppe ?? '', a.kode ? opts.vaerKoeff?.get(a.kode) : null)
     const samletfaktor = vf * trendfaktor * arrangementFaktor
+    // Behold uttrykket identisk med tidligere motor. `raattForslag` er kun
+    // et observasjonsspor fra den samme kjøringen.
+    const raattForslag = basis * samletfaktor
     const foreslatt = Math.max(0, Math.round(basis * samletfaktor))
+    const fjorDatoerSpor = [...a.fjor.entries()].map(([dato, antall]) => ({ dato, antall })).sort((x, y) => x.dato.localeCompare(y.dato))
+    const nyligeDatoerSpor = [...a.nylig.entries()].map(([dato, antall]) => ({ dato, antall })).sort((x, y) => x.dato.localeCompare(y.dato))
+    const observasjoner = fjorVerdier.length + sammeUkedag.length
+    const sikkerhet: 'lav' | 'middels' | 'hoy' = flagg.includes('fa_data') ? 'lav' : observasjoner >= 8 ? 'hoy' : 'middels'
 
     forslag.push({
       varenavn, varegruppeKode: a.kode, varegruppeNavn: a.gruppe,
@@ -228,6 +252,21 @@ export function lagProduksjonsplan(opts: {
       nyligSnitt: nyligSnitt != null ? Math.round(nyligSnitt * 10) / 10 : null,
       basis: Math.round(basis * 10) / 10, vaerfaktor: Math.round(vf * 100) / 100,
       trendfaktor: Math.round(trendfaktor * 100) / 100, samletfaktor: Math.round(samletfaktor * 100) / 100,
+      forklaring: {
+        fjorDatoer: fjorDatoerSpor,
+        nyligeDatoer: nyligeDatoerSpor,
+        historiskMedian: fjorMedian != null ? Math.round(fjorMedian * 10) / 10 : null,
+        nyligGjennomsnitt: nyligSnitt != null ? Math.round(nyligSnitt * 10) / 10 : null,
+        vaerfaktor: vf,
+        trendfaktor,
+        trendProsent: trendFjor > 0 ? Math.round((trendfaktor - 1) * 1000) / 10 : null,
+        arrangementFaktor,
+        vaerBrukt: vf !== 1,
+        observasjoner,
+        raattForslag,
+        avrundetForslag: foreslatt,
+        sikkerhet,
+      },
       foreslatt, flagg,
     })
   }
