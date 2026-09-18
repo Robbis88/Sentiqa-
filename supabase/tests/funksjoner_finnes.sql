@@ -46,7 +46,6 @@ declare
     'malekort_salgsdatoer',
     'malekort_salgsdekning',
     'malekort_stasjoner',
-    'materialiser_rutine_forventninger',
     'matsalg_vindu_sum',
     'mine_stasjoner',
     'publiser_produksjonsplan',
