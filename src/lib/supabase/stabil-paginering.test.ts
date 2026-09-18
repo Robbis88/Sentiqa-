@@ -19,6 +19,8 @@ const NOEKLER: Record<string, string[]> = {
   // rapportnøkkelen når analysegrunnlaget hentes sidevis.
   regnskapslinjer: ['seksjon', 'post', 'kode'],
   regnskap_usynlig_svinn: ['stasjon_id', 'navn'],
+  // Bilagssummeringen er aggregert per stasjon, begrep og leverandørtekst.
+  v_rommet_leverandor: ['stasjon_id', 'begrep', 'tekst'],
 }
 
 type Kall = { navn: string; arg: string | null; betinget: boolean }
@@ -106,6 +108,6 @@ describe('stabil paginering — vakten ser også kommentarer og callbacks', () =
     const resultat = filer('src').map((fil) => analyser(readFileSync(fil, 'utf8'), fil))
     expect(resultat.flatMap((r) => r.funn)).toEqual([])
     // Dekningskanari: en vakt som slutter å se hele repoet skal bli rød.
-    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(35)
+    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(36)
   })
 })

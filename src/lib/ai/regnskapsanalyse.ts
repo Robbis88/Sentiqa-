@@ -35,6 +35,7 @@ type Resultat = { ok: true; periode: string; hoppet?: boolean } | { ok: false; g
 
 type Linje = { seksjon: string; kode: string | null; post: string; regnskap: number | null; budsjett: number | null; avvik: number | null; index_pct: number | null }
 type Usynlig = { stasjon_id: string; navn: string; salg: number | null; brf_pst: number | null; usynlig_kr: number | null; usynlig_pst: number | null }
+type Leverandorsum = { stasjon_id: string; begrep: string; tekst: string; belop_kr: number; antall: number; maaneder: number; eldste: string; nyeste: string }
 
 const SYSTEM_PROMPT =
   'Du er eierens FASTE REGNSKAPSFØRER for en servicehandel-kjede (bensinstasjoner). Norsk bokmål. ' +
@@ -95,9 +96,10 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string,
   let perRader: { stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]
   let stasjoner: { id: string; navn: string; butikknummer: string }[]
   let usynlig: Usynlig[]
+  let leverandorer: Leverandorsum[]
   let forrige: { periode: string; rapport: Analyse } | null
   try {
-    [cluster, perRader, stasjoner, usynlig, forrige] = await Promise.all([
+    [cluster, perRader, stasjoner, usynlig, leverandorer, forrige] = await Promise.all([
       hentAlt<Linje>((fra, til) => supabase
         .from('regnskapslinjer')
         .select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct')
@@ -119,6 +121,12 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string,
         .select('stasjon_id, navn, salg, brf_pst, usynlig_kr, usynlig_pst')
         .eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null)
         .order('stasjon_id').order('navn').range(fra, til).overrideTypes<Usynlig[]>()),
+      hentAlt<Leverandorsum>((fra, til) => supabase
+        .from('v_rommet_leverandor')
+        .select('stasjon_id, begrep, tekst, belop_kr, antall, maaneder, eldste, nyeste')
+        .eq('retailer_id', retailerId)
+        .order('stasjon_id').order('begrep').order('tekst').range(fra, til)
+        .overrideTypes<Leverandorsum[]>()),
       supabase.from('regnskapsanalyser').select('periode, rapport').eq('retailer_id', retailerId)
         .lt('periode', periode).is('slettet_tid', null).order('periode', { ascending: false })
         .limit(1).maybeSingle<{ periode: string; rapport: Analyse }>().then((r) => {
@@ -178,6 +186,25 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string,
     .map(([navn, k]) => `${navn}: ${k.manko} stasjoner med manko, ${k.overskudd} med overskudd, netto ${Math.round(k.sum)} kr`)
     .join('\n')
 
+  // Bilagssummene er allerede avstemt og aggregert ved import: butikk × måned
+  // × konto × tekst. De gir AI-en leverandørsporet bak en P&L-linje uten å
+  // sende tusenvis av råbilag gjennom språkmodellen.
+  const leverandorPerStasjon = new Map<string, Leverandorsum[]>()
+  for (const l of leverandorer) {
+    const liste = leverandorPerStasjon.get(l.stasjon_id) ?? []
+    liste.push(l)
+    leverandorPerStasjon.set(l.stasjon_id, liste)
+  }
+  const leverandorTekst = [...leverandorPerStasjon.entries()]
+    .filter(([id]) => navnFor.has(id))
+    .map(([id, liste]) => {
+      const topp = [...liste].sort((a, b) => Math.abs(b.belop_kr) - Math.abs(a.belop_kr)).slice(0, 8)
+      const dekning = liste[0]
+        ? `${liste[0].eldste.slice(0, 7)}–${liste[0].nyeste.slice(0, 7)}, ${Math.max(...liste.map((l) => l.maaneder))} måneder`
+        : 'ukjent periode'
+      return `${navnFor.get(id)} (${dekning}): ${topp.map((l) => `${l.tekst} / ${l.begrep}: ${Math.round(l.belop_kr)} kr (${l.antall} bilag)`).join('; ')}`
+    }).join('\n')
+
   const forrigeTekst = forrige?.rapport?.sammendrag
     ? `Forrige periode (${forrige.periode}) sammendrag: ${forrige.rapport.sammendrag}`
     : 'Ingen tidligere analyse å sammenligne med.'
@@ -187,6 +214,7 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string,
     `NØKKELTALL PER STASJON (omsetning, brutto, lønn mot lønnsbudsjett — eks. drivstoff/pant):\n${stasjonTekst}\n\n` +
     `USYNLIG SVINN PER STASJON (+ = manko, − = overskudd):\n${svinnTekst || 'Ingen usynlig svinn-data.'}\n\n` +
     `KRYSS-STASJON (samme vare på flere stasjoner):\n${kryssTekst || 'Ingen tydelige kryss-mønstre.'}\n\n` +
+    `LEVERANDØR- OG BILAGSSUMMER PER STASJON (allerede summert fra råfilens bilagsbuffer):\n${leverandorTekst || 'Ingen leverandørsummer tilgjengelig.'}\n\n` +
     `${forrigeTekst}\n\n` +
     'Lag analysen: sammendrag (3–5 linjer: resultat vs budsjett, beste/verste, hva som haster), per-stasjon status + kommentar, systemfeil (kryss-stasjon-mønstre), røde flagg, muligheter, tiltak (m/prioritet), og endringer vs forrige periode.'
   return kjorOpusOgLagre(supabase, retailerId, periode, 'maaned', brukerMelding)
