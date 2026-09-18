@@ -77,6 +77,9 @@ declare
     -- joiner dem i HVER eneste salgsspoerring. En upakket funksjon i en
     -- policy her trekker per-rad-kall inn i alt som summerer kroner.
     'retailer_kodeerklaering', 'retailer_koderegel',
+    -- Tilbuds- og avtalehistorikk (0230). Vokser med foresporsler,
+    -- tilbud og revisjonshendelser.
+    'tilbudsforesporsler', 'tilbudsforesporsel_revisjon', 'tilbud', 'avtale_revisjon',
     -- Oppsett for bemanningsplanleggeren (0081). Faa rader, men de
     -- joines mot timesalg per time - en upakket policy her trekker
     -- per-rad-kall inn i hver eneste planberegning.

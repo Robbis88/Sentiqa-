@@ -7,71 +7,71 @@ import { beregnAvtaledatoer } from '@/lib/avtale-dato'
 
 async function eier() { return (await hentInnloggetBruker()).rolle === 'plattform_redaktor' }
 
-export async function endreForesporsel(formData: FormData) {
-  if (!(await eier())) throw new Error('Ingen tilgang')
+export async function endreForesporsel(formData: FormData): Promise<void> {
+  if (!(await eier())) return
   const id = String(formData.get('id') ?? '')
   const status = String(formData.get('status') ?? '')
   const tillatt = ['ny', 'kontaktet', 'tilbud_klargjoeres', 'tilbud_sendt', 'akseptert', 'avslatt', 'utloopt']
-  if (!id || !tillatt.includes(status)) throw new Error('Ugyldig status')
+  if (!id || !tillatt.includes(status)) return
   const admin = lagSupabaseAdminKlient()
-  const { data: gammel } = await admin.from('tilbudsforesporsler').select('status').eq('id', id).maybeSingle<{ status: string }>()
+  const { data: gammel } = await admin.from('tilbudsforesporsler').select('status').eq('id', id).limit(1).maybeSingle<{ status: string }>()
   const { error } = await admin.from('tilbudsforesporsler').update({ status, oppdatert_tid: new Date().toISOString() }).eq('id', id)
-  if (error) throw new Error('Kunne ikke endre status')
+  if (error) return
   const bruker = await hentInnloggetBruker()
   await admin.from('tilbudsforesporsel_revisjon').insert({ foresporsel_id: id, utfort_av: bruker.id, handling: 'status', endringer: { fra: gammel?.status ?? null, til: status } })
   revalidatePath('/plattform/tilbudsforesporsler')
 }
 
-export async function opprettTilbud(formData: FormData) {
-  if (!(await eier())) throw new Error('Ingen tilgang')
+export async function opprettTilbud(formData: FormData): Promise<void> {
+  if (!(await eier())) return
   const id = String(formData.get('id') ?? '')
-  if (!id) throw new Error('Mangler forespørsel')
+  if (!id) return
   const admin = lagSupabaseAdminKlient()
-  const { data: eksisterende } = await admin.from('tilbud').select('id').eq('foresporsel_id', id).maybeSingle()
+  const { data: eksisterende } = await admin.from('tilbud').select('id').eq('foresporsel_id', id).limit(1).maybeSingle()
   if (!eksisterende) {
     const start = String(formData.get('trial_starts_at') ?? '').trim() || null
     const datoer = start ? beregnAvtaledatoer(start) : {}
     const { error } = await admin.from('tilbud').insert({ foresporsel_id: id, retailer_limit: Number(formData.get('retailer_limit') ?? 1), butikksjef_limit: Number(formData.get('butikksjef_limit') ?? 0), tablet_station_limit: Number(formData.get('tablet_station_limit') ?? 0), trial_maaneder: 2, binding_maaneder: 12, maanedspris_kr: Number(formData.get('maanedspris_kr') || 0), oppstartsgebyr_kr: Number(formData.get('oppstartsgebyr_kr') || 0), ...datoer })
-    if (error) throw new Error('Kunne ikke opprette tilbud')
+    if (error) return
     const bruker = await hentInnloggetBruker()
-    const { data: nytt } = await admin.from('tilbud').select('id').eq('foresporsel_id', id).maybeSingle<{ id: string }>()
+    const { data: nytt } = await admin.from('tilbud').select('id').eq('foresporsel_id', id).limit(1).maybeSingle<{ id: string }>()
     if (nytt) await admin.from('avtale_revisjon').insert({ tilbud_id: nytt.id, utfort_av: bruker.id, handling: 'tilbud_opprettet', endringer: { trial_maaneder: 2, binding_maaneder: 12 } })
   }
   revalidatePath('/plattform/tilbudsforesporsler')
 }
 
-export async function registrerAksept(formData: FormData) {
-  if (!(await eier())) throw new Error('Ingen tilgang')
+export async function registrerAksept(formData: FormData): Promise<void> {
+  if (!(await eier())) return
   const id = String(formData.get('id') ?? '')
-  if (!id) throw new Error('Mangler tilbud')
+  if (!id) return
   const admin = lagSupabaseAdminKlient()
   const bruker = await hentInnloggetBruker()
   const { error } = await admin.from('tilbud').update({ status: 'akseptert', accepted_at: new Date().toISOString(), accepted_by: String(formData.get('accepted_by') ?? '').trim() || null, acceptance_reference: String(formData.get('acceptance_reference') ?? '').trim() || null, oppdatert_tid: new Date().toISOString() }).eq('id', id)
-  if (error) throw new Error('Kunne ikke registrere aksept')
+  if (error) return
   await admin.from('avtale_revisjon').insert({ tilbud_id: id, utfort_av: bruker.id, handling: 'aksept', endringer: { accepted_by: String(formData.get('accepted_by') ?? '') } })
   revalidatePath('/plattform/tilbudsforesporsler')
 }
 
 function slug(s: string) { return s.toLowerCase().replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'kunde' }
 
-export async function opprettKundeFraTilbud(formData: FormData) {
-  if (!(await eier())) throw new Error('Ingen tilgang')
+export async function opprettKundeFraTilbud(formData: FormData): Promise<void> {
+  if (!(await eier())) return
   const tilbudId = String(formData.get('id') ?? '')
-  if (!tilbudId) throw new Error('Mangler tilbud')
+  if (!tilbudId) return
   const admin = lagSupabaseAdminKlient()
-  const { data: tilbud } = await admin.from('tilbud').select('id, retailer_id, retailer_limit, foresporsel_id').eq('id', tilbudId).maybeSingle<{ id: string; retailer_id: string | null; retailer_limit: number; foresporsel_id: string }>()
-  if (!tilbud) throw new Error('Tilbudet finnes ikke')
+  const { data: tilbud } = await admin.from('tilbud').select('id, retailer_id, retailer_limit, foresporsel_id').eq('id', tilbudId).limit(1).maybeSingle<{ id: string; retailer_id: string | null; retailer_limit: number; foresporsel_id: string }>()
+  if (!tilbud) return
   if (tilbud.retailer_id) { revalidatePath('/plattform/tilbudsforesporsler'); return }
-  const { data: f } = await admin.from('tilbudsforesporsler').select('virksomhet, org_nr, kontaktperson, epost, antall_stasjoner').eq('id', tilbud.foresporsel_id).single<{ virksomhet: string; org_nr: string | null; kontaktperson: string; epost: string; antall_stasjoner: number }>()
-  if (!f) throw new Error('Forespørselen finnes ikke')
+  const { data: f } = await admin.from('tilbudsforesporsler').select('virksomhet, org_nr, kontaktperson, epost, antall_stasjoner').eq('id', tilbud.foresporsel_id).limit(1).single<{ virksomhet: string; org_nr: string | null; kontaktperson: string; epost: string; antall_stasjoner: number }>()
+  if (!f) return
   const grunn = slug(f.virksomhet)
-  const { data: eksisterende } = await admin.from('retailers').select('id').eq('org_nr', f.org_nr).maybeSingle<{ id: string }>()
-  if (eksisterende) throw new Error('Organisasjonsnummeret finnes allerede. Bruk den eksisterende kunden.')
-  const { data: retailer, error } = await admin.from('retailers').insert({ navn: f.virksomhet, org_nr: f.org_nr, slug: `${grunn}-${tilbud.id.slice(0, 6)}`, inntak_epost: `${grunn}-${tilbud.id.slice(0, 6)}@sentiqa.ai` }).select('id').single<{ id: string }>()
-  if (error || !retailer) throw new Error('Kunne ikke opprette kunden')
+  const { data: eksisterende } = await admin.from('retailers').select('id').eq('org_nr', f.org_nr).limit(1).maybeSingle<{ id: string }>()
+  if (eksisterende) return
+  const { data: retailer, error } = await admin.from('retailers').insert({ navn: f.virksomhet, org_nr: f.org_nr, slug: `${grunn}-${tilbud.id.slice(0, 6)}`, inntak_epost: `${grunn}-${tilbud.id.slice(0, 6)}@sentiqa.ai` }).select('id').limit(1).single<{ id: string }>()
+  if (error || !retailer) return
   const h = await headers(); const origin = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`
   const inv = await admin.auth.admin.inviteUserByEmail(f.epost, { redirectTo: `${origin}/auth/bekreft` })
-  if (inv.error || !inv.data.user) { await admin.from('retailers').delete().eq('id', retailer.id); throw new Error('Kunne ikke sende invitasjon') }
+  if (inv.error || !inv.data.user) { await admin.from('retailers').delete().eq('id', retailer.id); return }
   await admin.from('profiler').insert({ id: inv.data.user.id, retailer_id: retailer.id, rolle: 'retailer_admin', fullt_navn: f.kontaktperson })
   const stasjoner = Array.from({ length: f.antall_stasjoner }, (_, i) => ({ retailer_id: retailer.id, navn: `Stasjon ${i + 1}`, butikknummer: `${tilbud.id.slice(0, 4)}${String(i + 1).padStart(2, '0')}` }))
   await admin.from('stasjoner').insert(stasjoner)

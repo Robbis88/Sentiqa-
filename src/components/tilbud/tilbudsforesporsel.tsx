@@ -12,9 +12,9 @@ export function Tilbudsforesporsel() {
     setSender(false); setStatus(json.ok ? 'Takk! Vi har mottatt forespørselen og tar kontakt med et tilpasset tilbud.' : (json.feil ?? 'Noe gikk galt. Prøv igjen.'))
     if (json.ok) e.currentTarget.reset()
   }
-  if (status?.startsWith('Takk')) return <section className="kort"><h1>Tilbudsforespørsel</h1><p role="status">{status}</p></section>
-  return <section className="kort" style={{ maxWidth: 720, margin: '0 auto' }}>
-    <h1>Be om tilbud</h1>
+  if (status?.startsWith('Takk')) return <section className="kort tilbud-kort"><h2>Tilbudsforespørsel</h2><p role="status">{status}</p></section>
+  return <section className="kort tilbud-kort">
+    <h2>Be om tilbud</h2>
     <p>Pris tilpasses antall stasjoner og ledertilganger.</p>
     <form onSubmit={send} className="sq-skjema">
       <label className="felt"><span>Virksomhet</span><input name="virksomhet" required /></label>
@@ -30,7 +30,7 @@ export function Tilbudsforesporsel() {
       </div>
       <label className="felt"><span>Ønsket oppstart</span><input name="onsket_oppstart" type="date" /></label>
       <label className="felt"><span>Fortell kort hva dere ønsker hjelp med</span><textarea name="kommentar" rows={4} /></label>
-      <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: 'absolute', left: '-10000px' }} />
+      <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="tilbud-honeypot" />
       <p className="undertittel">En butikksjef kan ha tilgang til flere stasjoner. En stasjon trenger ikke en egen butikksjefbruker. Medarbeidere på tablet regnes ikke som egne betalte brukere.</p>
       <label className="felt-avkrysning"><input name="samtykke" type="checkbox" required /><span>Jeg samtykker til at Sentiqa kan kontakte meg om denne forespørselen.</span></label>
       {status && <p role="alert" className="feil">{status}</p>}

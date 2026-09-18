@@ -249,6 +249,7 @@ export const RUTEMONSTER: Record<string, Monster> = {
   '/venter-paa-godkjenning': 'utenfor',
   '/personvern': 'utenfor',
   '/databehandleravtale': 'utenfor',
+  '/tilbud': 'utenfor',
 
   // --- Dashbord ---
   // /oversikt er ren ruting: den velger TabletHjem, AdminDashbord eller
@@ -257,6 +258,7 @@ export const RUTEMONSTER: Record<string, Monster> = {
   // Sidehode hører til vanlige sider og ville vært et steg tilbake her.
   '/oversikt': 'dashbord',
   '/plattform': 'dashbord',
+  '/plattform/tilbudsforesporsler': 'arbeidsflyt',
 
   // --- Arbeidsflyt ---
   '/produksjonsplan': 'arbeidsflyt',
