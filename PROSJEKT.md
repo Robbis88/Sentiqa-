@@ -8,6 +8,34 @@ Dette dokumentet er marsjordren for å bygge Sentiqa fra bunnen av. Det bygger p
 
 Mål: 50 retailere, ~250 stasjoner, ~500 brukere. Det skal virke smertefritt, og se merkbart mer profesjonelt ut enn forgjengeren.
 
+## Implementasjonsstatus — 2026-09-18
+
+Dette avsnittet er fasiten for presentasjoner. Resten av dokumentet beskriver
+produktretningen og målarkitekturen; punkter der er ikke nødvendigvis ferdig
+produksjon.
+
+**Live i produksjon:** multi-tenant tilgang med RLS, import av salg, regnskap,
+svinn og bemanningsdata, økonomi- og businessplanvisning, ukesbrief,
+produksjonsplan, kassererstatistikk, målekort, nettbrettflyt, admin- og
+butikksjefvisning, AI-assistent og strukturert eieranalyse. Målekortene viser
+dataperiode og datadekning, og ukjente eller ufullstendige tall blir ikke
+presentert som grønne resultater.
+
+**Hva AI-en gjør i dag:** henter tillatte tall via verktøy, analyserer
+omsetning, bruttofortjeneste, lønn mot budsjett, svinn og utvikling per
+stasjon, og skriver konkrete tiltak. Eieranalysen bruker normaliserte
+resultatlinjer og utvalgte svinnposter. Råbilagene fra regnskapsfilen lagres og
+summeres separat, men hver enkelt råbilagsrad inngår ikke i AI-analysen ennå.
+
+**Første roadmap-punkt:** en egen bilagsanalyse med paginert uthenting,
+avstemming mot resultatregnskapet, kontrollsummer og sporbare bilagsfunn. Den
+skal bygges før vi lover full revisjon av 9 000–11 000 råbilagsrader.
+
+**Fortsatt målarkitektur:** ekstern bakgrunnsarbeider for tunge importer,
+nattlige forhåndsaggregeringer, full tokenmåling per tenant, prompt-caching,
+Stripe-billing og full white-label-konfigurasjon. Disse punktene er produktmål
+eller delvis implementert, ikke alle ferdige produksjonsfunksjoner.
+
 ---
 
 ## 1. Hva Sentiqa er — og hvorfor
