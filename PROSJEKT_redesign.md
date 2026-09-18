@@ -1,7 +1,12 @@
 # Redesign: fra administrasjonssystem til driftssystem
 
-Analyse og design. Skrevet 2026-08-17. **Ingen kode ennå** — dette er punkt 17
-i bestillingen.
+**Status 2026-09-18:** Dette dokumentet startet som et design- og
+roadmap-dokument. Flere av prinsippene er nå bygget og live, særlig
+oppmerksomhet-først-forsiden, stasjonskontekst, nettbrettflyten og
+tilgjengelighetsforbedringer. Punkter som fortsatt står som forslag skal
+behandles som videre utvikling, ikke som lovede ferdige funksjoner.
+
+Analyse og design. Skrevet 2026-08-17, senere oppdatert med statusnotatet over.
 
 ---
 

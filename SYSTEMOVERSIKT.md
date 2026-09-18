@@ -1,5 +1,10 @@
 # Sentiqa — systemoversikt
 
+**Status 2026-09-18:** Dette er en teknisk systemoversikt. Den beskriver både
+live funksjoner og enkelte målarkitekturpunkter. For en kort presentasjon med
+tydelig skille mellom «live nå» og «bygger videre på», se
+`docs/presentasjon-prompt-chatgpt.md`.
+
 Skrevet for å gis videre til noen som skal jobbe med timeplanlegging mot dette
 systemet. Beskriver hva som finnes, hvem som ser hva, og hvordan
 bemanningsmodulen henger sammen.
@@ -194,7 +199,9 @@ historikk-tabell. Hele settet `0001 →` kjøres av og til om igjen fra bunn.
 > **Alt må tåle å kjøres om igjen.** `if not exists` / `or replace` /
 > `drop policy if exists`. Alle `insert`/`update` må være vaktet.
 
-Høyeste kjørte: **0092**.
+Høyeste kjørte migrasjon: **0225**. Migrasjoner kjøres manuelt i Supabase SQL
+Editor; tallet betyr siste migrasjon som er levert til produksjon, ikke at
+databaseendringer skjer automatisk fra GitHub.
 
 ---
 

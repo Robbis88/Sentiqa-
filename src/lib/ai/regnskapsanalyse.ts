@@ -8,6 +8,7 @@ import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { UTELAT_KODER, SKJUL_OMS_KODER } from '@/lib/avdelinger'
 import { BUTIKKSJEF_PERSONAL_KODER } from '@/lib/regnskap-tilgang'
+import { hentAlt } from '@/lib/paginer'
 
 // Tung eier-regnskapsanalyse → Opus, der kvalitet teller (PROSJEKT.md §8).
 const MODELL = 'claude-opus-4-8'
@@ -86,13 +87,48 @@ export async function kjorRegnskapsanalyse(supabase: Klient, retailerId: string,
     return { ok: true, periode, hoppet: true }
   }
 
-  const [{ data: cluster }, { data: perRader }, { data: stasjoner }, { data: usynlig }, { data: forrige }] = await Promise.all([
-    supabase.from('regnskapslinjer').select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct').eq('retailer_id', retailerId).eq('periode', periode).is('stasjon_id', null).order('sortering').overrideTypes<Linje[]>(),
-    supabase.from('regnskapslinjer').select('stasjon_id, seksjon, kode, regnskap, budsjett').eq('retailer_id', retailerId).eq('periode', periode).in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader']).not('stasjon_id', 'is', null).overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>(),
-    supabase.from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null),
-    supabase.from('regnskap_usynlig_svinn').select('stasjon_id, navn, salg, brf_pst, usynlig_kr, usynlig_pst').eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null).overrideTypes<Usynlig[]>(),
-    supabase.from('regnskapsanalyser').select('periode, rapport').eq('retailer_id', retailerId).lt('periode', periode).is('slettet_tid', null).order('periode', { ascending: false }).limit(1).maybeSingle<{ periode: string; rapport: Analyse }>(),
-  ])
+  // PostgREST har en standardgrense på 1000 rader. En stor kjede kan ha flere
+  // enn det i stasjonslinjer eller svinn. En direkte select ville da gitt en
+  // tilsynelatende gyldig, men ufullstendig analyse. Hent alt i stabile sider
+  // og stopp tydelig ved databasefeil.
+  let cluster: Linje[]
+  let perRader: { stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]
+  let stasjoner: { id: string; navn: string; butikknummer: string }[]
+  let usynlig: Usynlig[]
+  let forrige: { periode: string; rapport: Analyse } | null
+  try {
+    [cluster, perRader, stasjoner, usynlig, forrige] = await Promise.all([
+      hentAlt<Linje>((fra, til) => supabase
+        .from('regnskapslinjer')
+        .select('seksjon, kode, post, regnskap, budsjett, avvik, index_pct')
+        .eq('retailer_id', retailerId).eq('periode', periode).is('stasjon_id', null)
+        .order('seksjon').order('post').order('kode').range(fra, til).overrideTypes<Linje[]>()),
+      hentAlt<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }>((fra, til) => supabase
+        .from('regnskapslinjer')
+        .select('stasjon_id, seksjon, kode, regnskap, budsjett')
+        .eq('retailer_id', retailerId).eq('periode', periode)
+        .in('seksjon', ['omsetning', 'bruttofortjeneste', 'driftskostnader'])
+        .not('stasjon_id', 'is', null).order('stasjon_id').order('seksjon').order('post').order('kode').range(fra, til)
+        .overrideTypes<{ stasjon_id: string; seksjon: string; kode: string | null; regnskap: number | null; budsjett: number | null }[]>()),
+      hentAlt<{ id: string; navn: string; butikknummer: string }>((fra, til) => supabase
+        .from('stasjoner').select('id, navn, butikknummer').is('slettet_tid', null)
+        .order('id').range(fra, til)
+        .overrideTypes<{ id: string; navn: string; butikknummer: string }[]>()),
+      hentAlt<Usynlig>((fra, til) => supabase
+        .from('regnskap_usynlig_svinn')
+        .select('stasjon_id, navn, salg, brf_pst, usynlig_kr, usynlig_pst')
+        .eq('retailer_id', retailerId).eq('periode', periode).is('slettet_tid', null)
+        .order('stasjon_id').order('navn').range(fra, til).overrideTypes<Usynlig[]>()),
+      supabase.from('regnskapsanalyser').select('periode, rapport').eq('retailer_id', retailerId)
+        .lt('periode', periode).is('slettet_tid', null).order('periode', { ascending: false })
+        .limit(1).maybeSingle<{ periode: string; rapport: Analyse }>().then((r) => {
+          if (r.error) throw new Error(`forrige regnskapsanalyse feilet: ${r.error.message}`)
+          return r.data
+        }),
+    ])
+  } catch (e) {
+    return { ok: false, grunn: e instanceof Error ? e.message : 'Kunne ikke hente komplett regnskapsgrunnlag.' }
+  }
 
   const navnFor = new Map((stasjoner ?? []).map((s) => [s.id, `${s.butikknummer} ${s.navn}`]))
 

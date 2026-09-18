@@ -15,6 +15,10 @@ const NOEKLER: Record<string, string[]> = {
   prognose_treff: ['stasjon_id', 'type', 'dato', 'kategori'],
   retailers: ['id'], stasjoner: ['id'], basisvakt: ['id'], lonnsregister: ['id'], bp_linje: ['id'],
   ansatt_avtale: ['stasjon_id', 'ansatt_nr'], import_jobber: ['id'],
+  // Regnskapslinjer har ingen teknisk id. Disse feltene utgjør den stabile
+  // rapportnøkkelen når analysegrunnlaget hentes sidevis.
+  regnskapslinjer: ['seksjon', 'post', 'kode'],
+  regnskap_usynlig_svinn: ['stasjon_id', 'navn'],
 }
 
 type Kall = { navn: string; arg: string | null; betinget: boolean }
@@ -102,6 +106,6 @@ describe('stabil paginering — vakten ser også kommentarer og callbacks', () =
     const resultat = filer('src').map((fil) => analyser(readFileSync(fil, 'utf8'), fil))
     expect(resultat.flatMap((r) => r.funn)).toEqual([])
     // Dekningskanari: en vakt som slutter å se hele repoet skal bli rød.
-    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(31)
+    expect(resultat.reduce((n, r) => n + r.antall, 0)).toBe(35)
   })
 })
