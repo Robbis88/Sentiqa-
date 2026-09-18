@@ -50,6 +50,7 @@ declare
     'mine_stasjoner',
     'publiser_produksjonsplan',
     'regnskap_sum',
+    'regnskap_svinn_rapport',
     'sett_avvik_lopenr',
     'sett_oppdatert_tid',
     'skriv_maanedsplan_utkast',
@@ -101,7 +102,7 @@ end $$;
 -- komme som en rad.
 select 'OK'                                    as status,
        count(*)                                as funksjoner_i_public,
-       39                          as forventet_av_migrasjonene
+       40                          as forventet_av_migrasjonene
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public';
