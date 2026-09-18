@@ -53,9 +53,10 @@ export default async function BusinessplanSide(
   const supabase = await lagSupabaseServerKlient()
   const sp = await searchParams
 
-  const { data: mine } = await supabase
+  const { data: mine, error: stasjonsfeil } = await supabase
     .from('stasjoner').select('id, navn, butikknummer')
     .is('slettet_tid', null).order('butikknummer')
+  if (stasjonsfeil) throw new Error(`BP-stasjonene kunne ikke hentes: ${stasjonsfeil.message}`)
   const liste = (mine ?? []) as Stasjon[]
 
   // Samme stasjonskontekst som resten av systemet: URL foer hukommelse
@@ -81,13 +82,14 @@ export default async function BusinessplanSide(
     )
   }
 
-  const { data: rader } = await supabase
+  const { data: rader, error: bpfeil } = await supabase
     .from('v_bp_status_avdeling')
     .select('*')
     .eq('stasjon_id', stasjon)
     .in('periode_status', ['innevaerende', 'venter_regnskap'])
     .overrideTypes<(BpRad & { maned: string })[]>()
 
+  if (bpfeil) throw new Error(`Businessplanens tall kunne ikke hentes: ${bpfeil.message}`)
   const alle = rader ?? []
 
   // BILVASK HAR TO INNTEKTER, OG BARE DEN.
@@ -101,13 +103,14 @@ export default async function BusinessplanSide(
   // Vi HAR tallet for avlagte maaneder - regnskapets omsetning minus
   // kassas - saa kortet kan si det med kroner i stedet for aa be leseren
   // ta det paa tro. Se migrasjon 0160.
-  const { data: aboRad } = await supabase
+  const { data: aboRad, error: abonnementsfeil } = await supabase
     .from('v_bilvask_abonnement')
     .select('aar, maaneder, kasse_kr, regnskap_kr, abonnement_kr, abonnement_pst')
     .eq('stasjon_id', stasjon)
     .order('aar', { ascending: false })
     .limit(1)
     .maybeSingle<Abonnement>()
+  if (abonnementsfeil) throw new Error(`Bilvaskgrunnlaget kunne ikke hentes: ${abonnementsfeil.message}`)
 
   // Nyeste maaned foerst - den inneveaerende er den operative.
   const maned = alle.map((r) => r.maned).sort().reverse()[0]

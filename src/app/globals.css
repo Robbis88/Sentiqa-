@@ -1921,6 +1921,8 @@ a.sq-merkelapp:hover { color: var(--primaer); }
   font-family: inherit; cursor: text; text-align: left;
 }
 .sq-sokknapp:hover { border-color: var(--tekst-svak); }
+dialog.sq-dim { border: 0; padding: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; color: var(--tekst); }
+.sq-palett-resultat { display: flex; align-items: center; gap: var(--luft-2); width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .sq-sokknapp kbd {
   margin-left: auto; font-size: 0.68rem; border: 1px solid var(--kant-sterk);
   border-radius: 4px; padding: 0.05rem 0.3rem; font-family: inherit;

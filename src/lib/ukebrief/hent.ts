@@ -324,7 +324,7 @@ export async function hentUkedata(
 
   const ifjorMap = new Map(ifjor.map((a) => [a.avdeling_kode ?? '', a]))
   let omsetning = 0
-  const avdelinger = naa.map((a) => {
+  let avdelinger = naa.map((a) => {
     const kode = a.avdeling_kode ?? ''
     const oms = Number(a.omsetning)
     const iF = Number(ifjorMap.get(kode)?.omsetning ?? 0)
@@ -334,9 +334,9 @@ export async function hentUkedata(
       vekstPst: iF > 0 ? ((oms - iF) / iF) * 100 : 0,
     }
   })
-  const omsetningIfjor = ifjor.reduce((t, a) => t + Number(a.omsetning), 0)
+  const omsetningIfjorRaa = ifjor.reduce((t, a) => t + Number(a.omsetning), 0)
 
-  const [bpUke, timer, utsolgtRaa, treffRader, meldinger, salgsdager, skjema] = await Promise.all([
+  const [bpUke, timer, utsolgtRaa, treffRader, meldinger, salgsdager, salgsdagerIfjor, skjema] = await Promise.all([
     bpForUken(supabase, stasjon.id, mandag),
     timerForUken(supabase, stasjon.id, mandag),
     utsolgtKandidater(supabase, stasjon.id),
@@ -354,6 +354,10 @@ export async function hentUkedata(
     // Her trengs bare de distinkte datoene, så tellingen gjøres i basen.
     supabase.from('v_butikksalg_dag').select('dato')
       .eq('stasjon_id', stasjon.id).gte('dato', mandag).lte('dato', sondag)
+      .limit(1000)
+      .overrideTypes<{ dato: string }[]>(),
+    supabase.from('v_butikksalg_dag').select('dato')
+      .eq('stasjon_id', stasjon.id).gte('dato', mandagIfjor).lte('dato', sondagIfjor)
       .limit(1000)
       .overrideTypes<{ dato: string }[]>(),
     hentSkjema(supabase, stasjon.id, mandag, sondag),
@@ -378,6 +382,12 @@ export async function hentUkedata(
 
   const dagerMedSalg = new Set((salgsdager.data ?? []).map((r) => r.dato))
   const manglerSalg = dageneIUken(mandag).filter((d) => !dagerMedSalg.has(d)).length
+  const dagerMedSalgIfjor = new Set((salgsdagerIfjor.data ?? []).map((r) => r.dato))
+  const manglerSalgIfjor = dageneIUken(mandagIfjor).filter((d) => !dagerMedSalgIfjor.has(d)).length
+  const omsetningIfjor = manglerSalgIfjor > 0 ? 0 : omsetningIfjorRaa
+  if (manglerSalgIfjor > 0) {
+    avdelinger = avdelinger.map((a) => ({ ...a, ifjor: 0, vekstPst: 0 }))
+  }
 
   return {
     stasjonNavn: `${stasjon.butikknummer} ${stasjon.navn}`,
@@ -396,7 +406,10 @@ export async function hentUkedata(
     },
     skjema: skjema.skjema,
     kritiskeNei: skjema.kritiskeNei,
-    hull: manglerSalg > 0 ? [{ kilde: 'Salgsdata', dagerMangler: manglerSalg }] : [],
+    hull: [
+      ...(manglerSalg > 0 ? [{ kilde: 'Salgsdata denne uken', dagerMangler: manglerSalg }] : []),
+      ...(manglerSalgIfjor > 0 ? [{ kilde: 'Salgsdata samme uke i fjor', dagerMangler: manglerSalgIfjor }] : []),
+    ],
     sisteDagMedSalg: [...dagerMedSalg].sort().at(-1) ?? null,
   }
 }

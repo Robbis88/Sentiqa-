@@ -1,5 +1,7 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { slippStyringssignal } from '@/lib/styringssignal'
 import { opprettMalekort, sokVarerAksjon, type MalekortTilstand } from './handlinger'
 import type { VareNode, VareTreff } from '@/lib/varehierarki'
 
@@ -8,25 +10,42 @@ type ScopeItem = { nivaa: 'avdeling' | 'vareomrade' | 'varegruppe' | 'ean'; kode
 export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
   const [valgt, setValgt] = useState<ScopeItem[]>([])
   const [tilstand, setTilstand] = useState<MalekortTilstand>()
-  const [venter, setVenter] = useState(false)
+  const [venter, startTransition] = useTransition()
   const formRef = useRef<HTMLFormElement>(null)
 
   const [q, setQ] = useState('')
   const [treff, setTreff] = useState<VareTreff[]>([])
   const [soker, setSoker] = useState(false)
+  const [sokeFeil, setSokeFeil] = useState<string>()
+  const sokId = useId()
+  const lagrerRef = useRef(false)
+  const sokerRef = useRef(false)
+  const router = useRouter()
+  useEffect(() => {
+    // Refresh after the confirmation is committed, outside the write transition.
+    if (tilstand?.ok) router.refresh()
+  }, [tilstand, router])
 
   // Reset skjer her i action-handleren (ikke i en effekt) etter at serveren
   // har bekreftet lagring — unngår kaskaderender fra setState-i-useEffect.
   async function lagre(formData: FormData) {
-    setVenter(true)
-    const res = await opprettMalekort(undefined, formData)
-    setTilstand(res)
-    setVenter(false)
-    if (res?.ok) {
-      setValgt([])
-      setQ('')
-      setTreff([])
-      formRef.current?.reset()
+    if (lagrerRef.current) return
+    lagrerRef.current = true
+    setTilstand(undefined)
+    try {
+      const res = await opprettMalekort(undefined, formData)
+      setTilstand(res)
+      if (res?.ok) {
+        setValgt([])
+        setQ('')
+        setTreff([])
+        formRef.current?.reset()
+      }
+    } catch (feil) {
+      slippStyringssignal(feil)
+      setTilstand({ feil: 'Kunne ikke bekrefte lagringen. Valgene dine er beholdt. Prøv igjen.' })
+    } finally {
+      lagrerRef.current = false
     }
   }
 
@@ -41,14 +60,31 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
     setValgt((vs) => vs.filter((v) => !(v.nivaa === nivaa && v.kode === kode)))
 
   async function sok() {
-    if (q.trim().length < 2) return
+    if (q.trim().length < 2 || sokerRef.current) return
+    sokerRef.current = true
     setSoker(true)
-    setTreff(await sokVarerAksjon(q))
-    setSoker(false)
+    setSokeFeil(undefined)
+    try {
+      setTreff(await sokVarerAksjon(q))
+    } catch (feil) {
+      slippStyringssignal(feil)
+      setTreff([])
+      setSokeFeil('Kunne ikke søke etter varer. Prøv igjen.')
+    } finally {
+      sokerRef.current = false
+      setSoker(false)
+    }
   }
 
   return (
-    <form action={lagre} ref={formRef} className="skjema malekort-skjema">
+    <form onSubmit={(e) => {
+      // React resets uncontrolled fields when a form action resolves, even
+      // when its result is a domain error. Reset only on confirmed success.
+      e.preventDefault()
+      const formData = new FormData(e.currentTarget)
+      setTilstand(undefined)
+      startTransition(() => lagre(formData))
+    }} ref={formRef} className="skjema malekort-skjema" aria-busy={venter}>
       <input type="hidden" name="scope" value={JSON.stringify(valgt)} />
 
       <label className="felt">
@@ -69,7 +105,7 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
       </label>
 
       <fieldset className="felt scope-felt">
-        <span>På hvilke varer? <span className="undertittel">(ingen valg = alt salg)</span></span>
+        <legend>På hvilke varer? <span className="undertittel">(ingen valg = alt salg)</span></legend>
         <div className="scope-tre">
           {tre.length === 0 ? (
             <p className="undertittel">Ingen salgsdata ennå — last opp salgsstatistikk først.</p>
@@ -77,8 +113,10 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
             tre.map((avd) => <Node key={avd.kode} node={avd} erValgt={erValgt} toggle={toggle} />)
           )}
         </div>
+        <label htmlFor={sokId}>Søk etter enkeltvare</label>
         <div className="scope-sok">
           <input
+            id={sokId}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="🔍 søk enkeltvare (f.eks. grillpølse)"
@@ -88,6 +126,8 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
             {soker ? 'Søker …' : 'Søk'}
           </button>
         </div>
+        {sokeFeil && <p role="alert" className="feil">{sokeFeil}</p>}
+        {soker && <p role="status">Søker etter varer …</p>}
         {treff.length > 0 && (
           <ul className="scope-treff">
             {treff.map((t) => (
@@ -162,7 +202,8 @@ export function MalekortSkjema({ tre }: { tre: VareNode[] }) {
       </div>
 
       {tilstand?.feil ? <p role="alert" className="feil">{tilstand.feil}</p> : null}
-      {tilstand?.ok ? <p className="ok-melding">✓ Målekort lagret.</p> : null}
+      {tilstand?.ok ? <p role="status" className="ok-melding">✓ Målekort lagret.</p> : null}
+      {venter && <p role="status">Lagrer målekort …</p>}
 
       <button type="submit" disabled={venter} className="primar">{venter ? 'Lagrer …' : 'Lagre målekort'}</button>
     </form>

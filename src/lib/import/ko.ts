@@ -71,7 +71,13 @@ export async function behandleKoen(supabase: Klient): Promise<KoResultat> {
   for (const j of (koen ?? []) as { id: string; retailer_id: string }[]) {
     try {
       await behandleJobbKjerne(supabase, j.retailer_id, j.id)
-      ut.ok++
+      // Kjernen signaliserer domenefeil ved å sette status, ikke ved å kaste.
+      // Tell derfor bare en jobb som faktisk endte som parset som vellykket.
+      const { data: slutt, error: statusFeil } = await supabase
+        .from('import_jobber').select('status').eq('id', j.id).maybeSingle<{ status: string }>()
+      if (statusFeil) throw new Error(statusFeil.message)
+      if (slutt?.status === 'parset') ut.ok++
+      else ut.feilet++
     } catch {
       // Kjernen setter selv status='feilet'. Dette er kun for at løkka
       // skal gå videre til neste fil.

@@ -30,7 +30,7 @@ export type MalekortRad = {
 export type Enhet = 'kr' | 'antall' | 'pst'
 export type MalekortResultat =
   | { klar: false; grunn: string }
-  | { klar: true; enhet: Enhet; etikett: string; rader: MalekortRad[] }
+  | { klar: true; enhet: Enhet; etikett: string; rader: MalekortRad[]; utenGrunnlag?: { stasjonId: string; navn: string; grunn: string }[] }
 
 // --- dato-aritmetikk via UTC-middag (samme mønster som ukerapport.ts) ---
 function ukedag(iso: string): number {
@@ -96,16 +96,17 @@ function iFjor(type: PeriodeType, fra: string, til: string): { fra: string; til:
   return { fra: leggTil(fra, -364), til: leggTil(til, -364) }
 }
 
-async function erKomplett(supabase: SupabaseClient, fra: string, til: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('malekort_salgsdatoer', { p_fra: fra, p_til: til })
+async function erKomplett(supabase: SupabaseClient, kortId: string, stasjoner: { id: string }[], fra: string, til: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('malekort_salgsdekning', { p_malekort: kortId, p_fra: fra, p_til: til })
   // «VENTER PAA FULLSTENDIGE TALL» ER EN SANN SETNING OM FEIL TING.
   // Svelges feilen, blir datosettet tomt, funksjonen svarer false, og
   // kortet melder at det venter paa data - i det uendelige. Det er
   // noeyaktig formen som holdt /maaling stille: en rolig setning som
   // beskriver noe helt annet enn det som skjedde.
-  if (error) throw new Error(`malekort_salgsdatoer feilet: ${error.message}`)
-  const dager = new Set(((data ?? []) as { dato: string }[]).map((r) => r.dato))
-  return dager.size >= antallDager(fra, til)
+  if (error) throw new Error(`malekort_salgsdekning feilet: ${error.message}`)
+  const dekning = new Map(((data ?? []) as { stasjon_id: string; dager: number }[]).map((r) => [r.stasjon_id, Number(r.dager)]))
+  const forventet = antallDager(fra, til)
+  return stasjoner.every((s) => dekning.get(s.id) === forventet)
 }
 
 type SalgRad = { stasjon_id: string; omsetning: number; antall: number; brutto: number }
@@ -138,14 +139,15 @@ export async function beregnMalekort(
 ): Promise<MalekortResultat> {
   if (stasjoner.length === 0) return { klar: false, grunn: 'Ingen stasjoner.' }
 
-  const { data: siste } = await supabase
+  const { data: siste, error: sisteFeil } = await supabase
     .from('v_butikksalg').select('dato').order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+  if (sisteFeil) throw new Error(`Målekortets siste salgsdato feilet: ${sisteFeil.message}`)
   if (!siste) return { klar: false, grunn: 'Ingen salgsdata ennå.' }
 
   // Velg periode: nyeste KOMPLETTE (eller bare nyeste hvis regelen er av).
   let valgt: Kandidat | null = null
   for (const k of kandidater(kort.periode, siste.dato)) {
-    if (!kort.krev_fullstendig_periode || (await erKomplett(supabase, k.fra, k.til))) { valgt = k; break }
+    if (!kort.krev_fullstendig_periode || (await erKomplett(supabase, kort.id, stasjoner, k.fra, k.til))) { valgt = k; break }
   }
   if (!valgt) return { klar: false, grunn: 'Venter på fullstendige tall for perioden.' }
 
@@ -180,26 +182,48 @@ export async function beregnMalekort(
 
   const volum = kort.metrikk === 'omsetning' || kort.metrikk === 'antall' || kort.metrikk === 'brutto'
 
-  const rader: MalekortRad[] = stasjoner.map((s) => {
+  const utenGrunnlag: { stasjonId: string; navn: string; grunn: string }[] = []
+  const rader: MalekortRad[] = stasjoner.flatMap((s) => {
+    const salg = salgNaa.get(s.id)
+    const kunder = kunderNaa.get(s.id)
+    const trengerSalg = kort.metrikk !== 'kunder'
+    const divisor = kort.metrikk === 'snittbong' ? kunder?.bonger : kunder?.kunder
+    const grunn = trengerSalg && !salg
+      ? 'Mangler salg for perioden.'
+      : trengerKunder && (!kunder || !Number.isFinite(Number(divisor)) || (kort.metrikk !== 'kunder' && Number(divisor) <= 0))
+        ? 'Mangler positivt kundegrunnlag for perioden.'
+        : null
+    if (grunn) {
+      utenGrunnlag.push({ stasjonId: s.id, navn: s.navn, grunn })
+      return []
+    }
     const naaBase = metrikkVerdi(kort.metrikk, salgNaa.get(s.id), kunderNaa.get(s.id))
     const fjorBase = metrikkVerdi(kort.metrikk, salgFjor.get(s.id), kunderFjor.get(s.id))
     const vekstPst = fjorBase > 0 ? ((naaBase - fjorBase) / fjorBase) * 100 : null
+    if (kort.normalisering === 'vekst_pst' && (vekstPst == null || !Number.isFinite(vekstPst))) {
+      utenGrunnlag.push({ stasjonId: s.id, navn: s.navn, grunn: 'Mangler målbart sammenligningsgrunnlag fra i fjor.' })
+      return []
+    }
 
     let verdi: number
     if (kort.normalisering === 'vekst_pst') {
-      verdi = vekstPst ?? 0
+      verdi = vekstPst!
     } else if (kort.normalisering === 'per_kunde' && volum) {
       const k = Number(kunderNaa.get(s.id)?.kunder ?? 0)
       verdi = k > 0 ? naaBase / k : 0
     } else {
       verdi = naaBase // ratio-metrikker (snittpris/snittbong) + kunder er allerede normalisert
     }
-    return { stasjonId: s.id, navn: s.navn, verdi, vekstPst }
+    if (!Number.isFinite(verdi)) {
+      utenGrunnlag.push({ stasjonId: s.id, navn: s.navn, grunn: 'Ugyldig tallgrunnlag.' })
+      return []
+    }
+    return [{ stasjonId: s.id, navn: s.navn, verdi, vekstPst }]
   })
 
   rader.sort((a, b) => (kort.retning === 'lav' ? a.verdi - b.verdi : b.verdi - a.verdi))
 
-  return { klar: true, enhet: enhetFor(kort), etikett: valgt.etikett, rader }
+  return { klar: true, enhet: enhetFor(kort), etikett: valgt.etikett, rader, utenGrunnlag }
 }
 
 // Tablet-kort: plukker ut egen butikks plassering fra et beregnet resultat.
@@ -216,9 +240,12 @@ export type TabletKort = {
   antall?: number
   vekstPst?: number | null
   topp?: number
+  status?: 'venter' | 'feil'
+  perKunde?: boolean
+  metrikk?: Malekort['metrikk']
 }
 
-export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjonId: string): TabletKort {
+export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjonId: string, kort?: Pick<Malekort, 'normalisering' | 'metrikk'>): TabletKort {
   if (!resultat.klar) return { navn, klar: false, grunn: resultat.grunn }
   const idx = resultat.rader.findIndex((r) => r.stasjonId === egenStasjonId)
   if (idx < 0) return { navn, klar: false, grunn: 'Ingen tall for din butikk i perioden.' }
@@ -233,5 +260,6 @@ export function tabletKort(navn: string, resultat: MalekortResultat, egenStasjon
     antall: resultat.rader.length,
     vekstPst: egen.vekstPst,
     topp: resultat.rader[0].verdi,
+    ...(kort ? { metrikk: kort.metrikk, perKunde: kort.normalisering === 'per_kunde' && ['omsetning', 'antall', 'brutto', 'snittpris_kunde'].includes(kort.metrikk) } : {}),
   }
 }

@@ -35,11 +35,14 @@ export function Leaderboard({
   egenIds?: Set<string>
 }) {
   if (!resultat.klar) return <p className="undertittel">{resultat.grunn}</p>
-  if (resultat.rader.length === 0) return <p className="undertittel">Ingen tall i perioden.</p>
 
   return (
     <>
       <p className="malekort-periode">{resultat.etikett}</p>
+      {resultat.rader.length === 0 && <p className="undertittel">Ingen butikker med målbart grunnlag i perioden.</p>}
+      {(resultat.utenGrunnlag ?? []).map((r) => (
+        <p key={r.stasjonId} className="undertittel">{r.navn}: ikke rangert — {r.grunn}</p>
+      ))}
       <ol className="rang-rader">
         {resultat.rader.map((r, i) => {
           const egen = egenIds?.has(r.stasjonId) ?? false

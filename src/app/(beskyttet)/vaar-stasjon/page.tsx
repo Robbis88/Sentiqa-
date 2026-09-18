@@ -52,12 +52,7 @@ export default async function VaarStasjonSide() {
 
   let maling: TabletKort[] = []
   if (st) {
-    // Samme svelging som /maaling hadde. Nettbrettet har vist maalekortene
-    // tomme like lenge, for de samme fem butikkene, uten at noen kunne se
-    // hvorfor. Her er det ingen flate aa melde feilen paa - de som staar
-    // paa gulvet kan uansett ikke gjore noe med den - saa den logges, og
-    // kortene utelates framfor aa vises som nuller.
-    const { data: kortData } = await supabase
+    const { data: kortData, error: kortFeil } = await supabase
       .from('malekort')
       .select('id, navn, metrikk, normalisering, periode, retning, krev_fullstendig_periode, anonymiser')
       .eq('vis_tablet', true)
@@ -72,16 +67,24 @@ export default async function VaarStasjonSide() {
     // Den gamle `malekort_stasjoner()` ga navnet paa hver stasjon til den
     // delte nettbrettkontoen; nye `malekort_navn` gir null der kortet er
     // anonymt.
-    const malRes = await Promise.all(malkort.map(async (k) => {
+    maling = await Promise.all(malkort.map(async (k): Promise<TabletKort> => {
+      try {
       const { data: stData, error: stFeil } = await supabase
         .rpc('malekort_navn', { p_malekort: k.id })
-      if (stFeil) console.error('malekort_navn feilet paa /vaar-stasjon', stFeil)
+      if (stFeil) throw stFeil
       const malStasjoner = ((stData ?? []) as {
         id: string; navn: string | null; butikknummer: string | null
       }[]).map((s) => ({ id: s.id, navn: s.navn ? `${s.butikknummer} ${s.navn}` : '' }))
-      return beregnMalekort(supabase, k, malStasjoner)
+      return tabletKort(k.navn, await beregnMalekort(supabase, k, malStasjoner), st.id, k)
+      } catch (feil) {
+        console.error('Målekort feilet paa /vaar-stasjon', feil)
+        return { navn: k.navn, klar: false, status: 'feil' }
+      }
     }))
-    maling = malkort.map((k, i) => tabletKort(k.navn, malRes[i], st.id))
+    if (kortFeil) {
+      console.error('Målekortlisten feilet paa /vaar-stasjon', kortFeil)
+      maling = [{ navn: 'Målekort', klar: false, status: 'feil' }]
+    }
   }
 
   return (

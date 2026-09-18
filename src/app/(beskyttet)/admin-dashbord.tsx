@@ -70,7 +70,7 @@ type DashData = {
 }
 
 // All datahenting samlet og wrappet — dashbordet skal aldri kunne krasje siden.
-async function samleData(supabase: SupabaseClient, retailerId: string, idag: string): Promise<DashData> {
+export async function samleData(supabase: SupabaseClient, retailerId: string, idag: string): Promise<DashData> {
   const tomt: DashData = {
     stasjonsListe: [], navnFor: new Map(), sistePeriode: null, rangRader: [], avdListe: [],
     tilbake: [], aapne: [], forsinkede: [], fullfort30: 0, fokusGrupper: [],
@@ -139,7 +139,10 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
       const r = sikre(l.stasjon_id)
       const mapp = l.seksjon === 'omsetning' ? r.oms : l.seksjon === 'bruttofortjeneste' ? r.brf : r.kost
       const eks = mapp[kode] ?? { regnskap: 0, budsjett: 0 }
-      mapp[kode] = { regnskap: eks.regnskap + (l.regnskap ?? 0), budsjett: eks.budsjett + (l.budsjett ?? 0) }
+      mapp[kode] = {
+        regnskap: eks.regnskap == null || l.regnskap == null || !Number.isFinite(l.regnskap) ? null : eks.regnskap + l.regnskap,
+        budsjett: eks.budsjett == null || l.budsjett == null || !Number.isFinite(l.budsjett) ? null : eks.budsjett + l.budsjett,
+      }
       if (l.seksjon === 'omsetning') avdMedData.add(kode)
     }
     // NIVAAREGELEN, IKKE EN SUM OVER ALLE RADER. Etter reimporten
@@ -159,8 +162,14 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
       r.usynlig += s.usynligKr
       r.usynligUtenVask += s.utenVaskKr
     }
-    const summer = (m: Record<string, { regnskap: number; budsjett: number }>) =>
-      Object.values(m).reduce((a, v) => ({ regnskap: a.regnskap + v.regnskap, budsjett: a.budsjett + v.budsjett }), { regnskap: 0, budsjett: 0 })
+    const summer = (m: Record<string, { regnskap: number | null; budsjett: number | null }>) => {
+      const verdier = Object.values(m)
+      if (!verdier.length) return { regnskap: null, budsjett: null }
+      return verdier.reduce<{ regnskap: number | null; budsjett: number | null }>((a, v) => ({
+        regnskap: a.regnskap == null || v.regnskap == null ? null : a.regnskap + v.regnskap,
+        budsjett: a.budsjett == null || v.budsjett == null ? null : a.budsjett + v.budsjett,
+      }), { regnskap: 0, budsjett: 0 })
+    }
     for (const r of rangMap.values()) { r.oms.total = summer(r.oms); r.brf.total = summer(r.brf) }
     const rangRader = [...rangMap.values()]
     const avdListe = AVDELINGER.filter((a) => avdMedData.has(a.kode))
@@ -208,7 +217,8 @@ async function samleData(supabase: SupabaseClient, retailerId: string, idag: str
     // «alt som ikke er bra»-logikk som /regnskap. Mest kritiske øverst.
     let driftsstatus: DashData['driftsstatus'] = []
     if (sistePeriode) {
-      const varsler = await hentRegnskapVarsler(supabase, retailerId, sistePeriode).catch(() => [])
+      // Feilet maaling skal gaa til oversiktens eksplisitte feilstatus.
+      const varsler = await hentRegnskapVarsler(supabase, retailerId, sistePeriode)
       const rang: Record<string, number> = { rod: 0, gul: 1, gronn: 2 }
       driftsstatus = stasjonsListe.map((s) => {
         const navn = `${s.butikknummer} ${s.navn}`

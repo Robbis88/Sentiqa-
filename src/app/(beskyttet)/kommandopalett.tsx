@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { spørAssistent } from './assistent/handlinger'
 
@@ -28,6 +28,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
   const [venter, setVenter] = useState(false)
   const [valgt, setValgt] = useState(0)
   const felt = useRef<HTMLInputElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
   const router = useRouter()
 
   // Snarveien lytter paa bade Cmd og Ctrl, men hintet viste alltid ⌘ - som
@@ -47,7 +48,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
   }
 
   useEffect(() => {
-    const ned = (e: KeyboardEvent) => {
+    const ned = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setApen((a) => {
@@ -62,7 +63,16 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
   }, [])
 
   useEffect(() => {
-    if (apen) felt.current?.focus()
+    if (!apen) return
+    const d = dialog.current
+    if (!d) return
+    const forrige = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    d.showModal()
+    felt.current?.focus()
+    return () => {
+      if (d.open) d.close()
+      if (forrige?.isConnected) forrige.focus()
+    }
   }, [apen])
 
   const sok = tekst.trim().toLowerCase()
@@ -94,9 +104,24 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
     router.push(p.sti)
   }
 
+  function holdFokus(e: ReactKeyboardEvent<HTMLDialogElement>) {
+    if (e.key !== 'Tab') return
+    const mål = e.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    )
+    if (mål.length === 0) return
+    const første = mål[0]
+    const siste = mål[mål.length - 1]
+    if (e.shiftKey && document.activeElement === første) {
+      e.preventDefault(); siste.focus()
+    } else if (!e.shiftKey && document.activeElement === siste) {
+      e.preventDefault(); første.focus()
+    }
+  }
+
   return (
     <>
-      <button className="sq-sokknapp" onClick={() => setApen(true)} type="button">
+      <button className="sq-sokknapp" aria-label="Spør Sentiqa eller finn noe" onClick={() => setApen(true)} type="button">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
           <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -106,8 +131,8 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
       </button>
 
       {apen && (
-        <div className="sq-dim" onClick={(e) => { if (e.target === e.currentTarget) lukk() }}>
-          <div className="sq-palett" role="dialog" aria-modal="true" aria-label="Spør Sentiqa eller finn noe">
+        <dialog ref={dialog} role="dialog" className="sq-dim" aria-label="Spør Sentiqa eller finn noe" onKeyDown={holdFokus} onCancel={lukk} onClose={lukk} onClick={(e) => { if (e.target === e.currentTarget) lukk() }}>
+          <div className="sq-palett">
             <div className="sq-palett-felt">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
@@ -115,6 +140,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
               </svg>
               <input
                 ref={felt}
+                aria-label="Spørsmål eller sidenavn"
                 value={tekst}
                 placeholder="Spør Sentiqa eller finn noe…"
                 autoComplete="off"
@@ -138,17 +164,21 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
             ) : (
               <ul className="sq-palett-liste">
                 {kanSpørre && (
-                  <li data-valgt={valgt === 0} onMouseEnter={() => setValgt(0)} onClick={() => velg(0)}>
+                  <li data-valgt={valgt === 0} onMouseEnter={() => setValgt(0)}>
+                    <button type="button" className="sq-palett-resultat" onClick={() => velg(0)}>
                     <span>Spør Sentiqa: «{tekst.trim()}»</span>
                     <span className="sq-k">Svar</span>
+                    </button>
                   </li>
                 )}
                 {treff.map((p, i) => {
                   const idx = kanSpørre ? i + 1 : i
                   return (
-                    <li key={p.sti} data-valgt={valgt === idx} onMouseEnter={() => setValgt(idx)} onClick={() => velg(idx)}>
+                    <li key={p.sti} data-valgt={valgt === idx} onMouseEnter={() => setValgt(idx)}>
+                      <button type="button" className="sq-palett-resultat" onClick={() => velg(idx)}>
                       <span>{p.tekst}</span>
                       <span className="sq-k">{p.gruppe || 'Gå til'}</span>
+                      </button>
                     </li>
                   )
                 })}
@@ -166,7 +196,7 @@ export function Kommandopalett({ punkter }: { punkter: Punkt[] }) {
               </div>
             )}
           </div>
-        </div>
+        </dialog>
       )}
     </>
   )

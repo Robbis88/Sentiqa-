@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { kr } from '@/lib/format'
 import { type Avd } from '@/lib/avdelinger'
 
-type AvdVerdi = { regnskap: number; budsjett: number }
+type AvdVerdi = { regnskap: number | null; budsjett: number | null }
 export type RangRad = {
   navn: string
   oms: Record<string, AvdVerdi>
@@ -54,22 +54,30 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
 
   type Linje = { navn: string; verdi: number; budsjett: number | null; pst?: boolean; under?: string }
   let linjer: Linje[]
+  const mangler: string[] = []
   if (fane === 'oms' || fane === 'brf') {
     const kilde = fane === 'oms' ? 'oms' : 'brf'
     linjer = rader
-      .map((r) => { const v = r[kilde][avd] ?? { regnskap: 0, budsjett: 0 }; return { navn: r.navn, verdi: v.regnskap, budsjett: v.budsjett } })
+      .flatMap((r) => { const v = r[kilde][avd]; if (v?.regnskap == null || !Number.isFinite(v.regnskap)) { mangler.push(r.navn); return [] }
+        return [{ navn: r.navn, verdi: v.regnskap, budsjett: v.budsjett }] })
       .sort((a, b) => b.verdi - a.verdi) // best (mest) øverst
   } else if (fane === 'lonn') {
     linjer = rader
-      .map((r) => {
-        const lonn = LONN_KONTI.reduce((s, k) => s + (r.kost?.[k]?.regnskap ?? 0), 0)
-        const oms = r.oms.total?.regnskap ?? 0
-        return { navn: r.navn, verdi: oms > 0 ? (lonn / oms) * 100 : 0, budsjett: null, pst: true, under: `${kr.format(Math.round(lonn))} lønn` }
+      .flatMap((r) => {
+        const loennsposter = LONN_KONTI.flatMap(k => r.kost?.[k] ? [r.kost[k]] : [])
+        const oms = r.oms.total?.regnskap
+        if (oms == null || !Number.isFinite(oms) || oms <= 0 || loennsposter.length === 0
+          || loennsposter.some(v => v.regnskap == null || !Number.isFinite(v.regnskap))) {
+          mangler.push(r.navn); return []
+        }
+        const lonn = loennsposter.reduce((s, v) => s + (v.regnskap as number), 0)
+        return [{ navn: r.navn, verdi: (lonn / oms) * 100, budsjett: null, pst: true, under: `${kr.format(Math.round(lonn))} lønn` }]
       })
       .sort((a, b) => a.verdi - b.verdi) // lavest lønn% = best øverst
   } else if (fane === 'kostnad') {
     linjer = rader
-      .map((r) => { const v = r.kost?.[avd] ?? { regnskap: 0, budsjett: 0 }; return { navn: r.navn, verdi: v.regnskap, budsjett: v.budsjett } })
+      .flatMap((r) => { const v = r.kost?.[avd]; if (v?.regnskap == null || !Number.isFinite(v.regnskap)) { mangler.push(r.navn); return [] }
+        return [{ navn: r.navn, verdi: v.regnskap, budsjett: v.budsjett }] })
       .sort((a, b) => (a.verdi - (a.budsjett ?? 0)) - (b.verdi - (b.budsjett ?? 0))) // mest under budsjett = best øverst
   } else if (fane === 'synlig') {
     linjer = rader.map((r) => ({ navn: r.navn, verdi: Math.round(r.kast), budsjett: null })).sort((a, b) => b.verdi - a.verdi) // verst (mest kast) øverst
@@ -146,6 +154,7 @@ export function Stasjonsrangering({ rader, avdelinger }: { rader: RangRad[]; avd
           )
         })}
       </ol>
+      {mangler.length > 0 && <p className="undertittel">Ikke rangert — mangler gyldig grunnlag: {mangler.join(', ')}.</p>}
 
       {linjer.length > 3 && (
         <button type="button" className="liten rang-mer" onClick={() => setVisAlle((v) => !v)}>
