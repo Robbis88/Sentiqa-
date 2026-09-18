@@ -141,13 +141,17 @@ export default async function RegnskapSide({ searchParams }: { searchParams: Pro
   const kontekst = lagRapportKontekst({ stasjonId: valgtStasjon, periode: aktivPeriode, modus: hittil ? 'hittil' : 'maaned' })
   const forrigePeriode = !hittil ? liste.find((p) => p < aktivPeriode) : null
   const fjorPeriode = !hittil ? liste.find((p) => p === `${String(Number(aktivPeriode.slice(0, 4)) - 1)}-${aktivPeriode.slice(5, 7)}-01`) : null
-  const [{ data: svinnData }, { data: dekning }, { data: forrigeData }, { data: fjorData }, varsler] = await Promise.all([
+  const [{ data: svinnData, error: svinnFeil }, { data: dekning, error: dekningFeil }, { data: forrigeData, error: forrigeFeil }, { data: fjorData, error: fjorFeil }, varsler] = await Promise.all([
     supabase.rpc('svinn_sum', { p_fra: kontekst.fra, p_til: kontekst.til }),
-    supabase.from('v_datadekning').select('kilde, siste_dato').eq('stasjon_id', valgtStasjon ?? ''),
-    forrigePeriode ? supabase.rpc('svinn_sum', { p_fra: forrigePeriode, p_til: forrigePeriode }) : Promise.resolve({ data: null }),
-    fjorPeriode ? supabase.rpc('svinn_sum', { p_fra: fjorPeriode, p_til: fjorPeriode }) : Promise.resolve({ data: null }),
+    supabase.from('v_datadekning').select('kilde, siste_dato').eq('stasjon_id', valgtStasjon ?? '').limit(20),
+    forrigePeriode ? supabase.rpc('svinn_sum', { p_fra: forrigePeriode, p_til: forrigePeriode }) : Promise.resolve({ data: null, error: null }),
+    fjorPeriode ? supabase.rpc('svinn_sum', { p_fra: fjorPeriode, p_til: fjorPeriode }) : Promise.resolve({ data: null, error: null }),
     bruker.retailerId ? hentRegnskapVarsler(supabase, bruker.retailerId, kontekst.til, { fra: kontekst.fra, stasjonId: valgtStasjon }) : Promise.resolve([]),
   ])
+  if (svinnFeil) throw new Error(`svinn_sum feilet: ${svinnFeil.message}`)
+  if (dekningFeil) throw new Error(`datadekning feilet: ${dekningFeil.message}`)
+  if (forrigeFeil) throw new Error(`forrige svinnperiode feilet: ${forrigeFeil.message}`)
+  if (fjorFeil) throw new Error(`fjor svinnperiode feilet: ${fjorFeil.message}`)
 
   const medAvvik = <T extends { regnskap: number | null; budsjett: number | null }>(r: T) => ({
     ...r, avvik: (r.regnskap ?? 0) - (r.budsjett ?? 0),

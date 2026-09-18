@@ -78,10 +78,12 @@ export async function RegnskapButikksjef({ bruker, periode: valgtPeriode, butikk
   // måned uten tall.
   const { data: alle, error } = await supabase.rpc('regnskap_sum', { p_fra: fra, p_til: aktivPeriode })
   if (error) throw new Error(`regnskap_sum feilet: ${error.message}`)
-  const [{ data: svinnData }, { data: dekning }] = await Promise.all([
+  const [{ data: svinnData, error: svinnFeil }, { data: dekning, error: dekningFeil }] = await Promise.all([
     supabase.rpc('regnskap_svinn_rapport', { p_fra: kontekst.fra, p_til: kontekst.til, p_stasjon_id: stasjon.id }),
-    supabase.from('v_datadekning').select('kilde, siste_dato').eq('stasjon_id', stasjon.id),
+    supabase.from('v_datadekning').select('kilde, siste_dato').eq('stasjon_id', stasjon.id).limit(20),
   ])
+  if (svinnFeil) throw new Error(`regnskap_svinn_rapport feilet: ${svinnFeil.message}`)
+  if (dekningFeil) throw new Error(`datadekning feilet: ${dekningFeil.message}`)
   type SumRad = { stasjon_id: string | null; seksjon: string; kode: string | null; begrep: string | null; post: string; sortering: number | null; regnskap: number | null; budsjett: number | null }
   const linjer: Linje[] = ((alle ?? []) as SumRad[])
     .filter((r) => r.stasjon_id === stasjon.id)
