@@ -96,16 +96,17 @@ function iFjor(type: PeriodeType, fra: string, til: string): { fra: string; til:
   return { fra: leggTil(fra, -364), til: leggTil(til, -364) }
 }
 
-async function erKomplett(supabase: SupabaseClient, fra: string, til: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('malekort_salgsdatoer', { p_fra: fra, p_til: til })
+async function erKomplett(supabase: SupabaseClient, kortId: string, stasjoner: { id: string }[], fra: string, til: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('malekort_salgsdekning', { p_malekort: kortId, p_fra: fra, p_til: til })
   // «VENTER PAA FULLSTENDIGE TALL» ER EN SANN SETNING OM FEIL TING.
   // Svelges feilen, blir datosettet tomt, funksjonen svarer false, og
   // kortet melder at det venter paa data - i det uendelige. Det er
   // noeyaktig formen som holdt /maaling stille: en rolig setning som
   // beskriver noe helt annet enn det som skjedde.
-  if (error) throw new Error(`malekort_salgsdatoer feilet: ${error.message}`)
-  const dager = new Set(((data ?? []) as { dato: string }[]).map((r) => r.dato))
-  return dager.size >= antallDager(fra, til)
+  if (error) throw new Error(`malekort_salgsdekning feilet: ${error.message}`)
+  const dekning = new Map(((data ?? []) as { stasjon_id: string; dager: number }[]).map((r) => [r.stasjon_id, Number(r.dager)]))
+  const forventet = antallDager(fra, til)
+  return stasjoner.every((s) => dekning.get(s.id) === forventet)
 }
 
 type SalgRad = { stasjon_id: string; omsetning: number; antall: number; brutto: number }
@@ -146,7 +147,7 @@ export async function beregnMalekort(
   // Velg periode: nyeste KOMPLETTE (eller bare nyeste hvis regelen er av).
   let valgt: Kandidat | null = null
   for (const k of kandidater(kort.periode, siste.dato)) {
-    if (!kort.krev_fullstendig_periode || (await erKomplett(supabase, k.fra, k.til))) { valgt = k; break }
+    if (!kort.krev_fullstendig_periode || (await erKomplett(supabase, kort.id, stasjoner, k.fra, k.til))) { valgt = k; break }
   }
   if (!valgt) return { klar: false, grunn: 'Venter på fullstendige tall for perioden.' }
 
