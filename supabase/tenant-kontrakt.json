@@ -2917,9 +2917,13 @@
    "tablet": "none",
    "manager": "assigned_stations",
    "owner": "retailer",
+   "seed_ekstra": [
+    "insert into public.rutineskjemaer (id, retailer_id, stasjon_id, vakttype, navn, tid_start, tid_slutt) values ('{{seed:skjema}}', '{{retailer}}', '{{stasjon}}', 'morgen', 'Sondeskjema {{n}}', '06:00', '14:00')",
+    "insert into public.rutiner (id, retailer_id, stasjon_id, skjema_id, tittel) values ('{{seed:rutine}}', '{{retailer}}', '{{stasjon}}', '{{seed:skjema}}', 'Sonderutine {{n}}')"
+   ],
    "business_unik": ["rutine_id", "dato"],
    "proberad": {
-   "rutine_id": "'{{unik}}'",
+   "rutine_id": "'{{seed:rutine}}'",
    "skjema_id": "gen_random_uuid()",
     "dato": "{{unik_dato}}",
     "vakttype": "'morgen'",
