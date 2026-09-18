@@ -240,10 +240,19 @@ export async function kjorBacktestForRetailer(supabase: Klient, retailerId: stri
 
 // ── Hjelper: hent kalibrering for en stasjon (brukt av live-motorene) ────────
 export async function hentKalibrering(supabase: Klient, stasjonId: string, type: 'produksjonsplan' | 'salgsprognose'): Promise<Map<string, number>> {
+  const detaljer = await hentKalibreringDetaljer(supabase, stasjonId, type)
+  return new Map([...detaljer.entries()].map(([kategori, verdi]) => [kategori, verdi.korreksjon]))
+}
+
+export async function hentKalibreringDetaljer(
+  supabase: Klient,
+  stasjonId: string,
+  type: 'produksjonsplan' | 'salgsprognose',
+): Promise<Map<string, { korreksjon: number; n: number }>> {
   const svar = await supabase
-    .from('prognose_kalibrering').select('kategori, korreksjon').eq('stasjon_id', stasjonId).eq('type', type).limit(1000)
+    .from('prognose_kalibrering').select('kategori, korreksjon, n').eq('stasjon_id', stasjonId).eq('type', type).limit(1000)
   if (!svar.error && !svar.data) throw new Error('Mangler svar om kalibrering.')
-  const m = new Map<string, number>()
-  for (const r of maaVaereHele(svar, 'kalibrering') as { kategori: string; korreksjon: number }[]) m.set(r.kategori, r.korreksjon)
+  const m = new Map<string, { korreksjon: number; n: number }>()
+  for (const r of maaVaereHele(svar, 'kalibrering') as { kategori: string; korreksjon: number; n: number }[]) m.set(r.kategori, { korreksjon: r.korreksjon, n: r.n })
   return m
 }

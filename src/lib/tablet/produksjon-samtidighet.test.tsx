@@ -76,3 +76,9 @@ it('lar to forskjellige varer lagres parallelt uten å blokkere hverandre', asyn
   await act(async () => { pølse.ok(); await pølse.promise })
   await act(async () => { bolle.ok(); await bolle.promise })
 })
+
+it('viser fortsatt bare den enkle publiserte planen på tablet', () => {
+  vis()
+  expect(vert.textContent).not.toContain('Hvorfor')
+  expect(vert.querySelector('details')).toBeNull()
+})

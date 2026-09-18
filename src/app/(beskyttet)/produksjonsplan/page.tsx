@@ -3,9 +3,9 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
-import { lagProduksjonsplan, leggTilDager, produksjonsdag, produksjonsreferanse, medMargin, startAntall, effektivProsent, STANDARD_KODE, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, produksjonsdag, produksjonsreferanse, medMargin, startAntall, effektivProsent, STANDARD_KODE, type PlanForklaring, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
 import { hentProduksjonskoder, IKKE_KONFIGURERT_TEKST } from '@/lib/produksjonskoder'
-import { hentKalibrering } from '@/lib/backtest'
+import { hentKalibreringDetaljer } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
 import { erHelligdag, fjorHelligdag, helligdagNavn } from '@/lib/helligdager'
 import { PlanTabell, type Gruppe, type Produkt } from './plan-tabell'
@@ -212,6 +212,7 @@ export default async function ProduksjonsplanSide({
   let prosent = { start: 0, margin: 0 }
   let gruppeAvvik: Record<string, { start: number | null; margin: number | null }> = {}
   let arrangementer: { id: string; navn: string; faktor: number }[] = []
+  let planForklaring: PlanForklaring | null = null
 
   const oppsett = await hentProduksjonskoder(supabase)
   ikkeKonfigurert = oppsett.status === 'ikke_konfigurert'
@@ -291,8 +292,10 @@ export default async function ProduksjonsplanSide({
 
     const vaerKoeff = await hentVaerKoeff(supabase, stasjon.id, 'varegruppe')
     const plan = lagProduksjonsplan({ maalDato: dato, sisteSalgsdato, salg: punkter, vaerMaal: vMaal ?? null, vaerFjor: vFjor ?? null, vaerfolsomhet: stasjon.vaerfolsomhet_laert ?? stasjon.vaerfolsomhet ?? 0.5, vaerKoeff, arrangementFaktor, helligdag: erHelligdag(dato), fjorHelligdag: fjorHelligdag(dato) })
+    planForklaring = plan.forklaring
     // Selvlæring: gang inn korreksjon pr varegruppe fra egen treffhistorikk (§7).
-    const kalibrering = await hentKalibrering(supabase, stasjon.id, 'produksjonsplan')
+    const kalibreringDetaljer = await hentKalibreringDetaljer(supabase, stasjon.id, 'produksjonsplan')
+    const kalibrering = new Map([...kalibreringDetaljer.entries()].map(([kode, verdi]) => [kode, verdi.korreksjon]))
     advarsler = plan.advarsler
     if (kalibrering.size > 0) advarsler.push('Selvlært kalibrering aktiv — forslaget er justert mot stasjonens egen treffhistorikk.')
     if (helligdagNavn(dato)) advarsler.push(`${helligdagNavn(dato)} — forslaget bygger på fjorårets samme helligdag, ikke vanlige ukedager.`)
@@ -319,15 +322,31 @@ export default async function ProduksjonsplanSide({
       // Marginen legges paa PLANLAGT, aldri paa foreslatt: backtesten
       // maaler foreslatt mot faktisk salg og ville lest paaslaget som
       // at modellen overvurderer.
-      const planlagt = l?.planlagt ?? medMargin(justert, marginPst)
+      const automatiskPlanlagt = medMargin(justert, marginPst)
+      const planlagt = l?.planlagt ?? automatiskPlanlagt
+      const automatiskStart = startAntall(automatiskPlanlagt, startPst)
 
       const produkt: Produkt = {
-        varenavn: f.varenavn, baseline: f.basis,
+        varenavn: f.varenavn, baseline: f.basis, fjorMedian: f.fjorMedian, nyligSnitt: f.nyligSnitt,
         faktor: korr !== 1 ? Math.round(f.samletfaktor * korr * 100) / 100 : f.samletfaktor,
         foreslatt: justert,
         planlagt,
-        start_antall: l?.start_antall ?? startAntall(planlagt, startPst),
+        start_antall: l?.start_antall ?? automatiskStart,
         ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
+        forklaring: {
+          ...f.forklaring,
+          selvlaertKorreksjon: korr,
+          selvlaertAntall: kalibreringDetaljer.get(f.varegruppeKode ?? '')?.n ?? null,
+          marginProsent: marginPst,
+          startProsent: startPst,
+          automatiskForslag: justert,
+          automatiskPlanlagt,
+          automatiskStart,
+          avvikerFraAutomatisk: l != null && l.planlagt !== automatiskPlanlagt,
+          vaerfaktor: f.vaerfaktor,
+          trendfaktor: f.trendfaktor,
+          arrangementFaktor: plan.forklaring.arrangementFaktor,
+        },
       }
       const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)
@@ -430,14 +449,14 @@ export default async function ProduksjonsplanSide({
         />
       ) : (
         <>
-          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} notat={hodeData?.notat ?? null} publisertTid={hodeData?.publisert_tid ?? null} prosent={prosent} gruppeAvvik={gruppeAvvik} />
+          <PlanTabell grupper={grupper} stasjonId={stasjon!.id} dato={dato} notat={hodeData?.notat ?? null} publisertTid={hodeData?.publisert_tid ?? null} prosent={prosent} gruppeAvvik={gruppeAvvik} planForklaring={planForklaring ?? undefined} />
 
           {/* NIVÅ 4 — grunnlaget. Sto som undertittel over hele siden. */}
           <Forklaring sporsmaal="Hvor kommer forslaget fra?">
             <p>
-              Grunnlaget er fjorårets samme ukedag (median), justert med nylig trend og
-              værvarselet for dagen. Kampanjer oppdages og trekkes fra, så en uke med
-              halv pris på boller ikke blir til en permanent forventning.
+              Grunnlaget er fjorårets sammenlignbare dager (median), justert med nylig trend og
+              værvarselet for dagen. Uvanlige salgsutslag markeres som mulig kampanjepåvirkning,
+              slik at en uke med halv pris på boller ikke blir til en permanent forventning.
             </p>
             <p>
               Historikken inneholder <strong>{datadybde} salgsdag{datadybde === 1 ? '' : 'er'}</strong> totalt.

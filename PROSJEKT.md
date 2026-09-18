@@ -220,6 +220,8 @@ Løsning (tablet-markering finnes IKKE her — nettbutikkens data skal ikke inn)
 - **Kun høyselgere:** terskel snitt ≥ ~2–3/dag. Smale varer (0 = bare tirsdag) utløser aldri spørsmål.
 - **Etter bekreftet ja:** ut av baseline + trend, og estimer tapt salg i antall + kroner («3 dager utsolgt ≈ 24 tapte ≈ 600 kr»). Synlig og overstyrbar.
 
+**Fremtidig arbeidspunkt:** Undersøk kontrollert justering basert på faktisk salg, registrert svinn per produkt, planlagt mengde, datadekning og signal om mulig utsolgt. Dette inngår ikke i dagens produksjonsmotor eller forklaringsversjon.
+
 ## 8. AI-assistenten — hjertet i Sentiqa
 
 Claude-drevet. Svarer på vanlig norsk med tall fra retailerens egne data.
