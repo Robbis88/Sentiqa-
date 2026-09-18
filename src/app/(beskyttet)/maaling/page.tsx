@@ -1,3 +1,4 @@
+import { egneMaalinger, maalegrunnlag } from '@/lib/malekort-oppsummering'
 import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { hentVarehierarki } from '@/lib/varehierarki'
@@ -133,20 +134,8 @@ export default async function MalingSide() {
 
   let svar: string | null = null
   if (erButikksjef) {
-    const egne = klare.flatMap(({ kort, res }) => {
-      const plass = res.rader.findIndex((rad) => egenIds?.has(rad.stasjonId))
-      return plass < 0 ? [] : [{ navn: kort.navn, plass: plass + 1, av: res.rader.length }]
-    })
-    if (egne.length > 0) {
-      const snitt = Math.round(egne.reduce((s, e) => s + e.plass, 0) / egne.length)
-      const best = egne.reduce((a, e) => (e.plass < a.plass ? e : a))
-      const svakest = egne.reduce((a, e) => (e.plass > a.plass ? e : a))
-      svar = `Din butikk ligger i snitt på ${snitt}. plass av ${egne[0].av}`
-      // Med bare ett målekort er «best» og «svakest» det samme kortet.
-      if (egne.length > 1 && best.navn !== svakest.navn) {
-        svar += `. Best på «${best.navn}», svakest på «${svakest.navn}»`
-      }
-    }
+    const egne = klare.flatMap(({ kort, res }) => egneMaalinger(kort, res, egenIds ?? new Set()))
+    svar = egne.length > 0 ? egne.join('. ') : null
   } else {
     const forsteplasser = new Map<string, number>()
     for (const { res } of klare) {
@@ -194,6 +183,7 @@ export default async function MalingSide() {
                 <h2>{m.navn}</h2>
                 <span className="malekort-meta">
                   {METRIKK_ETIKETT[m.metrikk] ?? m.metrikk} · {PERIODE_ETIKETT[m.periode] ?? m.periode}
+                  {` · ${maalegrunnlag(m)}`}
                   {m.malekort_scope.length > 0
                     ? ` · ${m.malekort_scope.map((s) => s.navn ?? s.kode).join(', ')}`
                     : ' · alt salg'}
@@ -217,8 +207,10 @@ export default async function MalingSide() {
       <Forklaring sporsmaal="Hvordan rangeres butikkene?">
         <p>
           Hvert målekort måler én ting for én periode. Butikkene sorteres på verdien,
-          og «mot i fjor» sammenligner med samme periode året før — så en butikk som
-          er liten, men vokser, ikke automatisk taper mot en stor som står stille.
+          etter normaliseringen og retningen som står på kortet. «Mot i fjor»
+          sammenligner med samme periode året før. Per kunde gjør størrelser mer
+          sammenlignbare; vekst rangerer prosentvis utvikling. Butikker uten målbart
+          grunnlag får ingen plassering.
         </p>
         <p>
           Krever kortet en fullstendig periode, vises ingen rangering før perioden er
