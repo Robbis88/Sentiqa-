@@ -7,21 +7,25 @@ import { ROLLE_ETIKETT } from '@/lib/auth/typer'
 import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
 import { idagOslo } from './periode'
 import { erTreffoppfolging, lesPrognose, signerPrognose, type Prognosereferanse } from './prognosereferanse'
+import { hentScope, type Scope } from './scope'
 
-// Chatbot kjører på Sonnet (PROSJEKT.md §8/§18 — margin; hev til Opus ved behov).
-const CHATBOT_MODELL = 'claude-sonnet-4-6'
+const CHATBOT_MODELL = 'claude-opus-4-7'
 
-// Hevet fra 8: katalogen er nå bred nok til at et ærlig svar ofte krever
-// to–tre kilder (BP + salg + dekning), og taket skal ikke være det som
-// stopper undersøkelsen.
-const MAKS_ITERASJONER = 14
+// Seks runder dekker sammensatte spørsmål og holder chatten innenfor tidsgrensen.
+const MAKS_ITERASJONER = 6
+const MAKS_SVAR_TOKENS = 16_000
 
 export type Melding = { rolle: 'bruker' | 'assistent'; tekst: string; prognoseRef?: string }
 export type AssistentSvar = { svar: string; kilder: string[]; prognoseRef?: string }
 
 
-function systemprompt(bruker: InnloggetBruker, idag: string): string {
+function systemprompt(bruker: InnloggetBruker, idag: string, scope?: Scope): string {
   const erEier = bruker.rolle === 'retailer_admin'
+  const stasjonskontekst = scope
+    ? scope.stasjoner.length
+      ? scope.stasjoner.map((s) => `${s.butikknummer} ${s.navn}`).join(', ')
+      : 'Ingen stasjoner er tilgjengelige i denne økten.'
+    : 'Stasjoner må hentes med list_stasjoner før du navngir dem.'
 
   // TILGANGSREGELEN ER IKKE EN SIKKERHETSGRENSE. RLS avgjør hva som
   // returneres; dette avgjør hva modellen SIER. Den gamle formuleringen
@@ -47,6 +51,10 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
 
   return [
     'Du er Sentiqa-assistenten for en bensinstasjonskjede. Du svarer på norsk bokmål.',
+    'KONTEKST SOM GJELDER I DENNE MELDINGEN:',
+    `Rolle: ${ROLLE_ETIKETT[bruker.rolle]}. Dato: ${idag}.`,
+    `Autoriserte stasjoner: ${stasjonskontekst}.`,
+    'Tall, perioder og årsaker er ikke forhåndslastet. Hent dem med riktig verktøy før du konkluderer. Ikke bruk denne kontekstblokken som tallgrunnlag.',
     rolleRegel,
     '',
     'DU ER ET SPØRRELAG, IKKE EN RAPPORTKNAPP.',
@@ -139,6 +147,12 @@ function systemprompt(bruker: InnloggetBruker, idag: string): string {
     + 'FØRST og svar fra kilden (oppgi § / kilde). Gjett aldri på regler eller '
     + 'satser. Finner du ingenting, henvis til HR eller Virke.',
     '',
+    'DE TRE VANLIGSTE LEDERSPØRSMÅLENE:',
+    '1) Tariff om arbeidstid og pause: kall sla_opp_kunnskap først. Oppgi paragraf/kilde og skill sikker tekst fra spørsmål som må avklares.',
+    '2) Forventet salg eller produksjon: kall forventet_salg eller hent_produksjonsplan. Suppler med hent_salg og hent_datadekning ved spørsmål om utvikling eller usikkerhet. Si tydelig når vær, arrangement eller utsolgt ikke finnes som datagrunnlag.',
+    '3) Prioritering før ledersamtale: kall hent_bp_status, hent_regnskap, hent_svinn eller hent_lonnsrom etter spørsmålet. Skill sikre funn fra ting som må undersøkes, og foreslå høyst tre konkrete tiltak.',
+    'Ved spørsmål om bemanning og lønnsrom skal du bruke hent_lonnsrom/hent_timeregnskap. Målet er riktig bemanning når kundene kommer, ikke færrest mulige timer.',
+    '',
     'Svar kort: 2–5 setninger, med konkrete tiltak («sjekk vaktplan man–ons», '
     + 'ikke «vurder bemanning»).',
     '',
@@ -208,6 +222,8 @@ export async function kjorAssistent(
   const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
   const supabase = await lagSupabaseServerKlient()
   const idag = idagOslo()
+  const autorisertScope = await hentScope(supabase, bruker.rolle).catch(() => ({ feil: 'scope kunne ikke leses' }))
+  const scope = 'feil' in autorisertScope ? undefined : autorisertScope
 
   const messages: Anthropic.MessageParam[] = [
     ...historikk.map((m): Anthropic.MessageParam => ({
@@ -265,8 +281,8 @@ export async function kjorAssistent(
     try {
       resp = await anthropic.messages.create({
         model: CHATBOT_MODELL,
-        max_tokens: 2048,
-        system: systemprompt(bruker, idag),
+        max_tokens: MAKS_SVAR_TOKENS,
+        system: systemprompt(bruker, idag, scope),
         tools: tilgjengeligeVerktoy,
         messages,
       })

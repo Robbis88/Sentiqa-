@@ -24,6 +24,16 @@ const kall = (vare: string) => ({ stop_reason: 'tool_use', content: [{ type: 'to
 beforeEach(() => { vi.resetAllMocks() })
 
 describe('AI-2 samtalekontekst mot den faktiske assistentløkken', () => {
+  it('bruker Opus med seks runder og rollebevisst kontekst', async () => {
+    mock.modell.mockResolvedValueOnce(ferdig('Jeg trenger et verktøyoppslag for å svare sikkert.'))
+    await kjorAssistent(bruker, [], 'Hva bør jeg prioritere?')
+    const kall = mock.modell.mock.calls[0]![0]
+    expect(kall.model).toBe('claude-opus-4-7')
+    expect(kall.max_tokens).toBe(16000)
+    expect(kall.system).toContain('KONTEKST SOM GJELDER I DENNE MELDINGEN')
+    expect(kall.system).toContain('Tall, perioder og årsaker er ikke forhåndslastet')
+  })
+
   it('uavklart Zero erstatter ikke den siste prognosen som faktisk ga et tall', async () => {
     mock.modell.mockResolvedValueOnce(kall('5000112636833')).mockResolvedValueOnce(ferdig('Dale: omtrent 50.'))
     mock.verktoy.mockResolvedValueOnce(prognose)

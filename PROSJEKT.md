@@ -236,7 +236,7 @@ Claude-drevet. Svarer på vanlig norsk med tall fra retailerens egne data.
 
 **Arkitektur**
 
-Tool-loop (opptil ~12 iterasjoner). Rik kontekst injiseres per melding (rolle, stasjon, siste regnskapsmåned, KPI vs budsjett, aktiv konkurranse, aktive fokuspunkter, relevante kunnskapsartikler). Systemprompt bygges per rolle. Alle tool-kall → `ai_tool_log` (PII-redaksjon).
+Tool-loop (opptil 6 iterasjoner). Rolle og autoriserte stasjoner injiseres per melding; tall og perioder hentes alltid på nytt gjennom rollefiltrerte verktøy. Systemprompt bygges per rolle. Alle tool-kall → `ai_tool_log` (PII-redaksjon).
 
 **Fire AI-bruksområder**
 
@@ -247,7 +247,7 @@ Tool-loop (opptil ~12 iterasjoner). Rik kontekst injiseres per melding (rolle, s
 
 **Modell-ruting og kostnad (kritisk for margin)**
 
-- Chatbot → **Sonnet** (ikke Opus — henter tall + oppsummerer, krever ikke Opus-kvalitet).
+- Chatbot → **Claude Opus 4.7** (sammensatte spørsmål om kunnskap, tall og prioritering).
 - Tung eier-regnskapsanalyse → **Opus** (der kvalitet teller).
 - **Batch-API (50 % rabatt)** → alt ikke-sanntid (auto-fokus, regnskapsanalyse, ukerapport, lederstøtte — nattlig).
 - **Prompt-caching** på systemprompt + kontekst (chatboten re-sender samme store prompt hver iterasjon — perfekt cache-kandidat).
@@ -452,7 +452,7 @@ Ny test `supabase/tests/rls_vakthund.sql` — se AGENTS.md.
 
 ## 18. Teknisk stack (utgangspunkt — foreslå bedre der det passer)
 
-Next.js (App Router) + React + TypeScript + Tailwind. Supabase (Postgres + Auth + Realtime + Storage + RLS). Anthropic Claude (Sonnet til chatbot, Opus til tung analyse, batch-API til nattjobber). Kø: Inngest/Trigger.dev (eller egen worker). Stripe (billing). Sentry (feilsporing). SMS/e-post/web-push (varsler). yr.no/Open-Meteo (vær). Hosting i EU/EØS-region.
+Next.js (App Router) + React + TypeScript + Tailwind. Supabase (Postgres + Auth + Realtime + Storage + RLS). Anthropic Claude (Opus 4.7 til chatbot, Opus til tung analyse, batch-API til nattjobber). Kø: Inngest/Trigger.dev (eller egen worker). Stripe (billing). Sentry (feilsporing). SMS/e-post/web-push (varsler). yr.no/Open-Meteo (vær). Hosting i EU/EØS-region.
 
 **Faste krav uansett stack:** all tid i Europe/Oslo; norsk bokmål i UI + domenekode (stasjon, svinn, oppgave); soft-delete (`slettet_tid`); Server Components default; touch-targets ≥44×44 px på tablet; signerte Storage-URL-er batchet (aldri i loop).
 
