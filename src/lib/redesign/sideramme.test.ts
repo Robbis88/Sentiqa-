@@ -393,6 +393,9 @@ describe('Sideramme-signaturen', () => {
 
 /** Regler som setter en fast bredde, og hvorfor de får lov. */
 const BREDDEUNNTAK: Record<string, string> = {
+  '.rutine-filtre select':
+    'Filtervalg paa rutineoversikten trenger en minimumsbredde for at '
+    + 'alternativene skal vaere lesbare og treffe trygt paa nettbrett.',
   // Ukebriefen. Bredden ligger paa `.ub-spalte`, som page.tsx setter med
   // en literal `className`, og ikke inne i `brev.tsx` bak et uttrykk.
   //
