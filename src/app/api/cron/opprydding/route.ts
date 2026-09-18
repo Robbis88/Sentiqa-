@@ -50,12 +50,14 @@ export async function GET(req: NextRequest) {
   const grenseISO = grense.toISOString()
 
   const slettet: Record<string, number | string> = {}
+  const feil: string[] = []
   for (const tabell of TABELLER) {
     const { data, error } = await supabase
       .from(tabell)
       .delete()
       .lt('opprettet_tid', grenseISO)
       .select('retailer_id')
+    if (error) feil.push(`${tabell}: ${error.message}`)
     slettet[tabell] = error ? `feil: ${error.message}` : (data?.length ?? 0)
   }
 
@@ -68,8 +70,9 @@ export async function GET(req: NextRequest) {
       .delete()
       .lt('opprettet_tid', sikkerhetsgrense.toISOString())
       .select('id')
+    if (error) feil.push(`${tabell}: ${error.message}`)
     slettet[tabell] = error ? `feil: ${error.message}` : (data?.length ?? 0)
   }
 
-  return NextResponse.json({ ok: true, slettet })
+  return NextResponse.json({ ok: feil.length === 0, feil, slettet }, { status: feil.length === 0 ? 200 : 500 })
 }
