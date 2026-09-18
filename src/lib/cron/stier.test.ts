@@ -31,7 +31,29 @@ const planer: Cron[] = JSON.parse(readFileSync(join(ROT, 'vercel.json'), 'utf8')
  * Skal stå tom. En rute her må ha en skrevet grunn — «vi rakk det ikke»
  * er ikke en; da hører den hjemme i planen eller i papirkurven.
  */
-const UTEN_PLAN: Record<string, string> = {}
+const UTEN_PLAN: Record<string, string> = {
+  '/api/cron/ukebrief':
+    'Manuell inngang. Planen peker paa -slott-1/-2/-3 fordi Vercels '
+    + 'validator fra 2026-09-15 avviser flere cron-oppfoeringer med samme '
+    + 'path (invalid_routes). Ruta er fortsatt DEN som baerer logikken, og '
+    + 'den brukes manuelt med ?torrkjor=1 og ?uke=. Se '
+    + 'src/app/api/cron/ukebrief-slott-1/route.ts.',
+}
+
+/**
+ * Er dette ukebriefen — uansett hvilken inngang den kalles gjennom?
+ *
+ * DE TRE SLOTTENE ER ÉN JOBB. Fram til 2026-09-15 sto de som tre
+ * oppfoeringer mot samme path, slik Vercel selv dokumenterer. Da
+ * validatoren begynte aa avvise det, ble de tre unike stier — men det er
+ * fortsatt ett brev med tre forsoek, og paastandene under maaler jobben,
+ * ikke stien.
+ *
+ * Skrives dette om til ett slott igjen, faller de tre siste testene i
+ * fila — og det er meningen.
+ */
+const erUkebrief = (sti: string): boolean =>
+  /^\/api\/cron\/ukebrief(-slott-\d+)?$/.test(sti)
 
 function rutefil(sti: string): string {
   return join(ROT, 'src', 'app', ...sti.split('/').filter(Boolean), 'route.ts')
@@ -78,7 +100,7 @@ describe('cron-stiene i vercel.json', () => {
   // Nattjobben (03:00 UTC) henter gårsdagens salgsfil og regner ukerapport;
   // kjørte briefen før den, ville søndagen manglet i hver eneste uke.
   it('ukebriefen går mandag, og etter nattjobben', () => {
-    const brief = planer.filter((p) => p.path === '/api/cron/ukebrief')
+    const brief = planer.filter((p) => erUkebrief(p.path))
     expect(brief.length, 'ukebriefen har ingen plan').toBeGreaterThan(0)
     const natt = Number(planer.find((p) => p.path === '/api/cron/natt')!.schedule.split(/\s+/)[1])
     for (const b of brief) {
@@ -98,7 +120,7 @@ describe('cron-stiene i vercel.json', () => {
   // september og sviktet i november.
   it('en kjoering ligger etter fristen, ogsaa i vintertid', () => {
     const timer = planer
-      .filter((p) => p.path === '/api/cron/ukebrief')
+      .filter((p) => erUkebrief(p.path))
       .map((p) => Number(p.schedule.split(/\s+/)[1]))
     const senesteOslo = Math.max(...timer) + 1
     expect(senesteOslo * 60,
@@ -109,7 +131,42 @@ describe('cron-stiene i vercel.json', () => {
 
   it('flere kjoeringer, saa en uke med sen fil faar et nytt forsoek', () => {
     // Duplikatsperren gjoer gjentakelse trygg; det var dét den var til for.
-    const antall = planer.filter((p) => p.path === '/api/cron/ukebrief').length
+    const antall = planer.filter((p) => erUkebrief(p.path)).length
     expect(antall, 'én kjoering gir ingen mulighet til aa vente paa fila').toBeGreaterThanOrEqual(2)
+  })
+
+  // ===================================================================
+  // SLOTTENE BAERER INGEN EGEN LOGIKK, OG DET MAA MAALES
+  // ===================================================================
+  //
+  // De tre slott-rutene finnes bare for aa gi Vercels validator unike
+  // stier. Faar én av dem sin egen kropp - en kopiert sjekk, et eget
+  // filter paa mottakere - har vi to utsendingsregler som skiller lag i
+  // stillhet, og den ene sender brev ingen har vurdert.
+  //
+  // Uten denne testen ville en uthulet slott-rute vaert usynlig: den
+  // bygger, den svarer 200, og den gjoer ingenting. Samme form som en
+  // jobb som returnerer vellykket uten aa ha gjort jobben.
+  //
+  // Paastanden er streng med vilje: UTENOM kommentarer skal fila vaere
+  // NOEYAKTIG re-eksporten. Da finnes det ikke plass til logikk.
+  // ===================================================================
+  it('hver slott-rute er kun en re-eksport av den ekte handleren', () => {
+    const slott = cronruter().filter((r) => /-slott-\d+$/.test(r))
+
+    // KANARIFUGL: finnes det ingen slott-ruter, maaler testen ingenting
+    // og ville staatt groenn gjennom hele omgaaelsen.
+    expect(slott.length, 'ingen slott-ruter funnet - maaler denne testen noe?')
+      .toBeGreaterThanOrEqual(2)
+
+    for (const r of slott) {
+      const kode = readFileSync(rutefil(r), 'utf8')
+        .split('\n')
+        .filter((l) => !/^\s*\/\//.test(l) && l.trim() !== '')
+        .join('\n')
+        .trim()
+      expect(kode, `${r} har egen logikk - den skal bare re-eksportere`)
+        .toBe("export { GET, maxDuration } from '../ukebrief/route'")
+    }
   })
 })
