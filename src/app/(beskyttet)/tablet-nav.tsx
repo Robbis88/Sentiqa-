@@ -36,13 +36,13 @@ export function TabletNav() {
   const sti = usePathname()
   const t = useT()
   return (
-    <nav className="tablet-nav">
+    <nav className="tablet-nav" aria-label={t('Hovedmeny')}>
       {FANER.map((f) => {
         const aktiv = sti === f.sti
           || (f.sti !== '/oversikt' && sti.startsWith(f.sti))
           || (UNDER[f.sti] ?? []).some((u) => sti === u || sti.startsWith(u + '/'))
         return (
-          <Link key={f.sti} href={f.sti} className={`tablet-fane ${aktiv ? 'aktiv' : ''}`}>
+          <Link key={f.sti} href={f.sti} aria-current={aktiv ? 'page' : undefined} className={`tablet-fane ${aktiv ? 'aktiv' : ''}`}>
             <span className="tablet-fane-tekst">{t(f.tekst)}</span>
           </Link>
         )
