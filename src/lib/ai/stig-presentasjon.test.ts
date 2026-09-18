@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { InnloggetBruker } from '@/lib/auth/typer'
+import type { Scope } from './scope'
 import { erStigBønesOgSpørUtenfor } from './stigpresentasjon'
 
 const bruker = { rolle: 'butikksjef', fulltNavn: 'Stig', id: 'u1', retailerId: 'r1' } as InnloggetBruker
-const scope = { rolle: 'butikksjef', erEier: false, stasjoner: [{ id: 's1', butikknummer: '0001', navn: 'Bønes', stasjonstype: 'bemannet' }] }
+const scope = { rolle: 'butikksjef', erEier: false, stasjoner: [{ id: 's1', butikknummer: '0001', navn: 'Bønes', stasjonstype: 'bemannet' }] } as Scope
 
 describe('Stig-presentasjon', () => {
   it('bruker demoformuleringen for Dale uten å gi tilgang', () => {
