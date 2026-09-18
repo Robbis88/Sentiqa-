@@ -2965,8 +2965,8 @@
    "tablet": "none",
    "manager": "none",
    "owner": "retailer",
-   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:revisjon_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)", "insert into public.tilbud (id, foresporsel_id) values ('{{seed:tilbud}}', '{{seed:revisjon_foresporsel}}')"],
-   "proberad": { "tilbud_id": "'{{seed:tilbud}}'", "handling": "'sonde'" },
+   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:avtale_revisjon_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)", "insert into public.tilbud (id, foresporsel_id) values ('{{seed:avtale_revisjon_tilbud}}', '{{seed:avtale_revisjon_foresporsel}}')"],
+   "proberad": { "tilbud_id": "'{{seed:avtale_revisjon_tilbud}}'", "handling": "'sonde'" },
    "oppdaterbart": "endringer = '{}'::jsonb"
   },
   {
@@ -2978,8 +2978,8 @@
    "tablet": "none",
    "manager": "none",
    "owner": "retailer",
-   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:revisjon_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)"],
-   "proberad": { "foresporsel_id": "'{{seed:revisjon_foresporsel}}'", "handling": "'sonde'" },
+   "seed_ekstra": ["insert into public.tilbudsforesporsler (id, virksomhet, kontaktperson, epost, telefon, antall_stasjoner, samtykke) values ('{{seed:foresporsel_revisjon_foresporsel}}', 'Sondekunde', 'Sonde', 'sonde@example.invalid', '00000000', 1, true)"],
+   "proberad": { "foresporsel_id": "'{{seed:foresporsel_revisjon_foresporsel}}'", "handling": "'sonde'" },
    "oppdaterbart": "endringer = '{}'::jsonb"
   }
  ]
