@@ -3,7 +3,8 @@ import { hentInnloggetBruker } from '@/lib/auth/dal'
 import { erLeder } from '@/lib/auth/roller'
 import { lagSupabaseServerKlient } from '@/lib/supabase/server'
 import { datoLang, iDag } from '@/lib/format'
-import { lagProduksjonsplan, leggTilDager, produksjonsdag, produksjonsreferanse, medMargin, startAntall, effektivProsent, STANDARD_KODE, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, produksjonsdag, produksjonsreferanse, STANDARD_KODE, type SalgsPunkt, type Vaerdag } from '@/lib/produksjonsplan'
+import { beregnProduksjonsresultat } from '@/lib/produksjonsberegning'
 import { hentProduksjonskoder, IKKE_KONFIGURERT_TEKST } from '@/lib/produksjonskoder'
 import { hentKalibrering } from '@/lib/backtest'
 import { hentVaerKoeff } from '@/lib/vaerprofil'
@@ -304,38 +305,26 @@ export default async function ProduksjonsplanSide({
     const avvikFor = new Map((avvik ?? []).map((a) => [a.varegruppe_kode, a]))
     // '*' er stasjonens standard, samme konvensjon som prognose_treff.kategori.
     const standard = avvikFor.get(STANDARD_KODE)
+    const resultat = beregnProduksjonsresultat(plan, {
+      kalibrering,
+      standardMargin: standard?.margin_prosent,
+      standardStart: standard?.start_prosent,
+      avvik: avvikFor,
+      lagrede: lagretFor,
+    })
     const grupperMap = new Map<string, Gruppe>()
-    for (const f of plan.forslag) {
-      const l = lagretFor.get(f.varenavn)
-      const korr = kalibrering.get(f.varegruppeKode ?? '') ?? 1
-      const justert = Math.max(0, Math.round(f.foreslatt * korr))
-
-      // PROSENTENE SEEDER, DE STYRER IKKE. Finnes linja alt, har noen
-      // tatt stilling til tallet - da skal ikke en innstilling flytte
-      // det i stillhet. `l?.planlagt ?? ...` er hele regelen.
-      const av = avvikFor.get(f.varegruppeKode ?? '')
-      const marginPst = effektivProsent(standard?.margin_prosent, av?.margin_prosent)
-      const startPst = effektivProsent(standard?.start_prosent, av?.start_prosent)
-      // Marginen legges paa PLANLAGT, aldri paa foreslatt: backtesten
-      // maaler foreslatt mot faktisk salg og ville lest paaslaget som
-      // at modellen overvurderer.
-      const planlagt = l?.planlagt ?? medMargin(justert, marginPst)
-
+    for (const f of resultat.produkter) {
+      const original = plan.forslag.find((p) => p.varenavn === f.varenavn)
+      if (!original) continue
       const produkt: Produkt = {
-        id: l?.id,
-        varenavn: f.varenavn, baseline: f.basis,
-        faktor: korr !== 1 ? Math.round(f.samletfaktor * korr * 100) / 100 : f.samletfaktor,
-        foreslatt: justert,
-        planlagt,
-        start_antall: l?.start_antall ?? startAntall(planlagt, startPst),
-        ekskludert: l?.ekskludert ?? false, flagg: f.flagg,
-        forklaring: {
-          ...f.forklaring,
-          kalibreringFaktor: korr,
-          modellForslag: justert,
-          manueltAvvik: l?.planlagt != null && l.planlagt !== justert,
-          startAntall: l?.start_antall ?? startAntall(planlagt, startPst),
-        },
+        id: lagretFor.get(f.varenavn)?.id,
+        varenavn: f.varenavn, baseline: original.basis,
+        faktor: f.kalibreringFaktor !== 1 ? Math.round(original.samletfaktor * f.kalibreringFaktor * 100) / 100 : original.samletfaktor,
+        foreslatt: f.foreslattProduksjon,
+        planlagt: f.planlagtAntall,
+        start_antall: f.anbefaltStartantall,
+        ekskludert: f.ekskludert, flagg: f.flagg,
+        forklaring: { ...f.forklaring, manueltAvvik: f.manuellPlan },
       }
       const nokkel = f.varegruppeKode ?? f.varegruppeNavn ?? '—'
       let g = grupperMap.get(nokkel)
