@@ -1,5 +1,13 @@
 import { effektivProsent, medMargin, startAntall } from './produksjonsplan'
-import type { PlanForslag } from './produksjonsplan'
+import { lagProduksjonsplan, leggTilDager, produksjonsreferanse, type PlanForslag, type SalgsPunkt, type Vaerdag } from './produksjonsplan'
+import { hentProduksjonskoder } from './produksjonskoder'
+import { hentKalibrering } from './backtest'
+import { hentVaerKoeff } from './vaerprofil'
+import { hentPerDato, maaVaereHele } from './supabase/datobolker'
+import { erHelligdag, fjorHelligdag } from './helligdager'
+import type { lagSupabaseServerKlient } from './supabase/server'
+
+type Klient = Awaited<ReturnType<typeof lagSupabaseServerKlient>>
 
 export type LagretPlanlinje = {
   id?: string
@@ -47,6 +55,102 @@ export type BeregnetProduksjonsPlan = {
     anbefaltStartantall: number
     publisertAntall: number | null
   }
+}
+
+export type Produksjonsgrunnlag = {
+  dato: string
+  stasjonId: string
+  sisteSalgsdato: string
+  punkter: SalgsPunkt[]
+  vaerMaal: Vaerdag | null
+  vaerFjor: Vaerdag | null
+  arrangementFaktor: number
+  arrangementer: { navn: string; faktor: number }[]
+  kalibrering: Map<string, number>
+  avvik: Map<string, MarginAvvik>
+  standardMargin: number | null
+  standardStart: number | null
+  lagrede: Map<string, LagretPlanlinje>
+  datadekning: number
+}
+
+/** Leser nøyaktig samme grunnlag som produksjonsplansiden før motoren kjøres. */
+export async function hentProduksjonsgrunnlag(
+  supabase: Klient,
+  stasjonId: string,
+  dato: string,
+): Promise<Produksjonsgrunnlag | null> {
+  const oppsett = await hentProduksjonskoder(supabase)
+  if (oppsett.status !== 'mappet') return null
+  const koder = oppsett.koder
+  const { data: sisteRad, error: sisteFeil } = await supabase.from('v_butikksalg').select('dato')
+    .eq('stasjon_id', stasjonId).in('varegruppe_kode', koder).is('slettet_tid', null)
+    .lt('dato', dato).order('dato', { ascending: false }).limit(1).maybeSingle<{ dato: string }>()
+  if (sisteFeil) throw new Error(`Siste salgsdag kunne ikke hentes: ${sisteFeil.message}`)
+  const sisteSalgsdato = sisteRad?.dato ?? leggTilDager(dato, -1)
+  const referanse = produksjonsreferanse(dato, sisteSalgsdato)
+  const [maalSvar, fjorSvar, linjeSvar, innstillingSvar, arrangementSvar, stasjonSvar] = await Promise.all([
+    supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjonId).eq('dato', dato).maybeSingle<Vaerdag>(),
+    supabase.from('vaer').select('temp_maks, nedbor_mm').eq('stasjon_id', stasjonId).eq('dato', referanse.fjorDato).maybeSingle<Vaerdag>(),
+    supabase.from('produksjonsplan_linjer').select('id, varenavn, planlagt, start_antall, ekskludert').eq('stasjon_id', stasjonId).eq('dato', dato).limit(1000)
+      .overrideTypes<LagretPlanlinje[]>(),
+    supabase.from('stasjon_produksjon_innstilling').select('varegruppe_kode, start_prosent, margin_prosent').eq('stasjon_id', stasjonId).limit(1000)
+      .overrideTypes<MarginAvvik[]>(),
+    supabase.from('arrangementer').select('id, navn, faktor, stasjon_id').eq('dato', dato).neq('status', 'forslag').is('slettet_tid', null).limit(1000)
+      .overrideTypes<{ id: string; navn: string; faktor: number; stasjon_id: string | null }[]>(),
+    supabase.from('stasjoner').select('vaerfolsomhet_laert, vaerfolsomhet').eq('id', stasjonId).maybeSingle<{ vaerfolsomhet_laert: number | null; vaerfolsomhet: number | null }>(),
+  ])
+  for (const svar of [maalSvar, fjorSvar, linjeSvar, innstillingSvar, arrangementSvar, stasjonSvar]) {
+    if (svar.error) throw new Error(`Produksjonsgrunnlaget kunne ikke hentes: ${svar.error.message}`)
+  }
+  const arrangementer = (arrangementSvar.data ?? []).filter((a) => a.stasjon_id === null || a.stasjon_id === stasjonId)
+  const salg = await hentPerDato<{ varenavn: string | null; varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string }>(
+    (fra, til) => supabase.from('v_butikksalg').select('varenavn, varegruppe_kode, varegruppe_navn, antall, dato')
+      .eq('stasjon_id', stasjonId).in('varegruppe_kode', koder).gte('dato', fra).lte('dato', til).is('slettet_tid', null)
+      .order('dato').order('ean').limit(1000).overrideTypes<{
+        varenavn: string | null; varegruppe_kode: string | null; varegruppe_navn: string | null; antall: number | null; dato: string
+      }[]>(),
+    referanse.fra, referanse.til,
+  )
+  const punkter = salg.map((r) => {
+    if (r.antall == null || !Number.isFinite(r.antall)) throw new Error('Salgsantallet er ukjent. Produksjonsforslaget kan ikke beregnes.')
+    return { dato: r.dato, varenavn: (r.varenavn ?? '').trim(), varegruppeKode: r.varegruppe_kode, varegruppeNavn: r.varegruppe_navn, antall: r.antall }
+  }).filter((p) => p.varenavn)
+  const avvik = maaVaereHele(innstillingSvar, 'produksjonsinnstillingene')
+  const lagrede = maaVaereHele(linjeSvar, 'lagrede produksjonslinjer')
+  const arr = maaVaereHele(arrangementSvar, 'arrangementene')
+  const standard = (avvik ?? []).find((a) => a.varegruppe_kode === '*')
+  return {
+    dato, stasjonId, sisteSalgsdato, punkter,
+    vaerMaal: maalSvar.data ?? null, vaerFjor: fjorSvar.data ?? null,
+    arrangementFaktor: arrangementer.reduce((f, a) => f * a.faktor, 1),
+    arrangementer: arrangementer.map((a) => ({ navn: a.navn, faktor: a.faktor })),
+    kalibrering: await hentKalibrering(supabase, stasjonId, 'produksjonsplan'),
+    avvik: new Map((avvik ?? []).map((a) => [a.varegruppe_kode, a])),
+    standardMargin: standard?.margin_prosent ?? null, standardStart: standard?.start_prosent ?? null,
+    lagrede: new Map((lagrede ?? []).map((l) => [l.varenavn, l])),
+    datadekning: new Set(punkter.map((p) => p.dato)).size,
+  }
+}
+
+export async function lagProduksjonsresultatFraGrunnlag(
+  supabase: Klient,
+  grunnlag: Produksjonsgrunnlag,
+): Promise<{ plan: BeregnetProduksjonsPlan; motor: PlanForslag }> {
+  const stasjon = await supabase.from('stasjoner').select('vaerfolsomhet_laert, vaerfolsomhet').eq('id', grunnlag.stasjonId).maybeSingle<{ vaerfolsomhet_laert: number | null; vaerfolsomhet: number | null }>()
+  if (stasjon.error) throw new Error(`Stasjonens værprofil kunne ikke hentes: ${stasjon.error.message}`)
+  const vaerKoeff = await hentVaerKoeff(supabase, grunnlag.stasjonId, 'varegruppe')
+  const motor = lagProduksjonsplan({
+    maalDato: grunnlag.dato, sisteSalgsdato: grunnlag.sisteSalgsdato, salg: grunnlag.punkter,
+    vaerMaal: grunnlag.vaerMaal, vaerFjor: grunnlag.vaerFjor,
+    vaerfolsomhet: stasjon.data?.vaerfolsomhet_laert ?? stasjon.data?.vaerfolsomhet ?? 0.5,
+    vaerKoeff, arrangementFaktor: grunnlag.arrangementFaktor,
+    helligdag: erHelligdag(grunnlag.dato), fjorHelligdag: fjorHelligdag(grunnlag.dato),
+  })
+  return { motor, plan: beregnProduksjonsresultat(motor, {
+    kalibrering: grunnlag.kalibrering, standardMargin: grunnlag.standardMargin,
+    standardStart: grunnlag.standardStart, avvik: grunnlag.avvik, lagrede: grunnlag.lagrede,
+  }) }
 }
 
 /**

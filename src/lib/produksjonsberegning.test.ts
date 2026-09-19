@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { beregnProduksjonsresultat } from './produksjonsberegning'
+import type { PlanForslag } from './produksjonsplan'
 
 const plan = {
   advarsler: [],
@@ -13,7 +14,7 @@ const plan = {
       vaerBrukt: false, observasjoner: 10, raattForslag: 10, avrundetForslag: 10, sikkerhet: 'hoy' as const,
     },
   }],
-} as const
+} as unknown as PlanForslag
 
 describe('felles produksjonsberegning', () => {
   it('holder forventning, produksjon og startantall adskilt', () => {
