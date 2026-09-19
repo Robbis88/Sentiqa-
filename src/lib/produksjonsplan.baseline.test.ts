@@ -202,6 +202,7 @@ describe('utvalget, etter at det ble konfigurasjon', () => {
     expect(treff.sort(), 'nytt kallsted for produksjonsmappingen').toEqual([
       'app/(beskyttet)/produksjonsplan/page.tsx',
       'lib/backtest.ts',
+      'lib/produksjonsberegning.ts',
     ])
   })
 
@@ -209,7 +210,7 @@ describe('utvalget, etter at det ble konfigurasjon', () => {
     // Det er ikke nok å kalle helperen. Kaller du den og ignorerer
     // statusen, filtrerer du på en tom liste og er akkurat like ille
     // stilt som før.
-    for (const f of ['app/(beskyttet)/produksjonsplan/page.tsx', 'lib/backtest.ts']) {
+    for (const f of ['app/(beskyttet)/produksjonsplan/page.tsx', 'lib/backtest.ts', 'lib/produksjonsberegning.ts']) {
       const kilde = readFileSync(join(process.cwd(), 'src', f), 'utf8')
       expect(kilde, `${f} sjekker ikke ikke_konfigurert`).toMatch(/ikke_konfigurert/)
     }

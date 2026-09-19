@@ -14,6 +14,7 @@ import { varegrunn } from '@/lib/forventet/egnethet'
 import { forventetPeriode, maalPeriodetreff } from '@/lib/forventet/periode'
 import { prognosePeriode } from './prognoseperiode'
 import { AVDELINGER } from '@/lib/avdelinger'
+import { hentProduksjonsgrunnlag, lagProduksjonsresultatFraGrunnlag } from '@/lib/produksjonsberegning'
 
 // =====================================================================
 // AI SPØR MOTOREN. AI REGNER IKKE.
@@ -338,46 +339,42 @@ async function hentHierarki(supabase: Klient, stasjonIder: string[], idag: strin
     if (gruppe) {
       const gruppePeriode = prognosePeriode(input, idag)
       if ('feil' in gruppePeriode) return byggSvar({ domene: 'forventet_salg', kilder: ['v_butikksalg'], feil: gruppePeriode.feil })
-      const eanListe = gruppe.ean
-      const perProdukt = await Promise.all(eanListe.map(async (ean) => {
-        const produkt = hierarkiRader.find((r) => r.ean === ean)
-        if (!produkt) return null
-        const salg = await hentSalg(supabase, valgte.map((s) => s.id), ean, fra, idag)
-        const perStasjon = valgte.map((stasjon) => {
-          const f = forventetPeriode({ enhet: { stasjonId: stasjon.id, ean }, prognoseDato: idag,
-            maaldatoer: gruppePeriode.datoer, salg, modell: MODELL, minstDagerMedSalg: MINST_DAGER })
-          const første = f.dager[0]?.forventning
-          return { stasjonId: stasjon.id, antall: f.antall,
-            grunnlag: første?.slag === 'beregnet' ? {
-              basis: første.grunnlag.basis, trendfaktor: første.grunnlag.trendfaktor,
-              dagerMedSalg: første.grunnlag.dagerMedSalg,
-            } : null }
-        })
-        return { produkt, perStasjon }
-      }))
-      const data = valgte.map((stasjon) => {
-        const produkter = perProdukt.filter((x): x is NonNullable<typeof x> => x !== null).map((x) => {
-          const per = x.perStasjon.find((p) => p.stasjonId === stasjon.id)
-          const antall = per?.antall ?? null
-          return { ean: x.produkt.ean, varenavn: x.produkt.varenavn, forventetAntall: antall,
-            dekning: antall === null ? 'ikke_dekning' : 'beregnet' as const,
-            ...(per?.grunnlag ? { grunnlag: per.grunnlag } : {}) }
-        })
-        const beregnede = produkter.filter((p) => p.forventetAntall !== null)
+      if (gruppePeriode.datoer.length !== 1) {
+        return byggSvar({ domene: 'forventet_salg', kilder: ['v_butikksalg'],
+          feil: 'Gruppert produksjonsprognose støtter foreløpig én måldag om gangen.' })
+      }
+      const data = await Promise.all(valgte.map(async (stasjon) => {
+        const grunnlag = await hentProduksjonsgrunnlag(supabase, stasjon.id, gruppePeriode.fra)
+        if (!grunnlag) return { stasjon: etikett(stasjon), nivaa: gruppe.nivaa, gruppe: gruppe.navn,
+          dato: gruppePeriode.fra, fra: gruppePeriode.fra, til: gruppePeriode.til,
+          forventetAntall: null, anbefaltProduksjon: null, anbefaltStartantall: null, produkter: [], manglerPrognose: [], datagrunnlag: 'Produksjonsgruppene er ikke konfigurert.' }
+        const { plan } = await lagProduksjonsresultatFraGrunnlag(supabase, grunnlag)
+        const produkter = plan.produkter.filter((p) => p.varegruppeKode === gruppe.kode || p.varegruppeNavn?.toLocaleLowerCase('nb-NO') === gruppe.navn.toLocaleLowerCase('nb-NO'))
+          .map((p) => {
+            const match = hierarkiRader.find((r) => r.varenavn === p.varenavn && (gruppe.ean.includes(r.ean) || !r.ean))
+            return { ean: match?.ean ?? null, varenavn: p.varenavn, forventetAntall: p.forventetSalg,
+              anbefaltProduksjon: p.anbefaltProduksjon, anbefaltStartantall: p.anbefaltStartantall,
+              planlagtAntall: p.planlagtAntall, dekning: 'beregnet' as const,
+              forklaring: { historiskMedian: p.forklaring.historiskMedian, nyligGjennomsnitt: p.forklaring.nyligGjennomsnitt,
+                trendfaktor: p.forklaring.trendfaktor, vaerfaktor: p.forklaring.vaerfaktor,
+                arrangementFaktor: p.forklaring.arrangementFaktor, observasjoner: p.forklaring.observasjoner } }
+          })
+        const summer = produkter.reduce((s, p) => ({ forventet: s.forventet + p.forventetAntall, produksjon: s.produksjon + p.anbefaltProduksjon, start: s.start + p.anbefaltStartantall }), { forventet: 0, produksjon: 0, start: 0 })
         return { stasjon: etikett(stasjon), nivaa: gruppe.nivaa, gruppe: gruppe.navn,
           dato: gruppePeriode.fra, fra: gruppePeriode.fra, til: gruppePeriode.til,
-          forventetAntall: beregnede.length === produkter.length
-            ? beregnede.reduce((sum, p) => sum + (p.forventetAntall ?? 0), 0) : null,
-          produkter, manglerPrognose: produkter.filter((p) => p.forventetAntall === null).map((p) => p.varenavn),
-        }
-      })
+          forventetAntall: produkter.length ? summer.forventet : null,
+          anbefaltProduksjon: produkter.length ? summer.produksjon : null,
+          anbefaltStartantall: produkter.length ? summer.start : null,
+          produkter, manglerPrognose: [], antallProdukter: produkter.length,
+          datagrunnlag: `Samme produksjonsberegning som planen, siste salgsdag ${grunnlag.sisteSalgsdato}.` }
+      }))
       return byggSvar({
         domene: 'forventet_salg', kilder: ['v_butikksalg'], data,
         scope: { forespurt: valgte.map((s) => s.butikknummer), besvart: valgte.map((s) => s.butikknummer), utenfor_tilgang: utenfor },
         merknad: [
-          `Dette er en deterministisk sum av ${eanListe.length} aktive produkter i ${gruppe.nivaa} «${gruppe.navn}».`,
-          'Totalsummen gis bare når alle produktene har forsvarlig prognose. Manglende prognose er ikke null salg.',
-          `Prognosen gjelder ${gruppePeriode.fra} til ${gruppePeriode.til} og bruker modellen «${MODELL.navn}» med historisk grunnlag og trend. Vær og arrangement er ikke lagt til i dette svaret.`,
+          `Dette er en deterministisk sum av produktene Sentiqa fant salgsgrunnlag for i ${gruppe.nivaa} «${gruppe.navn}».`,
+          'Forventet salg, anbefalt produksjon og startantall er separate verdier. Manglende produktgrunnlag er ikke null salg.',
+          `Prognosen gjelder ${gruppePeriode.fra} til ${gruppePeriode.til} og bruker samme produksjonsberegning som produksjonsplanen.`,
         ],
       })
     }
