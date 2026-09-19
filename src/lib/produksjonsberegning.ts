@@ -81,7 +81,9 @@ export async function hentProduksjonsgrunnlag(
   dato: string,
 ): Promise<Produksjonsgrunnlag | null> {
   const oppsett = await hentProduksjonskoder(supabase)
-  if (oppsett.status !== 'mappet') return null
+  // Samme eksplisitte vakt som produksjonssiden: uten mapping er planen
+  // ikke «tom», den er ikke_konfigurert og skal forklares til brukeren.
+  if (oppsett.status === 'ikke_konfigurert' || oppsett.status !== 'mappet') return null
   const koder = oppsett.koder
   const { data: sisteRad, error: sisteFeil } = await supabase.from('v_butikksalg').select('dato')
     .eq('stasjon_id', stasjonId).in('varegruppe_kode', koder).is('slettet_tid', null)
@@ -118,7 +120,6 @@ export async function hentProduksjonsgrunnlag(
   }).filter((p) => p.varenavn)
   const avvik = maaVaereHele(innstillingSvar, 'produksjonsinnstillingene')
   const lagrede = maaVaereHele(linjeSvar, 'lagrede produksjonslinjer')
-  const arr = maaVaereHele(arrangementSvar, 'arrangementene')
   const standard = (avvik ?? []).find((a) => a.varegruppe_kode === '*')
   return {
     dato, stasjonId, sisteSalgsdato, punkter,
