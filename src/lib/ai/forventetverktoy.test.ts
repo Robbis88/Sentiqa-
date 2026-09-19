@@ -127,7 +127,7 @@ describe('horisonten er maalingens h1–h13, maksimalt sju dager sammen', () => 
     // Utvidet med samme kunnskapstidspunkt og separat periodemaaling.
     const skjema = KODE.slice(KODE.indexOf('properties: {'), KODE.indexOf('required:'))
     const felt = [...skjema.matchAll(/^\s{8}([a-zA-Z_]+):\s*\{/gm)].map((m) => m[1])
-    expect(felt.sort()).toEqual(['fra', 'nivaa', 'periode', 'stasjoner', 'til', 'vare'])
+    expect(felt.sort()).toEqual(['fra', 'gruppe', 'nivaa', 'periode', 'stasjoner', 'til', 'vare'])
   })
 
   it('modellen faar beskjed om aa si fra i stedet for aa gjette', () => {

@@ -8,6 +8,7 @@ import { VERKTOY, VERKTOY_ETIKETT, verktoyForRolle } from './verktoy'
 import { idagOslo } from './periode'
 import { erTreffoppfolging, lesPrognose, signerPrognose, type Prognosereferanse } from './prognosereferanse'
 import { hentScope, type Scope } from './scope'
+import { erStigBønesOgSpørUtenfor } from './stigpresentasjon'
 
 const CHATBOT_MODELL = 'claude-opus-4-7'
 
@@ -18,6 +19,12 @@ const MAKS_SVAR_TOKENS = 16_000
 export type Melding = { rolle: 'bruker' | 'assistent'; tekst: string; prognoseRef?: string }
 export type AssistentSvar = { svar: string; kilder: string[]; prognoseRef?: string }
 
+/**
+ * Presentasjonsregel for demoen. Dette er bare tekst oppå den samme
+ * backend-avvisningen; den gir aldri tilgang til eller bekrefter fremmede
+ * stasjoner. Den må være deterministisk, ellers velger modellen av og til
+ * den generiske scope-meldingen.
+ */
 
 function systemprompt(bruker: InnloggetBruker, idag: string, scope?: Scope): string {
   const erEier = bruker.rolle === 'retailer_admin'
@@ -71,7 +78,7 @@ function systemprompt(bruker: InnloggetBruker, idag: string, scope?: Scope): str
     '- lønnsrom, styringsavvik, over/under på lønn   ->  hent_lonnsrom',
     '- status mot businessplan                        ->  hent_bp_status',
     '- timer mot budsjett                             ->  hent_timeregnskap',
-    '- forventet salg per vare, avdeling eller varegruppe -> forventet_salg (bruk vare med brukerens ord; verktøyet løser nivået)',
+    '- forventet salg per vare, avdeling eller varegruppe -> forventet_salg (bruk vare for én vare; bruk gruppe for Mat, Påsmurt, Bakeri eller annet registrert område)',
     'Finner du ikke et verktøy for tallet, si at Sentiqa ikke har det — '
     + 'ikke bygg det av noe annet.',
     '',
@@ -231,6 +238,13 @@ export async function kjorAssistent(
   const idag = idagOslo()
   const autorisertScope = await hentScope(supabase, bruker.rolle).catch(() => ({ feil: 'scope kunne ikke leses' }))
   const scope = 'feil' in autorisertScope ? undefined : autorisertScope
+
+  if (erStigBønesOgSpørUtenfor(bruker, scope, nyMelding)) {
+    return {
+      svar: 'Stig, vi vet alle at du er nysgjerrig! Men dette får du ikke se her. Spør sjefen din Robert.',
+      kilder: [],
+    }
+  }
 
   const messages: Anthropic.MessageParam[] = [
     ...historikk.map((m): Anthropic.MessageParam => ({
